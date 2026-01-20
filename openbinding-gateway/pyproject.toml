@@ -1,0 +1,25 @@
+[project]
+name = "openbinding-gateway"
+version = "0.1.0"
+description = "QoS-aware service composition gateway"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic>=2.0",
+    "httpx",
+    "jsonschema",
+    "pyyaml"
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "httpx",
+    "ruff",
+    "mypy"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

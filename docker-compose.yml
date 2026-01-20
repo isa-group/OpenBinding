@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  gateway:
+    build:
+      context: ./openbinding-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./schemas:/app/schemas
+    environment:
+      - UNIVERSAL_SCHEMA_PATH=/app/schemas/universal/schema.json
+      - SCHEMAS_DIR=/app/schemas
+    depends_on:
+      - engine-minizinc
+
+  engine-minizinc:
+    build:
+      context: ./engines/minizinc-csp
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - gateway

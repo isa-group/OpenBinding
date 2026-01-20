@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "file:///Users/franciscojaviercaverolopez/Workspace/OpenBinding/schemas/specializations/minizinc-csp.schema.json",
+  "title": "MiniZinc CSP Specialization",
+  "description": "Restricted profile of the Universal QoS Schema for the MVP MiniZinc CSP engine.",
+  "type": "object",
+  "properties": {
+    "composition": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "structured" },
+        "root": { "$ref": "#/$defs/csp_node" }
+      },
+      "required": ["type", "root"]
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "properties": {
+          "id": {
+            "enum": ["cost", "time", "reliability", "availability", "security"]
+          }
+        }
+      }
+    },
+    "aggregation_policies": {
+       "propertyNames": {
+          "enum": ["cost", "time", "reliability", "availability", "security"]
+       }
+    },
+    "objective": {
+      "properties": {
+        "type": { "const": "weighted_sum" }
+      },
+      "required": ["type"]
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "attribute_bound"
+              },
+              "attribute_id": {
+                "enum": [
+                  "cost",
+                  "time",
+                  "reliability",
+                  "availability",
+                  "security"
+                ]
+              },
+              "op": {
+                "enum": [
+                  "<=",
+                  ">=",
+                  "==",
+                  "<",
+                  ">"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "attribute_id",
+              "op"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "dependency"
+              },
+              "type": {
+                "enum": [
+                  "same_provider",
+                  "different_provider"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "type"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "required": ["composition", "features", "aggregation_policies", "objective"],
+  "$defs": {
+    "csp_node": {
+      "oneOf": [
+        { "$ref": "#/$defs/task_node" },
+        { "$ref": "#/$defs/seq_node" },
+        { "$ref": "#/$defs/and_node" },
+        { "$ref": "#/$defs/xor_node" }
+      ]
+    },
+    "task_node": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "TASK" }
+      },
+      "required": ["kind"]
+    },
+    "seq_node": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "SEQ" },
+        "children": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/csp_node" }
+        }
+      },
+      "required": ["kind", "children"]
+    },
+    "and_node": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "AND_PAR" },
+        "children": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/csp_node" }
+        }
+      },
+      "required": ["kind", "children"]
+    },
+    "xor_node": {
+      "type": "object",
+      "properties": {
+        "kind": { "const": "XOR" },
+        "branches": {
+          "type": "array",
+          "items": {
+            "properties": {
+              "child": {
+                "$ref": "#/$defs/csp_node"
+              },
+              "p": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "child",
+              "p"
+            ]
+          }
+        }
+      },
+      "required": ["kind", "branches"]
+    }
+  }
+}

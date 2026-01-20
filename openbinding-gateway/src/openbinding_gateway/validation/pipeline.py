@@ -1,0 +1,52 @@
+from typing import Dict, Any, List
+from ..models.api import ValidationViolation
+from ..registry.engine import EngineRegistry
+from .universal_schema import UniversalSchemaValidator
+from .specialization_schema import SpecializationSchemaValidator
+from .semantic_universal import UniversalSemanticValidator
+
+class ValidationPipeline:
+    def __init__(self):
+        self.universal_validator = UniversalSchemaValidator()
+        self.specialization_validator = SpecializationSchemaValidator()
+        self.semantic_validator = UniversalSemanticValidator()
+        
+    def validate_universal_schema(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
+        # Stage 1: Universal Structural Validation
+        return self.universal_validator.validate(instance)
+        
+    def validate_full(self, engine_id: str, instance: Dict[str, Any]) -> List[ValidationViolation]:
+        violations = []
+        
+        # Stage 0: Engine Lookup
+        try:
+            plugin = EngineRegistry.get_plugin(engine_id)
+        except ValueError:
+            return [ValidationViolation(
+                message=f"Engine '{engine_id}' not found",
+                code="engine_not_found"
+            )]
+            
+        # Stage 2: Specialization Structural Validation
+        v2 = self.specialization_validator.validate(engine_id, instance)
+        if v2:
+            return v2
+            
+        # Stage 3: Universal Semantic Validation
+        v3 = self.semantic_validator.validate(instance)
+        if v3:
+            # We can return here or continue. Usually semantic issues block further checks.
+            return v3
+            
+        # Stage 4: Engine Semantic Validation
+        v4 = plugin.validate_semantics(instance)
+        violations.extend(v4)
+        
+        return violations
+
+    def validate(self, engine_id: str, instance: Dict[str, Any]) -> List[ValidationViolation]:
+        # Backward compatibility / Full validation
+        v1 = self.validate_universal_schema(instance)
+        if v1:
+            return v1
+        return self.validate_full(engine_id, instance)
