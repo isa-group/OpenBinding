@@ -1,0 +1,205 @@
+{
+  "metadata": {
+    "id": "common-instance-01",
+    "name": "Common Valid Instance",
+    "version": "1.0",
+    "created_at": "2026-01-21T14:00:00Z",
+    "description": "A problem instance designed to be valid for both Many-OBJ and MiniZinc-CSP engines."
+  },
+  "providers": [
+    {
+      "id": "aws",
+      "name": "AWS"
+    },
+    {
+      "id": "azure",
+      "name": "Azure"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t_frontend",
+      "name": "Frontend"
+    },
+    {
+      "id": "t_backend",
+      "name": "Backend"
+    },
+    {
+      "id": "t_db",
+      "name": "Database"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "c_fe_1",
+      "task_id": "t_frontend",
+      "provider_id": "aws",
+      "features": {
+        "cost": 100,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_fe_2",
+      "task_id": "t_frontend",
+      "provider_id": "azure",
+      "features": {
+        "cost": 90,
+        "availability": 0.99
+      }
+    },
+    {
+      "id": "c_be_1",
+      "task_id": "t_backend",
+      "provider_id": "aws",
+      "features": {
+        "cost": 200,
+        "availability": 0.9995
+      }
+    },
+    {
+      "id": "c_be_2",
+      "task_id": "t_backend",
+      "provider_id": "azure",
+      "features": {
+        "cost": 180,
+        "availability": 0.995
+      }
+    },
+    {
+      "id": "c_db_1",
+      "task_id": "t_db",
+      "provider_id": "aws",
+      "features": {
+        "cost": 300,
+        "availability": 0.9999
+      }
+    },
+    {
+      "id": "c_db_2",
+      "task_id": "t_db",
+      "provider_id": "azure",
+      "features": {
+        "cost": 250,
+        "availability": 0.998
+      }
+    }
+  ],
+  "features": [
+    {
+      "id": "cost",
+      "name": "Cost",
+      "direction": "minimize",
+      "unit": "USD",
+      "scale": "ratio",
+      "valid_range": {
+        "min": 0,
+        "max": 10000
+      }
+    },
+    {
+      "id": "availability",
+      "name": "Availability",
+      "direction": "maximize",
+      "unit": "probability",
+      "scale": "ratio",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    }
+  ],
+  "composition": {
+    "type": "structured",
+    "root": {
+      "id": "n1",
+      "kind": "SEQ",
+      "children": [
+        {
+          "id": "n_fe",
+          "kind": "TASK",
+          "task_id": "t_frontend"
+        },
+        {
+          "id": "n_xor",
+          "kind": "XOR",
+          "branches": [
+            {
+              "p": 0.8,
+              "child": {
+                "id": "n_be",
+                "kind": "TASK",
+                "task_id": "t_backend"
+              }
+            },
+            {
+              "p": 0.2,
+              "child": {
+                "id": "n_db",
+                "kind": "TASK",
+                "task_id": "t_db"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "cost": {
+      "neutral": 0,
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0,
+          "max": 1000
+        },
+        "increasing_is_better": false
+      },
+      "compose": {
+        "seq": {
+          "fn": "sum"
+        },
+        "and": {
+          "fn": "sum"
+        },
+        "xor": {
+          "fn": "weighted_sum",
+          "expr": "sum(p*x)"
+        }
+      }
+    },
+    "availability": {
+      "neutral": 1,
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0.9,
+          "max": 1.0
+        },
+        "increasing_is_better": true
+      },
+      "compose": {
+        "seq": {
+          "fn": "product"
+        },
+        "and": {
+          "fn": "min"
+        },
+        "xor": {
+          "fn": "weighted_sum",
+          "expr": "sum(p*x)"
+        }
+      }
+    }
+  },
+  "objective": {
+    "type": "weighted_sum",
+    "weights": {
+      "cost": 0.6,
+      "availability": 0.4
+    },
+    "normalized": true
+  }
+}

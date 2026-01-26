@@ -122,7 +122,9 @@
     "and_node": {
       "type": "object",
       "properties": {
-        "kind": { "const": "AND_PAR" },
+        "kind": {
+          "const": "AND"
+        },
         "children": {
             "type": "array",
             "items": { "$ref": "#/$defs/csp_node" }

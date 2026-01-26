@@ -1,197 +1,162 @@
 {
-    "engine_id": "minizinc-csp",
-    "instance": {
-        "metadata": {
-            "id": "var-time-opt",
-            "name": "Variation: Time Optimization",
-            "version": "1.0",
-            "created_at": "2024-01-01T00:00:00Z"
-        },
-        "providers": [
-            {
-                "id": "p1",
-                "name": "Provider 1"
-            }
-        ],
-        "tasks": [
-            {
-                "id": "t1",
-                "name": "Task 1"
-            },
-            {
-                "id": "t2",
-                "name": "Task 2"
-            }
-        ],
-        "candidates": [
-            {
-                "id": "c1_slow_cheap",
-                "task_id": "t1",
-                "provider_id": "p1",
-                "qos": {
-                    "cost": 1,
-                    "time": 100,
-                    "reliability": 0.9,
-                    "availability": 0.9,
-                    "security": 0.9
-                }
-            },
-            {
-                "id": "c1_fast_expensive",
-                "task_id": "t1",
-                "provider_id": "p1",
-                "qos": {
-                    "cost": 100,
-                    "time": 10,
-                    "reliability": 0.9,
-                    "availability": 0.9,
-                    "security": 0.9
-                }
-            },
-            {
-                "id": "c2_slow_cheap",
-                "task_id": "t2",
-                "provider_id": "p1",
-                "qos": {
-                    "cost": 1,
-                    "time": 100,
-                    "reliability": 0.9,
-                    "availability": 0.9,
-                    "security": 0.9
-                }
-            },
-            {
-                "id": "c2_fast_expensive",
-                "task_id": "t2",
-                "provider_id": "p1",
-                "qos": {
-                    "cost": 100,
-                    "time": 10,
-                    "reliability": 0.9,
-                    "availability": 0.9,
-                    "security": 0.9
-                }
-            }
-        ],
-        "features": [
-            {
-                "id": "cost",
-                "name": "Cost",
-                "direction": "minimize",
-                "unit": "USD",
-                "scale": "ratio",
-                "valid_range": {
-                    "min": 0,
-                    "max": 1000
-                },
-                "normalization": {
-                    "type": "minmax",
-                    "bounds": {
-                        "min": 0,
-                        "max": 200
-                    }
-                }
-            },
-            {
-                "id": "time",
-                "name": "Time",
-                "direction": "minimize",
-                "unit": "ms",
-                "scale": "ratio",
-                "valid_range": {
-                    "min": 0,
-                    "max": 1000
-                },
-                "normalization": {
-                    "type": "minmax",
-                    "bounds": {
-                        "min": 0,
-                        "max": 200
-                    }
-                }
-            },
-            {
-                "id": "reliability",
-                "name": "Rel",
-                "direction": "maximize",
-                "unit": "prob",
-                "scale": "ratio",
-                "valid_range": {
-                    "min": 0,
-                    "max": 1
-                },
-                "normalization": {
-                    "type": "minmax",
-                    "bounds": {
-                        "min": 0,
-                        "max": 1
-                    }
-                }
-            },
-            {
-                "id": "availability",
-                "name": "Avail",
-                "direction": "maximize",
-                "unit": "prob",
-                "scale": "ratio",
-                "valid_range": {
-                    "min": 0,
-                    "max": 1
-                },
-                "normalization": {
-                    "type": "minmax",
-                    "bounds": {
-                        "min": 0,
-                        "max": 1
-                    }
-                }
-            },
-            {
-                "id": "security",
-                "name": "Sec",
-                "direction": "maximize",
-                "unit": "prob",
-                "scale": "ratio",
-                "valid_range": {
-                    "min": 0,
-                    "max": 1
-                },
-                "normalization": {
-                    "type": "minmax",
-                    "bounds": {
-                        "min": 0,
-                        "max": 1
-                    }
-                }
-            }
-        ],
-        "composition": {
-            "type": "structured",
-            "root": {
-                "id": "root",
-                "kind": "SEQ",
-                "children": [
-                    {
-                        "id": "n1",
-                        "kind": "TASK",
-                        "task_id": "t1"
-                    },
-                    {
-                        "id": "n2",
-                        "kind": "TASK",
-                        "task_id": "t2"
-                    }
-                ]
-            }
-        },
-        "aggregation_policies": {},
-        "objective": {
-            "type": "weighted_sum",
-            "weights": {
-                "cost": 0.1,
-                "time": 0.9
-            },
-            "normalized": true
+  "engine_id": "minizinc-csp",
+  "instance": {
+    "metadata": {
+      "id": "var-time-opt",
+      "name": "Variation: Time Optimization",
+      "version": "1.0",
+      "created_at": "2024-01-01T00:00:00Z"
+    },
+    "providers": [
+      {
+        "id": "p1",
+        "name": "Provider 1"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "t1",
+        "name": "Task 1"
+      },
+      {
+        "id": "t2",
+        "name": "Task 2"
+      }
+    ],
+    "candidates": [
+      {
+        "id": "c1_slow_cheap",
+        "task_id": "t1",
+        "provider_id": "p1",
+        "features": {
+          "cost": 1,
+          "time": 100,
+          "reliability": 0.9,
+          "availability": 0.9,
+          "security": 0.9
         }
+      },
+      {
+        "id": "c1_fast_expensive",
+        "task_id": "t1",
+        "provider_id": "p1",
+        "features": {
+          "cost": 100,
+          "time": 10,
+          "reliability": 0.9,
+          "availability": 0.9,
+          "security": 0.9
+        }
+      },
+      {
+        "id": "c2_slow_cheap",
+        "task_id": "t2",
+        "provider_id": "p1",
+        "features": {
+          "cost": 1,
+          "time": 100,
+          "reliability": 0.9,
+          "availability": 0.9,
+          "security": 0.9
+        }
+      },
+      {
+        "id": "c2_fast_expensive",
+        "task_id": "t2",
+        "provider_id": "p1",
+        "features": {
+          "cost": 100,
+          "time": 10,
+          "reliability": 0.9,
+          "availability": 0.9,
+          "security": 0.9
+        }
+      }
+    ],
+    "features": [
+      {
+        "id": "cost",
+        "name": "Cost",
+        "direction": "minimize",
+        "unit": "USD",
+        "scale": "ratio",
+        "valid_range": {
+          "min": 0,
+          "max": 1000
+        }
+      },
+      {
+        "id": "time",
+        "name": "Time",
+        "direction": "minimize",
+        "unit": "ms",
+        "scale": "ratio",
+        "valid_range": {
+          "min": 0,
+          "max": 1000
+        }
+      },
+      {
+        "id": "reliability",
+        "name": "Rel",
+        "direction": "maximize",
+        "unit": "prob",
+        "scale": "ratio",
+        "valid_range": {
+          "min": 0,
+          "max": 1
+        }
+      },
+      {
+        "id": "availability",
+        "name": "Avail",
+        "direction": "maximize",
+        "unit": "prob",
+        "scale": "ratio",
+        "valid_range": {
+          "min": 0,
+          "max": 1
+        }
+      },
+      {
+        "id": "security",
+        "name": "Sec",
+        "direction": "maximize",
+        "unit": "prob",
+        "scale": "ratio",
+        "valid_range": {
+          "min": 0,
+          "max": 1
+        }
+      }
+    ],
+    "composition": {
+      "type": "structured",
+      "root": {
+        "id": "root",
+        "kind": "SEQ",
+        "children": [
+          {
+            "id": "n1",
+            "kind": "TASK",
+            "task_id": "t1"
+          },
+          {
+            "id": "n2",
+            "kind": "TASK",
+            "task_id": "t2"
+          }
+        ]
+      }
+    },
+    "aggregation_policies": {},
+    "objective": {
+      "type": "weighted_sum",
+      "weights": {
+        "cost": 0.1,
+        "time": 0.9
+      },
+      "normalized": true
     }
+  }
 }

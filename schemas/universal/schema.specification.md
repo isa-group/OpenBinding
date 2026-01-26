@@ -125,7 +125,7 @@ Tasks are abstract steps in the workflow. A solver selects **one candidate per t
     "name": "AuthService",
     "version": "1.2.0",
     "api": { "name": "AuthAPI", "version": "v1" },
-    "qos": {
+    "features": {
       "latency_ms": 120,
       "availability": 0.999
     }
@@ -139,7 +139,7 @@ A candidate is a concrete service option to implement a task.
 
 * `task_id` MUST reference a task (not enforced by JSON Schema; enforce separately).
 * `provider_id` MUST reference a provider (not enforced by JSON Schema).
-* `qos` is a map from **attribute IDs** to numeric values. Keys SHOULD correspond to `features[*].id` (not fully enforceable in JSON Schema).
+* `features` is a map from **attribute IDs** to numeric values. Keys SHOULD correspond to `features[*].id` (not fully enforceable in JSON Schema). The `features` object MUST have at least one key-value pair.
 * QoS keys are constrained to a conservative identifier pattern: `^[A-Za-z0-9_.-]+$` (same for several other maps).
 
 ### Guidance on missing QoS values
@@ -161,12 +161,7 @@ Schema does not specify whether every candidate must provide every feature. Comm
     "direction": "minimize",
     "unit": "ms",
     "scale": "ratio",
-    "valid_range": { "min": 0, "max": 10000 },
-    "normalization": {
-      "type": "minmax",
-      "bounds": { "min": 0, "max": 1000 },
-      "increasing_is_better": false
-    }
+    "valid_range": { "min": 0, "max": 10000 }
   }
 ]
 ```
@@ -175,7 +170,7 @@ Schema does not specify whether every candidate must provide every feature. Comm
 
 * `id`: canonical identifier used in:
 
-  * `candidates[*].qos`
+  * `candidates[*].features`
   * `aggregation_policies` keys / values
   * `objective.weights` / `objective.priority` / `objective.attributes`
   * constraints referencing `attribute_id`
@@ -189,13 +184,12 @@ Schema does not specify whether every candidate must provide every feature. Comm
   * `interval`: differences meaningful, zero arbitrary (temperature-like)
   * `ordinal`: ordering matters but spacing not meaningful (e.g., “bronze/silver/gold” encoded numerically)
 * `valid_range`: acceptable raw bounds for candidate QoS values
-* `normalization`: how to map raw values to solver space (often `[0,1]`)
 
 ---
 
-# 6) Normalization (shared definition)
+# 6) Normalization (in aggregation policies)
 
-Both `features[*].normalization` and `aggregation_policies[*].normalize` use the same shape:
+`aggregation_policies[*].normalize` describes how to map the aggregated totals to the solver's normalized space.
 
 ```json
 {
@@ -252,7 +246,7 @@ Each node is one of:
 
 * `TASK` leaf node: binds to a `task_id`
 * `SEQ`: sequential composition of children
-* `AND_PAR`: parallel AND-join composition
+* `AND`: parallel AND-join composition
 * `XOR`: probabilistic branch (each branch has probability `p`)
 * `LOOP`: repeats a body with expected iterations or bounds
 
@@ -262,11 +256,11 @@ Each node is one of:
 { "id": "n1", "kind": "TASK", "task_id": "t_auth" }
 ```
 
-#### SEQ / AND_PAR nodes
+#### SEQ / AND nodes
 
 ```json
 { "id": "n2", "kind": "SEQ", "children": [ ... at least 2 nodes ... ] }
-{ "id": "n3", "kind": "AND_PAR", "children": [ ... at least 2 nodes ... ] }
+{ "id": "n3", "kind": "AND", "children": [ ... at least 2 nodes ... ] }
 ```
 
 #### XOR node
@@ -360,24 +354,21 @@ Edges are:
 
 ```json
 "aggregation_policies": {
-  "latency_ms": {
-    "attribute_id": "latency_ms",
-    "direction": "minimize",
-    "scale": "ratio",
-    "neutral": 0,
-    "compose": {
-      "seq":  { "fn": "sum" },
-      "and":  { "fn": "max" },
-      "xor":  { "fn": "weighted_sum", "expr": "Σ(p_i * x_i)" },
-      "loop": { "fn": "scale_by_c", "expr": "c * x" }
-    },
-    "normalize": {
-      "type": "minmax",
-      "bounds": { "min": 0, "max": 1000 },
-      "increasing_is_better": false
+    "latency_ms": {
+      "neutral": 0,
+      "compose": {
+        "seq":  { "fn": "sum" },
+        "and":  { "fn": "max" },
+        "xor":  { "fn": "weighted_sum", "expr": "Σ(p_i * x_i)" },
+        "loop": { "fn": "scale_by_c", "expr": "c * x" }
+      },
+      "normalize": {
+        "type": "minmax",
+        "bounds": { "min": 0, "max": 1000 },
+        "increasing_is_better": false
+      }
     }
-  }
-}
+  },
 ```
 
 ### What a policy means
@@ -611,11 +602,11 @@ Common `solver_config` fields:
       "t_pay": "svc_pay_3"
     }
   },
-  "aggregated_qos": {
+  "aggregated_features": {
     "latency_ms": 420,
     "availability": 0.998
   },
-  "normalized_qos": {
+  "normalized_features": {
     "latency_ms": 0.58,
     "availability": 0.92
   },
@@ -638,8 +629,8 @@ Common `solver_config` fields:
 ### Semantics
 
 * `selection.by_task`: map task_id → candidate_id
-* `aggregated_qos`: final aggregated raw QoS at workflow output
-* `normalized_qos`: normalized form (commonly for objectives)
+* `aggregated_features`: final aggregated raw QoS at workflow output
+* `normalized_features`: normalized form (commonly for objectives)
 * `objective_value`: solver’s final scalar value (if applicable)
 * `feasible`: whether constraints were satisfied (solver-defined; for soft constraints you may still mark feasible)
 * `violations`: list of violations with optional slack/penalty info
@@ -747,7 +738,7 @@ They should align:
       "id": "c1",
       "task_id": "t1",
       "provider_id": "p1",
-      "qos": { "latency_ms": 120 }
+      "features": { "latency_ms": 120 }
     }
   ],
   "features": [
@@ -758,11 +749,6 @@ They should align:
       "unit": "ms",
       "scale": "ratio",
       "valid_range": { "min": 0, "max": 10000 },
-      "normalization": {
-        "type": "minmax",
-        "bounds": { "min": 0, "max": 1000 },
-        "increasing_is_better": false
-      }
     }
   ],
   "composition": {
@@ -771,9 +757,6 @@ They should align:
   },
   "aggregation_policies": {
     "latency_ms": {
-      "attribute_id": "latency_ms",
-      "direction": "minimize",
-      "scale": "ratio",
       "neutral": 0,
       "compose": { "seq": { "fn": "sum" } },
       "normalize": {
@@ -809,7 +792,7 @@ They should align:
 
 ## Structured node kinds
 
-* `TASK`, `SEQ`, `AND_PAR`, `XOR`, `LOOP`
+* `TASK`, `SEQ`, `AND`, `XOR`, `LOOP`
 
 ## Compose functions
 

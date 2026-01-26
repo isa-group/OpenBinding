@@ -123,7 +123,7 @@ class UniversalSemanticValidator:
                 ))
         
         # Recursion for other types
-        if kind in ['SEQ', 'AND_PAR']:
+        if kind in ['SEQ', 'AND']:
             for child in node.get('children', []):
                 violations.extend(self._validate_structured(child, task_ids))
         

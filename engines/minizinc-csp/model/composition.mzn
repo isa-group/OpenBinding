@@ -1,5 +1,5 @@
 % OpenBinding CSP Model
-% Supports TASK, SEQ, AND_PAR, XOR
+% Supports TASK, SEQ, AND, XOR
 
 % --- INPUTS ---
 

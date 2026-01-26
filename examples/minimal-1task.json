@@ -24,7 +24,7 @@
         "id": "c1a",
         "task_id": "t1",
         "provider_id": "p1",
-        "qos": {
+        "features": {
           "cost": 10,
           "time": 100
         }
@@ -33,7 +33,7 @@
         "id": "c1b",
         "task_id": "t1",
         "provider_id": "p1",
-        "qos": {
+        "features": {
           "cost": 20,
           "time": 50
         }
@@ -48,14 +48,6 @@
         "scale": "ratio",
         "valid_range": {
           "min": 0
-        },
-        "normalization": {
-          "type": "minmax",
-          "bounds": {
-            "min": 0,
-            "max": 100
-          },
-          "increasing_is_better": false
         }
       },
       {
@@ -67,14 +59,6 @@
         "valid_range": {
           "min": 0,
           "max": 10000
-        },
-        "normalization": {
-          "type": "minmax",
-          "bounds": {
-            "min": 0,
-            "max": 100
-          },
-          "increasing_is_better": false
         }
       },
       {
@@ -86,14 +70,6 @@
         "valid_range": {
           "min": 0,
           "max": 1
-        },
-        "normalization": {
-          "type": "minmax",
-          "bounds": {
-            "min": 0,
-            "max": 1
-          },
-          "increasing_is_better": true
         }
       },
       {
@@ -105,14 +81,6 @@
         "valid_range": {
           "min": 0,
           "max": 1
-        },
-        "normalization": {
-          "type": "minmax",
-          "bounds": {
-            "min": 0,
-            "max": 1
-          },
-          "increasing_is_better": true
         }
       },
       {
@@ -124,14 +92,6 @@
         "valid_range": {
           "min": 0,
           "max": 1
-        },
-        "normalization": {
-          "type": "minmax",
-          "bounds": {
-            "min": 0,
-            "max": 1
-          },
-          "increasing_is_better": true
         }
       }
     ],
@@ -145,9 +105,6 @@
     },
     "aggregation_policies": {
       "cost": {
-        "attribute_id": "cost",
-        "direction": "minimize",
-        "scale": "ratio",
         "neutral": 0,
         "compose": {
           "seq": {
@@ -171,9 +128,6 @@
         }
       },
       "time": {
-        "attribute_id": "time",
-        "direction": "minimize",
-        "scale": "ratio",
         "neutral": 0,
         "compose": {
           "seq": {
@@ -197,9 +151,6 @@
         }
       },
       "reliability": {
-        "attribute_id": "reliability",
-        "direction": "maximize",
-        "scale": "ratio",
         "neutral": 1,
         "compose": {
           "seq": {
@@ -223,9 +174,6 @@
         }
       },
       "availability": {
-        "attribute_id": "availability",
-        "direction": "maximize",
-        "scale": "ratio",
         "neutral": 1,
         "compose": {
           "seq": {
@@ -249,9 +197,6 @@
         }
       },
       "security": {
-        "attribute_id": "security",
-        "direction": "maximize",
-        "scale": "ratio",
         "neutral": 1,
         "compose": {
           "seq": {

@@ -442,7 +442,7 @@ export class Solver {
     private getKind(k: string): number {
         if (k === 'TASK') return 1;
         if (k === 'SEQ') return 2;
-        if (k === 'AND_PAR') return 3;
+        if (k === 'AND') return 3;
         if (k === 'XOR') return 4;
         return 0;
     }

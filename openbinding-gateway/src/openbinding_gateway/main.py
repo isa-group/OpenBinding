@@ -1,6 +1,11 @@
 from fastapi import FastAPI, HTTPException, status
 from contextlib import asynccontextmanager
 from typing import List, Dict, Any
+import json
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from .models.api import SolveRequest, SolveResponse, JobResponse, JobStatus
 from .validation.pipeline import ValidationPipeline
@@ -37,7 +42,7 @@ async def health():
 async def list_engines():
     return EngineRegistry.list_engines()
 
-@app.post("/v1/solve", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)
+@app.post("/v1/solve", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED, response_model_exclude_none=True)
 async def solve(request: SolveRequest):
     # Validate Engine ID
     try:
@@ -54,10 +59,7 @@ async def solve(request: SolveRequest):
         return JobResponse(
             job_id="invalid",
             status=JobStatus.FAILED,
-            result=SolveResponse(
-                engine_id=request.engine_id,
-                errors=violations
-            )
+            error=f"Universal Schema Violations: {json.dumps([v.model_dump() for v in violations])}"
         )
 
     # Stages 2-4 and Routing
@@ -78,21 +80,26 @@ async def solve(request: SolveRequest):
              return JobResponse(
                 job_id="invalid-semantic",
                 status=JobStatus.FAILED,
-                result=SolveResponse(
-                    engine_id=request.engine_id,
-                    errors=violations
-                )
+                error=f"Semantic Violations: {json.dumps([v.model_dump() for v in violations])}"
             )
             
         # Route to Engine
         return await router.route_solve(request)
         
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return JobResponse(
+            job_id="invalid-input",
+            status=JobStatus.FAILED,
+            error=str(e)
+        )
     except RuntimeError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        return JobResponse(
+            job_id="engine-error",
+            status=JobStatus.FAILED,
+            error=str(e)
+        )
 
-@app.get("/v1/jobs/{job_id}", response_model=JobResponse)
+@app.get("/v1/jobs/{job_id}", response_model=JobResponse, response_model_exclude_none=True)
 async def get_job(job_id: str):
     job = await router.get_job_status(job_id)
     if not job:

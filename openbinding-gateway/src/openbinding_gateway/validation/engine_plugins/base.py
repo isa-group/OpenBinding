@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from ...models.api import ValidationViolation
 
 class EngineValidationPlugin(ABC):
@@ -17,3 +17,15 @@ class EngineValidationPlugin(ABC):
     def validate_semantics(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
         """Perform Stage 4 engine-specific semantic validation."""
         pass
+
+    def transform_request(self, instance: Dict[str, Any], options: Dict[str, Any] = {}) -> Tuple[Dict[str, Any], List[str]]:
+        """Transform universal instance to engine-specific request payload. Returns (payload, warnings)."""
+        # Default behavior: pass instance and options structure
+        return {
+            "instance": instance,
+            "options": options
+        }, []
+
+    def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:
+        """Transform engine response to universal solution format. Default: identity."""
+        return engine_response

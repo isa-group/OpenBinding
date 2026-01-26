@@ -1,5 +1,5 @@
 import uuid
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from .models.api import JobStatus
 
 class GatewayJob:
@@ -10,6 +10,8 @@ class GatewayJob:
         self.service_url = service_url
         self.status = JobStatus.QUEUED
         self.created_at = None 
+        self.result = None
+        self.metadata: Dict[str, Any] = {} 
 
 class JobManager:
     _jobs: Dict[str, GatewayJob] = {}

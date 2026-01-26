@@ -7,23 +7,128 @@
       "version": "1.0",
       "created_at": "2024-01-01T00:00:00Z"
     },
-    "providers": [{"id": "p1", "name": "Provider 1"}],
+    "providers": [
+      {
+        "id": "p1",
+        "name": "Provider 1"
+      }
+    ],
     "tasks": [
-      {"id": "t1", "name": "Task 1"},
-      {"id": "t2", "name": "Task 2"}
+      {
+        "id": "t1",
+        "name": "Task 1"
+      },
+      {
+        "id": "t2",
+        "name": "Task 2"
+      }
     ],
     "candidates": [
-      { "id": "t1_cheap", "task_id": "t1", "provider_id": "p1", "qos": { "cost": 1, "time": 100, "reliability": 0.5, "availability": 0.5, "security": 0.5 } },
-      { "id": "t1_expensive", "task_id": "t1", "provider_id": "p1", "qos": { "cost": 10, "time": 10, "reliability": 0.9, "availability": 0.9, "security": 0.9 } },
-      { "id": "t2_cheap", "task_id": "t2", "provider_id": "p1", "qos": { "cost": 1, "time": 100, "reliability": 0.5, "availability": 0.5, "security": 0.5 } },
-      { "id": "t2_expensive", "task_id": "t2", "provider_id": "p1", "qos": { "cost": 10, "time": 10, "reliability": 0.9, "availability": 0.9, "security": 0.9 } }
+      {
+        "id": "t1_cheap",
+        "task_id": "t1",
+        "provider_id": "p1",
+        "features": {
+          "cost": 1,
+          "time": 100,
+          "reliability": 0.5,
+          "availability": 0.5,
+          "security": 0.5
+        }
+      },
+      {
+        "id": "t1_expensive",
+        "task_id": "t1",
+        "provider_id": "p1",
+        "features": {
+          "cost": 10,
+          "time": 10,
+          "reliability": 0.9,
+          "availability": 0.9,
+          "security": 0.9
+        }
+      },
+      {
+        "id": "t2_cheap",
+        "task_id": "t2",
+        "provider_id": "p1",
+        "features": {
+          "cost": 1,
+          "time": 100,
+          "reliability": 0.5,
+          "availability": 0.5,
+          "security": 0.5
+        }
+      },
+      {
+        "id": "t2_expensive",
+        "task_id": "t2",
+        "provider_id": "p1",
+        "features": {
+          "cost": 10,
+          "time": 10,
+          "reliability": 0.9,
+          "availability": 0.9,
+          "security": 0.9
+        }
+      }
     ],
     "features": [
-      { "id": "cost", "name": "Cost", "direction": "minimize", "unit": "USD", "scale": "ratio", "valid_range": {"min": 0, "max": 100}, "normalization": { "type": "minmax", "bounds": { "min": 0, "max": 20 } } },
-      { "id": "time", "name": "Time", "direction": "minimize", "unit": "ms", "scale": "ratio", "valid_range": {"min": 0, "max": 1000}, "normalization": { "type": "minmax", "bounds": { "min": 0, "max": 100 } } },
-      { "id": "reliability", "name": "Rel", "direction": "maximize", "unit": "prob", "scale": "ratio", "valid_range": {"min": 0, "max": 1}, "normalization": { "type": "minmax", "bounds": { "min": 0, "max": 1 } } },
-      { "id": "availability", "name": "Avail", "direction": "maximize", "unit": "prob", "scale": "ratio", "valid_range": {"min": 0, "max": 1}, "normalization": { "type": "minmax", "bounds": { "min": 0, "max": 1 } } },
-      { "id": "security", "name": "Sec", "direction": "maximize", "unit": "prob", "scale": "ratio", "valid_range": {"min": 0, "max": 1}, "normalization": { "type": "minmax", "bounds": { "min": 0, "max": 1 } } }
+      {
+        "id": "cost",
+        "name": "Cost",
+        "direction": "minimize",
+        "unit": "USD",
+        "scale": "ratio",
+        "valid_range": {
+          "min": 0,
+          "max": 100
+        }
+      },
+      {
+        "id": "time",
+        "name": "Time",
+        "direction": "minimize",
+        "unit": "ms",
+        "scale": "ratio",
+        "valid_range": {
+          "min": 0,
+          "max": 1000
+        }
+      },
+      {
+        "id": "reliability",
+        "name": "Rel",
+        "direction": "maximize",
+        "unit": "prob",
+        "scale": "ratio",
+        "valid_range": {
+          "min": 0,
+          "max": 1
+        }
+      },
+      {
+        "id": "availability",
+        "name": "Avail",
+        "direction": "maximize",
+        "unit": "prob",
+        "scale": "ratio",
+        "valid_range": {
+          "min": 0,
+          "max": 1
+        }
+      },
+      {
+        "id": "security",
+        "name": "Sec",
+        "direction": "maximize",
+        "unit": "prob",
+        "scale": "ratio",
+        "valid_range": {
+          "min": 0,
+          "max": 1
+        }
+      }
     ],
     "composition": {
       "type": "structured",
@@ -31,21 +136,35 @@
         "id": "root",
         "kind": "SEQ",
         "children": [
-          { "id": "n1", "kind": "TASK", "task_id": "t1" },
-          { "id": "n2", "kind": "TASK", "task_id": "t2" }
+          {
+            "id": "n1",
+            "kind": "TASK",
+            "task_id": "t1"
+          },
+          {
+            "id": "n2",
+            "kind": "TASK",
+            "task_id": "t2"
+          }
         ]
       }
     },
     "aggregation_policies": {},
     "constraints": [
-        {
-            "id": "gc1", "kind": "attribute_bound", "scope": "global",
-            "attribute_id": "cost", "op": "<=", "value": 2.0
-        }
+      {
+        "id": "gc1",
+        "kind": "attribute_bound",
+        "scope": "global",
+        "attribute_id": "cost",
+        "op": "<=",
+        "value": 2.0
+      }
     ],
     "objective": {
       "type": "weighted_sum",
-      "weights": { "time": 1.0 }, 
+      "weights": {
+        "time": 1.0
+      },
       "normalized": true
     }
   }

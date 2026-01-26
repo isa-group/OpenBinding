@@ -20,6 +20,10 @@ function App() {
     Engine selection is handled by the UI.
   */
   const [inputJson, setInputJson] = useState<string>('{\n  "metadata": { "id": "test" },\n  "tasks": [],\n  "candidates": [],\n  "composition": {}\n}');
+  const [solverOptions, setSolverOptions] = useState<string>('{\n  "iterations_count": 1000\n}');
+  const [sendOptions, setSendOptions] = useState(true);
+  const [verbose, setVerbose] = useState(false);
+  
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +129,16 @@ function App() {
       try {
         instance = JSON.parse(inputJson);
       } catch (e) {
-        throw new Error("Invalid JSON");
+        throw new Error("Invalid Instance JSON");
+      }
+
+      let options = {};
+      if (sendOptions) {
+        try {
+            options = JSON.parse(solverOptions);
+        } catch (e) {
+            throw new Error("Invalid Options JSON");
+        }
       }
 
       // Frontend Validation with Dynamic Schema
@@ -149,7 +162,9 @@ function App() {
       // Construct Payload
       const payload = {
           engine_id: selectedEngine,
-          instance: instance
+          instance: instance,
+          options: options,
+          verbose: verbose
       };
 
       const res = await fetch('http://localhost:8000/v1/solve', {
@@ -262,10 +277,33 @@ function App() {
           </div>
           <div className="pane-header">Input Instance (JSON)</div>
           <textarea 
+            className="json-editor"
             value={inputJson} 
             onChange={(e) => setInputJson(e.target.value)}
             spellCheck={false}
           />
+          <div className="pane-header" style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+             <span>Solver Options (JSON)</span>
+             <div style={{ display: 'flex', gap: '10px', fontSize: '0.9em' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={sendOptions} onChange={e => setSendOptions(e.target.checked)} />
+                    Enable
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={verbose} onChange={e => setVerbose(e.target.checked)} />
+                    Verbose
+                </label>
+             </div>
+          </div>
+          {sendOptions && (
+            <textarea 
+                className="options-editor"
+                style={{ height: '100px', fontFamily: 'monospace' }}
+                value={solverOptions} 
+                onChange={(e) => setSolverOptions(e.target.value)}
+                spellCheck={false}
+            />
+          )}
         </div>
         
         <div className="result-pane">
