@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   gateway:
     build:
@@ -9,11 +7,25 @@ services:
       - "8000:8000"
     volumes:
       - ./schemas:/app/schemas
+      - ./openbinding-gateway:/app
+      - ./examples/generated_instances:/app/examples/generated_instances
     environment:
-      - UNIVERSAL_SCHEMA_PATH=/app/schemas/universal/schema.json
+      - GENERAL_SCHEMA_PATH=/app/schemas/general/schema.json
       - SCHEMAS_DIR=/app/schemas
+      - PYTHONPATH=/app/src
+      - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
+      - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     depends_on:
-      - engine-minizinc
+      engine-minizinc:
+        condition: service_healthy
+      engine-random-search:
+        condition: service_healthy
 
   engine-minizinc:
     build:
@@ -21,12 +33,34 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  engine-random-search:
+    build:
+      context: ./engines/random-search
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "8080:80"
+      - "80:80"
+    volumes:
+      - ./examples:/usr/share/nginx/html/examples:ro
     depends_on:
-      - gateway
+      gateway:
+        condition: service_healthy
