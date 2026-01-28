@@ -19,7 +19,7 @@ class EngineValidationPlugin(ABC):
         pass
 
     def transform_request(self, instance: Dict[str, Any], options: Dict[str, Any] = {}) -> Tuple[Dict[str, Any], List[str]]:
-        """Transform universal instance to engine-specific request payload. Returns (payload, warnings)."""
+        """Transform general instance to engine-specific request payload. Returns (payload, warnings)."""
         # Default behavior: pass instance and options structure
         return {
             "instance": instance,
@@ -27,5 +27,5 @@ class EngineValidationPlugin(ABC):
         }, []
 
     def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform engine response to universal solution format. Default: identity."""
+        """Transform engine response to general solution format. Default: identity."""
         return engine_response

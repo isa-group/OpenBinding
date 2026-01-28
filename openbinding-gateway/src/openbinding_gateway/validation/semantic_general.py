@@ -1,7 +1,7 @@
 from typing import Dict, Any, List, Set
 from ..models.api import ValidationViolation
 
-class UniversalSemanticValidator:
+class GeneralSemanticValidator:
     def validate(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
         violations = []
         

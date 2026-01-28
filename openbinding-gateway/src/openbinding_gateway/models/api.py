@@ -6,21 +6,31 @@ from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
 
 # Try to look for schema relative to this file or in standard locations
-_schema_path = Path(__file__).parents[5] / "schemas/universal/schema.json"
-if not _schema_path.exists():
-    _schema_path = Path("/app/schemas/universal/schema.json") # Docker default
 
-_UNIVERSAL_SCHEMA = {}
+# Try to get path from environment, otherwise fallback to relative (for local dev without env)
+_env_path = os.getenv("GENERAL_SCHEMA_PATH")
+if _env_path:
+    _schema_path = Path(_env_path)
+else:
+    # Fallback: assuming .../OpenBinding/schemas/general/schema.json layout
+    # api.py is in src/openbinding_gateway/models/api.py
+    # parents[4] is OpenBinding root
+    _schema_path = Path(__file__).parents[4] / "schemas/general/schema.json"
+
+if not _schema_path.exists():
+    _schema_path = Path("/app/schemas/general/schema.json") # Docker default
+
+_GENERAL_SCHEMA = {}
 if _schema_path.exists():
     try:
         with open(_schema_path, "r") as _f:
-            _UNIVERSAL_SCHEMA = json.load(_f)
+            _GENERAL_SCHEMA = json.load(_f)
     except Exception:
         pass
 
 class SolveRequest(BaseModel):
     engine_id: str = Field(..., description="ID of the target engine/solver")
-    instance: Dict[str, Any] = Field(..., description="The universal problem instance", json_schema_extra=_UNIVERSAL_SCHEMA)
+    instance: Dict[str, Any] = Field(..., description="The general problem instance", json_schema_extra=_GENERAL_SCHEMA)
     options: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Solver-specific options. E.g. {'iterations_count': 1000} for Many-OBJ.")
     verbose: bool = Field(default=False, description="If true, return diagnostics and warnings.")
 

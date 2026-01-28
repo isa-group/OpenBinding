@@ -112,7 +112,7 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         }, warnings
 
     def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:
-        """Transform engine response to universal solution format."""
+        """Transform engine response to general solution format."""
         # MiniZinc Engine returns { status: ..., result: { solution: ... } }
         engine_result = engine_response.get("result", {})
         old_sol = engine_result.get("solution", {})

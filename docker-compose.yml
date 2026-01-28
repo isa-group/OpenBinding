@@ -9,9 +9,12 @@ services:
       - "8000:8000"
     volumes:
       - ./schemas:/app/schemas
+      - ./openbinding-gateway:/app
+      - ./examples/generated_instances:/app/examples/generated_instances
     environment:
-      - UNIVERSAL_SCHEMA_PATH=/app/schemas/universal/schema.json
+      - GENERAL_SCHEMA_PATH=/app/schemas/general/schema.json
       - SCHEMAS_DIR=/app/schemas
+      - PYTHONPATH=/app/src
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080

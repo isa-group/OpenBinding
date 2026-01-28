@@ -1,0 +1,28 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Build and start services
+        run: docker-compose up --build -d
+
+      - name: Run Tests
+        run: docker-compose exec -T gateway test
+
+      - name: Shutdown services
+        if: always()
+        run: docker-compose down

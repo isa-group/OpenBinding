@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Ajv from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
-import universalSchema from './schemas/universal.json';
 import './index.css';
 
 interface Engine {
@@ -15,10 +14,8 @@ addFormats(ajv);
 function App() {
   const [engines, setEngines] = useState<Engine[]>([]);
   const [selectedEngine, setSelectedEngine] = useState<string>('');
-  /* 
-    Default JSON is now just the instance structure.
-    Engine selection is handled by the UI.
-  */
+  
+  // We start with a basic template for the problem instance.
   const [inputJson, setInputJson] = useState<string>('{\n  "metadata": { "id": "test" },\n  "tasks": [],\n  "candidates": [],\n  "composition": {}\n}');
   const [solverOptions, setSolverOptions] = useState<string>('{\n  "iterations_count": 1000\n}');
   const [sendOptions, setSendOptions] = useState(true);
@@ -30,9 +27,14 @@ function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // We keep the validator in a ref so we don't re-compile AJV on every render.
+  const validateRef = useRef<any>(null);
+  const generalSchemaRef = useRef<any>(null);
+
   useEffect(() => {
     fetchEngines();
-    // Default to light as requested
+    fetchGeneralSchema();
+    // Default to light mode as it's the most readable for most users.
     document.documentElement.setAttribute('data-theme', 'light');
   }, []);
 
@@ -42,15 +44,6 @@ function App() {
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 
-  // Validator reference to persist across renders until schema changes
-  const validateRef = useRef<any>(null);
-
-  // Initialize universal validator as fallback
-  useEffect(() => {
-      const v = ajv.compile(universalSchema);
-      validateRef.current = v;
-  }, []);
-
   const fetchEngines = async () => {
     try {
       const res = await fetch('http://localhost:8000/v1/engines');
@@ -58,39 +51,57 @@ function App() {
       setEngines(data);
       if (data.length > 0) setSelectedEngine(data[0].id);
     } catch (err) {
-      console.error("Failed to fetch engines", err);
+      console.error("Couldn't reach the gateway to list engines.", err);
       setEngines([]);
       setSelectedEngine('');
     }
   };
 
-  // Fetch schema when engine changes
+  const fetchGeneralSchema = async () => {
+      try {
+          const res = await fetch('http://localhost:8000/v1/schemas/general');
+          if (!res.ok) throw new Error("Gateway didn't provide the general schema.");
+          const schema = await res.json();
+          generalSchemaRef.current = schema;
+          validateRef.current = ajv.compile(schema);
+          console.log("General QoS schema loaded from gateway.");
+      } catch (err) {
+          console.error("Failed to load base schema. Validation might be limited.", err);
+      }
+  };
+
+  // When the user picks a different engine, we try to load its specific constraints.
   useEffect(() => {
       if (!selectedEngine) return;
       
       const loadSchema = async () => {
           try {
-              console.log(`Fetching schema for ${selectedEngine}...`);
+              console.log(`Checking specialized constraints for ${selectedEngine}...`);
               const res = await fetch(`http://localhost:8000/v1/schemas/${selectedEngine}`);
+              
               if (!res.ok) {
-                  console.warn(`Could not fetch schema for ${selectedEngine}, using universal only.`);
-                  validateRef.current = ajv.compile(universalSchema);
+                  console.warn(`No specialized schema for ${selectedEngine}, falling back to general.`);
+                  if (generalSchemaRef.current) {
+                      validateRef.current = ajv.compile(generalSchemaRef.current);
+                  }
                   return;
               }
-              const schema = await res.json();
-              console.log(`Loaded schema for ${selectedEngine}`);
               
-              // We need to re-compile AJV. 
-              // Note: AJV might cache schemas by ID. If we use same ID, remove it first.
+              const schema = await res.json();
+              
+              // Remove old cached version from AJV if it exists.
               if (schema.$id && ajv.getSchema(schema.$id)) {
                   ajv.removeSchema(schema.$id);
               }
               
               validateRef.current = ajv.compile(schema);
+              console.log(`Loaded specific schema for ${selectedEngine}`);
               
           } catch (e) {
-              console.error("Schema load failed", e);
-              validateRef.current = ajv.compile(universalSchema);
+              console.error("Specialized schema load failed.", e);
+              if (generalSchemaRef.current) {
+                  validateRef.current = ajv.compile(generalSchemaRef.current);
+              }
           }
       };
       
@@ -106,13 +117,12 @@ function App() {
       const content = e.target?.result as string;
       try {
         const parsed = JSON.parse(content);
-        // If file contains engine_id, warn or just strip it? 
-        // User wants separation. Let's extract instance.
-        const instance = parsed.instance || parsed; // Handle both full envelope and raw instance
+        // Extracts the instance part even if the whole envelope was uploaded.
+        const instance = parsed.instance || parsed; 
         setInputJson(JSON.stringify(instance, null, 2));
         setError(null);
       } catch (err) {
-        setError("Invalid JSON file");
+        setError("That doesn't look like valid JSON.");
       }
     };
     reader.readAsText(file);
@@ -137,11 +147,11 @@ function App() {
         try {
             options = JSON.parse(solverOptions);
         } catch (e) {
-            throw new Error("Invalid Options JSON");
+            throw new Error("Check your solver options JSON syntax.");
         }
       }
 
-      // Frontend Validation with Dynamic Schema
+      // We run a quick check here before bothering the backend.
       if (validateRef.current) {
          const valid = validateRef.current(instance);
          if (!valid) {
@@ -178,20 +188,17 @@ function App() {
       const data = await res.json();
       console.log("Job Response:", res.status, data);
       
-      // Handle Job Response
       if (data.status === 'failed') {
-           // Immediate failure (e.g. Validation Error)
            setResult(data.result || { errors: [{ message: data.error, code: "job_failed" }] });
            setLoading(false);
       } else if (res.status === 202) {
+          // Accepted! Now we poll until the engine finishes.
           const jobId = data.job_id;
           pollJob(jobId);
       } else if (data.errors) {
-          // Sync validation error or failed job returned immediately (bad request pattern)
           setResult(data); 
           setLoading(false);
       } else {
-           // Fallback
            setResult(data);
            setLoading(false);
       }
@@ -208,18 +215,11 @@ function App() {
     setResult(null);
     
     try {
-      let instance;
-      try {
-        instance = JSON.parse(inputJson);
-      } catch (e) {
-        throw new Error("Invalid Instance JSON");
-      }
+      const instance = JSON.parse(inputJson);
 
-      // Construct Payload
       const payload = {
           engine_id: selectedEngine,
           instance: instance,
-          // Analyze ignores options/verbose usually but we pass them to match signature
           options: sendOptions ? JSON.parse(solverOptions) : {},
           verbose: verbose
       };
@@ -233,9 +233,7 @@ function App() {
       });
       
       const data = await res.json();
-      console.log("Analyze Response:", res.status, data);
-      
-      // Analyze returns 200 OK directly
+      // Analyze returns the full diagnostic report directly.
       setResult(data);
       setLoading(false);
 
@@ -250,7 +248,7 @@ function App() {
           const res = await fetch(`http://localhost:8000/v1/jobs/${jobId}`);
           
           if (!res.ok) {
-              throw new Error(`Job lookup failed: ${res.status} ${res.statusText}`);
+              throw new Error(`The gateway lost track of the job: ${res.status}`);
           }
 
           const data = await res.json();
@@ -259,15 +257,15 @@ function App() {
               setResult(data.result);
               setLoading(false);
           } else if (data.status === 'failed') {
-              setError(data.error || "Job failed");
-               if (data.result) setResult(data.result); // Might contain detailed errors
+              setError(data.error || "The engine reported a failure.");
+               if (data.result) setResult(data.result); 
               setLoading(false);
           } else {
-              // Still running or queued
-              setTimeout(() => pollJob(jobId), 1000); // Poll every 1s
+              // Still cooking...
+              setTimeout(() => pollJob(jobId), 1000); 
           }
       } catch (err: any) {
-          setError("Polling failed: " + err.message);
+          setError("Check your connection: " + err.message);
           setLoading(false);
       }
   };

@@ -15,6 +15,9 @@ public class Flow implements CompositeStructuralComponent {
     
     private List<StructuralComponent> subcomponents;
 
+    public Flow() {
+        subcomponents = new java.util.LinkedList<StructuralComponent>();
+    }
     
     public List<StructuralComponent> getSubComponents() {
         return subcomponents;

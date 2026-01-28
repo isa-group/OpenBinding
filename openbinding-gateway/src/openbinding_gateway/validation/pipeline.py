@@ -1,19 +1,19 @@
 from typing import Dict, Any, List
 from ..models.api import ValidationViolation
 from ..registry.engine import EngineRegistry
-from .universal_schema import UniversalSchemaValidator
+from .general_schema import GeneralSchemaValidator
 from .specialization_schema import SpecializationSchemaValidator
-from .semantic_universal import UniversalSemanticValidator
+from .semantic_general import GeneralSemanticValidator
 
 class ValidationPipeline:
     def __init__(self):
-        self.universal_validator = UniversalSchemaValidator()
+        self.general_validator = GeneralSchemaValidator()
         self.specialization_validator = SpecializationSchemaValidator()
-        self.semantic_validator = UniversalSemanticValidator()
+        self.semantic_validator = GeneralSemanticValidator()
         
-    def validate_universal_schema(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
-        # Stage 1: Universal Structural Validation
-        return self.universal_validator.validate(instance)
+    def validate_general_schema(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
+        # Stage 1: General Structural Validation
+        return self.general_validator.validate(instance)
         
     def validate_full(self, engine_id: str, instance: Dict[str, Any]) -> List[ValidationViolation]:
         violations = []
@@ -32,7 +32,7 @@ class ValidationPipeline:
         if v2:
             return v2
             
-        # Stage 3: Universal Semantic Validation
+        # Stage 3: General Semantic Validation
         v3 = self.semantic_validator.validate(instance)
         if v3:
             # We can return here or continue. Usually semantic issues block further checks.
@@ -46,7 +46,7 @@ class ValidationPipeline:
 
     def validate(self, engine_id: str, instance: Dict[str, Any]) -> List[ValidationViolation]:
         # Backward compatibility / Full validation
-        v1 = self.validate_universal_schema(instance)
+        v1 = self.validate_general_schema(instance)
         if v1:
             return v1
         return self.validate_full(engine_id, instance)

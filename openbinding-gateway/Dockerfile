@@ -6,7 +6,11 @@ WORKDIR /app
 # Install dependencies
 COPY pyproject.toml .
 COPY src/ src/
-RUN uv pip install --system .
+RUN uv pip install --system ".[test]"
+
+# Add test runner script
+RUN echo '#!/bin/sh\npytest "$@"' > /usr/local/bin/test && \
+    chmod +x /usr/local/bin/test
 
 # Expose port
 EXPOSE 8000

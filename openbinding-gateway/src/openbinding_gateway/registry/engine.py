@@ -5,6 +5,7 @@ from ..validation.engine_plugins.minizinc_csp import MiniZincCSPEnginePlugin
 from ..validation.engine_plugins.random_search import RandomSearchEnginePlugin
 
 class EngineRegistry:
+    # Keeps track of all solver engines and where to find them.
     _plugins: Dict[str, EngineValidationPlugin] = {}
     _engine_urls: Dict[str, str] = {
         "minizinc-csp": os.getenv("ENGINE_MINIZINC_URL", "http://engine-minizinc:3000"),

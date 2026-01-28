@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "file:///Users/franciscojaviercaverolopez/Workspace/OpenBinding/schemas/specializations/minizinc-csp.schema.json",
   "title": "MiniZinc CSP Specialization",
-  "description": "Restricted profile of the Universal QoS Schema for the MVP MiniZinc CSP engine.",
+  "description": "Restricted profile of the General QoS Schema for the MVP MiniZinc CSP engine.",
   "type": "object",
   "properties": {
     "composition": {
@@ -48,6 +48,7 @@
                 "type": "string"
               },
               "op": {
+                "type": "string",
                 "enum": [
                   "<=",
                   ">=",
@@ -55,12 +56,27 @@
                   "<",
                   ">"
                 ]
+              },
+              "value": {
+                "type": "number"
+              },
+              "scope": {
+                "enum": [
+                  "global",
+                  "local"
+                ]
+              },
+              "task_id": {
+                "type": "string"
               }
             },
             "required": [
               "kind",
               "attribute_id",
-              "op"
+              "kind",
+              "attribute_id",
+              "op",
+              "value"
             ]
           },
           {

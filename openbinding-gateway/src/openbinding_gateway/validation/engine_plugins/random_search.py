@@ -110,7 +110,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         return violations
 
     def transform_request(self, instance: Dict[str, Any], options: Dict[str, Any] = {}) -> Tuple[Dict[str, Any], List[str]]:
-        """Map Universal JSON to Random-Search API DTO structure."""
+        """Map General JSON to Random-Search API DTO structure."""
         
         warnings = []
         if options:
@@ -244,7 +244,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         }, warnings
 
     def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:
-        """Map Random-Search response to Universal Solution."""
+        """Map Random-Search response to General Solution."""
         # Engine response: { status, selection: {task_id -> service_id}, qos: {...}, error }
         
         if engine_response.get("error"):
@@ -253,7 +253,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         selection = engine_response.get("selection") or {}
 
         # Recompute aggregated + normalized QoS in gateway to avoid information loss and
-        # align with universal semantics.
+        # align with general semantics.
         candidates_by_id = {c["id"]: c for c in (original_request.get("candidates", []) or [])}
         features = {f["id"]: f for f in (original_request.get("features", []) or [])}
         agg_policies = original_request.get("aggregation_policies", {}) or {}
