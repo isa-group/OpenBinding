@@ -1,0 +1,111 @@
+{
+  "tasks": [
+    {
+      "id": "T1",
+      "name": "T1"
+    },
+    {
+      "id": "T2",
+      "name": "T2"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "C1",
+      "task_id": "T1",
+      "provider_id": "P1",
+      "features": {
+        "cost": 50
+      },
+      "name": "C1"
+    },
+    {
+      "id": "C2",
+      "task_id": "T2",
+      "provider_id": "P1",
+      "features": {
+        "cost": 50
+      },
+      "name": "C2"
+    }
+  ],
+  "composition": {
+    "type": "structured",
+    "root": {
+      "kind": "SEQ",
+      "children": [
+        {
+          "kind": "TASK",
+          "task_id": "T1",
+          "id": "086e5425"
+        },
+        {
+          "kind": "TASK",
+          "task_id": "T2",
+          "id": "2b1d3b1c"
+        }
+      ],
+      "id": "41e13951"
+    }
+  },
+  "features": [
+    {
+      "id": "cost",
+      "name": "cost",
+      "unit": "unit",
+      "scale": "ratio",
+      "valid_range": {
+        "min": 0,
+        "max": 10000
+      },
+      "direction": "minimize"
+    }
+  ],
+  "aggregation_policies": {
+    "cost": {
+      "compose": {
+        "seq": {
+          "fn": "sum"
+        },
+        "and": {
+          "fn": "sum"
+        },
+        "xor": {
+          "fn": "sum"
+        },
+        "loop": {
+          "fn": "sum"
+        }
+      },
+      "neutral": 0,
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0,
+          "max": 10000
+        }
+      }
+    }
+  },
+  "objective": {
+    "type": "weighted_sum",
+    "weights": {
+      "cost": 1.0
+    },
+    "normalized": true
+  },
+  "constraints": [],
+  "metadata": {
+    "id": "9abb4800-0925-47bf-8b39-7fe20cbff8aa",
+    "name": "Instance 9: Tight Constraints",
+    "version": "1.0",
+    "created_at": "2026-01-26T12:00:00Z",
+    "description": "Instance 9: Tight Constraints"
+  },
+  "providers": [
+    {
+      "id": "P1",
+      "name": "Provider P1"
+    }
+  ]
+}

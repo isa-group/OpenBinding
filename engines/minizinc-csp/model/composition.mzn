@@ -1,5 +1,4 @@
-% OpenBinding CSP Model
-% Supports TASK, SEQ, AND_PAR, XOR
+% OpenBinding CSP Model (Generic QoS & Loop Support)
 
 % --- INPUTS ---
 
@@ -11,25 +10,22 @@ float: PROB_EPS;
 int: n_tasks;
 int: n_candidates;
 int: n_nodes;
+int: n_qos; % Number of QoS features
 
 % 2. Candidates
-% Improved: per-task candidate lists for stronger propagation
 int: max_cands_per_task;
 array[1..n_tasks] of int: n_task_cands; 
 array[1..n_tasks, 1..max_cands_per_task] of int: task_cands;
 
-% QoS values (Cost, Time, Reliability, Availability, Security)
-array[1..n_candidates] of float: c_cost;
-array[1..n_candidates] of float: c_time;
-array[1..n_candidates] of float: c_rel;
-array[1..n_candidates] of float: c_avail;
-array[1..n_candidates] of float: c_sec;
+% Generic QoS values [candidate, feature_idx]
+array[1..n_candidates, 1..n_qos] of float: cand_qos;
 
 % 3. Composition Structure (Flattened Tree)
 int: KIND_TASK = 1;
 int: KIND_SEQ = 2;
 int: KIND_AND = 3;
 int: KIND_XOR = 4;
+int: KIND_LOOP = 5;
 
 array[1..n_nodes] of int: node_kind;
 array[1..n_nodes] of int: node_task_id; % 0 if not TASK
@@ -37,24 +33,28 @@ int: max_children;
 array[1..n_nodes, 1..max_children] of int: node_children; 
 array[1..n_nodes] of int: node_n_children;
 array[1..n_nodes, 1..max_children] of float: node_xor_probs; 
+array[1..n_nodes] of float: node_loop_iters; % Expected iterations for LOOP nodes
 
-% 4. Objective Weights and Bounds for Scaling
-float: w_cost;
-float: w_time;
-float: w_rel;
-float: w_avail;
-float: w_sec;
+% 4. Aggregation Policies
+% 1=SUM, 2=PROD, 3=MAX, 4=MIN, 5=WEIGHTED_SUM (for XOR)
+int: AGG_SUM = 1;
+int: AGG_PROD = 2;
+int: AGG_MAX = 3;
+int: AGG_MIN = 4;
+int: AGG_WSUM = 5;
 
-float: COST_UB;
-float: TIME_UB;
+% Policy map: [feature_idx, node_kind] -> function enum
+array[1..n_qos, 1..5] of int: agg_policy;
+
+% 5. Objective Weights and Bounds
+array[1..n_qos] of float: qos_weights;
+array[1..n_qos] of float: qos_ub;
 
 % --- VARIABLES ---
 
-% Decision: For each task, select an INDEX into its candidate list (not the global candidate ID directly)
 array[1..n_tasks] of var 1..max_cands_per_task: pick_idx;
 array[1..n_tasks] of var 1..n_candidates: selected_cand;
 
-% Constraint: valid pick index
 constraint forall(t in 1..n_tasks)(
     pick_idx[t] <= n_task_cands[t] /\
     selected_cand[t] = task_cands[t, pick_idx[t]]
@@ -67,14 +67,14 @@ array[1..n_candidates] of int: candidate_provider;
 
 % 1. Global Constraints
 int: n_global_constraints;
-array[1..n_global_constraints] of int: gc_attr; 
+array[1..n_global_constraints] of int: gc_attr; % Index into 1..n_qos
 array[1..n_global_constraints] of int: gc_op;   
 array[1..n_global_constraints] of float: gc_val;
 
 % 2. Local Constraints
 int: n_local_constraints;
 array[1..n_local_constraints] of int: lc_task;  
-array[1..n_local_constraints] of int: lc_attr;  
+array[1..n_local_constraints] of int: lc_attr;  % Index into 1..n_qos
 array[1..n_local_constraints] of int: lc_op;    
 array[1..n_local_constraints] of float: lc_val;
 
@@ -84,42 +84,109 @@ array[1..n_dep_constraints] of int: dc_type;
 array[1..n_dep_constraints] of int: dc_t1;      
 array[1..n_dep_constraints] of int: dc_t2;      
 
-% Helper Predicate: Check Operation (Robust)
+% Helper Predicate: Check Operation
 predicate check_op(var float: val, int: op, float: target) = 
     if op == 1 then val <= target
     elseif op == 2 then val >= target
-    elseif op == 3 then (val <= target + 1e-4 /\ val >= target - 1e-4) % Range check
+    elseif op == 3 then (val <= target + 1e-4 /\ val >= target - 1e-4)
     elseif op == 4 then val < target
     elseif op == 5 then val > target
     else true endif;
 
-% Enforce Global Constraints (on Root Node)
-constraint forall(i in 1..n_global_constraints)(
-    let { var float: val = 
-        if gc_attr[i] == 1 then n_cost[root_id]
-        elseif gc_attr[i] == 2 then n_time[root_id]
-        elseif gc_attr[i] == 3 then n_rel[root_id]
-        elseif gc_attr[i] == 4 then n_avail[root_id]
-        elseif gc_attr[i] == 5 then n_sec[root_id]
-        else 0.0 endif
-    } in check_op(val, gc_op[i], gc_val[i])
+% --- AGGREGATION COMPUTATION ---
+
+% Computed QoS for each Node [node, feature]
+array[1..n_nodes, 1..n_qos] of var float: node_qos;
+
+% Bound Constraint (Optional but helps solver)
+constraint forall(i in 1..n_nodes, q in 1..n_qos)(
+    node_qos[i,q] >= 0.0 /\ node_qos[i,q] <= qos_ub[q]
 );
 
-% Enforce Local Constraints
+constraint forall(i in 1..n_nodes)(
+    if node_kind[i] == KIND_TASK then
+        let { var int: c = selected_cand[node_task_id[i]] } in 
+        forall(q in 1..n_qos)(
+            node_qos[i,q] == cand_qos[c, q]
+        )
+    elseif node_kind[i] == KIND_LOOP then
+        % Loop Aggregation
+        % Child is node_children[i,1]
+        let { 
+            int: body_idx = node_children[i,1];
+            float: iters = node_loop_iters[i];
+        } in
+        % Loop Aggregation restored
+        forall(q in 1..n_qos)(
+            let { 
+                int: pol = agg_policy[q, KIND_LOOP];
+                var float: body_val = node_qos[body_idx, q];
+            } in
+            if pol == AGG_SUM then node_qos[i,q] == body_val * iters
+            elseif pol == AGG_PROD then 
+               % Product over iterations: val * val ... * val (iters times) -> pow
+               node_qos[i,q] == pow(body_val, iters) 
+            elseif pol == AGG_MAX then node_qos[i,q] == body_val
+            elseif pol == AGG_MIN then node_qos[i,q] == body_val
+            else node_qos[i,q] == body_val * iters
+            endif
+        )
+    else 
+        % SEQ, AND, XOR - list children
+        forall(q in 1..n_qos)(
+            let {
+                int: pol = agg_policy[q, node_kind[i]];
+                % Collect children values
+                % Use array comprehension
+                array[int] of var float: child_vals = [node_qos[node_children[i,j], q] | j in 1..node_n_children[i]];
+            } in
+            if node_kind[i] == KIND_XOR then
+                 % XOR special handling for Weighted Sum (Probabilities)
+                 % Usually XOR aggregates using Weighted Sum of probabilities regardless of 'pol' if it's 'average' logic.
+                 % But strictly, if pol=MAX, it implies MAX of branches.
+                 % If pol=SUM, implies SUM of branches? (Seems wrong for XOR which runs only one).
+                 % Usually XOR uses Weighted Sum (Expectation).
+                 % If pol == AGG_WSUM (5) -> Weighted Sum
+                 if pol == AGG_WSUM then
+                    node_qos[i,q] == sum(j in 1..node_n_children[i])(node_xor_probs[i,j] * child_vals[j])
+                 elseif pol == AGG_MAX then
+                    node_qos[i,q] == max(child_vals)
+                 elseif pol == AGG_MIN then
+                    node_qos[i,q] == min(child_vals)
+                 else
+                    % Default to weighted sum for XOR
+                    node_qos[i,q] == sum(j in 1..node_n_children[i])(node_xor_probs[i,j] * child_vals[j])
+                 endif
+            else
+                % SEQ or AND
+                if pol == AGG_SUM then node_qos[i,q] == sum(child_vals)
+                elseif pol == AGG_PROD then node_qos[i,q] == product(child_vals)
+                elseif pol == AGG_MAX then node_qos[i,q] == max(child_vals)
+                elseif pol == AGG_MIN then node_qos[i,q] == min(child_vals)
+                else node_qos[i,q] == sum(child_vals)
+                endif
+            endif
+        )
+    endif
+);
+
+% --- CONSTRAINTS ENFORCEMENT ---
+
+% Global
+constraint forall(i in 1..n_global_constraints)(
+    let { var float: val = node_qos[root_id, gc_attr[i]] } 
+    in check_op(val, gc_op[i], gc_val[i])
+);
+
+% Local
 constraint forall(i in 1..n_local_constraints)(
     let { 
         var int: c = selected_cand[lc_task[i]];
-        var float: val = 
-            if lc_attr[i] == 1 then c_cost[c]
-            elseif lc_attr[i] == 2 then c_time[c]
-            elseif lc_attr[i] == 3 then c_rel[c]
-            elseif lc_attr[i] == 4 then c_avail[c]
-            elseif lc_attr[i] == 5 then c_sec[c]
-            else 0.0 endif
+        var float: val = cand_qos[c, lc_attr[i]];
     } in check_op(val, lc_op[i], lc_val[i])
 );
 
-% Enforce Dependency Constraints
+% Dependency
 constraint forall(i in 1..n_dep_constraints)(
     let {
         var int: c1 = selected_cand[dc_t1[i]];
@@ -133,87 +200,51 @@ constraint forall(i in 1..n_dep_constraints)(
 );
 
 % --- STRUCTURAL SAFEGUARDS ---
+% (Same as before, + Loop check)
 
-% Child indices valid
 constraint forall(i in 1..n_nodes, j in 1..node_n_children[i])(
   node_children[i,j] >= 1 /\ node_children[i,j] <= n_nodes
 );
 
-% Non-leaf nodes have at least 1 child
 constraint forall(i in 1..n_nodes where node_kind[i] != KIND_TASK)(
   node_n_children[i] >= 1
 );
 
-% Task nodes map to valid task id
 constraint forall(i in 1..n_nodes where node_kind[i] == KIND_TASK)(
   node_task_id[i] >= 1 /\ node_task_id[i] <= n_tasks
 );
 
-% Non-task nodes should have task_id = 0
 constraint forall(i in 1..n_nodes where node_kind[i] != KIND_TASK)(
   node_task_id[i] == 0
 );
 
-% XOR Probability Consistency
 constraint forall(i in 1..n_nodes where node_kind[i] == KIND_XOR)(
   forall(j in 1..node_n_children[i])(node_xor_probs[i,j] >= 0.0) /\
   abs(sum(j in 1..node_n_children[i])(node_xor_probs[i,j]) - 1.0) <= PROB_EPS
 );
 
-
-% --- AGGREGATION ---
-
-% Computed QoS for each Node with Tight Bounds
-array[1..n_nodes] of var 0.0..COST_UB: n_cost;
-array[1..n_nodes] of var 0.0..TIME_UB: n_time;
-array[1..n_nodes] of var 0.0..1.0: n_rel;
-array[1..n_nodes] of var 0.0..1.0: n_avail;
-array[1..n_nodes] of var 0.0..1.0: n_sec;
-
-constraint forall(i in 1..n_nodes)(
-    if node_kind[i] == KIND_TASK then
-        let { var int: c = selected_cand[node_task_id[i]] } in (
-            n_cost[i] == c_cost[c] /\
-            n_time[i] == c_time[c] /\
-            n_rel[i] == c_rel[c] /\
-            n_avail[i] == c_avail[c] /\
-            n_sec[i] == c_sec[c]
-        )
-    elseif node_kind[i] == KIND_SEQ then
-        n_cost[i] == sum(j in 1..node_n_children[i])(n_cost[node_children[i,j]]) /\
-        n_time[i] == sum(j in 1..node_n_children[i])(n_time[node_children[i,j]]) /\
-        n_rel[i] == product(j in 1..node_n_children[i])(n_rel[node_children[i,j]]) /\
-        n_avail[i] == product(j in 1..node_n_children[i])(n_avail[node_children[i,j]]) /\
-        n_sec[i] == min(j in 1..node_n_children[i])(n_sec[node_children[i,j]])
-    elseif node_kind[i] == KIND_AND then
-        n_cost[i] == sum(j in 1..node_n_children[i])(n_cost[node_children[i,j]]) /\
-        n_time[i] == max(j in 1..node_n_children[i])(n_time[node_children[i,j]]) /\
-        n_rel[i] == product(j in 1..node_n_children[i])(n_rel[node_children[i,j]]) /\
-        n_avail[i] == product(j in 1..node_n_children[i])(n_avail[node_children[i,j]]) /\
-        n_sec[i] == min(j in 1..node_n_children[i])(n_sec[node_children[i,j]])
-    elseif node_kind[i] == KIND_XOR then
-         n_cost[i] == sum(j in 1..node_n_children[i])(node_xor_probs[i,j] * n_cost[node_children[i,j]]) /\
-         n_time[i] == sum(j in 1..node_n_children[i])(node_xor_probs[i,j] * n_time[node_children[i,j]]) /\
-         n_rel[i] == sum(j in 1..node_n_children[i])(node_xor_probs[i,j] * n_rel[node_children[i,j]]) /\
-         n_avail[i] == sum(j in 1..node_n_children[i])(node_xor_probs[i,j] * n_avail[node_children[i,j]]) /\
-         n_sec[i] == sum(j in 1..node_n_children[i])(node_xor_probs[i,j] * n_sec[node_children[i,j]])
-    else
-        true
-    endif
+% Loop specific: 1 child
+constraint forall(i in 1..n_nodes where node_kind[i] == KIND_LOOP)(
+    node_n_children[i] == 1
 );
 
-% Root node used for objective
-var float: obj_val = 
-    w_cost * n_cost[root_id] + 
-    w_time * n_time[root_id] + 
-    w_rel * (1.0 - n_rel[root_id]) + 
-    w_avail * (1.0 - n_avail[root_id]) + 
-    w_sec * (1.0 - n_sec[root_id]);
+% --- OBJECTIVE ---
+
+
+% Calculate explicit upper bound for objective to prevent Gecode overflow
+float: obj_ub = sum(q in 1..n_qos)(abs(qos_weights[q]) * abs(qos_ub[q]));
+var -obj_ub..obj_ub: obj_val = sum(q in 1..n_qos)(qos_weights[q] * node_qos[root_id, q]);
 
 solve minimize obj_val;
 
 output [
     "{ \"objective_value\": " ++ show(obj_val) ++ ", ",
+    "\"aggregated_features\": {",
+    join(", ", [
+        "\"" ++ show(q) ++ "\": " ++ show(node_qos[root_id, q]) 
+        | q in 1..n_qos
+    ]),
+    "}, ",
     "\"selection\": {",
     join(", ", [
         "\"" ++ show(t) ++ "\": " ++ show(selected_cand[t]) 

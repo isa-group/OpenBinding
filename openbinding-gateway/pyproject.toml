@@ -9,13 +9,15 @@ dependencies = [
     "pydantic>=2.0",
     "httpx",
     "jsonschema",
-    "pyyaml"
+    "pyyaml",
+    "python-dotenv"
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest",
     "httpx",
+    "requests",
     "ruff",
     "mypy"
 ]

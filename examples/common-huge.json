@@ -1,0 +1,560 @@
+{
+  "metadata": {
+    "id": "huge-common",
+    "name": "Huge common",
+    "version": "1.0",
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "name": "Task 1"
+    },
+    {
+      "id": "T2",
+      "name": "Task 2"
+    },
+    {
+      "id": "T3",
+      "name": "Task 3"
+    },
+    {
+      "id": "T4",
+      "name": "Task 4"
+    },
+    {
+      "id": "T5",
+      "name": "Task 5"
+    },
+    {
+      "id": "T6",
+      "name": "Task 6"
+    },
+    {
+      "id": "T7",
+      "name": "Task 7"
+    }
+  ],
+  "providers": [
+    {
+      "id": "P1",
+      "name": "Provider 1"
+    },
+    {
+      "id": "P2",
+      "name": "Provider 2"
+    },
+    {
+      "id": "P3",
+      "name": "Provider 3"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "C1",
+      "task_id": "T1",
+      "provider_id": "P1",
+      "features": {
+        "cost": 10,
+        "latency": 5,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 2
+      }
+    },
+    {
+      "id": "C2",
+      "task_id": "T1",
+      "provider_id": "P2",
+      "features": {
+        "cost": 20,
+        "latency": 10,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 4
+      }
+    },
+    {
+      "id": "C3",
+      "task_id": "T1",
+      "provider_id": "P3",
+      "features": {
+        "cost": 30,
+        "latency": 15,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 6
+      }
+    },
+    {
+      "id": "C4",
+      "task_id": "T2",
+      "provider_id": "P1",
+      "features": {
+        "cost": 40,
+        "latency": 20,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 8
+      }
+    },
+    {
+      "id": "C5",
+      "task_id": "T2",
+      "provider_id": "P2",
+      "features": {
+        "cost": 50,
+        "latency": 25,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 10
+      }
+    },
+    {
+      "id": "C6",
+      "task_id": "T2",
+      "provider_id": "P3",
+      "features": {
+        "cost": 60,
+        "latency": 30,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 12
+      }
+    },
+    {
+      "id": "C7",
+      "task_id": "T3",
+      "provider_id": "P1",
+      "features": {
+        "cost": 70,
+        "latency": 35,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 14
+      }
+    },
+    {
+      "id": "C8",
+      "task_id": "T3",
+      "provider_id": "P2",
+      "features": {
+        "cost": 80,
+        "latency": 40,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 16
+      }
+    },
+    {
+      "id": "C9",
+      "task_id": "T3",
+      "provider_id": "P3",
+      "features": {
+        "cost": 90,
+        "latency": 45,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 18
+      }
+    },
+    {
+      "id": "C10",
+      "task_id": "T4",
+      "provider_id": "P1",
+      "features": {
+        "cost": 100,
+        "latency": 50,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 20
+      }
+    },
+    {
+      "id": "C11",
+      "task_id": "T4",
+      "provider_id": "P2",
+      "features": {
+        "cost": 110,
+        "latency": 55,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 22
+      }
+    },
+    {
+      "id": "C12",
+      "task_id": "T4",
+      "provider_id": "P3",
+      "features": {
+        "cost": 120,
+        "latency": 60,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 24
+      }
+    },
+    {
+      "id": "C13",
+      "task_id": "T5",
+      "provider_id": "P1",
+      "features": {
+        "cost": 130,
+        "latency": 65,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 26
+      }
+    },
+    {
+      "id": "C14",
+      "task_id": "T5",
+      "provider_id": "P2",
+      "features": {
+        "cost": 140,
+        "latency": 70,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 28
+      }
+    },
+    {
+      "id": "C15",
+      "task_id": "T5",
+      "provider_id": "P3",
+      "features": {
+        "cost": 150,
+        "latency": 75,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 30
+      }
+    },
+    {
+      "id": "C16",
+      "task_id": "T6",
+      "provider_id": "P1",
+      "features": {
+        "cost": 160,
+        "latency": 80,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 32
+      }
+    },
+    {
+      "id": "C17",
+      "task_id": "T6",
+      "provider_id": "P2",
+      "features": {
+        "cost": 170,
+        "latency": 85,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 34
+      }
+    },
+    {
+      "id": "C18",
+      "task_id": "T6",
+      "provider_id": "P3",
+      "features": {
+        "cost": 180,
+        "latency": 90,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 36
+      }
+    },
+    {
+      "id": "C19",
+      "task_id": "T7",
+      "provider_id": "P1",
+      "features": {
+        "cost": 190,
+        "latency": 95,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 38
+      }
+    },
+    {
+      "id": "C20",
+      "task_id": "T7",
+      "provider_id": "P2",
+      "features": {
+        "cost": 200,
+        "latency": 100,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 40
+      }
+    },
+    {
+      "id": "C21",
+      "task_id": "T7",
+      "provider_id": "P3",
+      "features": {
+        "cost": 210,
+        "latency": 105,
+        "reliability": 0.9,
+        "availability": 0.99,
+        "energy": 42
+      }
+    }
+  ],
+  "features": [
+    {
+      "id": "cost",
+      "name": "Cost",
+      "direction": "minimize",
+      "scale": "ratio",
+      "unit": "USD",
+      "valid_range": {
+        "min": 0,
+        "max": 100000
+      }
+    },
+    {
+      "id": "latency",
+      "name": "Latency",
+      "direction": "minimize",
+      "scale": "ratio",
+      "unit": "ms",
+      "valid_range": {
+        "min": 0,
+        "max": 10000
+      }
+    },
+    {
+      "id": "reliability",
+      "name": "Reliability",
+      "direction": "maximize",
+      "scale": "ratio",
+      "unit": "%",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "availability",
+      "name": "Availability",
+      "direction": "maximize",
+      "scale": "ratio",
+      "unit": "%",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "energy",
+      "name": "Energy",
+      "direction": "minimize",
+      "scale": "ratio",
+      "unit": "J",
+      "valid_range": {
+        "min": 0,
+        "max": 10000
+      }
+    }
+  ],
+  "composition": {
+    "type": "structured",
+    "root": {
+      "id": "root_seq",
+      "kind": "SEQ",
+      "children": [
+        {
+          "id": "n1",
+          "kind": "TASK",
+          "task_id": "T1"
+        },
+        {
+          "id": "n2_and",
+          "kind": "AND",
+          "children": [
+            {
+              "id": "n2a",
+              "kind": "TASK",
+              "task_id": "T2"
+            },
+            {
+              "id": "n2b",
+              "kind": "TASK",
+              "task_id": "T3"
+            }
+          ]
+        },
+        {
+          "id": "n3_xor",
+          "kind": "XOR",
+          "branches": [
+            {
+              "p": 0.5,
+              "child": {
+                "id": "n3a",
+                "kind": "TASK",
+                "task_id": "T4"
+              }
+            },
+            {
+              "p": 0.5,
+              "child": {
+                "id": "n3b",
+                "kind": "TASK",
+                "task_id": "T5"
+              }
+            }
+          ]
+        },
+        {
+          "id": "n4_loop",
+          "kind": "LOOP",
+          "expected_iterations": 3,
+          "body": {
+            "id": "n4_inner_seq",
+            "kind": "SEQ",
+            "children": [
+              {
+                "id": "n4a",
+                "kind": "TASK",
+                "task_id": "T6"
+              },
+              {
+                "id": "n4b",
+                "kind": "TASK",
+                "task_id": "T7"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "cost": {
+      "neutral": 0,
+      "normalize": {
+        "type": "identity"
+      },
+      "compose": {
+        "seq": {
+          "fn": "sum"
+        },
+        "and": {
+          "fn": "max"
+        },
+        "xor": {
+          "fn": "weighted_sum",
+          "expr": "sum(w * x)"
+        },
+        "loop": {
+          "fn": "sum"
+        }
+      }
+    },
+    "latency": {
+      "neutral": 0,
+      "normalize": {
+        "type": "identity"
+      },
+      "compose": {
+        "seq": {
+          "fn": "sum"
+        },
+        "and": {
+          "fn": "max"
+        },
+        "xor": {
+          "fn": "weighted_sum",
+          "expr": "sum(w * x)"
+        },
+        "loop": {
+          "fn": "sum"
+        }
+      }
+    },
+    "reliability": {
+      "neutral": 1,
+      "normalize": {
+        "type": "identity"
+      },
+      "compose": {
+        "seq": {
+          "fn": "sum"
+        },
+        "and": {
+          "fn": "max"
+        },
+        "xor": {
+          "fn": "weighted_sum",
+          "expr": "sum(w * x)"
+        },
+        "loop": {
+          "fn": "sum"
+        }
+      }
+    },
+    "availability": {
+      "neutral": 1,
+      "normalize": {
+        "type": "identity"
+      },
+      "compose": {
+        "seq": {
+          "fn": "sum"
+        },
+        "and": {
+          "fn": "max"
+        },
+        "xor": {
+          "fn": "weighted_sum",
+          "expr": "sum(w * x)"
+        },
+        "loop": {
+          "fn": "sum"
+        }
+      }
+    },
+    "energy": {
+      "neutral": 0,
+      "normalize": {
+        "type": "identity"
+      },
+      "compose": {
+        "seq": {
+          "fn": "sum"
+        },
+        "and": {
+          "fn": "max"
+        },
+        "xor": {
+          "fn": "weighted_sum",
+          "expr": "sum(w * x)"
+        },
+        "loop": {
+          "fn": "sum"
+        }
+      }
+    }
+  },
+  "objective": {
+    "type": "weighted_sum",
+    "weights": {
+      "cost": 1
+    },
+    "normalized": true
+  },
+  "constraints": [
+    {
+      "id": "c0",
+      "kind": "attribute_bound",
+      "scope": "global",
+      "attribute_id": "cost",
+      "op": "<=",
+      "value": 50000
+    }
+  ]
+}

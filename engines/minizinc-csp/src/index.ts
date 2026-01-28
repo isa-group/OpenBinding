@@ -6,6 +6,10 @@ const fastify = Fastify({ logger: true });
 const solver = new Solver();
 const jobManager = new JobManager();
 
+fastify.get('/health', async () => {
+  return { status: 'ok' };
+});
+
 fastify.post('/solve', async (request, reply) => {
   const body = request.body as any;
   const instance = body.instance;

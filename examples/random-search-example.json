@@ -1,0 +1,216 @@
+{
+  "metadata": {
+    "id": "many-obj-complex-example",
+    "name": "Many-OBJ Complex Workflow",
+    "version": "1.0",
+    "created_at": "2024-01-20T12:00:00Z"
+  },
+  "features": [
+    {
+      "id": "cost",
+      "name": "Cost",
+      "direction": "minimize",
+      "unit": "USD",
+      "scale": "ratio",
+      "valid_range": {
+        "min": 0,
+        "max": 1000
+      }
+    },
+    {
+      "id": "time",
+      "name": "Response Time",
+      "direction": "minimize",
+      "unit": "ms",
+      "scale": "ratio",
+      "valid_range": {
+        "min": 0,
+        "max": 5000
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "payment",
+      "name": "Payment Processing"
+    },
+    {
+      "id": "inventory",
+      "name": "Inventory Check"
+    },
+    {
+      "id": "shipping",
+      "name": "Shipping Logistics"
+    }
+  ],
+  "providers": [
+    {
+      "id": "stripe",
+      "name": "Stripe"
+    },
+    {
+      "id": "paypal",
+      "name": "PayPal"
+    },
+    {
+      "id": "aws",
+      "name": "AWS Warehouse"
+    },
+    {
+      "id": "azure",
+      "name": "Azure Inventory"
+    },
+    {
+      "id": "fedex",
+      "name": "FedEx"
+    },
+    {
+      "id": "ups",
+      "name": "UPS"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "pay_stripe",
+      "task_id": "payment",
+      "provider_id": "stripe",
+      "features": {
+        "cost": 0.3,
+        "time": 200
+      }
+    },
+    {
+      "id": "pay_paypal",
+      "task_id": "payment",
+      "provider_id": "paypal",
+      "features": {
+        "cost": 0.5,
+        "time": 150
+      }
+    },
+    {
+      "id": "inv_aws",
+      "task_id": "inventory",
+      "provider_id": "aws",
+      "features": {
+        "cost": 0.1,
+        "time": 50
+      }
+    },
+    {
+      "id": "inv_azure",
+      "task_id": "inventory",
+      "provider_id": "azure",
+      "features": {
+        "cost": 0.05,
+        "time": 80
+      }
+    },
+    {
+      "id": "ship_fedex",
+      "task_id": "shipping",
+      "provider_id": "fedex",
+      "features": {
+        "cost": 5.0,
+        "time": 1000
+      }
+    },
+    {
+      "id": "ship_ups",
+      "task_id": "shipping",
+      "provider_id": "ups",
+      "features": {
+        "cost": 4.5,
+        "time": 1200
+      }
+    }
+  ],
+  "composition": {
+    "type": "structured",
+    "root": {
+      "id": "root_seq",
+      "kind": "SEQ",
+      "children": [
+        {
+          "id": "task_payment",
+          "kind": "TASK",
+          "task_id": "payment"
+        },
+        {
+          "id": "par_flow",
+          "kind": "AND",
+          "children": [
+            {
+              "id": "task_inv",
+              "kind": "TASK",
+              "task_id": "inventory"
+            },
+            {
+              "id": "task_ship",
+              "kind": "TASK",
+              "task_id": "shipping"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "cost": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "sum"
+        },
+        "and": {
+          "fn": "sum"
+        },
+        "xor": {
+          "fn": "sum"
+        },
+        "loop": {
+          "fn": "sum"
+        }
+      },
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0,
+          "max": 1000
+        }
+      }
+    },
+    "time": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "sum"
+        },
+        "and": {
+          "fn": "max"
+        },
+        "xor": {
+          "fn": "sum"
+        },
+        "loop": {
+          "fn": "sum"
+        }
+      },
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0,
+          "max": 5000
+        }
+      }
+    }
+  },
+  "objective": {
+    "type": "weighted_sum",
+    "weights": {
+      "cost": 0.5,
+      "time": 0.5
+    },
+    "normalized": true
+  }
+}
