@@ -6,8 +6,8 @@ from ...models.api import ValidationViolation
 class MiniZincCSPEnginePlugin(EngineValidationPlugin):
     def get_capabilities(self) -> Dict[str, Any]:
         return {
-            "qos_features_supported": ["cost", "time", "reliability", "availability", "security"],
-            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR"],
+            "qos_features_supported": "*", # Supports any feature via generic model
+            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
             "objective_types_supported": ["weighted_sum"],
             "constraints_supported": [], 
             "schema_version": "v1"
@@ -95,9 +95,8 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
             for branch in node.get("branches", []):
                 violations.extend(self._validate_node(branch.get("child", {})))
         elif kind == "LOOP":
-            # LOOP not supported, so recursion might stay here, 
-            # but we already reported the violation.
-            pass
+            # Recurse into body
+            violations.extend(self._validate_node(node.get("body", {})))
         
         return violations
             
@@ -131,7 +130,7 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
 
         # Transform Selection -> Binding
         # MiniZinc solver.ts returns selection directly as {task_id: cand_id}
-        selection = old_sol.get("selection", {})
+        selection = old_sol.get("selection") or {}
         
         # --- QoS Aggregation Logic (Ported from Many-OBJ) ---
         candidates_by_id = {c["id"]: c for c in (original_request.get("candidates", []) or [])}
@@ -221,10 +220,13 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
                 return body_val
             return 0.0
 
-        aggregated_qos: Dict[str, float] = {}
-        for fid in features.keys():
-            root = (original_request.get("composition", {}) or {}).get("root", {})
-            aggregated_qos[fid] = _compose_value(root, fid)
+        if old_sol.get("aggregated_features"):
+            aggregated_qos = old_sol.get("aggregated_features")
+        else:
+            aggregated_qos: Dict[str, float] = {}
+            for fid in features.keys():
+                root = (original_request.get("composition", {}) or {}).get("root", {})
+                aggregated_qos[fid] = _compose_value(root, fid)
             
         # -----------------------------------------------
         

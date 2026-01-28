@@ -1,17 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "file:///Users/franciscojaviercaverolopez/Workspace/OpenBinding/schemas/specializations/many-obj.schema.json",
-  "title": "Many-OBJ Specialization",
-  "description": "Profile for the Many-OBJ Java Engine (structured workflows + weighted-sum objective + optional global attribute bounds).",
+  "$id": "file:///Users/franciscojaviercaverolopez/Workspace/OpenBinding/schemas/specializations/random-search.schema.json",
+  "title": "Random-Search Specialization",
+  "description": "Profile for the Random-Search Java Engine (structured workflows + weighted-sum objective + optional global attribute bounds).",
   "type": "object",
   "properties": {
     "composition": {
       "type": "object",
       "properties": {
-        "type": { "const": "structured" },
-        "root": { "$ref": "#/$defs/many_obj_node" }
+        "type": {
+          "const": "structured"
+        },
+        "root": {
+          "$ref": "#/$defs/random_search_node"
+        }
       },
-      "required": ["type", "root"]
+      "required": [
+        "type",
+        "root"
+      ]
     },
     "objective": {
       "properties": {
@@ -58,34 +65,60 @@
       }
     }
   },
-  "required": ["composition", "features", "aggregation_policies", "objective"],
+  "required": [
+    "composition",
+    "features",
+    "aggregation_policies",
+    "objective"
+  ],
   "$defs": {
-    "many_obj_node": {
+    "random_search_node": {
       "oneOf": [
-        { "$ref": "#/$defs/task_node" },
-        { "$ref": "#/$defs/seq_node" },
-        { "$ref": "#/$defs/and_node" },
-        { "$ref": "#/$defs/xor_node" },
-        { "$ref": "#/$defs/loop_node" }
+        {
+          "$ref": "#/$defs/task_node"
+        },
+        {
+          "$ref": "#/$defs/seq_node"
+        },
+        {
+          "$ref": "#/$defs/and_node"
+        },
+        {
+          "$ref": "#/$defs/xor_node"
+        },
+        {
+          "$ref": "#/$defs/loop_node"
+        }
       ]
     },
     "task_node": {
       "type": "object",
       "properties": {
-        "kind": { "const": "TASK" }
+        "kind": {
+          "const": "TASK"
+        }
       },
-      "required": ["kind"]
+      "required": [
+        "kind"
+      ]
     },
     "seq_node": {
       "type": "object",
       "properties": {
-        "kind": { "const": "SEQ" },
+        "kind": {
+          "const": "SEQ"
+        },
         "children": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/many_obj_node" }
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/random_search_node"
+          }
         }
       },
-      "required": ["kind", "children"]
+      "required": [
+        "kind",
+        "children"
+      ]
     },
     "and_node": {
       "type": "object",
@@ -94,22 +127,29 @@
           "const": "AND"
         },
         "children": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/many_obj_node" }
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/random_search_node"
+          }
         }
       },
-      "required": ["kind", "children"]
+      "required": [
+        "kind",
+        "children"
+      ]
     },
     "xor_node": {
       "type": "object",
       "properties": {
-        "kind": { "const": "XOR" },
+        "kind": {
+          "const": "XOR"
+        },
         "branches": {
           "type": "array",
           "items": {
             "properties": {
               "child": {
-                "$ref": "#/$defs/many_obj_node"
+                "$ref": "#/$defs/random_search_node"
               },
               "p": {
                 "type": "number",
@@ -124,16 +164,30 @@
           }
         }
       },
-      "required": ["kind", "branches"]
+      "required": [
+        "kind",
+        "branches"
+      ]
     },
     "loop_node": {
       "type": "object",
       "properties": {
-        "kind": { "const": "LOOP" },
-        "body": { "$ref": "#/$defs/many_obj_node" },
-        "expected_iterations": { "type": "number", "minimum": 0 }
+        "kind": {
+          "const": "LOOP"
+        },
+        "body": {
+          "$ref": "#/$defs/random_search_node"
+        },
+        "expected_iterations": {
+          "type": "number",
+          "minimum": 0
+        }
       },
-      "required": ["kind", "body", "expected_iterations"]
+      "required": [
+        "kind",
+        "body",
+        "expected_iterations"
+      ]
     }
   }
 }

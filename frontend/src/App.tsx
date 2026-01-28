@@ -202,6 +202,49 @@ function App() {
     }
   };
 
+  const handleAnalyze = async () => {
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    
+    try {
+      let instance;
+      try {
+        instance = JSON.parse(inputJson);
+      } catch (e) {
+        throw new Error("Invalid Instance JSON");
+      }
+
+      // Construct Payload
+      const payload = {
+          engine_id: selectedEngine,
+          instance: instance,
+          // Analyze ignores options/verbose usually but we pass them to match signature
+          options: sendOptions ? JSON.parse(solverOptions) : {},
+          verbose: verbose
+      };
+
+      const res = await fetch('http://localhost:8000/v1/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await res.json();
+      console.log("Analyze Response:", res.status, data);
+      
+      // Analyze returns 200 OK directly
+      setResult(data);
+      setLoading(false);
+
+    } catch (err: any) {
+        setError(err.message);
+        setLoading(false);
+    }
+  };
+
   const pollJob = async (jobId: string) => {
       try {
           const res = await fetch(`http://localhost:8000/v1/jobs/${jobId}`);
@@ -238,7 +281,7 @@ function App() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div className="status">
-                {loading ? 'Solving...' : 'Ready to solve!'}
+                {loading ? 'Processing...' : 'Ready'}
             </div>
             <button 
                 className="btn btn-secondary" 
@@ -271,8 +314,14 @@ function App() {
                 Upload JSON
              </button>
 
+             <div style={{ flex: 1 }}></div>
+
+             <button className="btn btn-secondary" onClick={handleAnalyze} disabled={loading} style={{ marginRight: '8px' }}>
+               Analyze
+             </button>
+
              <button className="btn" onClick={handleSolve} disabled={loading}>
-               {loading ? 'Solving...' : 'Solve Instance'}
+               {loading ? 'Solving...' : 'Solve'}
              </button>
           </div>
           <div className="pane-header">Input Instance (JSON)</div>
@@ -307,12 +356,24 @@ function App() {
         </div>
         
         <div className="result-pane">
-           <div className="pane-header">Solution / Output</div>
+           <div className="pane-header">Output</div>
            <div className="result-view">
              {error && (
                 <div className="status-badge status-error">
                    Error: {error}
                 </div>
+             )}
+             
+             {result && result.status === 'validated' && (
+                  <div className="status-badge status-success">
+                     Validation Successful
+                  </div>
+             )}
+
+             {result && result.status === 'failed' && (
+                  <div className="status-badge status-error">
+                     Validation Failed
+                  </div>
              )}
              
              {result && result.errors && (
@@ -321,10 +382,39 @@ function App() {
                  </div>
              )}
              
-             {result && !result.errors && (
+             {result && !result.errors && !result.status && (
                   <div className="status-badge status-success">
                      Solved Successfully
                   </div>
+             )}
+
+             {result && result.binding_space && (
+                 <div className="card" style={{ marginTop: '1em', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+                     <h4>Binding Space Analysis</h4>
+                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.9em' }}>
+                         <div><strong>Cardinality:</strong> <br/> {result.binding_space.cardinality}</div>
+                         <div><strong>Log10 Size:</strong> <br/> ~{result.binding_space.log10_cardinality.toFixed(2)}</div>
+                     </div>
+                     {result.binding_space.empty_tasks?.length > 0 && (
+                         <div style={{ marginTop: '10px', color: 'var(--error-color)' }}>
+                             <strong>⚠️ Empty Tasks (0 candidates):</strong>
+                             <ul style={{ margin: '5px 0' }}>
+                                 {result.binding_space.empty_tasks.map((t: string) => <li key={t}>{t}</li>)}
+                             </ul>
+                         </div>
+                     )}
+                 </div>
+             )}
+             
+             {result && result.warnings && result.warnings.length > 0 && (
+                 <div className="card" style={{ marginTop: '1em', background: '#fff3cd', color: '#856404', border: '1px solid #ffeeba' }}>
+                     <h4>Warnings</h4>
+                     <ul style={{ paddingLeft: '20px' }}>
+                         {result.warnings.map((w: any, i: number) => (
+                             <li key={i}><strong>{w.code}:</strong> {w.message}</li>
+                         ))}
+                     </ul>
+                 </div>
              )}
 
              {result && (

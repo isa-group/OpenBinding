@@ -2,13 +2,13 @@ import os
 from typing import Dict, List, Any, Type
 from ..validation.engine_plugins.base import EngineValidationPlugin
 from ..validation.engine_plugins.minizinc_csp import MiniZincCSPEnginePlugin
-from ..validation.engine_plugins.many_obj import ManyObjEnginePlugin
+from ..validation.engine_plugins.random_search import RandomSearchEnginePlugin
 
 class EngineRegistry:
     _plugins: Dict[str, EngineValidationPlugin] = {}
     _engine_urls: Dict[str, str] = {
         "minizinc-csp": os.getenv("ENGINE_MINIZINC_URL", "http://engine-minizinc:3000"),
-        "many-obj": os.getenv("ENGINE_MANY_OBJ_URL", "http://engine-many-obj:8080")
+        "random-search": os.getenv("ENGINE_RANDOM_SEARCH_URL", "http://engine-random-search:8080")
     }
 
     @classmethod
@@ -39,4 +39,4 @@ class EngineRegistry:
 
 # Initialization
 EngineRegistry.register("minizinc-csp", MiniZincCSPEnginePlugin())
-EngineRegistry.register("many-obj", ManyObjEnginePlugin())
+EngineRegistry.register("random-search", RandomSearchEnginePlugin())

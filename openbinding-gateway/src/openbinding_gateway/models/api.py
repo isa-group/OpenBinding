@@ -47,10 +47,29 @@ class Provenance(BaseModel):
     
     model_config = ConfigDict(extra='allow')
 
+class BindingSpaceSummary(BaseModel):
+    cardinality: str = Field(..., description="Total size of the binding space as a string (product of candidate counts).")
+    log10_cardinality: float = Field(..., description="Approximate log10 of the cardinality.")
+    per_task_counts: Dict[str, int] = Field(..., description="Map of Task ID to number of available candidates.")
+    empty_tasks: List[str] = Field(default_factory=list, description="List of Task IDs that have 0 candidates.")
+
+class AnalyzeWarning(BaseModel):
+    code: str
+    message: str
+    details: Optional[Dict[str, Any]] = None
+
+class AnalyzeResponse(BaseModel):
+    status: str = Field(default="validated", description="Validation status. 'validated' or 'failed'.")
+    binding_space: Optional[BindingSpaceSummary] = None
+    diagnostics: Optional[Dict[str, Any]] = None
+    warnings: Optional[List[AnalyzeWarning]] = None
+    provenance: Optional[Provenance] = None
+    error: Optional[str] = None
+
 class SolveResponse(BaseModel):
     solutions: List[Solution]
     provenance: Provenance
-    diagnostics: Optional[Dict[str, Any]] = None
+    diagnostics: Optional[Dict[str, Any]] = Field(default=None, description="Diagnostic information. May include 'binding_space' if verbose=True.")
 
 class JobStatus(str, Enum):
     QUEUED = "queued"

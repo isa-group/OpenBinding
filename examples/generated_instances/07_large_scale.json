@@ -1,0 +1,255 @@
+{
+  "tasks": [
+    {
+      "id": "T1",
+      "name": "T1"
+    },
+    {
+      "id": "T2",
+      "name": "T2"
+    },
+    {
+      "id": "T3",
+      "name": "T3"
+    },
+    {
+      "id": "T4",
+      "name": "T4"
+    },
+    {
+      "id": "T5",
+      "name": "T5"
+    },
+    {
+      "id": "T6",
+      "name": "T6"
+    },
+    {
+      "id": "T7",
+      "name": "T7"
+    },
+    {
+      "id": "T8",
+      "name": "T8"
+    },
+    {
+      "id": "T9",
+      "name": "T9"
+    },
+    {
+      "id": "T10",
+      "name": "T10"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "C1",
+      "task_id": "T1",
+      "provider_id": "P1",
+      "features": {
+        "cost": 10
+      },
+      "name": "C1"
+    },
+    {
+      "id": "C2",
+      "task_id": "T2",
+      "provider_id": "P1",
+      "features": {
+        "cost": 10
+      },
+      "name": "C2"
+    },
+    {
+      "id": "C3",
+      "task_id": "T3",
+      "provider_id": "P1",
+      "features": {
+        "cost": 10
+      },
+      "name": "C3"
+    },
+    {
+      "id": "C4",
+      "task_id": "T4",
+      "provider_id": "P1",
+      "features": {
+        "cost": 10
+      },
+      "name": "C4"
+    },
+    {
+      "id": "C5",
+      "task_id": "T5",
+      "provider_id": "P1",
+      "features": {
+        "cost": 10
+      },
+      "name": "C5"
+    },
+    {
+      "id": "C6",
+      "task_id": "T6",
+      "provider_id": "P1",
+      "features": {
+        "cost": 10
+      },
+      "name": "C6"
+    },
+    {
+      "id": "C7",
+      "task_id": "T7",
+      "provider_id": "P1",
+      "features": {
+        "cost": 10
+      },
+      "name": "C7"
+    },
+    {
+      "id": "C8",
+      "task_id": "T8",
+      "provider_id": "P1",
+      "features": {
+        "cost": 10
+      },
+      "name": "C8"
+    },
+    {
+      "id": "C9",
+      "task_id": "T9",
+      "provider_id": "P1",
+      "features": {
+        "cost": 10
+      },
+      "name": "C9"
+    },
+    {
+      "id": "C10",
+      "task_id": "T10",
+      "provider_id": "P1",
+      "features": {
+        "cost": 10
+      },
+      "name": "C10"
+    }
+  ],
+  "composition": {
+    "type": "structured",
+    "root": {
+      "kind": "SEQ",
+      "children": [
+        {
+          "kind": "TASK",
+          "task_id": "T1",
+          "id": "b6fc0a78"
+        },
+        {
+          "kind": "TASK",
+          "task_id": "T2",
+          "id": "a150ace3"
+        },
+        {
+          "kind": "TASK",
+          "task_id": "T3",
+          "id": "043ac2c6"
+        },
+        {
+          "kind": "TASK",
+          "task_id": "T4",
+          "id": "70f4b549"
+        },
+        {
+          "kind": "TASK",
+          "task_id": "T5",
+          "id": "40c4a5d2"
+        },
+        {
+          "kind": "TASK",
+          "task_id": "T6",
+          "id": "cebfd387"
+        },
+        {
+          "kind": "TASK",
+          "task_id": "T7",
+          "id": "345d2c60"
+        },
+        {
+          "kind": "TASK",
+          "task_id": "T8",
+          "id": "7a441445"
+        },
+        {
+          "kind": "TASK",
+          "task_id": "T9",
+          "id": "839fd597"
+        },
+        {
+          "kind": "TASK",
+          "task_id": "T10",
+          "id": "126d8b49"
+        }
+      ],
+      "id": "b54532da"
+    }
+  },
+  "features": [
+    {
+      "id": "cost",
+      "name": "cost",
+      "unit": "unit",
+      "scale": "ratio",
+      "valid_range": {
+        "min": 0,
+        "max": 10000
+      },
+      "direction": "minimize"
+    }
+  ],
+  "aggregation_policies": {
+    "cost": {
+      "compose": {
+        "seq": {
+          "fn": "sum"
+        },
+        "and": {
+          "fn": "sum"
+        },
+        "xor": {
+          "fn": "sum"
+        },
+        "loop": {
+          "fn": "sum"
+        }
+      },
+      "neutral": 0,
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0,
+          "max": 10000
+        }
+      }
+    }
+  },
+  "objective": {
+    "type": "weighted_sum",
+    "weights": {
+      "cost": 1.0
+    },
+    "normalized": true
+  },
+  "constraints": [],
+  "metadata": {
+    "id": "70ef9858-93e6-4ba6-b113-e0b5246c1015",
+    "name": "Instance 7: Larger Scale (More Tasks and Candidates)",
+    "version": "1.0",
+    "created_at": "2026-01-26T12:00:00Z",
+    "description": "Instance 7: Larger Scale (More Tasks and Candidates)"
+  },
+  "providers": [
+    {
+      "id": "P1",
+      "name": "Provider P1"
+    }
+  ]
+}

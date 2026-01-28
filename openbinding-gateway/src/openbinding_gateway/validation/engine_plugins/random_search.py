@@ -3,7 +3,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 
-class ManyObjEnginePlugin(EngineValidationPlugin):
+class RandomSearchEnginePlugin(EngineValidationPlugin):
     def get_capabilities(self) -> Dict[str, Any]:
         return {
             "qos_features_supported": ["*"],
@@ -17,7 +17,7 @@ class ManyObjEnginePlugin(EngineValidationPlugin):
         base_path = os.getenv("SCHEMAS_DIR", "/app/schemas") 
         if not os.path.exists(base_path):
              base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../../schemas"))
-        return os.path.join(base_path, "specializations/many-obj.schema.json")
+        return os.path.join(base_path, "specializations/random-search.schema.json")
 
     def validate_semantics(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
         violations = []
@@ -79,26 +79,26 @@ class ManyObjEnginePlugin(EngineValidationPlugin):
                 violations.append(ValidationViolation(
                     code="unsupported_constraint",
                     path=f"constraints[{i}].kind",
-                    message="Many-OBJ only supports 'attribute_bound' constraints"
+                    message="Random-Search only supports 'attribute_bound' constraints"
                 ))
                 continue
             if c.get("scope") != "global":
                 violations.append(ValidationViolation(
                     code="unsupported_scope",
                     path=f"constraints[{i}].scope",
-                    message="Many-OBJ only supports global attribute_bound constraints"
+                    message="Random-Search only supports global attribute_bound constraints"
                 ))
             if c.get("op") == "in_range":
                 violations.append(ValidationViolation(
                     code="unsupported_operator",
                     path=f"constraints[{i}].op",
-                    message="Many-OBJ does not support 'in_range' operator"
+                    message="Random-Search does not support 'in_range' operator"
                 ))
             if not isinstance(c.get("value"), (int, float)):
                 violations.append(ValidationViolation(
                     code="invalid_value",
                     path=f"constraints[{i}].value",
-                    message="Many-OBJ requires a numeric 'value' for attribute_bound"
+                    message="Random-Search requires a numeric 'value' for attribute_bound"
                 ))
             if not c.get("attribute_id"):
                 violations.append(ValidationViolation(
@@ -110,13 +110,13 @@ class ManyObjEnginePlugin(EngineValidationPlugin):
         return violations
 
     def transform_request(self, instance: Dict[str, Any], options: Dict[str, Any] = {}) -> Tuple[Dict[str, Any], List[str]]:
-        """Map Universal JSON to Many-OBJ API DTO structure."""
+        """Map Universal JSON to Random-Search API DTO structure."""
         
         warnings = []
         if options:
             for k in options.keys():
                 if k != "iterations_count":
-                    warnings.append(f"Option '{k}' is not supported by Many-OBJ engine")
+                    warnings.append(f"Option '{k}' is not supported by Random-Search engine")
 
         # 1. Composition
         def map_node(node):
@@ -244,13 +244,13 @@ class ManyObjEnginePlugin(EngineValidationPlugin):
         }, warnings
 
     def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:
-        """Map Many-OBJ response to Universal Solution."""
+        """Map Random-Search response to Universal Solution."""
         # Engine response: { status, selection: {task_id -> service_id}, qos: {...}, error }
         
         if engine_response.get("error"):
              return {"error": engine_response["error"]}
 
-        selection = engine_response.get("selection", {}) or {}
+        selection = engine_response.get("selection") or {}
 
         # Recompute aggregated + normalized QoS in gateway to avoid information loss and
         # align with universal semantics.
@@ -448,10 +448,10 @@ class ManyObjEnginePlugin(EngineValidationPlugin):
             })
 
         provenance = {
-             "engine_id": "many-obj",
+             "engine_id": "random-search",
              "execution_time_ms": engine_response.get("execution_time", 0), 
              "metadata": {
-                 "solver": "Many-OBJ",
+                 "solver": "Random-Search",
                  "version": "0.0.1-SNAPSHOT",
                  "iterations_count": engine_response.get("iterations_count")
              }

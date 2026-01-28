@@ -1,14 +1,12 @@
 import { spawn } from 'child_process';
-import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as fs from 'fs';
 
 export class Solver {
-    private readonly SOLVER_NAME = 'gecode'; // TODO: Make this configurable. For now, only gecode is supported.
+    private readonly SOLVER_NAME = 'gecode';
+    private readonly tmpDir = path.resolve(__dirname, '../tmp_minizinc');
 
     async solve(instance: any, options: any): Promise<any> {
-        const jobName = `job-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-        const dznPath = path.join('/tmp', `${jobName}.dzn`);
-
         // 0. Best Practices Validation
         const violations = this.validateBestPractices(instance);
         if (violations.length > 0) {
@@ -22,25 +20,38 @@ export class Solver {
             });
         }
 
-        // 1. Transform Instance to DZN
-        const dznContent = this.transformToDZN(instance, options);
-        await fs.writeFile(dznPath, dznContent);
+        // 1. Identify Features
+        const features = this.getFeatures(instance);
 
-        // 2. Run MiniZinc
-        // minizinc --solver <SOLVER_NAME> model.mzn data.dzn
+        // 2. Transform Instance to DZN
+        const dznContent = this.transformToDZN(instance, features, options);
+
+        // 3. Run MiniZinc
+        // minizinc --solver <SOLVER_NAME> model.mzn -
+        // The '-' argument tells minizinc to read data from stdin
         const modelPath = path.resolve(__dirname, '../model/composition.mzn');
         const startTime = Date.now();
 
         return new Promise((resolve, reject) => {
-            // NOTE: Removed '--output-mode', 'json' to rely on the custom 'output' item in .mzn
-            // which includes 'objective_value' and 'selection'.
-            const minizinc = spawn('minizinc', ['--solver', this.SOLVER_NAME, modelPath, dznPath]);
+            const args = ['--solver', this.SOLVER_NAME, modelPath, '-'];
+
+            // Ensure TMPDIR directory exists for MiniZinc
+            if (!fs.existsSync(this.tmpDir)) {
+                fs.mkdirSync(this.tmpDir, { recursive: true });
+            }
+            const env = { ...process.env, TMPDIR: this.tmpDir };
+
+            const minizinc = spawn('minizinc', args, { env });
 
             let stdout = '';
             let stderr = '';
 
             minizinc.stdout.on('data', (data) => stdout += data.toString());
             minizinc.stderr.on('data', (data) => stderr += data.toString());
+
+            // Write DZN content to stdin
+            minizinc.stdin.write(dznContent);
+            minizinc.stdin.end();
 
             minizinc.on('close', async (code) => {
                 const endTime = Date.now();
@@ -49,8 +60,6 @@ export class Solver {
                 console.log(`MiniZinc process exited with code ${code}`);
                 if (stdout) console.log(`MiniZinc Stdout: ${stdout}`);
                 if (stderr) console.error(`MiniZinc Stderr: ${stderr}`);
-
-                await fs.unlink(dznPath).catch(() => { }); // Cleanup
 
                 if (code !== 0) {
                     return resolve({
@@ -80,9 +89,6 @@ export class Solver {
                     }
 
                     // MiniZinc Output Handling
-                    // We expect a valid JSON string from the 'output' item in the .mzn file.
-                    // However, MiniZinc might print "----------" or other delimiters.
-                    // We look for the JSON block { ... }
                     const lastBrace = stdout.lastIndexOf('}');
                     const firstBrace = stdout.indexOf('{');
                     if (firstBrace === -1 || lastBrace === -1) {
@@ -105,16 +111,12 @@ export class Solver {
                     const result = JSON.parse(jsonStr);
 
                     // Map selected candidates back to IDs
-                    // Result.selection is { "1": 5, "2": 3 } (task_idx -> cand_idx)
-                    // We need to map back to task_id -> cand_id
-
                     const taskMap = this.mapTasks(instance); // task_idx -> task_id
                     const candMap = this.mapCandidates(instance); // cand_idx -> cand_id
 
                     const selection: Record<string, string> = {};
 
                     if (Array.isArray(result.selected_cand)) {
-                        // Fallback if MZN output format changes back to array
                         result.selected_cand.forEach((cIdx: number, idx: number) => {
                             const taskIdx = idx + 1;
                             const tId = taskMap[taskIdx];
@@ -124,9 +126,7 @@ export class Solver {
                             }
                         });
                     } else if (result.selection) {
-                        // Custom output from .mzn
                         for (const [tIdx, cIdx] of Object.entries(result.selection)) {
-                            // key is string "1", val is number/string
                             const tId = taskMap[parseInt(tIdx)];
                             const cId = candMap[String(cIdx)];
                             if (tId && cId) {
@@ -135,11 +135,32 @@ export class Solver {
                         }
                     }
 
+                    // Map Aggregated Features: Indices -> Feature IDs
+                    const aggregated_features: Record<string, number> = {};
+                    if (result.aggregated_features) {
+                        for (const [idxStr, val] of Object.entries(result.aggregated_features)) {
+                            const fIdx = parseInt(idxStr);
+                            // featureMap reverses: name -> idx. We need idx -> name
+                            // features array is sorted: 0-based. fIdx is 1-based.
+                            const featName = features[fIdx - 1];
+                            if (featName) {
+                                aggregated_features[featName] = Number(val);
+                            }
+                        }
+                    }
+
+                    // Handle Normalized Objective Scaling
+                    // If objective was normalized, the result might be scaled.
+                    // But actually minizinc result is just the sum.
+                    // If using normalized weights, the result is in normalized range (0-1 approx).
+                    // We just pass it through.
+
                     resolve({
                         solution: {
                             selection: selection,
                             objective_value: result.objective_value !== undefined ? result.objective_value : 0,
-                            feasible: true
+                            feasible: true,
+                            aggregated_features: aggregated_features
                         },
                         provenance: {
                             solver: this.SOLVER_NAME,
@@ -160,134 +181,209 @@ export class Solver {
         });
     }
 
-    private transformToDZN(instance: any, options: any): string {
+    private getFeatures(instance: any): string[] {
+        // 1. Collect all declared features from instance.features or fallback to keys in agg policies or candidates
+        const declaredFeatures = (instance.features || []).map((f: any) => f.id);
+        const featureSet = new Set<string>(declaredFeatures);
+
+        // Also scan policies
+        if (instance.aggregation_policies) {
+            Object.keys(instance.aggregation_policies).forEach(k => featureSet.add(k));
+        }
+
+        // Scan candidates for any extra keys? (Optional, maybe stick to declared to avoid garbage)
+        // Let's stick to featureSet. If empty, scan one candidate.
+        if (featureSet.size === 0 && instance.candidates && instance.candidates.length > 0) {
+            const c = instance.candidates[0];
+            const qosData = c.qos || c.features || {};
+            Object.keys(qosData).forEach(k => featureSet.add(k));
+        }
+
+        return Array.from(featureSet).sort(); // Consistent order
+    }
+
+    private transformToDZN(instance: any, features: string[], options: any): string {
         // Helper to format arrays
         const fmt = (arr: any[]) => `[${arr.join(', ')}]`;
-        const fmt2d = (arr: any[][]) => `[| ${arr.map(r => r.join(', ')).join(' | ')} |]`;
+        const fmt2d = (arr: any[][]) => {
+            if (arr.length === 0) return `[| |]`;
+            // MiniZinc 2D array syntax: [| r1 | r2 | ... |]
+            return `[| ${arr.map(r => r.join(', ')).join(' | ')} |]`;
+        };
 
         const tasks = instance.tasks || [];
         const candidates = instance.candidates || [];
         const n_tasks = tasks.length;
         const n_candidates = candidates.length;
 
-        // Identify task indices (1-based)
+        // --- 0. Identify QoS Features & Policies ---
+        // Features passed as argument
+        const n_qos = features.length;
+        const featureMap: Record<string, number> = {};
+        features.forEach((f, i) => featureMap[f] = i + 1);
+
+
+
+        // Aggregation Enums: 1=SUM, 2=PROD, 3=MAX, 4=MIN, 5=WSUM
+        const FN_MAP: Record<string, number> = {
+            "sum": 1, "weighted_sum": 5, "product": 2, "max": 3, "min": 4,
+            "scale_by_c": 1 // Loop specific: usually means sum * c
+        };
+        const DEFAULT_FN = 1; // Sum
+
+        // Build Aggregation Policy Matrix: [feature_idx, kind_idx]
+        // Kinds: TASK=1, SEQ=2, AND=3, XOR=4, LOOP=5
+        const agg_policy: number[][] = [];
+
+        for (const feat of features) {
+            const pol = (instance.aggregation_policies || {})[feat] || {};
+            const compose = pol.compose || {};
+
+            const row: number[] = [];
+            // 1. TASK (N/A really, but filler)
+            row.push(DEFAULT_FN);
+
+            // 2. SEQ
+            row.push(FN_MAP[compose.seq?.fn] || DEFAULT_FN);
+
+            // 3. AND
+            row.push(FN_MAP[compose.and?.fn] || DEFAULT_FN); // Usually MAX or SUM
+
+            // 4. XOR
+            // Default XOR to WSUM (5) unless specified
+            row.push(FN_MAP[compose.xor?.fn] || 5);
+
+            // 5. LOOP
+            row.push(FN_MAP[compose.loop?.fn] || DEFAULT_FN);
+
+            agg_policy.push(row);
+        }
+
+        // --- 1. Map Tasks & Providers ---
         const taskIdx: Record<string, number> = {};
         tasks.forEach((t: any, i: number) => taskIdx[t.id] = i + 1);
 
-        // Identify provider indices (1-based)
         const providerIdx: Record<string, number> = {};
         if (instance.providers) {
             instance.providers.forEach((p: any, i: number) => providerIdx[p.id] = i + 1);
         }
 
-        // --- 1. Compute Per-Task Candidate Lists & Bounds ---
-        // We need:
-        // - max_cands_per_task
-        // - task_cands[t, c_idx] -> cand_index (global)
-        // - n_task_cands[t]
-        // - candidate_provider (global map)
-
-        // Also Compute Bounds for Domains
-        // COST_UB: Sum over tasks of their max cost candidate
-        // TIME_UB: Sum over tasks of their max time candidate (Worst case SEQ)
-
+        // --- 2. Candidates & QoS Matrix ---
         const task_candidates_map: number[][] = Array.from({ length: n_tasks + 1 }, () => []);
-
-        const c_cost_arr: number[] = [];
-        const c_time_arr: number[] = [];
-        const c_rel_arr: number[] = [];
-        const c_avail_arr: number[] = [];
-        const c_sec_arr: number[] = [];
         const cand_provider: number[] = [];
+        const cand_qos: number[][] = []; // [cand][feat]
 
-        // Global candidate properties
         candidates.forEach((c: any, i: number) => {
             const global_idx = i + 1;
             const t_id = taskIdx[c.task_id];
-
-            // Populate per-task list
-            if (t_id) {
-                task_candidates_map[t_id].push(global_idx);
-            }
+            if (t_id) task_candidates_map[t_id].push(global_idx);
 
             cand_provider.push(providerIdx[c.provider_id] || 0);
 
-            const q = c.qos || {};
-            c_cost_arr.push(q.cost || 0);
-            c_time_arr.push(q.time || 0);
-            c_rel_arr.push(q.reliability || 1.0);
-            c_avail_arr.push(q.availability || 1.0);
-            c_sec_arr.push(q.security || 1.0);
+            // QoS Values - support both 'qos' and 'features' property names
+            const qosData = c.qos || c.features || {};
+            const row: number[] = [];
+            for (const feat of features) {
+                let val = qosData[feat];
+                // Handle missing values? Default to 0? Or Worst case?
+                // For logic, 0.0 is safest default unless it's reliability (should be 1?)
+                // Trying to be smart: if 'product' agg, default to 1?
+                // For now, default 0.0. User should provide complete data.
+                if (val === undefined || val === null) val = 0.0;
+                row.push(Number(val));
+            }
+            cand_qos.push(row);
         });
 
-        // Compute Max Candidates Per Task for Matrix Size
+        // Max candidates per task
         let max_cands_per_task = 0;
         for (let t = 1; t <= n_tasks; t++) {
             if (task_candidates_map[t].length > max_cands_per_task) {
                 max_cands_per_task = task_candidates_map[t].length;
             }
         }
-        if (max_cands_per_task === 0) max_cands_per_task = 1; // Avoid 0 size
+        if (max_cands_per_task === 0) max_cands_per_task = 1;
 
-        // Pad task_cands matrix
-        const task_cands: number[][] = []; // 1-based logic, 0-index in JS
+        const task_cands: number[][] = [];
         const n_task_cands: number[] = [];
-
-        // Compute UB
-        let COST_UB = 0.0;
-        let TIME_UB = 0.0;
 
         for (let t = 1; t <= n_tasks; t++) {
             const cands = task_candidates_map[t];
             n_task_cands.push(cands.length);
-
-            // Pad
             const row = [...cands];
-            while (row.length < max_cands_per_task) {
-                row.push(1); // Dummy filler, won't be picked if constraint holds
-            }
+            while (row.length < max_cands_per_task) row.push(1); // Pad
             task_cands.push(row);
+        }
 
-            // Bounds accumulation
-            if (cands.length > 0) {
-                const max_cost = Math.max(...cands.map(ci => c_cost_arr[ci - 1]));
-                const max_time = Math.max(...cands.map(ci => c_time_arr[ci - 1]));
-                COST_UB += max_cost;
-                TIME_UB += max_time;
+        // --- 3. Compute Bounds (QoS UB) ---
+        // Use tighter bounds to avoid Gecode float overflow
+        // For SUM aggregation: max possible is sum of max candidates per task
+        // We compute a reasonable upper bound based on actual data
+        const qos_ub: number[] = [];
+        for (let f = 0; f < n_qos; f++) {
+            // Check max value in candidates
+            let maxVal = 1.0;
+            if (candidates.length > 0 && cand_qos.length > 0) {
+                maxVal = Math.max(1.0, ...cand_qos.map(row => Math.abs(row[f])));
+            }
+
+            // Check aggregation policy for SEQ/LOOP (columns 1 and 4 in 0-based row)
+            // Indices in MZN: SEQ=2, LOOP=5. In 0-based array: 1, 4.
+            const seqPol = agg_policy[f]?.[1] || 1;
+            const loopPol = agg_policy[f]?.[4] || 1;
+
+            if (seqPol === 1 || loopPol === 1) { // SUM
+                // For SUM: upper bound = max_value * number_of_tasks * reasonable_loop_factor
+                // Use a tight bound to avoid Gecode overflow
+                const sumBound = maxVal * Math.max(n_tasks, 1) * 100;
+                qos_ub.push(sumBound);
+            } else if (seqPol === 2 || loopPol === 2) { // PROD
+                // If values > 1, grows fast. If <= 1, stays <= 1.
+                // Assume normalized 0-1 for reliability if product used.
+                if (maxVal <= 1.0) qos_ub.push(1.0);
+                else qos_ub.push(Math.pow(maxVal, Math.min(n_tasks, 10)));
+            } else {
+                // MAX/MIN - bound is just the max candidate value with margin
+                qos_ub.push(maxVal * 2);
             }
         }
 
-        // Safety margin for float errors or structure overhead
-        if (COST_UB === 0) COST_UB = 1000000.0;
-        if (TIME_UB === 0) TIME_UB = 1000000.0;
-
-        // --- 2. Flatten Tree & Identify Root ---
+        // --- 4. Flatten Tree ---
         const nodes: any[] = [];
-
-        // Recursive traversal
         const traverse = (node: any): number => {
             const myIdx = nodes.length + 1;
+
+            // LOOP iterations: support both 'iterations' and 'expected_iterations'
+            let loopIters = 0.0;
+            if (node.kind === 'LOOP') {
+                loopIters = node.iterations || node.expected_iterations || 1.0;
+            }
+
             const nodeEntry = {
                 kind: this.getKind(node.kind),
                 task_id: node.kind === 'TASK' ? taskIdx[node.task_id] : 0,
                 children: [] as number[],
-                xor_probs: [] as number[]
+                xor_probs: [] as number[],
+                loop_iters: loopIters
             };
             nodes.push(nodeEntry);
 
             if (node.children) {
+                // For XOR nodes, children may have 'probability' property
+                const isXOR = node.kind === 'XOR';
                 for (const child of node.children) {
                     const childIdx = traverse(child);
                     nodeEntry.children.push(childIdx);
-                    nodeEntry.xor_probs.push(0.0);
+                    // Extract probability for XOR children
+                    nodeEntry.xor_probs.push(isXOR ? (child.probability || 0.0) : 0.0);
                 }
-            } else if (node.branches) { // XOR
+            } else if (node.branches) { // XOR with branches format
                 for (const br of node.branches) {
                     const childIdx = traverse(br.child);
                     nodeEntry.children.push(childIdx);
-                    nodeEntry.xor_probs.push(br.p);
+                    nodeEntry.xor_probs.push(br.p || 0.0);
                 }
-            } else if (node.body) { // LOOP (Not fully supported, treat as SEQ child)
+            } else if (node.body) { // LOOP: body is single child
                 const childIdx = traverse(node.body);
                 nodeEntry.children.push(childIdx);
                 nodeEntry.xor_probs.push(0.0);
@@ -297,37 +393,29 @@ export class Solver {
 
         const root = instance.composition.root;
         let root_id = 1;
-        if (root) {
-            root_id = traverse(root); // Should be 1 because we traverse recursively pushing to array
-        }
-        // Since traverse returns the index of the node *after* it's pushed, 
-        // and we start root traversal first, the root of the tree is actually the *last* node processed?
-        // Wait, traverse(root) calls traverse(child).
-        // nodes.push is CALLED at start of function.
-        // So Root is pushed FIRST. index 1.
-        // children (recursive) key pushed AFTER.
-        // So root_id is indeed 1. Verified.
+        if (root) root_id = traverse(root);
 
         const n_nodes = nodes.length;
         const max_children = Math.max(1, ...nodes.map(n => n.children.length));
-
-        // Helper to pad arrays
-        const pad = (arr: number[], len: number, val: number) =>
-            [...arr, ...Array(Math.max(0, len - arr.length)).fill(val)];
+        const pad = (arr: number[], len: number, val: number) => [...arr, ...Array(Math.max(0, len - arr.length)).fill(val)];
 
         const node_kind = nodes.map(n => n.kind);
         const node_task_id = nodes.map(n => n.task_id);
         const node_n_children = nodes.map(n => n.children.length);
-        const node_children = nodes.map(n => pad(n.children, max_children, 0)); 
+        const node_children = nodes.map(n => pad(n.children, max_children, 0));
         const node_xor_probs = nodes.map(n => pad(n.xor_probs, max_children, 0.0));
+        const node_loop_iters = nodes.map(n => n.loop_iters);
 
-        // Objective
+        // --- 5. Weights ---
         const obj = instance.objective || {};
-        const w = obj.weights || {};
+        const weightsObj = obj.weights || {};
+        const qos_weights: number[] = [];
+        for (const feat of features) {
+            qos_weights.push(Number(weightsObj[feat] || 0.0));
+        }
 
-        // --- 3. Constraints ---
+        // --- 6. Constraints ---
         const constraints = instance.constraints || [];
-        const attrMap: Record<string, number> = { "cost": 1, "time": 2, "reliability": 3, "availability": 4, "security": 5 };
         const opMap: Record<string, number> = { "<=": 1, ">=": 2, "==": 3, "<": 4, ">": 5 };
 
         const gc_attr: number[] = [];
@@ -344,25 +432,29 @@ export class Solver {
         const dc_t2: number[] = [];
 
         for (const c of constraints) {
+            // Skip soft constraints for now
+            if (c.hard === false) continue;
+
             if (c.kind === 'attribute_bound') {
-                const attr = attrMap[c.attribute_id];
+                const attrIdx = featureMap[c.attribute_id];
                 const op = opMap[c.op];
-                if (!attr || !op) continue;
+                if (!attrIdx || !op) continue;
 
                 if (c.scope === 'global') {
-                    gc_attr.push(attr);
+                    gc_attr.push(attrIdx);
                     gc_op.push(op);
                     gc_val.push(c.value);
                 } else if (c.scope === 'local' && c.task_id) {
                     const tIdx = taskIdx[c.task_id];
                     if (tIdx) {
                         lc_task.push(tIdx);
-                        lc_attr.push(attr);
+                        lc_attr.push(attrIdx);
                         lc_op.push(op);
                         lc_val.push(c.value);
                     }
                 }
             } else if (c.kind === 'dependency') {
+                // ... (Same as before)
                 const tIndices = (c.tasks || []).map((tid: string) => taskIdx[tid]).filter((i: any) => i);
                 if (tIndices.length < 2) continue;
 
@@ -385,41 +477,33 @@ export class Solver {
         }
 
         return `
-        % --- Generated Data ---
         root_id = ${root_id};
         PROB_EPS = 1e-6;
-
-        COST_UB = ${COST_UB};
-        TIME_UB = ${TIME_UB};
 
         n_tasks = ${n_tasks};
         n_candidates = ${n_candidates};
         n_nodes = ${n_nodes};
+        n_qos = ${n_qos};
         max_children = ${max_children};
 
         max_cands_per_task = ${max_cands_per_task};
         n_task_cands = ${fmt(n_task_cands)};
         task_cands = ${fmt2d(task_cands)};
 
+        cand_qos = ${fmt2d(cand_qos)};
         candidate_provider = ${fmt(cand_provider)};
-
-        c_cost = ${fmt(c_cost_arr)};
-        c_time = ${fmt(c_time_arr)};
-        c_rel = ${fmt(c_rel_arr)};
-        c_avail = ${fmt(c_avail_arr)};
-        c_sec = ${fmt(c_sec_arr)};
 
         node_kind = ${fmt(node_kind)};
         node_task_id = ${fmt(node_task_id)};
         node_n_children = ${fmt(node_n_children)};
         node_children = ${fmt2d(node_children)};
         node_xor_probs = ${fmt2d(node_xor_probs)};
+        node_loop_iters = ${fmt(node_loop_iters)};
 
-        w_cost = ${w.cost || 0.0};
-        w_time = ${w.time || 0.0};
-        w_rel = ${w.reliability || 0.0};
-        w_avail = ${w.availability || 0.0};
-        w_sec = ${w.security || 0.0};
+        agg_policy = ${fmt2d(agg_policy)};
+        
+        qos_weights = ${fmt(qos_weights)};
+        qos_ub = ${fmt(qos_ub)};
 
         n_global_constraints = ${gc_attr.length};
         gc_attr = ${fmt(gc_attr)};
@@ -444,6 +528,7 @@ export class Solver {
         if (k === 'SEQ') return 2;
         if (k === 'AND') return 3;
         if (k === 'XOR') return 4;
+        if (k === 'LOOP') return 5;
         return 0;
     }
 
@@ -498,7 +583,7 @@ export class Solver {
         const obj = instance.objective || {};
         if (obj.type === 'weighted_sum' && obj.weights) {
             const weights = Object.values(obj.weights).map((w: any) => Number(w));
-            const sum = weights.reduce((a, b) => a + b, 0);
+            const sum = weights.reduce((a, b) => a + Math.abs(b), 0);
             if (sum === 0 && weights.length > 0) {
                 violations.push({
                     message: "Objective has all zero weights. Optimization effectively disabled.",

@@ -13,10 +13,11 @@ services:
       - UNIVERSAL_SCHEMA_PATH=/app/schemas/universal/schema.json
       - SCHEMAS_DIR=/app/schemas
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
-      - ENGINE_MANY_OBJ_URL=http://engine-many-obj:8080
+      - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
+      - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
     depends_on:
       - engine-minizinc
-      - engine-many-obj
+      - engine-random-search
 
   engine-minizinc:
     build:
@@ -25,9 +26,9 @@ services:
     ports:
       - "3000:3000"
 
-  engine-many-obj:
+  engine-random-search:
     build:
-      context: ./engines/many-obj
+      context: ./engines/random-search
       dockerfile: Dockerfile
     ports:
       - "8081:8080"

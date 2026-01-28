@@ -1,0 +1,123 @@
+{
+  "metadata": {
+    "id": "01_safe",
+    "name": "01_safe",
+    "version": "1.0",
+    "created_at": "2026-01-26T12:00:00Z"
+  },
+  "providers": [
+    {
+      "id": "P1",
+      "name": "P1"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T1",
+      "name": "T1"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "C1",
+      "task_id": "T1",
+      "provider_id": "P1",
+      "name": "C1",
+      "features": {
+        "cost": 10,
+        "time": 10
+      }
+    }
+  ],
+  "features": [
+    {
+      "id": "cost",
+      "name": "cost",
+      "unit": "usd",
+      "scale": "ratio",
+      "valid_range": {
+        "min": 0,
+        "max": 1000
+      },
+      "direction": "minimize"
+    },
+    {
+      "id": "time",
+      "name": "time",
+      "unit": "ms",
+      "scale": "ratio",
+      "valid_range": {
+        "min": 0,
+        "max": 1000
+      },
+      "direction": "minimize"
+    }
+  ],
+  "composition": {
+    "type": "structured",
+    "root": {
+      "id": "root",
+      "kind": "TASK",
+      "task_id": "T1"
+    }
+  },
+  "aggregation_policies": {
+    "cost": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "sum"
+        },
+        "and": {
+          "fn": "max"
+        },
+        "xor": {
+          "fn": "sum"
+        },
+        "loop": {
+          "fn": "sum"
+        }
+      },
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0,
+          "max": 1000
+        }
+      }
+    },
+    "time": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "sum"
+        },
+        "and": {
+          "fn": "max"
+        },
+        "xor": {
+          "fn": "sum"
+        },
+        "loop": {
+          "fn": "sum"
+        }
+      },
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0,
+          "max": 1000
+        }
+      }
+    }
+  },
+  "objective": {
+    "type": "weighted_sum",
+    "weights": {
+      "cost": 0.5,
+      "time": 0.5
+    },
+    "normalized": true
+  },
+  "constraints": []
+}

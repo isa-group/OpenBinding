@@ -18,15 +18,15 @@
       "items": {
         "properties": {
           "id": {
-            "enum": ["cost", "time", "reliability", "availability", "security"]
+            "type": "string"
           }
         }
       }
     },
     "aggregation_policies": {
-       "propertyNames": {
-          "enum": ["cost", "time", "reliability", "availability", "security"]
-       }
+      "propertyNames": {
+        "type": "string"
+      }
     },
     "objective": {
       "properties": {
@@ -45,13 +45,7 @@
                 "const": "attribute_bound"
               },
               "attribute_id": {
-                "enum": [
-                  "cost",
-                  "time",
-                  "reliability",
-                  "availability",
-                  "security"
-                ]
+                "type": "string"
               },
               "op": {
                 "enum": [
@@ -98,7 +92,12 @@
         { "$ref": "#/$defs/task_node" },
         { "$ref": "#/$defs/seq_node" },
         { "$ref": "#/$defs/and_node" },
-        { "$ref": "#/$defs/xor_node" }
+        {
+          "$ref": "#/$defs/xor_node"
+        },
+        {
+          "$ref": "#/$defs/loop_node"
+        }
       ]
     },
     "task_node": {
@@ -157,6 +156,24 @@
         }
       },
       "required": ["kind", "branches"]
+    },
+    "loop_node": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "LOOP"
+        },
+        "body": {
+          "$ref": "#/$defs/csp_node"
+        },
+        "expected_iterations": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "body"
+      ]
     }
   }
 }
