@@ -6,10 +6,10 @@ from ...models.api import ValidationViolation
 class MiniZincCSPEnginePlugin(EngineValidationPlugin):
     def get_capabilities(self) -> Dict[str, Any]:
         return {
-            "qos_features_supported": "*", # Supports any feature via generic model
+            "qos_features_supported": ["*"],
             "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
             "objective_types_supported": ["weighted_sum"],
-            "constraints_supported": [], 
+            "constraints_supported": ["attribute_bound", "dependency"], 
             "schema_version": "v1"
         }
 

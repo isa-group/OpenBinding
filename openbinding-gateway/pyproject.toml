@@ -17,6 +17,7 @@ dependencies = [
 test = [
     "pytest",
     "httpx",
+    "requests",
     "ruff",
     "mypy"
 ]

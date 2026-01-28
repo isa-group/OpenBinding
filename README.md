@@ -41,7 +41,14 @@ graph TD
     *   Best for exploring large solution spaces.
 
 4.  **Frontend** (`frontend`):
-    *   React-based web UI for modeling and submitting problems.
+    *   React + Vite web UI for modeling and submitting problems.
+    *   Multi-page SPA with professional design inspired by modern developer tools.
+    *   **Features**:
+        - **Home**: Landing page showcasing OpenBinding features and engines
+        - **Playground**: Interactive workspace with JSON editor, engine selector, and result visualization
+        - **Engines Explorer**: Browse and compare solver engines with capabilities
+        - **Schema Explorer**: Interactive JSON schema viewer with search and navigation
+        - **Light/Dark Theme**: System-aware theme with persistence
 
 ## 🚀 Getting Started
 
@@ -58,7 +65,7 @@ graph TD
     ```
 
     The services will be available at:
-    *   **Frontend**: [http://localhost:8080](http://localhost:8080)
+    *   **Frontend**: [http://localhost:80](http://localhost:80)
     *   **Gateway API**: [http://localhost:8000/docs](http://localhost:8000/docs)
     *   **MiniZinc Engine**: Port 3000 (Internal)
     *   **Random Search Engine**: Port 8081 (Internal)
@@ -70,7 +77,7 @@ graph TD
 
 ### 💻 Local Development (No Docker)
 
-If you have the necessary runtimes installed (Python 3.11+, Node.js 18+, Java 17+, and Maven), you can run the components locally for faster development:
+If you have the necessary runtimes installed (Python 3.11+, Node.js 20.19+, Java 17+, and Maven), you can run the components locally for faster development:
 
 1.  **Gateway** (Python):
     ```bash
@@ -84,9 +91,14 @@ If you have the necessary runtimes installed (Python 3.11+, Node.js 18+, Java 17
 2.  **Frontend** (React + Vite):
     ```bash
     cd frontend
-    npm install
-    npm run dev
+    # Install dependencies (requires Node.js 20.19+ or 22.12+)
+    pnpm install
+    # Set API URL (optional, defaults to http://localhost:8000)
+    echo "VITE_API_BASE_URL=http://localhost:8000" > .env
+    # Run development server
+    pnpm run dev -- --host 0.0.0.0 --port 80
     ```
+    The frontend will be available at [http://localhost:5173](http://localhost:5173)
 
 3.  **MiniZinc CSP Engine** (Node.js + MiniZinc):
     - Requirements: [MiniZinc](https://www.minizinc.org/) installed and in system PATH.
@@ -107,10 +119,18 @@ If you have the necessary runtimes installed (Python 3.11+, Node.js 18+, Java 17
 
 ## 🛠️ Validation & Testing
 
-OpenBinding implements a rigorous 3-stage validation process:
+OpenBinding implements a rigorous multi-stage validation process:
 1.  **General Schema**: Ensures the input adheres to the simplified QoS specification structure.
 2.  **Specialization Schema**: Enforces engine-specific constraints (e.g., supported composition types, constraints).
 3.  **Semantic/Logic**: Checks for consistency (e.g., undefined tasks, valid IDs).
+4.  **Analysis**: Computes binding space cardinality and generates warnings for potential issues.
+
+### Enhanced Validation Responses
+
+The gateway now returns structured validation errors and warnings:
+
+- **`/v1/analyze`**: Returns detailed warnings with `code`, `message`, and `details` (including `path`, `constraint_id`, `stage`)
+- **`/v1/solve`**: Returns HTTP 422 on validation failure with structured violations in the same format
 
 ### Running Tests (Docker)
 
@@ -122,6 +142,9 @@ docker compose up -d
 
 # 2. Run all tests
 docker compose exec gateway test
+
+# 3. Run specific test file
+docker compose exec gateway test tests/test_analysis.py -v
 ```
 
 ### Running Tests (Local)
@@ -131,7 +154,13 @@ If running **locally** without Docker:
 ```bash
 cd openbinding-gateway
 pytest
+# Or run with verbose output
+pytest -v
+# Or run specific tests
+pytest tests/test_validation_comprehensive.py -v
 ```
+
+**Test Coverage**: 60 tests covering validation, analysis, routing, and integration with engines.
 
 ## 📝 Usage Example
 

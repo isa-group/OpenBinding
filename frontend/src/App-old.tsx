@@ -6,7 +6,6 @@ import { Playground } from './pages/Playground/Playground';
 import { Engines } from './pages/Engines/Engines';
 import { Schemas } from './pages/Schemas/Schemas';
 import './styles/globals.css';
-import './App.css';
 
 function App() {
   return (

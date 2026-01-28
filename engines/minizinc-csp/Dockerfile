@@ -5,8 +5,8 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
-# Install MiniZinc
-RUN apt-get update && apt-get install -y minizinc && rm -rf /var/lib/apt/lists/*
+# Install MiniZinc + healthcheck tooling
+RUN apt-get update && apt-get install -y --no-install-recommends minizinc curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

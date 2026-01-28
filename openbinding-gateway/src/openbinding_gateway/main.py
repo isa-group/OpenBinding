@@ -2,8 +2,10 @@ from fastapi import FastAPI, HTTPException, status
 from contextlib import asynccontextmanager
 from typing import List, Dict, Any
 import json
+import asyncio
 
 from dotenv import load_dotenv
+import httpx
 
 load_dotenv()
 
@@ -42,7 +44,28 @@ async def health():
 
 @app.get("/v1/engines")
 async def list_engines():
-    return EngineRegistry.list_engines()
+    engines = EngineRegistry.list_engines()
+
+    async def check_engine_health(engine_id: str, client: httpx.AsyncClient) -> bool:
+        base_url = EngineRegistry.get_url(engine_id)
+        url = f"{base_url.rstrip('/')}/health"
+        try:
+            resp = await client.get(url)
+            return resp.status_code == 200
+        except Exception:
+            return False
+
+    timeout = httpx.Timeout(1.5, connect=1.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        results = await asyncio.gather(
+            *(check_engine_health(e["id"], client) for e in engines),
+            return_exceptions=True,
+        )
+
+    for engine, result in zip(engines, results):
+        engine["active"] = bool(result) and not isinstance(result, Exception)
+
+    return engines
 
 def validate_and_prepare(request: SolveRequest):
     """
@@ -98,10 +121,38 @@ async def analyze(request: SolveRequest):
     duration = (time.time() - start_time) * 1000
 
     if not result["valid"]:
-        # Return failed analysis
+        # Return failed analysis with structured violations
+        violations_data = result.get("violations", [])
+        
+        # Convert violations to warnings format for the response
+        warnings = []
+        if violations_data:
+            for v in violations_data:
+                if isinstance(v, dict):
+                    warnings.append(AnalyzeWarning(
+                        code=v.get("code", "validation_error"),
+                        message=v.get("message", str(v)),
+                        details={
+                            "path": v.get("path"),
+                            "constraint_id": v.get("constraint_id"),
+                            "stage": v.get("stage")
+                        } if v.get("path") or v.get("constraint_id") else None
+                    ))
+                else:
+                    # Handle ValidationViolation objects
+                    warnings.append(AnalyzeWarning(
+                        code=getattr(v, "code", "validation_error"),
+                        message=getattr(v, "message", str(v)),
+                        details={
+                            "path": getattr(v, "path", None),
+                            "constraint_id": getattr(v, "constraint_id", None),
+                        } if hasattr(v, "path") or hasattr(v, "constraint_id") else None
+                    ))
+        
         return AnalyzeResponse(
             status="failed",
-            error=result["error"],
+            error=result.get("error", "Validation failed"),
+            warnings=warnings if warnings else None,
             provenance=Provenance(
                 engine_id=request.engine_id,
                 execution_time_ms=duration
@@ -145,6 +196,42 @@ async def analyze(request: SolveRequest):
 @app.post("/v1/solve", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED, response_model_exclude_none=True)
 async def solve(request: SolveRequest):
     result = validate_and_prepare(request)
+    
+    if not result["valid"]:
+        # Return validation error immediately with structured violations
+        violations_data = result.get("violations", [])
+        
+        error_response = {
+            "error": result.get("error", "Validation failed"),
+            "violations": []
+        }
+        
+        if violations_data:
+            for v in violations_data:
+                if isinstance(v, dict):
+                    error_response["violations"].append({
+                        "code": v.get("code", "validation_error"),
+                        "message": v.get("message", str(v)),
+                        "path": v.get("path"),
+                        "constraint_id": v.get("constraint_id"),
+                        "stage": v.get("stage")
+                    })
+                else:
+                    # Handle ValidationViolation objects
+                    error_response["violations"].append({
+                        "code": getattr(v, "code", "validation_error"),
+                        "message": getattr(v, "message", str(v)),
+                        "path": getattr(v, "path", None),
+                        "constraint_id": getattr(v, "constraint_id", None),
+                    })
+        
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=error_response
+        )
+    
+    binding_space = result.get("binding_space")
+    warnings = result.get("warnings")
     
     # Hand the validated request over to the router to find a solution.
     return await router.route_solve(request, binding_space=binding_space, warnings=warnings)
