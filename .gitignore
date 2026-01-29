@@ -211,3 +211,5 @@ node_modules/
 .venv/
 .env
 .envrc
+
+.vscode
