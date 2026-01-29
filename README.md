@@ -15,7 +15,7 @@ graph TD
     Router -->|engine_id=random-search| RS[Random Search Engine]
     
     MZ -->|Solve via Gecode| Solution
-    RS -->|Solve via Evolution| Solution
+    RS -->|Solve via Random Heuristic| Solution
     
     Solution --> Gateway
     Gateway -->|HTTP 200| User
@@ -49,6 +49,26 @@ graph TD
         - **Engines Explorer**: Browse and compare solver engines with capabilities
         - **Schema Explorer**: Interactive JSON schema viewer with search and navigation
         - **Light/Dark Theme**: System-aware theme with persistence
+
+## 📐 Schemas & Specification
+
+OpenBinding validates incoming requests against two schema layers:
+
+1. **General schema** (engine-agnostic):
+    - JSON Schema (structural validation): `schemas/general/schema.json`
+    - Specification / semantics (human-readable): `schemas/general/schema.specification.md`
+
+    The specification document explains the intent and semantics behind the JSON Schema, including:
+    - The instance model (tasks, candidates, providers, features)
+    - Workflow modeling (`composition` as structured tree or DAG)
+    - QoS aggregation and normalization (`aggregation_policies`)
+    - Constraints and objectives, plus invariants that require a second validation pass
+
+2. **Specialization schemas** (engine-specific constraints):
+    - `schemas/specializations/minizinc-csp.schema.json`
+    - `schemas/specializations/random-search.schema.json`
+
+Example payloads that follow these schemas live in `examples/`.
 
 ## 🚀 Getting Started
 
