@@ -1,9 +1,18 @@
 import os
 from typing import List, Dict, Any, Optional, Tuple
+import httpx
 from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 
 class RandomSearchEnginePlugin(EngineValidationPlugin):
+    async def check_engine_health(self, base_url: str, client: httpx.AsyncClient) -> bool:
+        url = f"{base_url.rstrip('/')}/health"
+        try:
+            resp = await client.get(url)
+            return resp.status_code == 200
+        except Exception:
+            return False
+
     def get_capabilities(self) -> Dict[str, Any]:
         return {
             "qos_features_supported": ["*"],

@@ -23,7 +23,7 @@ public class Server {
         });
         server.createContext("/solve", new Controller());
         server.setExecutor(Executors.newCachedThreadPool());
-        System.out.println("Many-OBJ Service started on port " + port);
+        System.out.println("Random-Search Service started on port " + port);
         server.start();
     }
 }

@@ -25,6 +25,93 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="OpenBinding Gateway", lifespan=lifespan)
 
+_HEALTH_EXAMPLE = {"status": "ok"}
+
+_ENGINES_EXAMPLE = [
+    {
+        "id": "minizinc-csp",
+        "capabilities": {
+            "qos_features_supported": ["*"],
+            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
+            "objective_types_supported": ["weighted_sum"],
+            "constraints_supported": ["attribute_bound", "dependency"],
+            "schema_version": "v1",
+        },
+        "active": True,
+    },
+    {
+        "id": "random-search",
+        "capabilities": {
+            "qos_features_supported": ["*"],
+            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
+            "objective_types_supported": ["weighted_sum"],
+            "constraints_supported": ["attribute_bound"],
+            "schema_version": "v1",
+        },
+        "active": True,
+    },
+]
+
+_BINDING_SPACE_EXAMPLE = {
+    "cardinality": "4",
+    "log10_cardinality": 0.6020599913,
+    "per_task_counts": {"t1": 2, "t2": 2},
+    "empty_tasks": [],
+}
+
+_ANALYZE_VALIDATED_EXAMPLE = {
+    "status": "validated",
+    "binding_space": _BINDING_SPACE_EXAMPLE,
+    "warnings": None,
+    "provenance": {"engine_id": "random-search", "execution_time_ms": 12.3},
+}
+
+_ANALYZE_FAILED_EXAMPLE = {
+    "status": "failed",
+    "error": "Validation failed",
+    "warnings": [
+        {
+            "code": "missing_candidates",
+            "message": "Missing candidates for tasks: t2",
+            "details": {"path": "candidates", "constraint_id": None, "stage": None},
+        }
+    ],
+    "provenance": {"engine_id": "random-search", "execution_time_ms": 4.8},
+}
+
+_JOB_QUEUED_EXAMPLE = {"job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6", "status": "queued"}
+
+_JOB_COMPLETED_EXAMPLE = {
+    "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "status": "completed",
+    "result": {
+        "solutions": [
+            {
+                "is_feasible": True,
+                "objective_value": 0.0,
+                "binding": {"t1": "s2", "t2": "s4"},
+                "aggregated_features": {"cost": 20.0, "time": 60.0},
+                "violations": [],
+            }
+        ],
+        "provenance": {
+            "engine_id": "random-search",
+            "execution_time_ms": 123.4,
+            "metadata": {"solver": "Random-Search", "version": "0.0.1-SNAPSHOT", "iterations_count": 1000},
+        },
+        "diagnostics": {
+            "binding_space": _BINDING_SPACE_EXAMPLE,
+            "warnings": ["Option 'foo' ignored by engine"],
+        },
+    },
+}
+
+_JOB_FAILED_EXAMPLE = {
+    "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "status": "failed",
+    "error": "Job not found on engine",
+}
+
 from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
@@ -38,20 +125,35 @@ app.add_middleware(
 pipeline = ValidationPipeline()
 router = Router()
 
-@app.get("/health")
+@app.get(
+    "/health",
+    responses={
+        200: {
+            "description": "OK",
+            "content": {"application/json": {"example": _HEALTH_EXAMPLE}},
+        }
+    },
+)
 async def health():
     return {"status": "ok"}
 
-@app.get("/v1/engines")
+@app.get(
+    "/v1/engines",
+    responses={
+        200: {
+            "description": "Registered engines and their capabilities",
+            "content": {"application/json": {"example": _ENGINES_EXAMPLE}},
+        }
+    },
+)
 async def list_engines():
     engines = EngineRegistry.list_engines()
 
     async def check_engine_health(engine_id: str, client: httpx.AsyncClient) -> bool:
-        base_url = EngineRegistry.get_url(engine_id)
-        url = f"{base_url.rstrip('/')}/health"
         try:
-            resp = await client.get(url)
-            return resp.status_code == 200
+            plugin = EngineRegistry.get_plugin(engine_id)
+            base_url = EngineRegistry.get_url(engine_id)
+            return await plugin.check_engine_health(base_url, client)
         except Exception:
             return False
 
@@ -114,7 +216,25 @@ def validate_and_prepare(request: SolveRequest):
         "warnings": warnings
     }
 
-@app.post("/v1/analyze", response_model=AnalyzeResponse, status_code=status.HTTP_200_OK, response_model_exclude_none=True)
+@app.post(
+    "/v1/analyze",
+    response_model=AnalyzeResponse,
+    status_code=status.HTTP_200_OK,
+    response_model_exclude_none=True,
+    responses={
+        200: {
+            "description": "Validation result (either validated or failed)",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "validated": {"summary": "Validated instance", "value": _ANALYZE_VALIDATED_EXAMPLE},
+                        "failed": {"summary": "Failed validation", "value": _ANALYZE_FAILED_EXAMPLE},
+                    }
+                }
+            },
+        }
+    },
+)
 async def analyze(request: SolveRequest):
     start_time = time.time()
     result = validate_and_prepare(request)
@@ -193,7 +313,39 @@ async def analyze(request: SolveRequest):
         diagnostics=diagnostics if diagnostics else None
     )
 
-@app.post("/v1/solve", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED, response_model_exclude_none=True)
+@app.post(
+    "/v1/solve",
+    response_model=JobResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model_exclude_none=True,
+    responses={
+        202: {
+            "description": "Solve request accepted (job created)",
+            "content": {"application/json": {"example": _JOB_QUEUED_EXAMPLE}},
+        },
+        422: {
+            "description": "Instance is invalid (semantic/logical/schema violations)",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "error": "The problem has semantic or logical errors: [...]",
+                            "violations": [
+                                {
+                                    "code": "missing_candidates",
+                                    "message": "Missing candidates for tasks: t2",
+                                    "path": "candidates",
+                                    "constraint_id": None,
+                                    "stage": None,
+                                }
+                            ],
+                        }
+                    }
+                }
+            },
+        },
+    },
+)
 async def solve(request: SolveRequest):
     result = validate_and_prepare(request)
     
@@ -236,7 +388,29 @@ async def solve(request: SolveRequest):
     # Hand the validated request over to the router to find a solution.
     return await router.route_solve(request, binding_space=binding_space, warnings=warnings)
 
-@app.get("/v1/jobs/{job_id}", response_model=JobResponse, response_model_exclude_none=True)
+@app.get(
+    "/v1/jobs/{job_id}",
+    response_model=JobResponse,
+    response_model_exclude_none=True,
+    responses={
+        200: {
+            "description": "Job status (queued/running/completed/failed)",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "queued": {"summary": "Queued job", "value": _JOB_QUEUED_EXAMPLE},
+                        "completed": {"summary": "Completed job", "value": _JOB_COMPLETED_EXAMPLE},
+                        "failed": {"summary": "Failed job", "value": _JOB_FAILED_EXAMPLE},
+                    }
+                }
+            },
+        },
+        404: {
+            "description": "Job not found",
+            "content": {"application/json": {"example": {"detail": "Job not found"}}},
+        },
+    },
+)
 async def get_job(job_id: str):
     job = await router.get_job_status(job_id)
     if not job:

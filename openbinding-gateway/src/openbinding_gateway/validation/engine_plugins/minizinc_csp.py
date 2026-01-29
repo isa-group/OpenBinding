@@ -1,9 +1,18 @@
 import os
 from typing import List, Dict, Any, Optional, Tuple
+import httpx
 from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 
 class MiniZincCSPEnginePlugin(EngineValidationPlugin):
+    async def check_engine_health(self, base_url: str, client: httpx.AsyncClient) -> bool:
+        url = f"{base_url.rstrip('/')}/health"
+        try:
+            resp = await client.get(url)
+            return resp.status_code == 200
+        except Exception:
+            return False
+
     def get_capabilities(self) -> Dict[str, Any]:
         return {
             "qos_features_supported": ["*"],
@@ -132,7 +141,7 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         # MiniZinc solver.ts returns selection directly as {task_id: cand_id}
         selection = old_sol.get("selection") or {}
         
-        # --- QoS Aggregation Logic (Ported from Many-OBJ) ---
+        # --- QoS Aggregation Logic (Ported from Random-Search) ---
         candidates_by_id = {c["id"]: c for c in (original_request.get("candidates", []) or [])}
         features = {f["id"]: f for f in (original_request.get("features", []) or [])}
         agg_policies = original_request.get("aggregation_policies", {}) or {}

@@ -31,7 +31,7 @@ if _schema_path.exists():
 class SolveRequest(BaseModel):
     engine_id: str = Field(..., description="ID of the target engine/solver")
     instance: Dict[str, Any] = Field(..., description="The general problem instance", json_schema_extra=_GENERAL_SCHEMA)
-    options: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Solver-specific options. E.g. {'iterations_count': 1000} for Many-OBJ.")
+    options: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Solver-specific options. E.g. {'iterations_count': 1000} for Random-Search.")
     verbose: bool = Field(default=False, description="If true, return diagnostics and warnings.")
 
 class ValidationViolation(BaseModel):
