@@ -8,7 +8,9 @@
     "composition": {
       "type": "object",
       "properties": {
-        "type": { "const": "structured" },
+        "type": {
+          "const": "STRUCTURED"
+        },
         "root": { "$ref": "#/$defs/csp_node" }
       },
       "required": ["type", "root"]
@@ -30,7 +32,9 @@
     },
     "objective": {
       "properties": {
-        "type": { "const": "weighted_sum" }
+        "type": {
+          "const": "SINGLE"
+        }
       },
       "required": ["type"]
     },
@@ -42,7 +46,7 @@
             "type": "object",
             "properties": {
               "kind": {
-                "const": "attribute_bound"
+                "const": "ATTRIBUTE_BOUND"
               },
               "attribute_id": {
                 "type": "string"
@@ -54,25 +58,46 @@
                   ">=",
                   "==",
                   "<",
-                  ">"
+                  ">",
+                  "IN_RANGE"
                 ]
               },
               "value": {
-                "type": "number"
+                "oneOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "min": {
+                        "type": "number"
+                      },
+                      "max": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "min",
+                      "max"
+                    ]
+                  }
+                ]
               },
               "scope": {
                 "enum": [
-                  "global",
-                  "local"
+                  "GLOBAL",
+                  "LOCAL"
                 ]
               },
               "task_id": {
                 "type": "string"
+              },
+              "hard": {
+                "type": "boolean"
               }
             },
             "required": [
-              "kind",
-              "attribute_id",
               "kind",
               "attribute_id",
               "op",
@@ -83,13 +108,16 @@
             "type": "object",
             "properties": {
               "kind": {
-                "const": "dependency"
+                "const": "DEPENDENCY"
               },
               "type": {
                 "enum": [
-                  "same_provider",
-                  "different_provider"
+                  "SAME_PROVIDER",
+                  "DIFFERENT_PROVIDER"
                 ]
+              },
+              "hard": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -113,6 +141,9 @@
         },
         {
           "$ref": "#/$defs/loop_node"
+        },
+        {
+          "$ref": "#/$defs/element_node"
         }
       ]
     },
@@ -189,6 +220,17 @@
       "required": [
         "kind",
         "body"
+      ]
+    },
+    "element_node": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "ELEMENT"
+        }
+      },
+      "required": [
+        "kind"
       ]
     }
   }

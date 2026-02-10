@@ -41,6 +41,9 @@ public abstract class FeasibilityAwareProblem extends EvaluationCountProblem {
         return penalizator;
     }
     
+    public void setPenalizator(UnfeasibilityPenalizator penalizator) {
+        this.penalizator = penalizator;
+    }
 
 }
 

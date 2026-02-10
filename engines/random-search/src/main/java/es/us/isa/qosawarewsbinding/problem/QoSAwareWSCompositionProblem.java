@@ -116,16 +116,18 @@ public class QoSAwareWSCompositionProblem extends FeasibilityAwareProblem implem
     public double feasibilityDistance(Solution sol) {
         double value = 0;
         for (WSCompositionConstraint constraint : getConstraints()) {
-            value = constraint.meetingDistance((QoSAwareWSCompositionSolution) sol);
+            if (constraint.isHard()) {
+                value += constraint.meetingDistance((QoSAwareWSCompositionSolution) sol);
+            }
         }
         return value;
     }
 
     protected double computeFitness(Solution sol) {
-        double feasibilityDistance = Math.min(1, feasibilityDistance(sol));
+        double feasibilityDistance = feasibilityDistance(sol);
         double result = feasibilityFreeFitness(sol);
         if (getPenalizator() != null) {
-            result = getPenalizator().penalize(result, (1.0 - feasibilityDistance));
+            result = getPenalizator().penalize(result, feasibilityDistance);
         }
         return 1.0 - result;
     }

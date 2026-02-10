@@ -33,7 +33,7 @@ int: max_children;
 array[1..n_nodes, 1..max_children] of int: node_children; 
 array[1..n_nodes] of int: node_n_children;
 array[1..n_nodes, 1..max_children] of float: node_xor_probs; 
-array[1..n_nodes] of float: node_loop_iters; % Expected iterations for LOOP nodes
+array[1..n_nodes] of int: node_loop_iters; % Expected iterations for LOOP nodes
 
 % 4. Aggregation Policies
 % 1=SUM, 2=PROD, 3=MAX, 4=MIN, 5=WEIGHTED_SUM (for XOR)
@@ -114,7 +114,7 @@ constraint forall(i in 1..n_nodes)(
         % Child is node_children[i,1]
         let { 
             int: body_idx = node_children[i,1];
-            float: iters = node_loop_iters[i];
+            int: iters = node_loop_iters[i];
         } in
         % Loop Aggregation restored
         forall(q in 1..n_qos)(
@@ -125,7 +125,7 @@ constraint forall(i in 1..n_nodes)(
             if pol == AGG_SUM then node_qos[i,q] == body_val * iters
             elseif pol == AGG_PROD then 
                % Product over iterations: val * val ... * val (iters times) -> pow
-               node_qos[i,q] == pow(body_val, iters) 
+               node_qos[i,q] == product(k in 1..iters)(body_val) % SCALED_PRODUCT
             elseif pol == AGG_MAX then node_qos[i,q] == body_val
             elseif pol == AGG_MIN then node_qos[i,q] == body_val
             else node_qos[i,q] == body_val * iters
@@ -206,7 +206,7 @@ constraint forall(i in 1..n_nodes, j in 1..node_n_children[i])(
   node_children[i,j] >= 1 /\ node_children[i,j] <= n_nodes
 );
 
-constraint forall(i in 1..n_nodes where node_kind[i] != KIND_TASK)(
+constraint forall(i in 1..n_nodes where node_kind[i] in {KIND_AND, KIND_XOR, KIND_LOOP})(
   node_n_children[i] >= 1
 );
 
@@ -232,8 +232,9 @@ constraint forall(i in 1..n_nodes where node_kind[i] == KIND_LOOP)(
 
 
 % Calculate explicit upper bound for objective to prevent Gecode overflow
-float: obj_ub = sum(q in 1..n_qos)(abs(qos_weights[q]) * abs(qos_ub[q]));
-var -obj_ub..obj_ub: obj_val = sum(q in 1..n_qos)(qos_weights[q] * node_qos[root_id, q]);
+% Normalized objective: each feature contribution is divided by its UB
+float: obj_ub = sum(q in 1..n_qos)(abs(qos_weights[q]));
+var -obj_ub..obj_ub: obj_val = sum(q in 1..n_qos)(qos_weights[q] * (node_qos[root_id, q] / max(1.0, qos_ub[q])));
 
 solve minimize obj_val;
 

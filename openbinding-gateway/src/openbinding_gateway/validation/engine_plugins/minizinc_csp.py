@@ -56,7 +56,25 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
                           path=f"composition.nodes[id={n.get('id')}]"
                       ))
         
-        # 2. Validate Aggregation Policies (Operators)
+        # 2. Check Objective Type
+        obj_type = instance.get("objective", {}).get("type")
+        if obj_type in ["MULTI", "MANY"]:
+             violations.append(ValidationViolation(
+                 code="unsupported_objective_type",
+                 path="objective.type",
+                 message=f"MiniZinc engine only supports SINGLE/weighted_sum objectives, got '{obj_type}'"
+             ))
+
+        # 3. Check Constraints (Hard only)
+        for i, c in enumerate(instance.get("constraints", []) or []):
+            if c.get("hard") is False:
+                violations.append(ValidationViolation(
+                    code="unsupported_soft_constraint",
+                    path=f"constraints[{i}].hard",
+                    message="MiniZinc engine does not support soft constraints (hard=False)"
+                ))
+
+        # 4. Validate Aggregation Policies (Operators)
         # For each QoS used in objective/constraints, check if the aggregation policy uses supported operators
         # MVP: We support what the schema supports for those QoS. 
         # This is complex to implement fully without traversing generic policies.
@@ -167,21 +185,24 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         def _agg_fn(fn: str, values: List[float], weights: Optional[List[float]] = None) -> float:
             if not values:
                 return 0.0
-            if fn in ("weighted_sum",):
+            
+            fn_lower = fn.lower() if fn else ""
+            
+            if fn_lower in ("weighted_sum",):
                 w = weights or [1.0] * len(values)
                 return sum(v * w_i for v, w_i in zip(values, w))
-            if fn == "sum":
+            if fn_lower == "sum":
                 if weights is not None:
                     return sum(v * w_i for v, w_i in zip(values, weights))
                 return sum(values)
-            if fn == "product":
+            if fn_lower == "product":
                 res = 1.0
                 for v in values:
                     res *= v
                 return res
-            if fn == "max":
+            if fn_lower == "max":
                 return max(values)
-            if fn == "min":
+            if fn_lower == "min":
                 return min(values)
             return sum(values)
 
@@ -222,12 +243,14 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
                     bounds = node.get("bounds") or {}
                     iterations = bounds.get("max", 1)
                 c = float(iterations)
-                if fn in (None, "sum", "scale_by_c"):
-                    return body_val * c
-                if fn == "product":
+                
+                fn_lower = (fn or "sum").lower()
+                if "product" in fn_lower:
                     return float(body_val ** c)
+                if "sum" in fn_lower or "wsum" in fn_lower or "scale" in fn_lower:
+                    return float(body_val * c)
                 return body_val
-            return 0.0
+            return _default_for(feature_id)
 
         if old_sol.get("aggregated_features"):
             aggregated_qos = old_sol.get("aggregated_features")

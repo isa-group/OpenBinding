@@ -26,11 +26,16 @@ export class Solver {
         // 2. Transform Instance to DZN
         const dznContent = this.transformToDZN(instance, features, options);
 
+        if (instance.metadata?.id?.includes('pautasso')) {
+            console.warn(`[Pautasso Debug] DZN Content Sample: ${dznContent.substring(0, 500)}`);
+        }
+
         // 3. Run MiniZinc
         // minizinc --solver <SOLVER_NAME> model.mzn -
         // The '-' argument tells minizinc to read data from stdin
         const modelPath = path.resolve(__dirname, '../model/composition.mzn');
         const startTime = Date.now();
+
 
         return new Promise((resolve, reject) => {
             const args = ['--solver', this.SOLVER_NAME, modelPath, '-'];
@@ -107,7 +112,6 @@ export class Solver {
                     }
 
                     const jsonStr = stdout.substring(firstBrace, lastBrace + 1);
-                    console.log("Parsing JSON string:", jsonStr);
                     const result = JSON.parse(jsonStr);
 
                     // Map selected candidates back to IDs
@@ -155,6 +159,13 @@ export class Solver {
                     // If using normalized weights, the result is in normalized range (0-1 approx).
                     // We just pass it through.
 
+                    if (Object.keys(selection).length === 0 && Array.isArray(result.selected_cand) && result.selected_cand.length > 0) {
+                        console.warn(`[MiniZinc Solver] Returned solution with 0 selection entries.`);
+                        console.warn(`result.selected_cand: ${JSON.stringify(result.selected_cand)}`);
+                        console.warn(`taskMap keys: ${Object.keys(taskMap).join(',')}`);
+                        console.warn(`candMap keys (sample 10): ${Object.keys(candMap).slice(0, 10).join(',')}`);
+                    }
+
                     resolve({
                         solution: {
                             selection: selection,
@@ -168,6 +179,8 @@ export class Solver {
                         }
                     });
                 } catch (e) {
+                    console.error("Critical error parsing MiniZinc result:", e);
+                    console.error("Raw Stdout:", stdout);
                     resolve({
                         solution: {
                             feasible: false,
@@ -219,6 +232,11 @@ export class Solver {
         // --- 0. Identify QoS Features & Policies ---
         // Features passed as argument
         const n_qos = features.length;
+        const featureDefinitions = instance.features || [];
+        const featureDirection: Record<string, string> = {};
+        featureDefinitions.forEach((f: any) => {
+            featureDirection[f.id] = (f.direction || 'MINIMIZE').toUpperCase();
+        });
         const featureMap: Record<string, number> = {};
         features.forEach((f, i) => featureMap[f] = i + 1);
 
@@ -227,7 +245,8 @@ export class Solver {
         // Aggregation Enums: 1=SUM, 2=PROD, 3=MAX, 4=MIN, 5=WSUM
         const FN_MAP: Record<string, number> = {
             "sum": 1, "weighted_sum": 5, "product": 2, "max": 3, "min": 4,
-            "scale_by_c": 1 // Loop specific: usually means sum * c
+            "scale_by_c": 1, // Loop specific: usually means sum * c
+            "scaled_sum": 1, "scaled_product": 2
         };
         const DEFAULT_FN = 1; // Sum
 
@@ -244,17 +263,17 @@ export class Solver {
             row.push(DEFAULT_FN);
 
             // 2. SEQ
-            row.push(FN_MAP[compose.seq?.fn] || DEFAULT_FN);
+            row.push(FN_MAP[compose.seq?.fn?.toLowerCase()] || DEFAULT_FN);
 
             // 3. AND
-            row.push(FN_MAP[compose.and?.fn] || DEFAULT_FN); // Usually MAX or SUM
+            row.push(FN_MAP[compose.and?.fn?.toLowerCase()] || DEFAULT_FN); // Usually MAX or SUM
 
             // 4. XOR
             // Default XOR to WSUM (5) unless specified
-            row.push(FN_MAP[compose.xor?.fn] || 5);
+            row.push(FN_MAP[compose.xor?.fn?.toLowerCase()] || 5);
 
             // 5. LOOP
-            row.push(FN_MAP[compose.loop?.fn] || DEFAULT_FN);
+            row.push(FN_MAP[compose.loop?.fn?.toLowerCase()] || DEFAULT_FN);
 
             agg_policy.push(row);
         }
@@ -267,6 +286,7 @@ export class Solver {
         if (instance.providers) {
             instance.providers.forEach((p: any, i: number) => providerIdx[p.id] = i + 1);
         }
+        console.log("Provider Mapping:", JSON.stringify(providerIdx));
 
         // --- 2. Candidates & QoS Matrix ---
         const task_candidates_map: number[][] = Array.from({ length: n_tasks + 1 }, () => []);
@@ -278,10 +298,19 @@ export class Solver {
             const t_id = taskIdx[c.task_id];
             if (t_id) task_candidates_map[t_id].push(global_idx);
 
-            cand_provider.push(providerIdx[c.provider_id] || 0);
-
             // QoS Values - support both 'qos' and 'features' property names
             const qosData = c.qos || c.features || {};
+
+            let pId = providerIdx[c.provider_id];
+            if (!pId) {
+                console.warn(`Warning: Provider '${c.provider_id}' not found for candidate '${c.id}' (Task ${c.task_id}). Assigning unique negative ID.`);
+                // Assign unique negative ID to ensure it doesn't match other unknowns (FALSE SAME_PROVIDER)
+                // Use global index to ensure uniqueness
+                pId = -(global_idx);
+            }
+            cand_provider.push(pId);
+
+            // QoS Values - support both 'qos' and 'features' property names
             const row: number[] = [];
             for (const feat of features) {
                 let val = qosData[feat];
@@ -321,30 +350,33 @@ export class Solver {
         // We compute a reasonable upper bound based on actual data
         const qos_ub: number[] = [];
         for (let f = 0; f < n_qos; f++) {
-            // Check max value in candidates
+            const featId = features[f];
+            const isAvailability = featId.toLowerCase().includes('availability') || featId.toLowerCase().includes('success');
+
             let maxVal = 1.0;
             if (candidates.length > 0 && cand_qos.length > 0) {
                 maxVal = Math.max(1.0, ...cand_qos.map(row => Math.abs(row[f])));
             }
 
-            // Check aggregation policy for SEQ/LOOP (columns 1 and 4 in 0-based row)
-            // Indices in MZN: SEQ=2, LOOP=5. In 0-based array: 1, 4.
             const seqPol = agg_policy[f]?.[1] || 1;
             const loopPol = agg_policy[f]?.[4] || 1;
 
-            if (seqPol === 1 || loopPol === 1) { // SUM
-                // For SUM: upper bound = max_value * number_of_tasks * reasonable_loop_factor
-                // Use a tight bound to avoid Gecode overflow
-                const sumBound = maxVal * Math.max(n_tasks, 1) * 100;
-                qos_ub.push(sumBound);
-            } else if (seqPol === 2 || loopPol === 2) { // PROD
-                // If values > 1, grows fast. If <= 1, stays <= 1.
-                // Assume normalized 0-1 for reliability if product used.
-                if (maxVal <= 1.0) qos_ub.push(1.0);
-                else qos_ub.push(Math.pow(maxVal, Math.min(n_tasks, 10)));
+            if (isAvailability || seqPol === 2 || loopPol === 2) {
+                // Probabilities/Availability: always 1.0
+                qos_ub.push(1.0);
+            } else if (seqPol === 1 || loopPol === 1) {
+                // SUM: tightly sum the max for each task
+                let taskSum = 0;
+                for (let t = 1; t <= n_tasks; t++) {
+                    const cands = task_candidates_map[t];
+                    if (cands.length > 0) {
+                        taskSum += Math.max(...cands.map(cIdx => Math.abs(cand_qos[cIdx - 1][f])));
+                    }
+                }
+                const loopFactor = 10; // Margin for loops
+                qos_ub.push(Math.max(1.0, taskSum * loopFactor));
             } else {
-                // MAX/MIN - bound is just the max candidate value with margin
-                qos_ub.push(maxVal * 2);
+                qos_ub.push(maxVal * 1.5);
             }
         }
 
@@ -356,7 +388,7 @@ export class Solver {
             // LOOP iterations: support both 'iterations' and 'expected_iterations'
             let loopIters = 0.0;
             if (node.kind === 'LOOP') {
-                loopIters = node.iterations || node.expected_iterations || 1.0;
+                loopIters = Math.round(node.iterations || node.expected_iterations || 1);
             }
 
             const nodeEntry = {
@@ -411,7 +443,11 @@ export class Solver {
         const weightsObj = obj.weights || {};
         const qos_weights: number[] = [];
         for (const feat of features) {
-            qos_weights.push(Number(weightsObj[feat] || 0.0));
+            let w = Number(weightsObj[feat] || 0.0);
+            if (featureDirection[feat] === 'MAXIMIZE') {
+                w = -w;
+            }
+            qos_weights.push(w);
         }
 
         // --- 6. Constraints ---
@@ -435,36 +471,51 @@ export class Solver {
             // Skip soft constraints for now
             if (c.hard === false) continue;
 
-            if (c.kind === 'attribute_bound') {
-                const attrIdx = featureMap[c.attribute_id];
-                const op = opMap[c.op];
-                if (!attrIdx || !op) continue;
+            const kind = (c.kind || '').toLowerCase();
+            const scope = (c.scope || '').toLowerCase();
+            const opRaw = (c.op || '').toLowerCase();
+            const type = (c.type || '').toLowerCase();
 
-                if (c.scope === 'global') {
+            if (kind === 'attribute_bound') {
+                const attrIdx = featureMap[c.attribute_id];
+                const op = opMap[opRaw];
+                // Try literal first, if not found try mapped
+                // The opMap keys are like "<=" etc. formatting shouldn't change much but good to be safe
+                // Actually opMap keys are symbols, so toLowerCase doesn't affect "<="
+                // But let's use c.op directly for lookup if it fails?
+                // Actually opMap keys are "<=", ">=", "==", "<", ">".
+                // If c.op is "EQ" or "LE" etc we might need mapping.
+                // Assuming c.op is symbol.
+                const validOp = opMap[c.op] || opMap[opRaw];
+
+                if (!attrIdx || !validOp) continue;
+
+                if (scope === 'global') {
                     gc_attr.push(attrIdx);
-                    gc_op.push(op);
+                    gc_op.push(validOp);
                     gc_val.push(c.value);
-                } else if (c.scope === 'local' && c.task_id) {
-                    const tIdx = taskIdx[c.task_id];
+                } else if (scope === 'local') {
+                    const taskId = c.task_id || (c.tasks && c.tasks[0]);
+                    const tIdx = taskId ? taskIdx[taskId] : undefined;
                     if (tIdx) {
                         lc_task.push(tIdx);
                         lc_attr.push(attrIdx);
-                        lc_op.push(op);
+                        lc_op.push(validOp);
                         lc_val.push(c.value);
                     }
                 }
-            } else if (c.kind === 'dependency') {
+            } else if (kind === 'dependency') {
                 // ... (Same as before)
                 const tIndices = (c.tasks || []).map((tid: string) => taskIdx[tid]).filter((i: any) => i);
                 if (tIndices.length < 2) continue;
 
-                if (c.type === 'same_provider') {
+                if (type === 'same_provider') {
                     for (let i = 0; i < tIndices.length - 1; i++) {
                         dc_type.push(1);
                         dc_t1.push(tIndices[i]);
                         dc_t2.push(tIndices[i + 1]);
                     }
-                } else if (c.type === 'different_provider') {
+                } else if (type === 'different_provider') {
                     for (let i = 0; i < tIndices.length; i++) {
                         for (let j = i + 1; j < tIndices.length; j++) {
                             dc_type.push(2);
@@ -529,6 +580,7 @@ export class Solver {
         if (k === 'AND') return 3;
         if (k === 'XOR') return 4;
         if (k === 'LOOP') return 5;
+        if (k === 'ELEMENT') return 2; // Treat as empty SEQ (skip)
         return 0;
     }
 

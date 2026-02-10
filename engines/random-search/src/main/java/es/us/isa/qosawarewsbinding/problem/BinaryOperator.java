@@ -9,4 +9,6 @@ package es.us.isa.qosawarewsbinding.problem;
  *
  * @author japarejo
  */
-public enum BinaryOperator {EQUAL, DISTINCT(), GREATER,GREATEREQUAL,LOWER,LOWEREQUAL}
+public enum BinaryOperator {
+    EQUAL, DISTINCT(), GREATER, GREATEREQUAL, LOWER, LOWEREQUAL, IN_RANGE
+}

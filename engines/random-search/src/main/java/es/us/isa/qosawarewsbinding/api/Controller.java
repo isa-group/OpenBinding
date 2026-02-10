@@ -12,6 +12,9 @@ import es.us.isa.qosawarewsbinding.api.dto.SolveResponse;
 import es.us.isa.qosawarewsbinding.problem.QoSAwareWSCompositionProblem;
 import es.us.isa.qosawarewsbinding.problem.WSCompositionQoSModel;
 import es.us.isa.qosawarewsbinding.problem.GlobalQoSWSCompositionConstraint;
+import es.us.isa.qosawarewsbinding.problem.RangeGlobalQoSWSCompositionConstraint;
+import es.us.isa.qosawarewsbinding.problem.ProviderRelationWSCompositionConstraint;
+import es.us.isa.qosawarewsbinding.problem.LocalQoSWSCompositionConstraint;
 import es.us.isa.qosawarewsbinding.problem.BinaryOperator;
 import es.us.isa.qosawarewsbinding.qos.QoSProperty;
 import es.us.isa.qosawarewsbinding.qos.QoSPropertyType;
@@ -23,6 +26,8 @@ import es.us.isa.qosawarewsbinding.*;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.*;
 
 public class Controller implements HttpHandler {
@@ -45,9 +50,21 @@ public class Controller implements HttpHandler {
             OutputStream os = exchange.getResponseBody();
             os.write(jsonResp.getBytes());
             os.close();
+        } catch (IllegalArgumentException e) {
+            String error = "{\"error\": \"" + e.getMessage() + "\"}";
+            exchange.sendResponseHeaders(422, error.length());
+            OutputStream os = exchange.getResponseBody();
+            os.write(error.getBytes());
+            os.close();
         } catch (Exception e) {
             e.printStackTrace();
-            String error = "{\"error\": \"" + e.getMessage() + "\"}";
+            // detailed error for debugging
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            String stackTrace = sw.toString().replace("\"", "'").replace("\n", "\\n");
+
+            String error = "{\"error\": \"" + e.getMessage() + "\", \"stack\": \"" + stackTrace + "\"}";
             exchange.sendResponseHeaders(500, error.length());
             OutputStream os = exchange.getResponseBody();
             os.write(error.getBytes());
@@ -68,9 +85,12 @@ public class Controller implements HttpHandler {
         for (Map.Entry<String, SolveRequest.QoSPropertyDef> entry : req.features.properties.entrySet()) {
             QoSPropertyType type = "maximize".equals(entry.getValue().direction) ? QoSPropertyType.POSITIVE
                     : QoSPropertyType.NEGATIVE;
-            // Assuming 0.0-1.0 domain for normalization
+
+            Double min = entry.getValue().min != null ? entry.getValue().min : 0.0;
+            Double max = entry.getValue().max != null ? entry.getValue().max : 1.0;
+
             QoSProperty<Double> prop = new QoSProperty<Double>(entry.getKey(),
-                    new es.us.isa.qosawarewsbinding.util.BoundedDomain<Double>(0.0, 1.0), type);
+                    new es.us.isa.qosawarewsbinding.util.BoundedDomain<Double>(min, max), type);
             qosProperties.add(prop);
             propertyMap.put(entry.getKey(), prop);
         }
@@ -142,46 +162,58 @@ public class Controller implements HttpHandler {
                 qosModel,
                 new LinkedList<es.us.isa.qosawarewsbinding.problem.WSCompositionConstraint>()
         );
+        problem.setPenalizator(new es.us.isa.qosawarewsbinding.problem.SimpleUnfeasibilityPenalizator());
 
-        // 4.1 Map Global Attribute Bound Constraints (if any)
+        // 4. Map Constraints
         if (req.constraints != null) {
             for (SolveRequest.Constraint c : req.constraints) {
-                if (c == null) {
-                    continue;
-                }
-                if (c.kind == null || !"attribute_bound".equalsIgnoreCase(c.kind)) {
-                    continue;
-                }
-                if (c.scope != null && !"global".equalsIgnoreCase(c.scope)) {
-                    continue;
-                }
-                if (c.attribute_id == null || c.op == null || c.value == null) {
+                boolean hard = c.hard != null ? c.hard : true;
+
+                if ("dependency".equalsIgnoreCase(c.kind)) {
+                    List<AbstractWebService> relatedTasks = new ArrayList<AbstractWebService>();
+                    if (c.tasks != null) {
+                        for (String tid : c.tasks) {
+                            AbstractWebService t = taskMap.get(tid);
+                            if (t != null)
+                                relatedTasks.add(t);
+                        }
+                    }
+                    ProviderRelationWSCompositionConstraint.Type type = "SAME_PROVIDER".equalsIgnoreCase(c.type)
+                            ? ProviderRelationWSCompositionConstraint.Type.SAME_PROVIDER
+                            : ProviderRelationWSCompositionConstraint.Type.DIFFERENT_PROVIDER;
+
+                    problem.getConstraints()
+                            .add(new ProviderRelationWSCompositionConstraint(problem, type, relatedTasks, hard));
                     continue;
                 }
 
-                QoSProperty<Double> prop = propertyMap.get(c.attribute_id);
-                if (prop == null) {
-                    continue;
-                }
+                if ("attribute_bound".equalsIgnoreCase(c.kind)) {
+                    QoSProperty<Double> prop = propertyMap.get(c.attribute_id);
+                    if (prop == null)
+                        continue;
 
-                BinaryOperator op;
-                if ("==".equals(c.op)) {
-                    op = BinaryOperator.EQUAL;
-                } else if ("!=".equals(c.op)) {
-                    op = BinaryOperator.DISTINCT;
-                } else if (">".equals(c.op)) {
-                    op = BinaryOperator.GREATER;
-                } else if (">=".equals(c.op)) {
-                    op = BinaryOperator.GREATEREQUAL;
-                } else if ("<".equals(c.op)) {
-                    op = BinaryOperator.LOWER;
-                } else if ("<=".equals(c.op)) {
-                    op = BinaryOperator.LOWEREQUAL;
-                } else {
-                    continue;
-                }
+                    BinaryOperator op = getOperator(c.op);
 
-                problem.getConstraints().add(new GlobalQoSWSCompositionConstraint(problem, prop, c.value, op));
+                    if (BinaryOperator.IN_RANGE.equals(op)) {
+                        problem.getConstraints()
+                                .add(new RangeGlobalQoSWSCompositionConstraint(problem, prop, c.min, c.max, hard));
+                        continue;
+                    }
+
+                    if ("local".equalsIgnoreCase(c.scope)) {
+                        if (c.tasks != null) {
+                            for (String tid : c.tasks) {
+                                AbstractWebService t = taskMap.get(tid);
+                                if (t != null) {
+                                    problem.getConstraints().add(
+                                            new LocalQoSWSCompositionConstraint(problem, prop, op, c.value, t, hard));
+                                }
+                            }
+                        }
+                    } else {
+                        problem.getConstraints().add(new GlobalQoSWSCompositionConstraint(problem, prop, c.value, op));
+                    }
+                }
             }
         }
 
@@ -194,6 +226,10 @@ public class Controller implements HttpHandler {
         long start = System.currentTimeMillis();
         QoSAwareWSCompositionSolution bestSol = solveSimple(problem, iterations);
         long end = System.currentTimeMillis();
+
+        if (problem.feasibilityDistance(bestSol) > 0) {
+            throw new IllegalArgumentException("No feasible solution found after " + iterations + " iterations.");
+        }
 
         // 6. Map Response
         SolveResponse resp = new SolveResponse();
@@ -250,6 +286,8 @@ public class Controller implements HttpHandler {
             return MaxAggregationFunction.getInstance();
         if ("min".equalsIgnoreCase(name))
             return MinAggregationFunction.getInstance();
+        if ("scaled_sum".equalsIgnoreCase(name))
+            return ScaledSumAggregationFunction.getInstance();
         return SumatoryAggregationFunction.getInstance(); // default
     }
 
@@ -355,5 +393,23 @@ public class Controller implements HttpHandler {
             }
         }
         return best;
+    }
+
+    private BinaryOperator getOperator(String op) {
+        if ("==".equals(op))
+            return BinaryOperator.EQUAL;
+        if ("!=".equals(op))
+            return BinaryOperator.DISTINCT;
+        if (">".equals(op))
+            return BinaryOperator.GREATER;
+        if (">=".equals(op))
+            return BinaryOperator.GREATEREQUAL;
+        if ("<".equals(op))
+            return BinaryOperator.LOWER;
+        if ("<=".equals(op))
+            return BinaryOperator.LOWEREQUAL;
+        if ("IN_RANGE".equals(op) || "in_range".equalsIgnoreCase(op))
+            return BinaryOperator.IN_RANGE;
+        return BinaryOperator.EQUAL;
     }
 }

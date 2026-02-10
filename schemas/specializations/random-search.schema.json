@@ -9,7 +9,7 @@
       "type": "object",
       "properties": {
         "type": {
-          "const": "structured"
+          "const": "STRUCTURED"
         },
         "root": {
           "$ref": "#/$defs/random_search_node"
@@ -23,7 +23,7 @@
     "objective": {
       "properties": {
         "type": {
-          "const": "weighted_sum"
+          "const": "SINGLE"
         }
       },
       "required": [
@@ -33,34 +33,94 @@
     "constraints": {
       "type": "array",
       "items": {
-        "type": "object",
-        "properties": {
-          "kind": {
-            "const": "attribute_bound"
-          },
-          "scope": {
-            "const": "global"
-          },
-          "op": {
-            "type": "string",
-            "enum": [
-              "<=",
-              "<",
-              ">=",
-              ">",
-              "==",
-              "!="
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "ATTRIBUTE_BOUND"
+              },
+              "scope": {
+                "enum": [
+                  "GLOBAL",
+                  "LOCAL"
+                ]
+              },
+              "tasks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "<=",
+                  "<",
+                  ">=",
+                  ">",
+                  "==",
+                  "!=",
+                  "IN_RANGE"
+                ]
+              },
+              "value": {
+                "oneOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "min": {
+                        "type": "number"
+                      },
+                      "max": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "min",
+                      "max"
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "scope",
+              "op",
+              "value"
             ]
           },
-          "value": {
-            "type": "number"
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "DEPENDENCY"
+              },
+              "type": {
+                "enum": [
+                  "SAME_PROVIDER",
+                  "DIFFERENT_PROVIDER"
+                ]
+              },
+              "hard": {
+                "type": "boolean"
+              },
+              "tasks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "type"
+            ]
           }
-        },
-        "required": [
-          "kind",
-          "scope",
-          "op",
-          "value"
         ]
       }
     }
@@ -88,6 +148,9 @@
         },
         {
           "$ref": "#/$defs/loop_node"
+        },
+        {
+          "$ref": "#/$defs/element_node"
         }
       ]
     },
@@ -181,12 +244,37 @@
         "expected_iterations": {
           "type": "number",
           "minimum": 0
+        },
+        "bounds": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "min",
+            "max"
+          ]
         }
       },
       "required": [
         "kind",
-        "body",
-        "expected_iterations"
+        "body"
+      ]
+    },
+    "element_node": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "ELEMENT"
+        }
+      },
+      "required": [
+        "kind"
       ]
     }
   }

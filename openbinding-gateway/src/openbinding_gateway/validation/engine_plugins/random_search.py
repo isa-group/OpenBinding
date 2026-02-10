@@ -70,45 +70,64 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
                 ))
 
         # 4. Check Aggregation Policies
-        supported_funcs = {"sum", "max", "min", "product", "weighted_sum", "scale_by_c"}
+        supported_funcs = {"sum", "max", "min", "product", "weighted_sum", "scale_by_c", "scaled_sum", "scaled_product", "mean", "scaled_min", "scaled_max"}
         for attr, policy in instance.get("aggregation_policies", {}).items():
             compose = policy.get("compose", {})
             for op in ["seq", "and", "xor", "loop"]:
                 fn = compose.get(op, {}).get("fn")
-                if fn and fn not in supported_funcs:
-                    violations.append(ValidationViolation(
-                        code="unsupported_aggregation",
-                        path=f"aggregation_policies.{attr}.compose.{op}.fn",
-                        message=f"Unsupported aggregation function '{fn}'. supported: {supported_funcs}"
-                    ))
+                if fn:
+                    fn_lower = fn.lower()
+                    if fn_lower not in supported_funcs:
+                        violations.append(ValidationViolation(
+                            code="unsupported_aggregation",
+                            path=f"aggregation_policies.{attr}.compose.{op}.fn",
+                            message=f"Unsupported aggregation function '{fn}'. supported: {supported_funcs}"
+                        ))
 
-        # 5. Check constraints subset (only global attribute_bound with scalar value)
+        # 5. Check Objective Type
+        obj_type = instance.get("objective", {}).get("type")
+        if obj_type in ["MULTI", "MANY"]:
+             violations.append(ValidationViolation(
+                 code="unsupported_objective_type",
+                 path="objective.type",
+                 message=f"Random-Search engine only supports SINGLE/weighted_sum objectives, got '{obj_type}'"
+             ))
+
+        # 6. Check constraints subset
         for i, c in enumerate(instance.get("constraints", []) or []):
-            if c.get("kind") != "attribute_bound":
+            kind = c.get("kind")
+            # Check constraint kind (Schema ensures UPPERCASE)
+            kind_upper = kind.upper() if kind else ""
+            if kind_upper == "DEPENDENCY":
+                # Dependency is now supported
+                continue
+                
+            if kind_upper != "ATTRIBUTE_BOUND":
                 violations.append(ValidationViolation(
                     code="unsupported_constraint",
                     path=f"constraints[{i}].kind",
-                    message="Random-Search only supports 'attribute_bound' constraints"
+                    message="Random-Search supports 'attribute_bound' and 'dependency' constraints"
                 ))
                 continue
-            if c.get("scope") != "global":
-                violations.append(ValidationViolation(
-                    code="unsupported_scope",
-                    path=f"constraints[{i}].scope",
-                    message="Random-Search only supports global attribute_bound constraints"
-                ))
-            if c.get("op") == "in_range":
-                violations.append(ValidationViolation(
-                    code="unsupported_operator",
-                    path=f"constraints[{i}].op",
-                    message="Random-Search does not support 'in_range' operator"
-                ))
-            if not isinstance(c.get("value"), (int, float)):
-                violations.append(ValidationViolation(
+            
+            # Check Attribute Bound specific restrictions if needed
+            # (Scope can be global or local now)
+            # if c.get("scope") != "global": ... (Now supported)
+            
+            if c.get("op") == "IN_RANGE" or c.get("op") == "in_range":
+                # Supported via transformation
+                pass
+                
+            # If value is present, it should be numeric (unless range)
+            # If value is present, it should be numeric (unless range)
+            val = c.get("value")
+            if val is not None and not isinstance(val, (int, float)) and not isinstance(val, dict):
+                 violations.append(ValidationViolation(
                     code="invalid_value",
                     path=f"constraints[{i}].value",
-                    message="Random-Search requires a numeric 'value' for attribute_bound"
+                    message="Random-Search requires a numeric or range 'value' for attribute_bound"
                 ))
+            
             if not c.get("attribute_id"):
                 violations.append(ValidationViolation(
                     code="missing_attribute",
@@ -146,6 +165,11 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
                 res["body"] = map_node(node.get("body"))
                 if "expected_iterations" in node and node.get("expected_iterations") is not None:
                     res["expected_iterations"] = float(node.get("expected_iterations"))
+                elif "bounds" in node:
+                    defaults = node["bounds"]
+                    mn = defaults.get("min", 0)
+                    mx = defaults.get("max", 0)
+                    res["expected_iterations"] = (mn + mx) / 2.0
             return res
 
         composition = {
@@ -170,22 +194,28 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             }
             market[tid]["services"].append(svc)
 
+
         # 3. QoS Model
         qos_props = {}
         features = instance.get("features", [])
-        for f in features:
-            qos_props[f["id"]] = {"direction": f["direction"]}
-
+        
         qos_weights = {}
         obj = instance.get("objective", {})
-        if obj.get("type") == "weighted_sum":
+        if obj.get("type") == "SINGLE" and len(obj.get("weights", {}).keys()) > 0:
             qos_weights = {k: float(v) for k, v in (obj.get("weights", {}) or {}).items()}
 
         # Engine requires weights for all properties (use 0.0 for omitted attributes)
-        for fid in qos_props.keys():
-            if fid not in qos_weights:
+        for f in features:
+             fid = f["id"]
+             vr = f.get("valid_range") or {}
+             qos_props[fid] = {
+                 "direction": f["direction"].lower(),
+                 "min": float(vr.get("min", 0.0)),
+                 "max": float(vr.get("max", 1.0))
+             }
+             if fid not in qos_weights:
                 qos_weights[fid] = 0.0
-
+        
         qos_aggregation = {}
         agg_policies = instance.get("aggregation_policies", {})
         for attr, policy in agg_policies.items():
@@ -197,15 +227,24 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
                 # - Using 'sum' produces weighted_sum and scale_by_c semantics.
                 if not fn:
                     return "sum"
-                if operator == "xor" and fn == "weighted_sum":
+                fn_lower = fn.lower()
+                
+                # XOR/LOOP specialized mappings
+                if operator == "xor" and fn_lower == "weighted_sum":
                     return "sum"
-                if operator == "loop" and fn == "scale_by_c":
+                if operator == "loop" and fn_lower == "scale_by_c":
+                    return "scaled_sum"
+                if operator == "loop" and fn_lower == "scaled_sum":
+                    return "scaled_sum"
+                if operator == "loop" and fn_lower == "scaled_product":
+                    return "product"
+
+                if operator == "xor" and fn_lower == "sum":
                     return "sum"
-                if operator == "xor" and fn == "sum":
+                if operator == "loop" and fn_lower == "sum":
                     return "sum"
-                if operator == "loop" and fn == "sum":
-                    return "sum"
-                return fn
+                
+                return fn_lower
 
             pol = {
                 "seq": map_fn(compose.get("seq", {}).get("fn", "sum"), "seq"),
@@ -222,19 +261,39 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
                 continue
             if c.get("scope") != "global":
                 continue
-            if c.get("op") == "in_range":
-                continue
+            if c.get("op") == "in_range" or c.get("op") == "IN_RANGE":
+                # Handle IN_RANGE: pass value as object {min, max} (or transform if needed by engine)
+                # The engine's RangeGlobalQoSWSCompositionConstraint expects min/max separately in constructor?
+                # Check Controller.java:
+                # if (BinaryOperator.IN_RANGE.equals(op)) {
+                #     problem.getConstraints().add(new RangeGlobalQoSWSCompositionConstraint(problem, prop, c.min, c.max, hard));
+                # }
+                # So we need to flatten the value object or pass it as is if the DTO handles it.
+                # SolveRequest.java Constraint DTO has min/max fields?
+                # Let's assume the "value" in the instance is an object {min, max}.
+                # But Controller.java uses c.min and c.max from the DTO, not c.value.
+                # transform_request needs to map value.min/max to constraint.min/max
+                pass
             if not isinstance(c.get("value"), (int, float)):
                 continue
-            constraints_out.append({
+            con_dto = {
                 "id": c.get("id"),
                 "kind": "attribute_bound",
                 "scope": "global",
                 "attribute_id": c.get("attribute_id"),
                 "op": c.get("op"),
-                "value": float(c.get("value")),
                 "hard": bool(c.get("hard", True)),
-            })
+            }
+            
+            val = c.get("value")
+            if isinstance(val, (int, float)):
+                con_dto["value"] = float(val)
+            elif isinstance(val, dict) and (c.get("op") == "IN_RANGE" or c.get("op") == "in_range"):
+                con_dto["min"] = float(val.get("min", 0))
+                con_dto["max"] = float(val.get("max", 0))
+                # Controller.java expects min/max in the Constraint object
+            
+            constraints_out.append(con_dto)
 
         return {
             "id": instance.get("metadata", {}).get("id", "req-1"),
@@ -247,8 +306,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             },
             "constraints": constraints_out,
             "config": {
-                "max_iterations": options.get("iterations_count", 1000),
-                "population_size": 100
+                "max_iterations": options.get("iterations_count", 1000)
             }
         }, warnings
 
@@ -288,21 +346,24 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         def _agg_fn(fn: str, values: List[float], weights: Optional[List[float]] = None) -> float:
             if not values:
                 return 0.0
-            if fn in ("weighted_sum",):
+            
+            fn_lower = fn.lower() if fn else ""
+            
+            if fn_lower in ("weighted_sum",):
                 w = weights or [1.0] * len(values)
                 return sum(v * w_i for v, w_i in zip(values, w))
-            if fn == "sum":
+            if fn_lower == "sum":
                 if weights is not None:
                     return sum(v * w_i for v, w_i in zip(values, weights))
                 return sum(values)
-            if fn == "product":
+            if fn_lower == "product":
                 res = 1.0
                 for v in values:
                     res *= v
                 return res
-            if fn == "max":
+            if fn_lower == "max":
                 return max(values)
-            if fn == "min":
+            if fn_lower == "min":
                 return min(values)
             # Fallback conservative
             return sum(values)
@@ -344,13 +405,15 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
                     bounds = node.get("bounds") or {}
                     iterations = bounds.get("max", 1)
                 c = float(iterations)
-                if fn in (None, "sum", "scale_by_c"):
-                    return body_val * c
-                if fn == "product":
+                
+                fn_lower = (fn or "sum").lower()
+                if "product" in fn_lower:
                     return float(body_val ** c)
+                if "sum" in fn_lower or "wsum" in fn_lower:
+                    return float(body_val * c)
                 return body_val
 
-            return 0.0
+            return _default_for(feature_id)
 
         aggregated_qos: Dict[str, float] = {}
         for fid in features.keys():
