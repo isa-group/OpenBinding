@@ -1,0 +1,742 @@
+{
+  "metadata": {
+    "id": "benatallah2002-selfserv-travel-solution-cts-itas_65536_single_3",
+    "name": "Travel Solution (Benatallah et al. 2002) (65536 space, single)",
+    "version": "1.0.0",
+    "created_at": "2026-02-02T12:00:00Z",
+    "description": "Problem instance derived from the SELF-SERV running example (CTS and ITAS statecharts). QoS values and branch probabilities are illustrative because the paper does not provide numeric QoS.",
+    "paper": {
+      "title": "Declarative Compositionand Peer-to-PeerProvisioning of Dynamic WebServices",
+      "authors": "B. Benatallah et al.",
+      "year": 2002,
+      "doi": "10.5555/876875.878987"
+    }
+  },
+  "features": [
+    {
+      "id": "latency_ms",
+      "name": "End-to-end response time",
+      "direction": "MINIMIZE",
+      "unit": "ms",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 10000
+      }
+    },
+    {
+      "id": "cost_usd",
+      "name": "Total price charged to customer",
+      "direction": "MINIMIZE",
+      "unit": "usd",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 5000
+      }
+    },
+    {
+      "id": "availability",
+      "name": "Probability the service invocation succeeds",
+      "direction": "MAXIMIZE",
+      "unit": "ratio",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    }
+  ],
+  "providers": [
+    {
+      "id": "p_attractions_a",
+      "name": "AttractionsSearch Provider A"
+    },
+    {
+      "id": "p_attractions_b",
+      "name": "AttractionsSearch Provider B"
+    },
+    {
+      "id": "p_dom_air_a",
+      "name": "Domestic Airline A"
+    },
+    {
+      "id": "p_dom_air_b",
+      "name": "Domestic Airline B"
+    },
+    {
+      "id": "p_int_air_a",
+      "name": "International Airline A"
+    },
+    {
+      "id": "p_int_air_b",
+      "name": "International Airline B"
+    },
+    {
+      "id": "p_ins_a",
+      "name": "Travel Insurance Co. A"
+    },
+    {
+      "id": "p_ins_b",
+      "name": "Travel Insurance Co. B"
+    },
+    {
+      "id": "p_hotel_a",
+      "name": "Accommodation Provider A"
+    },
+    {
+      "id": "p_hotel_b",
+      "name": "Accommodation Provider B"
+    },
+    {
+      "id": "p_car_a",
+      "name": "Car Rental Provider A"
+    },
+    {
+      "id": "p_car_b",
+      "name": "Car Rental Provider B"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t_attractions_search",
+      "name": "Attractions Search (ASS.getAttractions)"
+    },
+    {
+      "id": "t_flight_booking_domestic",
+      "name": "Domestic Flight Booking (DFBS.booking)"
+    },
+    {
+      "id": "t_flight_booking_international",
+      "name": "International Flight Booking (IFBS.booking)"
+    },
+    {
+      "id": "t_travel_insurance",
+      "name": "Travel Insurance (TIS.getInsurance)"
+    },
+    {
+      "id": "t_accommodation_booking",
+      "name": "Accommodation Booking (ABS.booking)"
+    },
+    {
+      "id": "t_car_rental_booking",
+      "name": "Car Rental Booking (CRS.booking)"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "svc_ass_1",
+      "task_id": "t_attractions_search",
+      "provider_id": "p_attractions_a",
+      "name": "ASS.getAttractions",
+      "features": {
+        "latency_ms": 180,
+        "cost_usd": 0,
+        "availability": 0.995
+      }
+    },
+    {
+      "id": "svc_ass_2",
+      "task_id": "t_attractions_search",
+      "provider_id": "p_attractions_b",
+      "name": "ASS.getAttractions",
+      "features": {
+        "latency_ms": 120,
+        "cost_usd": 5,
+        "availability": 0.99
+      }
+    },
+    {
+      "id": "svc_dfbs_1",
+      "task_id": "t_flight_booking_domestic",
+      "provider_id": "p_dom_air_a",
+      "name": "DFBS.booking",
+      "features": {
+        "latency_ms": 650,
+        "cost_usd": 420,
+        "availability": 0.985
+      }
+    },
+    {
+      "id": "svc_dfbs_2",
+      "task_id": "t_flight_booking_domestic",
+      "provider_id": "p_dom_air_b",
+      "name": "DFBS.booking",
+      "features": {
+        "latency_ms": 520,
+        "cost_usd": 460,
+        "availability": 0.99
+      }
+    },
+    {
+      "id": "svc_ifbs_1",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_a",
+      "name": "IFBS.booking",
+      "features": {
+        "latency_ms": 780,
+        "cost_usd": 820,
+        "availability": 0.98
+      }
+    },
+    {
+      "id": "svc_ifbs_2",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_b",
+      "name": "IFBS.booking",
+      "features": {
+        "latency_ms": 610,
+        "cost_usd": 900,
+        "availability": 0.988
+      }
+    },
+    {
+      "id": "svc_tis_1",
+      "task_id": "t_travel_insurance",
+      "provider_id": "p_ins_a",
+      "name": "TIS.getInsurance",
+      "features": {
+        "latency_ms": 240,
+        "cost_usd": 55,
+        "availability": 0.997
+      }
+    },
+    {
+      "id": "svc_tis_2",
+      "task_id": "t_travel_insurance",
+      "provider_id": "p_ins_b",
+      "name": "TIS.getInsurance",
+      "features": {
+        "latency_ms": 190,
+        "cost_usd": 70,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "svc_abs_1",
+      "task_id": "t_accommodation_booking",
+      "provider_id": "p_hotel_a",
+      "name": "ABS.booking",
+      "features": {
+        "latency_ms": 430,
+        "cost_usd": 950,
+        "availability": 0.992
+      }
+    },
+    {
+      "id": "svc_abs_2",
+      "task_id": "t_accommodation_booking",
+      "provider_id": "p_hotel_b",
+      "name": "ABS.booking",
+      "features": {
+        "latency_ms": 350,
+        "cost_usd": 1100,
+        "availability": 0.995
+      }
+    },
+    {
+      "id": "svc_crs_1",
+      "task_id": "t_car_rental_booking",
+      "provider_id": "p_car_a",
+      "name": "CRS.booking",
+      "features": {
+        "latency_ms": 310,
+        "cost_usd": 260,
+        "availability": 0.99
+      }
+    },
+    {
+      "id": "svc_crs_2",
+      "task_id": "t_car_rental_booking",
+      "provider_id": "p_car_b",
+      "name": "CRS.booking",
+      "features": {
+        "latency_ms": 260,
+        "cost_usd": 320,
+        "availability": 0.996
+      }
+    },
+    {
+      "id": "svc_abs_1_copy_12",
+      "task_id": "t_accommodation_booking",
+      "provider_id": "p_hotel_a",
+      "name": "ABS.booking (Allocated)",
+      "features": {
+        "latency_ms": 435.05,
+        "cost_usd": 924.8,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_ifbs_1_copy_13",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_a",
+      "name": "IFBS.booking (Allocated)",
+      "features": {
+        "latency_ms": 799.25,
+        "cost_usd": 814.59,
+        "availability": 0.94
+      }
+    },
+    {
+      "id": "svc_crs_1_copy_14",
+      "task_id": "t_car_rental_booking",
+      "provider_id": "p_car_a",
+      "name": "CRS.booking (Allocated)",
+      "features": {
+        "latency_ms": 308.25,
+        "cost_usd": 265.04,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_ass_2_copy_15",
+      "task_id": "t_attractions_search",
+      "provider_id": "p_attractions_b",
+      "name": "ASS.getAttractions (Allocated)",
+      "features": {
+        "latency_ms": 123.55,
+        "cost_usd": 4.9,
+        "availability": 0.98
+      }
+    },
+    {
+      "id": "svc_dfbs_1_copy_16",
+      "task_id": "t_flight_booking_domestic",
+      "provider_id": "p_dom_air_a",
+      "name": "DFBS.booking (Allocated)",
+      "features": {
+        "latency_ms": 652.03,
+        "cost_usd": 422.77,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_dfbs_1_copy_17",
+      "task_id": "t_flight_booking_domestic",
+      "provider_id": "p_dom_air_a",
+      "name": "DFBS.booking (Allocated)",
+      "features": {
+        "latency_ms": 622.63,
+        "cost_usd": 435.58,
+        "availability": 1.0
+      }
+    },
+    {
+      "id": "svc_dfbs_1_copy_17_copy_18",
+      "task_id": "t_flight_booking_domestic",
+      "provider_id": "p_dom_air_a",
+      "name": "DFBS.booking (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 648.33,
+        "cost_usd": 420.03,
+        "availability": 1.0
+      }
+    },
+    {
+      "id": "svc_ifbs_2_copy_19",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_b",
+      "name": "IFBS.booking (Allocated)",
+      "features": {
+        "latency_ms": 595.07,
+        "cost_usd": 855.85,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_ifbs_2_copy_20",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_b",
+      "name": "IFBS.booking (Allocated)",
+      "features": {
+        "latency_ms": 584.01,
+        "cost_usd": 940.07,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_ifbs_2_copy_19_copy_21",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_b",
+      "name": "IFBS.booking (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 606.39,
+        "cost_usd": 852.16,
+        "availability": 0.98
+      }
+    },
+    {
+      "id": "svc_tis_2_copy_22",
+      "task_id": "t_travel_insurance",
+      "provider_id": "p_ins_b",
+      "name": "TIS.getInsurance (Allocated)",
+      "features": {
+        "latency_ms": 182.53,
+        "cost_usd": 69.17,
+        "availability": 0.98
+      }
+    },
+    {
+      "id": "svc_ifbs_2_copy_19_copy_21_copy_23",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_b",
+      "name": "IFBS.booking (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 593.97,
+        "cost_usd": 892.89,
+        "availability": 1.0
+      }
+    },
+    {
+      "id": "svc_ifbs_1_copy_24",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_a",
+      "name": "IFBS.booking (Allocated)",
+      "features": {
+        "latency_ms": 785.14,
+        "cost_usd": 835.24,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_ass_2_copy_15_copy_25",
+      "task_id": "t_attractions_search",
+      "provider_id": "p_attractions_b",
+      "name": "ASS.getAttractions (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 126.58,
+        "cost_usd": 5.06,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_dfbs_1_copy_17_copy_18_copy_26",
+      "task_id": "t_flight_booking_domestic",
+      "provider_id": "p_dom_air_a",
+      "name": "DFBS.booking (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 667.91,
+        "cost_usd": 408.23,
+        "availability": 0.97
+      }
+    },
+    {
+      "id": "svc_ifbs_1_copy_13_copy_27",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_a",
+      "name": "IFBS.booking (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 809.5,
+        "cost_usd": 847.45,
+        "availability": 0.95
+      }
+    },
+    {
+      "id": "svc_ifbs_1_copy_24_copy_28",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_a",
+      "name": "IFBS.booking (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 748.5,
+        "cost_usd": 823.95,
+        "availability": 0.96
+      }
+    },
+    {
+      "id": "svc_ifbs_2_copy_19_copy_21_copy_29",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_b",
+      "name": "IFBS.booking (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 621.4,
+        "cost_usd": 824.52,
+        "availability": 0.94
+      }
+    },
+    {
+      "id": "svc_abs_2_copy_30",
+      "task_id": "t_accommodation_booking",
+      "provider_id": "p_hotel_b",
+      "name": "ABS.booking (Allocated)",
+      "features": {
+        "latency_ms": 351.08,
+        "cost_usd": 1145.48,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_ifbs_1_copy_24_copy_31",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_a",
+      "name": "IFBS.booking (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 821.84,
+        "cost_usd": 818.13,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_ass_2_copy_15_copy_25_copy_32",
+      "task_id": "t_attractions_search",
+      "provider_id": "p_attractions_b",
+      "name": "ASS.getAttractions (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 132.44,
+        "cost_usd": 4.88,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_crs_1_copy_14_copy_33",
+      "task_id": "t_car_rental_booking",
+      "provider_id": "p_car_a",
+      "name": "CRS.booking (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 313.63,
+        "cost_usd": 262.32,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_abs_1_copy_12_copy_34",
+      "task_id": "t_accommodation_booking",
+      "provider_id": "p_hotel_a",
+      "name": "ABS.booking (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 417.23,
+        "cost_usd": 915.05,
+        "availability": 0.98
+      }
+    },
+    {
+      "id": "svc_ass_2_copy_15_copy_25_copy_35",
+      "task_id": "t_attractions_search",
+      "provider_id": "p_attractions_b",
+      "name": "ASS.getAttractions (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 124.92,
+        "cost_usd": 5.19,
+        "availability": 0.98
+      }
+    },
+    {
+      "id": "svc_tis_2_copy_22_copy_36",
+      "task_id": "t_travel_insurance",
+      "provider_id": "p_ins_b",
+      "name": "TIS.getInsurance (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 190.57,
+        "cost_usd": 66.46,
+        "availability": 0.95
+      }
+    },
+    {
+      "id": "svc_ass_2_copy_15_copy_25_copy_32_copy_37",
+      "task_id": "t_attractions_search",
+      "provider_id": "p_attractions_b",
+      "name": "ASS.getAttractions (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 137.53,
+        "cost_usd": 4.91,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_dfbs_1_copy_17_copy_18_copy_26_copy_38",
+      "task_id": "t_flight_booking_domestic",
+      "provider_id": "p_dom_air_a",
+      "name": "DFBS.booking (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 638.74,
+        "cost_usd": 421.45,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_ifbs_2_copy_19_copy_21_copy_29_copy_39",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_b",
+      "name": "IFBS.booking (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 615.7,
+        "cost_usd": 794.82,
+        "availability": 0.98
+      }
+    },
+    {
+      "id": "svc_ifbs_1_copy_24_copy_40",
+      "task_id": "t_flight_booking_international",
+      "provider_id": "p_int_air_a",
+      "name": "IFBS.booking (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 755.0,
+        "cost_usd": 813.09,
+        "availability": 1
+      }
+    },
+    {
+      "id": "svc_tis_2_copy_22_copy_36_copy_41",
+      "task_id": "t_travel_insurance",
+      "provider_id": "p_ins_b",
+      "name": "TIS.getInsurance (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 188.11,
+        "cost_usd": 69.45,
+        "availability": 0.97
+      }
+    }
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "n_root",
+      "kind": "SEQ",
+      "children": [
+        {
+          "id": "n_parallel",
+          "kind": "AND",
+          "children": [
+            {
+              "id": "n_as",
+              "kind": "TASK",
+              "task_id": "t_attractions_search"
+            },
+            {
+              "id": "n_booking_flow",
+              "kind": "SEQ",
+              "children": [
+                {
+                  "id": "n_flight_choice",
+                  "kind": "XOR",
+                  "branches": [
+                    {
+                      "p": 0.6,
+                      "child": {
+                        "id": "n_dfb",
+                        "kind": "TASK",
+                        "task_id": "t_flight_booking_domestic"
+                      }
+                    },
+                    {
+                      "p": 0.4,
+                      "child": {
+                        "id": "n_intl_seq",
+                        "kind": "SEQ",
+                        "children": [
+                          {
+                            "id": "n_ifb",
+                            "kind": "TASK",
+                            "task_id": "t_flight_booking_international"
+                          },
+                          {
+                            "id": "n_ti",
+                            "kind": "TASK",
+                            "task_id": "t_travel_insurance"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "n_ab",
+                  "kind": "TASK",
+                  "task_id": "t_accommodation_booking"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "n_car_choice",
+          "kind": "XOR",
+          "branches": [
+            {
+              "p": 0.3,
+              "child": {
+                "id": "n_cr",
+                "kind": "TASK",
+                "task_id": "t_car_rental_booking"
+              }
+            },
+            {
+              "p": 0.7,
+              "child": {
+                "id": "n_no_car",
+                "kind": "ELEMENT",
+                "description": "Skip car rental (represents the near(...) branch)"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "latency_ms": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "cost_usd": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "availability": {
+      "neutral": 1,
+      "compose": {
+        "seq": {
+          "fn": "PRODUCT"
+        },
+        "and": {
+          "fn": "PRODUCT"
+        },
+        "loop": {
+          "fn": "SCALED_PRODUCT"
+        }
+      }
+    }
+  },
+  "objective": {
+    "type": "SINGLE",
+    "targets": [
+      "latency_ms",
+      "availability"
+    ],
+    "weights": {
+      "latency_ms": 0.77,
+      "availability": 0.57
+    }
+  },
+  "constraints": [
+    {
+      "id": "c_global_cost_usd_0",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "cost_usd",
+      "op": "<=",
+      "value": 3224.08,
+      "hard": true
+    }
+  ]
+}

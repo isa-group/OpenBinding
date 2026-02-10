@@ -21,6 +21,7 @@ import es.us.isa.qosawarewsbinding.StructuralComponent;
 import es.us.isa.qosawarewsbinding.WSCompositionStructure;
 import es.us.isa.qosawarewsbinding.qos.QoSProperty;
 import es.us.isa.qosawarewsbinding.qos.aggretation.AggregationFunction;
+import es.us.isa.qosawarewsbinding.EmptyComponent;
 import es.us.isa.qosawarewsbinding.solution.QoSAwareWSCompositionSolution;
 
 /**
@@ -114,7 +115,12 @@ public class WSCompositionQoSModel implements Serializable{
         Double result=null;
         if(component instanceof AbstractWebService)
             result=(Double)solution.getSelectedService((AbstractWebService)component).getQoSValue(property);
-        else{
+        else if (component instanceof EmptyComponent) {
+            if (property.getType() == es.us.isa.qosawarewsbinding.qos.QoSPropertyType.POSITIVE)
+                result = 1.0;
+            else
+                result = 0.0;
+        } else {
             AggregationFunction aggregationFunction=getAggregationFunction(property,component.getClass());            
             List<Double> partialResults=new LinkedList<Double>();
             List<Double> ponderations=new LinkedList<Double>();

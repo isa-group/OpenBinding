@@ -75,7 +75,11 @@ def solve(instance: Dict[str, Any], engine_id: str) -> Tuple[int, Dict[str, Any]
             
         elif resp.status_code == 200:
             duration = time.time() - start
-            return 200, resp.json(), duration
+            data = resp.json()
+            # Normalise: if this is a JobResponse wrapper, extract .result
+            if "result" in data and "job_id" in data:
+                return 200, data.get("result", {}), duration
+            return 200, data, duration
         else:
             duration = time.time() - start
             try:
@@ -87,10 +91,17 @@ def solve(instance: Dict[str, Any], engine_id: str) -> Tuple[int, Dict[str, Any]
         duration = time.time() - start
         return 500, {"error": str(e)}, duration
 
-def determine_result(obj_type, has_soft, mzn_s, rs_s):
+def determine_result(obj_type, has_soft, mzn_s, rs_s, rs_resp=None):
     """Determine if the result is a PASS or FAIL based on expectations."""
     is_pass = False
     msg = ""
+    
+    # Check if RS returned 200 but with no actual solutions (heuristic failure)
+    rs_has_solution = True
+    if rs_resp and rs_s in [200, 202]:
+        b = get_binding(rs_resp)
+        if b is None:
+            rs_has_solution = False
     
     if obj_type in ["MULTI", "MANY"]:
         # Expected: Both Reject (>=400)
@@ -103,16 +114,24 @@ def determine_result(obj_type, has_soft, mzn_s, rs_s):
     elif has_soft:
         # Expected: MZN Reject (>=400), RS Solve (200/202)
         if mzn_s >= 400 and rs_s in [200, 202]:
-            is_pass = True
-            msg = "PASS (MZN Reject, RS Solve)"
+            if rs_has_solution:
+                is_pass = True
+                msg = "PASS (MZN Reject, RS Solve)"
+            else:
+                is_pass = True  # Still pass — RS is heuristic, no-solution is valid
+                msg = "PASS (MZN Reject, RS NoSol)"
         else:
             msg = f"FAIL (Exp MZN Fail/RS OK, got MZN:{mzn_s} RS:{rs_s})"
             
     else: # Single + Hard
         # Expected: Both Solve
         if mzn_s in [200, 202] and rs_s in [200, 202]:
-            is_pass = True
-            msg = "PASS (Both Solved)"
+            if rs_has_solution:
+                is_pass = True
+                msg = "PASS (Both Solved)"
+            else:
+                is_pass = True  # RS is heuristic — no-solution is acceptable
+                msg = "PASS (MZN Solved, RS NoSol)"
         else:
             msg = f"FAIL (Exp Both OK, got MZN:{mzn_s} RS:{rs_s})"
             
@@ -126,6 +145,8 @@ def run_experiments():
     results = []
     
     # Progress Bar using tqdm
+    # LIMIT FOR TESTING (User request: do not run all)
+    instances = instances[:50]
     pbar = tqdm(instances, unit="inst")
     
     for item in pbar:
@@ -144,7 +165,7 @@ def run_experiments():
         rs_status, rs_resp, rs_time = solve(data, "random-search")
         
         # Analyze Result immediately for log
-        is_pass, msg = determine_result(obj_type, has_soft, mzn_status, rs_status)
+        is_pass, msg = determine_result(obj_type, has_soft, mzn_status, rs_status, rs_resp)
         
         # Store result
         results.append({
@@ -178,9 +199,21 @@ def get_binding(response):
     """Effectively extracts the binding dictionary from a response."""
     if not response or "error" in response or "detail" in response:
         return None
+    # Check top-level solutions (async/poll path)
     solutions = response.get("solutions", [])
     if solutions and len(solutions) > 0:
         return solutions[0].get("binding")
+    # Check nested result.solutions (sync path — full JobResponse)
+    result = response.get("result")
+    if result and isinstance(result, dict):
+        # Check for error in provenance metadata
+        prov = result.get("provenance") or {}
+        meta = prov.get("metadata") or {}
+        if meta.get("error"):
+            return None
+        solutions = result.get("solutions", [])
+        if solutions and len(solutions) > 0:
+            return solutions[0].get("binding")
     return None
 
 def generate_report(results):
@@ -219,19 +252,24 @@ def generate_report(results):
             
             # Binding Match Logic
             binding_match = ""
-            if r["is_pass"] and mzn_s in [200, 202] and rs_s in [200, 202]:
+            # Compare if BOTH engines returned a valid response (200 or 202)
+            if mzn_s in [200, 202] and rs_s in [200, 202]:
                 b_mzn = get_binding(r["minizinc"]["response"])
                 b_rs = get_binding(r["random_search"]["response"])
                 
                 if b_mzn is not None and b_rs is not None:
                     # Determine equality
-                    # Bindings are dicts, direct comparison works if keys/values are same type
+                    # Bindings are dicts {task_id: candidate_id}, direct comparison works
                     if b_mzn == b_rs:
                         binding_match = "✅ MATCH"
                     else:
                         binding_match = "⚠️ DIFF"
                 elif b_mzn is None and b_rs is None:
-                    binding_match = "N/A (No Sol)"
+                    binding_match = "✅ No Sol"
+                elif b_mzn is None:
+                    binding_match = "⚠️ MZN NoSol"
+                elif b_rs is None:
+                    binding_match = "⚠️ RS NoSol"
                 else:
                     binding_match = "❓ ERR"
             else:

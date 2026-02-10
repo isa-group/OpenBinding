@@ -313,6 +313,8 @@ async def analyze(request: SolveRequest):
         diagnostics=diagnostics if diagnostics else None
     )
 
+from fastapi import Response
+
 @app.post(
     "/v1/solve",
     response_model=JobResponse,
@@ -322,6 +324,10 @@ async def analyze(request: SolveRequest):
         202: {
             "description": "Solve request accepted (job created)",
             "content": {"application/json": {"example": _JOB_QUEUED_EXAMPLE}},
+        },
+        200: {
+             "description": "Solve request completed synchronously",
+             "content": {"application/json": {"example": _JOB_COMPLETED_EXAMPLE}},
         },
         422: {
             "description": "Instance is invalid (semantic/logical/schema violations)",
@@ -346,7 +352,7 @@ async def analyze(request: SolveRequest):
         },
     },
 )
-async def solve(request: SolveRequest):
+async def solve(request: SolveRequest, response: Response):
     result = validate_and_prepare(request)
     
     if not result["valid"]:
@@ -386,7 +392,12 @@ async def solve(request: SolveRequest):
     warnings = result.get("warnings")
     
     # Hand the validated request over to the router to find a solution.
-    return await router.route_solve(request, binding_space=binding_space, warnings=warnings)
+    job_resp = await router.route_solve(request, binding_space=binding_space, warnings=warnings)
+    
+    if job_resp.status == JobStatus.COMPLETED or job_resp.status == JobStatus.FAILED:
+        response.status_code = status.HTTP_200_OK
+        
+    return job_resp
 
 @app.get(
     "/v1/jobs/{job_id}",

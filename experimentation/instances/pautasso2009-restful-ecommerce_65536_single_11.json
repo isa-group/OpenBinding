@@ -1,0 +1,729 @@
+{
+  "metadata": {
+    "id": "pautasso2009-restful-ecommerce_65536_single_11",
+    "name": "RESTful e-Commerce scenario (Pautasso 2009) (65536 space, single)",
+    "version": "1.0.0",
+    "created_at": "2026-02-02T12:00:00Z",
+    "description": "QoS-aware composition instance derived from the running e-Commerce example in Pautasso (2009) 'BPEL for REST'. QoS numbers are illustrative (the paper specifies the workflow/API but not QoS measurements).",
+    "paper": {
+      "title": "RESTful Web service composition with BPEL for REST",
+      "authors": "C. Pautasso",
+      "year": 2009,
+      "doi": "10.1016/j.datak.2009.02.016"
+    }
+  },
+  "features": [
+    {
+      "id": "latency_ms",
+      "name": "End-to-end response time",
+      "direction": "MINIMIZE",
+      "unit": "ms",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 5000
+      }
+    },
+    {
+      "id": "cost_usd",
+      "name": "Invocation cost",
+      "direction": "MINIMIZE",
+      "unit": "usd",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1000
+      }
+    },
+    {
+      "id": "availability",
+      "name": "Availability",
+      "direction": "MAXIMIZE",
+      "unit": "prob",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    }
+  ],
+  "providers": [
+    {
+      "id": "p_shop_a",
+      "name": "Shop Service A"
+    },
+    {
+      "id": "p_shop_b",
+      "name": "Shop Service B"
+    },
+    {
+      "id": "p_catalog_a",
+      "name": "Catalog Service A"
+    },
+    {
+      "id": "p_catalog_b",
+      "name": "Catalog Service B"
+    },
+    {
+      "id": "p_payment_a",
+      "name": "Payment Service A"
+    },
+    {
+      "id": "p_payment_b",
+      "name": "Payment Service B"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t_create_order",
+      "name": "Create order (POST /order)"
+    },
+    {
+      "id": "t_request_quote",
+      "name": "Request quote (POST /product/quote)"
+    },
+    {
+      "id": "t_get_quote",
+      "name": "Retrieve quote details (GET /quote)"
+    },
+    {
+      "id": "t_add_item",
+      "name": "Add line item (POST /order/item)"
+    },
+    {
+      "id": "t_remove_item",
+      "name": "Remove line item (DELETE /order/item)"
+    },
+    {
+      "id": "t_get_amount",
+      "name": "Get order amount (GET /order/amount)"
+    },
+    {
+      "id": "t_checkout",
+      "name": "Checkout (POST /order/payment)"
+    },
+    {
+      "id": "t_charge_payment",
+      "name": "Charge payment (POST /payment)"
+    },
+    {
+      "id": "t_list_confirmed",
+      "name": "List confirmed orders (GET /order/confirmed)"
+    },
+    {
+      "id": "t_ship_order",
+      "name": "Ship order (fulfillment action within Shop binding)"
+    },
+    {
+      "id": "t_update_shipment",
+      "name": "Update shipment info (PUT /order/shipment)"
+    },
+    {
+      "id": "t_cancel_order",
+      "name": "Cancel order (DELETE /order)"
+    },
+    {
+      "id": "t_refund_payment",
+      "name": "Refund payment (DELETE /payment)"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "c_shopA_create_order",
+      "task_id": "t_create_order",
+      "provider_id": "p_shop_a",
+      "name": "ShopA POST /order",
+      "features": {
+        "latency_ms": 105,
+        "cost_usd": 0.0006,
+        "availability": 0.997
+      }
+    },
+    {
+      "id": "c_shopB_create_order",
+      "task_id": "t_create_order",
+      "provider_id": "p_shop_b",
+      "name": "ShopB POST /order",
+      "features": {
+        "latency_ms": 130,
+        "cost_usd": 0.0004,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_shopA_add_item",
+      "task_id": "t_add_item",
+      "provider_id": "p_shop_a",
+      "name": "ShopA POST /order/item",
+      "features": {
+        "latency_ms": 135,
+        "cost_usd": 0.0008,
+        "availability": 0.997
+      }
+    },
+    {
+      "id": "c_shopB_add_item",
+      "task_id": "t_add_item",
+      "provider_id": "p_shop_b",
+      "name": "ShopB POST /order/item",
+      "features": {
+        "latency_ms": 160,
+        "cost_usd": 0.0006,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_shopA_remove_item",
+      "task_id": "t_remove_item",
+      "provider_id": "p_shop_a",
+      "name": "ShopA DELETE /order/item",
+      "features": {
+        "latency_ms": 85,
+        "cost_usd": 0.0005,
+        "availability": 0.997
+      }
+    },
+    {
+      "id": "c_shopB_remove_item",
+      "task_id": "t_remove_item",
+      "provider_id": "p_shop_b",
+      "name": "ShopB DELETE /order/item",
+      "features": {
+        "latency_ms": 100,
+        "cost_usd": 0.0003,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_shopA_get_amount",
+      "task_id": "t_get_amount",
+      "provider_id": "p_shop_a",
+      "name": "ShopA GET /order/amount",
+      "features": {
+        "latency_ms": 55,
+        "cost_usd": 0.00025,
+        "availability": 0.998
+      }
+    },
+    {
+      "id": "c_shopB_get_amount",
+      "task_id": "t_get_amount",
+      "provider_id": "p_shop_b",
+      "name": "ShopB GET /order/amount",
+      "features": {
+        "latency_ms": 75,
+        "cost_usd": 0.00018,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_shopA_checkout",
+      "task_id": "t_checkout",
+      "provider_id": "p_shop_a",
+      "name": "ShopA POST /order/payment",
+      "features": {
+        "latency_ms": 150,
+        "cost_usd": 0.0012,
+        "availability": 0.996
+      }
+    },
+    {
+      "id": "c_shopB_checkout",
+      "task_id": "t_checkout",
+      "provider_id": "p_shop_b",
+      "name": "ShopB POST /order/payment",
+      "features": {
+        "latency_ms": 185,
+        "cost_usd": 0.001,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_shopA_list_confirmed",
+      "task_id": "t_list_confirmed",
+      "provider_id": "p_shop_a",
+      "name": "ShopA GET /order/confirmed",
+      "features": {
+        "latency_ms": 70,
+        "cost_usd": 0.00025,
+        "availability": 0.998
+      }
+    },
+    {
+      "id": "c_shopB_list_confirmed",
+      "task_id": "t_list_confirmed",
+      "provider_id": "p_shop_b",
+      "name": "ShopB GET /order/confirmed",
+      "features": {
+        "latency_ms": 90,
+        "cost_usd": 0.0002,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_shopA_ship_order",
+      "task_id": "t_ship_order",
+      "provider_id": "p_shop_a",
+      "name": "ShopA fulfillment",
+      "features": {
+        "latency_ms": 480,
+        "cost_usd": 0.05,
+        "availability": 0.995
+      }
+    },
+    {
+      "id": "c_shopB_ship_order",
+      "task_id": "t_ship_order",
+      "provider_id": "p_shop_b",
+      "name": "ShopB fulfillment",
+      "features": {
+        "latency_ms": 520,
+        "cost_usd": 0.045,
+        "availability": 0.998
+      }
+    },
+    {
+      "id": "c_shopA_update_shipment",
+      "task_id": "t_update_shipment",
+      "provider_id": "p_shop_a",
+      "name": "ShopA PUT /order/shipment",
+      "features": {
+        "latency_ms": 95,
+        "cost_usd": 0.0006,
+        "availability": 0.997
+      }
+    },
+    {
+      "id": "c_shopB_update_shipment",
+      "task_id": "t_update_shipment",
+      "provider_id": "p_shop_b",
+      "name": "ShopB PUT /order/shipment",
+      "features": {
+        "latency_ms": 110,
+        "cost_usd": 0.00045,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_shopA_cancel_order",
+      "task_id": "t_cancel_order",
+      "provider_id": "p_shop_a",
+      "name": "ShopA DELETE /order",
+      "features": {
+        "latency_ms": 85,
+        "cost_usd": 0.00035,
+        "availability": 0.998
+      }
+    },
+    {
+      "id": "c_shopB_cancel_order",
+      "task_id": "t_cancel_order",
+      "provider_id": "p_shop_b",
+      "name": "ShopB DELETE /order",
+      "features": {
+        "latency_ms": 95,
+        "cost_usd": 0.00025,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_catalogA_request_quote",
+      "task_id": "t_request_quote",
+      "provider_id": "p_catalog_a",
+      "name": "CatalogA POST /product/quote",
+      "features": {
+        "latency_ms": 120,
+        "cost_usd": 0.002,
+        "availability": 0.995
+      }
+    },
+    {
+      "id": "c_catalogB_request_quote",
+      "task_id": "t_request_quote",
+      "provider_id": "p_catalog_b",
+      "name": "CatalogB POST /product/quote",
+      "features": {
+        "latency_ms": 210,
+        "cost_usd": 0.0015,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_catalogA_get_quote",
+      "task_id": "t_get_quote",
+      "provider_id": "p_catalog_a",
+      "name": "CatalogA GET /quote",
+      "features": {
+        "latency_ms": 85,
+        "cost_usd": 0.001,
+        "availability": 0.995
+      }
+    },
+    {
+      "id": "c_catalogB_get_quote",
+      "task_id": "t_get_quote",
+      "provider_id": "p_catalog_b",
+      "name": "CatalogB GET /quote",
+      "features": {
+        "latency_ms": 155,
+        "cost_usd": 0.0007,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_paymentA_charge",
+      "task_id": "t_charge_payment",
+      "provider_id": "p_payment_a",
+      "name": "PaymentA POST /payment",
+      "features": {
+        "latency_ms": 320,
+        "cost_usd": 0.02,
+        "availability": 0.997
+      }
+    },
+    {
+      "id": "c_paymentB_charge",
+      "task_id": "t_charge_payment",
+      "provider_id": "p_payment_b",
+      "name": "PaymentB POST /payment",
+      "features": {
+        "latency_ms": 380,
+        "cost_usd": 0.017,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_paymentA_refund",
+      "task_id": "t_refund_payment",
+      "provider_id": "p_payment_a",
+      "name": "PaymentA DELETE /payment",
+      "features": {
+        "latency_ms": 240,
+        "cost_usd": 0.015,
+        "availability": 0.997
+      }
+    },
+    {
+      "id": "c_paymentB_refund",
+      "task_id": "t_refund_payment",
+      "provider_id": "p_payment_b",
+      "name": "PaymentB DELETE /payment",
+      "features": {
+        "latency_ms": 290,
+        "cost_usd": 0.013,
+        "availability": 0.999
+      }
+    },
+    {
+      "id": "c_shopB_remove_item_copy_26",
+      "task_id": "t_remove_item",
+      "provider_id": "p_shop_b",
+      "name": "ShopB DELETE /order/item (Allocated)",
+      "features": {
+        "latency_ms": 103.46,
+        "cost_usd": 0.0,
+        "availability": 1
+      }
+    },
+    {
+      "id": "c_catalogA_request_quote_copy_27",
+      "task_id": "t_request_quote",
+      "provider_id": "p_catalog_a",
+      "name": "CatalogA POST /product/quote (Allocated)",
+      "features": {
+        "latency_ms": 117.4,
+        "cost_usd": 0.0,
+        "availability": 1.0
+      }
+    },
+    {
+      "id": "c_paymentA_charge_copy_28",
+      "task_id": "t_charge_payment",
+      "provider_id": "p_payment_a",
+      "name": "PaymentA POST /payment (Allocated)",
+      "features": {
+        "latency_ms": 326.25,
+        "cost_usd": 0.02,
+        "availability": 0.98
+      }
+    },
+    {
+      "id": "c_catalogA_get_quote_copy_29",
+      "task_id": "t_get_quote",
+      "provider_id": "p_catalog_a",
+      "name": "CatalogA GET /quote (Allocated)",
+      "features": {
+        "latency_ms": 88.36,
+        "cost_usd": 0.0,
+        "availability": 0.98
+      }
+    },
+    {
+      "id": "c_shopA_add_item_copy_30",
+      "task_id": "t_add_item",
+      "provider_id": "p_shop_a",
+      "name": "ShopA POST /order/item (Allocated)",
+      "features": {
+        "latency_ms": 128.6,
+        "cost_usd": 0.0,
+        "availability": 0.97
+      }
+    },
+    {
+      "id": "c_paymentA_refund_copy_31",
+      "task_id": "t_refund_payment",
+      "provider_id": "p_payment_a",
+      "name": "PaymentA DELETE /payment (Allocated)",
+      "features": {
+        "latency_ms": 251.12,
+        "cost_usd": 0.01,
+        "availability": 1
+      }
+    }
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "n_root",
+      "kind": "SEQ",
+      "children": [
+        {
+          "id": "n_create_order",
+          "kind": "TASK",
+          "task_id": "t_create_order"
+        },
+        {
+          "id": "n_edit_loop",
+          "kind": "LOOP",
+          "body": {
+            "id": "n_edit_action",
+            "kind": "XOR",
+            "branches": [
+              {
+                "p": 0.7,
+                "child": {
+                  "id": "n_add_item_seq",
+                  "kind": "SEQ",
+                  "children": [
+                    {
+                      "id": "n_request_quote",
+                      "kind": "TASK",
+                      "task_id": "t_request_quote"
+                    },
+                    {
+                      "id": "n_get_quote",
+                      "kind": "TASK",
+                      "task_id": "t_get_quote"
+                    },
+                    {
+                      "id": "n_add_item",
+                      "kind": "TASK",
+                      "task_id": "t_add_item"
+                    }
+                  ]
+                }
+              },
+              {
+                "p": 0.1,
+                "child": {
+                  "id": "n_remove_item",
+                  "kind": "TASK",
+                  "task_id": "t_remove_item"
+                }
+              },
+              {
+                "p": 0.2,
+                "child": {
+                  "id": "n_get_amount",
+                  "kind": "TASK",
+                  "task_id": "t_get_amount"
+                }
+              }
+            ]
+          },
+          "expected_iterations": 3
+        },
+        {
+          "id": "n_decide_checkout_or_cancel",
+          "kind": "XOR",
+          "branches": [
+            {
+              "p": 0.9,
+              "child": {
+                "id": "n_checkout_seq",
+                "kind": "SEQ",
+                "children": [
+                  {
+                    "id": "n_checkout",
+                    "kind": "TASK",
+                    "task_id": "t_checkout"
+                  },
+                  {
+                    "id": "n_charge_payment",
+                    "kind": "TASK",
+                    "task_id": "t_charge_payment"
+                  },
+                  {
+                    "id": "n_after_confirm",
+                    "kind": "XOR",
+                    "branches": [
+                      {
+                        "p": 0.95,
+                        "child": {
+                          "id": "n_ship_seq",
+                          "kind": "SEQ",
+                          "children": [
+                            {
+                              "id": "n_list_confirmed",
+                              "kind": "TASK",
+                              "task_id": "t_list_confirmed"
+                            },
+                            {
+                              "id": "n_ship_order",
+                              "kind": "TASK",
+                              "task_id": "t_ship_order"
+                            },
+                            {
+                              "id": "n_update_shipment",
+                              "kind": "TASK",
+                              "task_id": "t_update_shipment"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "p": 0.05,
+                        "child": {
+                          "id": "n_cancel_confirmed_seq",
+                          "kind": "SEQ",
+                          "children": [
+                            {
+                              "id": "n_cancel_confirmed",
+                              "kind": "TASK",
+                              "task_id": "t_cancel_order"
+                            },
+                            {
+                              "id": "n_refund_payment",
+                              "kind": "TASK",
+                              "task_id": "t_refund_payment"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "p": 0.1,
+              "child": {
+                "id": "n_cancel_before_confirm",
+                "kind": "TASK",
+                "task_id": "t_cancel_order"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "latency_ms": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "cost_usd": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "availability": {
+      "neutral": 1,
+      "compose": {
+        "seq": {
+          "fn": "PRODUCT"
+        },
+        "and": {
+          "fn": "PRODUCT"
+        },
+        "loop": {
+          "fn": "SCALED_PRODUCT"
+        }
+      }
+    }
+  },
+  "constraints": [
+    {
+      "id": "c_global_latency_ms_0",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "latency_ms",
+      "op": "<=",
+      "value": 4236.97,
+      "hard": false
+    },
+    {
+      "id": "c_local_t_create_order_cost_usd_1",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_create_order"
+      ],
+      "attribute_id": "cost_usd",
+      "op": "<=",
+      "value": 768.19,
+      "hard": true
+    },
+    {
+      "id": "c_local_t_get_amount_availability_2",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_get_amount"
+      ],
+      "attribute_id": "availability",
+      "op": ">=",
+      "value": 0.27,
+      "hard": true
+    },
+    {
+      "id": "c_dep_t_request_quote_t_remove_item_3",
+      "kind": "DEPENDENCY",
+      "type": "DIFFERENT_PROVIDER",
+      "tasks": [
+        "t_request_quote",
+        "t_remove_item"
+      ],
+      "hard": true
+    }
+  ],
+  "objective": {
+    "type": "SINGLE",
+    "targets": [
+      "latency_ms"
+    ],
+    "weights": {
+      "latency_ms": 0.68
+    }
+  }
+}

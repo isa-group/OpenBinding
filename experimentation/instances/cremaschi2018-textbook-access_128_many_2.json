@@ -1,0 +1,412 @@
+{
+  "metadata": {
+    "id": "cremaschi2018-textbook-access_128_many_2",
+    "name": "Book info retrieval (Cremaschi et al. 2018) (128 space, many)",
+    "version": "1.0.0",
+    "created_at": "2026-02-02T00:00:00Z",
+    "description": "QoS-aware instance derived from the running example in 'A Practical Approach to Services Composition Through Light Semantic Descriptions' (ESOCC 2018). QoS values are illustrative placeholders.",
+    "paper": {
+      "title": "A Practical Approach to Services Composition Through Light Semantic Descriptions",
+      "authors": "M. Cremaschi et al.",
+      "year": 2018,
+      "doi": "10.1007/978-3-319-99819-0_10"
+    }
+  },
+  "features": [
+    {
+      "id": "latency_ms",
+      "name": "End-to-end latency",
+      "direction": "MINIMIZE",
+      "unit": "ms",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 10000
+      }
+    },
+    {
+      "id": "cost_usd",
+      "name": "Monetary cost per execution",
+      "direction": "MINIMIZE",
+      "unit": "usd",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 10
+      }
+    },
+    {
+      "id": "availability",
+      "name": "Service availability",
+      "direction": "MAXIMIZE",
+      "unit": "ratio",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    }
+  ],
+  "providers": [
+    {
+      "id": "p_google",
+      "name": "Google"
+    },
+    {
+      "id": "p_amazon",
+      "name": "Amazon"
+    },
+    {
+      "id": "p_unimib",
+      "name": "University of Milan - Bicocca (OPAC library)"
+    },
+    {
+      "id": "p_archive",
+      "name": "Archive.org"
+    },
+    {
+      "id": "p_local",
+      "name": "Local Application"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t_books",
+      "name": "Retrieve book metadata from title (ISBN/author/title)"
+    },
+    {
+      "id": "t_market",
+      "name": "Check e-commerce availability/price by ISBN"
+    },
+    {
+      "id": "t_library",
+      "name": "Check library availability and retrieve library address"
+    },
+    {
+      "id": "t_geocoding",
+      "name": "Geocode library address into coordinates"
+    },
+    {
+      "id": "t_transit",
+      "name": "Retrieve public transport options to the library"
+    },
+    {
+      "id": "t_archive",
+      "name": "Check free eBook availability (Archive.org)"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "c_google_books_api",
+      "task_id": "t_books",
+      "provider_id": "p_google",
+      "name": "Google Books API",
+      "features": {
+        "latency_ms": 250,
+        "cost_usd": 0.0001,
+        "availability": 0.995
+      }
+    },
+    {
+      "id": "c_amazon_market_api",
+      "task_id": "t_market",
+      "provider_id": "p_amazon",
+      "name": "Amazon Market API",
+      "features": {
+        "latency_ms": 400,
+        "cost_usd": 0.001,
+        "availability": 0.99
+      }
+    },
+    {
+      "id": "c_opac_library_api",
+      "task_id": "t_library",
+      "provider_id": "p_unimib",
+      "name": "OPAC Library API",
+      "features": {
+        "latency_ms": 350,
+        "cost_usd": 0.0001,
+        "availability": 0.98
+      }
+    },
+    {
+      "id": "c_google_geocoding_api",
+      "task_id": "t_geocoding",
+      "provider_id": "p_google",
+      "name": "Google Maps Geocoding API",
+      "features": {
+        "latency_ms": 300,
+        "cost_usd": 0.002,
+        "availability": 0.995
+      }
+    },
+    {
+      "id": "c_google_transit_api",
+      "task_id": "t_transit",
+      "provider_id": "p_google",
+      "name": "Google Transit API",
+      "features": {
+        "latency_ms": 450,
+        "cost_usd": 0.0001,
+        "availability": 0.995
+      }
+    },
+    {
+      "id": "c_archive_api",
+      "task_id": "t_archive",
+      "provider_id": "p_archive",
+      "name": "Archive.org API",
+      "features": {
+        "latency_ms": 500,
+        "cost_usd": 0.0001,
+        "availability": 0.97
+      }
+    },
+    {
+      "id": "c_google_geocoding_api_copy_6",
+      "task_id": "t_geocoding",
+      "provider_id": "p_google",
+      "name": "Google Maps Geocoding API (Allocated)",
+      "features": {
+        "latency_ms": 312.63,
+        "cost_usd": 0.0,
+        "availability": 0.97
+      }
+    },
+    {
+      "id": "c_google_transit_api_copy_7",
+      "task_id": "t_transit",
+      "provider_id": "p_google",
+      "name": "Google Transit API (Allocated)",
+      "features": {
+        "latency_ms": 464.92,
+        "cost_usd": 0.0,
+        "availability": 1
+      }
+    },
+    {
+      "id": "c_archive_api_copy_8",
+      "task_id": "t_archive",
+      "provider_id": "p_archive",
+      "name": "Archive.org API (Allocated)",
+      "features": {
+        "latency_ms": 495.87,
+        "cost_usd": 0.0,
+        "availability": 0.93
+      }
+    },
+    {
+      "id": "c_amazon_market_api_copy_9",
+      "task_id": "t_market",
+      "provider_id": "p_amazon",
+      "name": "Amazon Market API (Allocated)",
+      "features": {
+        "latency_ms": 399.18,
+        "cost_usd": 0.0,
+        "availability": 0.98
+      }
+    },
+    {
+      "id": "c_google_geocoding_api_copy_6_copy_10",
+      "task_id": "t_geocoding",
+      "provider_id": "p_google",
+      "name": "Google Maps Geocoding API (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 302.38,
+        "cost_usd": 0,
+        "availability": 0.99
+      }
+    },
+    {
+      "id": "c_google_books_api_copy_11",
+      "task_id": "t_books",
+      "provider_id": "p_google",
+      "name": "Google Books API (Allocated)",
+      "features": {
+        "latency_ms": 240.72,
+        "cost_usd": 0.0,
+        "availability": 1
+      }
+    },
+    {
+      "id": "c_opac_library_api_copy_12",
+      "task_id": "t_library",
+      "provider_id": "p_unimib",
+      "name": "OPAC Library API (Allocated)",
+      "features": {
+        "latency_ms": 339.84,
+        "cost_usd": 0.0,
+        "availability": 0.97
+      }
+    },
+    {
+      "id": "c_google_books_api_copy_13",
+      "task_id": "t_books",
+      "provider_id": "p_google",
+      "name": "Google Books API (Allocated)",
+      "features": {
+        "latency_ms": 237.97,
+        "cost_usd": 0.0,
+        "availability": 0.99
+      }
+    }
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "n_root",
+      "kind": "SEQ",
+      "children": [
+        {
+          "id": "n_books",
+          "kind": "TASK",
+          "task_id": "t_books"
+        },
+        {
+          "id": "n_parallel_options",
+          "kind": "AND",
+          "children": [
+            {
+              "id": "n_amazon",
+              "kind": "TASK",
+              "task_id": "t_market"
+            },
+            {
+              "id": "n_library_trip",
+              "kind": "SEQ",
+              "children": [
+                {
+                  "id": "n_opac",
+                  "kind": "TASK",
+                  "task_id": "t_library"
+                },
+                {
+                  "id": "n_geocode",
+                  "kind": "TASK",
+                  "task_id": "t_geocoding"
+                },
+                {
+                  "id": "n_transit",
+                  "kind": "TASK",
+                  "task_id": "t_transit"
+                }
+              ]
+            },
+            {
+              "id": "n_archive",
+              "kind": "TASK",
+              "task_id": "t_archive"
+            }
+          ]
+        },
+        {
+          "id": "n_report",
+          "kind": "ELEMENT",
+          "description": "Assemble final textbook access report"
+        }
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "latency_ms": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "cost_usd": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "availability": {
+      "neutral": 1,
+      "compose": {
+        "seq": {
+          "fn": "PRODUCT"
+        },
+        "and": {
+          "fn": "PRODUCT"
+        },
+        "loop": {
+          "fn": "SCALED_PRODUCT"
+        }
+      }
+    }
+  },
+  "objective": {
+    "type": "SINGLE",
+    "targets": [
+      "latency_ms",
+      "cost_usd",
+      "availability"
+    ],
+    "weights": {
+      "latency_ms": 0.33,
+      "cost_usd": 0.33,
+      "availability": 0.33
+    }
+  },
+  "constraints": [
+    {
+      "id": "c_global_availability_0",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "availability",
+      "op": ">=",
+      "value": 0.29,
+      "hard": false
+    },
+    {
+      "id": "c_local_t_archive_latency_ms_1",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_archive"
+      ],
+      "attribute_id": "latency_ms",
+      "op": "<=",
+      "value": 7538.83,
+      "hard": false
+    },
+    {
+      "id": "c_local_t_transit_latency_ms_2",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_transit"
+      ],
+      "attribute_id": "latency_ms",
+      "op": "<=",
+      "value": 8921.6,
+      "hard": false
+    },
+    {
+      "id": "c_dep_t_geocoding_t_market_3",
+      "kind": "DEPENDENCY",
+      "type": "DIFFERENT_PROVIDER",
+      "tasks": [
+        "t_geocoding",
+        "t_market"
+      ],
+      "hard": true
+    }
+  ]
+}

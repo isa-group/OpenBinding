@@ -27,6 +27,7 @@ public class ProviderRelationWSCompositionConstraint extends WSCompositionConstr
 
     private Type type;
     private List<AbstractWebService> tasks;
+    private Map<String, String> serviceProviderMap; // serviceId -> providerId
 
     public ProviderRelationWSCompositionConstraint(QoSAwareWSCompositionProblem problem, Type type,
             List<AbstractWebService> tasks, boolean hard) {
@@ -34,6 +35,10 @@ public class ProviderRelationWSCompositionConstraint extends WSCompositionConstr
         this.type = type;
         this.tasks = tasks;
         this.setHard(hard);
+    }
+
+    public void setServiceProviderMap(Map<String, String> map) {
+        this.serviceProviderMap = map;
     }
 
     @Override
@@ -50,7 +55,7 @@ public class ProviderRelationWSCompositionConstraint extends WSCompositionConstr
         for (AbstractWebService task : tasks) {
             es.us.isa.qosawarewsbinding.ConcreteWebService cws = solution.getSelectedService(task);
             if (cws != null) {
-                String provider = getProviderFromServiceId(cws.getName());
+                String provider = getProvider(cws.getName());
                 providers.add(provider);
             }
         }
@@ -60,25 +65,18 @@ public class ProviderRelationWSCompositionConstraint extends WSCompositionConstr
             return Math.max(0.0, providers.size() - 1);
         } else if (type == Type.DIFFERENT_PROVIDER) {
             // We want N distinct providers (where N = tasks.size())
-            // If providers.size() < tasks.size(), we have collisions.
-            // Distance = tasks.size() - providers.size()
-            // Note: This assumes all tasks executed.
             return Math.max(0.0, tasks.size() - providers.size());
         }
         return 0.0;
     }
 
-    private String getProviderFromServiceId(String sid) {
-        // HACK: Extract provider from ID "s{i}_{Provider}" or "s{i},{Provider}"
-        if (sid == null)
-            return "unknown";
-        if (sid.contains("_")) {
-            return sid.substring(sid.lastIndexOf("_") + 1);
+    private String getProvider(String serviceId) {
+        // Use the provider map if available (populated from provider_id in the DTO)
+        if (serviceProviderMap != null && serviceProviderMap.containsKey(serviceId)) {
+            return serviceProviderMap.get(serviceId);
         }
-        if (sid.contains(",")) {
-            return sid.substring(sid.lastIndexOf(",") + 1);
-        }
-        return sid;
+        // Fallback: use service ID itself as provider identity
+        return serviceId;
     }
 
     public Type getType() {

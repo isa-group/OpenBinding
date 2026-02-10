@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "id": "demo_08_dependencies",
+    "name": "08. Dependencies",
+    "version": "1.0.0",
+    "created_at": "2026-02-10T12:00:00Z",
+    "description": "Constraints on provider selection. We enforce that Task 1 and Task 2 must be served by the SAME provider.",
+    "level": "intermediate"
+  },
+  "features": [
+    {"id": "cost", "name": "Cost", "direction": "MINIMIZE", "unit": "eur", "scale": "RATIO", "valid_range": {"min": 0, "max": 100}}
+  ],
+  "providers": [
+    {"id": "pA", "name": "Provider A"},
+    {"id": "pB", "name": "Provider B"}
+  ],
+  "tasks": [
+    {"id": "t1", "name": "Task 1"},
+    {"id": "t2", "name": "Task 2"}
+  ],
+  "candidates": [
+    {"id": "c1_A", "task_id": "t1", "provider_id": "pA", "name": "T1 by A", "features": {"cost": 10}},
+    {"id": "c1_B", "task_id": "t1", "provider_id": "pB", "name": "T1 by B", "features": {"cost": 20}},
+    {"id": "c2_A", "task_id": "t2", "provider_id": "pA", "name": "T2 by A", "features": {"cost": 10}},
+    {"id": "c2_B", "task_id": "t2", "provider_id": "pB", "name": "T2 by B", "features": {"cost": 5}} 
+    // Ideally user picks c1_A + c2_B = 15 cost. 
+    // But SAME_PROVIDER forces c1_A + c2_A = 20 cost OR c1_B + c2_B = 25 cost.
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "seq",
+      "kind": "SEQ",
+      "children": [
+        {"id": "n1", "kind": "TASK", "task_id": "t1"},
+        {"id": "n2", "kind": "TASK", "task_id": "t2"}
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "cost": {"neutral": 0, "compose": { "seq": {"fn": "SUM"}, "and": {"fn": "SUM"}, "loop": {"fn": "SCALED_SUM"} } }
+  },
+  "constraints": [
+    {
+      "id": "c_same_prov",
+      "kind": "DEPENDENCY",
+      "type": "SAME_PROVIDER",
+      "tasks": ["t1", "t2"],
+      "hard": true
+    }
+  ],
+  "objective": {
+    "type": "SINGLE",
+    "targets": ["cost"],
+    "weights": {"cost": 1.0}
+  }
+}

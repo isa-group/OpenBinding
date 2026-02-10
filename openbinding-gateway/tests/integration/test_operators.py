@@ -15,32 +15,31 @@ def create_loop_instance(constraint):
             {"id": "P2", "name": "Provider P2"}
         ],
         "candidates": [
-            {"id": "C1_1", "task_id": "T1", "provider_id": "P1", "features": {"energy": 2.5}},
-            {"id": "C1_2", "task_id": "T1", "provider_id": "P2", "features": {"energy": 1}}
+            {"id": "C1_1", "task_id": "T1", "provider_id": "P1", "name": "C1_1", "features": {"energy": 2.5}},
+            {"id": "C1_2", "task_id": "T1", "provider_id": "P2", "name": "C1_2", "features": {"energy": 1}}
         ],
         "composition": {
-            "type": "structured",
+            "type": "STRUCTURED",
             "root": {
                 "id": "loop1", "kind": "LOOP",
                 "expected_iterations": 10,
                 "body": {"id": "t1", "kind": "TASK", "task_id": "T1"}
             }
         },
-        "features": [{"id": "energy", "name": "Energy", "direction": "minimize", "unit": "J", "scale": "ratio", "valid_range": {"min": 0, "max": 1000}}],
+        "features": [{"id": "energy", "name": "Energy", "direction": "MINIMIZE", "unit": "J", "scale": "RATIO", "valid_range": {"min": 0, "max": 1000}}],
         "aggregation_policies": {
             "energy": {
                 "neutral": 0,
-                "normalize": {"type": "identity"},
                 "compose": {
-                    "loop": {"fn": "sum"},
-                    "seq": {"fn": "sum"}
+                    "loop": {"fn": "SUM"},
+                    "seq": {"fn": "SUM"}
                 }
             }
         },
         "objective": {
-            "type": "weighted_sum",
-            "weights": {"energy": 1},
-            "normalized": True
+            "type": "SINGLE",
+            "targets": ["energy"],
+            "weights": {"energy": 1.0}
         },
         "constraints": [{**constraint, "id": "c0"}] if constraint else []
     }
@@ -56,11 +55,12 @@ def test_global_operators(gateway_url, wait_for_job, engine, op, val, expected_f
     """Verifies that the engine correctly handles different operators (>=, <=, ==, etc) on global attributes."""
     
     constraint = {
-        "kind": "attribute_bound", 
-        "scope": "global", 
+        "kind": "ATTRIBUTE_BOUND", 
+        "scope": "GLOBAL", 
         "attribute_id": "energy", 
         "op": op, 
-        "value": val
+        "value": val,
+        "hard": True
     }
     
     instance = create_loop_instance(constraint)
@@ -71,11 +71,19 @@ def test_global_operators(gateway_url, wait_for_job, engine, op, val, expected_f
         "instance": instance,
         "verbose": True
     })
-    assert res.status_code == 202
-    job_id = res.json()["job_id"]
+    
+    if res.status_code == 422:
+        pytest.fail(f"Gateway rejected request: {res.text}")
+
+    assert res.status_code in [200, 202]
+    data = res.json()
+    job_id = data["job_id"]
     
     # Wait
-    job = wait_for_job(job_id)
+    if res.status_code == 200:
+        job = data
+    else:
+        job = wait_for_job(job_id)
     assert job["status"] in ["completed", "failed"]
     
     result = job.get("result", {})
@@ -93,10 +101,9 @@ def test_global_operators(gateway_url, wait_for_job, engine, op, val, expected_f
     
     if expected_feasible and expected_cand:
         assert selection.get("T1") == expected_cand
-
-
+        
 @pytest.mark.parametrize("op,val,expected_feasible,expected_cand", [
-    (">=", 2, True, "C1_1"), # C1_1(2.5)>=2, C1_2(1)<2
+    (">=", 2, True, "C1_1"), # C1_1(2.5)>=2, C1_2(1)<2. Minimize -> C1_1 is only choice
     ("<=", 2, True, "C1_2"), # C1_2(1)<=2
     (">", 1, True, "C1_1"),
     ("<", 2, True, "C1_2"),
@@ -110,12 +117,13 @@ def test_local_operators(gateway_url, wait_for_job, engine, op, val, expected_fe
         pytest.skip("Random Search does not support local constraints")
 
     constraint = {
-        "kind": "attribute_bound", 
-        "scope": "local", 
-        "task_id": "T1",
+        "kind": "ATTRIBUTE_BOUND", 
+        "scope": "LOCAL", 
+        "tasks": ["T1"],
         "attribute_id": "energy", 
         "op": op, 
-        "value": val
+        "value": val,
+        "hard": True
     }
     
     instance = create_loop_instance(constraint)
@@ -124,10 +132,18 @@ def test_local_operators(gateway_url, wait_for_job, engine, op, val, expected_fe
         "engine_id": engine,
         "instance": instance
     })
-    assert res.status_code == 202
-    job_id = res.json()["job_id"]
     
-    job = wait_for_job(job_id)
+    if res.status_code == 422:
+        pytest.fail(f"Gateway rejected request: {res.text}")
+
+    assert res.status_code in [200, 202]
+    data = res.json()
+    job_id = data["job_id"]
+    
+    if res.status_code == 200:
+        job = data
+    else:
+        job = wait_for_job(job_id)
     result = job.get("result", {})
     solutions = result.get("solutions", [])
     

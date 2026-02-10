@@ -57,7 +57,9 @@ public class WSCompositionStructure implements Serializable{
     private void addComponent(StructuralComponent structure) {        
         if(structure instanceof AbstractWebService)
             components.add((AbstractWebService) structure);
-        else{
+        else if (structure instanceof EmptyComponent) {
+            // Do nothing, no AbstractWebService here
+        } else if (structure instanceof CompositeStructuralComponent) {
             Collection<StructuralComponent> subcomponents=((CompositeStructuralComponent)structure).getSubComponents();
             for(StructuralComponent subcomponent:subcomponents)
                 addComponent(subcomponent);
@@ -166,6 +168,8 @@ public class WSCompositionStructure implements Serializable{
                     else
                         result+=numberOfExecutedTasks(subComponent)*compositeComponent.getPonderation(subComponent);
             }            
+        } else if (structure instanceof EmptyComponent) {
+            result = 0;
         }else
             result=1;
         return result;

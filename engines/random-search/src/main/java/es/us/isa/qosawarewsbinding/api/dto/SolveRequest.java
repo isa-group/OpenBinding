@@ -38,6 +38,7 @@ public class SolveRequest {
     public static class Service {
         public String id; // service concrete ID (e.g. "s11")
         public String name;
+        public String provider_id; // provider identity for DEPENDENCY constraints
         public Map<String, Double> features;
     }
 

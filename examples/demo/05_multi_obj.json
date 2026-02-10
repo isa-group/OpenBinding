@@ -1,0 +1,53 @@
+{
+  "metadata": {
+    "id": "demo_05_multi_obj",
+    "name": "05. Multi Objective",
+    "version": "1.0.0",
+    "created_at": "2026-02-10T12:00:00Z",
+    "description": "Optimizing for both Cost and Latency simultaneously. The engine should return Pareto-optimal solutions.",
+    "level": "intermediate"
+  },
+  "features": [
+    {
+      "id": "cost",
+      "name": "Cost",
+      "direction": "MINIMIZE",
+      "unit": "eur",
+      "scale": "RATIO",
+      "valid_range": {"min": 0, "max": 100}
+    },
+    {
+      "id": "latency",
+      "name": "Latency",
+      "direction": "MINIMIZE",
+      "unit": "ms",
+      "scale": "RATIO",
+      "valid_range": {"min": 0, "max": 100}
+    }
+  ],
+  "providers": [{"id": "p1", "name": "P1"}],
+  "tasks": [{"id": "t1", "name": "Task 1"}],
+  "candidates": [
+    {"id": "c_fast_expensive", "task_id": "t1", "provider_id": "p1", "name": "Fast & Expensive", "features": {"cost": 90, "latency": 10}},
+    {"id": "c_slow_cheap", "task_id": "t1", "provider_id": "p1", "name": "Slow & Cheap", "features": {"cost": 10, "latency": 90}},
+    {"id": "c_balanced", "task_id": "t1", "provider_id": "p1", "name": "Balanced", "features": {"cost": 50, "latency": 50}},
+    {"id": "c_bad", "task_id": "t1", "provider_id": "p1", "name": "Dominated (Bad)", "features": {"cost": 100, "latency": 100}}
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "root",
+      "kind": "TASK",
+      "task_id": "t1"
+    }
+  },
+  "aggregation_policies": {
+    "cost": {"neutral": 0, "compose": { "seq": {"fn": "SUM"}, "and": {"fn": "SUM"}, "loop": {"fn": "SCALED_SUM"} } },
+    "latency": {"neutral": 0, "compose": { "seq": {"fn": "SUM"}, "and": {"fn": "MAX"}, "loop": {"fn": "SCALED_SUM"} } }
+  },
+  "objective": {
+    "type": "MULTI",
+    "targets": ["cost", "latency"],
+    "weights": {"cost": 0.5, "latency": 0.5}
+  }
+}

@@ -11,9 +11,14 @@
         "type": {
           "const": "STRUCTURED"
         },
-        "root": { "$ref": "#/$defs/csp_node" }
+        "root": {
+          "$ref": "#/$defs/csp_node"
+        }
       },
-      "required": ["type", "root"]
+      "required": [
+        "type",
+        "root"
+      ]
     },
     "features": {
       "type": "array",
@@ -36,7 +41,9 @@
           "const": "SINGLE"
         }
       },
-      "required": ["type"]
+      "required": [
+        "type"
+      ]
     },
     "constraints": {
       "type": "array",
@@ -45,6 +52,9 @@
           {
             "type": "object",
             "properties": {
+              "id": {
+                "type": "string"
+              },
               "kind": {
                 "const": "ATTRIBUTE_BOUND"
               },
@@ -94,7 +104,7 @@
                 "type": "string"
               },
               "hard": {
-                "type": "boolean"
+                "const": true
               }
             },
             "required": [
@@ -107,6 +117,9 @@
           {
             "type": "object",
             "properties": {
+              "id": {
+                "type": "string"
+              },
               "kind": {
                 "const": "DEPENDENCY"
               },
@@ -115,6 +128,12 @@
                   "SAME_PROVIDER",
                   "DIFFERENT_PROVIDER"
                 ]
+              },
+              "tasks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
               },
               "hard": {
                 "type": "boolean"
@@ -129,13 +148,24 @@
       }
     }
   },
-  "required": ["composition", "features", "aggregation_policies", "objective"],
+  "required": [
+    "composition",
+    "features",
+    "aggregation_policies",
+    "objective"
+  ],
   "$defs": {
     "csp_node": {
       "oneOf": [
-        { "$ref": "#/$defs/task_node" },
-        { "$ref": "#/$defs/seq_node" },
-        { "$ref": "#/$defs/and_node" },
+        {
+          "$ref": "#/$defs/task_node"
+        },
+        {
+          "$ref": "#/$defs/seq_node"
+        },
+        {
+          "$ref": "#/$defs/and_node"
+        },
         {
           "$ref": "#/$defs/xor_node"
         },
@@ -150,20 +180,31 @@
     "task_node": {
       "type": "object",
       "properties": {
-        "kind": { "const": "TASK" }
+        "kind": {
+          "const": "TASK"
+        }
       },
-      "required": ["kind"]
+      "required": [
+        "kind"
+      ]
     },
     "seq_node": {
       "type": "object",
       "properties": {
-        "kind": { "const": "SEQ" },
+        "kind": {
+          "const": "SEQ"
+        },
         "children": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/csp_node" }
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/csp_node"
+          }
         }
       },
-      "required": ["kind", "children"]
+      "required": [
+        "kind",
+        "children"
+      ]
     },
     "and_node": {
       "type": "object",
@@ -172,16 +213,23 @@
           "const": "AND"
         },
         "children": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/csp_node" }
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/csp_node"
+          }
         }
       },
-      "required": ["kind", "children"]
+      "required": [
+        "kind",
+        "children"
+      ]
     },
     "xor_node": {
       "type": "object",
       "properties": {
-        "kind": { "const": "XOR" },
+        "kind": {
+          "const": "XOR"
+        },
         "branches": {
           "type": "array",
           "items": {
@@ -202,7 +250,10 @@
           }
         }
       },
-      "required": ["kind", "branches"]
+      "required": [
+        "kind",
+        "branches"
+      ]
     },
     "loop_node": {
       "type": "object",

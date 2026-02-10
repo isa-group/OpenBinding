@@ -190,6 +190,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             svc = {
                 "id": c["id"],
                 "name": c.get("name", c["id"]),
+                "provider_id": c.get("provider_id"),
                 "features": qos_map
             }
             market[tid]["services"].append(svc)
@@ -257,10 +258,21 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         # 4. Constraints
         constraints_out = []
         for c in (instance.get("constraints", []) or []):
-            if c.get("kind") != "attribute_bound":
+            kind = c.get("kind")
+            if kind == "DEPENDENCY":
+                # Pass dependency constraints
+                constraints_out.append({
+                    "id": c.get("id"),
+                    "kind": "dependency",
+                    "type": c.get("type"),
+                    "tasks": c.get("tasks", []),
+                    "hard": bool(c.get("hard", True))
+                })
                 continue
-            if c.get("scope") != "global":
+
+            if (c.get("kind") or "").lower() != "attribute_bound":
                 continue
+            scope = (c.get("scope") or "").lower()
             if c.get("op") == "in_range" or c.get("op") == "IN_RANGE":
                 # Handle IN_RANGE: pass value as object {min, max} (or transform if needed by engine)
                 # The engine's RangeGlobalQoSWSCompositionConstraint expects min/max separately in constructor?
@@ -279,11 +291,15 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             con_dto = {
                 "id": c.get("id"),
                 "kind": "attribute_bound",
-                "scope": "global",
+                "scope": scope,
                 "attribute_id": c.get("attribute_id"),
                 "op": c.get("op"),
                 "hard": bool(c.get("hard", True)),
             }
+            
+            # For LOCAL constraints, include the tasks list
+            if scope == "local" and c.get("tasks"):
+                con_dto["tasks"] = c.get("tasks")
             
             val = c.get("value")
             if isinstance(val, (int, float)):
@@ -306,7 +322,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             },
             "constraints": constraints_out,
             "config": {
-                "max_iterations": options.get("iterations_count", 1000)
+                "max_iterations": options.get("iterations_count", 300000)
             }
         }, warnings
 
@@ -318,10 +334,12 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
              return {"error": engine_response["error"]}
 
         selection = engine_response.get("selection") or {}
+        print(f"DEBUG: RS Engine Selection: {selection}")
 
         # Recompute aggregated + normalized QoS in gateway to avoid information loss and
         # align with general semantics.
         candidates_by_id = {c["id"]: c for c in (original_request.get("candidates", []) or [])}
+        print(f"DEBUG: Candidates Keys: {list(candidates_by_id.keys())}")
         features = {f["id"]: f for f in (original_request.get("features", []) or [])}
         agg_policies = original_request.get("aggregation_policies", {}) or {}
 
@@ -392,7 +410,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
                 probs = [float(b.get("p", 0.0)) for b in branches]
                 fn = compose.get("xor", {}).get("fn")
                 # Interpret 'sum' as weighted sum for XOR (expected value)
-                if fn in (None, "sum", "weighted_sum"):
+                if fn in (None, "sum", "weighted_sum", "scaled_sum", "SCALED_SUM"):
                     return _agg_fn("weighted_sum", values, probs)
                 return _agg_fn(fn, values)
 
@@ -409,7 +427,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
                 fn_lower = (fn or "sum").lower()
                 if "product" in fn_lower:
                     return float(body_val ** c)
-                if "sum" in fn_lower or "wsum" in fn_lower:
+                if "sum" in fn_lower or "wsum" in fn_lower or "scale" in fn_lower:
                     return float(body_val * c)
                 return body_val
 
@@ -453,50 +471,86 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             return raw
 
         normalized_qos: Dict[str, float] = {fid: _normalize_value(fid, val) for fid, val in aggregated_qos.items()}
+        print(f"DEBUG: Aggregated QoS: {aggregated_qos}")
+        print(f"DEBUG: Normalized QoS: {normalized_qos}")
 
         obj = original_request.get("objective", {}) or {}
         objective_value = 0.0
-        if obj.get("type") == "weighted_sum":
-            weights = obj.get("weights", {}) or {}
-            for fid, w in weights.items():
-                objective_value += float(w) * float(normalized_qos.get(fid, 0.0))
+        if obj.get("type") == "SINGLE" or obj.get("type") == "weighted_sum":
+             # Support SINGLE as weighted_sum with 1 prop
+             if obj.get("type") == "SINGLE":
+                 targets = obj.get("targets", [])
+                 weights = obj.get("weights", {})
+                 for t in targets:
+                     if t not in weights:
+                         weights[t] = 1.0
+             else:
+                 weights = obj.get("weights", {}) or {}
+                 
+             for fid, w in weights.items():
+                 val = float(normalized_qos.get(fid, 0.0))
+                 term = float(w) * val
+                 print(f"DEBUG: Obj Term: {fid} w={w} val={val} -> {term}")
+                 objective_value += term
 
         # Evaluate constraints for reporting
         feasible = True
         violations = []
+        
+        def _check_bound(current: float, op: str, rhs_f: float):
+            """Return (ok, slack) for a bound check."""
+            if op == "<=":
+                return current <= rhs_f, rhs_f - current
+            elif op == "<":
+                return current < rhs_f, rhs_f - current
+            elif op == ">=":
+                return current >= rhs_f, current - rhs_f
+            elif op == ">":
+                return current > rhs_f, current - rhs_f
+            elif op == "==":
+                return abs(current - rhs_f) <= 1e-9, rhs_f - current
+            elif op == "!=":
+                ok = abs(current - rhs_f) > 1e-9
+                return ok, (0.0 if ok else -1.0)
+            return True, 0.0
+
         for c in (original_request.get("constraints", []) or []):
-            if c.get("kind") != "attribute_bound" or c.get("scope") != "global":
+            kind = (c.get("kind") or "").upper()
+            scope = (c.get("scope") or "").upper()
+            if kind != "ATTRIBUTE_BOUND":
                 continue
             fid = c.get("attribute_id")
             if not fid:
                 continue
-            current = float(aggregated_qos.get(fid, 0.0))
             op = c.get("op")
             rhs = c.get("value")
             if not isinstance(rhs, (int, float)):
                 continue
             rhs_f = float(rhs)
-
-            ok = True
-            slack = 0.0
-            if op == "<=":
-                ok = current <= rhs_f
-                slack = rhs_f - current
-            elif op == "<":
-                ok = current < rhs_f
-                slack = rhs_f - current
-            elif op == ">=":
-                ok = current >= rhs_f
-                slack = current - rhs_f
-            elif op == ">":
-                ok = current > rhs_f
-                slack = current - rhs_f
-            elif op == "==":
-                ok = abs(current - rhs_f) <= 1e-9
-                slack = rhs_f - current
-            elif op == "!=":
-                ok = abs(current - rhs_f) > 1e-9
-                slack = 0.0 if ok else -1.0
+            
+            if scope == "LOCAL":
+                # For LOCAL constraints, check the raw feature of the selected candidate
+                constraint_tasks = c.get("tasks", []) or []
+                for task_id in constraint_tasks:
+                    cand = selected_candidate_by_task.get(task_id)
+                    if cand is None:
+                        continue
+                    current = float((cand.get("features", {}) or {}).get(fid, 0.0))
+                    ok, slack = _check_bound(current, op, rhs_f)
+                    if not ok:
+                        hard = bool(c.get("hard", True))
+                        if hard:
+                            feasible = False
+                        violations.append({
+                            "constraint_id": c.get("id"),
+                            "slack": float(slack),
+                            "penalty_applied": 0
+                        })
+                continue
+            
+            # GLOBAL scope
+            current = float(aggregated_qos.get(fid, 0.0))
+            ok, slack = _check_bound(current, op, rhs_f)
 
             if not ok:
                 hard = bool(c.get("hard", True))

@@ -33,6 +33,8 @@ public class QoSAwareWSCompositionProblem extends FeasibilityAwareProblem implem
     private Set<ExecutionPath> expaths;
     private static ExecutionPathsBuilder expathBuilder = null;
     public boolean scaled;
+    private Map<QoSProperty, Double> bestCache = new HashMap<QoSProperty, Double>();
+    private Map<QoSProperty, Double> worstCache = new HashMap<QoSProperty, Double>();
 
     public QoSAwareWSCompositionProblem(WSCompositionStructure structure, Map<AbstractWebService, Set<ConcreteWebService>> market, WSCompositionQoSModel qosmodel, List<WSCompositionConstraint> constraints) {
         this.structure = structure;
@@ -83,17 +85,11 @@ public class QoSAwareWSCompositionProblem extends FeasibilityAwareProblem implem
     }
 
     private double scale(double value, double Qmax, double Qmin, QoSProperty property) {
-        double result = 0;
-        if (Qmax != Qmin) {
-            if (property.getType() == QoSPropertyType.POSITIVE) {
-                result = (value - Qmin) / (Qmax - Qmin);
-            } else {
-                result = (Qmax - value) / (Qmax - Qmin);
-            }
+        if (Qmax != 0) {
+            return value / Qmax;
         } else {
-            result = 1.0;
+            return 0.0;
         }
-        return result;
     }
 
     private String toStringMarket() {
@@ -133,13 +129,31 @@ public class QoSAwareWSCompositionProblem extends FeasibilityAwareProblem implem
     }
 
     public double feasibilityFreeFitness(Solution sol) {
-        double result = 0;
         if (!scaled) {
             scale();
         }
-        result = getQosmodel().evaluate((QoSAwareWSCompositionSolution) sol, getStructure());
-        result = result / numberOfExecutedTasks();
-        return result;
+        double totalReward = 0;
+        double totalWeight = 0;
+
+        for (QoSProperty property : qosmodel.getQosProperties()) {
+            Double agg = qosmodel.evaluate((QoSAwareWSCompositionSolution) sol, property, getStructure());
+            Double best = bestCache.get(property);
+            Double worst = worstCache.get(property);
+            Double weight = qosmodel.getQoSPropertyWeight(property);
+
+            if (agg != null && best != null && worst != null && weight != null) {
+                double normalized;
+                if (Math.abs(best - worst) < 1e-9) {
+                    normalized = 1.0;
+                } else {
+                    normalized = (agg - worst) / (best - worst);
+                }
+                totalReward += weight * normalized;
+                totalWeight += weight;
+            }
+        }
+
+        return totalWeight > 0 ? totalReward / totalWeight : 0.0;
     }
 
     public double candidatesPerService() {
@@ -178,7 +192,20 @@ public class QoSAwareWSCompositionProblem extends FeasibilityAwareProblem implem
     private void scale(QoSProperty property) {
         double Qmax = max(property);
         double Qmin = min(property);
+
+        // Check if property has a BoundedDomain and use its bounds if available
+        if (property.getDomain() instanceof es.us.isa.qosawarewsbinding.util.BoundedDomain) {
+            es.us.isa.qosawarewsbinding.util.BoundedDomain bd = (es.us.isa.qosawarewsbinding.util.BoundedDomain) property
+                    .getDomain();
+            if (bd.getMaxBound() != null && bd.getMinBound() != null) {
+                Qmax = bd.getMaxBound().doubleValue();
+                Qmin = bd.getMinBound().doubleValue();
+            }
+        }
+
         double value = 0;
+        boolean negative = property.getType() != QoSPropertyType.POSITIVE;
+
         for (AbstractWebService aws : getMarket().keySet()) {
             for (ConcreteWebService cws : getMarket().get(aws)) {
                 Double objVal = (Double) cws.getQoSValue(property);
@@ -192,18 +219,34 @@ public class QoSAwareWSCompositionProblem extends FeasibilityAwareProblem implem
 
         for (WSCompositionConstraint constraint : constraints) {
             if (constraint instanceof GlobalQoSWSCompositionConstraint) {
-                if (((GlobalQoSWSCompositionConstraint) constraint).getProperty().equals(property)) {
-                    value = ((GlobalQoSWSCompositionConstraint) constraint).getValue();
+                GlobalQoSWSCompositionConstraint gc = (GlobalQoSWSCompositionConstraint) constraint;
+                if (gc.getProperty().equals(property)) {
+                    value = gc.getValue();
                     value = scale(value, Qmax, Qmin, property);
-                    if (value < 0) {
-                        value = 1 - value;
-                    }
-                    ((GlobalQoSWSCompositionConstraint) constraint).setValue(value);
+                    gc.setValue(value);
+                }
+            } else if (constraint instanceof LocalQoSWSCompositionConstraint) {
+                LocalQoSWSCompositionConstraint lc = (LocalQoSWSCompositionConstraint) constraint;
+                if (lc.getProperty().equals(property)) {
+                    value = lc.getValue();
+                    value = scale(value, Qmax, Qmin, property);
+                    lc.setValue(value);
+                }
+            } else if (constraint instanceof RangeGlobalQoSWSCompositionConstraint) {
+                RangeGlobalQoSWSCompositionConstraint rc = (RangeGlobalQoSWSCompositionConstraint) constraint;
+                if (rc.getProperty().equals(property)) {
+                    double minVal = rc.getMin();
+                    double maxVal = rc.getMax();
+                    rc.setMin(scale(minVal, Qmax, Qmin, property));
+                    rc.setMax(scale(maxVal, Qmax, Qmin, property));
                 }
             }
         }
-
+        // Cache best/worst for fitness evaluation
+        bestCache.put(property, bestValue(property));
+        worstCache.put(property, worstValue(property));
     }
+
 
     private double max(QoSProperty property) {
         double result = -Double.MAX_VALUE; 

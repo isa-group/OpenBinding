@@ -141,7 +141,9 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
     def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:
         """Transform engine response to general solution format."""
         # MiniZinc Engine returns { status: ..., result: { solution: ... } }
-        engine_result = engine_response.get("result", {})
+        engine_result = engine_response.get("result")
+        if not engine_result:
+            engine_result = engine_response
         old_sol = engine_result.get("solution", {})
         
         # If no solution found or empty
@@ -304,6 +306,14 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
             })
         
         # Construct new Solution
+        # Construct new Solution
+        if not old_sol.get("feasible", True):
+            return {
+                "solutions": [],
+                "provenance": provenance,
+                "diagnostics": engine_result.get("diagnostics")
+            }
+
         new_sol = {
             "is_feasible": old_sol.get("feasible", True), 
             "objective_value": old_sol.get("objective_value"),

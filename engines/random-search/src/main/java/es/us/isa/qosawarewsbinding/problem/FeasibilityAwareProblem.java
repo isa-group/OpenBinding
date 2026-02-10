@@ -31,7 +31,7 @@ public abstract class FeasibilityAwareProblem extends EvaluationCountProblem {
     
     @Override
     protected boolean computeFeasibility(Solution sol) {
-        return feasibilityDistance(sol)>0;
+        return feasibilityDistance(sol) <= 0;
     }
 
     /**

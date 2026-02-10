@@ -10,6 +10,7 @@ import es.us.isa.qosawarewsbinding.WSCompositionStructure;
 import es.us.isa.qosawarewsbinding.api.dto.SolveRequest;
 import es.us.isa.qosawarewsbinding.api.dto.SolveResponse;
 import es.us.isa.qosawarewsbinding.problem.QoSAwareWSCompositionProblem;
+import es.us.isa.qosawarewsbinding.problem.WSCompositionConstraint;
 import es.us.isa.qosawarewsbinding.problem.WSCompositionQoSModel;
 import es.us.isa.qosawarewsbinding.problem.GlobalQoSWSCompositionConstraint;
 import es.us.isa.qosawarewsbinding.problem.RangeGlobalQoSWSCompositionConstraint;
@@ -75,6 +76,7 @@ public class Controller implements HttpHandler {
     private SolveResponse process(SolveRequest req) {
         // 1. Map Structure
         Map<String, AbstractWebService> taskMap = new HashMap<String, AbstractWebService>();
+        Map<String, String> serviceProviderMap = new HashMap<String, String>(); // serviceId -> providerId
         StructuralComponent root = mapNode(req.composition.root, taskMap);
         WSCompositionStructure structure = new WSCompositionStructure(root);
 
@@ -130,6 +132,11 @@ public class Controller implements HttpHandler {
                 for (SolveRequest.Service s : sc.services) {
                     ConcreteWebService cws = new ConcreteWebService(s.id, aws);
 
+                    // Store provider_id for DEPENDENCY constraint checking
+                    if (s.provider_id != null) {
+                        serviceProviderMap.put(s.id, s.provider_id);
+                    }
+
                     // Iterate over all expected properties to ensure completeness
                     for (QoSProperty<Double> p : propertyMap.values()) {
                         Double val = s.features.get(p.getName());
@@ -138,10 +145,6 @@ public class Controller implements HttpHandler {
                             if (p.getType() == QoSPropertyType.POSITIVE) {
                                 val = 0.0;
                             } else {
-                                // For minimization, we'd ideally want a "bad" value.
-                                // But Double.MAX_VALUE might skew normalization too much.
-                                // Let's use a reasonably high value or 0 if that's safer for now,
-                                // but for robustness, 999999.0 is a placeholder "bad" value.
                                 val = 999999.0;
                             }
                             System.err.println("Warning: Missing QoS value for " + p.getName() + " in service " + s.id
@@ -182,8 +185,10 @@ public class Controller implements HttpHandler {
                             ? ProviderRelationWSCompositionConstraint.Type.SAME_PROVIDER
                             : ProviderRelationWSCompositionConstraint.Type.DIFFERENT_PROVIDER;
 
-                    problem.getConstraints()
-                            .add(new ProviderRelationWSCompositionConstraint(problem, type, relatedTasks, hard));
+                    ProviderRelationWSCompositionConstraint depConstraint = new ProviderRelationWSCompositionConstraint(
+                            problem, type, relatedTasks, hard);
+                    depConstraint.setServiceProviderMap(serviceProviderMap);
+                    problem.getConstraints().add(depConstraint);
                     continue;
                 }
 
@@ -211,7 +216,10 @@ public class Controller implements HttpHandler {
                             }
                         }
                     } else {
-                        problem.getConstraints().add(new GlobalQoSWSCompositionConstraint(problem, prop, c.value, op));
+                        GlobalQoSWSCompositionConstraint gc = new GlobalQoSWSCompositionConstraint(problem, prop,
+                                c.value, op);
+                        gc.setHard(hard);
+                        problem.getConstraints().add(gc);
                     }
                 }
             }
@@ -228,7 +236,8 @@ public class Controller implements HttpHandler {
         long end = System.currentTimeMillis();
 
         if (problem.feasibilityDistance(bestSol) > 0) {
-            throw new IllegalArgumentException("No feasible solution found after " + iterations + " iterations.");
+            throw new IllegalArgumentException(
+                    "No feasible solution found after " + iterations + " iterations.");
         }
 
         // 6. Map Response
@@ -369,6 +378,8 @@ public class Controller implements HttpHandler {
                 }
             }
             return loop;
+        } else if ("ELEMENT".equals(node.kind)) {
+            return new EmptyComponent(node.id);
         }
         return null;
     }

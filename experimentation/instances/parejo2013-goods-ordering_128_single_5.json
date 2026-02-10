@@ -1,0 +1,429 @@
+{
+  "metadata": {
+    "id": "parejo2013-goods-ordering_128_single_5",
+    "name": "Goods Ordering Service (Parejo et al. 2014) (128 space, single)",
+    "version": "1.0.0",
+    "created_at": "2026-01-29T00:00:00Z",
+    "description": "Instance modeled from the motivating example (GOS) of the paper: QoS-aware web services composition using GRASP with Path Relinking.",
+    "paper": {
+      "title": "QoS-aware web services composition using GRASP with Path Relinking",
+      "authors": "J.A. Parejo et al.",
+      "year": 2014,
+      "doi": "10.1016/j.eswa.2013.12.036"
+    }
+  },
+  "features": [
+    {
+      "id": "cost_usd",
+      "name": "Invocation cost",
+      "direction": "MINIMIZE",
+      "unit": "usd",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "exec_time_s",
+      "name": "Execution time",
+      "direction": "MINIMIZE",
+      "unit": "s",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 10
+      }
+    }
+  ],
+  "providers": [
+    {
+      "id": "p_A",
+      "name": "Bank A"
+    },
+    {
+      "id": "p_B",
+      "name": "Bank B"
+    },
+    {
+      "id": "p_C",
+      "name": "Provider C"
+    },
+    {
+      "id": "p_D",
+      "name": "Provider D"
+    },
+    {
+      "id": "p_E",
+      "name": "Delivery E"
+    },
+    {
+      "id": "p_F",
+      "name": "Delivery F"
+    },
+    {
+      "id": "p_G",
+      "name": "Digital Signature G"
+    },
+    {
+      "id": "p_H",
+      "name": "Digital Signature H"
+    },
+    {
+      "id": "p_I",
+      "name": "Surveying I"
+    },
+    {
+      "id": "p_J",
+      "name": "Surveying J"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "name": "Check credit card"
+    },
+    {
+      "id": "t2",
+      "name": "Pay by credit card"
+    },
+    {
+      "id": "t3",
+      "name": "Check stock"
+    },
+    {
+      "id": "t4",
+      "name": "Reserve for shipment/pick-up"
+    },
+    {
+      "id": "t5",
+      "name": "Ship goods / delivery request"
+    },
+    {
+      "id": "t6",
+      "name": "Digitally sign invoice (then send email)"
+    },
+    {
+      "id": "t7",
+      "name": "Evaluate satisfaction survey"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "s1_A",
+      "task_id": "t1",
+      "provider_id": "p_A",
+      "name": "s1,A",
+      "features": {
+        "cost_usd": 0.01,
+        "exec_time_s": 0.2
+      }
+    },
+    {
+      "id": "s1_B",
+      "task_id": "t1",
+      "provider_id": "p_B",
+      "name": "s1,B",
+      "features": {
+        "cost_usd": 0.015,
+        "exec_time_s": 0.1
+      }
+    },
+    {
+      "id": "s2_A",
+      "task_id": "t2",
+      "provider_id": "p_A",
+      "name": "s2,A",
+      "features": {
+        "cost_usd": 0.02,
+        "exec_time_s": 0.2
+      }
+    },
+    {
+      "id": "s2_B",
+      "task_id": "t2",
+      "provider_id": "p_B",
+      "name": "s2,B",
+      "features": {
+        "cost_usd": 0.05,
+        "exec_time_s": 0.15
+      }
+    },
+    {
+      "id": "s3_C",
+      "task_id": "t3",
+      "provider_id": "p_C",
+      "name": "s3,C",
+      "features": {
+        "cost_usd": 0.01,
+        "exec_time_s": 0.2
+      }
+    },
+    {
+      "id": "s3_D",
+      "task_id": "t3",
+      "provider_id": "p_D",
+      "name": "s3,D",
+      "features": {
+        "cost_usd": 0.01,
+        "exec_time_s": 0.4
+      }
+    },
+    {
+      "id": "s4_C",
+      "task_id": "t4",
+      "provider_id": "p_C",
+      "name": "s4,C",
+      "features": {
+        "cost_usd": 0.02,
+        "exec_time_s": 0.2
+      }
+    },
+    {
+      "id": "s4_D",
+      "task_id": "t4",
+      "provider_id": "p_D",
+      "name": "s4,D",
+      "features": {
+        "cost_usd": 0.05,
+        "exec_time_s": 0.25
+      }
+    },
+    {
+      "id": "s5_E",
+      "task_id": "t5",
+      "provider_id": "p_E",
+      "name": "s5,E",
+      "features": {
+        "cost_usd": 0.01,
+        "exec_time_s": 0.2
+      }
+    },
+    {
+      "id": "s5_F",
+      "task_id": "t5",
+      "provider_id": "p_F",
+      "name": "s5,F",
+      "features": {
+        "cost_usd": 0.02,
+        "exec_time_s": 0.2
+      }
+    },
+    {
+      "id": "s6_G",
+      "task_id": "t6",
+      "provider_id": "p_G",
+      "name": "s6,G",
+      "features": {
+        "cost_usd": 0.01,
+        "exec_time_s": 0.2
+      }
+    },
+    {
+      "id": "s6_H",
+      "task_id": "t6",
+      "provider_id": "p_H",
+      "name": "s6,H",
+      "features": {
+        "cost_usd": 0.02,
+        "exec_time_s": 0.2
+      }
+    },
+    {
+      "id": "s7_I",
+      "task_id": "t7",
+      "provider_id": "p_I",
+      "name": "s7,I",
+      "features": {
+        "cost_usd": 0.015,
+        "exec_time_s": 0.1
+      }
+    },
+    {
+      "id": "s7_J",
+      "task_id": "t7",
+      "provider_id": "p_J",
+      "name": "s7,J",
+      "features": {
+        "cost_usd": 0.05,
+        "exec_time_s": 0.15
+      }
+    }
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "n_root",
+      "kind": "SEQ",
+      "children": [
+        {
+          "id": "n_payment_choice",
+          "kind": "XOR",
+          "branches": [
+            {
+              "p": 0.8,
+              "child": {
+                "id": "n_credit_card_pay",
+                "kind": "SEQ",
+                "children": [
+                  {
+                    "id": "n_t1",
+                    "kind": "TASK",
+                    "task_id": "t1"
+                  },
+                  {
+                    "id": "n_t2",
+                    "kind": "TASK",
+                    "task_id": "t2"
+                  }
+                ]
+              }
+            },
+            {
+              "p": 0.2,
+              "child": {
+                "id": "n_cash",
+                "kind": "ELEMENT",
+                "description": "Cash payment (no web service call)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "n_stock_loop",
+          "kind": "LOOP",
+          "expected_iterations": 2,
+          "body": {
+            "id": "n_stock_seq",
+            "kind": "SEQ",
+            "children": [
+              {
+                "id": "n_t3",
+                "kind": "TASK",
+                "task_id": "t3"
+              },
+              {
+                "id": "n_t4",
+                "kind": "TASK",
+                "task_id": "t4"
+              }
+            ]
+          }
+        },
+        {
+          "id": "n_post_ready",
+          "kind": "SEQ",
+          "children": [
+            {
+              "id": "n_parallel_delivery_invoice",
+              "kind": "AND",
+              "children": [
+                {
+                  "id": "n_t5",
+                  "kind": "TASK",
+                  "task_id": "t5"
+                },
+                {
+                  "id": "n_t6",
+                  "kind": "TASK",
+                  "task_id": "t6"
+                }
+              ]
+            },
+            {
+              "id": "n_t7",
+              "kind": "TASK",
+              "task_id": "t7"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "cost_usd": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "exec_time_s": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    }
+  },
+  "constraints": [
+    {
+      "id": "c_global_exec_time_s_0",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "exec_time_s",
+      "op": "<=",
+      "value": 8.42,
+      "hard": true
+    },
+    {
+      "id": "c_local_t4_exec_time_s_1",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t4"
+      ],
+      "attribute_id": "exec_time_s",
+      "op": "<=",
+      "value": 8.82,
+      "hard": false
+    },
+    {
+      "id": "c_local_t3_cost_usd_2",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t3"
+      ],
+      "attribute_id": "cost_usd",
+      "op": "<=",
+      "value": 0.94,
+      "hard": true
+    },
+    {
+      "id": "c_dep_t1_t2_3",
+      "kind": "DEPENDENCY",
+      "type": "DIFFERENT_PROVIDER",
+      "tasks": [
+        "t1",
+        "t2"
+      ],
+      "hard": true
+    }
+  ],
+  "objective": {
+    "type": "SINGLE",
+    "targets": [
+      "cost_usd",
+      "exec_time_s"
+    ],
+    "weights": {
+      "cost_usd": 0.68,
+      "exec_time_s": 0.38
+    }
+  }
+}

@@ -74,6 +74,38 @@ class Router:
                 )
                 
             except httpx.HTTPStatusError as e:
+                # Handle 422 from Random Search as No Solution
+                if e.response.status_code == 422:
+                     try:
+                         err_data = e.response.json()
+                         if "No feasible solution" in err_data.get("error", ""):
+                             # Create Sync Job Response with empty solutions
+                             # Need to generate a job ID (use placeholder or create one)
+                             # Since it failed, no job was created in Engine probably?
+                             # Or we just return a sync completion.
+                             
+                             # We need a job ID for the response
+                             import uuid
+                             job_id = str(uuid.uuid4())
+                             
+                             result = SolveResponse(
+                                 solutions=[],
+                                 provenance={
+                                     "engine_id": request.engine_id,
+                                     "execution_time_ms": 0,
+                                     "metadata": {"error": err_data.get("error")}
+                                 },
+                                 diagnostics={"warnings": all_warnings} if all_warnings else None
+                             )
+                             
+                             return JobResponse(
+                                 job_id=job_id,
+                                 status=JobStatus.COMPLETED,
+                                 result=result
+                             )
+                     except:
+                         pass
+
                 error_msg = f"Engine returned error {e.response.status_code}"
                 try:
                     details = e.response.text
