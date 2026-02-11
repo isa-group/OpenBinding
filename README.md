@@ -4,77 +4,31 @@ OpenBinding is a QoS-aware service composition gateway and solver engine framewo
 
 ## 🏗️ Architecture
 
+```mermaid
 flowchart TD
-    %% =========================
-    %% Entry points (Frontend)
-    %% =========================
     U[User / Frontend]:::client
 
     U -->|HTTP POST /v1/solve| G[OpenBinding Gateway]:::gateway
-    U -->|HTTP POST /v1/jobs| G
-    U -->|HTTP GET /v1/jobs/<job_id>| G
 
-    %% =========================
-    %% Gateway pipeline
-    %% =========================
-    subgraph PIPELINE[Gateway Processing Pipeline]
-      direction TB
+    G --> V0[Validate request envelope]:::step
+    V0 --> V1[Validate basic composition schema]:::schema
+    V1 --> R{Root router: route by engine_id}:::router
 
-      V0[Validate: General Request Envelope<br/>(engine_id, flags, instance, ...)]:::step
-      V1[Validate: General Composition Schema<br/>(engine-agnostic)]:::schema
-      R{Root Router<br/>route(engine_id)}:::router
+    R -->|minizinc-csp| SZ_MZ[Validate specialization schema: MiniZinc]:::schema
+    R -->|random-search| SZ_RS[Validate specialization schema: Random Search]:::schema
+    R -->|many-heuristic| SZ_MH[Validate specialization schema: Many-Heuristic]:::schema
 
-      G --> V0 --> V1 --> R
-    end
+    SZ_MZ --> MZ[MiniZinc CSP engine]:::engine
+    SZ_RS --> RS[Random Search engine]:::engine
+    SZ_MH --> MH[Many-Heuristic engine]:::engine
 
-    %% =========================
-    %% Engine specializations + execution
-    %% =========================
-    R -->|engine_id = minizinc-csp| SZ_MZ[Validate: MiniZinc Specialization Schema]:::schema
-    R -->|engine_id = random-search| SZ_RS[Validate: Random Search Specialization Schema]:::schema
-    R -->|engine_id = many-heuristic| SZ_MH[Validate: Many-Heuristic Specialization Schema]:::schema
+    MZ -->|solve| SOL[(Solution)]:::solution
+    RS -->|solve| SOL
+    MH -->|solve| SOL
 
-    SZ_MZ --> MZ[MiniZinc CSP Engine]:::engine
-    SZ_RS --> RS[Random Search Engine]:::engine
-    SZ_MH --> MH[Many-Heuristic Engine]:::engine
-
-    MZ -->|Solve| SOL[(Solution)]:::solution
-    RS -->|Solve| SOL
-    MH -->|Solve (Pareto front inside)| SOL
-
-    %% =========================
-    %% Return to user
-    %% =========================
     SOL --> G
-    G -->|HTTP 200 (sync)| U
-
-    %% =========================
-    %% Async Jobs (optional path)
-    %% =========================
-    subgraph JOBS[Async Jobs (optional)]
-      direction TB
-      JQ[(Job Queue / Store)]:::store
-      WK[Gateway Worker(s)]:::worker
-      G -.->|enqueue job| JQ
-      WK -.->|dequeue and run pipeline| JQ
-      WK -.->|produce solution| SOL
-      G -.->|HTTP 202 + job_id| U
-      G -.->|HTTP 200 status/result| U
-    end
-
-    %% =========================
-    %% Styling
-    %% =========================
-    classDef client fill:#0b1220,stroke:#94a3b8,color:#e2e8f0,stroke-width:1.2px
-    classDef gateway fill:#111827,stroke:#38bdf8,color:#e2e8f0,stroke-width:1.6px
-    classDef router fill:#1f2937,stroke:#f59e0b,color:#fff7ed,stroke-width:1.6px
-    classDef step fill:#0f172a,stroke:#22c55e,color:#dcfce7,stroke-width:1.2px
-    classDef schema fill:#0b1220,stroke:#a78bfa,color:#f5f3ff,stroke-width:1.2px
-    classDef engine fill:#0b1220,stroke:#fb7185,color:#fff1f2,stroke-width:1.2px
-    classDef solution fill:#052e16,stroke:#34d399,color:#d1fae5,stroke-width:1.6px
-    classDef store fill:#0b1220,stroke:#60a5fa,color:#eff6ff,stroke-width:1.2px
-    classDef worker fill:#0b1220,stroke:#f472b6,color:#fff1f2,stroke-width:1.2px
-
+    G -->|HTTP 200 result| U
+```
 
 ## 🧩 Components
 
