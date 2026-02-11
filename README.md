@@ -4,24 +4,77 @@ OpenBinding is a QoS-aware service composition gateway and solver engine framewo
 
 ## 🏗️ Architecture
 
-```mermaid
-graph TD
-    User[User / Frontend] -->|HTTP POST /v1/solve| Gateway[OpenBinding Gateway]
-    Gateway -->|1. Validate General Schema| Schema[General QoS Schema]
-    Gateway -->|2. Validate Specialization| Spec[Specialization Schema]
-    Gateway -->|3. Route Request| Router{Router}
-    
-    Router -->|engine_id=minizinc-csp| MZ[MiniZinc CSP Engine]
-    Router -->|engine_id=random-search| RS[Random Search Engine]
-    Router -->|engine_id=many-heuristic| MH[Many-Heuristic Engine]
-    
-    MZ -->|Solve via Gecode| Solution
-    RS -->|Solve via Random Heuristic| Solution
-    MH -->|Solve via Random Heuristic + Dominance Discriminator | ParetoFront
-    
-    Solution --> Gateway
-    Gateway -->|HTTP 200| User
-```
+flowchart TD
+    %% =========================
+    %% Entry points (Frontend)
+    %% =========================
+    U[User / Frontend]:::client
+
+    U -->|HTTP POST /v1/solve| G[OpenBinding Gateway]:::gateway
+    U -->|HTTP POST /v1/jobs| G
+    U -->|HTTP GET /v1/jobs/<job_id>| G
+
+    %% =========================
+    %% Gateway pipeline
+    %% =========================
+    subgraph PIPELINE[Gateway Processing Pipeline]
+      direction TB
+
+      V0[Validate: General Request Envelope<br/>(engine_id, flags, instance, ...)]:::step
+      V1[Validate: General Composition Schema<br/>(engine-agnostic)]:::schema
+      R{Root Router<br/>route(engine_id)}:::router
+
+      G --> V0 --> V1 --> R
+    end
+
+    %% =========================
+    %% Engine specializations + execution
+    %% =========================
+    R -->|engine_id = minizinc-csp| SZ_MZ[Validate: MiniZinc Specialization Schema]:::schema
+    R -->|engine_id = random-search| SZ_RS[Validate: Random Search Specialization Schema]:::schema
+    R -->|engine_id = many-heuristic| SZ_MH[Validate: Many-Heuristic Specialization Schema]:::schema
+
+    SZ_MZ --> MZ[MiniZinc CSP Engine]:::engine
+    SZ_RS --> RS[Random Search Engine]:::engine
+    SZ_MH --> MH[Many-Heuristic Engine]:::engine
+
+    MZ -->|Solve| SOL[(Solution)]:::solution
+    RS -->|Solve| SOL
+    MH -->|Solve (Pareto front inside)| SOL
+
+    %% =========================
+    %% Return to user
+    %% =========================
+    SOL --> G
+    G -->|HTTP 200 (sync)| U
+
+    %% =========================
+    %% Async Jobs (optional path)
+    %% =========================
+    subgraph JOBS[Async Jobs (optional)]
+      direction TB
+      JQ[(Job Queue / Store)]:::store
+      WK[Gateway Worker(s)]:::worker
+      G -.->|enqueue job| JQ
+      WK -.->|dequeue and run pipeline| JQ
+      WK -.->|produce solution| SOL
+      G -.->|HTTP 202 + job_id| U
+      G -.->|HTTP 200 status/result| U
+    end
+
+    %% =========================
+    %% Styling
+    %% =========================
+    classDef client fill:#0b1220,stroke:#94a3b8,color:#e2e8f0,stroke-width:1.2px
+    classDef gateway fill:#111827,stroke:#38bdf8,color:#e2e8f0,stroke-width:1.6px
+    classDef router fill:#1f2937,stroke:#f59e0b,color:#fff7ed,stroke-width:1.6px
+    classDef step fill:#0f172a,stroke:#22c55e,color:#dcfce7,stroke-width:1.2px
+    classDef schema fill:#0b1220,stroke:#a78bfa,color:#f5f3ff,stroke-width:1.2px
+    classDef engine fill:#0b1220,stroke:#fb7185,color:#fff1f2,stroke-width:1.2px
+    classDef solution fill:#052e16,stroke:#34d399,color:#d1fae5,stroke-width:1.6px
+    classDef store fill:#0b1220,stroke:#60a5fa,color:#eff6ff,stroke-width:1.2px
+    classDef worker fill:#0b1220,stroke:#f472b6,color:#fff1f2,stroke-width:1.2px
+
 
 ## 🧩 Components
 
