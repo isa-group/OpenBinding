@@ -1,10 +1,15 @@
 # Literature Scenarios
 
-This directory contains problem instances derived from academic literature in the field of QoS-aware Web Service Composition. These scenarios serve as standard benchmarks for evaluating the performance and correctness of composition engines.
+This directory contains problem instances derived from academic literature in the field of QoS-aware Web Service Composition. The selection of these scenarios is guided by the literature analysis and characterization reported in **Pesl et al.**, *Uncovering LLMs for Service-Composition: Challenges and Opportunities*, which identifies them as representative examples for the area.
 
 ## Sources
 
 The instances are adapted from the following key papers and datasets:
+
+*   **Pesl et al.**: *Uncovering LLMs for Service-Composition: Challenges and Opportunities*.
+    *   **DOI**: [10.1007/978-981-97-0989-2_4](https://doi.org/10.1007/978-981-97-0989-2_4)
+    *   **Authors**: Robin D. Pesl, Miles Stötzner, Ilche Georgievski & Marco Aiello.
+    *   **Note**: This work reviews the service-composition literature and highlights these scenarios as representative examples used across prior research.
 
 *   **Benatallah et al. (2002)**: *Declarative Composition and Peer-to-Peer Provisioning of Dynamic Web Services*.
     *   **DOI**: [10.1109/ICDE.2002.994701](https://doi.org/10.1109/ICDE.2002.994701)
@@ -21,10 +26,6 @@ The instances are adapted from the following key papers and datasets:
 *   **Netedu et al. (2020)**: *A Web Service Composition Method Based on OpenAPI Semantic Annotations*.
     *   **DOI**: [10.1007/978-3-030-34986-8_25](https://doi.org/10.1007/978-3-030-34986-8_25)
     *   **Source**: Transport Agency case study.
-
-*   **Parejo et al. (2014)**: *QoS-aware Web Services Composition using GRASP with Path Relinking*.
-    *   **DOI**: [10.1016/j.eswa.2013.12.036](https://doi.org/10.1016/j.eswa.2013.12.036)
-    *   **Source**: Standard WSC-09 challenge datasets adapted to the JSON format.
 
 *   **Pautasso (2009)**: *RESTful Web service composition with BPEL for REST*.
     *   **DOI**: [10.1016/j.datak.2009.02.016](https://doi.org/10.1016/j.datak.2009.02.016)
