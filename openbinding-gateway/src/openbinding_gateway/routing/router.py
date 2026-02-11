@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 from typing import Optional, Any
 from ..registry.engine import EngineRegistry
@@ -22,13 +23,31 @@ class Router:
                 all_warnings = (warnings or []) + (plugin_warnings or [])
 
                 # Forward to Engine's /solve
-                response = await client.post(
-                    f"{service_url.rstrip('/')}/solve",
-                    json=payload,
-                    timeout=10.0
-                )
-                response.raise_for_status()
-                data = response.json()
+                data = None
+                for attempt in range(2 + 1):
+                    try:
+                        response = await client.post(
+                            f"{service_url.rstrip('/')}/solve",
+                            json=payload,
+                            timeout=900
+                        )
+
+                        if response.status_code in (502, 503, 504):
+                            if attempt >= 2:
+                                response.raise_for_status()
+                            await asyncio.sleep(1)
+                            continue
+
+                        response.raise_for_status()
+                        data = response.json()
+                        break
+                    except httpx.RequestError as e:
+                        if attempt >= 2:
+                            raise RuntimeError(f"Failed to contact engine: {str(e)}")
+                        await asyncio.sleep(1)
+
+                if data is None:
+                    raise RuntimeError("Failed to contact engine")
                 
                 # Check for sync response
                 if "job_id" not in data and "selection" in data:
@@ -133,7 +152,7 @@ class Router:
             try:
                 response = await client.get(
                     f"{job.service_url.rstrip('/')}/jobs/{job.engine_job_id}",
-                    timeout=5.0
+                    timeout=30
                 )
                 if response.status_code == 404:
                    return JobResponse(job_id=job.id, status=JobStatus.FAILED, error="Job not found on engine")

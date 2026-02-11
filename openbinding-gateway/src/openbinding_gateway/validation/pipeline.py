@@ -4,6 +4,7 @@ from ..registry.engine import EngineRegistry
 from .general_schema import GeneralSchemaValidator
 from .specialization_schema import SpecializationSchemaValidator
 from .semantic_general import GeneralSemanticValidator
+from .normalization import apply_objective_defaults
 
 class ValidationPipeline:
     def __init__(self):
@@ -26,6 +27,9 @@ class ValidationPipeline:
                 message=f"Engine '{engine_id}' not found",
                 code="engine_not_found"
             )]
+
+        # Apply defaults that are expressed in JSON Schema but not materialized by jsonschema.
+        apply_objective_defaults(instance)
             
         # Stage 2: Specialization Structural Validation
         v2 = self.specialization_validator.validate(engine_id, instance)

@@ -48,6 +48,15 @@ export interface AnalyzeRequest {
   verbose?: boolean;
 }
 
+class HttpError extends Error {
+  status: number;
+
+  constructor(status: number, statusText: string) {
+    super(`HTTP ${status}: ${statusText}`);
+    this.status = status;
+  }
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -57,30 +66,71 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    timeoutMs?: number
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
+    const controller = new AbortController();
+    const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
 
-    // Handle validation errors (422) specially
-    if (response.status === 422) {
-      const errorData = await response.json();
-      // Return the error data as-is so the caller can handle violations
-      return errorData as T;
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        signal: controller.signal,
+      });
+
+      // Handle validation errors (422) specially
+      if (response.status === 422) {
+        const errorData = await response.json();
+        // Return the error data as-is so the caller can handle violations
+        return errorData as T;
+      }
+
+      if (!response.ok) {
+        throw new HttpError(response.status, response.statusText);
+      }
+
+      return response.json();
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        throw new Error('Request timed out');
+      }
+      throw error;
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+  }
+
+  private async requestWithRetry<T>(
+    endpoint: string,
+    options: RequestInit,
+    timeoutMs: number,
+    retries: number
+  ): Promise<T> {
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      try {
+        return await this.request<T>(endpoint, options, timeoutMs);
+      } catch (error) {
+        const isHttpError = error instanceof HttpError;
+        const shouldRetry = isHttpError
+          ? [502, 503, 504].includes(error.status)
+          : true;
+
+        if (attempt >= retries || !shouldRetry) {
+          throw error;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    return response.json();
+    throw new Error('Request failed after retries');
   }
 
   async getEngines(): Promise<Engine[]> {
@@ -96,32 +146,43 @@ class ApiClient {
   }
 
   async solve(request: SolveRequest): Promise<JobStatus> {
-    return this.request<JobStatus>('/v1/solve', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
+    return this.requestWithRetry<JobStatus>(
+      '/v1/solve',
+      {
+        method: 'POST',
+        body: JSON.stringify(request),
+      },
+      900000,
+      2
+    );
   }
 
   async analyze(request: AnalyzeRequest): Promise<any> {
     return this.request<any>('/v1/analyze', {
       method: 'POST',
       body: JSON.stringify(request),
-    });
+    }, 900000);
   }
 
-  async getJobStatus(jobId: string): Promise<JobStatus> {
-    return this.request<JobStatus>(`/v1/jobs/${jobId}`);
+  async getJobStatus(jobId: string, timeoutMs: number = 30000): Promise<JobStatus> {
+    return this.request<JobStatus>(`/v1/jobs/${jobId}`, {}, timeoutMs);
   }
 
   async pollJob(
     jobId: string,
     onUpdate?: (status: JobStatus) => void,
-    interval: number = 1000
+    interval: number = 2000
   ): Promise<any> {
     return new Promise((resolve, reject) => {
+      const start = Date.now();
       const poll = async () => {
         try {
-          const status = await this.getJobStatus(jobId);
+          if (Date.now() - start > 7200000) {
+            reject(new Error('Polling timed out'));
+            return;
+          }
+
+          const status = await this.getJobStatus(jobId, 30000);
           
           if (onUpdate) {
             onUpdate(status);

@@ -35,6 +35,7 @@ public class QoSAwareWSCompositionProblem extends FeasibilityAwareProblem implem
     public boolean scaled;
     private Map<QoSProperty, Double> bestCache = new HashMap<QoSProperty, Double>();
     private Map<QoSProperty, Double> worstCache = new HashMap<QoSProperty, Double>();
+    private Map<QoSProperty, Double> ubCache = new HashMap<QoSProperty, Double>();
 
     public QoSAwareWSCompositionProblem(WSCompositionStructure structure, Map<AbstractWebService, Set<ConcreteWebService>> market, WSCompositionQoSModel qosmodel, List<WSCompositionConstraint> constraints) {
         this.structure = structure;
@@ -85,11 +86,16 @@ public class QoSAwareWSCompositionProblem extends FeasibilityAwareProblem implem
     }
 
     private double scale(double value, double Qmax, double Qmin, QoSProperty property) {
-        if (Qmax != 0) {
-            return value / Qmax;
-        } else {
+        if (Math.abs(Qmax - Qmin) < 1e-12) {
             return 0.0;
         }
+        double scaled = (value - Qmin) / (Qmax - Qmin);
+        if (scaled < 0.0) {
+            scaled = 0.0;
+        } else if (scaled > 1.0) {
+            scaled = 1.0;
+        }
+        return scaled;
     }
 
     private String toStringMarket() {
@@ -125,35 +131,31 @@ public class QoSAwareWSCompositionProblem extends FeasibilityAwareProblem implem
         if (getPenalizator() != null) {
             result = getPenalizator().penalize(result, feasibilityDistance);
         }
-        return 1.0 - result;
+        return result;
     }
 
     public double feasibilityFreeFitness(Solution sol) {
         if (!scaled) {
             scale();
         }
-        double totalReward = 0;
-        double totalWeight = 0;
+        double total = 0;
 
         for (QoSProperty property : qosmodel.getQosProperties()) {
             Double agg = qosmodel.evaluate((QoSAwareWSCompositionSolution) sol, property, getStructure());
-            Double best = bestCache.get(property);
-            Double worst = worstCache.get(property);
             Double weight = qosmodel.getQoSPropertyWeight(property);
 
-            if (agg != null && best != null && worst != null && weight != null) {
-                double normalized;
-                if (Math.abs(best - worst) < 1e-9) {
-                    normalized = 1.0;
-                } else {
-                    normalized = (agg - worst) / (best - worst);
+            if (agg != null && weight != null) {
+                double ub = getQosUb(property);
+                double denom = ub > 1.0 ? ub : 1.0;
+                double signedWeight = weight;
+                if (property.getType() == QoSPropertyType.POSITIVE) {
+                    signedWeight = -signedWeight;
                 }
-                totalReward += weight * normalized;
-                totalWeight += weight;
+                total += signedWeight * (agg / denom);
             }
         }
 
-        return totalWeight > 0 ? totalReward / totalWeight : 0.0;
+        return total;
     }
 
     public double candidatesPerService() {
@@ -185,6 +187,7 @@ public class QoSAwareWSCompositionProblem extends FeasibilityAwareProblem implem
             scale(property);
         }
         scaled = true;
+        ubCache.clear();
     //System.out.println("Problem Reescaled!! Current State:");
         //System.out.println(this);
     }
@@ -304,6 +307,65 @@ public class QoSAwareWSCompositionProblem extends FeasibilityAwareProblem implem
 
     public double numberOfExecutedTasks() {
         return structure.numberOfExecutedTasks();
+    }
+
+    private double getQosUb(QoSProperty property) {
+        Double cached = ubCache.get(property);
+        if (cached != null) {
+            return cached.doubleValue();
+        }
+
+        String name = property.getName() != null ? property.getName().toLowerCase() : "";
+        boolean isAvailability = name.contains("availability") || name.contains("success");
+
+        es.us.isa.qosawarewsbinding.qos.aggretation.AggregationFunction seqFn =
+                qosmodel.getAggregationFunction(property, es.us.isa.qosawarewsbinding.Sequence.class);
+        es.us.isa.qosawarewsbinding.qos.aggretation.AggregationFunction loopFn =
+                qosmodel.getAggregationFunction(property, es.us.isa.qosawarewsbinding.Loop.class);
+
+        boolean seqIsProd = seqFn instanceof es.us.isa.qosawarewsbinding.qos.aggretation.ProductoryAggregationFunction
+                || seqFn instanceof es.us.isa.qosawarewsbinding.qos.aggretation.ProductoryPowAggregationFunction;
+        boolean loopIsProd = loopFn instanceof es.us.isa.qosawarewsbinding.qos.aggretation.ProductoryAggregationFunction
+                || loopFn instanceof es.us.isa.qosawarewsbinding.qos.aggretation.ProductoryPowAggregationFunction;
+
+        boolean seqIsSum = seqFn instanceof es.us.isa.qosawarewsbinding.qos.aggretation.SumatoryAggregationFunction
+                || seqFn instanceof es.us.isa.qosawarewsbinding.qos.aggretation.ScaledSumAggregationFunction
+                || seqFn instanceof es.us.isa.qosawarewsbinding.qos.aggretation.SumatoryPowAggregationFunction;
+        boolean loopIsSum = loopFn instanceof es.us.isa.qosawarewsbinding.qos.aggretation.SumatoryAggregationFunction
+                || loopFn instanceof es.us.isa.qosawarewsbinding.qos.aggretation.ScaledSumAggregationFunction
+                || loopFn instanceof es.us.isa.qosawarewsbinding.qos.aggretation.SumatoryPowAggregationFunction;
+
+        double maxVal = 1.0;
+        double taskSum = 0.0;
+        for (AbstractWebService aws : market.keySet()) {
+            double taskMax = 0.0;
+            for (ConcreteWebService cws : market.get(aws)) {
+                Double val = (Double) cws.getQoSValue(property);
+                if (val != null) {
+                    double abs = Math.abs(val.doubleValue());
+                    if (abs > taskMax) {
+                        taskMax = abs;
+                    }
+                    if (abs > maxVal) {
+                        maxVal = abs;
+                    }
+                }
+            }
+            taskSum += taskMax;
+        }
+
+        double ub;
+        if (isAvailability || seqIsProd || loopIsProd) {
+            ub = 1.0;
+        } else if (seqIsSum || loopIsSum) {
+            double loopFactor = 10.0;
+            ub = Math.max(1.0, taskSum * loopFactor);
+        } else {
+            ub = maxVal * 1.5;
+        }
+
+        ubCache.put(property, ub);
+        return ub;
     }
 
     public String getProblemType() {

@@ -80,14 +80,26 @@ def run_test(gateway_url, wait_for_job, engine, instance, expected_selection, ex
              
              print(f"Engine: {engine}, Obj: {obj}, Expected Raw: {expected_objective}")
              
-             # Factor 1000 check
+             # Factor 1000 check (legacy behavior)
              norm_exp = expected_objective / 1000.0
+             
+             # Minizinc can normalize by valid_range max
+             vr_max = None
+             feats = instance.get("features", [])
+             if len(feats) == 1:
+                 vr = feats[0].get("valid_range") or {}
+                 vr_max = vr.get("max")
+             norm_exp_max = expected_objective / vr_max if vr_max else None
              
              raw_match = abs(obj - expected_objective) < 1e-4
              norm_match = abs(obj - norm_exp) < 1e-4
+             norm_max_match = norm_exp_max is not None and abs(obj - norm_exp_max) < 1e-4
              
-             if not raw_match and not norm_match:
-                 pytest.fail(f"Objective mismatch. Got {obj}, expected {expected_objective} (raw) or {norm_exp} (norm)")
+             if not raw_match and not norm_match and not norm_max_match:
+                 expected_msg = f"{expected_objective} (raw) or {norm_exp} (norm)"
+                 if norm_exp_max is not None:
+                     expected_msg += f" or {norm_exp_max} (max-norm)"
+                 pytest.fail(f"Objective mismatch. Got {obj}, expected {expected_msg}")
 
 # --- TESTS ---
 

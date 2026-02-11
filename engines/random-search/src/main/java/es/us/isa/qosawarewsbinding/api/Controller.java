@@ -390,6 +390,8 @@ public class Controller implements HttpHandler {
         QoSAwareWSCompositionSolution best = new QoSAwareWSCompositionVectorSolution(problem);
         // best = best.createRandom(); // Maybe start random?
         double bestFitness = problem.fitness(best);
+        List<AbstractWebService> taskOrder = getLexTaskOrder(problem);
+        final double eps = 1e-12;
 
         for (int i = 0; i < iterations; i++) {
             // Create a new random solution
@@ -398,12 +400,47 @@ public class Controller implements HttpHandler {
 
             double f = problem.fitness(sol);
 
-            if (f < bestFitness) {
+            if (f < bestFitness - eps) {
+                best = sol;
+                bestFitness = f;
+            } else if (Math.abs(f - bestFitness) <= eps && isLexicographicallySmaller(sol, best, taskOrder)) {
                 best = sol;
                 bestFitness = f;
             }
         }
         return best;
+    }
+
+    private List<AbstractWebService> getLexTaskOrder(QoSAwareWSCompositionProblem problem) {
+        List<AbstractWebService> tasks = new ArrayList<AbstractWebService>(problem.getMarket().keySet());
+        Collections.sort(tasks, new Comparator<AbstractWebService>() {
+            @Override
+            public int compare(AbstractWebService a, AbstractWebService b) {
+                String aId = a != null ? a.toString() : "";
+                String bId = b != null ? b.toString() : "";
+                return aId.compareTo(bId);
+            }
+        });
+        return tasks;
+    }
+
+    private boolean isLexicographicallySmaller(QoSAwareWSCompositionSolution candidate,
+            QoSAwareWSCompositionSolution currentBest,
+            List<AbstractWebService> taskOrder) {
+        for (AbstractWebService aws : taskOrder) {
+            ConcreteWebService cand = candidate.getSelectedService(aws);
+            ConcreteWebService best = currentBest.getSelectedService(aws);
+            String candId = cand != null ? cand.getName() : "";
+            String bestId = best != null ? best.getName() : "";
+            int cmp = candId.compareTo(bestId);
+            if (cmp < 0) {
+                return true;
+            }
+            if (cmp > 0) {
+                return false;
+            }
+        }
+        return false;
     }
 
     private BinaryOperator getOperator(String op) {

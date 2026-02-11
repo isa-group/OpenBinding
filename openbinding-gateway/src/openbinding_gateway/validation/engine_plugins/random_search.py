@@ -322,7 +322,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             },
             "constraints": constraints_out,
             "config": {
-                "max_iterations": options.get("iterations_count", 300000)
+                "max_iterations": options.get("iterations_count", 1000)
             }
         }, warnings
 

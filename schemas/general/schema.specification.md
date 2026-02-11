@@ -397,7 +397,7 @@ Examples:
 
 An objective is one of:
 
-* `SINGLE`: `targets` has at least 1 entry
+* `SINGLE`: `targets` has at least 1 entry it can have more than 1, but it’s a single scalar objective (e.g., weighted sum)
 * `MULTI`: `targets` has 2–3 entries
 * `MANY`: `targets` has at least 3 entries
 

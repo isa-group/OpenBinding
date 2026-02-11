@@ -237,8 +237,26 @@ export class Solver {
         featureDefinitions.forEach((f: any) => {
             featureDirection[f.id] = (f.direction || 'MINIMIZE').toUpperCase();
         });
+        const featureRanges: Record<string, { min: number; max: number }> = {};
+        featureDefinitions.forEach((f: any) => {
+            const vr = f.valid_range || {};
+            const min = Number(vr.min ?? 0.0);
+            const max = Number(vr.max ?? 1.0);
+            featureRanges[f.id] = { min, max };
+        });
         const featureMap: Record<string, number> = {};
         features.forEach((f, i) => featureMap[f] = i + 1);
+
+        const scaleValue = (val: number, featId: string): number => {
+            const range = featureRanges[featId] || { min: 0.0, max: 1.0 };
+            const denom = range.max - range.min;
+            if (Math.abs(denom) < 1e-12 || !Number.isFinite(val)) return 0.0;
+            let scaled = (val - range.min) / denom;
+            if (scaled < 0.0) scaled = 0.0;
+            if (scaled > 1.0) scaled = 1.0;
+            if (!Number.isFinite(scaled)) return 0.0;
+            return scaled;
+        };
 
 
 
@@ -266,7 +284,7 @@ export class Solver {
             row.push(FN_MAP[compose.seq?.fn?.toLowerCase()] || DEFAULT_FN);
 
             // 3. AND
-            row.push(FN_MAP[compose.and?.fn?.toLowerCase()] || DEFAULT_FN); // Usually MAX or SUM
+            row.push(FN_MAP[compose.and?.fn?.toLowerCase()] || FN_MAP.max); // Default AND to MAX
 
             // 4. XOR
             // Default XOR to WSUM (5) unless specified
@@ -319,7 +337,8 @@ export class Solver {
                 // Trying to be smart: if 'product' agg, default to 1?
                 // For now, default 0.0. User should provide complete data.
                 if (val === undefined || val === null) val = 0.0;
-                row.push(Number(val));
+                const scaled = scaleValue(Number(val), feat);
+                row.push(scaled);
             }
             cand_qos.push(row);
         });
@@ -388,7 +407,18 @@ export class Solver {
             // LOOP iterations: support both 'iterations' and 'expected_iterations'
             let loopIters = 0.0;
             if (node.kind === 'LOOP') {
-                loopIters = Math.round(node.iterations || node.expected_iterations || 1);
+                let iters = node.expected_iterations;
+                if (iters === undefined || iters === null) {
+                    const bounds = node.bounds || {};
+                    const mn = Number(bounds.min ?? 0);
+                    const mx = Number(bounds.max ?? 0);
+                    if (mx > 0 || mn > 0) {
+                        iters = (mn + mx) / 2.0;
+                    } else {
+                        iters = node.iterations;
+                    }
+                }
+                loopIters = Math.round(iters || 1);
             }
 
             const nodeEntry = {
@@ -478,6 +508,7 @@ export class Solver {
 
             if (kind === 'attribute_bound') {
                 const attrIdx = featureMap[c.attribute_id];
+                const featId = c.attribute_id;
                 const op = opMap[opRaw];
                 // Try literal first, if not found try mapped
                 // The opMap keys are like "<=" etc. formatting shouldn't change much but good to be safe
@@ -493,7 +524,7 @@ export class Solver {
                 if (scope === 'global') {
                     gc_attr.push(attrIdx);
                     gc_op.push(validOp);
-                    gc_val.push(c.value);
+                    gc_val.push(scaleValue(c.value, featId));
                 } else if (scope === 'local') {
                     const taskId = c.task_id || (c.tasks && c.tasks[0]);
                     const tIdx = taskId ? taskIdx[taskId] : undefined;
@@ -501,7 +532,7 @@ export class Solver {
                         lc_task.push(tIdx);
                         lc_attr.push(attrIdx);
                         lc_op.push(validOp);
-                        lc_val.push(c.value);
+                        lc_val.push(scaleValue(c.value, featId));
                     }
                 }
             } else if (kind === 'dependency') {
@@ -525,6 +556,33 @@ export class Solver {
                     }
                 }
             }
+        }
+
+        const taskOrder = [...tasks].sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
+        const task_order = taskOrder.map((t: any) => taskIdx[t.id]);
+
+        const candidatesByTask: Record<string, { id: string; index: number }[]> = {};
+        candidates.forEach((c: any, i: number) => {
+            if (!candidatesByTask[c.task_id]) candidatesByTask[c.task_id] = [];
+            candidatesByTask[c.task_id].push({ id: c.id, index: i + 1 });
+        });
+        const cand_rank = Array(n_candidates).fill(0);
+        for (const t of tasks) {
+            const list = (candidatesByTask[t.id] || []).slice();
+            list.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+            list.forEach((c, i) => {
+                cand_rank[c.index - 1] = i;
+            });
+        }
+
+        const tie_base = max_cands_per_task + 1;
+        const tie_eps = 1e-9;
+        const tie_weights: number[] = [];
+        let denom = tie_base;
+        for (let i = 0; i < n_tasks; i++) {
+            const weight = denom > 0 && Number.isFinite(denom) ? (1.0 / denom) : 0.0;
+            tie_weights.push(weight);
+            denom *= tie_base;
         }
 
         return `
@@ -555,6 +613,10 @@ export class Solver {
         
         qos_weights = ${fmt(qos_weights)};
         qos_ub = ${fmt(qos_ub)};
+        tie_eps = ${tie_eps};
+        tie_weights = ${fmt(tie_weights)};
+        cand_rank = ${fmt(cand_rank)};
+        task_order = ${fmt(task_order)};
 
         n_global_constraints = ${gc_attr.length};
         gc_attr = ${fmt(gc_attr)};

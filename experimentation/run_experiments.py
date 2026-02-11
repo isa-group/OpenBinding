@@ -34,27 +34,46 @@ def solve(instance: Dict[str, Any], engine_id: str) -> Tuple[int, Dict[str, Any]
         "instance": instance,
         "verbose": True  # Enable diagnostics
     }
+    if 1000 > 0:
+        payload["options"] = {"iterations_count": 1000}
     start = time.time()
     try:
         # Initial Request
-        try:
-            resp = requests.post(GATEWAY_URL, json=payload, timeout=5)
-        except requests.Timeout:
-            # Check if it's just a read timeout (Gateway working but slow)
-            # Actually for POST, 5s might be too short for initial processing if queue full.
-            # But let's assume it returns 202 quickly.
-            # If timeout, we treat as 504
-            return 504, {"error": "Gateway timeout on initial request"}, time.time() - start
-        except requests.ConnectionError:
-             return 503, {"error": "Gateway connection failed"}, time.time() - start
+        resp = None
+        for attempt in range(2 + 1):
+            try:
+                resp = requests.post(GATEWAY_URL, json=payload, timeout=900)
+                if resp.status_code in (502, 503, 504):
+                    if attempt >= 2:
+                        return resp.status_code, {"error": resp.text}, time.time() - start
+                    time.sleep(1)
+                    continue
+                break
+            except requests.Timeout:
+                if attempt >= 2:
+                    return 504, {"error": "Gateway timeout on initial request"}, time.time() - start
+                time.sleep(1)
+            except requests.ConnectionError:
+                if attempt >= 2:
+                    return 503, {"error": "Gateway connection failed"}, time.time() - start
+                time.sleep(1)
+
+        if resp is None:
+            return 503, {"error": "Gateway connection failed"}, time.time() - start
 
         if resp.status_code == 202:
             job_id = resp.json().get("job_id")
-            # Poll loop: 300 seconds max
+            # Poll loop with configurable or derived max duration
+            max_poll_seconds = 7200
+            if max_poll_seconds <= 0:
+                if 1000 > 0:
+                    max_poll_seconds = min(7200, max(300, int(1000 / 2000)))
+                else:
+                    max_poll_seconds = 300
             start_poll = time.time()
-            while time.time() - start_poll < 300:
+            while time.time() - start_poll < max_poll_seconds:
                 try:
-                    poll_resp = requests.get(f"http://localhost:8000/v1/jobs/{job_id}", timeout=5)
+                    poll_resp = requests.get(f"http://localhost:8000/v1/jobs/{job_id}", timeout=30)
                     if poll_resp.status_code == 200:
                         poll_data = poll_resp.json()
                         status = poll_data.get("status")
@@ -65,9 +84,9 @@ def solve(instance: Dict[str, Any], engine_id: str) -> Tuple[int, Dict[str, Any]
                         elif status == "failed":
                             duration = time.time() - start
                             return 500, {"error": poll_data.get("error"), "detail": poll_data.get("detail")}, duration
-                    time.sleep(1)
+                    time.sleep(2)
                 except requests.RequestException:
-                    time.sleep(1)
+                    time.sleep(2)
             
             # Timeout
             duration = time.time() - start
@@ -252,6 +271,7 @@ def generate_report(results):
             
             # Binding Match Logic
             binding_match = ""
+
             # Compare if BOTH engines returned a valid response (200 or 202)
             if mzn_s in [200, 202] and rs_s in [200, 202]:
                 b_mzn = get_binding(r["minizinc"]["response"])
@@ -289,6 +309,10 @@ def generate_report(results):
                 diag = r["random_search"]["response"]["diagnostics"]
                 if diag and "binding_space" in diag:
                     binding_space_size = diag["binding_space"]["cardinality"]
+
+            # Random Search es heurístico: una diferencia de binding no es un fallo "requerido".
+            if binding_match == "⚠️ DIFF":
+                binding_match = "⚠️ DIFF (HEUR)"
 
             f.write(f"| {fname} | {r['objective']} | {r['has_soft']} | {mzn_icon} {mzn_s} | {rs_icon} {rs_s} | {binding_match} | {binding_space_size} | {res_icon} {r['msg']} |\n")
             

@@ -65,26 +65,42 @@ class GeneralSemanticValidator:
             violations.extend(self._validate_dag(instance.get('composition', {}), task_ids))
 
         # 3. Objective Validation
-        obj = instance.get('objective', {})
-        if obj.get('type') == 'weighted_sum':
-            weights = obj.get('weights', {})
+        obj = instance.get("objective") or {}
+        if isinstance(obj, dict) and obj.get("type") in {"SINGLE", "MULTI", "MANY"}:
+            weights = obj.get("weights") or {}
             total_w = 0.0
-            for feat_id, w in weights.items():
-                if feat_id not in feature_ids:
-                    violations.append(ValidationViolation(
-                        message=f"Objective refers to unknown feature '{feat_id}'",
-                        path=f"objective.weights.{feat_id}",
-                        code="referential_integrity_error"
-                    ))
-                total_w += w
-            
-            if obj.get('normalized', False):
+            if isinstance(weights, dict):
+                for feat_id, w in weights.items():
+                    if feat_id not in feature_ids:
+                        violations.append(
+                            ValidationViolation(
+                                message=f"Objective refers to unknown feature '{feat_id}'",
+                                path=f"objective.weights.{feat_id}",
+                                code="referential_integrity_error",
+                            )
+                        )
+                    try:
+                        total_w += float(w)
+                    except (TypeError, ValueError):
+                        # Structural schema should prevent this, but keep it safe.
+                        violations.append(
+                            ValidationViolation(
+                                message=f"Objective weight for '{feat_id}' must be a number",
+                                path=f"objective.weights.{feat_id}",
+                                code="semantic_invariant_error",
+                            )
+                        )
+
+            # If `weights_sum_to_one` is missing, it is treated as True (schema default).
+            if obj.get("weights_sum_to_one", True):
                 if abs(total_w - 1.0) > 1e-6:
-                    violations.append(ValidationViolation(
-                        message=f"Normalized objective weights must sum to 1.0, got {total_w}",
-                        path="objective.weights",
-                        code="semantic_invariant_error"
-                    ))
+                    violations.append(
+                        ValidationViolation(
+                            message=f"Objective weights must sum to 1.0 when weights_sum_to_one=true, got {total_w}",
+                            path="objective.weights",
+                            code="semantic_invariant_error",
+                        )
+                    )
 
         return violations
 

@@ -1,6 +1,6 @@
 # Experiment Report
 
-**Generated**: 2026-02-10 22:00:18
+**Generated**: 2026-02-11 13:37:35
 
 **Total**: 50 | **Passed**: 50 | **Failed**: 0
 
@@ -14,51 +14,51 @@
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1215 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1215 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1215 | ✅ PASS (MZN Reject, RS Solve) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 1215 | ✅ PASS (Both Solved) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 1215 | ✅ PASS (Both Solved) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 1215 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ✅ MATCH | 1215 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ✅ MATCH | 1215 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF (HEUR) | 1215 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1215 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1215 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ✅ MATCH | 1215 | ✅ PASS (Both Solved) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 1215 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF (HEUR) | 1215 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1215 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1215 | ✅ PASS (MZN Reject, RS Solve) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ✅ MATCH | 1215 | ✅ PASS (Both Solved) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ✅ MATCH | 1215 | ✅ PASS (Both Solved) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 1132560 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF (HEUR) | 1215 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF (HEUR) | 1215 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF (HEUR) | 1132560 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1132560 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1132560 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1132560 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1132560 | ✅ PASS (MZN Reject, RS Solve) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 1132560 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF (HEUR) | 1132560 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1132560 | ✅ PASS (MZN Reject, RS Solve) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 1132560 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF (HEUR) | 1132560 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1132560 | ✅ PASS (MZN Reject, RS Solve) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 1132560 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF (HEUR) | 1132560 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1132560 | ✅ PASS (MZN Reject, RS Solve) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 1132560 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF (HEUR) | 1132560 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1132560 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 1132560 | ✅ PASS (MZN Reject, RS Solve) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 1132560 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF (HEUR) | 1132560 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 128 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 128 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 128 | ✅ PASS (MZN Reject, RS Solve) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 128 | ✅ PASS (Both Solved) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 128 | ✅ PASS (Both Solved) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 128 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ✅ MATCH | 128 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ✅ MATCH | 128 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ✅ MATCH | 128 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 128 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 128 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 128 | ✅ PASS (MZN Reject, RS Solve) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 128 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ✅ MATCH | 128 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 128 | ✅ PASS (MZN Reject, RS Solve) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 128 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ✅ MATCH | 128 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 128 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 128 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 128 | ✅ PASS (MZN Reject, RS Solve) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 145152 | ✅ PASS (MZN Reject, RS Solve) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 145152 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF (HEUR) | 145152 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 145152 | ✅ PASS (MZN Reject, RS Solve) |
-| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF | 145152 | ✅ PASS (Both Solved) |
+| benatallah2002-selfserv-tra... | SINGLE | False | 🟢 200 | 🟢 200 | ⚠️ DIFF (HEUR) | 145152 | ✅ PASS (Both Solved) |
 | benatallah2002-selfserv-tra... | SINGLE | True | 🔴 422 | 🟢 200 | - | 145152 | ✅ PASS (MZN Reject, RS Solve) |
 
 ## Detailed Results
@@ -70,8 +70,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🔴 422 | 0.05s | See below |
-| **Random Search** | 🟢 200 | 1.13s | See below |
+| **MiniZinc CSP** | 🔴 422 | 0.04s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -109,15 +109,15 @@
   "t_attractions_search": "svc_ass_2_copy_13",
   "t_accommodation_booking": "svc_abs_1_copy_19",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_18",
-  "t_travel_insurance": "svc_tis_2"
+  "t_travel_insurance": "svc_tis_2_copy_12"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1112.75,
-  "cost_usd": 1755.472,
-  "availability": 0.99361103424
+  "latency_ms": 1113.598,
+  "cost_usd": 1756.836,
+  "availability": 0.9940057599999998
 }
 ```
 
@@ -131,8 +131,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.40s | See below |
+| **MiniZinc CSP** | 🔴 422 | 0.05s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -164,15 +164,15 @@
   "t_attractions_search": "svc_ass_2_copy_13",
   "t_accommodation_booking": "svc_abs_1_copy_19",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_18",
-  "t_travel_insurance": "svc_tis_2"
+  "t_travel_insurance": "svc_tis_2_copy_12"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1112.75,
-  "cost_usd": 1755.472,
-  "availability": 0.99361103424
+  "latency_ms": 1113.598,
+  "cost_usd": 1756.836,
+  "availability": 0.9940057599999998
 }
 ```
 
@@ -187,7 +187,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.44s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -225,15 +225,15 @@
   "t_attractions_search": "svc_ass_2_copy_13",
   "t_accommodation_booking": "svc_abs_1_copy_19",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_18",
-  "t_travel_insurance": "svc_tis_2"
+  "t_travel_insurance": "svc_tis_2_copy_12"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1112.75,
-  "cost_usd": 1755.472,
-  "availability": 0.99361103424
+  "latency_ms": 1113.598,
+  "cost_usd": 1756.836,
+  "availability": 0.9940057599999998
 }
 ```
 
@@ -248,7 +248,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.85s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -280,15 +280,15 @@
   "t_attractions_search": "svc_ass_2_copy_13",
   "t_accommodation_booking": "svc_abs_1_copy_19",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_18",
-  "t_travel_insurance": "svc_tis_2"
+  "t_travel_insurance": "svc_tis_2_copy_12"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1112.75,
-  "cost_usd": 1755.472,
-  "availability": 0.99361103424
+  "latency_ms": 1113.598,
+  "cost_usd": 1756.836,
+  "availability": 0.9940057599999998
 }
 ```
 
@@ -302,8 +302,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.09s | See below |
-| **Random Search** | 🟢 200 | 1.45s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.08s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -323,8 +323,8 @@
 ```json
 {
   "availability": 0.99400576,
-  "cost_usd": 1756.836,
-  "latency_ms": 1113.598
+  "cost_usd": 0.3513672,
+  "latency_ms": 0.1113598
 }
 ```
 
@@ -338,15 +338,15 @@
   "t_attractions_search": "svc_ass_2_copy_13",
   "t_accommodation_booking": "svc_abs_1_copy_19",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_18",
-  "t_travel_insurance": "svc_tis_2"
+  "t_travel_insurance": "svc_tis_2_copy_12"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1112.75,
-  "cost_usd": 1755.472,
-  "availability": 0.99361103424
+  "latency_ms": 1113.598,
+  "cost_usd": 1756.836,
+  "availability": 0.9940057599999998
 }
 ```
 
@@ -360,8 +360,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.08s | See below |
-| **Random Search** | 🟢 200 | 1.48s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.09s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -381,8 +381,8 @@
 ```json
 {
   "availability": 0.99400576,
-  "cost_usd": 1756.836,
-  "latency_ms": 1113.598
+  "cost_usd": 0.3513672,
+  "latency_ms": 0.1113598
 }
 ```
 
@@ -396,15 +396,15 @@
   "t_attractions_search": "svc_ass_2_copy_13",
   "t_accommodation_booking": "svc_abs_1_copy_19",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_18",
-  "t_travel_insurance": "svc_tis_2"
+  "t_travel_insurance": "svc_tis_2_copy_12"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1112.75,
-  "cost_usd": 1755.472,
-  "availability": 0.99361103424
+  "latency_ms": 1113.598,
+  "cost_usd": 1756.836,
+  "availability": 0.9940057599999998
 }
 ```
 
@@ -418,8 +418,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.08s | See below |
-| **Random Search** | 🟢 200 | 1.38s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.09s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -439,8 +439,8 @@
 ```json
 {
   "availability": 0.99400576,
-  "cost_usd": 1756.836,
-  "latency_ms": 1113.598
+  "cost_usd": 0.3513672,
+  "latency_ms": 0.1113598
 }
 ```
 
@@ -477,7 +477,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.34s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -532,7 +532,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.47s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -586,8 +586,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.08s | See below |
-| **Random Search** | 🟢 200 | 1.74s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.09s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -607,8 +607,8 @@
 ```json
 {
   "availability": 0.994005760000001,
-  "cost_usd": 1756.836,
-  "latency_ms": 1113.598
+  "cost_usd": 0.3513672,
+  "latency_ms": 0.1113598
 }
 ```
 
@@ -644,8 +644,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.08s | See below |
-| **Random Search** | 🟢 200 | 1.94s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.10s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -665,8 +665,8 @@
 ```json
 {
   "availability": 0.994005760000001,
-  "cost_usd": 1756.836,
-  "latency_ms": 1113.598
+  "cost_usd": 0.3513672,
+  "latency_ms": 0.1113598
 }
 ```
 
@@ -675,20 +675,20 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_1",
-  "t_flight_booking_international": "svc_ifbs_1",
+  "t_car_rental_booking": "svc_crs_2",
+  "t_flight_booking_international": "svc_ifbs_2",
   "t_attractions_search": "svc_ass_2_copy_13",
-  "t_accommodation_booking": "svc_abs_1",
+  "t_accommodation_booking": "svc_abs_1_copy_19",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_18",
-  "t_travel_insurance": "svc_tis_1"
+  "t_travel_insurance": "svc_tis_2"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1232.44,
-  "cost_usd": 1657.192,
-  "availability": 0.9799487157759998
+  "latency_ms": 1112.75,
+  "cost_usd": 1755.472,
+  "availability": 0.99361103424
 }
 ```
 
@@ -703,7 +703,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.70s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -758,7 +758,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.13s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -785,20 +785,20 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_2",
+  "t_car_rental_booking": "svc_crs_1",
   "t_flight_booking_international": "svc_ifbs_2",
   "t_attractions_search": "svc_ass_2_copy_13",
   "t_accommodation_booking": "svc_abs_1_copy_19",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_18",
-  "t_travel_insurance": "svc_tis_2_copy_12"
+  "t_travel_insurance": "svc_tis_2"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1113.598,
-  "cost_usd": 1756.836,
-  "availability": 0.9940057599999998
+  "latency_ms": 1127.75,
+  "cost_usd": 1737.472,
+  "availability": 0.9918203856
 }
 ```
 
@@ -812,8 +812,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.09s | See below |
-| **Random Search** | 🟢 200 | 1.33s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.08s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -833,8 +833,8 @@
 ```json
 {
   "availability": 0.976020657013248,
-  "cost_usd": 1704.015,
-  "latency_ms": 1132.008
+  "cost_usd": 0.340803,
+  "latency_ms": 0.1132008
 }
 ```
 
@@ -843,7 +843,7 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_2_copy_17",
+  "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2",
   "t_attractions_search": "svc_ass_1",
   "t_accommodation_booking": "svc_abs_1",
@@ -854,9 +854,9 @@
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1132.008,
-  "cost_usd": 1704.015,
-  "availability": 0.976020657013248
+  "latency_ms": 1129.44,
+  "cost_usd": 1708.392,
+  "availability": 0.9807338352362496
 }
 ```
 
@@ -870,8 +870,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.09s | See below |
-| **Random Search** | 🟢 200 | 1.36s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.09s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -891,8 +891,8 @@
 ```json
 {
   "availability": 0.99400576,
-  "cost_usd": 1756.836,
-  "latency_ms": 1113.598
+  "cost_usd": 0.3513672,
+  "latency_ms": 0.1113598
 }
 ```
 
@@ -906,15 +906,15 @@
   "t_attractions_search": "svc_ass_2_copy_13",
   "t_accommodation_booking": "svc_abs_1_copy_19",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_18",
-  "t_travel_insurance": "svc_tis_2_copy_12"
+  "t_travel_insurance": "svc_tis_2"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1113.598,
-  "cost_usd": 1756.836,
-  "availability": 0.9940057599999998
+  "latency_ms": 1112.75,
+  "cost_usd": 1755.472,
+  "availability": 0.99361103424
 }
 ```
 
@@ -928,8 +928,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.10s | See below |
-| **Random Search** | 🟢 200 | 1.71s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.10s | See below |
+| **Random Search** | 🟢 200 | 0.07s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -949,8 +949,8 @@
 ```json
 {
   "availability": 1.0,
-  "cost_usd": 1627.181,
-  "latency_ms": 1211.249
+  "cost_usd": 0.3254362,
+  "latency_ms": 0.1211249
 }
 ```
 
@@ -960,19 +960,19 @@
 ```json
 {
   "t_car_rental_booking": "svc_crs_1_copy_12",
-  "t_flight_booking_international": "svc_ifbs_2",
-  "t_attractions_search": "svc_ass_1_copy_31",
-  "t_accommodation_booking": "svc_abs_1_copy_19_copy_24_copy_38_copy_60",
+  "t_flight_booking_international": "svc_ifbs_1_copy_57",
+  "t_attractions_search": "svc_ass_1_copy_42",
+  "t_accommodation_booking": "svc_abs_1_copy_19_copy_24_copy_38",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_23_copy_35",
-  "t_travel_insurance": "svc_tis_2_copy_21"
+  "t_travel_insurance": "svc_tis_1_copy_14_copy_26"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1141.017,
-  "cost_usd": 1671.665,
-  "availability": 0.9952
+  "latency_ms": 1229.481,
+  "cost_usd": 1642.8590000000002,
+  "availability": 1.0
 }
 ```
 
@@ -986,8 +986,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🔴 422 | 0.04s | See below |
-| **Random Search** | 🟢 200 | 1.49s | See below |
+| **MiniZinc CSP** | 🔴 422 | 0.05s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1020,20 +1020,20 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_1_copy_36",
-  "t_flight_booking_international": "svc_ifbs_2",
+  "t_car_rental_booking": "svc_crs_1_copy_12",
+  "t_flight_booking_international": "svc_ifbs_1_copy_49",
   "t_attractions_search": "svc_ass_1_copy_42",
   "t_accommodation_booking": "svc_abs_1_copy_19_copy_24_copy_38_copy_60",
-  "t_flight_booking_domestic": "svc_dfbs_2_copy_23_copy_35",
-  "t_travel_insurance": "svc_tis_2_copy_21"
+  "t_flight_booking_domestic": "svc_dfbs_2_copy_23",
+  "t_travel_insurance": "svc_tis_1_copy_14_copy_26"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1143.42,
-  "cost_usd": 1670.195,
-  "availability": 0.9952
+  "latency_ms": 1237.499,
+  "cost_usd": 1620.019,
+  "availability": 1.0
 }
 ```
 
@@ -1048,7 +1048,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.04s | See below |
-| **Random Search** | 🟢 200 | 1.48s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1076,19 +1076,19 @@
 ```json
 {
   "t_car_rental_booking": "svc_crs_1_copy_12",
-  "t_flight_booking_international": "svc_ifbs_2",
+  "t_flight_booking_international": "svc_ifbs_1_copy_49",
   "t_attractions_search": "svc_ass_1_copy_31",
-  "t_accommodation_booking": "svc_abs_1_copy_19_copy_24_copy_38_copy_60",
+  "t_accommodation_booking": "svc_abs_1_copy_19_copy_24_copy_38",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_23_copy_35",
-  "t_travel_insurance": "svc_tis_2_copy_21"
+  "t_travel_insurance": "svc_tis_1_copy_14"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1141.017,
-  "cost_usd": 1671.665,
-  "availability": 0.9952
+  "latency_ms": 1222.281,
+  "cost_usd": 1633.827,
+  "availability": 1.0
 }
 ```
 
@@ -1103,7 +1103,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.04s | See below |
-| **Random Search** | 🟢 200 | 1.25s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1131,19 +1131,19 @@
 ```json
 {
   "t_car_rental_booking": "svc_crs_1_copy_12",
-  "t_flight_booking_international": "svc_ifbs_2",
-  "t_attractions_search": "svc_ass_1_copy_15",
-  "t_accommodation_booking": "svc_abs_1_copy_19_copy_24_copy_38_copy_60",
+  "t_flight_booking_international": "svc_ifbs_1_copy_57",
+  "t_attractions_search": "svc_ass_1_copy_42",
+  "t_accommodation_booking": "svc_abs_1_copy_19_copy_24_copy_38",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_23_copy_35",
-  "t_travel_insurance": "svc_tis_2_copy_21"
+  "t_travel_insurance": "svc_tis_2"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1141.017,
-  "cost_usd": 1671.665,
-  "availability": 0.9952
+  "latency_ms": 1211.6570000000002,
+  "cost_usd": 1648.855,
+  "availability": 0.9996
 }
 ```
 
@@ -1157,8 +1157,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.26s | See below |
+| **MiniZinc CSP** | 🔴 422 | 0.04s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1191,20 +1191,20 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_1_copy_36",
-  "t_flight_booking_international": "svc_ifbs_1_copy_49",
-  "t_attractions_search": "svc_ass_1_copy_15",
+  "t_car_rental_booking": "svc_crs_1",
+  "t_flight_booking_international": "svc_ifbs_1_copy_57",
+  "t_attractions_search": "svc_ass_1_copy_31",
   "t_accommodation_booking": "svc_abs_1_copy_19_copy_24",
   "t_flight_booking_domestic": "svc_dfbs_1_copy_47",
-  "t_travel_insurance": "svc_tis_1_copy_14_copy_16_copy_48"
+  "t_travel_insurance": "svc_tis_1_copy_14"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1331.8860000000002,
-  "cost_usd": 1611.3449999999998,
-  "availability": 1.0
+  "latency_ms": 1344.486,
+  "cost_usd": 1621.35,
+  "availability": 0.9969999999999999
 }
 ```
 
@@ -1218,8 +1218,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.17s | See below |
-| **Random Search** | 🟢 200 | 1.50s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.09s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1239,8 +1239,8 @@
 ```json
 {
   "availability": 0.9025746092,
-  "cost_usd": 1867.228,
-  "latency_ms": 1024.954
+  "cost_usd": 0.3734456,
+  "latency_ms": 0.1024954
 }
 ```
 
@@ -1249,20 +1249,20 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_2",
-  "t_flight_booking_international": "svc_ifbs_2_copy_58",
-  "t_attractions_search": "svc_ass_1_copy_15_copy_59",
+  "t_car_rental_booking": "svc_crs_1_copy_12_copy_25",
+  "t_flight_booking_international": "svc_ifbs_2",
+  "t_attractions_search": "svc_ass_2_copy_61",
   "t_accommodation_booking": "svc_abs_2_copy_45",
-  "t_flight_booking_domestic": "svc_dfbs_2_copy_39",
-  "t_travel_insurance": "svc_tis_2_copy_21_copy_40"
+  "t_flight_booking_domestic": "svc_dfbs_2_copy_23_copy_35",
+  "t_travel_insurance": "svc_tis_2"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1025.122,
-  "cost_usd": 1867.988,
-  "availability": 0.9071101599999998
+  "latency_ms": 1046.461,
+  "cost_usd": 1840.681,
+  "availability": 0.9178277993807998
 }
 ```
 
@@ -1277,7 +1277,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.04s | See below |
-| **Random Search** | 🟢 200 | 1.77s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1312,18 +1312,18 @@
 {
   "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2",
-  "t_attractions_search": "svc_ass_1_copy_42",
-  "t_accommodation_booking": "svc_abs_2",
+  "t_attractions_search": "svc_ass_2_copy_46",
+  "t_accommodation_booking": "svc_abs_1_copy_19_copy_24_copy_38",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_23_copy_35",
-  "t_travel_insurance": "svc_tis_2_copy_21_copy_40"
+  "t_travel_insurance": "svc_tis_2_copy_21"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1044.782,
-  "cost_usd": 1850.454,
-  "availability": 0.9890357311999999
+  "latency_ms": 1121.604,
+  "cost_usd": 1705.744,
+  "availability": 0.9940057599999998
 }
 ```
 
@@ -1337,8 +1337,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.10s | See below |
-| **Random Search** | 🟢 200 | 1.53s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.09s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1358,8 +1358,8 @@
 ```json
 {
   "availability": 0.9025746092,
-  "cost_usd": 1867.228,
-  "latency_ms": 1024.954
+  "cost_usd": 0.3734456,
+  "latency_ms": 0.1024954
 }
 ```
 
@@ -1370,18 +1370,18 @@
 {
   "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2_copy_58",
-  "t_attractions_search": "svc_ass_1_copy_31",
-  "t_accommodation_booking": "svc_abs_2_copy_45",
-  "t_flight_booking_domestic": "svc_dfbs_2_copy_39",
-  "t_travel_insurance": "svc_tis_2_copy_21"
+  "t_attractions_search": "svc_ass_1",
+  "t_accommodation_booking": "svc_abs_2_copy_44",
+  "t_flight_booking_domestic": "svc_dfbs_2",
+  "t_travel_insurance": "svc_tis_2_copy_18_copy_32"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1024.954,
-  "cost_usd": 1867.228,
-  "availability": 0.9071101599999998
+  "latency_ms": 1047.6100000000001,
+  "cost_usd": 1851.552,
+  "availability": 0.9369571166207998
 }
 ```
 
@@ -1395,8 +1395,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🔴 422 | 0.04s | See below |
-| **Random Search** | 🟢 200 | 1.46s | See below |
+| **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1425,18 +1425,18 @@
 {
   "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2_copy_58",
-  "t_attractions_search": "svc_ass_1_copy_31",
+  "t_attractions_search": "svc_ass_1_copy_15_copy_59",
   "t_accommodation_booking": "svc_abs_2_copy_45",
-  "t_flight_booking_domestic": "svc_dfbs_2_copy_39",
+  "t_flight_booking_domestic": "svc_dfbs_2_copy_23",
   "t_travel_insurance": "svc_tis_2_copy_21"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1024.954,
-  "cost_usd": 1867.228,
-  "availability": 0.9071101599999998
+  "latency_ms": 1033.1979999999999,
+  "cost_usd": 1865.77,
+  "availability": 0.9412691199999998
 }
 ```
 
@@ -1450,8 +1450,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 5.17s | See below |
-| **Random Search** | 🟢 200 | 1.48s | See below |
+| **MiniZinc CSP** | 🟢 200 | 6.13s | See below |
+| **Random Search** | 🟢 200 | 0.07s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1471,8 +1471,8 @@
 ```json
 {
   "availability": 0.92689807672,
-  "cost_usd": 1650.783,
-  "latency_ms": 1134.613
+  "cost_usd": 0.3301566,
+  "latency_ms": 0.1134613
 }
 ```
 
@@ -1481,10 +1481,10 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_1_copy_12_copy_25",
+  "t_car_rental_booking": "svc_crs_1_copy_12",
   "t_flight_booking_international": "svc_ifbs_2",
-  "t_attractions_search": "svc_ass_1_copy_15_copy_59",
-  "t_accommodation_booking": "svc_abs_1_copy_19",
+  "t_attractions_search": "svc_ass_1_copy_15_copy_28",
+  "t_accommodation_booking": "svc_abs_1_copy_19_copy_24_copy_38_copy_60",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_39",
   "t_travel_insurance": "svc_tis_2_copy_21"
 }
@@ -1492,9 +1492,9 @@
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1134.613,
-  "cost_usd": 1650.7830000000001,
-  "availability": 0.9315558559999999
+  "latency_ms": 1138.059,
+  "cost_usd": 1670.837,
+  "availability": 0.9496079999999999
 }
 ```
 
@@ -1509,7 +1509,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.04s | See below |
-| **Random Search** | 🟢 200 | 1.78s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1536,20 +1536,20 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_1_copy_17",
+  "t_car_rental_booking": "svc_crs_1",
   "t_flight_booking_international": "svc_ifbs_1_copy_49",
-  "t_attractions_search": "svc_ass_1_copy_15_copy_59",
+  "t_attractions_search": "svc_ass_1_copy_15_copy_28",
   "t_accommodation_booking": "svc_abs_1_copy_19",
-  "t_flight_booking_domestic": "svc_dfbs_1",
-  "t_travel_insurance": "svc_tis_1_copy_14_copy_16_copy_48"
+  "t_flight_booking_domestic": "svc_dfbs_1_copy_47",
+  "t_travel_insurance": "svc_tis_1_copy_14_copy_16"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1315.766,
-  "cost_usd": 1582.878,
-  "availability": 0.9624393799999998
+  "latency_ms": 1323.1080000000002,
+  "cost_usd": 1594.516,
+  "availability": 0.9634202423999998
 }
 ```
 
@@ -1563,8 +1563,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.09s | See below |
-| **Random Search** | 🟢 200 | 1.39s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.09s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1584,8 +1584,8 @@
 ```json
 {
   "availability": 1.0,
-  "cost_usd": 1627.181,
-  "latency_ms": 1211.249
+  "cost_usd": 0.3254362,
+  "latency_ms": 0.1211249
 }
 ```
 
@@ -1595,19 +1595,19 @@
 ```json
 {
   "t_car_rental_booking": "svc_crs_1_copy_12",
-  "t_flight_booking_international": "svc_ifbs_2",
+  "t_flight_booking_international": "svc_ifbs_1_copy_49",
   "t_attractions_search": "svc_ass_1_copy_15",
-  "t_accommodation_booking": "svc_abs_1_copy_19_copy_24_copy_38_copy_60",
-  "t_flight_booking_domestic": "svc_dfbs_2_copy_23_copy_35",
-  "t_travel_insurance": "svc_tis_2_copy_21"
+  "t_accommodation_booking": "svc_abs_2_copy_30",
+  "t_flight_booking_domestic": "svc_dfbs_2_copy_23",
+  "t_travel_insurance": "svc_tis_1_copy_14_copy_16_copy_48"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1141.017,
-  "cost_usd": 1671.665,
-  "availability": 0.9952
+  "latency_ms": 1154.7890000000002,
+  "cost_usd": 1829.319,
+  "availability": 1.0
 }
 ```
 
@@ -1621,8 +1621,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🔴 422 | 0.04s | See below |
-| **Random Search** | 🟢 200 | 1.50s | See below |
+| **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1655,10 +1655,10 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_2",
-  "t_flight_booking_international": "svc_ifbs_2_copy_58",
+  "t_car_rental_booking": "svc_crs_1_copy_12",
+  "t_flight_booking_international": "svc_ifbs_1_copy_49",
   "t_attractions_search": "svc_ass_1_copy_15",
-  "t_accommodation_booking": "svc_abs_2",
+  "t_accommodation_booking": "svc_abs_1_copy_19_copy_24",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_23_copy_35",
   "t_travel_insurance": "svc_tis_2_copy_21"
 }
@@ -1666,9 +1666,9 @@
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1037.422,
-  "cost_usd": 1867.086,
-  "availability": 0.985855552
+  "latency_ms": 1222.549,
+  "cost_usd": 1623.771,
+  "availability": 1.0
 }
 ```
 
@@ -1682,8 +1682,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🔴 422 | 0.04s | See below |
-| **Random Search** | 🟢 200 | 1.47s | See below |
+| **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
+| **Random Search** | 🟢 200 | 0.06s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1718,18 +1718,18 @@
 {
   "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2_copy_58",
-  "t_attractions_search": "svc_ass_2",
-  "t_accommodation_booking": "svc_abs_2_copy_45",
-  "t_flight_booking_domestic": "svc_dfbs_2_copy_39",
+  "t_attractions_search": "svc_ass_1_copy_15_copy_59",
+  "t_accommodation_booking": "svc_abs_2_copy_44",
+  "t_flight_booking_domestic": "svc_dfbs_2_copy_23",
   "t_travel_insurance": "svc_tis_2_copy_21"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1024.954,
-  "cost_usd": 1872.228,
-  "availability": 0.8980390583999998
+  "latency_ms": 1038.078,
+  "cost_usd": 1837.86,
+  "availability": 0.9511772159999998
 }
 ```
 
@@ -1743,8 +1743,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.09s | See below |
-| **Random Search** | 🟢 200 | 1.48s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.09s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1764,8 +1764,8 @@
 ```json
 {
   "availability": 1.0,
-  "cost_usd": 1627.181,
-  "latency_ms": 1211.249
+  "cost_usd": 0.3254362,
+  "latency_ms": 0.1211249
 }
 ```
 
@@ -1774,20 +1774,20 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_1_copy_12",
-  "t_flight_booking_international": "svc_ifbs_2",
-  "t_attractions_search": "svc_ass_1_copy_15",
-  "t_accommodation_booking": "svc_abs_1_copy_19_copy_24_copy_38_copy_60",
-  "t_flight_booking_domestic": "svc_dfbs_2_copy_23_copy_35",
+  "t_car_rental_booking": "svc_crs_1_copy_36",
+  "t_flight_booking_international": "svc_ifbs_1_copy_57",
+  "t_attractions_search": "svc_ass_1_copy_42",
+  "t_accommodation_booking": "svc_abs_1_copy_19_copy_24_copy_38",
+  "t_flight_booking_domestic": "svc_dfbs_2_copy_23",
   "t_travel_insurance": "svc_tis_2_copy_21"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1141.017,
-  "cost_usd": 1671.665,
-  "availability": 0.9952
+  "latency_ms": 1216.2060000000001,
+  "cost_usd": 1643.9789999999998,
+  "availability": 1.0
 }
 ```
 
@@ -1802,7 +1802,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.02s | See below |
-| **Random Search** | 🟢 200 | 1.63s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1838,7 +1838,7 @@
   "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2",
   "t_attractions_search": "svc_ass_1",
-  "t_accommodation_booking": "svc_abs_1",
+  "t_accommodation_booking": "svc_abs_2",
   "t_flight_booking_domestic": "svc_dfbs_2",
   "t_travel_insurance": "svc_tis_2"
 }
@@ -1846,9 +1846,9 @@
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1140.0,
-  "cost_usd": 1710.0,
-  "availability": 0.9748187019242495
+  "latency_ms": 1060.0,
+  "cost_usd": 1860.0,
+  "availability": 0.9777667423534558
 }
 ```
 
@@ -1863,7 +1863,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.08s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1893,7 +1893,7 @@
   "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2",
   "t_attractions_search": "svc_ass_1",
-  "t_accommodation_booking": "svc_abs_1",
+  "t_accommodation_booking": "svc_abs_2",
   "t_flight_booking_domestic": "svc_dfbs_2",
   "t_travel_insurance": "svc_tis_2"
 }
@@ -1901,9 +1901,9 @@
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1140.0,
-  "cost_usd": 1710.0,
-  "availability": 0.9748187019242495
+  "latency_ms": 1060.0,
+  "cost_usd": 1860.0,
+  "availability": 0.9777667423534558
 }
 ```
 
@@ -1917,8 +1917,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.07s | See below |
+| **MiniZinc CSP** | 🔴 422 | 0.02s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1948,7 +1948,7 @@
   "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2",
   "t_attractions_search": "svc_ass_1",
-  "t_accommodation_booking": "svc_abs_1",
+  "t_accommodation_booking": "svc_abs_2",
   "t_flight_booking_domestic": "svc_dfbs_2",
   "t_travel_insurance": "svc_tis_2"
 }
@@ -1956,9 +1956,9 @@
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1140.0,
-  "cost_usd": 1710.0,
-  "availability": 0.9748187019242495
+  "latency_ms": 1060.0,
+  "cost_usd": 1860.0,
+  "availability": 0.9777667423534558
 }
 ```
 
@@ -1972,8 +1972,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.08s | See below |
-| **Random Search** | 🟢 200 | 1.43s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.08s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -1993,8 +1993,8 @@
 ```json
 {
   "availability": 0.977766742353457,
-  "cost_usd": 1860.0,
-  "latency_ms": 1060.0
+  "cost_usd": 0.372,
+  "latency_ms": 0.106
 }
 ```
 
@@ -2006,7 +2006,7 @@
   "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2",
   "t_attractions_search": "svc_ass_1",
-  "t_accommodation_booking": "svc_abs_1",
+  "t_accommodation_booking": "svc_abs_2",
   "t_flight_booking_domestic": "svc_dfbs_2",
   "t_travel_insurance": "svc_tis_2"
 }
@@ -2014,9 +2014,9 @@
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1140.0,
-  "cost_usd": 1710.0,
-  "availability": 0.9748187019242495
+  "latency_ms": 1060.0,
+  "cost_usd": 1860.0,
+  "availability": 0.9777667423534558
 }
 ```
 
@@ -2030,8 +2030,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.07s | See below |
-| **Random Search** | 🟢 200 | 1.33s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.08s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2051,8 +2051,8 @@
 ```json
 {
   "availability": 0.977766742353457,
-  "cost_usd": 1860.0,
-  "latency_ms": 1060.0
+  "cost_usd": 0.372,
+  "latency_ms": 0.106
 }
 ```
 
@@ -2064,7 +2064,7 @@
   "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2",
   "t_attractions_search": "svc_ass_1",
-  "t_accommodation_booking": "svc_abs_1",
+  "t_accommodation_booking": "svc_abs_2",
   "t_flight_booking_domestic": "svc_dfbs_2",
   "t_travel_insurance": "svc_tis_2"
 }
@@ -2072,9 +2072,9 @@
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1140.0,
-  "cost_usd": 1710.0,
-  "availability": 0.9748187019242495
+  "latency_ms": 1060.0,
+  "cost_usd": 1860.0,
+  "availability": 0.9777667423534558
 }
 ```
 
@@ -2088,8 +2088,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.07s | See below |
-| **Random Search** | 🟢 200 | 1.29s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.08s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2109,8 +2109,8 @@
 ```json
 {
   "availability": 0.977766742353456,
-  "cost_usd": 1860.0,
-  "latency_ms": 1060.0
+  "cost_usd": 0.372,
+  "latency_ms": 0.106
 }
 ```
 
@@ -2121,7 +2121,7 @@
 {
   "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2",
-  "t_attractions_search": "svc_ass_2",
+  "t_attractions_search": "svc_ass_1",
   "t_accommodation_booking": "svc_abs_2",
   "t_flight_booking_domestic": "svc_dfbs_2",
   "t_travel_insurance": "svc_tis_2"
@@ -2131,8 +2131,8 @@
 ```json
 {
   "latency_ms": 1060.0,
-  "cost_usd": 1865.0,
-  "availability": 0.9728533416381119
+  "cost_usd": 1860.0,
+  "availability": 0.9777667423534558
 }
 ```
 
@@ -2146,8 +2146,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.68s | See below |
+| **MiniZinc CSP** | 🔴 422 | 0.02s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2207,8 +2207,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🔴 422 | 0.02s | See below |
-| **Random Search** | 🟢 200 | 1.07s | See below |
+| **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2263,7 +2263,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.64s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2317,8 +2317,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.08s | See below |
-| **Random Search** | 🟢 200 | 1.34s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.08s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2338,8 +2338,8 @@
 ```json
 {
   "availability": 0.977766742353457,
-  "cost_usd": 1860.0,
-  "latency_ms": 1060.0
+  "cost_usd": 0.372,
+  "latency_ms": 0.106
 }
 ```
 
@@ -2351,7 +2351,7 @@
   "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2",
   "t_attractions_search": "svc_ass_1",
-  "t_accommodation_booking": "svc_abs_1",
+  "t_accommodation_booking": "svc_abs_2",
   "t_flight_booking_domestic": "svc_dfbs_2",
   "t_travel_insurance": "svc_tis_2"
 }
@@ -2359,9 +2359,9 @@
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1140.0,
-  "cost_usd": 1710.0,
-  "availability": 0.9748187019242495
+  "latency_ms": 1060.0,
+  "cost_usd": 1860.0,
+  "availability": 0.9777667423534558
 }
 ```
 
@@ -2376,7 +2376,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.35s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2430,8 +2430,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.08s | See below |
-| **Random Search** | 🟢 200 | 1.39s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.08s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2451,8 +2451,8 @@
 ```json
 {
   "availability": 0.977766742353457,
-  "cost_usd": 1860.0,
-  "latency_ms": 1060.0
+  "cost_usd": 0.372,
+  "latency_ms": 0.106
 }
 ```
 
@@ -2464,7 +2464,7 @@
   "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2",
   "t_attractions_search": "svc_ass_1",
-  "t_accommodation_booking": "svc_abs_1",
+  "t_accommodation_booking": "svc_abs_2",
   "t_flight_booking_domestic": "svc_dfbs_2",
   "t_travel_insurance": "svc_tis_2"
 }
@@ -2472,9 +2472,9 @@
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1140.0,
-  "cost_usd": 1710.0,
-  "availability": 0.9748187019242495
+  "latency_ms": 1060.0,
+  "cost_usd": 1860.0,
+  "availability": 0.9777667423534558
 }
 ```
 
@@ -2489,7 +2489,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.08s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2544,7 +2544,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.34s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2598,8 +2598,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🔴 422 | 0.04s | See below |
-| **Random Search** | 🟢 200 | 1.32s | See below |
+| **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
+| **Random Search** | 🟢 200 | 0.04s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2626,8 +2626,8 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_1",
-  "t_flight_booking_international": "svc_ifbs_1",
+  "t_car_rental_booking": "svc_crs_2",
+  "t_flight_booking_international": "svc_ifbs_2",
   "t_attractions_search": "svc_ass_1",
   "t_accommodation_booking": "svc_abs_1",
   "t_flight_booking_domestic": "svc_dfbs_2",
@@ -2637,9 +2637,9 @@
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1223.0,
-  "cost_usd": 1660.0,
-  "availability": 0.9699160167590399
+  "latency_ms": 1140.0,
+  "cost_usd": 1710.0,
+  "availability": 0.9748187019242495
 }
 ```
 
@@ -2653,8 +2653,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🔴 422 | 0.04s | See below |
-| **Random Search** | 🟢 200 | 1.25s | See below |
+| **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2682,19 +2682,19 @@
 ```json
 {
   "t_car_rental_booking": "svc_crs_2_copy_18",
-  "t_flight_booking_international": "svc_ifbs_2_copy_17",
+  "t_flight_booking_international": "svc_ifbs_1_copy_15_copy_19",
   "t_attractions_search": "svc_ass_2_copy_39",
-  "t_accommodation_booking": "svc_abs_1",
+  "t_accommodation_booking": "svc_abs_2",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_20",
-  "t_travel_insurance": "svc_tis_2_copy_32_copy_37"
+  "t_travel_insurance": "svc_tis_2_copy_32"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1117.681,
-  "cost_usd": 1710.742,
-  "availability": 0.992
+  "latency_ms": 1117.6770000000001,
+  "cost_usd": 1828.974,
+  "availability": 0.995
 }
 ```
 
@@ -2708,8 +2708,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.09s | See below |
-| **Random Search** | 🟢 200 | 1.68s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.08s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2729,8 +2729,8 @@
 ```json
 {
   "availability": 1.0,
-  "cost_usd": 1866.712,
-  "latency_ms": 1036.371
+  "cost_usd": 0.3733424,
+  "latency_ms": 0.1036371
 }
 ```
 
@@ -2742,17 +2742,17 @@
   "t_car_rental_booking": "svc_crs_2_copy_18",
   "t_flight_booking_international": "svc_ifbs_2_copy_17",
   "t_attractions_search": "svc_ass_2_copy_39",
-  "t_accommodation_booking": "svc_abs_1",
+  "t_accommodation_booking": "svc_abs_2",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_20",
-  "t_travel_insurance": "svc_tis_2_copy_32_copy_37"
+  "t_travel_insurance": "svc_tis_1"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1117.681,
-  "cost_usd": 1710.742,
-  "availability": 0.992
+  "latency_ms": 1061.329,
+  "cost_usd": 1853.674,
+  "availability": 0.993806
 }
 ```
 
@@ -2767,7 +2767,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.42s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2794,20 +2794,20 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_2_copy_18",
+  "t_car_rental_booking": "svc_crs_2_copy_30",
   "t_flight_booking_international": "svc_ifbs_2_copy_17",
   "t_attractions_search": "svc_ass_2_copy_39",
-  "t_accommodation_booking": "svc_abs_1",
+  "t_accommodation_booking": "svc_abs_2_copy_12",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_20",
-  "t_travel_insurance": "svc_tis_2_copy_32"
+  "t_travel_insurance": "svc_tis_2_copy_16"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1120.325,
-  "cost_usd": 1710.926,
-  "availability": 0.992
+  "latency_ms": 1047.2530000000002,
+  "cost_usd": 1870.908,
+  "availability": 0.996
 }
 ```
 
@@ -2821,8 +2821,8 @@
 
 | Engine | Status | Time | Result |
 |---|---|---|---|
-| **MiniZinc CSP** | 🟢 200 | 1.09s | See below |
-| **Random Search** | 🟢 200 | 1.45s | See below |
+| **MiniZinc CSP** | 🟢 200 | 2.09s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2842,8 +2842,8 @@
 ```json
 {
   "availability": 1.0,
-  "cost_usd": 1866.712,
-  "latency_ms": 1036.371
+  "cost_usd": 0.3733424,
+  "latency_ms": 0.1036371
 }
 ```
 
@@ -2852,20 +2852,20 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_2_copy_18",
+  "t_car_rental_booking": "svc_crs_2",
   "t_flight_booking_international": "svc_ifbs_2_copy_17",
-  "t_attractions_search": "svc_ass_2_copy_39",
-  "t_accommodation_booking": "svc_abs_1",
+  "t_attractions_search": "svc_ass_1",
+  "t_accommodation_booking": "svc_abs_2",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_20",
-  "t_travel_insurance": "svc_tis_2"
+  "t_travel_insurance": "svc_tis_2_copy_32_copy_37"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1121.329,
-  "cost_usd": 1709.674,
-  "availability": 0.9916032
+  "latency_ms": 1041.068,
+  "cost_usd": 1859.766,
+  "availability": 0.9888369699999999
 }
 ```
 
@@ -2880,7 +2880,7 @@
 | Engine | Status | Time | Result |
 |---|---|---|---|
 | **MiniZinc CSP** | 🔴 422 | 0.03s | See below |
-| **Random Search** | 🟢 200 | 1.11s | See below |
+| **Random Search** | 🟢 200 | 0.05s | See below |
 
 <details><summary><b>View Engine Responses</b></summary>
 
@@ -2907,19 +2907,19 @@
 **Binding Solution**:
 ```json
 {
-  "t_car_rental_booking": "svc_crs_2_copy_18",
-  "t_flight_booking_international": "svc_ifbs_2_copy_17",
+  "t_car_rental_booking": "svc_crs_2_copy_30",
+  "t_flight_booking_international": "svc_ifbs_1_copy_15_copy_19",
   "t_attractions_search": "svc_ass_2_copy_39",
   "t_accommodation_booking": "svc_abs_1",
   "t_flight_booking_domestic": "svc_dfbs_2_copy_20",
-  "t_travel_insurance": "svc_tis_2_copy_32_copy_37"
+  "t_travel_insurance": "svc_tis_2_copy_32"
 }
 ```
 **Aggregated Features**:
 ```json
 {
-  "latency_ms": 1117.681,
-  "cost_usd": 1710.742,
+  "latency_ms": 1204.727,
+  "cost_usd": 1683.9299999999998,
   "availability": 0.992
 }
 ```

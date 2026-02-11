@@ -216,6 +216,41 @@ def generate_constraints(instance: Dict[str, Any], features: List[str], complexi
 
     return constraints
 
+
+def _normalize_weights_2dp_sum1(targets: List[str], raw_weights: Dict[str, float]) -> Dict[str, float]:
+    if not targets:
+        return {}
+
+    values = [max(float(raw_weights.get(t, 0.0)), 0.0) for t in targets]
+    total = sum(values)
+    if total <= 0:
+        values = [1.0] * len(targets)
+        total = float(len(targets))
+
+    exact_cents = [(v / total) * 100.0 for v in values]
+    base_cents = [int(math.floor(c)) for c in exact_cents]
+    remainders = [c - b for c, b in zip(exact_cents, base_cents)]
+
+    cents = base_cents[:]
+    leftover = 100 - sum(cents)
+
+    if leftover > 0:
+        # Add 1 cent to the largest remainders (ties resolved by original order)
+        indices = sorted(range(len(targets)), key=lambda i: remainders[i], reverse=True)
+        for i in indices[:leftover]:
+            cents[i] += 1
+    elif leftover < 0:
+        # Remove 1 cent from the smallest remainders (should be rare, but handle float drift)
+        indices = sorted(range(len(targets)), key=lambda i: remainders[i])
+        for i in indices:
+            if leftover == 0:
+                break
+            if cents[i] > 0:
+                cents[i] -= 1
+                leftover += 1
+
+    return {t: round(c / 100.0, 2) for t, c in zip(targets, cents)}
+
 def set_objective(instance: Dict[str, Any], obj_type: str, selected_features: List[str]):
     # 'obj_type' passed here is just a hint/category. 
     # We always set type="SINGLE" (which means weighted sum in our engine context) 
@@ -241,14 +276,9 @@ def set_objective(instance: Dict[str, Any], obj_type: str, selected_features: Li
         targets = random.sample(selected_features, n_feats)
         
         # Random weights
-        weights = {}
-        for t in targets:
-            weights[t] = random.uniform(0.1, 1.0)
-            
-        # Normalize weights? Not strictly necessary but good practice
-        total_w = sum(weights.values())
+        raw_weights = {t: random.uniform(0.1, 1.0) for t in targets}
         obj["targets"] = targets
-        obj["weights"] = {k: round(v, 2) for k, v in weights.items()}
+        obj["weights"] = _normalize_weights_2dp_sum1(targets, raw_weights)
         
     elif obj_type == "multi":
         # 'multi' category in generator (legacy)
@@ -258,14 +288,14 @@ def set_objective(instance: Dict[str, Any], obj_type: str, selected_features: Li
         
         targets = random.sample(selected_features, n)
         obj["targets"] = targets
-        obj["weights"] = {t: round(1.0/n, 2) for t in targets}
+        obj["weights"] = _normalize_weights_2dp_sum1(targets, {t: 1.0 for t in targets})
         
     elif obj_type == "many":
         # 'many' category in generator (legacy)
         # Map to SINGLE type with many features
         targets = selected_features
         obj["targets"] = targets
-        obj["weights"] = {t: round(1.0/len(targets), 2) for t in targets}
+        obj["weights"] = _normalize_weights_2dp_sum1(targets, {t: 1.0 for t in targets})
         
     instance["objective"] = obj
     return instance
