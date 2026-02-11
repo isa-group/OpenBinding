@@ -51,8 +51,6 @@ def test_general_schema_valid(pipeline):
     # Fix it
     instance["features"][0]["scale"] = "RATIO"
     violations = pipeline.validate_general_schema(instance)
-    if violations:
-        print(f"General Valid Violations: {violations}")
     assert len(violations) == 0
 
 def test_general_schema_invalid_missing_required(pipeline):
@@ -97,7 +95,6 @@ def test_minizinc_valid_instance(pipeline, minizinc_plugin):
     # Currently specialization validation is loaded via file path by ID.
     # 'minizinc-csp'
     v2 = pipeline.specialization_validator.validate("minizinc-csp", instance)
-    if v2: print(f"MiniZinc Violations: {[v.message for v in v2]}")
     assert len(v2) == 0
 
 def test_minizinc_invalid_objective(pipeline):

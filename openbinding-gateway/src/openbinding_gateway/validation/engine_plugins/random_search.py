@@ -1,6 +1,12 @@
 import os
 from typing import List, Dict, Any, Optional, Tuple
 import httpx
+from .aggregation import (
+    build_selected_candidate_by_task,
+    compute_aggregated_qos,
+    normalize_qos,
+    compute_objective_value,
+)
 from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 
@@ -334,164 +340,21 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
              return {"error": engine_response["error"]}
 
         selection = engine_response.get("selection") or {}
-        print(f"DEBUG: RS Engine Selection: {selection}")
 
         # Recompute aggregated + normalized QoS in gateway to avoid information loss and
         # align with general semantics.
         candidates_by_id = {c["id"]: c for c in (original_request.get("candidates", []) or [])}
-        print(f"DEBUG: Candidates Keys: {list(candidates_by_id.keys())}")
         features = {f["id"]: f for f in (original_request.get("features", []) or [])}
         agg_policies = original_request.get("aggregation_policies", {}) or {}
 
-        # Pre-build task_id -> selected candidate
-        selected_candidate_by_task = {}
-        for task_id, cand_id in selection.items():
-            cand = candidates_by_id.get(cand_id)
-            if cand is not None:
-                selected_candidate_by_task[task_id] = cand
+        selected_candidate_by_task = build_selected_candidate_by_task(selection, candidates_by_id)
 
-        def _default_for(feature_id: str) -> float:
-            policy = agg_policies.get(feature_id, {})
-            if "neutral" in policy and isinstance(policy.get("neutral"), (int, float)):
-                return float(policy["neutral"])
-            feat = features.get(feature_id, {})
-            direction = feat.get("direction")
-            vr = feat.get("valid_range") or {}
-            if direction == "maximize":
-                return float(vr.get("min", 0.0))
-            return float(vr.get("max", 0.0))
-
-        def _agg_fn(fn: str, values: List[float], weights: Optional[List[float]] = None) -> float:
-            if not values:
-                return 0.0
-            
-            fn_lower = fn.lower() if fn else ""
-            
-            if fn_lower in ("weighted_sum",):
-                w = weights or [1.0] * len(values)
-                return sum(v * w_i for v, w_i in zip(values, w))
-            if fn_lower == "sum":
-                if weights is not None:
-                    return sum(v * w_i for v, w_i in zip(values, weights))
-                return sum(values)
-            if fn_lower == "product":
-                res = 1.0
-                for v in values:
-                    res *= v
-                return res
-            if fn_lower == "max":
-                return max(values)
-            if fn_lower == "min":
-                return min(values)
-            # Fallback conservative
-            return sum(values)
-
-        def _compose_value(node: Dict[str, Any], feature_id: str) -> float:
-            kind = node.get("kind")
-            policy = agg_policies.get(feature_id, {})
-            compose = policy.get("compose", {})
-
-            if kind == "TASK":
-                task_id = node.get("task_id")
-                cand = selected_candidate_by_task.get(task_id)
-                if cand is None:
-                    return _default_for(feature_id)
-                return float((cand.get("features", {}) or {}).get(feature_id, _default_for(feature_id)))
-
-            if kind in ("SEQ", "AND"):
-                children = node.get("children", []) or []
-                values = [_compose_value(c, feature_id) for c in children]
-                fn = compose.get("seq" if kind == "SEQ" else "and", {}).get("fn")
-                return _agg_fn(fn or ("sum" if kind == "SEQ" else "max"), values)
-
-            if kind == "XOR":
-                branches = node.get("branches", []) or []
-                values = [_compose_value(b.get("child", {}), feature_id) for b in branches]
-                probs = [float(b.get("p", 0.0)) for b in branches]
-                fn = compose.get("xor", {}).get("fn")
-                # Interpret 'sum' as weighted sum for XOR (expected value)
-                if fn in (None, "sum", "weighted_sum", "scaled_sum", "SCALED_SUM"):
-                    return _agg_fn("weighted_sum", values, probs)
-                return _agg_fn(fn, values)
-
-            if kind == "LOOP":
-                body = node.get("body", {}) or {}
-                body_val = _compose_value(body, feature_id)
-                fn = compose.get("loop", {}).get("fn")
-                iterations = node.get("expected_iterations")
-                if iterations is None:
-                    bounds = node.get("bounds") or {}
-                    iterations = bounds.get("max", 1)
-                c = float(iterations)
-                
-                fn_lower = (fn or "sum").lower()
-                if "product" in fn_lower:
-                    return float(body_val ** c)
-                if "sum" in fn_lower or "wsum" in fn_lower or "scale" in fn_lower:
-                    return float(body_val * c)
-                return body_val
-
-            return _default_for(feature_id)
-
-        aggregated_qos: Dict[str, float] = {}
-        for fid in features.keys():
-            root = (original_request.get("composition", {}) or {}).get("root", {})
-            aggregated_qos[fid] = _compose_value(root, fid)
-
-        def _normalize_value(feature_id: str, raw: float) -> float:
-            # Prefer aggregation_policies[*].normalize
-            norm = (agg_policies.get(feature_id, {}) or {}).get("normalize")
-            if not norm:
-                return raw
-
-            ntype = norm.get("type")
-            increasing = norm.get("increasing_is_better")
-            if increasing is None:
-                direction = (features.get(feature_id, {}) or {}).get("direction")
-                increasing = True if direction == "maximize" else False
-
-            if ntype == "minmax":
-                b = norm.get("bounds") or {}
-                mn = float(b.get("min", 0.0))
-                mx = float(b.get("max", 1.0))
-                if mx == mn:
-                    return 0.0
-                v = (raw - mn) / (mx - mn)
-                # clamp
-                if v < 0.0:
-                    v = 0.0
-                if v > 1.0:
-                    v = 1.0
-                return v if increasing else (1.0 - v)
-
-            if ntype == "identity" or ntype is None:
-                return raw
-
-            # piecewise/custom not supported here (engine can't execute expr either)
-            return raw
-
-        normalized_qos: Dict[str, float] = {fid: _normalize_value(fid, val) for fid, val in aggregated_qos.items()}
-        print(f"DEBUG: Aggregated QoS: {aggregated_qos}")
-        print(f"DEBUG: Normalized QoS: {normalized_qos}")
+        root = (original_request.get("composition", {}) or {}).get("root", {})
+        aggregated_qos = compute_aggregated_qos(root, features, selected_candidate_by_task, agg_policies)
+        normalized_qos = normalize_qos(aggregated_qos, features, agg_policies)
 
         obj = original_request.get("objective", {}) or {}
-        objective_value = 0.0
-        if obj.get("type") == "SINGLE" or obj.get("type") == "weighted_sum":
-             # Support SINGLE as weighted_sum with 1 prop
-             if obj.get("type") == "SINGLE":
-                 targets = obj.get("targets", [])
-                 weights = obj.get("weights", {})
-                 for t in targets:
-                     if t not in weights:
-                         weights[t] = 1.0
-             else:
-                 weights = obj.get("weights", {}) or {}
-                 
-             for fid, w in weights.items():
-                 val = float(normalized_qos.get(fid, 0.0))
-                 term = float(w) * val
-                 print(f"DEBUG: Obj Term: {fid} w={w} val={val} -> {term}")
-                 objective_value += term
+        objective_value = compute_objective_value(obj, normalized_qos)
 
         # Evaluate constraints for reporting
         feasible = True

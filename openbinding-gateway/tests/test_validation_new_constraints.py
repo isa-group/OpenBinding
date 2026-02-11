@@ -81,8 +81,6 @@ def test_minizinc_soft_constraint_invalid(pipeline):
     
     violations = pipeline.specialization_validator.validate("minizinc-csp", instance)
     assert len(violations) > 0, f"Expected violations but got none"
-    # Debug print
-    print(f"\nViolations: {violations}")
     assert any("hard" in v.path or "true" in v.message.lower() or "const" in v.message.lower() or "100" in v.message for v in violations), f"Unexpected violations: {violations}"
 
 def test_minizinc_dependency_valid(pipeline):

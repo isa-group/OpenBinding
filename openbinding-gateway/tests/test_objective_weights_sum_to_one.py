@@ -64,7 +64,7 @@ def test_weights_sum_to_one_missing_defaults_true_and_is_validated(pipeline: Val
     # General schema is OK (does not enforce sum-to-one).
     assert pipeline.validate_general_schema(instance) == []
 
-    violations = pipeline.validate_full("random-search", instance)
+    violations, _ = pipeline.validate_full("random-search", instance)
     assert any(v.code == "semantic_invariant_error" and v.path == "objective.weights" for v in violations)
 
     # Default should be materialized into the instance.
@@ -75,7 +75,7 @@ def test_weights_sum_to_one_false_skips_sum_constraint(pipeline: ValidationPipel
     instance = _minimal_valid_single_instance(weight=0.7, include_flag=True, flag_value=False)
 
     assert pipeline.validate_general_schema(instance) == []
-    violations = pipeline.validate_full("random-search", instance)
+    violations, _ = pipeline.validate_full("random-search", instance)
 
     # Should not fail only due to weights not summing to 1.
     assert violations == [], [v.model_dump() for v in violations]

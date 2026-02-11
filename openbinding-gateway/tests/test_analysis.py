@@ -76,7 +76,7 @@ def mock_registry():
 def mock_pipeline():
     with patch("openbinding_gateway.main.pipeline") as mock:
         mock.validate_general_schema.return_value = []
-        mock.validate_full.return_value = []
+        mock.validate_full.return_value = ([], [])
         yield mock
 
 @pytest.fixture

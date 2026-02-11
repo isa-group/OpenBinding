@@ -198,6 +198,14 @@ curl -X POST "http://localhost:8000/v1/solve" \
 
 See `examples/` directory for sample payloads.
 
+## 🧭 Engine Integration Guide
+
+If you are adding a new engine, see [docs/ENGINE_INTEGRATION_GUIDE.md](docs/ENGINE_INTEGRATION_GUIDE.md).
+
+## 🤝 Contributing
+
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for branch and PR rules.
+
 ## 📄 License
 
 This project is licensed under the **Creative Commons Attribution 4.0 International (CC BY 4.0)**.

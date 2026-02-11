@@ -83,7 +83,7 @@ def mock_pipeline():
     with patch("openbinding_gateway.main.pipeline") as mock:
         # Assume valid
         mock.validate_general_schema.return_value = []
-        mock.validate_full.return_value = []
+        mock.validate_full.return_value = ([], [])
         yield mock
 
 def test_binding_space_endpoint(mock_registry, mock_pipeline):

@@ -49,6 +49,7 @@ class ValidationViolation(BaseModel):
     message: str
     path: Optional[str] = None
     code: str
+    stage: Optional[str] = None
     # Extended fields for solution violations
     penalty: Optional[float] = None
     description: Optional[str] = None

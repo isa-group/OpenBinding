@@ -18,10 +18,7 @@ import time
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # We could technically load plugins dynamically here if we wanted to be fancy.
-    print("Gateway starting up...")
     yield
-    print("Gateway shutting down...")
 
 app = FastAPI(title="OpenBinding Gateway", lifespan=lifespan)
 
@@ -175,6 +172,7 @@ def validate_and_prepare(request: SolveRequest):
     Ensures the engine exists and the instance follows our QoS schemas.
     """
     # Validate Engine ID
+    default_warnings = []
     try:
         EngineRegistry.get_plugin(request.engine_id)
     except ValueError:
@@ -194,9 +192,9 @@ def validate_and_prepare(request: SolveRequest):
 
     # Stages 2-4: Engine-specific schemas, semantic checks, and logic invariants.
     try:
-        violations = pipeline.validate_full(request.engine_id, request.instance)
+        violations, default_warnings = pipeline.validate_full(request.engine_id, request.instance)
         if violations:
-             return {
+            return {
                 "valid": False,
                 "error": f"The problem has semantic or logical errors: {json.dumps([v.model_dump() for v in violations])}",
                 "violations": violations
@@ -209,6 +207,15 @@ def validate_and_prepare(request: SolveRequest):
     # Everything looks good. Let's calculate the binding space size and check for empty tasks.
     binding_space = compute_binding_space_summary(request.instance)
     warnings = generate_warnings(binding_space)
+    if default_warnings:
+        for path, value in default_warnings:
+            warnings.append(
+                AnalyzeWarning(
+                    code="DEFAULT_APPLIED",
+                    message=f"Applied default for '{path}'",
+                    details={"path": path, "value": value}
+                )
+            )
     
     return {
         "valid": True,
@@ -440,9 +447,10 @@ async def solve(request: SolveRequest, response: Response):
     
     binding_space = result.get("binding_space")
     warnings = result.get("warnings")
+    warning_payload = [w.model_dump() if hasattr(w, "model_dump") else w for w in (warnings or [])]
     
     # Hand the validated request over to the router to find a solution.
-    job_resp = await router.route_solve(request, binding_space=binding_space, warnings=warnings)
+    job_resp = await router.route_solve(request, binding_space=binding_space, warnings=warning_payload)
     
     if job_resp.status == JobStatus.COMPLETED or job_resp.status == JobStatus.FAILED:
         response.status_code = status.HTTP_200_OK

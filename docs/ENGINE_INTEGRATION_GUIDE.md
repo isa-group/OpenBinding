@@ -1,0 +1,138 @@
+# Engine integration guide
+
+This guide explains how to add a new engine to the OpenBinding gateway. It covers schema specialization, validation hooks, routing, and tests.
+
+## Overview
+
+The gateway validates incoming instances in stages and then routes them to the selected engine.
+
+Validation stages:
+1. General schema
+2. Specialization schema
+3. General semantic rules
+4. Engine semantic rules
+
+Engines integrate through the gateway plugin interface and a specialization schema.
+
+## Required artifacts
+
+1. Engine plugin (gateway): implement `EngineValidationPlugin`.
+2. Specialization schema: `schemas/specializations/<engine-id>.schema.json`.
+3. Engine URL in registry + env wiring.
+4. Tests for validation and transformation.
+
+## Step-by-step
+
+### 1) Add a specialization schema
+
+Create a specialization schema under `schemas/specializations/`.
+
+- File name must match the engine id: `schemas/specializations/<engine-id>.schema.json`.
+- Use `const` to lock allowed objective types, constraint kinds, composition forms, etc.
+- If you need defaults at the gateway, set `default` values in the schema.
+
+### 2) Implement the engine plugin
+
+Create a new plugin in `openbinding-gateway/src/openbinding_gateway/validation/engine_plugins/`:
+
+```python
+from typing import Any, Dict, List, Tuple
+import httpx
+from .base import EngineValidationPlugin
+from ...models.api import ValidationViolation
+
+class MyEnginePlugin(EngineValidationPlugin):
+    async def check_engine_health(self, base_url: str, client: httpx.AsyncClient) -> bool:
+        resp = await client.get(f"{base_url.rstrip('/')}/health")
+        return resp.status_code == 200
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {
+            "qos_features_supported": ["*"],
+            "composition_nodes_supported": ["TASK", "SEQ"],
+            "objective_types_supported": ["weighted_sum"],
+            "constraints_supported": ["attribute_bound"],
+            "schema_version": "v1",
+        }
+
+    def get_specialization_schema_path(self) -> str:
+        # Uses SCHEMAS_DIR if available
+        # e.g. /app/schemas/specializations/my-engine.schema.json
+        ...
+
+    def validate_semantics(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
+        violations: List[ValidationViolation] = []
+        # Add engine-specific invariants here
+        return violations
+
+    def transform_request(self, instance: Dict[str, Any], options: Dict[str, Any] = {}) -> Tuple[Dict[str, Any], List[str]]:
+        # Map general instance to engine request payload
+        return {"instance": instance, "options": options}, []
+
+    def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:
+        # Map engine response to gateway solution format
+        return engine_response
+```
+
+### 3) Register the plugin and URL
+
+Add the plugin to `EngineRegistry`:
+
+- File: `openbinding-gateway/src/openbinding_gateway/registry/engine.py`
+- Add env var for the engine URL (e.g. `ENGINE_MY_ENGINE_URL`).
+- Register the plugin in the initialization block.
+
+Example:
+
+```python
+from ..validation.engine_plugins.my_engine import MyEnginePlugin
+
+_engine_urls = {
+    "my-engine": os.getenv("ENGINE_MY_ENGINE_URL", "http://engine-my:1234"),
+}
+
+EngineRegistry.register("my-engine", MyEnginePlugin())
+```
+
+### 4) Ensure schema endpoints work
+
+The gateway exposes:
+
+- `/v1/schemas/general`
+- `/v1/schemas/<engine-id>`
+
+Your specialization schema must exist and be discoverable via `SCHEMAS_DIR`.
+
+### 5) Add tests
+
+Recommended tests:
+
+- Schema and semantic validation: `openbinding-gateway/tests/test_validation_comprehensive.py`
+- Plugin request/response transformation: `openbinding-gateway/tests/test_plugin_transformation.py`
+- Integration tests via docker compose (if the engine is available)
+
+### 6) Wire docker compose (if needed)
+
+Add the engine service to `docker-compose.yml` and expose the engine URL to the gateway:
+
+```yaml
+environment:
+  - ENGINE_MY_ENGINE_URL=http://engine-my:1234
+```
+
+## Validation expectations
+
+The gateway uses schema defaults and semantic checks before engine-specific validation. If your engine depends on implicit rules, enforce them in `validate_semantics`.
+
+Common checks:
+
+- Unsupported composition nodes
+- Unsupported constraint types or objective types
+- Missing candidates or missing QoS values
+- Attribute bounds on missing features
+
+## Troubleshooting
+
+- Check `/v1/engines` to confirm the engine is registered and reachable.
+- Use `/v1/analyze` for validation errors and warnings.
+- Ensure `SCHEMAS_DIR` resolves to the folder containing your specialization schema.

@@ -23,7 +23,6 @@ public class Server {
         });
         server.createContext("/solve", new Controller());
         server.setExecutor(Executors.newCachedThreadPool());
-        System.out.println("Random-Search Service started on port " + port);
         server.start();
     }
 }

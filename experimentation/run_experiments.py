@@ -165,7 +165,7 @@ def run_experiments():
     
     # Progress Bar using tqdm
     # LIMIT FOR TESTING (User request: do not run all)
-    instances = instances[:50]
+    instances = instances[:100]
     pbar = tqdm(instances, unit="inst")
     
     for item in pbar:

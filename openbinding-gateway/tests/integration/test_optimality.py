@@ -78,7 +78,6 @@ def run_test(gateway_url, wait_for_job, engine, instance, expected_selection, ex
              # MiniZinc returns 0.02 for 20 (Factor 1000)
              # Random Search returns 20.0 for 20 (Factor 1)
              
-             print(f"Engine: {engine}, Obj: {obj}, Expected Raw: {expected_objective}")
              
              # Factor 1000 check (legacy behavior)
              norm_exp = expected_objective / 1000.0

@@ -167,19 +167,13 @@ def test_huge_minizinc(gateway_url, wait_for_job):
     inst = create_huge_instance("minizinc")
     sol = solve(gateway_url, wait_for_job, "minizinc-csp", inst)
     assert sol["is_feasible"], "MiniZinc huge instance should be feasible"
-    print(f"MiniZinc Huge Obj: {sol['objective_value']}")
 
 # @pytest.mark.skip(reason="Huge scale tests timeout due to complex schema and large binding space")
 def test_huge_random(gateway_url, wait_for_job):
     """Verify huge instance with global constraints on Random Search."""
     inst = create_huge_instance("random")
     sol = solve(gateway_url, wait_for_job, "random-search", inst)
-    # Random search might struggle to find feasible if constraints strict and space huge
-    # But here constraints are loose (cost<=10000).
-    if not sol["is_feasible"]:
-        print("Warning: Random Search invalid (could be heuristics).")
-    else:
-        print(f"Random Search Huge Obj: {sol['objective_value']}")
+    # Random search might struggle to find feasible if constraints strict and space huge.
 
 # @pytest.mark.skip(reason="Huge scale tests timeout due to complex schema and large binding space")
 def test_huge_common_comparison(gateway_url, wait_for_job):
@@ -190,16 +184,3 @@ def test_huge_common_comparison(gateway_url, wait_for_job):
     sol_rs = solve(gateway_url, wait_for_job, "random-search", inst)
     
     assert sol_mz["is_feasible"], "MiniZinc should have no trouble with this relaxed instance."
-    if sol_rs["is_feasible"]:
-        print(f"MZ Obj: {sol_mz['objective_value']}, RS Obj: {sol_rs['objective_value']}")
-        # Compare bindings
-        count = 0 
-        total = 0
-        if sol_mz["binding"] and sol_rs["binding"]:
-             for k in sol_mz["binding"]:
-                 total += 1
-                 if sol_mz["binding"][k] == sol_rs["binding"].get(k):
-                     count += 1
-        print(f"Binding Match: {count}/{total}")
-    else:
-        print("RS failed to find solution.")
