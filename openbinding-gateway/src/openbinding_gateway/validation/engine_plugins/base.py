@@ -28,6 +28,14 @@ class EngineValidationPlugin(ABC):
         """
         raise NotImplementedError
 
+    def get_default_options(self) -> Dict[str, Any]:
+        """Return gateway-level default options for this engine.
+
+        These defaults are intended to populate the request `options` object when
+        the client does not specify any values.
+        """
+        return {}
+
     def transform_request(self, instance: Dict[str, Any], options: Dict[str, Any] = {}) -> Tuple[Dict[str, Any], List[str]]:
         """Transform general instance to engine-specific request payload. Returns (payload, warnings)."""
         # Default behavior: pass instance and options structure

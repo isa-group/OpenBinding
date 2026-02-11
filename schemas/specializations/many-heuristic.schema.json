@@ -1,0 +1,281 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "file:///Users/franciscojaviercaverolopez/Workspace/OpenBinding/schemas/specializations/many-heuristic.schema.json",
+  "title": "Many-Heuristic Specialization",
+  "description": "Profile for the Many-Heuristic Java Engine (structured workflows + many-objective + Pareto options).",
+  "type": "object",
+  "properties": {
+    "composition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "STRUCTURED"
+        },
+        "root": {
+          "$ref": "#/$defs/random_search_node"
+        }
+      },
+      "required": [
+        "type",
+        "root"
+      ]
+    },
+    "objective": {
+      "properties": {
+        "type": {
+          "const": "MANY"
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "ATTRIBUTE_BOUND"
+              },
+              "scope": {
+                "enum": [
+                  "GLOBAL",
+                  "LOCAL"
+                ]
+              },
+              "tasks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "<=",
+                  "<",
+                  ">=",
+                  ">",
+                  "==",
+                  "!=",
+                  "IN_RANGE"
+                ]
+              },
+              "value": {
+                "oneOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "min": {
+                        "type": "number"
+                      },
+                      "max": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "min",
+                      "max"
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "scope",
+              "op",
+              "value"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "DEPENDENCY"
+              },
+              "type": {
+                "enum": [
+                  "SAME_PROVIDER",
+                  "DIFFERENT_PROVIDER"
+                ]
+              },
+              "hard": {
+                "type": "boolean"
+              },
+              "tasks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "type"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "composition",
+    "features",
+    "aggregation_policies",
+    "objective"
+  ],
+  "$defs": {
+    "random_search_node": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/task_node"
+        },
+        {
+          "$ref": "#/$defs/seq_node"
+        },
+        {
+          "$ref": "#/$defs/and_node"
+        },
+        {
+          "$ref": "#/$defs/xor_node"
+        },
+        {
+          "$ref": "#/$defs/loop_node"
+        },
+        {
+          "$ref": "#/$defs/element_node"
+        }
+      ]
+    },
+    "task_node": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "TASK"
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    },
+    "seq_node": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "SEQ"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/random_search_node"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "children"
+      ]
+    },
+    "and_node": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "AND"
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/random_search_node"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "children"
+      ]
+    },
+    "xor_node": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "XOR"
+        },
+        "branches": {
+          "type": "array",
+          "items": {
+            "properties": {
+              "child": {
+                "$ref": "#/$defs/random_search_node"
+              },
+              "p": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "child",
+              "p"
+            ]
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "branches"
+      ]
+    },
+    "loop_node": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "LOOP"
+        },
+        "body": {
+          "$ref": "#/$defs/random_search_node"
+        },
+        "expected_iterations": {
+          "type": "number",
+          "minimum": 0
+        },
+        "bounds": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "min",
+            "max"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "body"
+      ]
+    },
+    "element_node": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "ELEMENT"
+        }
+      },
+      "required": [
+        "kind"
+      ]
+    }
+  }
+}

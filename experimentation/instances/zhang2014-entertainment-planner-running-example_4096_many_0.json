@@ -1,0 +1,758 @@
+{
+  "metadata": {
+    "id": "zhang2014-entertainment-planner-running-example_4096_many_0",
+    "name": "Personal Entertainment Planner (Zhang et al. 2014) (4096 space, many)",
+    "version": "1.0.0",
+    "created_at": "2026-02-02T12:00:00Z",
+    "description": "Modeled from the motivating example in 'Context-aware Generic Service Discovery and Service Composition' (IEEE MobServ 2014).",
+    "paper": {
+      "title": "Context-aware Generic Service Discovery and Service Composition",
+      "authors": "Y. Zhang et al.",
+      "year": 2014,
+      "doi": "10.1109/MobServ.2014.27"
+    }
+  },
+  "features": [
+    {
+      "id": "cost",
+      "name": "Total money cost (USD)",
+      "direction": "MINIMIZE",
+      "unit": "usd",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1000
+      }
+    },
+    {
+      "id": "time",
+      "name": "Total time cost (minutes)",
+      "direction": "MINIMIZE",
+      "unit": "min",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1440
+      }
+    },
+    {
+      "id": "distance",
+      "name": "Distance from user's current location (meters)",
+      "direction": "MINIMIZE",
+      "unit": "m",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 50000
+      }
+    }
+  ],
+  "providers": [
+    {
+      "id": "p_rest_autre_saison",
+      "name": "Restaurant L\u2019Autre Saison"
+    },
+    {
+      "id": "p_cinema_banque_scotia",
+      "name": "Cinema Banque Scotia Montreal"
+    },
+    {
+      "id": "p_seven_night_club",
+      "name": "Seven Night Club"
+    },
+    {
+      "id": "p_local_shopping",
+      "name": "Local Shopping (nearby venue)"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t_dining",
+      "name": "Restaurant / Dining activity"
+    },
+    {
+      "id": "t_shopping",
+      "name": "Shopping activity"
+    },
+    {
+      "id": "t_movie",
+      "name": "Movie activity"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "c_dining_autre_saison",
+      "task_id": "t_dining",
+      "provider_id": "p_rest_autre_saison",
+      "name": "Dinner at Restaurant L\u2019Autre Saison",
+      "features": {
+        "cost": 20,
+        "time": 60,
+        "distance": 1600
+      }
+    },
+    {
+      "id": "c_dining_seven_night_club",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Seven Night Club",
+      "features": {
+        "cost": 20,
+        "time": 60,
+        "distance": 1800
+      }
+    },
+    {
+      "id": "c_shopping_local",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue",
+      "features": {
+        "cost": 20,
+        "time": 45,
+        "distance": 1200
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal",
+      "features": {
+        "cost": 10,
+        "time": 135,
+        "distance": 1700
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_4",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated)",
+      "features": {
+        "cost": 9.73,
+        "time": 132.86,
+        "distance": 1681.78
+      }
+    },
+    {
+      "id": "c_dining_autre_saison_copy_5",
+      "task_id": "t_dining",
+      "provider_id": "p_rest_autre_saison",
+      "name": "Dinner at Restaurant L\u2019Autre Saison (Allocated)",
+      "features": {
+        "cost": 20.46,
+        "time": 60.12,
+        "distance": 1628.48
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_6",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated)",
+      "features": {
+        "cost": 9.92,
+        "time": 135.98,
+        "distance": 1687.5
+      }
+    },
+    {
+      "id": "c_shopping_local_copy_7",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue (Allocated)",
+      "features": {
+        "cost": 19.9,
+        "time": 43.34,
+        "distance": 1218.3
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_6_copy_8",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated)",
+      "features": {
+        "cost": 10.1,
+        "time": 131.93,
+        "distance": 1626.43
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_4_copy_9",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated)",
+      "features": {
+        "cost": 9.66,
+        "time": 138.29,
+        "distance": 1727.2
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_4_copy_9_copy_10",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 10.06,
+        "time": 135.77,
+        "distance": 1737.1
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_11",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated)",
+      "features": {
+        "cost": 9.68,
+        "time": 139.58,
+        "distance": 1639.74
+      }
+    },
+    {
+      "id": "c_dining_seven_night_club_copy_12",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Seven Night Club (Allocated)",
+      "features": {
+        "cost": 20.76,
+        "time": 59.48,
+        "distance": 1784.03
+      }
+    },
+    {
+      "id": "c_shopping_local_copy_7_copy_13",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue (Allocated) (Allocated)",
+      "features": {
+        "cost": 19.21,
+        "time": 41.99,
+        "distance": 1173.41
+      }
+    },
+    {
+      "id": "c_dining_autre_saison_copy_5_copy_14",
+      "task_id": "t_dining",
+      "provider_id": "p_rest_autre_saison",
+      "name": "Dinner at Restaurant L\u2019Autre Saison (Allocated) (Allocated)",
+      "features": {
+        "cost": 20.68,
+        "time": 60.8,
+        "distance": 1644.17
+      }
+    },
+    {
+      "id": "c_dining_autre_saison_copy_15",
+      "task_id": "t_dining",
+      "provider_id": "p_rest_autre_saison",
+      "name": "Dinner at Restaurant L\u2019Autre Saison (Allocated)",
+      "features": {
+        "cost": 19.72,
+        "time": 61.13,
+        "distance": 1596.26
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_11_copy_16",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated)",
+      "features": {
+        "cost": 9.78,
+        "time": 142.54,
+        "distance": 1619.07
+      }
+    },
+    {
+      "id": "c_shopping_local_copy_7_copy_17",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue (Allocated) (Allocated)",
+      "features": {
+        "cost": 19.85,
+        "time": 41.88,
+        "distance": 1184.95
+      }
+    },
+    {
+      "id": "c_shopping_local_copy_18",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue (Allocated)",
+      "features": {
+        "cost": 20.85,
+        "time": 47.03,
+        "distance": 1166.71
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_6_copy_8_copy_19",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 10.36,
+        "time": 126.21,
+        "distance": 1695.9
+      }
+    },
+    {
+      "id": "c_shopping_local_copy_18_copy_20",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue (Allocated) (Allocated)",
+      "features": {
+        "cost": 20.83,
+        "time": 46.21,
+        "distance": 1161.76
+      }
+    },
+    {
+      "id": "c_dining_seven_night_club_copy_12_copy_21",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Seven Night Club (Allocated) (Allocated)",
+      "features": {
+        "cost": 20.56,
+        "time": 56.75,
+        "distance": 1826.01
+      }
+    },
+    {
+      "id": "c_shopping_local_copy_18_copy_20_copy_22",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 20.44,
+        "time": 46.73,
+        "distance": 1189.93
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_6_copy_8_copy_19_copy_23",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 10.39,
+        "time": 130.95,
+        "distance": 1744.56
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_4_copy_24",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated)",
+      "features": {
+        "cost": 9.68,
+        "time": 137.2,
+        "distance": 1604.82
+      }
+    },
+    {
+      "id": "c_dining_autre_saison_copy_5_copy_14_copy_25",
+      "task_id": "t_dining",
+      "provider_id": "p_rest_autre_saison",
+      "name": "Dinner at Restaurant L\u2019Autre Saison (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 20.76,
+        "time": 63.74,
+        "distance": 1568.42
+      }
+    },
+    {
+      "id": "c_shopping_local_copy_18_copy_26",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue (Allocated) (Allocated)",
+      "features": {
+        "cost": 21.4,
+        "time": 49.21,
+        "distance": 1130.52
+      }
+    },
+    {
+      "id": "c_shopping_local_copy_18_copy_20_copy_22_copy_27",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 21.23,
+        "time": 48.01,
+        "distance": 1164.46
+      }
+    },
+    {
+      "id": "c_dining_seven_night_club_copy_12_copy_21_copy_28",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Seven Night Club (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 20.14,
+        "time": 59.13,
+        "distance": 1860.7
+      }
+    },
+    {
+      "id": "c_dining_autre_saison_copy_5_copy_14_copy_25_copy_29",
+      "task_id": "t_dining",
+      "provider_id": "p_rest_autre_saison",
+      "name": "Dinner at Restaurant L\u2019Autre Saison (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 21.44,
+        "time": 63.43,
+        "distance": 1603.34
+      }
+    },
+    {
+      "id": "c_dining_autre_saison_copy_5_copy_30",
+      "task_id": "t_dining",
+      "provider_id": "p_rest_autre_saison",
+      "name": "Dinner at Restaurant L\u2019Autre Saison (Allocated) (Allocated)",
+      "features": {
+        "cost": 21.03,
+        "time": 62.75,
+        "distance": 1660.42
+      }
+    },
+    {
+      "id": "c_dining_seven_night_club_copy_12_copy_21_copy_31",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Seven Night Club (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 20.38,
+        "time": 56.47,
+        "distance": 1767.37
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_6_copy_8_copy_32",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 10.49,
+        "time": 126.52,
+        "distance": 1597.82
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_6_copy_8_copy_32_copy_33",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 10.8,
+        "time": 129.28,
+        "distance": 1537.67
+      }
+    },
+    {
+      "id": "c_dining_seven_night_club_copy_12_copy_21_copy_31_copy_34",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Seven Night Club (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 20.28,
+        "time": 55.7,
+        "distance": 1771.58
+      }
+    },
+    {
+      "id": "c_shopping_local_copy_18_copy_20_copy_22_copy_27_copy_35",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue (Allocated) (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 21.47,
+        "time": 46.38,
+        "distance": 1170.32
+      }
+    },
+    {
+      "id": "c_dining_seven_night_club_copy_12_copy_21_copy_31_copy_34_copy_36",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Seven Night Club (Allocated) (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 19.61,
+        "time": 54.78,
+        "distance": 1837.36
+      }
+    },
+    {
+      "id": "c_dining_autre_saison_copy_5_copy_37",
+      "task_id": "t_dining",
+      "provider_id": "p_rest_autre_saison",
+      "name": "Dinner at Restaurant L\u2019Autre Saison (Allocated) (Allocated)",
+      "features": {
+        "cost": 21.21,
+        "time": 58.19,
+        "distance": 1663.01
+      }
+    },
+    {
+      "id": "c_shopping_local_copy_18_copy_38",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue (Allocated) (Allocated)",
+      "features": {
+        "cost": 20.45,
+        "time": 48.29,
+        "distance": 1160.44
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_6_copy_39",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated)",
+      "features": {
+        "cost": 9.54,
+        "time": 130.97,
+        "distance": 1637.36
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_6_copy_8_copy_32_copy_33_copy_40",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 10.53,
+        "time": 128.75,
+        "distance": 1592.32
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_6_copy_8_copy_32_copy_33_copy_41",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 10.27,
+        "time": 134.23,
+        "distance": 1497.36
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_6_copy_8_copy_32_copy_33_copy_41_copy_42",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated) (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 10.22,
+        "time": 133.45,
+        "distance": 1512.52
+      }
+    },
+    {
+      "id": "c_dining_seven_night_club_copy_12_copy_43",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Seven Night Club (Allocated) (Allocated)",
+      "features": {
+        "cost": 21.55,
+        "time": 58.16,
+        "distance": 1806.98
+      }
+    },
+    {
+      "id": "c_dining_seven_night_club_copy_44",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Seven Night Club (Allocated)",
+      "features": {
+        "cost": 19.37,
+        "time": 57.33,
+        "distance": 1772.82
+      }
+    },
+    {
+      "id": "c_dining_seven_night_club_copy_45",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Seven Night Club (Allocated)",
+      "features": {
+        "cost": 20.33,
+        "time": 62.03,
+        "distance": 1763.72
+      }
+    },
+    {
+      "id": "c_dining_seven_night_club_copy_46",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Seven Night Club (Allocated)",
+      "features": {
+        "cost": 19.22,
+        "time": 62.96,
+        "distance": 1739.04
+      }
+    },
+    {
+      "id": "c_shopping_local_copy_18_copy_20_copy_22_copy_27_copy_35_copy_47",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue (Allocated) (Allocated) (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 21.82,
+        "time": 47.31,
+        "distance": 1178.78
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia_copy_4_copy_9_copy_10_copy_48",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 10.53,
+        "time": 139.16,
+        "distance": 1712.81
+      }
+    }
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "n_root",
+      "kind": "SEQ",
+      "children": [
+        {
+          "id": "n_dining",
+          "kind": "TASK",
+          "task_id": "t_dining"
+        },
+        {
+          "id": "n_shopping",
+          "kind": "TASK",
+          "task_id": "t_shopping"
+        },
+        {
+          "id": "n_movie",
+          "kind": "TASK",
+          "task_id": "t_movie"
+        }
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "cost": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "time": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "distance": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    }
+  },
+  "constraints": [
+    {
+      "id": "c_global_cost_0",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "cost",
+      "op": "<=",
+      "value": 525.97,
+      "hard": false
+    },
+    {
+      "id": "c_global_time_1",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "time",
+      "op": "<=",
+      "value": 790.29,
+      "hard": true
+    },
+    {
+      "id": "c_local_t_shopping_distance_2",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_shopping"
+      ],
+      "attribute_id": "distance",
+      "op": "<=",
+      "value": 37240.76,
+      "hard": true
+    },
+    {
+      "id": "c_local_t_movie_cost_3",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_movie"
+      ],
+      "attribute_id": "cost",
+      "op": "<=",
+      "value": 814.22,
+      "hard": true
+    },
+    {
+      "id": "c_dep_t_movie_t_dining_4",
+      "kind": "DEPENDENCY",
+      "type": "DIFFERENT_PROVIDER",
+      "tasks": [
+        "t_movie",
+        "t_dining"
+      ],
+      "hard": true
+    }
+  ],
+  "objective": {
+    "type": "MANY",
+    "targets": [
+      "cost",
+      "time",
+      "distance"
+    ],
+    "weights": {
+      "cost": 0.34,
+      "time": 0.33,
+      "distance": 0.33
+    }
+  }
+}

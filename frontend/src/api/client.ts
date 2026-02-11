@@ -6,6 +6,8 @@ export interface Engine {
   active?: boolean;
 }
 
+export type EngineDefaultOptions = Record<string, unknown>;
+
 export interface ValidationViolation {
   code: string;
   message: string;
@@ -149,6 +151,10 @@ class ApiClient {
 
   async getEngines(): Promise<Engine[]> {
     return this.request<Engine[]>('/v1/engines');
+  }
+
+  async getEngineDefaultOptions(engineId: string): Promise<EngineDefaultOptions> {
+    return this.request<EngineDefaultOptions>(`/v1/engines/${engineId}/options/defaults`);
   }
 
   async getGeneralSchema(): Promise<any> {

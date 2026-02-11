@@ -1,6 +1,6 @@
 # OpenBinding Demo Examples
 
-This directory contains a set of 10 diverse composition problems designed to demonstrate the various features and capabilities of the OpenBinding framework, including different composition structures, constraints, and objectives.
+This directory contains a set of 12 diverse composition problems designed to demonstrate the various features and capabilities of the OpenBinding framework, including different composition structures, constraints, and objectives.
 
 ## Core Concepts (JSON Model)
 
@@ -23,8 +23,8 @@ Each example is a JSON file that defines a service composition problem. The key 
     *   **`DEPENDENCY`**: Constraints between providers (e.g., `SAME_PROVIDER` for two tasks).
 *   **`objective`**: The goal of the optimization.
     *   **`SINGLE`**: Optimize one feature (or a weighted sum of multiple features).
-    *   **`MULTI`**: Optimize multiple features (Pareto frontier).
-    *   **`MANY`**: Optimize many features (intended for Many-Objective algorithms).
+    *   **`MULTI`**: Optimize multiple features (Negative test for now).
+    *   **`MANY`**: Optimize many features (3+) for Pareto Front.
 
 ## Example Guide
 
@@ -36,12 +36,14 @@ Here is a guide to the included examples and their specific intent:
 | **`02_parallel.json`** | **Parallel Flow (AND)** | Demonstrates parallel execution. Shows how `MAX` aggregation (for latency) works differently from `SUM`. |
 | **`03_xor_choice.json`** | **Probabilistic Branching (XOR)** | Uses `XOR` nodes with probabilities. The objective is expected availability. |
 | **`04_conflict.json`** | **Infeasibility** | A problem designed to be unsolvable due to conflicting constraints. Use this to test error handling or "No Solution" responses. |
-| **`05_multi_obj.json`** | **Multi-Objective** | Optimizes for both Cost and Latency. Should return a set of Pareto-optimal solutions rather than a single best one. |
+| **`05_multi_obj.json`** | **Weighted Sum (SINGLE)** | A Cost+Latency trade-off encoded as a `SINGLE` weighted-sum objective (supported by current engines). |
 | **`06_loops.json`** | **Loops** | Demonstrates the `LOOP` structure. Aggregation uses `expected_iterations` to estimate QoS. |
 | **`07_soft_constraints.json`** | **Soft Constraints** | Includes a constraint marked `hard: false`. Violations should be penalized but allowed. |
 | **`08_dependencies.json`** | **Provider Dependencies** | Forces two independent tasks to select services from the `SAME_PROVIDER`. |
 | **`09_mixed.json`** | **Complex/Mixed** | Combines multiple structures (Seq, XOR) and constraints. A more realistic scenario. |
 | **`10_large_scale.json`** | **Scale/Performance** | A larger composition (10 sequential tasks) with more candidates, used to test solver performance. |
+| **`11_multi_obj_negative.json`** | **Multi-Objective (Negative)** | A problem with 2 objectives. Used to verify that engines correctly reject "Multi" objectives (at the moment there are no engines that support this type of objective). |
+| **`12_many_obj_pareto.json`** | **Many-Objective (Pareto)** | A problem with 3 objectives. The **Many-Heuristic** engine should return a set of Pareto-optimal solutions for this input. |
 
 ## Usage
 
@@ -54,17 +56,17 @@ You can send these examples to the OpenBinding Gateway using `curl`.
 To solve the **Simple Sequence** example using the **Random Search** engine:
 
 ```bash
-curl -X POST "http://localhost:8000/v1/solve?engine=random-search" \
-     -H "Content-Type: application/json" \
-     -d @01_simple_seq.json
+curl -X POST "http://localhost:8000/v1/solve" \
+    -H "Content-Type: application/json" \
+    -d @<(jq -n --argfile inst 01_simple_seq.json '{engine_id:"random-search", instance:$inst, options:{iterations_count:1000}, verbose:false}')
 ```
 
-To solve the **Multi-Objective** example using the **MiniZinc** engine:
+To solve the **Many-Objective** example using the **Many-Heuristic** engine:
 
 ```bash
-curl -X POST "http://localhost:8000/v1/solve?engine=minizinc-csp" \
-     -H "Content-Type: application/json" \
-     -d @05_multi_obj.json
+curl -X POST "http://localhost:8000/v1/solve" \
+    -H "Content-Type: application/json" \
+    -d @<(jq -n --argfile inst 12_many_obj_pareto.json '{engine_id:"many-heuristic", instance:$inst, options:{iterations_count:1000, archive_size:20}, verbose:false}')
 ```
 
 **Note**: Ensure you are in the `examples/demo` directory when running these commands, or provide the full path to the JSON file.

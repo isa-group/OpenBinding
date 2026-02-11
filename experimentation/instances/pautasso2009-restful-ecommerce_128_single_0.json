@@ -608,25 +608,46 @@
   },
   "constraints": [
     {
-      "id": "c_global_cost_usd_0",
-      "kind": "ATTRIBUTE_BOUND",
-      "scope": "GLOBAL",
-      "attribute_id": "cost_usd",
-      "op": "<=",
-      "value": 816.01,
-      "hard": true
-    },
-    {
-      "id": "c_global_latency_ms_1",
+      "id": "c_global_latency_ms_0",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "GLOBAL",
       "attribute_id": "latency_ms",
       "op": "<=",
-      "value": 2678.77,
+      "value": 4108.18,
+      "hard": false
+    },
+    {
+      "id": "c_global_availability_1",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "availability",
+      "op": ">=",
+      "value": 0.44,
       "hard": true
     },
     {
-      "id": "c_local_t_get_quote_cost_usd_2",
+      "id": "c_global_cost_usd_2",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "cost_usd",
+      "op": "<=",
+      "value": 820.01,
+      "hard": true
+    },
+    {
+      "id": "c_local_t_cancel_order_cost_usd_3",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_cancel_order"
+      ],
+      "attribute_id": "cost_usd",
+      "op": "<=",
+      "value": 881.98,
+      "hard": true
+    },
+    {
+      "id": "c_local_t_get_quote_cost_usd_4",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
@@ -634,28 +655,16 @@
       ],
       "attribute_id": "cost_usd",
       "op": "<=",
-      "value": 625.0,
-      "hard": true
+      "value": 647.07,
+      "hard": false
     },
     {
-      "id": "c_local_t_ship_order_availability_3",
-      "kind": "ATTRIBUTE_BOUND",
-      "scope": "LOCAL",
-      "tasks": [
-        "t_ship_order"
-      ],
-      "attribute_id": "availability",
-      "op": ">=",
-      "value": 0.08,
-      "hard": true
-    },
-    {
-      "id": "c_dep_t_charge_payment_t_get_quote_4",
+      "id": "c_dep_t_update_shipment_t_list_confirmed_5",
       "kind": "DEPENDENCY",
       "type": "DIFFERENT_PROVIDER",
       "tasks": [
-        "t_charge_payment",
-        "t_get_quote"
+        "t_update_shipment",
+        "t_list_confirmed"
       ],
       "hard": true
     }
@@ -663,14 +672,10 @@
   "objective": {
     "type": "SINGLE",
     "targets": [
-      "latency_ms",
-      "cost_usd",
-      "availability"
+      "cost_usd"
     ],
     "weights": {
-      "latency_ms": 0.35,
-      "cost_usd": 0.42,
-      "availability": 0.23
+      "cost_usd": 1.0
     }
   }
 }

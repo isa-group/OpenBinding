@@ -105,6 +105,12 @@ export class Solver {
                 }
             }
 
+            // RECALCULATE RAW AGGREGATED VALUES
+            // We ignore result.aggregated_features from MiniZinc because they are normalized
+            const aggregated_features = this.computeRawAggregatedValues(instance, selection, features);
+
+            /*
+            // OLD NORMALIZED LOGIC
             const aggregated_features: Record<string, number> = {};
             if (result.aggregated_features) {
                 for (const [idxStr, val] of Object.entries(result.aggregated_features)) {
@@ -115,6 +121,7 @@ export class Solver {
                     }
                 }
             }
+            */
 
             return {
                 solution: {
@@ -140,7 +147,129 @@ export class Solver {
         }
     }
 
-    private validateBestPractices(instance: any): Array<Record<string, unknown>> {
+    private computeRawAggregatedValues(instance: any, selection: Record<string, string>, features: string[]): Record<string, number> {
+        // 1. Build a map of candidates for quick lookup
+        const candidateMap: Record<string, any> = {};
+        if (Array.isArray(instance.candidates)) {
+            instance.candidates.forEach((c: any) => {
+                candidateMap[c.id] = c;
+            });
+        }
+
+        // 2. Recursive traversal
+        const traverse = (node: any, featId: string): number => {
+            if (!node) return 0;
+
+            const kind = node.kind || '';
+
+            if (kind === 'TASK') {
+                const taskId = node.task_id;
+                const candId = selection[taskId];
+                if (!candId) return 0; // Should not happen if feasible
+
+                const cand = candidateMap[candId];
+                if (!cand) return 0;
+
+                const qos = cand.qos || cand.features || {};
+                let val = qos[featId];
+                if (val === undefined || val === null) return 0; // Default to 0 if missing
+                return Number(val);
+            }
+
+            // Composite nodes
+            const pol = instance.aggregation_policies?.[featId]?.compose?.[kind.toLowerCase()] || {};
+            const fn = (pol.fn || 'SUM').toUpperCase();
+
+            let children: any[] = [];
+            if (kind === 'LOOP') {
+                // Loop has body
+                // Loop iterations
+                let iters = node.expected_iterations;
+                if (iters === undefined || iters === null) {
+                    const bounds = node.bounds || {};
+                    const mn = Number(bounds.min ?? 0);
+                    const mx = Number(bounds.max ?? 0);
+                    if (mx > 0 || mn > 0) {
+                        iters = (mn + mx) / 2.0;
+                    } else {
+                        iters = node.iterations || 1;
+                    }
+                }
+                const loopIters = Number(iters);
+                const bodyVal = traverse(node.body, featId);
+
+                // Default loop aggregation logic matching engines
+                // If SUM/SCALED_SUM -> val * iters
+                // If PROD -> val ^ iters (SCALED_PRODUCT)
+                // If MAX/MIN -> val
+
+                if (fn === 'SUM' || fn === 'SCALED_SUM') return bodyVal * loopIters;
+                if (fn === 'PRODUCT' || fn === 'SCALED_PRODUCT') return Math.pow(bodyVal, loopIters);
+                if (fn === 'MAX' || fn === 'MIN') return bodyVal;
+
+                // Fallback
+                return bodyVal * loopIters;
+            }
+
+            // SEQ, AND, XOR
+            let explicitProbs: number[] = [];
+            if (node.children) {
+                children = node.children;
+            } else if (node.branches) {
+                children = node.branches.map((b: any) => b.child);
+                explicitProbs = node.branches.map((b: any) => b.p || 0);
+            }
+
+            const childVals = children.map(c => traverse(c, featId));
+
+            if (kind === 'XOR') {
+                // XOR uses probability weighted sum usually, or MAX/MIN
+                // If fn is MAX -> max(childVals)
+                // If fn is MIN -> min(childVals)
+                // If fn is SCALED_SUM (default for XOR) -> sum(prob * val)
+
+                if (fn === 'MAX') return Math.max(...childVals);
+                if (fn === 'MIN') return Math.min(...childVals);
+
+                // Default Weighted Sum
+                let sum = 0;
+                for (let i = 0; i < childVals.length; i++) {
+                    // If explicit probs exist (from branches), use them
+                    // If not (e.g. from children list), assume equal? XOR usually has branches with probs.
+                    // The JSON usually has `branches` for XOR.
+                    let p = explicitProbs[i] !== undefined ? explicitProbs[i] : (1.0 / childVals.length);
+                    sum += p * childVals[i];
+                }
+                return sum;
+            }
+
+            // SEQ, AND (FLOW) usually SUM or MAX or PRODUCT
+            if (fn === 'SUM' || fn === 'SCALED_SUM') {
+                return childVals.reduce((a, b) => a + b, 0);
+            }
+            if (fn === 'PRODUCT' || fn === 'SCALED_PRODUCT') {
+                return childVals.reduce((a, b) => a * b, 1);
+            }
+            if (fn === 'MAX') {
+                return Math.max(...childVals);
+            }
+            if (fn === 'MIN') {
+                return Math.min(...childVals);
+            }
+
+            // Default fallback
+            return childVals.reduce((a, b) => a + b, 0);
+        };
+
+        const result: Record<string, number> = {};
+        const root = instance.composition?.root;
+        if (root) {
+            features.forEach(featId => {
+                result[featId] = traverse(root, featId);
+            });
+        }
+        return result;
+    } private validateBestPractices(instance: any): Array<Record<string, unknown>> {
         const violations: Array<Record<string, unknown>> = [];
         const tasks = Array.isArray(instance.tasks) ? instance.tasks : [];
         const definedTaskIds = new Set<string>(

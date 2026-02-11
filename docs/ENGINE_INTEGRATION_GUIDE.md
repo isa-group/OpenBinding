@@ -27,9 +27,23 @@ Engines integrate through the gateway plugin interface and a specialization sche
 
 Create a specialization schema under `schemas/specializations/`.
 
-- File name must match the engine id: `schemas/specializations/<engine-id>.schema.json`.
-- Use `const` to lock allowed objective types, constraint kinds, composition forms, etc.
-- If you need defaults at the gateway, set `default` values in the schema.
+
+## Engine options defaults (Playground)
+
+The frontend Playground can prefill the `options` object depending on the selected engine.
+To support this, the gateway exposes engine-level defaults at:
+
+- `GET /v1/engines/{engine_id}/options/defaults`
+
+If the engine has no options, the endpoint returns an empty JSON object: `{}`.
+
+### How to define defaults
+
+Defaults are defined in the gateway engine plugin by implementing `get_default_options()`.
+Example:
+
+- Return `{}` if your engine does not accept any options.
+- Return a JSON object with the gateway defaults (e.g. `{ "iterations_count": 1000 }`) if your engine supports options.
 
 ### 2) Implement the engine plugin
 

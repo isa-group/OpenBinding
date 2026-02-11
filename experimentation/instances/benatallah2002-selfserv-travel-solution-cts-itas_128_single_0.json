@@ -412,10 +412,10 @@
   "objective": {
     "type": "SINGLE",
     "targets": [
-      "latency_ms"
+      "cost_usd"
     ],
     "weights": {
-      "latency_ms": 1.0
+      "cost_usd": 1.0
     }
   },
   "constraints": [
@@ -425,7 +425,41 @@
       "scope": "GLOBAL",
       "attribute_id": "latency_ms",
       "op": "<=",
-      "value": 7864.08,
+      "value": 7408.07,
+      "hard": true
+    },
+    {
+      "id": "c_local_t_accommodation_booking_availability_1",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_accommodation_booking"
+      ],
+      "attribute_id": "availability",
+      "op": ">=",
+      "value": 0.28,
+      "hard": true
+    },
+    {
+      "id": "c_local_t_flight_booking_domestic_latency_ms_2",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_flight_booking_domestic"
+      ],
+      "attribute_id": "latency_ms",
+      "op": "<=",
+      "value": 7572.23,
+      "hard": true
+    },
+    {
+      "id": "c_dep_t_attractions_search_t_flight_booking_domestic_3",
+      "kind": "DEPENDENCY",
+      "type": "DIFFERENT_PROVIDER",
+      "tasks": [
+        "t_attractions_search",
+        "t_flight_booking_domestic"
+      ],
       "hard": true
     }
   ]

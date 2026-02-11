@@ -147,16 +147,49 @@ export class DznBuilder {
       task_cands.push(row);
     }
 
+    const constraints = instance.constraints || [];
+
     const qos_ub: number[] = [];
     for (let f = 0; f < n_qos; f++) {
       const featId = features[f];
       const isAvailability =
         featId.toLowerCase().includes('availability') || featId.toLowerCase().includes('success');
 
+      const featDef = featureDefinitions.find((feat: any) => feat.id === featId) || {};
+      const featDir = (featDef.direction || 'MINIMIZE').toUpperCase();
+      const neutralRaw =
+        (instance.aggregation_policies?.[featId]?.neutral as number | undefined) ??
+        (featDir === 'MAXIMIZE' ? featDef.valid_range?.min : featDef.valid_range?.max);
+      const neutralScaled =
+        neutralRaw !== undefined && neutralRaw !== null
+          ? scaleValue(Number(neutralRaw), featId)
+          : 0.0;
+
+      let constraintMax = 0.0;
+      for (const c of constraints) {
+        if ((c.kind || '').toLowerCase() !== 'attribute_bound') continue;
+        if (c.attribute_id !== featId) continue;
+
+        if (typeof c.value === 'number') {
+          constraintMax = Math.max(constraintMax, scaleValue(Number(c.value), featId));
+        } else if (c.value && typeof c.value === 'object') {
+          const minVal = c.value.min;
+          const maxVal = c.value.max;
+          if (minVal !== undefined && minVal !== null) {
+            constraintMax = Math.max(constraintMax, scaleValue(Number(minVal), featId));
+          }
+          if (maxVal !== undefined && maxVal !== null) {
+            constraintMax = Math.max(constraintMax, scaleValue(Number(maxVal), featId));
+          }
+        }
+      }
+
       let maxVal = 1.0;
       if (candidates.length > 0 && cand_qos.length > 0) {
         maxVal = Math.max(1.0, ...cand_qos.map((row) => Math.abs(row[f])));
       }
+
+      maxVal = Math.max(maxVal, neutralScaled, constraintMax);
 
       const seqPol = agg_policy[f]?.[1] || 1;
       const loopPol = agg_policy[f]?.[4] || 1;
@@ -257,7 +290,6 @@ export class DznBuilder {
       qos_weights.push(w);
     }
 
-    const constraints = instance.constraints || [];
     const opMap: Record<string, number> = { '<=': 1, '>=': 2, '==': 3, '<': 4, '>': 5 };
 
     const gc_attr: number[] = [];

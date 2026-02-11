@@ -113,30 +113,30 @@
       }
     },
     {
-      "id": "c_get_country_from_location_copy_6",
-      "task_id": "t_get_country_from_location",
+      "id": "c_get_local_subsidiary_copy_6",
+      "task_id": "t_get_local_subsidiary",
       "provider_id": "p_transport_agency",
-      "name": "getCountryFromLocation (Allocated)",
+      "name": "getLocalSubsidiary (Allocated)",
       "features": {
-        "cost": 0.97
+        "cost": 0.98
       }
     },
     {
-      "id": "c_get_closest_city_copy_7",
-      "task_id": "t_get_closest_city",
+      "id": "c_get_country_from_location_copy_7",
+      "task_id": "t_get_country_from_location",
       "provider_id": "p_transport_agency",
-      "name": "getClosestCity (Allocated)",
+      "name": "getCountryFromLocation (Allocated)",
       "features": {
         "cost": 1.03
       }
     },
     {
-      "id": "c_get_closest_city_copy_8",
-      "task_id": "t_get_closest_city",
+      "id": "c_get_country_from_location_copy_7_copy_8",
+      "task_id": "t_get_country_from_location",
       "provider_id": "p_transport_agency",
-      "name": "getClosestCity (Allocated)",
+      "name": "getCountryFromLocation (Allocated) (Allocated)",
       "features": {
-        "cost": 0.96
+        "cost": 1.02
       }
     },
     {
@@ -149,57 +149,66 @@
       }
     },
     {
-      "id": "c_get_closest_city_copy_10",
-      "task_id": "t_get_closest_city",
+      "id": "c_get_country_from_location_copy_10",
+      "task_id": "t_get_country_from_location",
       "provider_id": "p_transport_agency",
-      "name": "getClosestCity (Allocated)",
-      "features": {
-        "cost": 0.95
-      }
-    },
-    {
-      "id": "c_make_arrangements_copy_11",
-      "task_id": "t_make_arrangements",
-      "provider_id": "p_transport_agency",
-      "name": "makeArrangements (Allocated)",
-      "features": {
-        "cost": 1.02
-      }
-    },
-    {
-      "id": "c_get_transport_company_copy_12",
-      "task_id": "t_get_transport_company",
-      "provider_id": "p_transport_agency",
-      "name": "getTransportCompany (Allocated)",
-      "features": {
-        "cost": 1.01
-      }
-    },
-    {
-      "id": "c_get_closest_city_copy_7_copy_13",
-      "task_id": "t_get_closest_city",
-      "provider_id": "p_transport_agency",
-      "name": "getClosestCity (Allocated) (Allocated)",
+      "name": "getCountryFromLocation (Allocated)",
       "features": {
         "cost": 1.04
       }
     },
     {
-      "id": "c_get_local_subsidiary_copy_14",
-      "task_id": "t_get_local_subsidiary",
+      "id": "c_get_country_from_location_copy_11",
+      "task_id": "t_get_country_from_location",
       "provider_id": "p_transport_agency",
-      "name": "getLocalSubsidiary (Allocated)",
+      "name": "getCountryFromLocation (Allocated)",
       "features": {
-        "cost": 1.01
+        "cost": 1.04
       }
     },
     {
-      "id": "c_get_vehicle_copy_15",
-      "task_id": "t_get_vehicle",
+      "id": "c_make_arrangements_copy_12",
+      "task_id": "t_make_arrangements",
       "provider_id": "p_transport_agency",
-      "name": "getVehicle (Allocated)",
+      "name": "makeArrangements (Allocated)",
       "features": {
-        "cost": 0.96
+        "cost": 0.98
+      }
+    },
+    {
+      "id": "c_get_local_subsidiary_copy_6_copy_13",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_transport_agency",
+      "name": "getLocalSubsidiary (Allocated) (Allocated)",
+      "features": {
+        "cost": 1.02
+      }
+    },
+    {
+      "id": "c_get_country_from_location_copy_7_copy_8_copy_14",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_transport_agency",
+      "name": "getCountryFromLocation (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "cost": 1.05
+      }
+    },
+    {
+      "id": "c_get_transport_company_copy_15",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_transport_agency",
+      "name": "getTransportCompany (Allocated)",
+      "features": {
+        "cost": 0.99
+      }
+    },
+    {
+      "id": "c_get_local_subsidiary_copy_6_copy_16",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_transport_agency",
+      "name": "getLocalSubsidiary (Allocated) (Allocated)",
+      "features": {
+        "cost": 1.01
       }
     }
   ],
@@ -268,19 +277,19 @@
       "scope": "GLOBAL",
       "attribute_id": "cost",
       "op": "<=",
-      "value": 821.09,
+      "value": 778.47,
       "hard": true
     },
     {
-      "id": "c_local_t_get_local_subsidiary_cost_1",
+      "id": "c_local_t_get_transport_company_cost_1",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
-        "t_get_local_subsidiary"
+        "t_get_transport_company"
       ],
       "attribute_id": "cost",
       "op": "<=",
-      "value": 747.43,
+      "value": 918.93,
       "hard": true
     },
     {
@@ -292,17 +301,7 @@
       ],
       "attribute_id": "cost",
       "op": "<=",
-      "value": 810.5,
-      "hard": true
-    },
-    {
-      "id": "c_dep_t_get_transport_company_t_get_vehicle_3",
-      "kind": "DEPENDENCY",
-      "type": "SAME_PROVIDER",
-      "tasks": [
-        "t_get_transport_company",
-        "t_get_vehicle"
-      ],
+      "value": 663.44,
       "hard": true
     }
   ]

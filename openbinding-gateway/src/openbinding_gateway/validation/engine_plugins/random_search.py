@@ -28,6 +28,11 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             "schema_version": "v1"
         }
 
+    def get_default_options(self) -> Dict[str, Any]:
+        return {
+            "iterations_count": 1000,
+        }
+
     def get_specialization_schema_path(self) -> str:
         base_path = os.getenv("SCHEMAS_DIR", "/app/schemas") 
         if not os.path.exists(base_path):

@@ -166,6 +166,29 @@ async def list_engines():
 
     return engines
 
+
+@app.get(
+    "/v1/engines/{engine_id}/options/defaults",
+    responses={
+        200: {
+            "description": "Gateway-level default options for a given engine",
+            "content": {"application/json": {"example": {"iterations_count": 1000}}},
+        },
+        404: {"description": "Engine not found"},
+    },
+)
+async def get_engine_default_options(engine_id: str) -> Dict[str, Any]:
+    try:
+        plugin = EngineRegistry.get_plugin(engine_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Engine '{engine_id}' not found")
+
+    defaults = plugin.get_default_options() or {}
+    if not isinstance(defaults, dict):
+        # Defensive: ensure API always returns an object
+        defaults = {}
+    return defaults
+
 def validate_and_prepare(request: SolveRequest):
     """
     Standard check-and-prep for both solving and analyzing.

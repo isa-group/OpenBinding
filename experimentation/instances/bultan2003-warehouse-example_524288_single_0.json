@@ -219,388 +219,366 @@
       }
     },
     {
-      "id": "c_receipt1_wh1_v1_copy_10",
-      "task_id": "t_receipt1",
-      "provider_id": "p_wh1",
-      "name": "receipt1 (Allocated)",
+      "id": "c_order1_store_v1_copy_10",
+      "task_id": "t_order1",
+      "provider_id": "p_store",
+      "name": "order1 (Allocated)",
       "features": {
-        "latency_ms": 82.89,
+        "latency_ms": 61.96,
         "cost_usd": 0.02,
+        "availability": 0.96
+      }
+    },
+    {
+      "id": "c_authorize_store_v1_copy_11",
+      "task_id": "t_authorize",
+      "provider_id": "p_store",
+      "name": "authorize (Allocated)",
+      "features": {
+        "latency_ms": 53.98,
+        "cost_usd": 0.01,
         "availability": 1
       }
     },
     {
-      "id": "c_order2_store_v1_copy_11",
+      "id": "c_order2_store_v1_copy_12",
       "task_id": "t_order2",
       "provider_id": "p_store",
       "name": "order2 (Allocated)",
       "features": {
-        "latency_ms": 71.4,
+        "latency_ms": 72.61,
         "cost_usd": 0.02,
-        "availability": 1
-      }
-    },
-    {
-      "id": "c_payment1_bank_v1_copy_12",
-      "task_id": "t_payment1",
-      "provider_id": "p_bank",
-      "name": "payment1 (Allocated)",
-      "features": {
-        "latency_ms": 89.89,
-        "cost_usd": 0.03,
-        "availability": 0.96
-      }
-    },
-    {
-      "id": "c_receipt2_wh2_v1_copy_13",
-      "task_id": "t_receipt2",
-      "provider_id": "p_wh2",
-      "name": "receipt2 (Allocated)",
-      "features": {
-        "latency_ms": 87.94,
-        "cost_usd": 0.01,
-        "availability": 0.98
-      }
-    },
-    {
-      "id": "c_payment2_bank_v1_copy_14",
-      "task_id": "t_payment2",
-      "provider_id": "p_bank",
-      "name": "payment2 (Allocated)",
-      "features": {
-        "latency_ms": 95.08,
-        "cost_usd": 0.03,
-        "availability": 1
-      }
-    },
-    {
-      "id": "c_ok_bank_v1_copy_15",
-      "task_id": "t_ok",
-      "provider_id": "p_bank",
-      "name": "ok (Allocated)",
-      "features": {
-        "latency_ms": 45.25,
-        "cost_usd": 0.01,
-        "availability": 0.98
-      }
-    },
-    {
-      "id": "c_receipt2_wh2_v1_copy_13_copy_16",
-      "task_id": "t_receipt2",
-      "provider_id": "p_wh2",
-      "name": "receipt2 (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 88.74,
-        "cost_usd": 0.01,
         "availability": 0.95
       }
     },
     {
-      "id": "c_order1_store_v1_copy_17",
+      "id": "c_order1_store_v1_copy_13",
       "task_id": "t_order1",
       "provider_id": "p_store",
       "name": "order1 (Allocated)",
       "features": {
-        "latency_ms": 64.24,
+        "latency_ms": 65.4,
         "cost_usd": 0.02,
-        "availability": 1
+        "availability": 1.0
       }
     },
     {
-      "id": "c_payment2_bank_v1_copy_14_copy_18",
-      "task_id": "t_payment2",
-      "provider_id": "p_bank",
-      "name": "payment2 (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 97.78,
-        "cost_usd": 0.03,
-        "availability": 1
-      }
-    },
-    {
-      "id": "c_bill2_wh2_v1_copy_19",
-      "task_id": "t_bill2",
-      "provider_id": "p_wh2",
-      "name": "bill2 (Allocated)",
-      "features": {
-        "latency_ms": 75.45,
-        "cost_usd": 0.02,
-        "availability": 1
-      }
-    },
-    {
-      "id": "c_payment2_bank_v1_copy_14_copy_20",
-      "task_id": "t_payment2",
-      "provider_id": "p_bank",
-      "name": "payment2 (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 91.41,
-        "cost_usd": 0.03,
-        "availability": 0.98
-      }
-    },
-    {
-      "id": "c_ok_bank_v1_copy_15_copy_21",
-      "task_id": "t_ok",
-      "provider_id": "p_bank",
-      "name": "ok (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 43.78,
-        "cost_usd": 0.01,
-        "availability": 0.94
-      }
-    },
-    {
-      "id": "c_ok_bank_v1_copy_15_copy_21_copy_22",
-      "task_id": "t_ok",
-      "provider_id": "p_bank",
-      "name": "ok (Allocated) (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 45.15,
-        "cost_usd": 0.01,
-        "availability": 0.93
-      }
-    },
-    {
-      "id": "c_receipt2_wh2_v1_copy_13_copy_16_copy_23",
-      "task_id": "t_receipt2",
-      "provider_id": "p_wh2",
-      "name": "receipt2 (Allocated) (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 90.16,
-        "cost_usd": 0.01,
-        "availability": 0.98
-      }
-    },
-    {
-      "id": "c_payment2_bank_v1_copy_24",
-      "task_id": "t_payment2",
-      "provider_id": "p_bank",
-      "name": "payment2 (Allocated)",
-      "features": {
-        "latency_ms": 97.44,
-        "cost_usd": 0.03,
-        "availability": 0.99
-      }
-    },
-    {
-      "id": "c_bill1_wh1_v1_copy_25",
-      "task_id": "t_bill1",
-      "provider_id": "p_wh1",
-      "name": "bill1 (Allocated)",
-      "features": {
-        "latency_ms": 75.87,
-        "cost_usd": 0.01,
-        "availability": 0.97
-      }
-    },
-    {
-      "id": "c_payment1_bank_v1_copy_12_copy_26",
-      "task_id": "t_payment1",
-      "provider_id": "p_bank",
-      "name": "payment1 (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 90.52,
-        "cost_usd": 0.03,
-        "availability": 0.94
-      }
-    },
-    {
-      "id": "c_order2_store_v1_copy_11_copy_27",
+      "id": "c_order2_store_v1_copy_12_copy_14",
       "task_id": "t_order2",
       "provider_id": "p_store",
       "name": "order2 (Allocated) (Allocated)",
       "features": {
-        "latency_ms": 74.9,
-        "cost_usd": 0.02,
-        "availability": 1
-      }
-    },
-    {
-      "id": "c_bill2_wh2_v1_copy_19_copy_28",
-      "task_id": "t_bill2",
-      "provider_id": "p_wh2",
-      "name": "bill2 (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 78.07,
-        "cost_usd": 0.02,
-        "availability": 0.96
-      }
-    },
-    {
-      "id": "c_bill2_wh2_v1_copy_29",
-      "task_id": "t_bill2",
-      "provider_id": "p_wh2",
-      "name": "bill2 (Allocated)",
-      "features": {
-        "latency_ms": 74.11,
-        "cost_usd": 0.02,
-        "availability": 1
-      }
-    },
-    {
-      "id": "c_ok_bank_v1_copy_15_copy_21_copy_30",
-      "task_id": "t_ok",
-      "provider_id": "p_bank",
-      "name": "ok (Allocated) (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 45.38,
-        "cost_usd": 0.01,
-        "availability": 0.96
-      }
-    },
-    {
-      "id": "c_order2_store_v1_copy_11_copy_27_copy_31",
-      "task_id": "t_order2",
-      "provider_id": "p_store",
-      "name": "order2 (Allocated) (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 73.54,
-        "cost_usd": 0.02,
-        "availability": 0.99
-      }
-    },
-    {
-      "id": "c_bill2_wh2_v1_copy_19_copy_32",
-      "task_id": "t_bill2",
-      "provider_id": "p_wh2",
-      "name": "bill2 (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 76.68,
-        "cost_usd": 0.02,
-        "availability": 0.97
-      }
-    },
-    {
-      "id": "c_order2_store_v1_copy_11_copy_27_copy_33",
-      "task_id": "t_order2",
-      "provider_id": "p_store",
-      "name": "order2 (Allocated) (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 77.45,
-        "cost_usd": 0.02,
-        "availability": 1
-      }
-    },
-    {
-      "id": "c_order1_store_v1_copy_34",
-      "task_id": "t_order1",
-      "provider_id": "p_store",
-      "name": "order1 (Allocated)",
-      "features": {
-        "latency_ms": 61.83,
-        "cost_usd": 0.02,
-        "availability": 0.96
-      }
-    },
-    {
-      "id": "c_receipt2_wh2_v1_copy_13_copy_16_copy_23_copy_35",
-      "task_id": "t_receipt2",
-      "provider_id": "p_wh2",
-      "name": "receipt2 (Allocated) (Allocated) (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 94.44,
-        "cost_usd": 0.01,
-        "availability": 0.94
-      }
-    },
-    {
-      "id": "c_order2_store_v1_copy_11_copy_27_copy_31_copy_36",
-      "task_id": "t_order2",
-      "provider_id": "p_store",
-      "name": "order2 (Allocated) (Allocated) (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 76.43,
-        "cost_usd": 0.02,
-        "availability": 1
-      }
-    },
-    {
-      "id": "c_payment2_bank_v1_copy_14_copy_37",
-      "task_id": "t_payment2",
-      "provider_id": "p_bank",
-      "name": "payment2 (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 94.65,
-        "cost_usd": 0.03,
-        "availability": 1
-      }
-    },
-    {
-      "id": "c_order2_store_v1_copy_11_copy_27_copy_38",
-      "task_id": "t_order2",
-      "provider_id": "p_store",
-      "name": "order2 (Allocated) (Allocated) (Allocated)",
-      "features": {
-        "latency_ms": 72.85,
+        "latency_ms": 75.93,
         "cost_usd": 0.02,
         "availability": 0.95
       }
     },
     {
-      "id": "c_receipt2_wh2_v1_copy_13_copy_39",
-      "task_id": "t_receipt2",
+      "id": "c_bill2_wh2_v1_copy_15",
+      "task_id": "t_bill2",
       "provider_id": "p_wh2",
-      "name": "receipt2 (Allocated) (Allocated)",
+      "name": "bill2 (Allocated)",
       "features": {
-        "latency_ms": 89.81,
+        "latency_ms": 79.37,
+        "cost_usd": 0.02,
+        "availability": 1
+      }
+    },
+    {
+      "id": "c_bill1_wh1_v1_copy_16",
+      "task_id": "t_bill1",
+      "provider_id": "p_wh1",
+      "name": "bill1 (Allocated)",
+      "features": {
+        "latency_ms": 72.69,
         "cost_usd": 0.01,
         "availability": 1
       }
     },
     {
-      "id": "c_payment2_bank_v1_copy_14_copy_18_copy_40",
-      "task_id": "t_payment2",
-      "provider_id": "p_bank",
-      "name": "payment2 (Allocated) (Allocated) (Allocated)",
+      "id": "c_receipt1_wh1_v1_copy_17",
+      "task_id": "t_receipt1",
+      "provider_id": "p_wh1",
+      "name": "receipt1 (Allocated)",
       "features": {
-        "latency_ms": 93.22,
-        "cost_usd": 0.03,
-        "availability": 1.0
+        "latency_ms": 82.17,
+        "cost_usd": 0.02,
+        "availability": 1
       }
     },
     {
-      "id": "c_payment1_bank_v1_copy_41",
-      "task_id": "t_payment1",
-      "provider_id": "p_bank",
-      "name": "payment1 (Allocated)",
+      "id": "c_receipt2_wh2_v1_copy_18",
+      "task_id": "t_receipt2",
+      "provider_id": "p_wh2",
+      "name": "receipt2 (Allocated)",
       "features": {
-        "latency_ms": 90.72,
-        "cost_usd": 0.03,
+        "latency_ms": 84.83,
+        "cost_usd": 0.02,
+        "availability": 1
+      }
+    },
+    {
+      "id": "c_bill1_wh1_v1_copy_16_copy_19",
+      "task_id": "t_bill1",
+      "provider_id": "p_wh1",
+      "name": "bill1 (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 69.94,
+        "cost_usd": 0.01,
+        "availability": 0.99
+      }
+    },
+    {
+      "id": "c_order2_store_v1_copy_12_copy_20",
+      "task_id": "t_order2",
+      "provider_id": "p_store",
+      "name": "order2 (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 75.91,
+        "cost_usd": 0.02,
+        "availability": 0.93
+      }
+    },
+    {
+      "id": "c_bill1_wh1_v1_copy_16_copy_19_copy_21",
+      "task_id": "t_bill1",
+      "provider_id": "p_wh1",
+      "name": "bill1 (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 67.0,
+        "cost_usd": 0.01,
+        "availability": 1
+      }
+    },
+    {
+      "id": "c_receipt2_wh2_v1_copy_22",
+      "task_id": "t_receipt2",
+      "provider_id": "p_wh2",
+      "name": "receipt2 (Allocated)",
+      "features": {
+        "latency_ms": 82.47,
+        "cost_usd": 0.02,
+        "availability": 1
+      }
+    },
+    {
+      "id": "c_bill1_wh1_v1_copy_16_copy_23",
+      "task_id": "t_bill1",
+      "provider_id": "p_wh1",
+      "name": "bill1 (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 69.85,
+        "cost_usd": 0.01,
+        "availability": 0.97
+      }
+    },
+    {
+      "id": "c_authorize_store_v1_copy_24",
+      "task_id": "t_authorize",
+      "provider_id": "p_store",
+      "name": "authorize (Allocated)",
+      "features": {
+        "latency_ms": 55.76,
+        "cost_usd": 0.01,
+        "availability": 0.99
+      }
+    },
+    {
+      "id": "c_receipt2_wh2_v1_copy_25",
+      "task_id": "t_receipt2",
+      "provider_id": "p_wh2",
+      "name": "receipt2 (Allocated)",
+      "features": {
+        "latency_ms": 86.54,
+        "cost_usd": 0.01,
+        "availability": 1
+      }
+    },
+    {
+      "id": "c_order1_store_v1_copy_10_copy_26",
+      "task_id": "t_order1",
+      "provider_id": "p_store",
+      "name": "order1 (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 62.91,
+        "cost_usd": 0.02,
         "availability": 0.96
       }
     },
     {
-      "id": "c_bill2_wh2_v1_copy_19_copy_28_copy_42",
-      "task_id": "t_bill2",
-      "provider_id": "p_wh2",
-      "name": "bill2 (Allocated) (Allocated) (Allocated)",
+      "id": "c_receipt1_wh1_v1_copy_17_copy_27",
+      "task_id": "t_receipt1",
+      "provider_id": "p_wh1",
+      "name": "receipt1 (Allocated) (Allocated)",
       "features": {
-        "latency_ms": 77.8,
+        "latency_ms": 80.7,
         "cost_usd": 0.02,
-        "availability": 1.0
+        "availability": 1
       }
     },
     {
-      "id": "c_ok_bank_v1_copy_15_copy_43",
+      "id": "c_ok_bank_v1_copy_28",
       "task_id": "t_ok",
       "provider_id": "p_bank",
-      "name": "ok (Allocated) (Allocated)",
+      "name": "ok (Allocated)",
       "features": {
-        "latency_ms": 45.13,
+        "latency_ms": 45.16,
         "cost_usd": 0.01,
         "availability": 1
       }
     },
     {
-      "id": "c_ok_bank_v1_copy_15_copy_43_copy_44",
+      "id": "c_order1_store_v1_copy_10_copy_26_copy_29",
+      "task_id": "t_order1",
+      "provider_id": "p_store",
+      "name": "order1 (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 65.31,
+        "cost_usd": 0.02,
+        "availability": 1
+      }
+    },
+    {
+      "id": "c_order2_store_v1_copy_12_copy_20_copy_30",
+      "task_id": "t_order2",
+      "provider_id": "p_store",
+      "name": "order2 (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 73.53,
+        "cost_usd": 0.02,
+        "availability": 0.96
+      }
+    },
+    {
+      "id": "c_bill1_wh1_v1_copy_31",
+      "task_id": "t_bill1",
+      "provider_id": "p_wh1",
+      "name": "bill1 (Allocated)",
+      "features": {
+        "latency_ms": 71.32,
+        "cost_usd": 0.02,
+        "availability": 0.96
+      }
+    },
+    {
+      "id": "c_payment1_bank_v1_copy_32",
+      "task_id": "t_payment1",
+      "provider_id": "p_bank",
+      "name": "payment1 (Allocated)",
+      "features": {
+        "latency_ms": 89.59,
+        "cost_usd": 0.03,
+        "availability": 1
+      }
+    },
+    {
+      "id": "c_order1_store_v1_copy_10_copy_26_copy_29_copy_33",
+      "task_id": "t_order1",
+      "provider_id": "p_store",
+      "name": "order1 (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 65.1,
+        "cost_usd": 0.02,
+        "availability": 0.96
+      }
+    },
+    {
+      "id": "c_order1_store_v1_copy_10_copy_26_copy_29_copy_33_copy_34",
+      "task_id": "t_order1",
+      "provider_id": "p_store",
+      "name": "order1 (Allocated) (Allocated) (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 64.83,
+        "cost_usd": 0.02,
+        "availability": 0.93
+      }
+    },
+    {
+      "id": "c_payment1_bank_v1_copy_32_copy_35",
+      "task_id": "t_payment1",
+      "provider_id": "p_bank",
+      "name": "payment1 (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 90.2,
+        "cost_usd": 0.03,
+        "availability": 0.97
+      }
+    },
+    {
+      "id": "c_order2_store_v1_copy_12_copy_20_copy_36",
+      "task_id": "t_order2",
+      "provider_id": "p_store",
+      "name": "order2 (Allocated) (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 76.03,
+        "cost_usd": 0.02,
+        "availability": 0.95
+      }
+    },
+    {
+      "id": "c_order1_store_v1_copy_10_copy_37",
+      "task_id": "t_order1",
+      "provider_id": "p_store",
+      "name": "order1 (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 61.82,
+        "cost_usd": 0.02,
+        "availability": 0.91
+      }
+    },
+    {
+      "id": "c_order2_store_v1_copy_12_copy_38",
+      "task_id": "t_order2",
+      "provider_id": "p_store",
+      "name": "order2 (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 72.22,
+        "cost_usd": 0.02,
+        "availability": 0.93
+      }
+    },
+    {
+      "id": "c_payment2_bank_v1_copy_39",
+      "task_id": "t_payment2",
+      "provider_id": "p_bank",
+      "name": "payment2 (Allocated)",
+      "features": {
+        "latency_ms": 92.73,
+        "cost_usd": 0.03,
+        "availability": 0.97
+      }
+    },
+    {
+      "id": "c_ok_bank_v1_copy_28_copy_40",
       "task_id": "t_ok",
       "provider_id": "p_bank",
-      "name": "ok (Allocated) (Allocated) (Allocated)",
+      "name": "ok (Allocated) (Allocated)",
       "features": {
-        "latency_ms": 45.73,
+        "latency_ms": 44.29,
         "cost_usd": 0.01,
-        "availability": 0.98
+        "availability": 1
+      }
+    },
+    {
+      "id": "c_bill1_wh1_v1_copy_31_copy_41",
+      "task_id": "t_bill1",
+      "provider_id": "p_wh1",
+      "name": "bill1 (Allocated) (Allocated)",
+      "features": {
+        "latency_ms": 68.59,
+        "cost_usd": 0.02,
+        "availability": 0.94
+      }
+    },
+    {
+      "id": "c_payment2_bank_v1_copy_42",
+      "task_id": "t_payment2",
+      "provider_id": "p_bank",
+      "name": "payment2 (Allocated)",
+      "features": {
+        "latency_ms": 92.33,
+        "cost_usd": 0.03,
+        "availability": 0.96
       }
     }
   ],
@@ -768,12 +746,10 @@
   "objective": {
     "type": "SINGLE",
     "targets": [
-      "availability",
-      "latency_ms"
+      "availability"
     ],
     "weights": {
-      "availability": 0.48,
-      "latency_ms": 0.52
+      "availability": 1.0
     }
   },
   "constraints": [
@@ -783,59 +759,31 @@
       "scope": "GLOBAL",
       "attribute_id": "cost_usd",
       "op": "<=",
-      "value": 819.29,
-      "hard": false
-    },
-    {
-      "id": "c_global_availability_1",
-      "kind": "ATTRIBUTE_BOUND",
-      "scope": "GLOBAL",
-      "attribute_id": "availability",
-      "op": ">=",
-      "value": 0.11,
+      "value": 719.69,
       "hard": true
     },
     {
-      "id": "c_global_latency_ms_2",
-      "kind": "ATTRIBUTE_BOUND",
-      "scope": "GLOBAL",
-      "attribute_id": "latency_ms",
-      "op": "<=",
-      "value": 3998.85,
-      "hard": false
-    },
-    {
-      "id": "c_local_t_payment2_latency_ms_3",
+      "id": "c_local_t_bill2_latency_ms_1",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
-        "t_payment2"
+        "t_bill2"
       ],
       "attribute_id": "latency_ms",
       "op": "<=",
-      "value": 4101.28,
+      "value": 4190.6,
       "hard": true
     },
     {
-      "id": "c_local_t_bill1_availability_4",
+      "id": "c_local_t_receipt1_latency_ms_2",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
-        "t_bill1"
+        "t_receipt1"
       ],
-      "attribute_id": "availability",
-      "op": ">=",
-      "value": 0.07,
-      "hard": false
-    },
-    {
-      "id": "c_dep_t_payment2_t_authorize_5",
-      "kind": "DEPENDENCY",
-      "type": "DIFFERENT_PROVIDER",
-      "tasks": [
-        "t_payment2",
-        "t_authorize"
-      ],
+      "attribute_id": "latency_ms",
+      "op": "<=",
+      "value": 3919.64,
       "hard": true
     }
   ]

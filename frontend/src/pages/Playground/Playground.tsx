@@ -29,6 +29,8 @@ const DEFAULT_OPTIONS = `{
   "iterations_count": 1000
 }`;
 
+const EMPTY_OPTIONS = `{}\n`;
+
 type JobState = 'idle' | 'validating' | 'queued' | 'running' | 'completed' | 'failed';
 
 // Available examples in /examples directory
@@ -38,19 +40,20 @@ const AVAILABLE_EXAMPLES = {
     'demo/02_parallel.json',
     'demo/03_xor_choice.json',
     'demo/04_conflict.json',
-    'demo/05_multi_obj.json',
+    'demo/05_single_obj_various.json',
     'demo/06_loops.json',
     'demo/07_soft_constraints.json',
     'demo/08_dependencies.json',
     'demo/09_mixed.json',
-    'demo/10_large_scale.json'
+    'demo/10_large_scale.json',
+    'demo/11_multi_obj_negative.json',
+    'demo/12_many_obj_pareto.json'
   ],
   'Literature Examples': [
     'literature/benatallah.json',
     'literature/bultan.json',
     'literature/cremaschi.json',
     'literature/netedu.json',
-    'literature/parejo.json',
     'literature/pautasso.json',
     'literature/zhang.json'
   ]
@@ -85,6 +88,26 @@ export function Playground() {
     if (selectedEngine) {
       loadEngineSchema(selectedEngine);
     }
+  }, [selectedEngine]);
+
+  useEffect(() => {
+    if (!selectedEngine) return;
+
+    // Keep the options editor in sync with the selected engine.
+    // If the engine has no options defaults, show an empty object.
+    const loadDefaultOptions = async () => {
+      try {
+        const defaults = await apiClient.getEngineDefaultOptions(selectedEngine);
+        const normalized = (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) ? defaults : {};
+        const keys = Object.keys(normalized);
+        setSolverOptions(keys.length > 0 ? `${JSON.stringify(normalized, null, 2)}\n` : EMPTY_OPTIONS);
+      } catch (err) {
+        console.warn(`Failed to load default options for engine '${selectedEngine}', using empty options`, err);
+        setSolverOptions(EMPTY_OPTIONS);
+      }
+    };
+
+    loadDefaultOptions();
   }, [selectedEngine]);
 
   const loadEngines = async () => {
@@ -376,10 +399,10 @@ export function Playground() {
               />
             </div>
 
-            {/* Solver Options */}
+            {/* Engine Options */}
             <div className="editor-section">
               <div className="options-header">
-                <label className="editor-label">Solver Options</label>
+                <label className="editor-label">Engine Options</label>
                 <div className="options-toggles">
                   <label className="toggle-label">
                     <input
@@ -599,6 +622,12 @@ function SummaryView({ result }: { result: any }) {
 }
 
 function SolutionsView({ result }: { result: any }) {
+  // Determine if there's only one binding to show features expanded by default
+  const hasSingleSolution = result.solutions && result.solutions.length === 1;
+  const [expandedSolutions, setExpandedSolutions] = useState<Record<number, boolean>>(
+    hasSingleSolution ? { 0: true } : {}
+  );
+
   if (!result.solutions || result.solutions.length === 0) {
     return (
       <div className="empty-result">
@@ -607,46 +636,97 @@ function SolutionsView({ result }: { result: any }) {
     );
   }
 
+  const toggleExpanded = (index: number) => {
+    setExpandedSolutions(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
+
   return (
     <div className="result-view solutions-view">
-      {result.solutions.map((solution: any, index: number) => (
-        <Card key={index} padding="md">
-          <h4>Solution {index + 1}</h4>
-          {solution.binding && (
-            <div className="binding-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Task</th>
-                    <th>Candidate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(solution.binding).map(([task, candidate]) => (
-                    <tr key={task}>
-                      <td><code>{task}</code></td>
-                      <td><code>{String(candidate)}</code></td>
+      {result.solutions.map((solution: any, index: number) => {
+        const isExpanded = expandedSolutions[index] || false;
+        const hasAggregatedFeatures = solution.aggregated_features && 
+          Object.keys(solution.aggregated_features).length > 0;
+
+        return (
+          <Card key={index} padding="md">
+            <div className="solution-header">
+              <h4>Solution {index + 1}</h4>
+              {solution.objective_value !== undefined && solution.objective_value !== null && (
+                <div className="solution-objective">
+                  <span className="objective-label">Objective:</span>
+                  <span className="objective-value">{solution.objective_value.toFixed(4)}</span>
+                </div>
+              )}
+            </div>
+            
+            {solution.binding && (
+              <div className="binding-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Task</th>
+                      <th>Candidate</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {solution.aggregated_qos && (
-            <div className="solution-qos">
-              <strong>QoS Metrics:</strong>
-              <div className="qos-grid">
-                {Object.entries(solution.aggregated_qos).map(([key, value]) => (
-                  <div key={key} className="qos-item">
-                    <span className="qos-label">{key}:</span>
-                    <span className="qos-value">{String(value)}</span>
-                  </div>
-                ))}
+                  </thead>
+                  <tbody>
+                    {Object.entries(solution.binding).map(([task, candidate]) => (
+                      <tr key={task}>
+                        <td><code>{task}</code></td>
+                        <td><code>{String(candidate)}</code></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          )}
-        </Card>
-      ))}
+            )}
+
+            {hasAggregatedFeatures && (
+              <div className="solution-features">
+                <button
+                  className="features-toggle"
+                  onClick={() => toggleExpanded(index)}
+                  aria-expanded={isExpanded}
+                >
+                  <span className="features-toggle-icon">{isExpanded ? '▼' : '▶'}</span>
+                  <strong>Aggregated Features</strong>
+                  <Badge variant="accent" size="sm">
+                    {Object.keys(solution.aggregated_features).length} features
+                  </Badge>
+                </button>
+                {isExpanded && (
+                  <div className="features-content">
+                    <div className="qos-grid">
+                      {Object.entries(solution.aggregated_features).map(([key, value]) => (
+                        <div key={key} className="qos-item">
+                          <span className="qos-label">{key}:</span>
+                          <span className="qos-value">{typeof value === 'number' ? value.toFixed(4) : String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {solution.aggregated_qos && (
+              <div className="solution-qos">
+                <strong>QoS Metrics:</strong>
+                <div className="qos-grid">
+                  {Object.entries(solution.aggregated_qos).map(([key, value]) => (
+                    <div key={key} className="qos-item">
+                      <span className="qos-label">{key}:</span>
+                      <span className="qos-value">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }

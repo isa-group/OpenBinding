@@ -4,7 +4,7 @@
     "name": "04. Conflict (Infeasible)",
     "version": "1.0.0",
     "created_at": "2026-02-10T12:00:00Z",
-    "description": "An example where constraints make a solution impossible. Task 1 has min cost 100, but we constrain globally to < 50.",
+    "description": "An example where constraints make a solution impossible. All candidates have non-negative cost, but we constrain globally to cost < 0.",
     "level": "intermediate"
   },
   "features": [
@@ -48,7 +48,7 @@
       "scope": "GLOBAL",
       "attribute_id": "cost",
       "op": "<",
-      "value": 50,
+      "value": 0,
       "hard": true
     }
   ],

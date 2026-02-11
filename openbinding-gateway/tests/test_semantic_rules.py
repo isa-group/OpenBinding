@@ -153,3 +153,5 @@ def test_constraint_tasks_unknown(validator: GeneralSemanticValidator):
     violations = validator.validate(instance)
 
     assert any(v.code == "referential_integrity_error" and v.path == "constraints[0].tasks" for v in violations)
+
+

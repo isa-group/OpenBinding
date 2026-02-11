@@ -13,9 +13,11 @@ graph TD
     
     Router -->|engine_id=minizinc-csp| MZ[MiniZinc CSP Engine]
     Router -->|engine_id=random-search| RS[Random Search Engine]
+    Router -->|engine_id=many-heuristic| MH[Many-Heuristic Engine]
     
     MZ -->|Solve via Gecode| Solution
     RS -->|Solve via Random Heuristic| Solution
+    MH -->|Solve via Random Heuristic + Dominance Discriminator | ParetoFront
     
     Solution --> Gateway
     Gateway -->|HTTP 200| User
@@ -39,6 +41,11 @@ graph TD
     *   Java service.
     *   Uses random search.
     *   Best for exploring large solution spaces.
+
+4.  **Many-Heuristic Engine** (`engines/many-heuristic`):
+    *   Java service (extends Random Search).
+    *   Specialized for **Many-Objective** problems (3+ objectives).
+    *   Returns a **Pareto front** of non-dominated solutions.
 
 4.  **Frontend** (`frontend`):
     *   React + Vite web UI for modeling and submitting problems.
@@ -89,6 +96,7 @@ Example payloads that follow these schemas live in `examples/`.
     *   **Gateway API**: [http://localhost:8000/docs](http://localhost:8000/docs)
     *   **MiniZinc Engine**: Port 3000 (Internal)
     *   **Random Search Engine**: Port 8081 (Internal)
+    *   **Many-Heuristic Engine**: Port 8082 (Internal)
 
 2.  **Stop the Stack**:
     ```bash
