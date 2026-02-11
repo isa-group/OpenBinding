@@ -736,8 +736,8 @@
       "cost_usd"
     ],
     "weights": {
-      "latency_ms": 0.68,
-      "cost_usd": 0.83
+      "latency_ms": 0.45,
+      "cost_usd": 0.55
     }
   }
 }

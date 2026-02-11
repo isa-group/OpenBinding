@@ -694,7 +694,7 @@
       "latency_ms"
     ],
     "weights": {
-      "latency_ms": 0.16
+      "latency_ms": 1.0
     }
   },
   "constraints": [

@@ -788,7 +788,7 @@
       "latency_ms"
     ],
     "weights": {
-      "latency_ms": 0.19
+      "latency_ms": 1.0
     }
   }
 }

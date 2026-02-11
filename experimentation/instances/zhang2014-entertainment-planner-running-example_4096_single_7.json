@@ -729,7 +729,7 @@
       "cost"
     ],
     "weights": {
-      "cost": 0.97
+      "cost": 1.0
     }
   }
 }

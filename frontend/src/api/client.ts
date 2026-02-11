@@ -48,6 +48,20 @@ export interface AnalyzeRequest {
   verbose?: boolean;
 }
 
+export interface BindingSpaceRequest {
+  engine_id: string;
+  instance: any;
+  offset?: number;
+  limit?: number;
+}
+
+export interface BindingSpacePage {
+  total_combinations: string;
+  offset: number;
+  limit: number;
+  bindings: Array<Record<string, string>>;
+}
+
 class HttpError extends Error {
   status: number;
 
@@ -201,6 +215,13 @@ class ApiClient {
       };
 
       poll();
+    });
+  }
+
+  async exploreBindingSpace(request: BindingSpaceRequest): Promise<BindingSpacePage> {
+    return this.request<BindingSpacePage>('/v1/analyze/binding-space', {
+      method: 'POST',
+      body: JSON.stringify(request),
     });
   }
 }

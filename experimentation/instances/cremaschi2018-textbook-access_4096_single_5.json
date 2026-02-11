@@ -491,9 +491,9 @@
       "availability"
     ],
     "weights": {
-      "cost_usd": 0.82,
-      "latency_ms": 0.47,
-      "availability": 0.47
+      "cost_usd": 0.47,
+      "latency_ms": 0.27,
+      "availability": 0.26
     }
   },
   "constraints": [

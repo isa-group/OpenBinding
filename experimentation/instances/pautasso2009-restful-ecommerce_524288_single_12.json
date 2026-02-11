@@ -756,8 +756,8 @@
       "availability"
     ],
     "weights": {
-      "latency_ms": 0.87,
-      "availability": 0.88
+      "latency_ms": 0.5,
+      "availability": 0.5
     }
   }
 }

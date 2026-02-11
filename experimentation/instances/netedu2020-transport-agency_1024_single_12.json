@@ -303,7 +303,7 @@
       "cost"
     ],
     "weights": {
-      "cost": 0.63
+      "cost": 1.0
     }
   },
   "constraints": [

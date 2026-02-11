@@ -416,8 +416,8 @@
       "availability"
     ],
     "weights": {
-      "latency_ms": 0.73,
-      "availability": 0.41
+      "latency_ms": 0.64,
+      "availability": 0.36
     }
   },
   "constraints": [

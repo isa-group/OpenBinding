@@ -430,7 +430,7 @@
       "exec_time_s"
     ],
     "weights": {
-      "exec_time_s": 0.51
+      "exec_time_s": 1.0
     }
   }
 }

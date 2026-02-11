@@ -1894,7 +1894,7 @@
       "distance"
     ],
     "weights": {
-      "distance": 0.15
+      "distance": 1.0
     }
   }
 }

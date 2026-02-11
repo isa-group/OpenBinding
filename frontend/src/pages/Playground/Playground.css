@@ -54,6 +54,7 @@
   font-size: 0.875rem;
   cursor: pointer;
   min-width: 200px;
+  max-width: 280px;
   transition: all var(--transition-fast);
 }
 
@@ -65,6 +66,18 @@
 
 .example-select:hover {
   border-color: var(--color-accent);
+}
+
+.example-select optgroup {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-style: normal;
+  padding: var(--space-1) 0;
+}
+
+.example-select option {
+  padding: var(--space-1) var(--space-2);
+  font-weight: 400;
 }
 
 .panel-content {
@@ -396,11 +409,19 @@
   color: var(--color-text-primary);
 }
 
+.binding-space-summary {
+  margin-bottom: var(--space-6);
+}
+
+.binding-space-summary h3 {
+  margin: 0 0 var(--space-4) 0;
+}
+
 .binding-space-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-4);
 }
 
 .metric-card {

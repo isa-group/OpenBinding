@@ -3566,8 +3566,8 @@
       "cost"
     ],
     "weights": {
-      "distance": 0.96,
-      "cost": 0.26
+      "distance": 0.78,
+      "cost": 0.22
     }
   }
 }

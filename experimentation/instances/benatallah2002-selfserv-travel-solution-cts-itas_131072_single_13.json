@@ -756,7 +756,7 @@
       "cost_usd"
     ],
     "weights": {
-      "cost_usd": 0.5
+      "cost_usd": 1.0
     }
   },
   "constraints": [

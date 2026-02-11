@@ -759,7 +759,7 @@
       "cost"
     ],
     "weights": {
-      "distance": 0.33,
+      "distance": 0.34,
       "time": 0.33,
       "cost": 0.33
     }

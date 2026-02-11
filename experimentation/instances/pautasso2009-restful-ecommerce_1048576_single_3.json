@@ -823,8 +823,8 @@
       "latency_ms"
     ],
     "weights": {
-      "availability": 0.36,
-      "latency_ms": 0.23
+      "availability": 0.62,
+      "latency_ms": 0.38
     }
   }
 }

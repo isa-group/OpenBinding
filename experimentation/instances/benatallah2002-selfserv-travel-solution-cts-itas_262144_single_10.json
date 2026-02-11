@@ -812,8 +812,8 @@
       "latency_ms"
     ],
     "weights": {
-      "cost_usd": 0.37,
-      "latency_ms": 0.27
+      "cost_usd": 0.58,
+      "latency_ms": 0.42
     }
   },
   "constraints": [

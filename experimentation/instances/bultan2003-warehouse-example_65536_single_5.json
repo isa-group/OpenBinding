@@ -628,7 +628,7 @@
       "availability"
     ],
     "weights": {
-      "availability": 0.22
+      "availability": 1.0
     }
   },
   "constraints": [

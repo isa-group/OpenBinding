@@ -34,6 +34,16 @@ class SolveRequest(BaseModel):
     options: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Solver-specific options. E.g. {'iterations_count': 1000} for Random-Search.")
     verbose: bool = Field(default=False, description="If true, return diagnostics and warnings.")
 
+class BindingSpaceRequest(SolveRequest):
+    offset: int = Field(default=0, ge=0, description="Offset for pagination (0-based index of the first binding to return).")
+    limit: int = Field(default=100, ge=1, le=1000, description="Number of bindings to return (max 1000).")
+
+class BindingSpacePage(BaseModel):
+    total_combinations: str = Field(..., description="Total size of the binding space as a string.")
+    offset: int
+    limit: int
+    bindings: List[Dict[str, str]] = Field(..., description="List of bindings, where each binding is a map of Task ID -> Candidate ID.")
+
 class ValidationViolation(BaseModel):
     constraint_id: Optional[str] = None
     message: str

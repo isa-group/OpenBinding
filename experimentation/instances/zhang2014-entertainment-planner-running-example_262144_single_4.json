@@ -2368,7 +2368,7 @@
       "distance"
     ],
     "weights": {
-      "distance": 0.25
+      "distance": 1.0
     }
   }
 }

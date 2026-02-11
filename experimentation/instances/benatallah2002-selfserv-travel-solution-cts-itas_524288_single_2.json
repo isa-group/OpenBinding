@@ -878,8 +878,8 @@
       "availability"
     ],
     "weights": {
-      "latency_ms": 0.85,
-      "availability": 0.76
+      "latency_ms": 0.53,
+      "availability": 0.47
     }
   },
   "constraints": [

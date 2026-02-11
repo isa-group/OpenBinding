@@ -9,9 +9,9 @@ import httpx
 
 load_dotenv()
 
-from .models.api import SolveRequest, SolveResponse, JobResponse, JobStatus, AnalyzeResponse, AnalyzeWarning, BindingSpaceSummary, Provenance
+from .models.api import SolveRequest, SolveResponse, JobResponse, JobStatus, AnalyzeResponse, AnalyzeWarning, BindingSpaceSummary, Provenance, BindingSpaceRequest, BindingSpacePage
 from .validation.pipeline import ValidationPipeline
-from .validation.analysis import compute_binding_space_summary, generate_warnings
+from .validation.analysis import compute_binding_space_summary, generate_warnings, generate_binding_space_subset
 from .routing.router import Router
 from .registry.engine import EngineRegistry
 import time
@@ -311,6 +311,56 @@ async def analyze(request: SolveRequest):
             execution_time_ms=duration
         ),
         diagnostics=diagnostics if diagnostics else None
+    )
+
+@app.post(
+    "/v1/analyze/binding-space",
+    response_model=BindingSpacePage,
+    status_code=status.HTTP_200_OK,
+    responses={
+        422: {
+            "description": "Validation failed",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Validation failed"}
+                }
+            }
+        }
+    }
+)
+async def analyze_binding_space(request: BindingSpaceRequest):
+    # Reuse the same validation logic.
+    # We treat BindingSpaceRequest as a SolveRequest for validation since it inherits from it.
+    result = validate_and_prepare(request)
+    
+    if not result["valid"]:
+         # Raise 422 with details
+        violations_data = result.get("violations", [])
+        error_response = {
+            "error": result.get("error", "Validation failed"),
+            "violations": []
+        }
+        if violations_data:
+            for v in violations_data:
+                 # Helper to extract dict or object
+                if isinstance(v, dict):
+                     error_response["violations"].append(v)
+                else:
+                    error_response["violations"].append(v.model_dump())
+
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=error_response
+        )
+        
+    # Generate the requested subset
+    subset = generate_binding_space_subset(request.instance, request.offset, request.limit)
+    
+    return BindingSpacePage(
+        total_combinations=subset["total_combinations"],
+        offset=subset["offset"],
+        limit=subset["limit"],
+        bindings=subset["bindings"]
     )
 
 from fastapi import Response

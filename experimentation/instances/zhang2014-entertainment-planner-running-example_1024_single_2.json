@@ -561,9 +561,9 @@
       "time"
     ],
     "weights": {
-      "distance": 0.95,
-      "cost": 0.63,
-      "time": 0.72
+      "distance": 0.41,
+      "cost": 0.28,
+      "time": 0.31
     }
   }
 }

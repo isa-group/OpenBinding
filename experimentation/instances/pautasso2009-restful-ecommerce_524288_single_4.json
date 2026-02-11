@@ -808,8 +808,8 @@
       "availability"
     ],
     "weights": {
-      "cost_usd": 0.88,
-      "availability": 0.54
+      "cost_usd": 0.62,
+      "availability": 0.38
     }
   }
 }

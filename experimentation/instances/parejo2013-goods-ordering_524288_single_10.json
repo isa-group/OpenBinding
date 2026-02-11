@@ -762,8 +762,8 @@
       "exec_time_s"
     ],
     "weights": {
-      "cost_usd": 0.68,
-      "exec_time_s": 0.95
+      "cost_usd": 0.42,
+      "exec_time_s": 0.58
     }
   }
 }

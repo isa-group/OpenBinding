@@ -9,6 +9,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
 import { CodeEditor } from '../../components/CodeEditor/CodeEditor';
+import { BindingSpaceExplorer } from '../../components/BindingSpaceExplorer/BindingSpaceExplorer';
 import './Playground.css';
 
 const ajv = new Ajv({ allErrors: true });
@@ -31,17 +32,29 @@ const DEFAULT_OPTIONS = `{
 type JobState = 'idle' | 'validating' | 'queued' | 'running' | 'completed' | 'failed';
 
 // Available examples in /examples directory
-const AVAILABLE_EXAMPLES = [
-  'common-basic.json',
-  'common-huge.json',
-  'common-mixed.json',
-  'minizinc-constrained-loop.json',
-  'minizinc-huge.json',
-  'minizinc-tight.json',
-  'random-search-example.json',
-  'random-search-huge.json',
-  'random-search-valid.json'
-];
+const AVAILABLE_EXAMPLES = {
+  'Demo Examples': [
+    'demo/01_simple_seq.json',
+    'demo/02_parallel.json',
+    'demo/03_xor_choice.json',
+    'demo/04_conflict.json',
+    'demo/05_multi_obj.json',
+    'demo/06_loops.json',
+    'demo/07_soft_constraints.json',
+    'demo/08_dependencies.json',
+    'demo/09_mixed.json',
+    'demo/10_large_scale.json'
+  ],
+  'Literature Examples': [
+    'literature/benatallah.json',
+    'literature/bultan.json',
+    'literature/cremaschi.json',
+    'literature/netedu.json',
+    'literature/parejo.json',
+    'literature/pautasso.json',
+    'literature/zhang.json'
+  ]
+};
 
 export function Playground() {
   // State
@@ -56,6 +69,7 @@ export function Playground() {
   const [jobState, setJobState] = useState<JobState>('idle');
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentInstance, setCurrentInstance] = useState<any>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const validateRef = useRef<any>(null);
@@ -141,7 +155,10 @@ export function Playground() {
     
     try {
       // In production, examples should be served via the gateway or a static path
-      const response = await fetch(`/examples/${exampleFile}`);
+      const cacheBuster = Date.now();
+      const response = await fetch(`/examples/${exampleFile}?v=${cacheBuster}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error(`Failed to load example: ${response.statusText}`);
       }
@@ -162,6 +179,7 @@ export function Playground() {
 
     try {
       const instance = JSON.parse(inputJson);
+      setCurrentInstance(instance);
       const options = sendOptions ? JSON.parse(solverOptions) : {};
 
       const response = await apiClient.analyze({
@@ -186,6 +204,7 @@ export function Playground() {
 
     try {
       const instance = JSON.parse(inputJson);
+      setCurrentInstance(instance);
       
       // Client-side validation
       if (validateRef.current) {
@@ -262,8 +281,24 @@ export function Playground() {
                 className="example-select"
               >
                 <option value="">Load Example...</option>
-                {AVAILABLE_EXAMPLES.map(ex => (
-                  <option key={ex} value={ex}>{ex}</option>
+                {Object.entries(AVAILABLE_EXAMPLES).map(([category, examples]) => (
+                  <optgroup key={category} label={category}>
+                    {examples.map(ex => {
+                      const fileName = ex.split('/')[1].replace('.json', '');
+                      // Format: "01_simple_seq" -> "01 - Simple Seq"
+                      const displayName = fileName
+                        .replace(/_/g, ' ')
+                        .split(' ')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(' ')
+                        .replace(/^(\d+) /, '$1 - ');
+                      return (
+                        <option key={ex} value={ex}>
+                          {displayName}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
                 ))}
               </select>
               <input
@@ -460,7 +495,7 @@ export function Playground() {
                   {
                     id: 'binding-space',
                     label: 'Binding Space',
-                    content: <BindingSpaceView result={result} />
+                    content: <BindingSpaceView result={result} engineId={selectedEngine} instance={currentInstance} />
                   },
                   {
                     id: 'violations',
@@ -656,7 +691,7 @@ function ViolationsView({ result }: { result: any }) {
   );
 }
 
-function BindingSpaceView({ result }: { result: any }) {
+function BindingSpaceView({ result, engineId, instance }: { result: any; engineId: string; instance: any }) {
   // Binding space can be in result.binding_space (from analyze)
   // or in result.diagnostics.binding_space (from solve with verbose=true)
   const bindingSpace = result.binding_space || result.diagnostics?.binding_space;
@@ -673,45 +708,75 @@ function BindingSpaceView({ result }: { result: any }) {
     );
   }
 
+  // Extract tasks and candidates from instance
+  const tasks = instance?.tasks || [];
+  const candidates = instance?.candidates || [];
+
+  if (tasks.length === 0 || candidates.length === 0) {
+    return (
+      <div className="empty-result">
+        <Alert type="warning" title="Incomplete Data">
+          Tasks or candidates data is missing from the instance. Make sure your instance includes both tasks and candidates arrays.
+        </Alert>
+      </div>
+    );
+  }
+
   return (
     <div className="result-view binding-space-view">
-      <Card padding="lg">
-        <h3>Binding Space Analysis</h3>
-        
-        <div className="binding-space-metrics">
-          <div className="metric-card">
-            <span className="metric-label">Total Cardinality</span>
-            <span className="metric-value">{bindingSpace.cardinality}</span>
-            <span className="metric-subtitle">Total possible bindings</span>
-          </div>
-          
-          <div className="metric-card">
-            <span className="metric-label">Log₁₀ Cardinality</span>
-            <span className="metric-value">{bindingSpace.log10_cardinality?.toFixed(2)}</span>
-            <span className="metric-subtitle">Logarithmic scale</span>
-          </div>
-        </div>
-
-        {bindingSpace.empty_tasks && bindingSpace.empty_tasks.length > 0 && (
-          <Alert type="warning" title="Empty Tasks Detected">
-            The following tasks have no candidate services: {bindingSpace.empty_tasks.join(', ')}
-          </Alert>
-        )}
-
-        <div className="per-task-counts">
-          <h4>Candidates Per Task</h4>
-          <div className="task-counts-grid">
-            {Object.entries(bindingSpace.per_task_counts || {}).map(([taskId, count]) => (
-              <div key={taskId} className="task-count-item">
-                <span className="task-id">{taskId}</span>
-                <Badge variant={(count as number) === 0 ? 'error' : 'success'} size="sm">
-                  {String(count)} candidate{(count as number) !== 1 ? 's' : ''}
-                </Badge>
+      {bindingSpace && (
+        <Card padding="md" className="binding-space-summary">
+          <h3>Binding Space Analysis</h3>
+          <div className="binding-space-metrics">
+            {bindingSpace.cardinality !== undefined && (
+              <div className="metric-card">
+                <div className="metric-label">Cardinality</div>
+                <div className="metric-value">
+                  {typeof bindingSpace.cardinality === 'number' && bindingSpace.cardinality < 1e6
+                    ? bindingSpace.cardinality.toLocaleString()
+                    : typeof bindingSpace.cardinality === 'number'
+                    ? bindingSpace.cardinality.toExponential(2)
+                    : bindingSpace.cardinality}
+                </div>
+                <div className="metric-subtitle">Total possible combinations</div>
               </div>
-            ))}
+            )}
+            {bindingSpace.log10_cardinality !== undefined && (
+              <div className="metric-card">
+                <div className="metric-label">Log10 Size</div>
+                <div className="metric-value">
+                  ~{typeof bindingSpace.log10_cardinality === 'number'
+                    ? bindingSpace.log10_cardinality.toFixed(2)
+                    : bindingSpace.log10_cardinality}
+                </div>
+                <div className="metric-subtitle">Logarithmic scale</div>
+              </div>
+            )}
+            {bindingSpace.empty_tasks?.length > 0 && (
+              <div className="metric-card">
+                <div className="metric-label">Empty Tasks</div>
+                <div className="metric-value" style={{ color: 'var(--color-warning)' }}>
+                  {bindingSpace.empty_tasks.length}
+                </div>
+                <div className="metric-subtitle">Tasks with zero candidates</div>
+              </div>
+            )}
           </div>
-        </div>
-      </Card>
+          {bindingSpace.empty_tasks?.length > 0 && (
+            <Alert type="warning" title="Warning">
+              {bindingSpace.empty_tasks.length} task(s) have zero candidates: {bindingSpace.empty_tasks.join(', ')}
+            </Alert>
+          )}
+        </Card>
+      )}
+      
+      <BindingSpaceExplorer
+        key={`${engineId}-${tasks.length}-${candidates.length}-${instance?.metadata?.id || 'instance'}`}
+        engineId={engineId}
+        instance={instance}
+        tasks={tasks}
+        candidates={candidates}
+      />
     </div>
   );
 }

@@ -475,8 +475,8 @@
       "availability"
     ],
     "weights": {
-      "cost_usd": 0.43,
-      "availability": 0.63
+      "cost_usd": 0.41,
+      "availability": 0.59
     }
   },
   "constraints": [

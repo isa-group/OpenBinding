@@ -507,7 +507,7 @@
       "exec_time_s"
     ],
     "weights": {
-      "exec_time_s": 0.63
+      "exec_time_s": 1.0
     }
   }
 }

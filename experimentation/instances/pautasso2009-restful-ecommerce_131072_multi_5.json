@@ -747,7 +747,7 @@
       "latency_ms"
     ],
     "weights": {
-      "availability": 0.33,
+      "availability": 0.34,
       "cost_usd": 0.33,
       "latency_ms": 0.33
     }

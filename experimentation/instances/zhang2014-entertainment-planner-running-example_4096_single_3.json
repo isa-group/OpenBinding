@@ -706,8 +706,8 @@
       "cost"
     ],
     "weights": {
-      "time": 0.52,
-      "cost": 0.13
+      "time": 0.8,
+      "cost": 0.2
     }
   }
 }

@@ -723,7 +723,7 @@
       "availability"
     ],
     "weights": {
-      "availability": 0.66
+      "availability": 1.0
     }
   }
 }

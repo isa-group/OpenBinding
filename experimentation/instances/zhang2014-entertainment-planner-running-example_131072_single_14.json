@@ -1914,9 +1914,9 @@
       "distance"
     ],
     "weights": {
-      "time": 0.82,
-      "cost": 0.71,
-      "distance": 0.42
+      "time": 0.42,
+      "cost": 0.36,
+      "distance": 0.22
     }
   }
 }
