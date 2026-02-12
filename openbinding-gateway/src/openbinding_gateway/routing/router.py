@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 from typing import Optional, Any
 from ..registry.engine import EngineRegistry
@@ -22,13 +23,31 @@ class Router:
                 all_warnings = (warnings or []) + (plugin_warnings or [])
 
                 # Forward to Engine's /solve
-                response = await client.post(
-                    f"{service_url.rstrip('/')}/solve",
-                    json=payload,
-                    timeout=10.0
-                )
-                response.raise_for_status()
-                data = response.json()
+                data = None
+                for attempt in range(2 + 1):
+                    try:
+                        response = await client.post(
+                            f"{service_url.rstrip('/')}/solve",
+                            json=payload,
+                            timeout=900
+                        )
+
+                        if response.status_code in (502, 503, 504):
+                            if attempt >= 2:
+                                response.raise_for_status()
+                            await asyncio.sleep(1)
+                            continue
+
+                        response.raise_for_status()
+                        data = response.json()
+                        break
+                    except httpx.RequestError as e:
+                        if attempt >= 2:
+                            raise RuntimeError(f"Failed to contact engine: {str(e)}")
+                        await asyncio.sleep(1)
+
+                if data is None:
+                    raise RuntimeError("Failed to contact engine")
                 
                 # Check for sync response
                 if "job_id" not in data and "selection" in data:
@@ -74,6 +93,35 @@ class Router:
                 )
                 
             except httpx.HTTPStatusError as e:
+                # Handle 422 from Random Search as No Solution
+                if e.response.status_code == 422:
+                     try:
+                         err_data = e.response.json()
+                         if "No feasible solution" in err_data.get("error", ""):
+                             # Engine found no feasible solution: return sync completion with empty solutions
+                             job = JobManager.create_job(request.engine_id, "sync-no-solution", service_url)
+                             job.status = JobStatus.COMPLETED
+                             
+                             result = SolveResponse(
+                                 solutions=[],
+                                 provenance={
+                                     "engine_id": request.engine_id,
+                                     "execution_time_ms": 0,
+                                     "metadata": {"error": err_data.get("error")}
+                                 },
+                                 diagnostics={"warnings": all_warnings} if all_warnings else None
+                             )
+                             
+                             job.result = result
+
+                             return JobResponse(
+                                 job_id=job.id,
+                                 status=JobStatus.COMPLETED,
+                                 result=result
+                             )
+                     except:
+                         pass
+
                 error_msg = f"Engine returned error {e.response.status_code}"
                 try:
                     details = e.response.text
@@ -101,7 +149,7 @@ class Router:
             try:
                 response = await client.get(
                     f"{job.service_url.rstrip('/')}/jobs/{job.engine_job_id}",
-                    timeout=5.0
+                    timeout=30
                 )
                 if response.status_code == 404:
                    return JobResponse(job_id=job.id, status=JobStatus.FAILED, error="Job not found on engine")

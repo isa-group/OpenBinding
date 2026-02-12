@@ -5,20 +5,29 @@ OpenBinding is a QoS-aware service composition gateway and solver engine framewo
 ## 🏗️ Architecture
 
 ```mermaid
-graph TD
-    User[User / Frontend] -->|HTTP POST /v1/solve| Gateway[OpenBinding Gateway]
-    Gateway -->|1. Validate General Schema| Schema[General QoS Schema]
-    Gateway -->|2. Validate Specialization| Spec[Specialization Schema]
-    Gateway -->|3. Route Request| Router{Router}
-    
-    Router -->|engine_id=minizinc-csp| MZ[MiniZinc CSP Engine]
-    Router -->|engine_id=random-search| RS[Random Search Engine]
-    
-    MZ -->|Solve via Gecode| Solution
-    RS -->|Solve via Random Heuristic| Solution
-    
-    Solution --> Gateway
-    Gateway -->|HTTP 200| User
+flowchart TD
+    U[User / Frontend]:::client
+
+    U -->|HTTP POST /v1/solve| G[OpenBinding Gateway]:::gateway
+
+    G --> V0[Validate request envelope]:::step
+    V0 --> V1[Validate basic composition schema]:::schema
+    V1 --> R{Root router: route by engine_id}:::router
+
+    R -->|minizinc-csp| SZ_MZ[Validate specialization schema: MiniZinc]:::schema
+    R -->|random-search| SZ_RS[Validate specialization schema: Random Search]:::schema
+    R -->|many-heuristic| SZ_MH[Validate specialization schema: Many-Heuristic]:::schema
+
+    SZ_MZ --> MZ[MiniZinc CSP engine]:::engine
+    SZ_RS --> RS[Random Search engine]:::engine
+    SZ_MH --> MH[Many-Heuristic engine]:::engine
+
+    MZ -->|solve| SOL[(Solution)]:::solution
+    RS -->|solve| SOL
+    MH -->|solve| SOL
+
+    SOL --> G
+    G -->|HTTP 200 result| U
 ```
 
 ## 🧩 Components
@@ -40,6 +49,11 @@ graph TD
     *   Uses random search.
     *   Best for exploring large solution spaces.
 
+4.  **Many-Heuristic Engine** (`engines/many-heuristic`):
+    *   Java service (extends Random Search).
+    *   Specialized for **Many-Objective** problems (3+ objectives).
+    *   Returns a **Pareto front** of non-dominated solutions.
+
 4.  **Frontend** (`frontend`):
     *   React + Vite web UI for modeling and submitting problems.
     *   Multi-page SPA with professional design inspired by modern developer tools.
@@ -56,6 +70,7 @@ OpenBinding validates incoming requests against two schema layers:
 
 1. **General schema** (engine-agnostic):
     - JSON Schema (structural validation): `schemas/general/schema.json`
+    - Visual model (Mermaid): `schemas/general/schema.mermaid`
     - Specification / semantics (human-readable): `schemas/general/schema.specification.md`
 
     The specification document explains the intent and semantics behind the JSON Schema, including:
@@ -67,6 +82,14 @@ OpenBinding validates incoming requests against two schema layers:
 2. **Specialization schemas** (engine-specific constraints):
     - `schemas/specializations/minizinc-csp.schema.json`
     - `schemas/specializations/random-search.schema.json`
+    - `schemas/specializations/many-heuristic.schema.json`
+
+   Specializations can also include a visual model in Mermaid format (recommended):
+    - `schemas/specializations/minizinc-csp.schema.mermaid`
+    - `schemas/specializations/random-search.schema.mermaid`
+    - `schemas/specializations/many-heuristic.schema.mermaid`
+
+   Mermaid models are used by the frontend **Schema Explorer** in the **Model** tab. If a specialization does not provide `.schema.mermaid`, the JSON schema workflow remains fully functional.
 
 Example payloads that follow these schemas live in `examples/`.
 
@@ -89,6 +112,7 @@ Example payloads that follow these schemas live in `examples/`.
     *   **Gateway API**: [http://localhost:8000/docs](http://localhost:8000/docs)
     *   **MiniZinc Engine**: Port 3000 (Internal)
     *   **Random Search Engine**: Port 8081 (Internal)
+    *   **Many-Heuristic Engine**: Port 8082 (Internal)
 
 2.  **Stop the Stack**:
     ```bash
@@ -197,6 +221,14 @@ curl -X POST "http://localhost:8000/v1/solve" \
 ```
 
 See `examples/` directory for sample payloads.
+
+## 🧭 Engine Integration Guide
+
+If you are adding a new engine, see [docs/ENGINE_INTEGRATION_GUIDE.md](docs/ENGINE_INTEGRATION_GUIDE.md).
+
+## 🤝 Contributing
+
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for branch and PR rules.
 
 ## 📄 License
 

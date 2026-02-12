@@ -8,10 +8,17 @@
     "composition": {
       "type": "object",
       "properties": {
-        "type": { "const": "structured" },
-        "root": { "$ref": "#/$defs/csp_node" }
+        "type": {
+          "const": "STRUCTURED"
+        },
+        "root": {
+          "$ref": "#/$defs/csp_node"
+        }
       },
-      "required": ["type", "root"]
+      "required": [
+        "type",
+        "root"
+      ]
     },
     "features": {
       "type": "array",
@@ -30,9 +37,13 @@
     },
     "objective": {
       "properties": {
-        "type": { "const": "weighted_sum" }
+        "type": {
+          "const": "MONO"
+        }
       },
-      "required": ["type"]
+      "required": [
+        "type"
+      ]
     },
     "constraints": {
       "type": "array",
@@ -41,8 +52,11 @@
           {
             "type": "object",
             "properties": {
+              "id": {
+                "type": "string"
+              },
               "kind": {
-                "const": "attribute_bound"
+                "const": "ATTRIBUTE_BOUND"
               },
               "attribute_id": {
                 "type": "string"
@@ -54,25 +68,46 @@
                   ">=",
                   "==",
                   "<",
-                  ">"
+                  ">",
+                  "IN_RANGE"
                 ]
               },
               "value": {
-                "type": "number"
+                "oneOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "min": {
+                        "type": "number"
+                      },
+                      "max": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "min",
+                      "max"
+                    ]
+                  }
+                ]
               },
               "scope": {
                 "enum": [
-                  "global",
-                  "local"
+                  "GLOBAL",
+                  "LOCAL"
                 ]
               },
               "task_id": {
                 "type": "string"
+              },
+              "hard": {
+                "const": true
               }
             },
             "required": [
-              "kind",
-              "attribute_id",
               "kind",
               "attribute_id",
               "op",
@@ -82,14 +117,26 @@
           {
             "type": "object",
             "properties": {
+              "id": {
+                "type": "string"
+              },
               "kind": {
-                "const": "dependency"
+                "const": "DEPENDENCY"
               },
               "type": {
                 "enum": [
-                  "same_provider",
-                  "different_provider"
+                  "SAME_PROVIDER",
+                  "DIFFERENT_PROVIDER"
                 ]
+              },
+              "tasks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "hard": {
+                "const": true
               }
             },
             "required": [
@@ -101,38 +148,63 @@
       }
     }
   },
-  "required": ["composition", "features", "aggregation_policies", "objective"],
+  "required": [
+    "composition",
+    "features",
+    "aggregation_policies",
+    "objective"
+  ],
   "$defs": {
     "csp_node": {
       "oneOf": [
-        { "$ref": "#/$defs/task_node" },
-        { "$ref": "#/$defs/seq_node" },
-        { "$ref": "#/$defs/and_node" },
+        {
+          "$ref": "#/$defs/task_node"
+        },
+        {
+          "$ref": "#/$defs/seq_node"
+        },
+        {
+          "$ref": "#/$defs/and_node"
+        },
         {
           "$ref": "#/$defs/xor_node"
         },
         {
           "$ref": "#/$defs/loop_node"
+        },
+        {
+          "$ref": "#/$defs/element_node"
         }
       ]
     },
     "task_node": {
       "type": "object",
       "properties": {
-        "kind": { "const": "TASK" }
+        "kind": {
+          "const": "TASK"
+        }
       },
-      "required": ["kind"]
+      "required": [
+        "kind"
+      ]
     },
     "seq_node": {
       "type": "object",
       "properties": {
-        "kind": { "const": "SEQ" },
+        "kind": {
+          "const": "SEQ"
+        },
         "children": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/csp_node" }
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/csp_node"
+          }
         }
       },
-      "required": ["kind", "children"]
+      "required": [
+        "kind",
+        "children"
+      ]
     },
     "and_node": {
       "type": "object",
@@ -141,16 +213,23 @@
           "const": "AND"
         },
         "children": {
-            "type": "array",
-            "items": { "$ref": "#/$defs/csp_node" }
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/csp_node"
+          }
         }
       },
-      "required": ["kind", "children"]
+      "required": [
+        "kind",
+        "children"
+      ]
     },
     "xor_node": {
       "type": "object",
       "properties": {
-        "kind": { "const": "XOR" },
+        "kind": {
+          "const": "XOR"
+        },
         "branches": {
           "type": "array",
           "items": {
@@ -171,7 +250,10 @@
           }
         }
       },
-      "required": ["kind", "branches"]
+      "required": [
+        "kind",
+        "branches"
+      ]
     },
     "loop_node": {
       "type": "object",
@@ -189,6 +271,17 @@
       "required": [
         "kind",
         "body"
+      ]
+    },
+    "element_node": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "ELEMENT"
+        }
+      },
+      "required": [
+        "kind"
       ]
     }
   }

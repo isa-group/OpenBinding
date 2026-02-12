@@ -1,23 +1,36 @@
 import os
 import json
+from pathlib import Path
 import jsonschema # type: ignore
 from typing import Dict, Any, List, Optional
 from ..models.api import ValidationViolation
 
 class GeneralSchemaValidator:
     def __init__(self):
-        # Locate general schema
-        # We assume it's at schemas/general/schema.json relative to project root or configured path
-        # In this environment, we put it in <root>/schemas/general/schema.json
-        # The gateway runs in /app, so ../schemas/general/schema.json typically
-        # Or use absolute path env var
-        
-        self.schema_path = os.getenv("GENERAL_SCHEMA_PATH", "/app/schemas/general/schema.json")
-        if not os.path.exists(self.schema_path):
-             # Fallback for local run
-             self.schema_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../../schemas/general/schema.json"))
+        env_path = os.getenv("GENERAL_SCHEMA_PATH")
+        schema_candidates: List[Path] = []
+        if env_path:
+            schema_candidates.append(Path(env_path))
 
-        with open(self.schema_path, 'r') as f:
+        # Support both layouts:
+        # - gateway repo has its own schemas/: <openbinding-gateway>/schemas/general/schema.json
+        # - monorepo has schemas/ at the workspace root: <OpenBinding>/schemas/general/schema.json
+        this_file = Path(__file__).resolve()
+        schema_candidates.extend(
+            [
+                this_file.parents[3] / "schemas" / "general" / "schema.json",
+                this_file.parents[4] / "schemas" / "general" / "schema.json",
+                Path("/app/schemas/general/schema.json"),
+            ]
+        )
+
+        schema_path: Optional[Path] = next((p for p in schema_candidates if p.exists()), None)
+        if schema_path is None:
+            raise FileNotFoundError(
+                "General schema not found. Tried: " + ", ".join(str(p) for p in schema_candidates)
+            )
+
+        with open(schema_path, "r") as f:
             self.schema = json.load(f)
             
     def validate(self, instance: Dict[str, Any]) -> List[ValidationViolation]:

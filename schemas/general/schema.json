@@ -17,29 +17,13 @@
   "properties": {
     "metadata": {
       "type": "object",
-      "required": [
-        "id",
-        "name",
-        "version",
-        "created_at"
-      ],
+      "required": ["id", "name", "version", "created_at"],
       "properties": {
-        "id": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "version": {
-          "type": "string"
-        },
-        "created_at": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "description": {
-          "type": "string"
-        }
+        "id": { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "created_at": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" }
       },
       "additionalProperties": true
     },
@@ -48,37 +32,13 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
+        "required": ["id", "name"],
+        "additionalProperties": false,
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "location": {
-            "type": "object",
-            "properties": {
-              "region": {
-                "type": "string"
-              },
-              "zone": {
-                "type": "string"
-              }
-            },
-            "additionalProperties": false
-          },
-          "affinity_tags": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "additionalProperties": false
+          "id": { "$ref": "#/$defs/identifier" },
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" }
+        }
       }
     },
     "tasks": {
@@ -86,19 +46,13 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
+        "required": ["id", "name"],
+        "additionalProperties": false,
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
+          "id": { "$ref": "#/$defs/identifier" },
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" }
+        }
       }
     },
     "candidates": {
@@ -106,53 +60,21 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": [
-          "id",
-          "task_id",
-          "provider_id",
-          "features"
-        ],
+        "required": ["id", "name", "task_id", "provider_id", "features"],
+        "additionalProperties": false,
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "task_id": {
-            "type": "string"
-          },
-          "provider_id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "version": {
-            "type": "string"
-          },
-          "api": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string"
-              },
-              "version": {
-                "type": "string"
-              }
-            },
-            "additionalProperties": false
-          },
+          "id": { "$ref": "#/$defs/identifier" },
+          "task_id": { "$ref": "#/$defs/identifier" },
+          "provider_id": { "$ref": "#/$defs/identifier" },
+          "name": { "type": "string", "minLength": 1 },
           "features": {
             "type": "object",
             "minProperties": 1,
-            "additionalProperties": {
-              "type": "number"
-            },
-            "propertyNames": {
-              "type": "string",
-              "pattern": "^[A-Za-z0-9_.-]+$"
-            }
-          }
-        },
-        "additionalProperties": false
+            "propertyNames": { "$ref": "#/$defs/identifier" },
+            "additionalProperties": { "type": "number" }
+          },
+          "description": { "type": "string" }
+        }
       }
     },
     "features": {
@@ -160,1057 +82,377 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": [
-          "id",
-          "name",
-          "direction",
-          "unit",
-          "scale",
-          "valid_range"
-        ],
+        "required": ["id", "name", "direction", "unit", "scale", "valid_range"],
+        "additionalProperties": false,
         "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
+          "id": { "$ref": "#/$defs/identifier" },
+          "name": { "type": "string", "minLength": 1 },
           "direction": {
             "type": "string",
-            "enum": [
-              "maximize",
-              "minimize"
-            ]
+            "enum": ["MAXIMIZE", "MINIMIZE"]
           },
-          "unit": {
-            "type": "string"
-          },
+          "unit": { "type": "string", "minLength": 1 },
           "scale": {
             "type": "string",
-            "enum": [
-              "ratio",
-              "interval",
-              "ordinal"
-            ]
+            "enum": ["RATIO", "INTERVAL", "ORDINAL"]
           },
-          "valid_range": {
-            "$ref": "#/$defs/numeric_range"
-          }
-        },
-        "additionalProperties": false
+          "valid_range": { "$ref": "#/$defs/numeric_range" },
+          "description": { "type": "string" }
+        }
       }
     },
-    "composition": {
-      "oneOf": [
-        {
-          "$ref": "#/$defs/structured_tree"
-        },
-        {
-          "$ref": "#/$defs/dag"
-        }
-      ]
-    },
+    "composition": { "$ref": "#/$defs/structured_tree" },
     "aggregation_policies": {
       "type": "object",
-      "additionalProperties": {
-        "$ref": "#/$defs/aggregation_policy"
-      },
-      "propertyNames": {
-        "type": "string",
-        "pattern": "^[A-Za-z0-9_.-]+$"
-      }
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/identifier" },
+      "additionalProperties": { "$ref": "#/$defs/aggregation_policy" }
     },
     "constraints": {
       "type": "array",
-      "items": {
-        "$ref": "#/$defs/constraint"
-      },
+      "items": { "$ref": "#/$defs/constraint" },
       "default": []
     },
-    "objective": {
-      "$ref": "#/$defs/objective"
-    },
-    "runtime": {
-      "type": "object"
-    },
-    "solver_config": {
-      "type": "object"
-    },
-    "solution": {
-      "type": "object",
-      "properties": {
-        "selection": {
-          "type": "object",
-          "properties": {
-            "by_task": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "string"
-              },
-              "propertyNames": {
-                "type": "string",
-                "pattern": "^[A-Za-z0-9_.-]+$"
-              }
-            }
-          },
-          "additionalProperties": false
-        },
-        "aggregated_features": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "number"
-          }
-        },
-        "normalized_features": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "number"
-          }
-        },
-        "objective_value": {
-          "type": "number"
-        },
-        "feasible": {
-          "type": "boolean"
-        },
-        "violations": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "constraint_id": {
-                "type": "string"
-              },
-              "slack": {
-                "type": "number"
-              },
-              "penalty_applied": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "constraint_id"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "solver_provenance": {
-          "type": "object",
-          "properties": {
-            "solver": {
-              "type": "string"
-            },
-            "version": {
-              "type": "string"
-            },
-            "seed": {
-              "type": "integer"
-            },
-            "time_sec": {
-              "type": "number"
-            },
-            "gap": {
-              "type": "number"
-            },
-            "timestamp": {
-              "type": "string",
-              "format": "date-time"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    }
+    "objective": { "$ref": "#/$defs/objective" }
   },
   "$defs": {
-    "structured_tree": {
-      "type": "object",
-      "required": [
-        "type",
-        "root"
-      ],
-      "properties": {
-        "type": {
-          "const": "structured"
-        },
-        "root": {
-          "$ref": "#/$defs/node"
+      "identifier": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_.-]+$"
+      },
+      "structured_tree": {
+        "type": "object",
+        "required": ["type", "root"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "const": "STRUCTURED" },
+          "root": { "$ref": "#/$defs/node" }
         }
       },
-      "additionalProperties": false
-    },
-    "node": {
-      "oneOf": [
-        {
-          "$ref": "#/$defs/task_node"
-        },
-        {
-          "$ref": "#/$defs/seq_node"
-        },
-        {
-          "$ref": "#/$defs/and_node"
-        },
-        {
-          "$ref": "#/$defs/xor_node"
-        },
-        {
-          "$ref": "#/$defs/loop_node"
-        }
-      ]
-    },
-    "task_node": {
-      "type": "object",
-      "required": [
-        "id",
-        "kind",
-        "task_id"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "kind": {
-          "const": "TASK"
-        },
-        "task_id": {
-          "type": "string"
+      "node": {
+        "oneOf": [
+          { "$ref": "#/$defs/task_node" },
+          { "$ref": "#/$defs/seq_node" },
+          { "$ref": "#/$defs/and_node" },
+          { "$ref": "#/$defs/xor_node" },
+          { "$ref": "#/$defs/loop_node" },
+          { "$ref": "#/$defs/element_node" }
+        ]
+      },
+      "task_node": {
+        "type": "object",
+        "required": ["id", "kind", "task_id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "kind": { "const": "TASK" },
+          "task_id": { "$ref": "#/$defs/identifier" },
+          "description": { "type": "string" }
         }
       },
-      "additionalProperties": false
-    },
-    "seq_node": {
-      "type": "object",
-      "required": [
-        "id",
-        "kind",
-        "children"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "kind": {
-          "const": "SEQ"
-        },
-        "children": {
-          "type": "array",
-          "minItems": 2,
-          "items": {
-            "$ref": "#/$defs/node"
+      "element_node": {
+        "type": "object",
+        "required": ["id", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "kind": { "const": "ELEMENT" },
+          "description": { "type": "string" }
+        }
+      },
+      "seq_node": {
+        "type": "object",
+        "required": ["id", "kind", "children"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "kind": { "const": "SEQ" },
+          "description": { "type": "string" },
+          "children": {
+            "type": "array",
+            "minItems": 2,
+            "items": { "$ref": "#/$defs/node" }
           }
         }
       },
-      "additionalProperties": false
-    },
-    "and_node": {
-      "type": "object",
-      "required": [
-        "id",
-        "kind",
-        "children"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "kind": {
-          "const": "AND"
-        },
-        "children": {
-          "type": "array",
-          "minItems": 2,
-          "items": {
-            "$ref": "#/$defs/node"
+      "and_node": {
+        "type": "object",
+        "required": ["id", "kind", "children"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "kind": { "const": "AND" },
+          "description": { "type": "string" },
+          "children": {
+            "type": "array",
+            "minItems": 2,
+            "items": { "$ref": "#/$defs/node" }
           }
         }
       },
-      "additionalProperties": false
-    },
-    "xor_node": {
-      "type": "object",
-      "required": [
-        "id",
-        "kind",
-        "branches"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "kind": {
-          "const": "XOR"
-        },
-        "branches": {
-          "type": "array",
-          "minItems": 2,
-          "items": {
-            "type": "object",
-            "required": [
-              "p",
-              "child"
-            ],
-            "properties": {
-              "p": {
-                "type": "number",
-                "exclusiveMinimum": 0,
-                "maximum": 1
-              },
-              "child": {
-                "$ref": "#/$defs/node"
-              }
-            },
-            "additionalProperties": false
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "loop_node": {
-      "type": "object",
-      "required": [
-        "id",
-        "kind",
-        "body"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "kind": {
-          "const": "LOOP"
-        },
-        "body": {
-          "$ref": "#/$defs/node"
-        },
-        "expected_iterations": {
-          "type": "number",
-          "minimum": 0
-        },
-        "bounds": {
-          "type": "object",
-          "properties": {
-            "min": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "max": {
-              "type": "integer",
-              "minimum": 0
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "allOf": [
-        {
-          "anyOf": [
-            {
-              "required": [
-                "expected_iterations"
-              ]
-            },
-            {
-              "required": [
-                "bounds"
-              ]
-            }
-          ]
-        }
-      ],
-      "additionalProperties": false
-    },
-    "dag": {
-      "type": "object",
-      "required": [
-        "type",
-        "nodes",
-        "edges"
-      ],
-      "properties": {
-        "type": {
-          "const": "dag"
-        },
-        "nodes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "id",
-              "kind"
-            ],
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "kind": {
-                "type": "string"
-              },
-              "task_id": {
-                "type": "string"
-              }
-            },
-            "additionalProperties": false,
-            "allOf": [
-              {
-                "if": {
-                  "properties": {
-                    "kind": {
-                      "const": "TASK"
-                    }
-                  },
-                  "required": [
-                    "kind"
-                  ]
-                },
-                "then": {
-                  "required": [
-                    "task_id"
-                  ]
-                }
-              },
-              {
-                "if": {
-                  "properties": {
-                    "kind": {
-                      "not": {
-                        "const": "TASK"
-                      }
-                    }
-                  },
-                  "required": [
-                    "kind"
-                  ]
-                },
-                "then": {
-                  "not": {
-                    "required": [
-                      "task_id"
-                    ]
-                  }
-                }
-              }
-            ]
-          }
-        },
-        "edges": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "from",
-              "to"
-            ],
-            "properties": {
-              "from": {
-                "type": "string"
-              },
-              "to": {
-                "type": "string"
-              },
-              "p": {
-                "type": "number",
-                "minimum": 0,
-                "maximum": 1
-              }
-            },
-            "additionalProperties": false
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "aggregation_policy": {
-      "type": "object",
-      "required": [
-        "neutral",
-        "compose",
-        "normalize"
-      ],
-      "properties": {
-        "neutral": {
-          "type": "number"
-        },
-        "compose": {
-          "type": "object",
-          "required": [],
-          "properties": {
-            "seq": {
-              "$ref": "#/$defs/compose_fn"
-            },
-            "and": {
-              "$ref": "#/$defs/compose_fn"
-            },
-            "xor": {
-              "$ref": "#/$defs/compose_fn"
-            },
-            "loop": {
-              "$ref": "#/$defs/compose_fn"
-            }
-          },
-          "additionalProperties": false,
-          "minProperties": 1,
-          "anyOf": [
-            {
-              "required": [
-                "seq"
-              ]
-            },
-            {
-              "required": [
-                "and"
-              ]
-            },
-            {
-              "required": [
-                "xor"
-              ]
-            },
-            {
-              "required": [
-                "loop"
-              ]
-            }
-          ]
-        },
-        "normalize": {
-          "$ref": "#/$defs/normalization"
-        }
-      },
-      "additionalProperties": false
-    },
-    "compose_fn": {
-      "type": "object",
-      "required": [
-        "fn"
-      ],
-      "properties": {
-        "fn": {
-          "type": "string",
-          "enum": [
-            "sum",
-            "product",
-            "max",
-            "min",
-            "weighted_sum",
-            "scale_by_c",
-            "custom"
-          ]
-        },
-        "expr": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false,
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "fn": {
-                "enum": [
-                  "weighted_sum",
-                  "scale_by_c",
-                  "custom"
-                ]
-              }
-            },
-            "required": [
-              "fn"
-            ]
-          },
-          "then": {
-            "required": [
-              "expr"
-            ]
-          }
-        }
-      ]
-    },
-    "constraint": {
-      "oneOf": [
-        {
-          "$ref": "#/$defs/attr_bound_constraint"
-        },
-        {
-          "$ref": "#/$defs/dependency_constraint"
-        },
-        {
-          "$ref": "#/$defs/custom_expr_constraint"
-        }
-      ]
-    },
-    "attr_bound_constraint": {
-      "type": "object",
-      "required": [
-        "id",
-        "kind",
-        "scope",
-        "attribute_id",
-        "op",
-        "value"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "kind": {
-          "const": "attribute_bound"
-        },
-        "scope": {
-          "type": "string",
-          "enum": [
-            "global",
-            "local"
-          ]
-        },
-        "task_id": {
-          "type": "string"
-        },
-        "candidate_id": {
-          "type": "string"
-        },
-        "attribute_id": {
-          "type": "string"
-        },
-        "op": {
-          "type": "string",
-          "enum": [
-            "<=",
-            ">=",
-            "==",
-            "in_range",
-            "<",
-            ">"
-          ]
-        },
-        "value": {},
-        "hard": {
-          "type": "boolean",
-          "default": true
-        },
-        "penalty": {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string"
-            },
-            "value": {
-              "type": "number"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false,
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "op": {
-                "const": "in_range"
-              }
-            },
-            "required": [
-              "op"
-            ]
-          },
-          "then": {
-            "properties": {
-              "value": {
-                "$ref": "#/$defs/numeric_range"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "op": {
-                "not": {
-                  "const": "in_range"
-                }
-              }
-            },
-            "required": [
-              "op"
-            ]
-          },
-          "then": {
-            "properties": {
-              "value": {
-                "type": "number"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "scope": {
-                "const": "local"
-              }
-            },
-            "required": [
-              "scope"
-            ]
-          },
-          "then": {
-            "anyOf": [
-              {
-                "required": [
-                  "task_id"
-                ]
-              },
-              {
-                "required": [
-                  "candidate_id"
-                ]
-              }
-            ]
-          }
-        }
-      ]
-    },
-    "dependency_constraint": {
-      "type": "object",
-      "required": [
-        "id",
-        "kind",
-        "type",
-        "tasks"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "kind": {
-          "const": "dependency"
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "same_provider",
-            "different_provider",
-            "co_located",
-            "not_co_located",
-            "affinity",
-            "anti_affinity",
-            "version_compatible"
-          ]
-        },
-        "tasks": {
-          "type": "array",
-          "minItems": 2,
-          "items": {
-            "type": "string"
-          }
-        },
-        "hard": {
-          "type": "boolean",
-          "default": true
-        },
-        "penalty": {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string"
-            },
-            "value": {
-              "type": "number"
-            }
-          },
-          "additionalProperties": false
-        },
-        "details": {
-          "type": "object",
-          "properties": {
-            "version": {
+      "xor_node": {
+        "type": "object",
+        "required": ["id", "kind", "branches"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "kind": { "const": "XOR" },
+          "description": { "type": "string" },
+          "branches": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
               "type": "object",
+              "required": ["p", "child"],
+              "additionalProperties": false,
               "properties": {
-                "by_task": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  }
+                "p": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1
                 },
-                "by_candidate": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  }
-                },
-                "by_api": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "string"
-                  }
-                }
-              },
-              "additionalProperties": false
+                "child": { "$ref": "#/$defs/node" }
+              }
             }
-          },
-          "additionalProperties": true
+          }
         }
       },
-      "additionalProperties": false
-    },
-    "custom_expr_constraint": {
-      "type": "object",
-      "required": [
-        "id",
-        "kind",
-        "expr",
-        "op",
-        "rhs"
-      ],
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "kind": {
-          "const": "custom"
-        },
-        "expr": {
-          "type": "string"
-        },
-        "op": {
-          "type": "string",
-          "enum": [
-            "<=",
-            ">=",
-            "==",
-            "<",
-            ">"
-          ]
-        },
-        "rhs": {
-          "type": "number"
-        },
-        "hard": {
-          "type": "boolean",
-          "default": true
-        },
-        "penalty": {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string"
-            },
-            "value": {
-              "type": "number"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    "objective": {
-      "oneOf": [
-        {
-          "$ref": "#/$defs/weighted_sum_obj"
-        },
-        {
-          "$ref": "#/$defs/lexicographic_obj"
-        },
-        {
-          "$ref": "#/$defs/pareto_obj"
-        }
-      ]
-    },
-    "weighted_sum_obj": {
-      "type": "object",
-      "required": [
-        "type",
-        "weights",
-        "normalized"
-      ],
-      "properties": {
-        "type": {
-          "const": "weighted_sum"
-        },
-        "weights": {
-          "type": "object",
-          "additionalProperties": {
+      "loop_node": {
+        "type": "object",
+        "required": ["id", "kind", "body"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "kind": { "const": "LOOP" },
+          "description": { "type": "string" },
+          "body": { "$ref": "#/$defs/node" },
+          "expected_iterations": {
             "type": "number",
-            "minimum": 0,
-            "maximum": 1
+            "minimum": 0
           },
-          "propertyNames": {
-            "type": "string",
-            "pattern": "^[A-Za-z0-9_.-]+$"
-          },
-          "minProperties": 1
-        },
-        "normalized": {
-          "type": "boolean",
-          "const": true
-        },
-        "weights_sum_to_one": {
-          "type": "boolean",
-          "default": true
-        }
-      },
-      "additionalProperties": false
-    },
-    "lexicographic_obj": {
-      "type": "object",
-      "required": [
-        "type",
-        "priority"
-      ],
-      "properties": {
-        "type": {
-          "const": "lexicographic"
-        },
-        "priority": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "string"
-          }
-        },
-        "tie_breaker": {
-          "type": "string",
-          "enum": [
-            "weighted_sum",
-            "none"
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "pareto_obj": {
-      "type": "object",
-      "required": [
-        "type",
-        "attributes"
-      ],
-      "properties": {
-        "type": {
-          "const": "pareto"
-        },
-        "attributes": {
-          "type": "array",
-          "minItems": 2,
-          "items": {
-            "type": "string"
-          }
-        },
-        "reference_points": {
-          "type": "array",
-          "items": {
+          "bounds": {
             "type": "object",
-            "additionalProperties": {
-              "type": "number"
+            "additionalProperties": false,
+            "properties": {
+              "min": { "type": "integer", "minimum": 0 },
+              "max": { "type": "integer", "minimum": 0 }
             }
           }
         },
-        "epsilon_constraints": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "number"
+        "allOf": [
+          {
+            "anyOf": [
+              { "required": ["expected_iterations"] },
+              { "required": ["bounds"] }
+            ]
+          }
+        ]
+      },
+      "aggregation_policy": {
+        "type": "object",
+        "required": ["neutral", "compose"],
+        "additionalProperties": false,
+        "properties": {
+          "neutral": { "type": "number" },
+          "compose": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "seq": { "$ref": "#/$defs/compose_fn" },
+              "and": { "$ref": "#/$defs/compose_fn" },
+              "xor": { "$ref": "#/$defs/compose_fn" },
+              "loop": { "$ref": "#/$defs/compose_fn" }
+            },
+            "anyOf": [
+              { "required": ["seq"] },
+              { "required": ["and"] },
+              { "required": ["xor"] },
+              { "required": ["loop"] }
+            ]
           }
         }
       },
-      "additionalProperties": false
-    },
-    "numeric_range": {
-      "type": "object",
-      "required": [
-        "min",
-        "max"
-      ],
-      "properties": {
-        "min": {
-          "type": "number"
-        },
-        "max": {
-          "type": "number"
+      "compose_fn": {
+        "type": "object",
+        "required": ["fn"],
+        "additionalProperties": false,
+        "properties": {
+          "fn": {
+            "type": "string",
+            "enum": [
+              "SUM",
+              "PRODUCT",
+              "MAX",
+              "MIN",
+              "SCALED_SUM",
+              "SCALED_PRODUCT",
+              "SCALED_MIN",
+              "SCALED_MAX",
+              "MEAN"
+            ]
+          }
         }
       },
-      "additionalProperties": false
-    },
-    "normalization": {
-      "type": "object",
-      "required": [
-        "type"
-      ],
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": [
-            "minmax",
-            "zscore",
-            "piecewise",
-            "identity",
-            "custom"
-          ]
+      "constraint": {
+        "oneOf": [
+          { "$ref": "#/$defs/attr_bound_constraint" },
+          { "$ref": "#/$defs/dependency_constraint" }
+        ]
+      },
+      "attr_bound_constraint": {
+        "type": "object",
+        "required": ["id", "kind", "scope", "attribute_id", "op", "value"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "kind": { "const": "ATTRIBUTE_BOUND" },
+          "scope": {
+            "type": "string",
+            "enum": ["GLOBAL", "LOCAL"]
+          },
+          "tasks": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "candidates": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "attribute_id": { "$ref": "#/$defs/identifier" },
+          "op": {
+            "type": "string",
+            "enum": ["<=", ">=", "==", "<", ">", "IN_RANGE"]
+          },
+          "value": {
+            "oneOf": [{ "$ref": "#/$defs/numeric_range" }, { "type": "number" }]
+          },
+          "hard": { "type": "boolean", "default": true },
+          "description": { "type": "string" }
         },
-        "bounds": {
-          "$ref": "#/$defs/numeric_range"
-        },
-        "increasing_is_better": {
-          "type": "boolean"
-        },
-        "expr": {
-          "type": "string"
+        "allOf": [
+          {
+            "if": {
+              "properties": { "op": { "const": "IN_RANGE" } },
+              "required": ["op"]
+            },
+            "then": {
+              "properties": { "value": { "$ref": "#/$defs/numeric_range" } }
+            }
+          },
+          {
+            "if": {
+              "properties": { "op": { "not": { "const": "IN_RANGE" } } },
+              "required": ["op"]
+            },
+            "then": { "properties": { "value": { "type": "number" } } }
+          },
+          {
+            "if": {
+              "properties": { "scope": { "const": "LOCAL" } },
+              "required": ["scope"]
+            },
+            "then": {
+              "anyOf": [{ "required": ["tasks"] }, { "required": ["candidates"] }]
+            }
+          }
+        ]
+      },
+      "dependency_constraint": {
+        "type": "object",
+        "required": ["id", "kind", "type", "tasks"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "kind": { "const": "DEPENDENCY" },
+          "type": {
+            "type": "string",
+            "enum": ["SAME_PROVIDER", "DIFFERENT_PROVIDER"]
+          },
+          "tasks": {
+            "type": "array",
+            "minItems": 2,
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "hard": { "type": "boolean", "default": true },
+          "description": { "type": "string" }
         }
       },
-      "additionalProperties": false,
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "minmax"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "required": [
-              "bounds"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "piecewise"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "required": [
-              "expr"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "custom"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "required": [
-              "expr"
-            ]
-          }
+      "objective": {
+        "oneOf": [
+          { "$ref": "#/$defs/mono" },
+          { "$ref": "#/$defs/multi" },
+          { "$ref": "#/$defs/many" }
+        ]
+      },
+      "weights": {
+        "type": "object",
+        "minProperties": 1,
+        "propertyNames": { "$ref": "#/$defs/identifier" },
+        "additionalProperties": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
-      ]
+      },
+      "mono": {
+        "type": "object",
+        "required": ["type", "targets", "weights"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "const": "MONO" },
+          "targets": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "weights": { "$ref": "#/$defs/weights" },
+          "weights_sum_to_one": { "type": "boolean", "default": true }
+        }
+      },
+      "multi": {
+        "type": "object",
+        "required": ["type", "targets", "weights"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "const": "MULTI" },
+          "targets": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 3,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "weights": { "$ref": "#/$defs/weights" },
+          "weights_sum_to_one": { "type": "boolean", "default": true }
+        }
+      },
+      "many": {
+        "type": "object",
+        "required": ["type", "targets", "weights"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "const": "MANY" },
+          "targets": {
+            "type": "array",
+            "minItems": 3,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "weights": { "$ref": "#/$defs/weights" },
+          "weights_sum_to_one": { "type": "boolean", "default": true }
+        }
+      },
+      "numeric_range": {
+        "type": "object",
+        "required": ["min", "max"],
+        "additionalProperties": false,
+        "properties": {
+          "min": { "type": "number" },
+          "max": { "type": "number" }
+        }
+      }
     }
   }
-}

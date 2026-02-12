@@ -22,3 +22,7 @@
 .code-editor-wrapper .cm-line {
   padding: 0 var(--space-2);
 }
+
+.code-editor-wrapper .cm-scroller {
+  overflow: auto !important;
+}

@@ -31,14 +31,25 @@ if _schema_path.exists():
 class SolveRequest(BaseModel):
     engine_id: str = Field(..., description="ID of the target engine/solver")
     instance: Dict[str, Any] = Field(..., description="The general problem instance", json_schema_extra=_GENERAL_SCHEMA)
-    options: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Solver-specific options. E.g. {'iterations_count': 1000} for Many-OBJ.")
+    options: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Solver-specific options. E.g. {'iterations_count': 1000} for Random-Search.")
     verbose: bool = Field(default=False, description="If true, return diagnostics and warnings.")
+
+class BindingSpaceRequest(SolveRequest):
+    offset: int = Field(default=0, ge=0, description="Offset for pagination (0-based index of the first binding to return).")
+    limit: int = Field(default=100, ge=1, le=1000, description="Number of bindings to return (max 1000).")
+
+class BindingSpacePage(BaseModel):
+    total_combinations: str = Field(..., description="Total size of the binding space as a string.")
+    offset: int
+    limit: int
+    bindings: List[Dict[str, str]] = Field(..., description="List of bindings, where each binding is a map of Task ID -> Candidate ID.")
 
 class ValidationViolation(BaseModel):
     constraint_id: Optional[str] = None
     message: str
     path: Optional[str] = None
     code: str
+    stage: Optional[str] = None
     # Extended fields for solution violations
     penalty: Optional[float] = None
     description: Optional[str] = None

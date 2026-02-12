@@ -1,0 +1,200 @@
+{
+    "metadata": {
+        "id": "demo_09_mixed",
+        "name": "09. Mixed Complexity",
+        "version": "1.0.0",
+        "created_at": "2026-02-10T12:00:00Z",
+        "description": "Combines Parallel, XOR, Dependencies, and Global + Local Constraints.",
+        "level": "advanced"
+    },
+    "features": [
+        {
+            "id": "cost",
+            "name": "Cost",
+            "direction": "MINIMIZE",
+            "unit": "$",
+            "scale": "RATIO",
+            "valid_range": {
+                "min": 0,
+                "max": 1000
+            }
+        },
+        {
+            "id": "rel",
+            "name": "Reliability",
+            "direction": "MAXIMIZE",
+            "unit": "%",
+            "scale": "RATIO",
+            "valid_range": {
+                "min": 0,
+                "max": 1
+            }
+        }
+    ],
+    "providers": [
+        {
+            "id": "p1",
+            "name": "P1"
+        }
+    ],
+    "tasks": [
+        {
+            "id": "t1",
+            "name": "T1"
+        },
+        {
+            "id": "t2",
+            "name": "T2"
+        },
+        {
+            "id": "t3",
+            "name": "T3"
+        }
+    ],
+    "candidates": [
+        {
+            "id": "c1a",
+            "task_id": "t1",
+            "provider_id": "p1",
+            "name": "C1A",
+            "features": {
+                "cost": 100,
+                "rel": 0.99
+            }
+        },
+        {
+            "id": "c1b",
+            "task_id": "t1",
+            "provider_id": "p1",
+            "name": "C1B",
+            "features": {
+                "cost": 50,
+                "rel": 0.90
+            }
+        },
+        {
+            "id": "c2a",
+            "task_id": "t2",
+            "provider_id": "p1",
+            "name": "C2A",
+            "features": {
+                "cost": 100,
+                "rel": 0.99
+            }
+        },
+        {
+            "id": "c2b",
+            "task_id": "t2",
+            "provider_id": "p1",
+            "name": "C2B",
+            "features": {
+                "cost": 50,
+                "rel": 0.90
+            }
+        },
+        {
+            "id": "c3",
+            "task_id": "t3",
+            "provider_id": "p1",
+            "name": "C3",
+            "features": {
+                "cost": 10,
+                "rel": 0.99
+            }
+        }
+    ],
+    "composition": {
+        "type": "STRUCTURED",
+        "root": {
+            "id": "seq",
+            "kind": "SEQ",
+            "children": [
+                {
+                    "id": "n1",
+                    "kind": "TASK",
+                    "task_id": "t1"
+                },
+                {
+                    "id": "xor",
+                    "kind": "XOR",
+                    "branches": [
+                        {
+                            "p": 0.5,
+                            "child": {
+                                "id": "n2",
+                                "kind": "TASK",
+                                "task_id": "t2"
+                            }
+                        },
+                        {
+                            "p": 0.5,
+                            "child": {
+                                "id": "n3",
+                                "kind": "TASK",
+                                "task_id": "t3"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "aggregation_policies": {
+        "cost": {
+            "neutral": 0,
+            "compose": {
+                "seq": {
+                    "fn": "SUM"
+                },
+                "and": {
+                    "fn": "SUM"
+                },
+                "loop": {
+                    "fn": "SCALED_SUM"
+                },
+                "xor": {
+                    "fn": "SCALED_SUM"
+                }
+            }
+        },
+        "rel": {
+            "neutral": 1,
+            "compose": {
+                "seq": {
+                    "fn": "PRODUCT"
+                },
+                "and": {
+                    "fn": "PRODUCT"
+                },
+                "loop": {
+                    "fn": "SCALED_PRODUCT"
+                },
+                "xor": {
+                    "fn": "SCALED_SUM"
+                }
+            }
+        }
+    },
+    "constraints": [
+        {
+            "id": "c1",
+            "kind": "ATTRIBUTE_BOUND",
+            "scope": "GLOBAL",
+            "attribute_id": "cost",
+            "op": "<=",
+            "value": 150,
+            "hard": true
+        }
+    ],
+    "objective": {
+        "type": "MONO",
+        "targets": [
+            "rel",
+            "cost"
+        ],
+        "weights": {
+            "rel": 0.8,
+            "cost": 0.2
+        }
+    }
+}

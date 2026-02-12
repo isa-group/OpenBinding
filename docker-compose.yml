@@ -15,6 +15,7 @@ services:
       - PYTHONPATH=/app/src
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
+      - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 10s
@@ -25,6 +26,8 @@ services:
       engine-minizinc:
         condition: service_healthy
       engine-random-search:
+        condition: service_healthy
+      engine-many-heuristic:
         condition: service_healthy
 
   engine-minizinc:
@@ -53,6 +56,19 @@ services:
       retries: 5
       start_period: 30s
 
+  engine-many-heuristic:
+    build:
+      context: ./engines/many-heuristic
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
   frontend:
     build:
       context: ./frontend
@@ -64,3 +80,9 @@ services:
     depends_on:
       gateway:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

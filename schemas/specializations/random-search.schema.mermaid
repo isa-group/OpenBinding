@@ -1,0 +1,336 @@
+classDiagram
+direction LR
+
+%% =========================================================
+%% Root aggregate (General model + Random-Search restrictions)
+%% =========================================================
+class CompactQoSComposition {
+  +Metadata metadata
+  +Feature[1..*] features
+  +Provider[1..*] providers
+  +Task[1..*] tasks
+  +Candidate[1..*] candidates
+  +StructuredTree composition
+  +AggregationPolicies aggregation_policies
+  +Constraint[*] constraints
+  +MonoObjective objective
+}
+
+note for CompactQoSComposition "
+Random-Search profile explicitly requires:
+composition, features, aggregation_policies, objective.
+Other General parts (metadata/providers/tasks/candidates) remain as previously (not necessarily required).
+Objective MUST be MONO.
+"
+
+%% =========================================================
+%% Value objects
+%% =========================================================
+class Identifier {
+  <<valueObject>>
+  +value: string
+}
+
+class NumericRange {
+  <<valueObject>>
+  +min: number
+  +max: number
+}
+
+%% =========================================================
+%% Metadata / Provider / Task / Candidate (as previously)
+%% =========================================================
+class Metadata {
+  +id: Identifier
+  +name: string
+  +version: string
+  +created_at: dateTime
+  +description?: string
+  +... (extensible)
+}
+
+class Provider {
+  +id: Identifier
+  +name: string
+  +description?: string
+}
+
+class Task {
+  +id: Identifier
+  +name: string
+  +description?: string
+}
+
+class Feature {
+  +id: Identifier
+  +name: string
+  +direction: Direction
+  +unit: string
+  +scale: Scale
+  +valid_range: NumericRange
+  +description?: string
+}
+
+class Direction {
+  <<enumeration>>
+  MAXIMIZE
+  MINIMIZE
+}
+
+class Scale {
+  <<enumeration>>
+  RATIO
+  INTERVAL
+  ORDINAL
+}
+
+class Candidate {
+  +id: Identifier
+  +task_id: Identifier
+  +provider_id: Identifier
+  +name: string
+  +features: Map<Feature.id, number>
+  +description?: string
+}
+
+Candidate "1" --> "1" Task : task_id
+Candidate "1" --> "1" Provider : provider_id
+Candidate "1" ..> "1..*" Feature : features[feature.id]=number
+
+%% =========================================================
+%% Composition tree (as previously + Random-Search notes)
+%% =========================================================
+class StructuredTree {
+  +type: \"STRUCTURED\"
+  +root: Node
+}
+
+class Node {
+  <<abstract>>
+  +id: Identifier
+  +kind: NodeKind
+  +description?: string
+}
+
+class NodeKind {
+  <<enumeration>>
+  TASK
+  ELEMENT
+  SEQ
+  AND
+  XOR
+  LOOP
+}
+
+class TaskNode {
+  +kind = TASK
+  +task_id: Identifier
+}
+
+class ElementNode {
+  +kind = ELEMENT
+}
+
+class SeqNode {
+  +kind = SEQ
+  +children: Node[2..*]
+}
+
+class AndNode {
+  +kind = AND
+  +children: Node[2..*]
+}
+
+class XorNode {
+  +kind = XOR
+  +branches: XorBranch[2..*]
+}
+
+class XorBranch {
+  +p: number (0..1)
+  +child: Node
+}
+
+class LoopNode {
+  +kind = LOOP
+  +body: Node
+  +expected_iterations?: number (>=0)
+  +bounds?: LoopBoundsRS
+}
+
+class LoopBoundsRS {
+  +min: number
+  +max: number
+}
+
+Node <|-- TaskNode
+Node <|-- ElementNode
+Node <|-- SeqNode
+Node <|-- AndNode
+Node <|-- XorNode
+Node <|-- LoopNode
+
+TaskNode "1" --> "1" Task : task_id
+
+note for LoopNode "
+Random-Search specialization notes:
+- expected_iterations has minimum 0
+- bounds (if present) requires both min & max, and they are numbers
+(General fields like id/description still allowed unless explicitly forbidden)
+"
+
+%% =========================================================
+%% Aggregation policies (as previously; profile doesn't override)
+%% =========================================================
+class AggregationPolicies {
+  +policies: Map<Feature.id, AggregationPolicy>
+}
+
+class AggregationPolicy {
+  +neutral: number
+  +compose: ComposeConfig
+}
+
+class ComposeConfig {
+  +seq?: ComposeFn
+  +and?: ComposeFn
+  +xor?: ComposeFn
+  +loop?: ComposeFn
+}
+
+class ComposeFn {
+  +fn: ComposeFnType
+}
+
+class ComposeFnType {
+  <<enumeration>>
+  SUM
+  PRODUCT
+  MAX
+  MIN
+  SCALED_SUM
+  SCALED_PRODUCT
+  SCALED_MIN
+  SCALED_MAX
+  MEAN
+}
+
+AggregationPolicies ..> Feature : key=Feature.id
+
+%% =========================================================
+%% Objective (ONLY MONO)
+%% =========================================================
+class MonoObjective {
+  +type = MONO
+  +targets: Identifier[1..*] (unique)
+  +weights: Weights
+  +weights_sum_to_one: boolean = true
+}
+
+class Weights {
+  +w: Map<Identifier, number[0..1]>
+}
+
+note for MonoObjective "
+Random-Search specialization:
+objective.type is const MONO (weighted-sum objective).
+"
+
+MonoObjective ..> Feature : targets referencian Feature.id
+Weights ..> Feature : keys normalmente Feature.id
+
+%% =========================================================
+%% Constraints (Random-Search restrictions)
+%% =========================================================
+class Constraint {
+  <<abstract>>
+  +id?: Identifier
+  +kind: ConstraintKind
+  +description?: string
+}
+
+class ConstraintKind {
+  <<enumeration>>
+  ATTRIBUTE_BOUND
+  DEPENDENCY
+}
+
+class AttrBoundConstraintRS {
+  +kind = ATTRIBUTE_BOUND
+  +scope: Scope
+  +tasks?: Identifier[*]
+  +op: BoundOpRS
+  +value: number | NumericRange
+  +attribute_id?: Identifier
+  +hard?: boolean = true
+}
+
+class Scope {
+  <<enumeration>>
+  GLOBAL
+  LOCAL
+}
+
+class BoundOpRS {
+  <<enumeration>>
+  LE
+  LT
+  GE
+  GT
+  EQ
+  NE
+  IN_RANGE
+}
+
+note for BoundOpRS "
+Mapping:
+LE<=  LT<  GE>=  GT>  EQ==  NE!=  IN_RANGE=IN_RANGE
+"
+
+class DependencyConstraintRS {
+  +kind = DEPENDENCY
+  +type: DependencyType
+  +tasks: Identifier[2..*] (unique)
+  +hard?: boolean = true
+}
+
+class DependencyType {
+  <<enumeration>>
+  SAME_PROVIDER
+  DIFFERENT_PROVIDER
+}
+
+Constraint <|-- AttrBoundConstraintRS
+Constraint <|-- DependencyConstraintRS
+
+note for AttrBoundConstraintRS "
+Random-Search specialization requires:
+kind, scope, op, value
+- op includes !=
+- tasks optional (used for LOCAL scoping)
+- attribute_id is not required by the specialization (but may exist by inheritance/usage)
+hard optional (defaults to true)
+"
+
+note for DependencyConstraintRS "
+Random-Search specialization requires:
+kind, type, tasks (minItems=2, unique)
+hard optional (defaults to true)
+"
+
+AttrBoundConstraintRS --> Task : tasks (when scope=LOCAL)
+AttrBoundConstraintRS ..> Feature : attribute_id (if used)
+DependencyConstraintRS --> Task : tasks
+
+%% =========================================================
+%% Aggregate containment
+%% =========================================================
+CompactQoSComposition "1" *-- "1" Metadata
+CompactQoSComposition "1" *-- "1..*" Provider
+CompactQoSComposition "1" *-- "1..*" Task
+CompactQoSComposition "1" *-- "1..*" Feature
+CompactQoSComposition "1" *-- "1..*" Candidate
+CompactQoSComposition "1" *-- "1" StructuredTree
+CompactQoSComposition "1" *-- "1" AggregationPolicies
+CompactQoSComposition "1" *-- "0..*" Constraint
+CompactQoSComposition "1" *-- "1" MonoObjective

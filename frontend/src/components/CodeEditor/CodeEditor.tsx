@@ -49,7 +49,7 @@ export function CodeEditor({
           fontSize: '14px',
           border: '1px solid var(--color-border)',
           borderRadius: 'var(--radius-md)',
-          overflow: 'hidden',
+          overflow: 'auto',
         }}
       />
     </div>

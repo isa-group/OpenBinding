@@ -1,0 +1,359 @@
+classDiagram
+direction LR
+
+%% =========================================================
+%% Root aggregate (General model + CSP restrictions)
+%% =========================================================
+class CompactQoSComposition {
+  +Metadata metadata
+  +Feature[1..*] features
+  +Provider[1..*] providers
+  +Task[1..*] tasks
+  +Candidate[1..*] candidates
+  +StructuredTree composition
+  +AggregationPolicies aggregation_policies
+  +Constraint[*] constraints
+  +MonoObjective objective
+}
+
+note for CompactQoSComposition "
+CSP specialization changes only what it states.
+Key restriction: objective MUST be MONO.
+Other parts stay as in the General schema unless overridden.
+"
+
+%% =========================================================
+%% Value objects / primitives
+%% =========================================================
+class Identifier {
+  <<valueObject>>
+  +value: string
+}
+note for Identifier "General: pattern=^[A-Za-z0-9_.-]+$ (Identifier)."
+
+class NumericRange {
+  <<valueObject>>
+  +min: number
+  +max: number
+}
+
+%% =========================================================
+%% Metadata
+%% =========================================================
+class Metadata {
+  +id: Identifier
+  +name: string
+  +version: string
+  +created_at: dateTime
+  +description?: string
+  +... (extensible)
+}
+note for Metadata "General: additionalProperties=true."
+
+%% =========================================================
+%% Providers / Tasks
+%% =========================================================
+class Provider {
+  +id: Identifier
+  +name: string
+  +description?: string
+}
+
+class Task {
+  +id: Identifier
+  +name: string
+  +description?: string
+}
+
+%% =========================================================
+%% Features (kept as general; CSP may only rely on id)
+%% =========================================================
+class Feature {
+  +id: Identifier
+  +name: string
+  +direction: Direction
+  +unit: string
+  +scale: Scale
+  +valid_range: NumericRange
+  +description?: string
+}
+
+class Direction {
+  <<enumeration>>
+  MAXIMIZE
+  MINIMIZE
+}
+
+class Scale {
+  <<enumeration>>
+  RATIO
+  INTERVAL
+  ORDINAL
+}
+
+note for Feature "
+CSP specialization explicitly mentions only Feature.id,
+but does NOT forbid the rest => kept as in General model.
+"
+
+%% =========================================================
+%% Candidates
+%% =========================================================
+class Candidate {
+  +id: Identifier
+  +task_id: Identifier
+  +provider_id: Identifier
+  +name: string
+  +features: Map<Feature.id, number>
+  +description?: string
+}
+
+Candidate "1" --> "1" Task : task_id
+Candidate "1" --> "1" Provider : provider_id
+Candidate "1" ..> "1..*" Feature : features[feature.id]=number
+
+%% =========================================================
+%% Composition tree (General structure + CSP minimum requirements)
+%% =========================================================
+class StructuredTree {
+  +type: \"STRUCTURED\"
+  +root: Node
+}
+
+class Node {
+  <<abstract>>
+  +id: Identifier
+  +kind: NodeKind
+  +description?: string
+}
+
+class NodeKind {
+  <<enumeration>>
+  TASK
+  ELEMENT
+  SEQ
+  AND
+  XOR
+  LOOP
+}
+
+class TaskNode {
+  +kind = TASK
+  +task_id: Identifier
+}
+
+class ElementNode {
+  +kind = ELEMENT
+}
+
+class SeqNode {
+  +kind = SEQ
+  +children: Node[2..*]
+}
+
+class AndNode {
+  +kind = AND
+  +children: Node[2..*]
+}
+
+class XorNode {
+  +kind = XOR
+  +branches: XorBranch[2..*]
+}
+
+class XorBranch {
+  +p: number (0,1]
+  +child: Node
+}
+
+class LoopNode {
+  +kind = LOOP
+  +body: Node
+  +expected_iterations?: number (>=0)
+  +bounds?: LoopBounds
+}
+
+class LoopBounds {
+  +min?: int (>=0)
+  +max?: int (>=0)
+}
+
+Node <|-- TaskNode
+Node <|-- ElementNode
+Node <|-- SeqNode
+Node <|-- AndNode
+Node <|-- XorNode
+Node <|-- LoopNode
+
+TaskNode "1" --> "1" Task : task_id
+
+note for TaskNode "
+CSP $defs/task_node only REQUIRES kind=TASK,
+but since it does not set additionalProperties=false,
+the General fields (id, task_id, description) can still exist.
+"
+note for SeqNode "CSP requires kind+children; General keeps minItems=2 and ids."
+note for AndNode "CSP requires kind+children; General keeps minItems=2 and ids."
+note for XorNode "CSP requires kind+branches; General keeps minItems=2 and ids."
+note for LoopNode "
+CSP requires kind+body; expected_iterations optional.
+General also allows bounds and the 'expected_iterations OR bounds' rule.
+"
+
+%% =========================================================
+%% Aggregation policies (key restriction relaxed to string)
+%% =========================================================
+class AggregationPolicies {
+  +policies: Map<string, AggregationPolicy>
+}
+
+class AggregationPolicy {
+  +neutral: number
+  +compose: ComposeConfig
+}
+
+class ComposeConfig {
+  +seq?: ComposeFn
+  +and?: ComposeFn
+  +xor?: ComposeFn
+  +loop?: ComposeFn
+}
+
+class ComposeFn {
+  +fn: ComposeFnType
+}
+
+class ComposeFnType {
+  <<enumeration>>
+  SUM
+  PRODUCT
+  MAX
+  MIN
+  SCALED_SUM
+  SCALED_PRODUCT
+  SCALED_MIN
+  SCALED_MAX
+  MEAN
+}
+
+AggregationPolicies ..> Feature : typically key=Feature.id (but CSP allows any string)
+
+note for AggregationPolicies "
+CSP specialization: propertyNames is just string (no Identifier pattern).
+Domain-wise it is still intended to be keyed by Feature.id.
+"
+
+%% =========================================================
+%% Objective (ONLY MONO in CSP)
+%% =========================================================
+class MonoObjective {
+  +type = MONO
+  +targets: Identifier[1..*] (unique)
+  +weights: Weights
+  +weights_sum_to_one: boolean = true
+}
+
+class Weights {
+  +w: Map<Identifier, number[0..1]>
+}
+
+note for MonoObjective "CSP specialization: objective.type is const MONO (MULTI/MANY removed)."
+
+MonoObjective ..> Feature : targets referencian Feature.id
+Weights ..> Feature : keys normalmente Feature.id
+
+%% =========================================================
+%% Constraints (General + CSP overrides)
+%% =========================================================
+class Constraint {
+  <<abstract>>
+  +id?: Identifier
+  +kind: ConstraintKind
+  +hard?: boolean
+  +description?: string
+}
+
+class ConstraintKind {
+  <<enumeration>>
+  ATTRIBUTE_BOUND
+  DEPENDENCY
+}
+
+class AttrBoundConstraint {
+  +kind = ATTRIBUTE_BOUND
+  +scope?: Scope
+  +task_id?: Identifier
+  +attribute_id: Identifier
+  +op: BoundOp
+  +value: number | NumericRange
+  +hard = true
+}
+
+class DependencyConstraint {
+  +kind = DEPENDENCY
+  +type: DependencyType
+  +tasks?: Identifier[*]
+  +hard = true
+}
+
+class Scope {
+  <<enumeration>>
+  GLOBAL
+  LOCAL
+}
+
+class BoundOp {
+  <<enumeration>>
+  LE
+  GE
+  EQ
+  LT
+  GT
+  IN_RANGE
+}
+
+note for BoundOp "
+Mapping:
+LE<=  GE>=  EQ==  LT<  GT>  IN_RANGE=IN_RANGE
+"
+
+class DependencyType {
+  <<enumeration>>
+  SAME_PROVIDER
+  DIFFERENT_PROVIDER
+}
+
+Constraint <|-- AttrBoundConstraint
+Constraint <|-- DependencyConstraint
+
+AttrBoundConstraint --> Feature : attribute_id
+AttrBoundConstraint --> Task : task_id (when used)
+DependencyConstraint --> Task : tasks (when provided)
+
+note for AttrBoundConstraint "
+CSP specialization:
+- hard is const true
+- supports task_id (singular)
+- requires kind, attribute_id, op, value
+(others remain as in General unless explicitly restricted)
+"
+
+note for DependencyConstraint "
+CSP specialization:
+- requires kind + type
+- tasks is not required (but may exist)
+- hard is const true
+"
+
+%% =========================================================
+%% Aggregate containment
+%% =========================================================
+CompactQoSComposition "1" *-- "1" Metadata
+CompactQoSComposition "1" *-- "1..*" Provider
+CompactQoSComposition "1" *-- "1..*" Task
+CompactQoSComposition "1" *-- "1..*" Feature
+CompactQoSComposition "1" *-- "1..*" Candidate
+CompactQoSComposition "1" *-- "1" StructuredTree
+CompactQoSComposition "1" *-- "1" AggregationPolicies
+CompactQoSComposition "1" *-- "0..*" Constraint
+CompactQoSComposition "1" *-- "1" MonoObjective

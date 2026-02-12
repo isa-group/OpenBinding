@@ -9,6 +9,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
 import { CodeEditor } from '../../components/CodeEditor/CodeEditor';
+import { BindingSpaceExplorer } from '../../components/BindingSpaceExplorer/BindingSpaceExplorer';
 import './Playground.css';
 
 const ajv = new Ajv({ allErrors: true });
@@ -28,20 +29,35 @@ const DEFAULT_OPTIONS = `{
   "iterations_count": 1000
 }`;
 
+const EMPTY_OPTIONS = `{}\n`;
+
 type JobState = 'idle' | 'validating' | 'queued' | 'running' | 'completed' | 'failed';
 
 // Available examples in /examples directory
-const AVAILABLE_EXAMPLES = [
-  'common-basic.json',
-  'common-huge.json',
-  'common-mixed.json',
-  'minizinc-constrained-loop.json',
-  'minizinc-huge.json',
-  'minizinc-tight.json',
-  'random-search-example.json',
-  'random-search-huge.json',
-  'random-search-valid.json'
-];
+const AVAILABLE_EXAMPLES = {
+  'Demo Examples': [
+    'demo/01_simple_seq.json',
+    'demo/02_parallel.json',
+    'demo/03_xor_choice.json',
+    'demo/04_conflict.json',
+    'demo/05_mono_obj_various.json',
+    'demo/06_loops.json',
+    'demo/07_soft_constraints.json',
+    'demo/08_dependencies.json',
+    'demo/09_mixed.json',
+    'demo/10_large_scale.json',
+    'demo/11_multi_obj_negative.json',
+    'demo/12_many_obj_pareto.json'
+  ],
+  'Literature Examples': [
+    'literature/benatallah.json',
+    'literature/bultan.json',
+    'literature/cremaschi.json',
+    'literature/netedu.json',
+    'literature/pautasso.json',
+    'literature/zhang.json'
+  ]
+};
 
 export function Playground() {
   // State
@@ -56,6 +72,7 @@ export function Playground() {
   const [jobState, setJobState] = useState<JobState>('idle');
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentInstance, setCurrentInstance] = useState<any>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const validateRef = useRef<any>(null);
@@ -71,6 +88,26 @@ export function Playground() {
     if (selectedEngine) {
       loadEngineSchema(selectedEngine);
     }
+  }, [selectedEngine]);
+
+  useEffect(() => {
+    if (!selectedEngine) return;
+
+    // Keep the options editor in sync with the selected engine.
+    // If the engine has no options defaults, show an empty object.
+    const loadDefaultOptions = async () => {
+      try {
+        const defaults = await apiClient.getEngineDefaultOptions(selectedEngine);
+        const normalized = (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) ? defaults : {};
+        const keys = Object.keys(normalized);
+        setSolverOptions(keys.length > 0 ? `${JSON.stringify(normalized, null, 2)}\n` : EMPTY_OPTIONS);
+      } catch (err) {
+        console.warn(`Failed to load default options for engine '${selectedEngine}', using empty options`, err);
+        setSolverOptions(EMPTY_OPTIONS);
+      }
+    };
+
+    loadDefaultOptions();
   }, [selectedEngine]);
 
   const loadEngines = async () => {
@@ -141,7 +178,10 @@ export function Playground() {
     
     try {
       // In production, examples should be served via the gateway or a static path
-      const response = await fetch(`/examples/${exampleFile}`);
+      const cacheBuster = Date.now();
+      const response = await fetch(`/examples/${exampleFile}?v=${cacheBuster}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error(`Failed to load example: ${response.statusText}`);
       }
@@ -162,6 +202,7 @@ export function Playground() {
 
     try {
       const instance = JSON.parse(inputJson);
+      setCurrentInstance(instance);
       const options = sendOptions ? JSON.parse(solverOptions) : {};
 
       const response = await apiClient.analyze({
@@ -179,6 +220,38 @@ export function Playground() {
     }
   };
 
+  /**
+   * Inspects a solve result for anomalies: empty solutions, empty bindings, etc.
+   * Sets user-facing warnings/errors so issues are visible in the UI.
+   */
+  const checkAndWarnEmptyResult = (solveResult: any) => {
+    if (!solveResult) return;
+
+    const solutions = solveResult.solutions;
+
+    // No solutions at all
+    if (!solutions || solutions.length === 0) {
+      setError(
+        'The solver returned no solutions. The instance may be infeasible under the current constraints, ' +
+        'or the engine did not find any feasible binding within the given budget.'
+      );
+      return;
+    }
+
+    // Check for solutions with empty or missing bindings
+    const emptyBindingSolutions = solutions.filter(
+      (s: any) => !s.binding || Object.keys(s.binding).length === 0
+    );
+
+    if (emptyBindingSolutions.length > 0) {
+      setError(
+        `${emptyBindingSolutions.length} solution(s) have an empty binding — this likely indicates ` +
+        'an engine bug or an unsupported instance structure. Please report this instance to the administrator ' +
+        'so it can be investigated.'
+      );
+    }
+  };
+
   const handleSolve = async () => {
     setJobState('validating');
     setError(null);
@@ -186,6 +259,7 @@ export function Playground() {
 
     try {
       const instance = JSON.parse(inputJson);
+      setCurrentInstance(instance);
       
       // Client-side validation
       if (validateRef.current) {
@@ -221,13 +295,25 @@ export function Playground() {
         return;
       }
 
+      // Handle synchronous failure (engine returned error directly)
       if (jobResponse.status === 'failed') {
-        setResult(jobResponse.result || { error: jobResponse.error });
+        setResult(jobResponse.result || { error: jobResponse.error || 'The solver could not process this instance.' });
         setJobState('failed');
         return;
       }
 
-      // Poll for job completion
+      // Handle synchronous completion (engine returned solution directly, no polling needed)
+      if (jobResponse.status === 'completed') {
+        const syncResult = jobResponse.result;
+        if (syncResult) {
+          checkAndWarnEmptyResult(syncResult);
+        }
+        setResult(syncResult || { solutions: [], _warning: 'The engine returned an empty response.' });
+        setJobState('completed');
+        return;
+      }
+
+      // Asynchronous job: poll for completion
       setJobState('running');
       const finalResult = await apiClient.pollJob(
         jobResponse.job_id,
@@ -238,10 +324,27 @@ export function Playground() {
         }
       );
 
-      setResult(finalResult);
+      if (finalResult) {
+        checkAndWarnEmptyResult(finalResult);
+      }
+      setResult(finalResult || { solutions: [], _warning: 'The engine returned an empty response.' });
       setJobState('completed');
     } catch (err: any) {
-      setError(err.message || 'Solve failed');
+      const message = err.message || 'Solve failed';
+      // Provide user-friendly messages for common errors
+      if (message.includes('HTTP 404')) {
+        setError('The solver job could not be found. The engine may have completed synchronously or restarted. Please try again.');
+      } else if (message.includes('timed out') || message.includes('Polling timed out')) {
+        setError('The solver is taking longer than expected. The instance may be very large or the engine may be overloaded. Try reducing the problem size or iterations count.');
+      } else if (message.includes('HTTP 502') || message.includes('HTTP 503') || message.includes('HTTP 504')) {
+        setError('The solver engine is temporarily unavailable. Please check that the engine is running and try again.');
+      } else if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+        setError('Could not connect to the API gateway. Please check your network connection and ensure the server is running.');
+      } else if (message.includes('JSON')) {
+        setError('Invalid JSON in the instance or options editor. Please check the syntax and try again.');
+      } else {
+        setError(message);
+      }
       setJobState('failed');
     }
   };
@@ -262,8 +365,24 @@ export function Playground() {
                 className="example-select"
               >
                 <option value="">Load Example...</option>
-                {AVAILABLE_EXAMPLES.map(ex => (
-                  <option key={ex} value={ex}>{ex}</option>
+                {Object.entries(AVAILABLE_EXAMPLES).map(([category, examples]) => (
+                  <optgroup key={category} label={category}>
+                    {examples.map(ex => {
+                      const fileName = ex.split('/')[1].replace('.json', '');
+                      // Format: "01_simple_seq" -> "01 - Simple Seq"
+                      const displayName = fileName
+                        .replace(/_/g, ' ')
+                        .split(' ')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(' ')
+                        .replace(/^(\d+) /, '$1 - ');
+                      return (
+                        <option key={ex} value={ex}>
+                          {displayName}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
                 ))}
               </select>
               <input
@@ -341,10 +460,10 @@ export function Playground() {
               />
             </div>
 
-            {/* Solver Options */}
+            {/* Engine Options */}
             <div className="editor-section">
               <div className="options-header">
-                <label className="editor-label">Solver Options</label>
+                <label className="editor-label">Engine Options</label>
                 <div className="options-toggles">
                   <label className="toggle-label">
                     <input
@@ -460,7 +579,7 @@ export function Playground() {
                   {
                     id: 'binding-space',
                     label: 'Binding Space',
-                    content: <BindingSpaceView result={result} />
+                    content: <BindingSpaceView result={result} engineId={selectedEngine} instance={currentInstance} />
                   },
                   {
                     id: 'violations',
@@ -492,6 +611,12 @@ export function Playground() {
 
 // Result View Components
 function SummaryView({ result }: { result: any }) {
+  const solutions = result.solutions || [];
+  const emptyBindings = solutions.filter(
+    (s: any) => !s.binding || Object.keys(s.binding).length === 0
+  );
+  const infeasibleCount = solutions.filter((s: any) => s.is_feasible === false).length;
+
   return (
     <div className="result-view summary-view">
       {result.status && (
@@ -502,6 +627,50 @@ function SummaryView({ result }: { result: any }) {
               {result.status}
             </Badge>
           </div>
+        </Card>
+      )}
+
+      {/* Solution quality summary */}
+      {solutions.length > 0 && (
+        <Card padding="md">
+          <h4>Solutions Overview</h4>
+          <div className="summary-grid">
+            <div className="summary-item">
+              <span className="summary-label">Total Solutions:</span>
+              <span className="summary-value">{solutions.length}</span>
+            </div>
+            {infeasibleCount > 0 && (
+              <div className="summary-item">
+                <span className="summary-label">Infeasible:</span>
+                <span className="summary-value" style={{ color: 'var(--color-warning, #e6a700)' }}>{infeasibleCount}</span>
+              </div>
+            )}
+          </div>
+          {emptyBindings.length > 0 && (
+            <Alert type="error" title="Engine Anomaly Detected">
+              {emptyBindings.length} solution(s) returned with empty bindings. This is likely an engine bug.
+              Please report this instance to the administrator for investigation.
+            </Alert>
+          )}
+        </Card>
+      )}
+
+      {/* No solutions warning */}
+      {result.solutions !== undefined && solutions.length === 0 && (
+        <Card padding="md">
+          <Alert type="warning" title="No Feasible Solutions">
+            The engine completed without finding any feasible solution. Try relaxing constraints, 
+            increasing the solver budget, or verifying that all tasks have candidate services.
+          </Alert>
+        </Card>
+      )}
+
+      {/* Internal warning (e.g. empty engine response) */}
+      {result._warning && (
+        <Card padding="md">
+          <Alert type="warning" title="Warning">
+            {result._warning}
+          </Alert>
         </Card>
       )}
 
@@ -564,54 +733,165 @@ function SummaryView({ result }: { result: any }) {
 }
 
 function SolutionsView({ result }: { result: any }) {
-  if (!result.solutions || result.solutions.length === 0) {
+  // Determine if there's only one binding to show features expanded by default
+  const solutions = result.solutions || [];
+  const hasSingleSolution = solutions.length === 1;
+  const [expandedSolutions, setExpandedSolutions] = useState<Record<number, boolean>>(
+    hasSingleSolution ? { 0: true } : {}
+  );
+
+  // No solutions at all — explain possible causes
+  if (solutions.length === 0) {
+    const hasError = result.error || result._warning;
+    const errorMsg = result.error || result._warning;
+
     return (
-      <div className="empty-result">
-        <p>No solutions found in the result</p>
+      <div className="result-view solutions-view">
+        {hasError ? (
+          <Alert type="warning" title="No Solutions Found">
+            {errorMsg}
+          </Alert>
+        ) : (
+          <Alert type="info" title="No Solutions">
+            The solver did not return any solutions. Possible causes:
+            <ul style={{ margin: '8px 0 0 16px', padding: 0 }}>
+              <li>The instance may be infeasible under the current constraints.</li>
+              <li>The solver budget (iterations / time) may be too low.</li>
+              <li>A required task has no available candidates.</li>
+            </ul>
+          </Alert>
+        )}
       </div>
     );
   }
 
+  const toggleExpanded = (index: number) => {
+    setExpandedSolutions(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
+  };
+
+  // Count anomalies
+  const emptyBindings = solutions.filter(
+    (s: any) => !s.binding || Object.keys(s.binding).length === 0
+  );
+
   return (
     <div className="result-view solutions-view">
-      {result.solutions.map((solution: any, index: number) => (
-        <Card key={index} padding="md">
-          <h4>Solution {index + 1}</h4>
-          {solution.binding && (
-            <div className="binding-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Task</th>
-                    <th>Candidate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(solution.binding).map(([task, candidate]) => (
-                    <tr key={task}>
-                      <td><code>{task}</code></td>
-                      <td><code>{String(candidate)}</code></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {solution.aggregated_qos && (
-            <div className="solution-qos">
-              <strong>QoS Metrics:</strong>
-              <div className="qos-grid">
-                {Object.entries(solution.aggregated_qos).map(([key, value]) => (
-                  <div key={key} className="qos-item">
-                    <span className="qos-label">{key}:</span>
-                    <span className="qos-value">{String(value)}</span>
+      {emptyBindings.length > 0 && (
+        <Alert type="error" title="Empty Binding Detected">
+          {emptyBindings.length} of {solutions.length} solution(s) have an empty binding.
+          This usually indicates an engine bug or an unsupported instance structure.
+          Please report this instance to the administrator.
+        </Alert>
+      )}
+
+      {solutions.map((solution: any, index: number) => {
+        const isExpanded = expandedSolutions[index] || false;
+        const hasAggregatedFeatures = solution.aggregated_features && 
+          Object.keys(solution.aggregated_features).length > 0;
+        const isBindingEmpty = !solution.binding || Object.keys(solution.binding).length === 0;
+        const isInfeasible = solution.is_feasible === false;
+
+        return (
+          <Card key={index} padding="md">
+            <div className="solution-header">
+              <h4>Solution {index + 1}</h4>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {isInfeasible && (
+                  <Badge variant="warning">Infeasible</Badge>
+                )}
+                {isBindingEmpty && (
+                  <Badge variant="error">Empty Binding</Badge>
+                )}
+                {solution.objective_value !== undefined && solution.objective_value !== null && (
+                  <div className="solution-objective">
+                    <span className="objective-label">Objective:</span>
+                    <span className="objective-value">{solution.objective_value.toFixed(4)}</span>
                   </div>
-                ))}
+                )}
               </div>
             </div>
-          )}
-        </Card>
-      ))}
+
+            {isBindingEmpty && (
+              <Alert type="error" title="Empty Binding">
+                This solution has no task-to-candidate assignments. This is unexpected and likely indicates
+                an engine bug. Please save this instance and report it to the administrator.
+              </Alert>
+            )}
+
+            {isInfeasible && !isBindingEmpty && (
+              <Alert type="warning" title="Infeasible Solution">
+                This solution violates one or more hard constraints. Check the Violations tab for details.
+              </Alert>
+            )}
+            
+            {solution.binding && (
+              <div className="binding-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Task</th>
+                      <th>Candidate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(solution.binding).map(([task, candidate]) => (
+                      <tr key={task}>
+                        <td><code>{task}</code></td>
+                        <td><code>{String(candidate)}</code></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {hasAggregatedFeatures && (
+              <div className="solution-features">
+                <button
+                  className="features-toggle"
+                  onClick={() => toggleExpanded(index)}
+                  aria-expanded={isExpanded}
+                >
+                  <span className="features-toggle-icon">{isExpanded ? '▼' : '▶'}</span>
+                  <strong>Aggregated Features</strong>
+                  <Badge variant="accent" size="sm">
+                    {Object.keys(solution.aggregated_features).length} features
+                  </Badge>
+                </button>
+                {isExpanded && (
+                  <div className="features-content">
+                    <div className="qos-grid">
+                      {Object.entries(solution.aggregated_features).map(([key, value]) => (
+                        <div key={key} className="qos-item">
+                          <span className="qos-label">{key}:</span>
+                          <span className="qos-value">{typeof value === 'number' ? value.toFixed(4) : String(value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {solution.aggregated_qos && (
+              <div className="solution-qos">
+                <strong>QoS Metrics:</strong>
+                <div className="qos-grid">
+                  {Object.entries(solution.aggregated_qos).map(([key, value]) => (
+                    <div key={key} className="qos-item">
+                      <span className="qos-label">{key}:</span>
+                      <span className="qos-value">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -656,7 +936,7 @@ function ViolationsView({ result }: { result: any }) {
   );
 }
 
-function BindingSpaceView({ result }: { result: any }) {
+function BindingSpaceView({ result, engineId, instance }: { result: any; engineId: string; instance: any }) {
   // Binding space can be in result.binding_space (from analyze)
   // or in result.diagnostics.binding_space (from solve with verbose=true)
   const bindingSpace = result.binding_space || result.diagnostics?.binding_space;
@@ -673,45 +953,75 @@ function BindingSpaceView({ result }: { result: any }) {
     );
   }
 
+  // Extract tasks and candidates from instance
+  const tasks = instance?.tasks || [];
+  const candidates = instance?.candidates || [];
+
+  if (tasks.length === 0 || candidates.length === 0) {
+    return (
+      <div className="empty-result">
+        <Alert type="warning" title="Incomplete Data">
+          Tasks or candidates data is missing from the instance. Make sure your instance includes both tasks and candidates arrays.
+        </Alert>
+      </div>
+    );
+  }
+
   return (
     <div className="result-view binding-space-view">
-      <Card padding="lg">
-        <h3>Binding Space Analysis</h3>
-        
-        <div className="binding-space-metrics">
-          <div className="metric-card">
-            <span className="metric-label">Total Cardinality</span>
-            <span className="metric-value">{bindingSpace.cardinality}</span>
-            <span className="metric-subtitle">Total possible bindings</span>
-          </div>
-          
-          <div className="metric-card">
-            <span className="metric-label">Log₁₀ Cardinality</span>
-            <span className="metric-value">{bindingSpace.log10_cardinality?.toFixed(2)}</span>
-            <span className="metric-subtitle">Logarithmic scale</span>
-          </div>
-        </div>
-
-        {bindingSpace.empty_tasks && bindingSpace.empty_tasks.length > 0 && (
-          <Alert type="warning" title="Empty Tasks Detected">
-            The following tasks have no candidate services: {bindingSpace.empty_tasks.join(', ')}
-          </Alert>
-        )}
-
-        <div className="per-task-counts">
-          <h4>Candidates Per Task</h4>
-          <div className="task-counts-grid">
-            {Object.entries(bindingSpace.per_task_counts || {}).map(([taskId, count]) => (
-              <div key={taskId} className="task-count-item">
-                <span className="task-id">{taskId}</span>
-                <Badge variant={(count as number) === 0 ? 'error' : 'success'} size="sm">
-                  {String(count)} candidate{(count as number) !== 1 ? 's' : ''}
-                </Badge>
+      {bindingSpace && (
+        <Card padding="md" className="binding-space-summary">
+          <h3>Binding Space Analysis</h3>
+          <div className="binding-space-metrics">
+            {bindingSpace.cardinality !== undefined && (
+              <div className="metric-card">
+                <div className="metric-label">Cardinality</div>
+                <div className="metric-value">
+                  {typeof bindingSpace.cardinality === 'number' && bindingSpace.cardinality < 1e6
+                    ? bindingSpace.cardinality.toLocaleString()
+                    : typeof bindingSpace.cardinality === 'number'
+                    ? bindingSpace.cardinality.toExponential(2)
+                    : bindingSpace.cardinality}
+                </div>
+                <div className="metric-subtitle">Total possible combinations</div>
               </div>
-            ))}
+            )}
+            {bindingSpace.log10_cardinality !== undefined && (
+              <div className="metric-card">
+                <div className="metric-label">Log10 Size</div>
+                <div className="metric-value">
+                  ~{typeof bindingSpace.log10_cardinality === 'number'
+                    ? bindingSpace.log10_cardinality.toFixed(2)
+                    : bindingSpace.log10_cardinality}
+                </div>
+                <div className="metric-subtitle">Logarithmic scale</div>
+              </div>
+            )}
+            {bindingSpace.empty_tasks?.length > 0 && (
+              <div className="metric-card">
+                <div className="metric-label">Empty Tasks</div>
+                <div className="metric-value" style={{ color: 'var(--color-warning)' }}>
+                  {bindingSpace.empty_tasks.length}
+                </div>
+                <div className="metric-subtitle">Tasks with zero candidates</div>
+              </div>
+            )}
           </div>
-        </div>
-      </Card>
+          {bindingSpace.empty_tasks?.length > 0 && (
+            <Alert type="warning" title="Warning">
+              {bindingSpace.empty_tasks.length} task(s) have zero candidates: {bindingSpace.empty_tasks.join(', ')}
+            </Alert>
+          )}
+        </Card>
+      )}
+      
+      <BindingSpaceExplorer
+        key={`${engineId}-${tasks.length}-${candidates.length}-${instance?.metadata?.id || 'instance'}`}
+        engineId={engineId}
+        instance={instance}
+        tasks={tasks}
+        candidates={candidates}
+      />
     </div>
   );
 }

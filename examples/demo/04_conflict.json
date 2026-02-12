@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "id": "demo_04_conflict",
+    "name": "04. Conflict (Infeasible)",
+    "version": "1.0.0",
+    "created_at": "2026-02-10T12:00:00Z",
+    "description": "An example where constraints make a solution impossible. All candidates have non-negative cost, but we constrain globally to cost < 0.",
+    "level": "intermediate"
+  },
+  "features": [
+    {
+      "id": "cost",
+      "name": "Cost",
+      "direction": "MINIMIZE",
+      "unit": "eur",
+      "scale": "RATIO",
+      "valid_range": {"min": 0, "max": 1000}
+    }
+  ],
+  "providers": [{"id": "p1", "name": "Provider 1"}],
+  "tasks": [{"id": "t1", "name": "Expensive Task"}],
+  "candidates": [
+    {"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "Cheap Svc", "features": {"cost": 100}},
+    {"id": "c2", "task_id": "t1", "provider_id": "p1", "name": "Expensive Svc", "features": {"cost": 200}}
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "root",
+      "kind": "TASK",
+      "task_id": "t1"
+    }
+  },
+  "aggregation_policies": {
+    "cost": {
+      "neutral": 0,
+      "compose": {
+        "seq": {"fn": "SUM"},
+        "and": {"fn": "SUM"},
+        "loop": {"fn": "SCALED_SUM"}
+      }
+    }
+  },
+  "constraints": [
+    {
+      "id": "c_impossible",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "cost",
+      "op": "<",
+      "value": 0,
+      "hard": true
+    }
+  ],
+  "objective": {
+    "type": "MONO",
+    "targets": ["cost"],
+    "weights": {"cost": 1.0}
+  }
+}

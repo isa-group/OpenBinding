@@ -6,6 +6,8 @@ export interface Engine {
   active?: boolean;
 }
 
+export type EngineDefaultOptions = Record<string, unknown>;
+
 export interface ValidationViolation {
   code: string;
   message: string;
@@ -48,6 +50,29 @@ export interface AnalyzeRequest {
   verbose?: boolean;
 }
 
+export interface BindingSpaceRequest {
+  engine_id: string;
+  instance: any;
+  offset?: number;
+  limit?: number;
+}
+
+export interface BindingSpacePage {
+  total_combinations: string;
+  offset: number;
+  limit: number;
+  bindings: Array<Record<string, string>>;
+}
+
+class HttpError extends Error {
+  status: number;
+
+  constructor(status: number, statusText: string) {
+    super(`HTTP ${status}: ${statusText}`);
+    this.status = status;
+  }
+}
+
 class ApiClient {
   private baseUrl: string;
 
@@ -57,34 +82,114 @@ class ApiClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    timeoutMs?: number
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
+    const controller = new AbortController();
+    const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
 
-    // Handle validation errors (422) specially
-    if (response.status === 422) {
-      const errorData = await response.json();
-      // Return the error data as-is so the caller can handle violations
-      return errorData as T;
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        signal: controller.signal,
+      });
+
+      // Handle validation errors (422) specially
+      if (response.status === 422) {
+        const errorData = await response.json();
+        // Return the error data as-is so the caller can handle violations
+        return errorData as T;
+      }
+
+      if (!response.ok) {
+        throw new HttpError(response.status, response.statusText);
+      }
+
+      return response.json();
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        throw new Error('Request timed out');
+      }
+      throw error;
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+  }
+
+  private async requestText(
+    endpoint: string,
+    options: RequestInit = {},
+    timeoutMs?: number
+  ): Promise<string> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const controller = new AbortController();
+    const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+        },
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new HttpError(response.status, response.statusText);
+      }
+
+      return response.text();
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        throw new Error('Request timed out');
+      }
+      throw error;
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+  }
+
+  private async requestWithRetry<T>(
+    endpoint: string,
+    options: RequestInit,
+    timeoutMs: number,
+    retries: number
+  ): Promise<T> {
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      try {
+        return await this.request<T>(endpoint, options, timeoutMs);
+      } catch (error) {
+        const isHttpError = error instanceof HttpError;
+        const shouldRetry = isHttpError
+          ? [502, 503, 504].includes(error.status)
+          : true;
+
+        if (attempt >= retries || !shouldRetry) {
+          throw error;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    return response.json();
+    throw new Error('Request failed after retries');
   }
 
   async getEngines(): Promise<Engine[]> {
     return this.request<Engine[]>('/v1/engines');
+  }
+
+  async getEngineDefaultOptions(engineId: string): Promise<EngineDefaultOptions> {
+    return this.request<EngineDefaultOptions>(`/v1/engines/${engineId}/options/defaults`);
   }
 
   async getGeneralSchema(): Promise<any> {
@@ -95,33 +200,70 @@ class ApiClient {
     return this.request<any>(`/v1/schemas/${engineId}`);
   }
 
+  async getGeneralSchemaModel(): Promise<string | null> {
+    try {
+      return await this.requestText('/v1/schemas/general/model');
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async getEngineSchemaModel(engineId: string): Promise<string | null> {
+    try {
+      return await this.requestText(`/v1/schemas/${engineId}/model`);
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async solve(request: SolveRequest): Promise<JobStatus> {
-    return this.request<JobStatus>('/v1/solve', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
+    return this.requestWithRetry<JobStatus>(
+      '/v1/solve',
+      {
+        method: 'POST',
+        body: JSON.stringify(request),
+      },
+      900000,
+      2
+    );
   }
 
   async analyze(request: AnalyzeRequest): Promise<any> {
     return this.request<any>('/v1/analyze', {
       method: 'POST',
       body: JSON.stringify(request),
-    });
+    }, 900000);
   }
 
-  async getJobStatus(jobId: string): Promise<JobStatus> {
-    return this.request<JobStatus>(`/v1/jobs/${jobId}`);
+  async getJobStatus(jobId: string, timeoutMs: number = 30000): Promise<JobStatus> {
+    return this.request<JobStatus>(`/v1/jobs/${jobId}`, {}, timeoutMs);
   }
 
   async pollJob(
     jobId: string,
     onUpdate?: (status: JobStatus) => void,
-    interval: number = 1000
+    interval: number = 2000
   ): Promise<any> {
     return new Promise((resolve, reject) => {
+      const start = Date.now();
+      let consecutiveErrors = 0;
+      const MAX_CONSECUTIVE_ERRORS = 3;
+
       const poll = async () => {
         try {
-          const status = await this.getJobStatus(jobId);
+          if (Date.now() - start > 7200000) {
+            reject(new Error('Polling timed out'));
+            return;
+          }
+
+          const status = await this.getJobStatus(jobId, 30000);
+          consecutiveErrors = 0; // Reset on success
           
           if (onUpdate) {
             onUpdate(status);
@@ -134,12 +276,38 @@ class ApiClient {
           } else {
             setTimeout(poll, interval);
           }
-        } catch (error) {
-          reject(error);
+        } catch (error: any) {
+          consecutiveErrors++;
+
+          // If the job is not found (404), it likely completed synchronously
+          // or the engine restarted. Don't retry indefinitely.
+          if (error instanceof HttpError && error.status === 404) {
+            reject(new Error(
+              'The job could not be found on the server. ' +
+              'It may have completed synchronously or the engine may have restarted.'
+            ));
+            return;
+          }
+
+          // For transient errors, allow a few retries before giving up
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            reject(error);
+            return;
+          }
+
+          // Retry with a longer backoff
+          setTimeout(poll, interval * 2);
         }
       };
 
       poll();
+    });
+  }
+
+  async exploreBindingSpace(request: BindingSpaceRequest): Promise<BindingSpacePage> {
+    return this.request<BindingSpacePage>('/v1/analyze/binding-space', {
+      method: 'POST',
+      body: JSON.stringify(request),
     });
   }
 }

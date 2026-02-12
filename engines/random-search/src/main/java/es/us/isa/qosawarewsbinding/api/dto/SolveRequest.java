@@ -38,6 +38,7 @@ public class SolveRequest {
     public static class Service {
         public String id; // service concrete ID (e.g. "s11")
         public String name;
+        public String provider_id; // provider identity for DEPENDENCY constraints
         public Map<String, Double> features;
     }
 
@@ -49,6 +50,8 @@ public class SolveRequest {
 
     public static class QoSPropertyDef {
         public String direction; // "minimize", "maximize"
+        public Double min;
+        public Double max;
     }
 
     public static class AggregationPolicy {
@@ -61,16 +64,19 @@ public class SolveRequest {
 
     public static class SolvingConfig {
         public int max_iterations;
-        public int population_size;
     }
 
     public static class Constraint {
         public String id;
-        public String kind; // "attribute_bound"
-        public String scope; // "global"
+        public String kind; // "attribute_bound", "range_global", "dependency", "local_attribute_bound"
+        public String scope; // "global", "local"
         public String attribute_id;
-        public String op; // <=, <, >=, >, ==, !=
+        public String op; // <=, <, >=, >, ==, !=, IN_RANGE
         public Double value;
+        public Double min; // For IN_RANGE
+        public Double max; // For IN_RANGE
+        public java.util.List<String> tasks; // For LOCAL and DEPENDENCY
+        public String type; // For DEPENDENCY (SAME_PROVIDER, DIFFERENT_PROVIDER)
         public Boolean hard;
     }
 }

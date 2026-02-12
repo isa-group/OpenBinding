@@ -69,7 +69,64 @@
 
 .schema-viewer {
   background-color: var(--color-bg-secondary);
-  overflow-x: auto;
+  overflow: auto;
+  max-height: 600px;
+}
+
+.schema-model-viewer {
+  background-color: var(--color-bg-secondary);
+}
+
+.model-toolbar {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.schema-model-canvas {
+  height: 600px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--color-bg-primary);
+}
+
+.schema-model-transform-wrapper {
+  width: 100%;
+  height: 100%;
+}
+
+.schema-model-transform-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.schema-model-canvas .schema-model-transform-wrapper,
+.schema-model-canvas .schema-model-transform-content,
+.schema-model-canvas .react-transform-wrapper,
+.schema-model-canvas .react-transform-component,
+.schema-model-canvas [class*="transform-wrapper"],
+.schema-model-canvas [class*="transform-component"] {
+  width: 100% !important;
+}
+
+.schema-model-diagram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+
+.schema-model-diagram svg {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .json-tree {
@@ -168,5 +225,9 @@
 
   .schema-info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .schema-model-canvas {
+    height: 480px;
   }
 }

@@ -2,16 +2,15 @@
 
 ## What this schema represents
 
-This schema describes a **QoS-aware service composition problem instance** (and optionally a solution). It models:
+This schema describes a **QoS-aware service composition problem instance**. It models:
 
 * A **workflow** of abstract **tasks** (what needs to be done)
 * For each task, a set of **candidate services** (ways to do it)
 * A set of **QoS features** (attributes like latency, cost, availability)
-* A **composition structure** (either a *structured tree* workflow or a *DAG*)
+* A **composition structure** (a *structured tree* workflow)
 * **Aggregation policies** that define how QoS propagates through the workflow
-* Optional **constraints** (hard or soft)
-* An **objective** (weighted sum / lexicographic / Pareto)
-* Optional **solution output**: chosen candidates + aggregated/normalized QoS + provenance
+* Optional **constraints**
+* An **objective** definition (types: `MONO`, `MULTI`, `MANY`) using `targets` + `weights`
 
 The schema focuses on **compactness** and **tool-friendly parsing**. It is designed to be consumed by optimizers/solvers that compute an optimal (or near-optimal) candidate selection under QoS objectives and constraints.
 
@@ -21,7 +20,7 @@ The schema focuses on **compactness** and **tool-friendly parsing**. It is desig
 
 * “**MUST**” / “**SHOULD**” / “**MAY**” indicate recommended semantics.
 * JSON Schema validates **structure**, **types**, and some **conditional rules**.
-* Some important semantics (e.g., ID cross-references, DAG acyclicity, XOR probability sums) **cannot be fully enforced** by vanilla JSON Schema and require a second validation layer. See **Validation & invariants**.
+* Some important semantics (e.g., ID cross-references, XOR probability sums) **cannot be fully enforced** by vanilla JSON Schema and require a second validation layer. See **Validation & invariants**.
 
 ---
 
@@ -43,9 +42,6 @@ The root object MUST contain:
 Optional fields:
 
 * `constraints` (defaults to `[]` if absent in many implementations; schema allows it omitted)
-* `runtime`
-* `solver_config`
-* `solution`
 
 The root has `additionalProperties: false`, so unknown top-level keys are rejected unless listed.
 
@@ -80,8 +76,7 @@ The root has `additionalProperties: false`, so unknown top-level keys are reject
   {
     "id": "aws-usw2",
     "name": "AWS",
-    "location": { "region": "us-west-2", "zone": "us-west-2a" },
-    "affinity_tags": ["us", "tier1"]
+    "description": "Cloud provider"
   }
 ]
 ```
@@ -91,8 +86,7 @@ The root has `additionalProperties: false`, so unknown top-level keys are reject
 Providers represent organizations/platforms hosting candidate services.
 
 * `id` SHOULD be unique across providers.
-* `location` is optional but is used by dependency constraints like `co_located` / `not_co_located`.
-* `affinity_tags` are free-form labels used by `affinity` / `anti_affinity`.
+* The current schema only allows: `id`, `name`, and optional `description`.
 
 ---
 
@@ -107,7 +101,7 @@ Providers represent organizations/platforms hosting candidate services.
 
 ### Semantics
 
-Tasks are abstract steps in the workflow. A solver selects **one candidate per task** (unless your runtime allows multi-selection; if so, represent that in `solver_config` and `solution`).
+Tasks are abstract steps in the workflow. A solver selects **one candidate per task**.
 
 * `id` SHOULD be unique across tasks.
 * `name` is a human-readable label.
@@ -123,12 +117,11 @@ Tasks are abstract steps in the workflow. A solver selects **one candidate per t
     "task_id": "t_auth",
     "provider_id": "aws-usw2",
     "name": "AuthService",
-    "version": "1.2.0",
-    "api": { "name": "AuthAPI", "version": "v1" },
     "features": {
       "latency_ms": 120,
       "availability": 0.999
-    }
+    },
+    "description": "Concrete service option"
   }
 ]
 ```
@@ -147,7 +140,7 @@ A candidate is a concrete service option to implement a task.
 Schema does not specify whether every candidate must provide every feature. Common choices:
 
 * **Strict**: every candidate MUST have values for all features → validate in a second layer
-* **Partial**: missing features use `neutral` (from aggregation policy) or are imputed (document the rule in `solver_config`)
+* **Partial**: missing features use `neutral` (from aggregation policy) or are imputed (document the rule outside the schema)
 
 ---
 
@@ -158,9 +151,9 @@ Schema does not specify whether every candidate must provide every feature. Comm
   {
     "id": "latency_ms",
     "name": "Latency",
-    "direction": "minimize",
+    "direction": "MINIMIZE",
     "unit": "ms",
-    "scale": "ratio",
+    "scale": "RATIO",
     "valid_range": { "min": 0, "max": 10000 }
   }
 ]
@@ -172,70 +165,30 @@ Schema does not specify whether every candidate must provide every feature. Comm
 
   * `candidates[*].features`
   * `aggregation_policies` keys / values
-  * `objective.weights` / `objective.priority` / `objective.attributes`
+  * `objective.targets` / `objective.weights`
   * constraints referencing `attribute_id`
 * `direction`:
 
-  * `"maximize"` for attributes like availability, throughput
-  * `"minimize"` for attributes like latency, cost
+  * `"MAXIMIZE"` for attributes like availability, throughput
+  * `"MINIMIZE"` for attributes like latency, cost
 * `scale`:
 
-  * `ratio`: meaningful zero and ratios (latency, cost)
-  * `interval`: differences meaningful, zero arbitrary (temperature-like)
-  * `ordinal`: ordering matters but spacing not meaningful (e.g., “bronze/silver/gold” encoded numerically)
+  * `RATIO`: meaningful zero and ratios (latency, cost)
+  * `INTERVAL`: differences meaningful, zero arbitrary (temperature-like)
+  * `ORDINAL`: ordering matters but spacing not meaningful (e.g., “bronze/silver/gold” encoded numerically)
 * `valid_range`: acceptable raw bounds for candidate QoS values
 
 ---
 
-# 6) Normalization (in aggregation policies)
+# 6) `composition`
 
-`aggregation_policies[*].normalize` describes how to map the aggregated totals to the solver's normalized space.
+The workflow is expressed as a **structured tree**.
 
-```json
-{
-  "type": "minmax" | "zscore" | "piecewise" | "identity" | "custom",
-  "bounds": { "min": number, "max": number },      // required for minmax
-  "expr": "string expression",                     // required for piecewise/custom
-  "increasing_is_better": true | false
-}
-```
-
-### Conditional requirements (enforced by schema)
-
-* If `type == "minmax"` → `bounds` is **required**
-* If `type == "piecewise"` → `expr` is **required**
-* If `type == "custom"` → `expr` is **required**
-
-### Expression conventions (recommended)
-
-The schema doesn’t define an expression language. Pick one and document it in `solver_config`. A common convention:
-
-* `x` = raw value
-* You may allow standard math ops: `+ - * /`, `min`, `max`, `log`, etc.
-
-Examples:
-
-* min-max (explicit bounds already provided):
-
-  * `type: "minmax"`, bounds `{min,max}`
-* piecewise:
-
-  * `expr: "x <= 100 ? 1 : (x <= 500 ? 0.7 : 0.2)"` (ternary style)
-* custom:
-
-  * `expr: "1/(1+x)"`
-
----
-
-# 7) `composition`
-
-The workflow can be expressed in one of two ways:
-
-## 7.1 Structured workflow tree (`type: "structured"`)
+## Structured workflow tree (`type: "STRUCTURED"`)
 
 ```json
 "composition": {
-  "type": "structured",
+  "type": "STRUCTURED",
   "root": { ... node ... }
 }
 ```
@@ -245,6 +198,7 @@ The workflow can be expressed in one of two ways:
 Each node is one of:
 
 * `TASK` leaf node: binds to a `task_id`
+* `ELEMENT` leaf node: a generic leaf node without `task_id`
 * `SEQ`: sequential composition of children
 * `AND`: parallel AND-join composition
 * `XOR`: probabilistic branch (each branch has probability `p`)
@@ -311,61 +265,17 @@ Schema rule (enforced):
 
 ---
 
-## 7.2 DAG workflow (`type: "dag"`)
-
-```json
-"composition": {
-  "type": "dag",
-  "nodes": [
-    { "id": "a", "kind": "TASK", "task_id": "t_auth" },
-    { "id": "b", "kind": "TASK", "task_id": "t_pay" },
-    { "id": "g1", "kind": "XOR" }
-  ],
-  "edges": [
-    { "from": "a", "to": "g1" },
-    { "from": "g1", "to": "b", "p": 0.5 }
-  ]
-}
-```
-
-### DAG nodes
-
-* Each node MUST have `id` and `kind`.
-* If `kind == "TASK"`, then `task_id` is required (enforced).
-* If `kind != "TASK"`, then `task_id` must not be required (enforced indirectly).
-
-### DAG edges
-
-Edges are:
-
-```json
-{ "from": "nodeId", "to": "nodeId", "p": 0..1 (optional) }
-```
-
-**Important semantic invariants (not enforced):**
-
-* `from`/`to` MUST reference existing node IDs
-* Graph SHOULD be acyclic (a true DAG)
-* If a node behaves like XOR-split, outgoing edge probabilities SHOULD sum to 1
-
----
-
-# 8) `aggregation_policies`
+# 7) `aggregation_policies`
 
 ```json
 "aggregation_policies": {
     "latency_ms": {
       "neutral": 0,
       "compose": {
-        "seq":  { "fn": "sum" },
-        "and":  { "fn": "max" },
-        "xor":  { "fn": "weighted_sum", "expr": "Σ(p_i * x_i)" },
-        "loop": { "fn": "scale_by_c", "expr": "c * x" }
-      },
-      "normalize": {
-        "type": "minmax",
-        "bounds": { "min": 0, "max": 1000 },
-        "increasing_is_better": false
+        "seq":  { "fn": "SUM" },
+        "and":  { "fn": "MAX" },
+        "xor":  { "fn": "MEAN" },
+        "loop": { "fn": "SCALED_SUM" }
       }
     }
   },
@@ -377,7 +287,7 @@ For each QoS attribute:
 
 * `compose` defines how to **aggregate child values** across workflow operators
 * `neutral` is the identity / default value when needed (e.g., missing data or empty aggregation)
-* `normalize` defines how to produce **normalized QoS** for objectives that require it
+* The current schema does **not** define normalization; only raw aggregation operators are modeled.
 
 ### Schema-enforced rule
 
@@ -386,31 +296,28 @@ For each QoS attribute:
 ### Compose functions (`compose_fn`)
 
 ```json
-{ "fn": "sum" | "product" | "max" | "min" | "weighted_sum" | "scale_by_c" | "custom",
-  "expr": "string (required for weighted_sum/scale_by_c/custom)" }
+{ "fn": "SUM" | "PRODUCT" | "MAX" | "MIN" | "SCALED_SUM" | "SCALED_PRODUCT" | "SCALED_MIN" | "SCALED_MAX" | "MEAN" }
 ```
-
-Schema-enforced rule:
-
-* If `fn` is `weighted_sum`, `scale_by_c`, or `custom`, then `expr` is required.
 
 ### Typical interpretations (recommended)
 
 Your solver should document exact semantics; common defaults:
 
-* `sum`: ( f(x_1..x_n) = \sum_i x_i )
-* `product`: ( \prod_i x_i ) (often for reliabilities)
-* `max`: ( \max_i x_i ) (e.g., latency in parallel if all must finish)
-* `min`: ( \min_i x_i ) (e.g., best-of)
-* `weighted_sum`: typically for XOR: ( \sum_i p_i x_i )
-* `scale_by_c`: for LOOP with expected iterations `c`: ( c \cdot x )
-* `custom`: expression-based aggregator
+* `SUM`: ( f(x_1..x_n) = \sum_i x_i )
+* `PRODUCT`: ( \prod_i x_i ) (often for reliabilities)
+* `MAX`: ( \max_i x_i ) (e.g., latency in parallel if all must finish)
+* `MIN`: ( \min_i x_i ) (e.g., best-of)
+* `SCALED_SUM`: typically for LOOP with expected iterations `c`: ( c \cdot x )
+* `SCALED_PRODUCT`: typically for LOOP with expected iterations `c`: ( x^c )
+* `SCALED_MIN`: solver-defined scaling of a `MIN`-like aggregation (often used for LOOP)
+* `SCALED_MAX`: solver-defined scaling of a `MAX`-like aggregation (often used for LOOP)
+* `MEAN`: ( (1/n) \sum_i x_i )
 
 **Note:** `compose` lives per attribute, so different QoS attributes can aggregate differently for the same operator.
 
 ---
 
-# 9) `constraints` (optional)
+# 8) `constraints` (optional)
 
 ```json
 "constraints": [
@@ -421,22 +328,18 @@ Your solver should document exact semantics; common defaults:
 
 Constraints are one of:
 
-* `attribute_bound`
-* `dependency`
-* `custom` (expression constraint)
+* `ATTRIBUTE_BOUND`
+* `DEPENDENCY`
 
-Each constraint MAY be hard or soft:
+Each constraint has an optional `hard` boolean (defaults to `true` in many implementations).
 
-* `hard: true` means infeasible if violated
-* `hard: false` means feasible but penalized; `penalty` describes penalty parameters
-
-## 9.1 Attribute bound constraint (`kind: "attribute_bound"`)
+## 8.1 Attribute bound constraint (`kind: "ATTRIBUTE_BOUND"`)
 
 ```json
 {
   "id": "c_latency_global",
-  "kind": "attribute_bound",
-  "scope": "global",
+  "kind": "ATTRIBUTE_BOUND",
+  "scope": "GLOBAL",
   "attribute_id": "latency_ms",
   "op": "<=",
   "value": 500,
@@ -446,18 +349,18 @@ Each constraint MAY be hard or soft:
 
 ### Scope
 
-* `global`: applies to the whole composed workflow (aggregated value)
-* `local`: applies to a specific task or candidate
+* `GLOBAL`: applies to the aggregated workflow output
+* `LOCAL`: applies to a subset of tasks and/or candidates
 
-**Schema-enforced rule for local scope:**
-If `scope == "local"`, the constraint must include **either**:
+**Schema-enforced rule for `LOCAL` scope:**
+If `scope == "LOCAL"`, the constraint MUST include at least one of:
 
-* `task_id`
-* `candidate_id`
+* `tasks`: array of task IDs
+* `candidates`: array of candidate IDs
 
 ### Operator + value shape (schema-enforced)
 
-* If `op == "in_range"` → `value` MUST be:
+* If `op == "IN_RANGE"` → `value` MUST be:
 
   ```json
   { "min": number, "max": number }
@@ -467,174 +370,58 @@ If `scope == "local"`, the constraint must include **either**:
 Examples:
 
 ```json
-{ "op": "in_range", "value": { "min": 0.99, "max": 1.0 } }
+{ "op": "IN_RANGE", "value": { "min": 0.99, "max": 1.0 } }
 { "op": ">=", "value": 0.999 }
 ```
 
-## 9.2 Dependency constraint (`kind: "dependency"`)
+## 8.2 Dependency constraint (`kind: "DEPENDENCY"`)
 
 ```json
 {
   "id": "c_same_provider",
-  "kind": "dependency",
-  "type": "same_provider",
+  "kind": "DEPENDENCY",
+  "type": "SAME_PROVIDER",
   "tasks": ["t_auth", "t_pay"],
-  "hard": false,
-  "penalty": { "type": "linear", "value": 10 }
+  "hard": true
 }
 ```
 
 ### Dependency types
 
-* `same_provider`: selected candidates for all listed tasks share a provider
-* `different_provider`: selected candidates must be on different providers
-* `co_located`: providers share region/zone (define rule in solver)
-* `not_co_located`: avoid co-location
-* `affinity`: satisfy affinity tags (define rule in solver)
-* `anti_affinity`: avoid same tags/providers (define rule)
-* `version_compatible`: enforce version constraints (use `details.version`)
-
-`details` is intentionally open-ish:
-
-* `details.additionalProperties: true` within the `details` object, but `dependency_constraint` overall has `additionalProperties: false`.
-
-## 9.3 Custom expression constraint (`kind: "custom"`)
-
-```json
-{
-  "id": "c_custom",
-  "kind": "custom",
-  "expr": "latency_ms + 2*cost_usd",
-  "op": "<=",
-  "rhs": 1000,
-  "hard": true
-}
-```
-
-This is a generic escape hatch. Document the expression language in `solver_config`.
+* `SAME_PROVIDER`: selected candidates for all listed tasks share a provider
+* `DIFFERENT_PROVIDER`: selected candidates for all listed tasks must be on different providers
 
 ---
 
-# 10) `objective`
+# 9) `objective`
 
 An objective is one of:
 
-## 10.1 Weighted sum (`type: "weighted_sum"`)
+* `MONO`: `targets` has at least 1 entry it can have more than 1, but it’s a mono scalar objective (e.g., weighted sum)
+* `MULTI`: `targets` has 2–3 entries
+* `MANY`: `targets` has at least 3 entries
+
+All objective variants share the same shape:
 
 ```json
 "objective": {
-  "type": "weighted_sum",
-  "weights": {
-    "latency_ms": 0.7,
-    "cost_usd": 0.3
-  },
-  "normalized": true,
+  "type": "MONO" | "MULTI" | "MANY",
+  "targets": ["feature_id", "..."],
+  "weights": { "feature_id": 0.7, "...": 0.3 },
   "weights_sum_to_one": true
 }
 ```
 
 Schema-enforced rules:
 
-* `normalized` is **required** and must be `true` (const).
-* each weight must be between **0 and 1**
-* `weights` must contain at least one entry
+* `targets` items must be unique
+* `weights` is a non-empty map with values in `[0,1]`
+* `weights_sum_to_one` is optional (defaults to `true`)
 
-Important semantic invariant (not enforced):
+Important semantic invariants (not enforced):
 
-* if `weights_sum_to_one == true`, the weights SHOULD sum to 1 (enforce in second layer)
-
-## 10.2 Lexicographic (`type: "lexicographic"`)
-
-```json
-"objective": {
-  "type": "lexicographic",
-  "priority": ["availability", "latency_ms", "cost_usd"],
-  "tie_breaker": "weighted_sum"
-}
-```
-
-Interpretation:
-
-* Optimize the first attribute; break ties with the next; etc.
-* `tie_breaker` determines how to resolve exact ties at the end:
-
-  * `"weighted_sum"` or `"none"`
-
-## 10.3 Pareto (`type: "pareto"`)
-
-```json
-"objective": {
-  "type": "pareto",
-  "attributes": ["availability", "latency_ms"],
-  "reference_points": [{ "availability": 0.999, "latency_ms": 300 }],
-  "epsilon_constraints": { "availability": 0.99 }
-}
-```
-
-Interpretation is solver-defined. Common use:
-
-* Generate a Pareto front, or apply ε-constraint method.
-
----
-
-# 11) `runtime` and `solver_config` (optional)
-
-Both are open `object` types to store engine-specific configuration.
-
-Common `solver_config` fields:
-
-* solver name/version
-* time limit, gap
-* normalization conventions
-* expression language details
-* missing QoS handling
-* candidate feasibility rules
-
----
-
-# 12) `solution` (optional output section)
-
-```json
-"solution": {
-  "selection": {
-    "by_task": {
-      "t_auth": "svc_auth_1",
-      "t_pay": "svc_pay_3"
-    }
-  },
-  "aggregated_features": {
-    "latency_ms": 420,
-    "availability": 0.998
-  },
-  "normalized_features": {
-    "latency_ms": 0.58,
-    "availability": 0.92
-  },
-  "objective_value": 0.77,
-  "feasible": true,
-  "violations": [
-    { "constraint_id": "c_same_provider", "slack": -1, "penalty_applied": 10 }
-  ],
-  "solver_provenance": {
-    "solver": "my-mip-solver",
-    "version": "2.1",
-    "seed": 42,
-    "time_sec": 0.83,
-    "gap": 0.0,
-    "timestamp": "2026-01-19T12:40:00Z"
-  }
-}
-```
-
-### Semantics
-
-* `selection.by_task`: map task_id → candidate_id
-* `aggregated_features`: final aggregated raw QoS at workflow output
-* `normalized_features`: normalized form (commonly for objectives)
-* `objective_value`: solver’s final scalar value (if applicable)
-* `feasible`: whether constraints were satisfied (solver-defined; for soft constraints you may still mark feasible)
-* `violations`: list of violations with optional slack/penalty info
-* `solver_provenance`: reproducibility/debugging info
+* Keys of `weights` SHOULD match the entries in `targets`
+* If `weights_sum_to_one == true`, weights SHOULD sum to 1 (within tolerance)
 
 ---
 
@@ -644,48 +431,40 @@ Common `solver_config` fields:
 
 * Required top-level sections
 * Basic shapes and types
-* No unknown top-level properties
+* No unknown top-level properties (`additionalProperties: false` at the root)
 * LOOP requires either `expected_iterations` or `bounds`
-* `attr_bound_constraint.value` shape depends on `op`
-* local attribute bounds require `task_id` or `candidate_id`
-* normalization: `minmax` requires bounds; `piecewise/custom` require expr
-* aggregation policy compose must define at least one operator
-* compose_fn with `weighted_sum/scale_by_c/custom` requires expr
-* weighted sum weights in `[0,1]` and non-empty
+* `ATTRIBUTE_BOUND.value` shape depends on `op`
+* `ATTRIBUTE_BOUND` with `scope == "LOCAL"` requires `tasks` or `candidates`
+* Aggregation policy `compose` must define at least one operator (`seq`, `and`, `xor`, `loop`)
+* Objective `targets` uniqueness and size constraints depend on objective type
 
-## NOT enforceable (or not enforced) in pure JSON Schema (you should validate separately)
-
-You SHOULD add a second validation pass to enforce:
+## NOT enforceable (or not enforced) in pure JSON Schema (validate separately)
 
 ### Referential integrity (“foreign keys”)
 
 * All `task_id` references exist in `tasks[*].id`
 * All `provider_id` references exist in `providers[*].id`
-* All `composition` task nodes reference valid `task_id`
-* `solution.selection.by_task` keys are valid tasks
-* Selected candidate IDs exist and match the correct task
-* DAG edges refer to existing node IDs
+* All `composition` `TASK` nodes reference valid `task_id`
+* All `constraints[*].tasks` reference valid task IDs
+* All `constraints[*].candidates` reference valid candidate IDs
 
 ### Uniqueness
 
 * `providers[*].id`, `tasks[*].id`, `candidates[*].id`, node IDs should be unique
 
-### Graph/workflow semantics
+### Workflow semantics
 
-* DAG must be acyclic
-* XOR probabilities should sum to 1 (tree XOR and/or DAG outgoing probs)
-* Composition operators should be consistent with aggregation policies (e.g., if workflow contains XOR but attribute policy lacks `xor`, define fallback)
+* XOR branch probabilities SHOULD sum to 1 (within tolerance)
 
 ### QoS feature alignment
 
-* Candidate QoS keys should be subset of feature IDs
-* Each candidate should provide required attributes (if your solver expects it)
-* Candidate QoS values should lie within feature `valid_range`
+* Candidate QoS keys SHOULD be a subset of `features[*].id`
+* Candidate QoS values SHOULD lie within feature `valid_range`
 
 ### Objective consistency
 
-* Weighted-sum weights sum to 1 if `weights_sum_to_one` is true
-* Objective attributes exist in features and aggregation policies
+* `objective.targets` SHOULD reference existing feature IDs
+* `objective.weights` keys SHOULD reference existing feature IDs
 
 ---
 
@@ -704,20 +483,11 @@ Be explicit:
 
 * Latency: `ms`
 * Cost: `usd` (or `usd_per_call`)
-* Availability: unit `"ratio"` or `"prob"` with range `[0,1]`
-
-## Direction vs `increasing_is_better`
-
-They should align:
-
-* direction: `"maximize"` ↔ increasing_is_better: `true`
-* direction: `"minimize"` ↔ increasing_is_better: `false`
-
-(Your schema doesn’t enforce this; keep it consistent in data generation.)
+* Availability: unit `ratio` with range `[0,1]`
 
 ---
 
-# End-to-end minimal valid example (passes the fixed schema)
+# End-to-end minimal valid example (passes the current schema)
 
 ```json
 {
@@ -727,6 +497,16 @@ They should align:
     "version": "1.0.0",
     "created_at": "2026-01-19T12:00:00Z"
   },
+  "features": [
+    {
+      "id": "latency_ms",
+      "name": "Latency",
+      "direction": "MINIMIZE",
+      "unit": "ms",
+      "scale": "RATIO",
+      "valid_range": { "min": 0, "max": 10000 }
+    }
+  ],
   "providers": [
     { "id": "p1", "name": "ProviderOne" }
   ],
@@ -736,40 +516,27 @@ They should align:
   "candidates": [
     {
       "id": "c1",
+      "name": "CandidateOne",
       "task_id": "t1",
       "provider_id": "p1",
       "features": { "latency_ms": 120 }
     }
   ],
-  "features": [
-    {
-      "id": "latency_ms",
-      "name": "Latency",
-      "direction": "minimize",
-      "unit": "ms",
-      "scale": "ratio",
-      "valid_range": { "min": 0, "max": 10000 },
-    }
-  ],
   "composition": {
-    "type": "structured",
+    "type": "STRUCTURED",
     "root": { "id": "n1", "kind": "TASK", "task_id": "t1" }
   },
   "aggregation_policies": {
     "latency_ms": {
       "neutral": 0,
-      "compose": { "seq": { "fn": "sum" } },
-      "normalize": {
-        "type": "minmax",
-        "bounds": { "min": 0, "max": 1000 },
-        "increasing_is_better": false
-      }
+      "compose": { "seq": { "fn": "SUM" } }
     }
   },
   "objective": {
-    "type": "weighted_sum",
+    "type": "MONO",
+    "targets": ["latency_ms"],
     "weights": { "latency_ms": 1.0 },
-    "normalized": true
+    "weights_sum_to_one": true
   }
 }
 ```
@@ -780,33 +547,40 @@ They should align:
 
 ## Feature direction
 
-* `maximize`, `minimize`
+* `MAXIMIZE`, `MINIMIZE`
 
 ## Feature scale
 
-* `ratio`, `interval`, `ordinal`
+* `RATIO`, `INTERVAL`, `ORDINAL`
 
-## Normalization types
+## Composition type
 
-* `minmax`, `zscore`, `piecewise`, `identity`, `custom`
+* `STRUCTURED`
 
 ## Structured node kinds
 
-* `TASK`, `SEQ`, `AND`, `XOR`, `LOOP`
+* `TASK`, `ELEMENT`, `SEQ`, `AND`, `XOR`, `LOOP`
 
 ## Compose functions
 
-* `sum`, `product`, `max`, `min`, `weighted_sum`, `scale_by_c`, `custom`
+* `SUM`, `PRODUCT`, `MAX`, `MIN`, `SCALED_SUM`, `SCALED_PRODUCT`, `SCALED_MIN`, `SCALED_MAX`, `MEAN`
 
 ## Constraint kinds
 
-* `attribute_bound`, `dependency`, `custom`
+* `ATTRIBUTE_BOUND`, `DEPENDENCY`
+
+## Attribute bound scope
+
+* `GLOBAL`, `LOCAL`
+
+## Attribute bound operators
+
+* `<=`, `>=`, `==`, `<`, `>`, `IN_RANGE`
 
 ## Dependency types
 
-* `same_provider`, `different_provider`, `co_located`, `not_co_located`,
-  `affinity`, `anti_affinity`, `version_compatible`
+* `SAME_PROVIDER`, `DIFFERENT_PROVIDER`
 
 ## Objective types
 
-* `weighted_sum`, `lexicographic`, `pareto`
+* `MONO`, `MULTI`, `MANY`

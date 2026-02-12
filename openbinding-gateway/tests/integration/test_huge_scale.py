@@ -15,11 +15,11 @@ def create_huge_instance(constraint_mode="common"):
     providers = [{"id": f"P{i}", "name": f"Provider {i}"} for i in range(1, 4)]
     
     features = [
-        {"id": "cost", "name": "Cost", "direction": "minimize", "scale": "ratio", "unit": "USD", "valid_range": {"min": 0, "max": 100000}},
-        {"id": "latency", "name": "Latency", "direction": "minimize", "scale": "ratio", "unit": "ms", "valid_range": {"min": 0, "max": 10000}},
-        {"id": "reliability", "name": "Reliability", "direction": "maximize", "scale": "ratio", "unit": "%", "valid_range": {"min": 0, "max": 1}},
-        {"id": "availability", "name": "Availability", "direction": "maximize", "scale": "ratio", "unit": "%", "valid_range": {"min": 0, "max": 1}},
-        {"id": "energy", "name": "Energy", "direction": "minimize", "scale": "ratio", "unit": "J", "valid_range": {"min": 0, "max": 10000}}
+        {"id": "cost", "name": "Cost", "direction": "MINIMIZE", "scale": "RATIO", "unit": "USD", "valid_range": {"min": 0, "max": 100000}},
+        {"id": "latency", "name": "Latency", "direction": "MINIMIZE", "scale": "RATIO", "unit": "ms", "valid_range": {"min": 0, "max": 10000}},
+        {"id": "reliability", "name": "Reliability", "direction": "MAXIMIZE", "scale": "RATIO", "unit": "%", "valid_range": {"min": 0, "max": 1}},
+        {"id": "availability", "name": "Availability", "direction": "MAXIMIZE", "scale": "RATIO", "unit": "%", "valid_range": {"min": 0, "max": 1}},
+        {"id": "energy", "name": "Energy", "direction": "MINIMIZE", "scale": "RATIO", "unit": "J", "valid_range": {"min": 0, "max": 10000}}
     ]
     
     candidates = []
@@ -28,6 +28,7 @@ def create_huge_instance(constraint_mode="common"):
         for p in providers:
             candidates.append({
                 "id": f"C{cid}",
+                "name": f"Candidate {cid}",
                 "task_id": t["id"],
                 "provider_id": p["id"],
                 "features": {
@@ -43,7 +44,7 @@ def create_huge_instance(constraint_mode="common"):
     # Structure: SEQ(T1, AND(T2, T3), XOR(T4, T5), LOOP(SEQ(T6, T7)))
     # Schema-compliant format with all node ids
     composition = {
-        "type": "structured",
+        "type": "STRUCTURED",
         "root": {
             "id": "root_seq", "kind": "SEQ",
             "children": [
@@ -79,29 +80,40 @@ def create_huge_instance(constraint_mode="common"):
     
     agg = {}
     for f in features:
-        agg[f["id"]] = {
-            "neutral": 0 if f["direction"] == "minimize" else 1,
-            "normalize": {"type": "identity"},
-            "compose": {
-                "seq": {"fn": "sum"},
-                "and": {"fn": "max"},
-                "xor": {"fn": "weighted_sum", "expr": "sum(w * x)"},
-                "loop": {"fn": "sum"}
+        if f["id"] in ["reliability", "availability"]:
+             agg[f["id"]] = {
+                "neutral": 1,
+                "compose": {
+                    "seq": {"fn": "PRODUCT"},
+                    "and": {"fn": "MIN"},
+                    "xor": {"fn": "SCALED_SUM"},
+                    "loop": {"fn": "PRODUCT"} # Actually usually power, but "PRODUCT" with loop in existing logic might mean product of iterations? 
+                    # The gateway logic for LOOP/PRODUCT is "body_val ** c".
+                }
             }
-        }
+        else:
+            agg[f["id"]] = {
+                "neutral": 0 if f["direction"] == "MINIMIZE" else 1,
+                "compose": {
+                    "seq": {"fn": "SUM"},
+                    "and": {"fn": "MAX"},
+                    "xor": {"fn": "SCALED_SUM"},
+                    "loop": {"fn": "SUM"}
+                }
+            }
     
     constraints = []
     constraint_id = 0
     if constraint_mode == "minizinc":
-        constraints.append({"id": f"c{constraint_id}", "kind": "attribute_bound", "scope": "global", "attribute_id": "cost", "op": "<=", "value": 10000})
+        constraints.append({"id": f"c{constraint_id}", "kind": "ATTRIBUTE_BOUND", "scope": "GLOBAL", "attribute_id": "cost", "op": "<=", "value": 10000, "hard": True})
         constraint_id += 1
-        constraints.append({"id": f"c{constraint_id}", "kind": "attribute_bound", "scope": "local", "task_id": "T1", "attribute_id": "latency", "op": "<=", "value": 100})
+        constraints.append({"id": f"c{constraint_id}", "kind": "ATTRIBUTE_BOUND", "scope": "LOCAL", "tasks": ["T1"], "attribute_id": "latency", "op": "<=", "value": 100, "hard": True})
         constraint_id += 1
-        constraints.append({"id": f"c{constraint_id}", "kind": "dependency", "type": "same_provider", "tasks": ["T2", "T3"]})
+        constraints.append({"id": f"c{constraint_id}", "kind": "DEPENDENCY", "type": "SAME_PROVIDER", "tasks": ["T2", "T3"], "hard": True})
     elif constraint_mode == "random":
-        constraints.append({"id": f"c{constraint_id}", "kind": "attribute_bound", "scope": "global", "attribute_id": "cost", "op": "<=", "value": 10000})
+        constraints.append({"id": f"c{constraint_id}", "kind": "ATTRIBUTE_BOUND", "scope": "GLOBAL", "attribute_id": "cost", "op": "<=", "value": 10000, "hard": True})
     else: # common / relaxed
-        constraints.append({"id": f"c{constraint_id}", "kind": "attribute_bound", "scope": "global", "attribute_id": "cost", "op": "<=", "value": 50000})
+        constraints.append({"id": f"c{constraint_id}", "kind": "ATTRIBUTE_BOUND", "scope": "GLOBAL", "attribute_id": "cost", "op": "<=", "value": 50000, "hard": True})
 
     return {
         "metadata": {"id": "huge-1", "name": "Huge", "version": "1.0", "created_at": "2026-01-01T00:00:00Z"},
@@ -111,7 +123,7 @@ def create_huge_instance(constraint_mode="common"):
         "features": features,
         "composition": composition,
         "aggregation_policies": agg,
-        "objective": {"type": "weighted_sum", "weights": {"cost": 1}, "normalized": True},
+        "objective": {"type": "MONO", "targets": ["cost"], "weights": {"cost": 1}},
         "constraints": constraints
     }
 
@@ -123,11 +135,19 @@ def solve(gateway_url, wait_for_job, engine, instance):
         "options": {"iterations_count": 2000},
         "verbose": True
     })
-    assert res.status_code == 202, f"Gateway rejected the request: {res.text}"
-    job_id = res.json()["job_id"]
+    if res.status_code == 422:
+        pytest.fail(f"Gateway rejected request: {res.text}")
+
+    assert res.status_code in [200, 202]
+    data = res.json()
+    job_id = data["job_id"]
     assert job_id != "invalid", "The instance was considered invalid by the gateway."
     
-    job = wait_for_job(job_id)
+    if res.status_code == 200:
+        job = data
+    else:
+        job = wait_for_job(job_id)
+    
     assert job["status"] == "completed", f"Job failed: {job.get('error', job.get('status'))}"
     
     result = job.get("result", {})
@@ -147,19 +167,13 @@ def test_huge_minizinc(gateway_url, wait_for_job):
     inst = create_huge_instance("minizinc")
     sol = solve(gateway_url, wait_for_job, "minizinc-csp", inst)
     assert sol["is_feasible"], "MiniZinc huge instance should be feasible"
-    print(f"MiniZinc Huge Obj: {sol['objective_value']}")
 
 # @pytest.mark.skip(reason="Huge scale tests timeout due to complex schema and large binding space")
 def test_huge_random(gateway_url, wait_for_job):
     """Verify huge instance with global constraints on Random Search."""
     inst = create_huge_instance("random")
     sol = solve(gateway_url, wait_for_job, "random-search", inst)
-    # Random search might struggle to find feasible if constraints strict and space huge
-    # But here constraints are loose (cost<=10000).
-    if not sol["is_feasible"]:
-        print("Warning: Random Search invalid (could be heuristics).")
-    else:
-        print(f"Random Search Huge Obj: {sol['objective_value']}")
+    # Random search might struggle to find feasible if constraints strict and space huge.
 
 # @pytest.mark.skip(reason="Huge scale tests timeout due to complex schema and large binding space")
 def test_huge_common_comparison(gateway_url, wait_for_job):
@@ -170,17 +184,3 @@ def test_huge_common_comparison(gateway_url, wait_for_job):
     sol_rs = solve(gateway_url, wait_for_job, "random-search", inst)
     
     assert sol_mz["is_feasible"], "MiniZinc should have no trouble with this relaxed instance."
-    if sol_rs["is_feasible"]:
-        print(f"MZ Obj: {sol_mz['objective_value']}, RS Obj: {sol_rs['objective_value']}")
-        # Compare bindings
-        count = 0 
-        total = 0
-        if sol_mz["binding"] and sol_rs["binding"]:
-             for k in sol_mz["binding"]:
-                 total += 1
-                 if sol_mz["binding"][k] == sol_rs["binding"].get(k):
-                     count += 1
-        print(f"Binding Match: {count}/{total}")
-    else:
-        print("RS failed to find solution.")
-

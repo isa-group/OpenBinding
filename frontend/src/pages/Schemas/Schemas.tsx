@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import mermaid from 'mermaid';
+import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import { apiClient } from '../../api/client';
+import { schemaModelService } from '../../api/schemaModels';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
+import { Tabs } from '../../components/ui/Tabs';
 import './Schemas.css';
 
 type SchemaType = 'general' | 'engine';
@@ -11,23 +15,97 @@ export function Schemas() {
   const [engines, setEngines] = useState<string[]>([]);
   const [generalSchema, setGeneralSchema] = useState<any>(null);
   const [engineSchemas, setEngineSchemas] = useState<Record<string, any>>({});
+  const [generalModel, setGeneralModel] = useState<string | null | undefined>(undefined);
+  const [engineModels, setEngineModels] = useState<Record<string, string | null>>({});
   const [selectedType, setSelectedType] = useState<SchemaType>('general');
   const [selectedEngine, setSelectedEngine] = useState<string>('');
-  const [loading, setLoading] = useState(false);
+  const [loadingSchema, setLoadingSchema] = useState(false);
+  const [loadingModel, setLoadingModel] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modelError, setModelError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [renderedModelSvg, setRenderedModelSvg] = useState<string>('');
+  const [renderingModel, setRenderingModel] = useState(false);
+  const modelDiagramRef = useRef<HTMLDivElement | null>(null);
+
+  const normalizeMermaidSvg = (svg: string): string => {
+    return svg.replace(/<svg([^>]*)>/, (_match, rawAttrs: string) => {
+      const cleanedAttrs = rawAttrs
+        .replace(/\swidth="[^"]*"/g, '')
+        .replace(/\sheight="[^"]*"/g, '')
+        .replace(/\sstyle="[^"]*"/g, '');
+
+      return `<svg${cleanedAttrs} preserveAspectRatio="xMidYMid meet" width="100%" height="100%" style="width: 100%; height: 100%; max-width: none;">`;
+    });
+  };
+
+  const fitSvgToCanvas = (container?: HTMLDivElement | null) => {
+    const diagramContainer = container ?? modelDiagramRef.current;
+    if (!diagramContainer) return;
+
+    const svg = diagramContainer.querySelector('svg');
+    if (!svg) return;
+
+    try {
+      const bbox = svg.getBBox();
+      if (!Number.isFinite(bbox.width) || !Number.isFinite(bbox.height) || bbox.width <= 0 || bbox.height <= 0) {
+        return;
+      }
+
+      const paddingX = Math.max(16, bbox.width * 0.04);
+      const paddingY = Math.max(16, bbox.height * 0.04);
+      const viewBox = `${bbox.x - paddingX} ${bbox.y - paddingY} ${bbox.width + paddingX * 2} ${bbox.height + paddingY * 2}`;
+
+      svg.setAttribute('viewBox', viewBox);
+      svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      svg.setAttribute('width', '100%');
+      svg.setAttribute('height', '100%');
+      svg.style.width = '100%';
+      svg.style.height = '100%';
+      svg.style.maxWidth = 'none';
+    } catch {
+      // Ignore fit errors and keep default Mermaid sizing.
+    }
+  };
+
+  const handleModelDiagramRef = (node: HTMLDivElement | null) => {
+    modelDiagramRef.current = node;
+    if (!node) return;
+
+    requestAnimationFrame(() => {
+      fitSvgToCanvas(node);
+    });
+  };
 
   useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: 'default',
+    });
+
     loadEngines();
     loadGeneralSchema();
+    loadGeneralModel();
   }, []);
 
   useEffect(() => {
     if (selectedType === 'engine' && selectedEngine && !engineSchemas[selectedEngine]) {
       loadEngineSchema(selectedEngine);
     }
-  }, [selectedType, selectedEngine]);
+  }, [selectedType, selectedEngine, engineSchemas]);
+
+  useEffect(() => {
+    if (selectedType === 'general' && generalModel === undefined) {
+      loadGeneralModel();
+      return;
+    }
+
+    if (selectedType === 'engine' && selectedEngine && !(selectedEngine in engineModels)) {
+      loadEngineModel(selectedEngine);
+    }
+  }, [selectedType, selectedEngine, generalModel, engineModels]);
 
   const loadEngines = async () => {
     try {
@@ -44,27 +122,53 @@ export function Schemas() {
 
   const loadGeneralSchema = async () => {
     try {
-      setLoading(true);
+      setLoadingSchema(true);
       setError(null);
       const schema = await apiClient.getGeneralSchema();
       setGeneralSchema(schema);
     } catch (err: any) {
       setError(err.message || 'Failed to load general schema');
     } finally {
-      setLoading(false);
+      setLoadingSchema(false);
     }
   };
 
   const loadEngineSchema = async (engineId: string) => {
     try {
-      setLoading(true);
+      setLoadingSchema(true);
       setError(null);
       const schema = await apiClient.getEngineSchema(engineId);
       setEngineSchemas(prev => ({ ...prev, [engineId]: schema }));
     } catch (err: any) {
       setError(err.message || `Failed to load schema for ${engineId}`);
     } finally {
-      setLoading(false);
+      setLoadingSchema(false);
+    }
+  };
+
+  const loadGeneralModel = async () => {
+    try {
+      setLoadingModel(true);
+      setModelError(null);
+      const model = await schemaModelService.getGeneralModel();
+      setGeneralModel(model);
+    } catch (err: any) {
+      setModelError(err.message || 'Failed to load general model');
+    } finally {
+      setLoadingModel(false);
+    }
+  };
+
+  const loadEngineModel = async (engineId: string) => {
+    try {
+      setLoadingModel(true);
+      setModelError(null);
+      const model = await schemaModelService.getEngineModel(engineId);
+      setEngineModels(prev => ({ ...prev, [engineId]: model }));
+    } catch (err: any) {
+      setModelError(err.message || `Failed to load model for ${engineId}`);
+    } finally {
+      setLoadingModel(false);
     }
   };
 
@@ -73,6 +177,13 @@ export function Schemas() {
       return generalSchema;
     }
     return engineSchemas[selectedEngine];
+  };
+
+  const getCurrentModel = () => {
+    if (selectedType === 'general') {
+      return generalModel;
+    }
+    return engineModels[selectedEngine];
   };
 
   const downloadSchema = () => {
@@ -191,6 +302,156 @@ export function Schemas() {
   };
 
   const schema = getCurrentSchema();
+  const model = useMemo(() => getCurrentModel(), [selectedType, selectedEngine, generalModel, engineModels]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const renderModel = async () => {
+      if (!model || typeof model !== 'string') {
+        setRenderedModelSvg('');
+        return;
+      }
+
+      try {
+        setRenderingModel(true);
+        setModelError(null);
+        const id = `schema-model-${selectedType}-${selectedEngine || 'general'}-${Date.now()}`;
+        const { svg } = await mermaid.render(id, model);
+        if (!cancelled) {
+          setRenderedModelSvg(normalizeMermaidSvg(svg));
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setRenderedModelSvg('');
+          setModelError(err.message || 'Failed to render model');
+        }
+      } finally {
+        if (!cancelled) {
+          setRenderingModel(false);
+        }
+      }
+    };
+
+    renderModel();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [model, selectedType, selectedEngine]);
+
+  useEffect(() => {
+    if (!renderedModelSvg) return;
+
+    requestAnimationFrame(() => {
+      fitSvgToCanvas();
+    });
+  }, [renderedModelSvg]);
+
+  const renderJsonTab = () => {
+    if (loadingSchema) {
+      return <div className="loading-state">Loading schema...</div>;
+    }
+
+    if (error) {
+      return (
+        <Alert type="error" title="Error">
+          {error}
+        </Alert>
+      );
+    }
+
+    if (!schema) {
+      return (
+        <Alert type="info">
+          Select a schema type to view its structure.
+        </Alert>
+      );
+    }
+
+    return (
+      <>
+        <div className="schema-search">
+          <input
+            type="text"
+            placeholder="Search schema properties..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
+          {searchQuery && (
+            <Button variant="ghost" size="sm" onClick={() => setSearchQuery('')}>
+              Clear
+            </Button>
+          )}
+        </div>
+        <Card padding="lg" className="schema-viewer">
+          <div className="json-tree">
+            {renderJsonTree(schema)}
+          </div>
+        </Card>
+      </>
+    );
+  };
+
+  const renderModelTab = () => {
+    if (loadingModel) {
+      return <div className="loading-state">Loading model...</div>;
+    }
+
+    if (modelError) {
+      return (
+        <Alert type="error" title="Error">
+          {modelError}
+        </Alert>
+      );
+    }
+
+    if (model === null) {
+      return (
+        <Alert type="info" title="Model not available">
+          This engine does not provide a Mermaid model yet. Schema validation remains available through JSON.
+        </Alert>
+      );
+    }
+
+    if (!model) {
+      return (
+        <Alert type="info">
+          Select a schema to load its model.
+        </Alert>
+      );
+    }
+
+    if (renderingModel) {
+      return <div className="loading-state">Rendering model...</div>;
+    }
+
+    return (
+      <Card padding="md" className="schema-model-viewer">
+        <TransformWrapper initialScale={1} minScale={0.1} maxScale={4} centerOnInit limitToBounds={false}>
+          {({ zoomIn, zoomOut, resetTransform }) => (
+            <>
+              <div className="model-toolbar">
+                <Button variant="secondary" size="sm" onClick={() => zoomIn()}>Zoom In</Button>
+                <Button variant="secondary" size="sm" onClick={() => zoomOut()}>Zoom Out</Button>
+                <Button variant="ghost" size="sm" onClick={() => resetTransform()}>Reset</Button>
+              </div>
+              <div className="schema-model-canvas">
+                <TransformComponent wrapperClass="schema-model-transform-wrapper" contentClass="schema-model-transform-content">
+                  <div
+                    ref={handleModelDiagramRef}
+                    className="schema-model-diagram"
+                    dangerouslySetInnerHTML={{ __html: renderedModelSvg }}
+                  />
+                </TransformComponent>
+              </div>
+            </>
+          )}
+        </TransformWrapper>
+      </Card>
+    );
+  };
 
   return (
     <div className="schemas-page">
@@ -198,7 +459,7 @@ export function Schemas() {
         <div className="page-header">
           <h1>Schema Explorer</h1>
           <p className="page-description">
-            Browse and download JSON schemas for validation
+            Browse JSON schemas and their visual model representation
           </p>
         </div>
 
@@ -270,42 +531,21 @@ export function Schemas() {
           </Card>
         )}
 
-        {/* Search */}
-        {schema && (
-          <div className="schema-search">
-            <input
-              type="text"
-              placeholder="Search schema properties..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
-            {searchQuery && (
-              <Button variant="ghost" size="sm" onClick={() => setSearchQuery('')}>
-                Clear
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Schema Viewer */}
-        {loading ? (
-          <div className="loading-state">Loading schema...</div>
-        ) : error ? (
-          <Alert type="error" title="Error">
-            {error}
-          </Alert>
-        ) : !schema ? (
-          <Alert type="info">
-            Select a schema type to view its structure
-          </Alert>
-        ) : (
-          <Card padding="lg" className="schema-viewer">
-            <div className="json-tree">
-              {renderJsonTree(schema)}
-            </div>
-          </Card>
-        )}
+        <Tabs
+          tabs={[
+            {
+              id: 'json',
+              label: 'JSON',
+              content: renderJsonTab(),
+            },
+            {
+              id: 'model',
+              label: 'Model',
+              content: renderModelTab(),
+            },
+          ]}
+          defaultTab="json"
+        />
       </div>
     </div>
   );
