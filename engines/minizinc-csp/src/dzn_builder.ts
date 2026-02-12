@@ -359,32 +359,6 @@ export class DznBuilder {
       }
     }
 
-    const taskOrder = [...tasks].sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
-    const task_order = taskOrder.map((t: any) => taskIdx[t.id]);
-
-    const candidatesByTask: Record<string, { id: string; index: number }[]> = {};
-    candidates.forEach((c: any, i: number) => {
-      if (!candidatesByTask[c.task_id]) candidatesByTask[c.task_id] = [];
-      candidatesByTask[c.task_id].push({ id: c.id, index: i + 1 });
-    });
-    const cand_rank = Array(n_candidates).fill(0);
-    for (const t of tasks) {
-      const list = (candidatesByTask[t.id] || []).slice();
-      list.sort((a, b) => String(a.id).localeCompare(String(b.id)));
-      list.forEach((c, i) => {
-        cand_rank[c.index - 1] = i;
-      });
-    }
-
-    const tie_base = max_cands_per_task + 1;
-    const tie_eps = 1e-9;
-    const tie_weights: number[] = [];
-    let denom = tie_base;
-    for (let i = 0; i < n_tasks; i++) {
-      const weight = denom > 0 && Number.isFinite(denom) ? 1.0 / denom : 0.0;
-      tie_weights.push(weight);
-      denom *= tie_base;
-    }
 
     return `
         root_id = ${root_id};
@@ -414,10 +388,6 @@ export class DznBuilder {
         
         qos_weights = ${fmt(qos_weights)};
         qos_ub = ${fmt(qos_ub)};
-        tie_eps = ${tie_eps};
-        tie_weights = ${fmt(tie_weights)};
-        cand_rank = ${fmt(cand_rank)};
-        task_order = ${fmt(task_order)};
 
         n_global_constraints = ${gc_attr.length};
         gc_attr = ${fmt(gc_attr)};

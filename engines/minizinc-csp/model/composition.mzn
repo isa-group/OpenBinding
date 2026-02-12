@@ -49,10 +49,6 @@ array[1..n_qos, 1..5] of int: agg_policy;
 % 5. Objective Weights and Bounds
 array[1..n_qos] of float: qos_weights;
 array[1..n_qos] of float: qos_ub;
-float: tie_eps;
-array[1..n_tasks] of float: tie_weights;
-array[1..n_candidates] of int: cand_rank;
-array[1..n_tasks] of int: task_order;
 
 % --- VARIABLES ---
 
@@ -236,17 +232,12 @@ constraint forall(i in 1..n_nodes where node_kind[i] == KIND_LOOP)(
 
 
 % Calculate explicit upper bound for objective to prevent Gecode overflow
-float: obj_ub = sum(q in 1..n_qos)(abs(qos_weights[q])) + tie_eps;
-
-% Lexicographic tie-breaker based on task and candidate order
-var float: tie_break = sum(i in 1..n_tasks)(
-    int2float(cand_rank[selected_cand[task_order[i]]]) * tie_weights[i]
-);
+float: obj_ub = sum(q in 1..n_qos)(abs(qos_weights[q]));
 
 % Normalized objective: each feature contribution is divided by its UB
 var -obj_ub..obj_ub: obj_val = sum(q in 1..n_qos)(
     qos_weights[q] * (node_qos[root_id, q] / max(1.0, qos_ub[q]))
-) + (tie_eps * tie_break);
+);
 
 solve minimize obj_val;
 

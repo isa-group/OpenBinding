@@ -136,7 +136,7 @@
                 }
               },
               "hard": {
-                "type": "boolean"
+                "const": true
               }
             },
             "required": [

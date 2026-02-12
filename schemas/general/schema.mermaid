@@ -1,0 +1,380 @@
+classDiagram
+direction LR
+
+%% =========================================================
+%% Root aggregate
+%% =========================================================
+class CompactQoSComposition {
+  +Metadata metadata
+  +Feature[1..*] features
+  +Provider[1..*] providers
+  +Task[1..*] tasks
+  +Candidate[1..*] candidates
+  +StructuredTree composition
+  +AggregationPolicies aggregation_policies
+  +Constraint[*] constraints
+  +Objective objective
+}
+
+note for CompactQoSComposition "
+Required: metadata, features, providers, tasks, candidates, composition, aggregation_policies, objective
+additionalProperties = false (en la raíz)
+constraints: default = []
+"
+
+%% =========================================================
+%% Value objects / primitives
+%% =========================================================
+class Identifier {
+  <<valueObject>>
+  +value: string
+}
+note for Identifier "minLength=1, pattern=^[A-Za-z0-9_.-]+$"
+
+class NumericRange {
+  <<valueObject>>
+  +min: number
+  +max: number
+}
+
+%% =========================================================
+%% Metadata
+%% =========================================================
+class Metadata {
+  +id: Identifier
+  +name: string
+  +version: string
+  +created_at: dateTime
+  +description?: string
+  +... (extensible)
+}
+note for Metadata "additionalProperties=true (metadata admite campos extra)"
+
+%% =========================================================
+%% Providers / Tasks
+%% =========================================================
+class Provider {
+  +id: Identifier
+  +name: string
+  +description?: string
+}
+
+class Task {
+  +id: Identifier
+  +name: string
+  +description?: string
+}
+
+%% =========================================================
+%% Features
+%% =========================================================
+class Feature {
+  +id: Identifier
+  +name: string
+  +direction: Direction
+  +unit: string
+  +scale: Scale
+  +valid_range: NumericRange
+  +description?: string
+}
+
+class Direction {
+  <<enumeration>>
+  MAXIMIZE
+  MINIMIZE
+}
+
+class Scale {
+  <<enumeration>>
+  RATIO
+  INTERVAL
+  ORDINAL
+}
+
+%% =========================================================
+%% Candidates (service alternatives)
+%% =========================================================
+class Candidate {
+  +id: Identifier
+  +task_id: Identifier
+  +provider_id: Identifier
+  +name: string
+  +features: Map<Feature.id, number>
+  +description?: string
+}
+
+note for Candidate "
+Required: id, name, task_id, provider_id, features
+features: object (map) minProperties=1
+propertyNames: Identifier ; values: number
+additionalProperties=false
+"
+
+%% =========================================================
+%% Composition tree (structured)
+%% =========================================================
+class StructuredTree {
+  +type: \"STRUCTURED\"
+  +root: Node
+}
+
+class Node {
+  <<abstract>>
+  +id: Identifier
+  +kind: NodeKind
+  +description?: string
+}
+
+class NodeKind {
+  <<enumeration>>
+  TASK
+  ELEMENT
+  SEQ
+  AND
+  XOR
+  LOOP
+}
+
+class TaskNode {
+  +kind = TASK
+  +task_id: Identifier
+}
+
+class ElementNode {
+  +kind = ELEMENT
+}
+
+class SeqNode {
+  +kind = SEQ
+  +children: Node[2..*]
+}
+
+class AndNode {
+  +kind = AND
+  +children: Node[2..*]
+}
+
+class XorNode {
+  +kind = XOR
+  +branches: XorBranch[2..*]
+}
+
+class XorBranch {
+  +p: number (0,1]
+  +child: Node
+}
+
+class LoopNode {
+  +kind = LOOP
+  +body: Node
+  +expected_iterations?: number (>=0)
+  +bounds?: LoopBounds
+}
+
+class LoopBounds {
+  +min?: int (>=0)
+  +max?: int (>=0)
+}
+
+note for SeqNode "children minItems=2"
+note for AndNode "children minItems=2"
+note for XorNode "branches minItems=2 ; each branch p in (0,1]"
+note for LoopNode "Regla: requiere expected_iterations OR bounds (anyOf)"
+
+%% Inheritance (node hierarchy)
+Node <|-- TaskNode
+Node <|-- ElementNode
+Node <|-- SeqNode
+Node <|-- AndNode
+Node <|-- XorNode
+Node <|-- LoopNode
+
+%% =========================================================
+%% Aggregation policies (per feature)
+%% =========================================================
+class AggregationPolicies {
+  +policies: Map<Feature.id, AggregationPolicy>
+}
+
+class AggregationPolicy {
+  +neutral: number
+  +compose: ComposeConfig
+}
+
+class ComposeConfig {
+  +seq?: ComposeFn
+  +and?: ComposeFn
+  +xor?: ComposeFn
+  +loop?: ComposeFn
+}
+
+class ComposeFn {
+  +fn: ComposeFnType
+}
+
+class ComposeFnType {
+  <<enumeration>>
+  SUM
+  PRODUCT
+  MAX
+  MIN
+  MEAN
+  SCALED_SUM
+  SCALED_PRODUCT
+  SCALED_MIN
+  SCALED_MAX
+}
+
+note for ComposeConfig "
+anyOf: requiere al menos una de {seq,and,xor,loop}
+additionalProperties=false
+"
+
+%% =========================================================
+%% Constraints
+%% =========================================================
+class Constraint {
+  <<abstract>>
+  +id: Identifier
+  +kind: ConstraintKind
+  +hard: boolean = true
+  +description?: string
+}
+
+class ConstraintKind {
+  <<enumeration>>
+  ATTRIBUTE_BOUND
+  DEPENDENCY
+}
+
+class AttrBoundConstraint {
+  +kind = ATTRIBUTE_BOUND
+  +scope: Scope
+  +tasks?: Identifier[*]
+  +candidates?: Identifier[*]
+  +attribute_id: Identifier
+  +op: BoundOp
+  +value: number | NumericRange
+  +hard: boolean = true
+}
+
+class Scope {
+  <<enumeration>>
+  GLOBAL
+  LOCAL
+}
+
+class BoundOp {
+  <<enumeration>>
+  <=
+  >=
+  ==
+  <
+  >
+  IN_RANGE
+}
+
+note for AttrBoundConstraint "
+Reglas:
+- if op == IN_RANGE => value es NumericRange
+- else => value es number
+- if scope == LOCAL => requiere tasks OR candidates
+"
+
+class DependencyConstraint {
+  +kind = DEPENDENCY
+  +type: DependencyType
+  +tasks: Identifier[2..*]
+  +hard: boolean = true
+}
+
+class DependencyType {
+  <<enumeration>>
+  SAME_PROVIDER
+  DIFFERENT_PROVIDER
+}
+
+Constraint <|-- AttrBoundConstraint
+Constraint <|-- DependencyConstraint
+
+%% =========================================================
+%% Objective (mono/multi/many)
+%% =========================================================
+class Objective {
+  <<abstract>>
+  +type: ObjectiveType
+  +targets: Identifier[*]
+  +weights: Weights
+  +weights_sum_to_one: boolean = true
+}
+
+class ObjectiveType {
+  <<enumeration>>
+  MONO
+  MULTI
+  MANY
+}
+
+class Weights {
+  +w: Map<Feature.id, number[0..1]>
+}
+note for Weights "Cada peso: 0..1"
+
+class MonoObjective {
+  +type = MONO
+  +targets: Identifier[1..*] (unique)
+}
+
+class MultiObjective {
+  +type = MULTI
+  +targets: Identifier[2..3] (unique)
+}
+
+class ManyObjective {
+  +type = MANY
+  +targets: Identifier[3..*] (unique)
+}
+
+note for Objective "
+Regla (semántica): si weights_sum_to_one=true => sum(weights)=1
+JSON Schema valida rango 0..1; la suma a 1 se asume como regla de negocio
+"
+
+Objective <|-- MonoObjective
+Objective <|-- MultiObjective
+Objective <|-- ManyObjective
+
+%% =========================================================
+%% Aggregate relationships (containment)
+%% =========================================================
+CompactQoSComposition "1" *-- "1" Metadata
+CompactQoSComposition "1" *-- "1..*" Provider
+CompactQoSComposition "1" *-- "1..*" Task
+CompactQoSComposition "1" *-- "1..*" Feature
+CompactQoSComposition "1" *-- "1..*" Candidate
+CompactQoSComposition "1" *-- "1" StructuredTree
+CompactQoSComposition "1" *-- "1" AggregationPolicies
+CompactQoSComposition "1" *-- "0..*" Constraint
+CompactQoSComposition "1" *-- "1" Objective
+
+%% =========================================================
+%% Referential integrity / cross-links
+%% =========================================================
+Candidate "1" --> "1" Task : task_id
+Candidate "1" --> "1" Provider : provider_id
+Candidate "1" ..> "1..*" Feature : features[feature.id]=number
+
+TaskNode "1" --> "1" Task : task_id
+
+AggregationPolicies "1" o-- "1..*" AggregationPolicy : by Feature.id
+AggregationPolicies ..> Feature : key=Feature.id
+
+AttrBoundConstraint "1" --> "1" Feature : attribute_id
+AttrBoundConstraint "0..*" --> "0..*" Task : tasks (si LOCAL)
+AttrBoundConstraint "0..*" --> "0..*" Candidate : candidates (si LOCAL)
+
+DependencyConstraint "1" --> "2..*" Task : tasks
+DependencyConstraint ..> Provider : (implica) relación por selección
+
+Objective ..> Feature : targets referencian Feature.id
+Weights ..> Feature : keys referencian Feature.id

@@ -46,6 +46,7 @@
                   "LOCAL"
                 ]
               },
+              "hard": { "type": "boolean" },
               "tasks": {
                 "type": "array",
                 "items": {
