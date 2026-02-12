@@ -48,7 +48,7 @@
     }
   ],
   "objective": {
-    "type": "SINGLE",
+    "type": "MONO",
     "targets": ["cost"],
     "weights": {"cost": 1.0}
   }

@@ -731,7 +731,7 @@ def run_experiments():
     for item in pbar:
         filename = item["filename"]
         data = item["data"]
-        obj_type = data.get("objective", {}).get("type", "SINGLE")
+        obj_type = data.get("objective", {}).get("type", "MONO")
         constraints = data.get("constraints", [])
         has_soft = any(not c.get("hard", True) for c in constraints)
         

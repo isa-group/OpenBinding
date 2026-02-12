@@ -121,7 +121,7 @@ class GeneralSemanticValidator:
 
         # 3. Objective Validation
         obj = instance.get("objective") or {}
-        if isinstance(obj, dict) and obj.get("type") in {"SINGLE", "MULTI", "MANY"}:
+        if isinstance(obj, dict) and obj.get("type") in {"MONO", "MULTI", "MANY"}:
             targets = obj.get("targets") or []
             for tid in targets:
                 if tid not in feature_ids:

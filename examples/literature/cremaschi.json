@@ -191,7 +191,7 @@
     }
   },
   "objective": {
-    "type": "SINGLE",
+    "type": "MONO",
     "targets": ["latency_ms", "cost_usd", "availability"],
     "weights": {
       "availability": 0.4,

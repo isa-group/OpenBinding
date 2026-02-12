@@ -37,7 +37,7 @@ def create_loop_instance(constraint):
             }
         },
         "objective": {
-            "type": "SINGLE",
+            "type": "MONO",
             "targets": ["energy"],
             "weights": {"energy": 1.0}
         },

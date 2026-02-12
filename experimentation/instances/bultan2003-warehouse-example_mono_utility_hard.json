@@ -1,0 +1,716 @@
+{
+  "metadata": {
+    "id": "bultan2003-warehouse-example_mono_utility_hard",
+    "name": "Warehouse Composition example (Bultan et al. 2003) [mono_utility, hard]",
+    "version": "1.0.0",
+    "created_at": "2026-02-12T08:15:33Z",
+    "description": "Problem instance derived from Example 2.1 and Example 3.1 (store-bank-warehouse) in Bultan et al., WWW'03.",
+    "paper": {
+      "title": "Conversation Specification: A New Approach to Design and Analysis of E-Service Composition",
+      "authors": "T. Bultan et al.",
+      "year": 2003,
+      "doi": "10.1145/775152.775210"
+    }
+  },
+  "features": [
+    {
+      "id": "latency_ms",
+      "name": "Latency",
+      "direction": "MINIMIZE",
+      "unit": "ms",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 5000
+      }
+    },
+    {
+      "id": "cost_usd",
+      "name": "Cost",
+      "direction": "MINIMIZE",
+      "unit": "usd",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1000
+      }
+    },
+    {
+      "id": "availability",
+      "name": "Availability",
+      "direction": "MAXIMIZE",
+      "unit": "prob",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "gen_feat_1",
+      "name": "Generated feature gen_feat_1",
+      "direction": "MINIMIZE",
+      "unit": "unit",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1000
+      }
+    },
+    {
+      "id": "gen_feat_2",
+      "name": "Generated feature gen_feat_2",
+      "direction": "MAXIMIZE",
+      "unit": "ratio",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "gen_feat_3",
+      "name": "Generated feature gen_feat_3",
+      "direction": "MINIMIZE",
+      "unit": "unit",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1000
+      }
+    }
+  ],
+  "providers": [
+    {
+      "id": "p_store",
+      "name": "Store"
+    },
+    {
+      "id": "p_bank",
+      "name": "Bank"
+    },
+    {
+      "id": "p_wh1",
+      "name": "Warehouse1"
+    },
+    {
+      "id": "p_wh2",
+      "name": "Warehouse2"
+    },
+    {
+      "id": "p_gen_shared",
+      "name": "Generated Shared Provider"
+    },
+    {
+      "id": "p_gen_1",
+      "name": "Generated Provider p_gen_1"
+    },
+    {
+      "id": "p_gen_2",
+      "name": "Generated Provider p_gen_2"
+    },
+    {
+      "id": "p_gen_3",
+      "name": "Generated Provider p_gen_3"
+    },
+    {
+      "id": "p_gen_4",
+      "name": "Generated Provider p_gen_4"
+    },
+    {
+      "id": "p_gen_5",
+      "name": "Generated Provider p_gen_5"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t_authorize",
+      "name": "Send authorize (store→bank)"
+    },
+    {
+      "id": "t_ok",
+      "name": "Send ok (bank→store)"
+    },
+    {
+      "id": "t_order1",
+      "name": "Send order1 (store→warehouse1)"
+    },
+    {
+      "id": "t_receipt1",
+      "name": "Send receipt1 (warehouse1→store)"
+    },
+    {
+      "id": "t_bill1",
+      "name": "Send bill1 (warehouse1→bank)"
+    },
+    {
+      "id": "t_payment1",
+      "name": "Send payment1 (bank→warehouse1)"
+    },
+    {
+      "id": "t_order2",
+      "name": "Send order2 (store→warehouse2)"
+    },
+    {
+      "id": "t_receipt2",
+      "name": "Send receipt2 (warehouse2→store)"
+    },
+    {
+      "id": "t_bill2",
+      "name": "Send bill2 (warehouse2→bank)"
+    },
+    {
+      "id": "t_payment2",
+      "name": "Send payment2 (bank→warehouse2)"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "c_authorize_store_v1",
+      "task_id": "t_authorize",
+      "provider_id": "p_store",
+      "name": "authorize",
+      "features": {
+        "latency_ms": 55,
+        "cost_usd": 0.01,
+        "availability": 0.999,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "c_ok_bank_v1",
+      "task_id": "t_ok",
+      "provider_id": "p_bank",
+      "name": "ok",
+      "features": {
+        "latency_ms": 45,
+        "cost_usd": 0.01,
+        "availability": 0.999,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "c_order1_store_v1",
+      "task_id": "t_order1",
+      "provider_id": "p_store",
+      "name": "order1",
+      "features": {
+        "latency_ms": 65,
+        "cost_usd": 0.02,
+        "availability": 0.998,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "c_receipt1_wh1_v1",
+      "task_id": "t_receipt1",
+      "provider_id": "p_wh1",
+      "name": "receipt1",
+      "features": {
+        "latency_ms": 80,
+        "cost_usd": 0.015,
+        "availability": 0.997,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "c_bill1_wh1_v1",
+      "task_id": "t_bill1",
+      "provider_id": "p_wh1",
+      "name": "bill1",
+      "features": {
+        "latency_ms": 75,
+        "cost_usd": 0.015,
+        "availability": 0.998,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "c_payment1_bank_v1",
+      "task_id": "t_payment1",
+      "provider_id": "p_bank",
+      "name": "payment1",
+      "features": {
+        "latency_ms": 90,
+        "cost_usd": 0.03,
+        "availability": 0.999,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "c_order2_store_v1",
+      "task_id": "t_order2",
+      "provider_id": "p_store",
+      "name": "order2",
+      "features": {
+        "latency_ms": 70,
+        "cost_usd": 0.02,
+        "availability": 0.998,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "c_receipt2_wh2_v1",
+      "task_id": "t_receipt2",
+      "provider_id": "p_wh2",
+      "name": "receipt2",
+      "features": {
+        "latency_ms": 85,
+        "cost_usd": 0.015,
+        "availability": 0.997,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "c_bill2_wh2_v1",
+      "task_id": "t_bill2",
+      "provider_id": "p_wh2",
+      "name": "bill2",
+      "features": {
+        "latency_ms": 78,
+        "cost_usd": 0.015,
+        "availability": 0.998,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "c_payment2_bank_v1",
+      "task_id": "t_payment2",
+      "provider_id": "p_bank",
+      "name": "payment2",
+      "features": {
+        "latency_ms": 95,
+        "cost_usd": 0.03,
+        "availability": 0.999,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "t_authorize_gen_1",
+      "task_id": "t_authorize",
+      "provider_id": "p_gen_shared",
+      "name": "authorize (Gen Shared)",
+      "features": {
+        "latency_ms": 56.03,
+        "cost_usd": 0.01,
+        "availability": 0.9942,
+        "gen_feat_1": 506.18,
+        "gen_feat_2": 0.499392,
+        "gen_feat_3": 514.16
+      }
+    },
+    {
+      "id": "t_ok_gen_1",
+      "task_id": "t_ok",
+      "provider_id": "p_gen_shared",
+      "name": "ok (Gen Shared)",
+      "features": {
+        "latency_ms": 45.04,
+        "cost_usd": 0.01,
+        "availability": 1.0,
+        "gen_feat_1": 498.62,
+        "gen_feat_2": 0.512982,
+        "gen_feat_3": 510.57
+      }
+    },
+    {
+      "id": "t_order1_gen_1",
+      "task_id": "t_order1",
+      "provider_id": "p_gen_shared",
+      "name": "order1 (Gen Shared)",
+      "features": {
+        "latency_ms": 65.77,
+        "cost_usd": 0.02,
+        "availability": 0.969077,
+        "gen_feat_1": 495.0,
+        "gen_feat_2": 0.514614,
+        "gen_feat_3": 491.26
+      }
+    },
+    {
+      "id": "t_receipt1_gen_1",
+      "task_id": "t_receipt1",
+      "provider_id": "p_gen_shared",
+      "name": "receipt1 (Gen Shared)",
+      "features": {
+        "latency_ms": 78.06,
+        "cost_usd": 0.02,
+        "availability": 0.967727,
+        "gen_feat_1": 500.39,
+        "gen_feat_2": 0.485136,
+        "gen_feat_3": 489.78
+      }
+    },
+    {
+      "id": "t_bill1_gen_1",
+      "task_id": "t_bill1",
+      "provider_id": "p_gen_shared",
+      "name": "bill1 (Gen Shared)",
+      "features": {
+        "latency_ms": 74.23,
+        "cost_usd": 0.01,
+        "availability": 1.0,
+        "gen_feat_1": 499.46,
+        "gen_feat_2": 0.510726,
+        "gen_feat_3": 507.43
+      }
+    },
+    {
+      "id": "t_payment1_gen_1",
+      "task_id": "t_payment1",
+      "provider_id": "p_gen_shared",
+      "name": "payment1 (Gen Shared)",
+      "features": {
+        "latency_ms": 92.58,
+        "cost_usd": 0.03,
+        "availability": 1.0,
+        "gen_feat_1": 485.22,
+        "gen_feat_2": 0.502923,
+        "gen_feat_3": 500.11
+      }
+    },
+    {
+      "id": "t_order2_gen_1",
+      "task_id": "t_order2",
+      "provider_id": "p_gen_shared",
+      "name": "order2 (Gen Shared)",
+      "features": {
+        "latency_ms": 69.52,
+        "cost_usd": 0.02,
+        "availability": 0.98773,
+        "gen_feat_1": 498.95,
+        "gen_feat_2": 0.488362,
+        "gen_feat_3": 485.48
+      }
+    },
+    {
+      "id": "t_receipt2_gen_1",
+      "task_id": "t_receipt2",
+      "provider_id": "p_gen_shared",
+      "name": "receipt2 (Gen Shared)",
+      "features": {
+        "latency_ms": 82.92,
+        "cost_usd": 0.01,
+        "availability": 1.0,
+        "gen_feat_1": 494.35,
+        "gen_feat_2": 0.50285,
+        "gen_feat_3": 507.12
+      }
+    },
+    {
+      "id": "t_bill2_gen_1",
+      "task_id": "t_bill2",
+      "provider_id": "p_gen_shared",
+      "name": "bill2 (Gen Shared)",
+      "features": {
+        "latency_ms": 79.01,
+        "cost_usd": 0.01,
+        "availability": 0.984644,
+        "gen_feat_1": 488.32,
+        "gen_feat_2": 0.499763,
+        "gen_feat_3": 489.55
+      }
+    },
+    {
+      "id": "t_payment2_gen_1",
+      "task_id": "t_payment2",
+      "provider_id": "p_gen_shared",
+      "name": "payment2 (Gen Shared)",
+      "features": {
+        "latency_ms": 92.24,
+        "cost_usd": 0.03,
+        "availability": 0.973888,
+        "gen_feat_1": 499.15,
+        "gen_feat_2": 0.505463,
+        "gen_feat_3": 506.65
+      }
+    }
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "n_root_seq",
+      "kind": "SEQ",
+      "children": [
+        {
+          "id": "n_authorize",
+          "kind": "TASK",
+          "task_id": "t_authorize"
+        },
+        {
+          "id": "n_ok",
+          "kind": "TASK",
+          "task_id": "t_ok"
+        },
+        {
+          "id": "n_parallel_orders",
+          "kind": "AND",
+          "children": [
+            {
+              "id": "n_loop_wh1",
+              "kind": "LOOP",
+              "bounds": {
+                "min": 0,
+                "max": 5
+              },
+              "body": {
+                "id": "n_wh1_iter_seq",
+                "kind": "SEQ",
+                "children": [
+                  {
+                    "id": "n_order1",
+                    "kind": "TASK",
+                    "task_id": "t_order1"
+                  },
+                  {
+                    "id": "n_wh1_after_order",
+                    "kind": "AND",
+                    "children": [
+                      {
+                        "id": "n_receipt1",
+                        "kind": "TASK",
+                        "task_id": "t_receipt1"
+                      },
+                      {
+                        "id": "n_wh1_billpay",
+                        "kind": "SEQ",
+                        "children": [
+                          {
+                            "id": "n_bill1",
+                            "kind": "TASK",
+                            "task_id": "t_bill1"
+                          },
+                          {
+                            "id": "n_payment1",
+                            "kind": "TASK",
+                            "task_id": "t_payment1"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "n_loop_wh2",
+              "kind": "LOOP",
+              "bounds": {
+                "min": 0,
+                "max": 5
+              },
+              "body": {
+                "id": "n_wh2_iter_seq",
+                "kind": "SEQ",
+                "children": [
+                  {
+                    "id": "n_order2",
+                    "kind": "TASK",
+                    "task_id": "t_order2"
+                  },
+                  {
+                    "id": "n_wh2_after_order",
+                    "kind": "AND",
+                    "children": [
+                      {
+                        "id": "n_receipt2",
+                        "kind": "TASK",
+                        "task_id": "t_receipt2"
+                      },
+                      {
+                        "id": "n_wh2_billpay",
+                        "kind": "SEQ",
+                        "children": [
+                          {
+                            "id": "n_bill2",
+                            "kind": "TASK",
+                            "task_id": "t_bill2"
+                          },
+                          {
+                            "id": "n_payment2",
+                            "kind": "TASK",
+                            "task_id": "t_payment2"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "latency_ms": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "cost_usd": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "availability": {
+      "neutral": 1,
+      "compose": {
+        "seq": {
+          "fn": "PRODUCT"
+        },
+        "and": {
+          "fn": "PRODUCT"
+        },
+        "loop": {
+          "fn": "SCALED_PRODUCT"
+        }
+      }
+    },
+    "gen_feat_1": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "gen_feat_2": {
+      "neutral": 1,
+      "compose": {
+        "seq": {
+          "fn": "PRODUCT"
+        },
+        "and": {
+          "fn": "PRODUCT"
+        },
+        "loop": {
+          "fn": "SCALED_PRODUCT"
+        }
+      }
+    },
+    "gen_feat_3": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    }
+  },
+  "objective": {
+    "type": "MONO",
+    "targets": [
+      "availability",
+      "cost_usd",
+      "gen_feat_1",
+      "gen_feat_2",
+      "gen_feat_3",
+      "latency_ms"
+    ],
+    "weights": {
+      "availability": 0.17,
+      "cost_usd": 0.17,
+      "gen_feat_1": 0.17,
+      "gen_feat_2": 0.17,
+      "gen_feat_3": 0.16,
+      "latency_ms": 0.16
+    },
+    "weights_sum_to_one": true
+  },
+  "constraints": [
+    {
+      "id": "gen_c_global_latency_ms_1",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "latency_ms",
+      "op": "<=",
+      "value": 4500.0,
+      "hard": true
+    },
+    {
+      "id": "gen_c_local_t_authorize_cost_usd_1",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_authorize"
+      ],
+      "attribute_id": "cost_usd",
+      "op": "<=",
+      "value": 0.01,
+      "hard": true
+    },
+    {
+      "id": "gen_c_dep_same_1",
+      "kind": "DEPENDENCY",
+      "type": "SAME_PROVIDER",
+      "tasks": [
+        "t_authorize",
+        "t_ok",
+        "t_order1"
+      ],
+      "hard": true
+    },
+    {
+      "id": "gen_c_dep_diff_1",
+      "kind": "DEPENDENCY",
+      "type": "DIFFERENT_PROVIDER",
+      "tasks": [
+        "t_bill2",
+        "t_payment2"
+      ],
+      "hard": true
+    }
+  ]
+}

@@ -381,7 +381,7 @@
       },
       "objective": {
         "oneOf": [
-          { "$ref": "#/$defs/single" },
+          { "$ref": "#/$defs/mono" },
           { "$ref": "#/$defs/multi" },
           { "$ref": "#/$defs/many" }
         ]
@@ -396,12 +396,12 @@
           "maximum": 1
         }
       },
-      "single": {
+      "mono": {
         "type": "object",
         "required": ["type", "targets", "weights"],
         "additionalProperties": false,
         "properties": {
-          "type": { "const": "SINGLE" },
+          "type": { "const": "MONO" },
           "targets": {
             "type": "array",
             "minItems": 1,

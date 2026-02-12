@@ -22,7 +22,7 @@ Each example is a JSON file that defines a service composition problem. The key 
     *   **`ATTRIBUTE_BOUND`**: Limits on QoS values (Global or Local).
     *   **`DEPENDENCY`**: Constraints between providers (e.g., `SAME_PROVIDER` for two tasks).
 *   **`objective`**: The goal of the optimization.
-    *   **`SINGLE`**: Optimize one feature (or a weighted sum of multiple features).
+    *   **`MONO`**: Optimize one feature (or a weighted sum of multiple features).
     *   **`MULTI`**: Optimize multiple features (Negative test for now).
     *   **`MANY`**: Optimize many features (3+) for Pareto Front.
 
@@ -36,7 +36,7 @@ Here is a guide to the included examples and their specific intent:
 | **`02_parallel.json`** | **Parallel Flow (AND)** | Demonstrates parallel execution. Shows how `MAX` aggregation (for latency) works differently from `SUM`. |
 | **`03_xor_choice.json`** | **Probabilistic Branching (XOR)** | Uses `XOR` nodes with probabilities. The objective is expected availability. |
 | **`04_conflict.json`** | **Infeasibility** | A problem designed to be unsolvable due to conflicting constraints. Use this to test error handling or "No Solution" responses. |
-| **`05_multi_obj.json`** | **Weighted Sum (SINGLE)** | A Cost+Latency trade-off encoded as a `SINGLE` weighted-sum objective (supported by current engines). |
+| **`05_multi_obj.json`** | **Weighted Sum (MONO)** | A Cost+Latency trade-off encoded as a `MONO` weighted-sum objective (supported by current engines). |
 | **`06_loops.json`** | **Loops** | Demonstrates the `LOOP` structure. Aggregation uses `expected_iterations` to estimate QoS. |
 | **`07_soft_constraints.json`** | **Soft Constraints** | Includes a constraint marked `hard: false`. Violations should be penalized but allowed. |
 | **`08_dependencies.json`** | **Provider Dependencies** | Forces two independent tasks to select services from the `SAME_PROVIDER`. |

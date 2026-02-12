@@ -23,7 +23,7 @@
     "objective": {
       "properties": {
         "type": {
-          "const": "SINGLE"
+          "const": "MONO"
         }
       },
       "required": [
@@ -111,6 +111,8 @@
               },
               "tasks": {
                 "type": "array",
+                "minItems": 2,
+                "uniqueItems": true,
                 "items": {
                   "type": "string"
                 }
@@ -118,7 +120,8 @@
             },
             "required": [
               "kind",
-              "type"
+              "type",
+              "tasks"
             ]
           }
         ]

@@ -10,7 +10,7 @@ This schema describes a **QoS-aware service composition problem instance**. It m
 * A **composition structure** (a *structured tree* workflow)
 * **Aggregation policies** that define how QoS propagates through the workflow
 * Optional **constraints**
-* An **objective** definition (types: `SINGLE`, `MULTI`, `MANY`) using `targets` + `weights`
+* An **objective** definition (types: `MONO`, `MULTI`, `MANY`) using `targets` + `weights`
 
 The schema focuses on **compactness** and **tool-friendly parsing**. It is designed to be consumed by optimizers/solvers that compute an optimal (or near-optimal) candidate selection under QoS objectives and constraints.
 
@@ -397,7 +397,7 @@ Examples:
 
 An objective is one of:
 
-* `SINGLE`: `targets` has at least 1 entry it can have more than 1, but it’s a single scalar objective (e.g., weighted sum)
+* `MONO`: `targets` has at least 1 entry it can have more than 1, but it’s a mono scalar objective (e.g., weighted sum)
 * `MULTI`: `targets` has 2–3 entries
 * `MANY`: `targets` has at least 3 entries
 
@@ -405,7 +405,7 @@ All objective variants share the same shape:
 
 ```json
 "objective": {
-  "type": "SINGLE" | "MULTI" | "MANY",
+  "type": "MONO" | "MULTI" | "MANY",
   "targets": ["feature_id", "..."],
   "weights": { "feature_id": 0.7, "...": 0.3 },
   "weights_sum_to_one": true
@@ -533,7 +533,7 @@ Be explicit:
     }
   },
   "objective": {
-    "type": "SINGLE",
+    "type": "MONO",
     "targets": ["latency_ms"],
     "weights": { "latency_ms": 1.0 },
     "weights_sum_to_one": true
@@ -583,4 +583,4 @@ Be explicit:
 
 ## Objective types
 
-* `SINGLE`, `MULTI`, `MANY`
+* `MONO`, `MULTI`, `MANY`

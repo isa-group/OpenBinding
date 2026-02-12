@@ -22,7 +22,7 @@ def pipeline() -> ValidationPipeline:
     return ValidationPipeline()
 
 
-def _minimal_valid_single_instance(*, weight: float, include_flag: bool, flag_value: bool = True):
+def _minimal_valid_mono_instance(*, weight: float, include_flag: bool, flag_value: bool = True):
     instance = {
         "metadata": {"id": "t-1", "name": "test", "version": "1.0", "created_at": "2023-01-01T00:00:00Z"},
         "features": [
@@ -48,7 +48,7 @@ def _minimal_valid_single_instance(*, weight: float, include_flag: bool, flag_va
         ],
         "composition": {"type": "STRUCTURED", "root": {"kind": "TASK", "id": "n1", "task_id": "t1"}},
         "aggregation_policies": {"cost": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}}}},
-        "objective": {"type": "SINGLE", "targets": ["cost"], "weights": {"cost": weight}},
+        "objective": {"type": "MONO", "targets": ["cost"], "weights": {"cost": weight}},
         "constraints": [],
     }
 
@@ -59,7 +59,7 @@ def _minimal_valid_single_instance(*, weight: float, include_flag: bool, flag_va
 
 
 def test_weights_sum_to_one_missing_defaults_true_and_is_validated(pipeline: ValidationPipeline):
-    instance = _minimal_valid_single_instance(weight=0.7, include_flag=False)
+    instance = _minimal_valid_mono_instance(weight=0.7, include_flag=False)
 
     # General schema is OK (does not enforce sum-to-one).
     assert pipeline.validate_general_schema(instance) == []
@@ -72,7 +72,7 @@ def test_weights_sum_to_one_missing_defaults_true_and_is_validated(pipeline: Val
 
 
 def test_weights_sum_to_one_false_skips_sum_constraint(pipeline: ValidationPipeline):
-    instance = _minimal_valid_single_instance(weight=0.7, include_flag=True, flag_value=False)
+    instance = _minimal_valid_mono_instance(weight=0.7, include_flag=True, flag_value=False)
 
     assert pipeline.validate_general_schema(instance) == []
     violations, _ = pipeline.validate_full("random-search", instance)

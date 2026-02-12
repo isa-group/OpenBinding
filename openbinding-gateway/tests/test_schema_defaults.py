@@ -47,7 +47,7 @@ def base_instance():
         ],
         "composition": {"type": "STRUCTURED", "root": {"kind": "TASK", "id": "n1", "task_id": "t1"}},
         "aggregation_policies": {"cost": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}}}},
-        "objective": {"type": "SINGLE", "targets": ["cost"], "weights": {"cost": 1.0}},
+        "objective": {"type": "MONO", "targets": ["cost"], "weights": {"cost": 1.0}},
     }
 
 

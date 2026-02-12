@@ -2,6 +2,7 @@ import pytest
 import os
 import json
 from openbinding_gateway.validation.pipeline import ValidationPipeline
+from openbinding_gateway.registry.engine import EngineRegistry
 
 # Setup environment variables for schema paths if not present
 if "GENERAL_SCHEMA_PATH" not in os.environ:
@@ -39,13 +40,13 @@ def get_base_instance():
             "cost": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}, "and": {"fn":"MAX"}, "xor": {"fn":"SUM"}, "loop": {"fn":"SUM"}}}
         },
         # Correct Objective Format from Schema
-        "objective": {"type": "SINGLE", "targets": ["cost"], "weights": {"cost": 1.0}}, 
+        "objective": {"type": "MONO", "targets": ["cost"], "weights": {"cost": 1.0}}, 
         "constraints": []
     }
 
 # --- MiniZinc Tests ---
 
-def test_minizinc_single_objective_valid(pipeline):
+def test_minizinc_mono_objective_valid(pipeline):
     instance = get_base_instance()
     # Check general schema first
     violations = pipeline.validate_general_schema(instance)
@@ -124,8 +125,24 @@ def test_random_search_dependency_valid(pipeline):
     violations = pipeline.specialization_validator.validate("random-search", instance)
     assert len(violations) == 0
 
+def test_random_search_capabilities_include_dependency():
+    plugin = EngineRegistry.get_plugin("random-search")
+    constraints = plugin.get_capabilities().get("constraints_supported", [])
+    assert "dependency" in constraints
+
+def test_random_search_dependency_requires_tasks_in_specialization(pipeline):
+    instance = get_base_instance()
+    instance["constraints"] = [{
+        "id": "c1",
+        "kind": "DEPENDENCY",
+        "type": "SAME_PROVIDER",
+        "hard": True
+    }]
+    violations = pipeline.specialization_validator.validate("random-search", instance)
+    assert len(violations) > 0
+
 def test_random_search_multi_objective_invalid(pipeline):
-    # Random search supports MULTI? The previous test name says "invalid" but code was checking for SINGLE
+    # Random search supports MULTI? The previous test name says "invalid" but code was checking for MONO
     # If the engine is "random-search", it MIGHT support multi depending on schema.
     # Assuming the intent was to check if it rejects bad input or if it enforces something.
     # Actually, Random Search typically supports multi/many.

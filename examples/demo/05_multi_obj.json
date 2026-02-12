@@ -4,7 +4,7 @@
     "name": "05. Multi Objective",
     "version": "1.0.0",
     "created_at": "2026-02-10T12:00:00Z",
-    "description": "Trade-off between Cost and Latency using a SINGLE (weighted-sum) objective. This is resolvable by current engines.",
+    "description": "Trade-off between Cost and Latency using a MONO (weighted-sum) objective. This is resolvable by current engines.",
     "level": "intermediate"
   },
   "features": [
@@ -46,7 +46,7 @@
     "latency": {"neutral": 0, "compose": { "seq": {"fn": "SUM"}, "and": {"fn": "MAX"}, "loop": {"fn": "SCALED_SUM"} } }
   },
   "objective": {
-    "type": "SINGLE",
+    "type": "MONO",
     "targets": ["cost", "latency"],
     "weights": {"cost": 0.5, "latency": 0.5}
   }

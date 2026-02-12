@@ -35,7 +35,7 @@
     "cost": {"neutral": 0, "compose": { "seq": {"fn": "SUM"}, "and": {"fn": "SUM"}, "loop": {"fn": "SCALED_SUM"} } }
   },
   "objective": {
-    "type": "SINGLE",
+    "type": "MONO",
     "targets": ["cost"],
     "weights": {"cost": 1.0}
   }

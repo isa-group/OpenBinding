@@ -24,7 +24,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             "qos_features_supported": ["*"],
             "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
             "objective_types_supported": ["weighted_sum"],
-            "constraints_supported": ["attribute_bound"],
+            "constraints_supported": ["attribute_bound", "dependency"],
             "schema_version": "v1"
         }
 
@@ -101,7 +101,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
              violations.append(ValidationViolation(
                  code="unsupported_objective_type",
                  path="objective.type",
-                 message=f"Random-Search engine only supports SINGLE/weighted_sum objectives, got '{obj_type}'"
+                 message=f"Random-Search engine only supports MONO/weighted_sum objectives, got '{obj_type}'"
              ))
 
         # 6. Check constraints subset
@@ -213,7 +213,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         
         qos_weights = {}
         obj = instance.get("objective", {})
-        if obj.get("type") == "SINGLE" and len(obj.get("weights", {}).keys()) > 0:
+        if obj.get("type") == "MONO" and len(obj.get("weights", {}).keys()) > 0:
             qos_weights = {k: float(v) for k, v in (obj.get("weights", {}) or {}).items()}
 
         # Engine requires weights for all properties (use 0.0 for omitted attributes)

@@ -174,7 +174,7 @@
     }
   ],
   "objective": {
-    "type": "SINGLE",
+    "type": "MONO",
     "targets": ["cost", "time", "distance"],
     "weights": {
       "cost": 0.25,

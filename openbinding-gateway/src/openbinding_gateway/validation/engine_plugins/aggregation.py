@@ -162,8 +162,8 @@ def normalize_qos(
 
 def compute_objective_value(obj: Dict[str, Any], normalized_qos: Dict[str, float]) -> float:
     objective_value = 0.0
-    if obj.get("type") in ("SINGLE", "weighted_sum"):
-        if obj.get("type") == "SINGLE":
+    if obj.get("type") in ("MONO", "weighted_sum"):
+        if obj.get("type") == "MONO":
             targets = obj.get("targets", [])
             weights = obj.get("weights", {})
             for t in targets:

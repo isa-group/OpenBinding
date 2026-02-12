@@ -56,7 +56,7 @@
     }
   },
   "objective": {
-    "type": "SINGLE",
+    "type": "MONO",
     "targets": ["availability"],
     "weights": {"availability": 1.0}
   }

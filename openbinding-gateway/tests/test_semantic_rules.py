@@ -75,7 +75,7 @@ def base_instance():
             "cost": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}}},
             "latency": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}}},
         },
-        "objective": {"type": "SINGLE", "targets": ["cost"], "weights": {"cost": 1.0}},
+        "objective": {"type": "MONO", "targets": ["cost"], "weights": {"cost": 1.0}},
         "constraints": [],
     }
 

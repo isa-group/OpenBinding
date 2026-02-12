@@ -63,7 +63,7 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
              violations.append(ValidationViolation(
                  code="unsupported_objective_type",
                  path="objective.type",
-                 message=f"MiniZinc engine only supports SINGLE/weighted_sum objectives, got '{obj_type}'"
+                 message=f"MiniZinc engine only supports MONO/weighted_sum objectives, got '{obj_type}'"
              ))
 
         # 3. Check Constraints (Hard only)

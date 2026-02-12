@@ -41,7 +41,7 @@ def test_general_schema_valid(pipeline):
         "aggregation_policies": {
             "cost": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}}}
         },
-        "objective": {"type": "SINGLE", "targets": ["cost"], "weights": {"cost": 1.0}}
+        "objective": {"type": "MONO", "targets": ["cost"], "weights": {"cost": 1.0}}
     }
     # This should FAIL because 'scale' enum "INVALID_SCALE" is invalid
     violations = pipeline.validate_general_schema(instance)
@@ -82,7 +82,7 @@ def test_minizinc_valid_instance(pipeline, minizinc_plugin):
         "aggregation_policies": {
             "f1": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}, "and": {"fn":"MAX"}, "xor": {"fn":"SCALED_SUM"}, "loop": {"fn":"SCALED_SUM"}}}
         },
-        "objective": {"type": "SINGLE", "targets": ["f1"], "weights": {"f1": 1.0}},
+        "objective": {"type": "MONO", "targets": ["f1"], "weights": {"f1": 1.0}},
         "constraints": [] 
     }
     
@@ -107,13 +107,13 @@ def test_minizinc_invalid_objective(pipeline):
         "candidates": [{"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "C1", "features": {"f1": 5}}],
         "composition": {"type": "STRUCTURED", "root": {"kind": "TASK", "id": "n1", "task_id": "t1"}},
         "aggregation_policies": {"f1": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}, "and": {"fn":"MAX"}, "xor": {"fn":"SCALED_SUM"}, "loop": {"fn":"SCALED_SUM"}}}},
-        "objective": {"type": "MULTI", "targets": ["f1", "f2"], "weights": {"f1": 0.5, "f2": 0.5}}, # INVALID type for minizinc (SINGLE required)
+        "objective": {"type": "MULTI", "targets": ["f1", "f2"], "weights": {"f1": 0.5, "f2": 0.5}}, # INVALID type for minizinc (MONO required)
         "constraints": []
     }
     
     v = pipeline.specialization_validator.validate("minizinc-csp", instance)
     assert len(v) > 0
-    # assert "SINGLE" in str(v) or "objective" in str(v)
+    # assert "MONO" in str(v) or "objective" in str(v)
 
 def test_minizinc_local_constraint_missing_task_id(pipeline):
     # Test the fix we implemented: local scope requires task_id
@@ -125,7 +125,7 @@ def test_minizinc_local_constraint_missing_task_id(pipeline):
         "candidates": [{"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "C1", "features": {"f1": 5}}],
         "composition": {"type": "STRUCTURED", "root": {"kind": "TASK", "id": "n1", "task_id": "t1"}},
         "aggregation_policies": {"f1": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}, "and": {"fn":"MAX"}, "xor": {"fn":"SCALED_SUM"}, "loop": {"fn":"SCALED_SUM"}}}},
-        "objective": {"type": "SINGLE", "targets": ["f1"], "weights": {"f1": 1}},
+        "objective": {"type": "MONO", "targets": ["f1"], "weights": {"f1": 1}},
         "constraints": [
             {
                 "id": "c1",
@@ -160,7 +160,7 @@ def test_random_search_invalid_constraint_type(pipeline):
         "candidates": [{"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "C1", "features": {"f1": 5}}],
         "composition": {"type": "STRUCTURED", "root": {"kind": "TASK", "id": "n1", "task_id": "t1"}},
         "aggregation_policies": {"f1": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}, "and": {"fn":"MAX"}, "xor": {"fn":"SCALED_SUM"}, "loop": {"fn":"SCALED_SUM"}}}},
-        "objective": {"type": "SINGLE", "targets": ["f1"], "weights": {"f1": 1}},
+        "objective": {"type": "MONO", "targets": ["f1"], "weights": {"f1": 1}},
         "constraints": [
             {
                 "id": "c1",
@@ -187,7 +187,7 @@ def test_boundary_values(pipeline):
         "candidates": [{"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "C1", "features": {"f1": 1e10}}], # Huge value
         "composition": {"type": "STRUCTURED", "root": {"kind": "TASK", "id": "n1", "task_id": "t1"}},
         "aggregation_policies": {"f1": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}}}}, 
-        "objective": {"type": "SINGLE", "targets": ["f1"], "weights": {"f1": 1e-9}} # Tiny weight
+        "objective": {"type": "MONO", "targets": ["f1"], "weights": {"f1": 1e-9}} # Tiny weight
     }
     
     # Validation should pass high values (unless engine specific limits exist)

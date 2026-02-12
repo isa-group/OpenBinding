@@ -38,7 +38,7 @@
     "objective": {
       "properties": {
         "type": {
-          "const": "SINGLE"
+          "const": "MONO"
         }
       },
       "required": [

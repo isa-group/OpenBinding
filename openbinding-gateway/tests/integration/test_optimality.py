@@ -22,7 +22,7 @@ BASE_INSTANCE = {
     }},
     "features": [{"id": "cost", "name": "Cost", "direction": "MINIMIZE", "scale": "RATIO", "unit": "USD", "valid_range": {"min": 0, "max": 10000}}],
     "aggregation_policies": {"cost": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}, "xor": {"fn":"SCALED_SUM"}, "loop": {"fn":"SUM"}}}},
-    "objective": {"type": "SINGLE", "targets": ["cost"], "weights": {"cost": 1.0}}
+    "objective": {"type": "MONO", "targets": ["cost"], "weights": {"cost": 1.0}}
 }
 
 def create_instance(**overrides) -> dict:

@@ -1,0 +1,794 @@
+{
+  "metadata": {
+    "id": "zhang2014-entertainment-planner-running-example_mono_one_soft",
+    "name": "Personal Entertainment Planner (Zhang et al. 2014) [mono_one, soft]",
+    "version": "1.0.0",
+    "created_at": "2026-02-12T08:15:33Z",
+    "description": "Modeled from the motivating example in 'Context-aware Generic Service Discovery and Service Composition' (IEEE MobServ 2014).",
+    "paper": {
+      "title": "Context-aware Generic Service Discovery and Service Composition",
+      "authors": "Y. Zhang et al.",
+      "year": 2014,
+      "doi": "10.1109/MobServ.2014.27"
+    }
+  },
+  "features": [
+    {
+      "id": "cost",
+      "name": "Total money cost (USD)",
+      "direction": "MINIMIZE",
+      "unit": "usd",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1000
+      }
+    },
+    {
+      "id": "time",
+      "name": "Total time cost (minutes)",
+      "direction": "MINIMIZE",
+      "unit": "min",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1440
+      }
+    },
+    {
+      "id": "distance",
+      "name": "Distance from user's current location (meters)",
+      "direction": "MINIMIZE",
+      "unit": "m",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 50000
+      }
+    },
+    {
+      "id": "gen_feat_1",
+      "name": "Generated feature gen_feat_1",
+      "direction": "MINIMIZE",
+      "unit": "unit",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1000
+      }
+    },
+    {
+      "id": "gen_feat_2",
+      "name": "Generated feature gen_feat_2",
+      "direction": "MAXIMIZE",
+      "unit": "ratio",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "gen_feat_3",
+      "name": "Generated feature gen_feat_3",
+      "direction": "MINIMIZE",
+      "unit": "unit",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1000
+      }
+    }
+  ],
+  "providers": [
+    {
+      "id": "p_rest_autre_saison",
+      "name": "Restaurant L’Autre Saison"
+    },
+    {
+      "id": "p_cinema_banque_scotia",
+      "name": "Cinema Banque Scotia Montreal"
+    },
+    {
+      "id": "p_seven_night_club",
+      "name": "Seven Night Club"
+    },
+    {
+      "id": "p_local_shopping",
+      "name": "Local Shopping (nearby venue)"
+    },
+    {
+      "id": "p_gen_shared",
+      "name": "Generated Shared Provider"
+    },
+    {
+      "id": "p_gen_1",
+      "name": "Generated Provider p_gen_1"
+    },
+    {
+      "id": "p_gen_2",
+      "name": "Generated Provider p_gen_2"
+    },
+    {
+      "id": "p_gen_3",
+      "name": "Generated Provider p_gen_3"
+    },
+    {
+      "id": "p_gen_4",
+      "name": "Generated Provider p_gen_4"
+    },
+    {
+      "id": "p_gen_5",
+      "name": "Generated Provider p_gen_5"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t_dining",
+      "name": "Restaurant / Dining activity"
+    },
+    {
+      "id": "t_shopping",
+      "name": "Shopping activity"
+    },
+    {
+      "id": "t_movie",
+      "name": "Movie activity"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "c_dining_autre_saison",
+      "task_id": "t_dining",
+      "provider_id": "p_rest_autre_saison",
+      "name": "Dinner at Restaurant L’Autre Saison",
+      "features": {
+        "cost": 20,
+        "time": 60,
+        "distance": 1600,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "c_dining_seven_night_club",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Seven Night Club",
+      "features": {
+        "cost": 20,
+        "time": 60,
+        "distance": 1800,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "c_shopping_local",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue",
+      "features": {
+        "cost": 20,
+        "time": 45,
+        "distance": 1200,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "c_movie_the_help_banque_scotia",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal",
+      "features": {
+        "cost": 10,
+        "time": 135,
+        "distance": 1700,
+        "gen_feat_1": 500.0,
+        "gen_feat_2": 0.5,
+        "gen_feat_3": 500.0
+      }
+    },
+    {
+      "id": "t_dining_gen_1",
+      "task_id": "t_dining",
+      "provider_id": "p_gen_shared",
+      "name": "Dinner at Restaurant L’Autre Saison (Gen Shared)",
+      "features": {
+        "cost": 20.2,
+        "time": 59.79,
+        "distance": 1570.05,
+        "gen_feat_1": 508.24,
+        "gen_feat_2": 0.514901,
+        "gen_feat_3": 509.78
+      }
+    },
+    {
+      "id": "t_shopping_gen_1",
+      "task_id": "t_shopping",
+      "provider_id": "p_gen_shared",
+      "name": "Shopping at a nearby venue (Gen Shared)",
+      "features": {
+        "cost": 19.87,
+        "time": 44.98,
+        "distance": 1189.95,
+        "gen_feat_1": 485.24,
+        "gen_feat_2": 0.486287,
+        "gen_feat_3": 500.42
+      }
+    },
+    {
+      "id": "t_movie_gen_1",
+      "task_id": "t_movie",
+      "provider_id": "p_gen_shared",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Gen Shared)",
+      "features": {
+        "cost": 9.82,
+        "time": 134.28,
+        "distance": 1742.9,
+        "gen_feat_1": 512.03,
+        "gen_feat_2": 0.505972,
+        "gen_feat_3": 496.71
+      }
+    },
+    {
+      "id": "t_dining_gen_2",
+      "task_id": "t_dining",
+      "provider_id": "p_gen_4",
+      "name": "Dinner at Restaurant L’Autre Saison (Gen p_gen_4)",
+      "features": {
+        "cost": 19.53,
+        "time": 59.13,
+        "distance": 1559.02,
+        "gen_feat_1": 498.66,
+        "gen_feat_2": 0.488957,
+        "gen_feat_3": 503.61
+      }
+    },
+    {
+      "id": "t_dining_gen_3",
+      "task_id": "t_dining",
+      "provider_id": "p_gen_5",
+      "name": "Dinner at Restaurant L’Autre Saison (Gen p_gen_5)",
+      "features": {
+        "cost": 19.94,
+        "time": 58.5,
+        "distance": 1591.09,
+        "gen_feat_1": 495.96,
+        "gen_feat_2": 0.504969,
+        "gen_feat_3": 506.77
+      }
+    },
+    {
+      "id": "t_dining_gen_4",
+      "task_id": "t_dining",
+      "provider_id": "p_rest_autre_saison",
+      "name": "Dinner at Restaurant L’Autre Saison (Gen p_rest_autre_saison)",
+      "features": {
+        "cost": 19.8,
+        "time": 61.46,
+        "distance": 1629.91,
+        "gen_feat_1": 510.53,
+        "gen_feat_2": 0.508,
+        "gen_feat_3": 491.98
+      }
+    },
+    {
+      "id": "t_dining_gen_5",
+      "task_id": "t_dining",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Dinner at Restaurant L’Autre Saison (Gen p_cinema_banque_scotia)",
+      "features": {
+        "cost": 20.22,
+        "time": 60.39,
+        "distance": 1564.48,
+        "gen_feat_1": 491.41,
+        "gen_feat_2": 0.490673,
+        "gen_feat_3": 490.61
+      }
+    },
+    {
+      "id": "t_dining_gen_6",
+      "task_id": "t_dining",
+      "provider_id": "p_seven_night_club",
+      "name": "Dinner at Restaurant L’Autre Saison (Gen p_seven_night_club)",
+      "features": {
+        "cost": 20.38,
+        "time": 58.67,
+        "distance": 1626.15,
+        "gen_feat_1": 488.5,
+        "gen_feat_2": 0.49348,
+        "gen_feat_3": 495.75
+      }
+    },
+    {
+      "id": "t_dining_gen_7",
+      "task_id": "t_dining",
+      "provider_id": "p_local_shopping",
+      "name": "Dinner at Restaurant L’Autre Saison (Gen p_local_shopping)",
+      "features": {
+        "cost": 20.18,
+        "time": 60.72,
+        "distance": 1555.22,
+        "gen_feat_1": 505.8,
+        "gen_feat_2": 0.506719,
+        "gen_feat_3": 499.33
+      }
+    },
+    {
+      "id": "t_dining_gen_8",
+      "task_id": "t_dining",
+      "provider_id": "p_gen_1",
+      "name": "Dinner at Restaurant L’Autre Saison (Gen p_gen_1)",
+      "features": {
+        "cost": 19.43,
+        "time": 59.64,
+        "distance": 1598.13,
+        "gen_feat_1": 503.89,
+        "gen_feat_2": 0.506945,
+        "gen_feat_3": 508.17
+      }
+    },
+    {
+      "id": "t_dining_gen_9",
+      "task_id": "t_dining",
+      "provider_id": "p_gen_2",
+      "name": "Dinner at Restaurant L’Autre Saison (Gen p_gen_2)",
+      "features": {
+        "cost": 19.64,
+        "time": 60.54,
+        "distance": 1604.33,
+        "gen_feat_1": 486.84,
+        "gen_feat_2": 0.506628,
+        "gen_feat_3": 501.62
+      }
+    },
+    {
+      "id": "t_shopping_gen_2",
+      "task_id": "t_shopping",
+      "provider_id": "p_gen_3",
+      "name": "Shopping at a nearby venue (Gen p_gen_3)",
+      "features": {
+        "cost": 19.5,
+        "time": 45.13,
+        "distance": 1212.64,
+        "gen_feat_1": 507.44,
+        "gen_feat_2": 0.489997,
+        "gen_feat_3": 502.16
+      }
+    },
+    {
+      "id": "t_shopping_gen_3",
+      "task_id": "t_shopping",
+      "provider_id": "p_gen_4",
+      "name": "Shopping at a nearby venue (Gen p_gen_4)",
+      "features": {
+        "cost": 19.68,
+        "time": 44.37,
+        "distance": 1215.32,
+        "gen_feat_1": 507.98,
+        "gen_feat_2": 0.488942,
+        "gen_feat_3": 489.19
+      }
+    },
+    {
+      "id": "t_shopping_gen_4",
+      "task_id": "t_shopping",
+      "provider_id": "p_gen_5",
+      "name": "Shopping at a nearby venue (Gen p_gen_5)",
+      "features": {
+        "cost": 19.74,
+        "time": 44.28,
+        "distance": 1201.62,
+        "gen_feat_1": 504.58,
+        "gen_feat_2": 0.489389,
+        "gen_feat_3": 507.41
+      }
+    },
+    {
+      "id": "t_shopping_gen_5",
+      "task_id": "t_shopping",
+      "provider_id": "p_rest_autre_saison",
+      "name": "Shopping at a nearby venue (Gen p_rest_autre_saison)",
+      "features": {
+        "cost": 19.47,
+        "time": 44.17,
+        "distance": 1217.23,
+        "gen_feat_1": 492.31,
+        "gen_feat_2": 0.503154,
+        "gen_feat_3": 508.55
+      }
+    },
+    {
+      "id": "t_shopping_gen_6",
+      "task_id": "t_shopping",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Shopping at a nearby venue (Gen p_cinema_banque_scotia)",
+      "features": {
+        "cost": 19.72,
+        "time": 44.18,
+        "distance": 1219.76,
+        "gen_feat_1": 509.41,
+        "gen_feat_2": 0.490291,
+        "gen_feat_3": 514.74
+      }
+    },
+    {
+      "id": "t_shopping_gen_7",
+      "task_id": "t_shopping",
+      "provider_id": "p_seven_night_club",
+      "name": "Shopping at a nearby venue (Gen p_seven_night_club)",
+      "features": {
+        "cost": 19.59,
+        "time": 45.5,
+        "distance": 1223.8,
+        "gen_feat_1": 493.43,
+        "gen_feat_2": 0.498961,
+        "gen_feat_3": 492.15
+      }
+    },
+    {
+      "id": "t_shopping_gen_8",
+      "task_id": "t_shopping",
+      "provider_id": "p_local_shopping",
+      "name": "Shopping at a nearby venue (Gen p_local_shopping)",
+      "features": {
+        "cost": 20.21,
+        "time": 44.68,
+        "distance": 1216.26,
+        "gen_feat_1": 502.04,
+        "gen_feat_2": 0.491944,
+        "gen_feat_3": 498.97
+      }
+    },
+    {
+      "id": "t_shopping_gen_9",
+      "task_id": "t_shopping",
+      "provider_id": "p_gen_1",
+      "name": "Shopping at a nearby venue (Gen p_gen_1)",
+      "features": {
+        "cost": 20.33,
+        "time": 44.99,
+        "distance": 1202.11,
+        "gen_feat_1": 513.49,
+        "gen_feat_2": 0.510425,
+        "gen_feat_3": 506.46
+      }
+    },
+    {
+      "id": "t_shopping_gen_10",
+      "task_id": "t_shopping",
+      "provider_id": "p_gen_2",
+      "name": "Shopping at a nearby venue (Gen p_gen_2)",
+      "features": {
+        "cost": 20.02,
+        "time": 45.1,
+        "distance": 1229.4,
+        "gen_feat_1": 498.4,
+        "gen_feat_2": 0.499582,
+        "gen_feat_3": 504.62
+      }
+    },
+    {
+      "id": "t_movie_gen_2",
+      "task_id": "t_movie",
+      "provider_id": "p_gen_3",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Gen p_gen_3)",
+      "features": {
+        "cost": 10.01,
+        "time": 136.64,
+        "distance": 1744.77,
+        "gen_feat_1": 507.63,
+        "gen_feat_2": 0.500514,
+        "gen_feat_3": 495.73
+      }
+    },
+    {
+      "id": "t_movie_gen_3",
+      "task_id": "t_movie",
+      "provider_id": "p_gen_4",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Gen p_gen_4)",
+      "features": {
+        "cost": 10.17,
+        "time": 134.92,
+        "distance": 1667.02,
+        "gen_feat_1": 488.36,
+        "gen_feat_2": 0.514752,
+        "gen_feat_3": 513.42
+      }
+    },
+    {
+      "id": "t_movie_gen_4",
+      "task_id": "t_movie",
+      "provider_id": "p_gen_5",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Gen p_gen_5)",
+      "features": {
+        "cost": 9.9,
+        "time": 131.44,
+        "distance": 1652.67,
+        "gen_feat_1": 500.1,
+        "gen_feat_2": 0.486429,
+        "gen_feat_3": 488.41
+      }
+    },
+    {
+      "id": "t_movie_gen_5",
+      "task_id": "t_movie",
+      "provider_id": "p_rest_autre_saison",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Gen p_rest_autre_saison)",
+      "features": {
+        "cost": 9.83,
+        "time": 138.64,
+        "distance": 1679.46,
+        "gen_feat_1": 491.06,
+        "gen_feat_2": 0.506184,
+        "gen_feat_3": 501.23
+      }
+    },
+    {
+      "id": "t_movie_gen_6",
+      "task_id": "t_movie",
+      "provider_id": "p_cinema_banque_scotia",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Gen p_cinema_banque_scotia)",
+      "features": {
+        "cost": 9.71,
+        "time": 139.0,
+        "distance": 1724.14,
+        "gen_feat_1": 490.83,
+        "gen_feat_2": 0.489949,
+        "gen_feat_3": 487.73
+      }
+    },
+    {
+      "id": "t_movie_gen_7",
+      "task_id": "t_movie",
+      "provider_id": "p_seven_night_club",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Gen p_seven_night_club)",
+      "features": {
+        "cost": 9.86,
+        "time": 133.89,
+        "distance": 1679.65,
+        "gen_feat_1": 501.15,
+        "gen_feat_2": 0.50297,
+        "gen_feat_3": 505.29
+      }
+    },
+    {
+      "id": "t_movie_gen_8",
+      "task_id": "t_movie",
+      "provider_id": "p_local_shopping",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Gen p_local_shopping)",
+      "features": {
+        "cost": 9.71,
+        "time": 138.16,
+        "distance": 1677.33,
+        "gen_feat_1": 507.39,
+        "gen_feat_2": 0.499268,
+        "gen_feat_3": 490.28
+      }
+    },
+    {
+      "id": "t_movie_gen_9",
+      "task_id": "t_movie",
+      "provider_id": "p_gen_1",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Gen p_gen_1)",
+      "features": {
+        "cost": 10.27,
+        "time": 131.09,
+        "distance": 1658.41,
+        "gen_feat_1": 492.17,
+        "gen_feat_2": 0.492399,
+        "gen_feat_3": 511.94
+      }
+    },
+    {
+      "id": "t_movie_gen_10",
+      "task_id": "t_movie",
+      "provider_id": "p_gen_2",
+      "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal (Gen p_gen_2)",
+      "features": {
+        "cost": 10.24,
+        "time": 131.27,
+        "distance": 1733.15,
+        "gen_feat_1": 498.39,
+        "gen_feat_2": 0.490821,
+        "gen_feat_3": 491.03
+      }
+    }
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "n_root",
+      "kind": "SEQ",
+      "children": [
+        {
+          "id": "n_dining",
+          "kind": "TASK",
+          "task_id": "t_dining"
+        },
+        {
+          "id": "n_shopping",
+          "kind": "TASK",
+          "task_id": "t_shopping"
+        },
+        {
+          "id": "n_movie",
+          "kind": "TASK",
+          "task_id": "t_movie"
+        }
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "cost": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "time": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "distance": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "gen_feat_1": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "gen_feat_2": {
+      "neutral": 1,
+      "compose": {
+        "seq": {
+          "fn": "PRODUCT"
+        },
+        "and": {
+          "fn": "PRODUCT"
+        },
+        "loop": {
+          "fn": "SCALED_PRODUCT"
+        }
+      }
+    },
+    "gen_feat_3": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    }
+  },
+  "constraints": [
+    {
+      "id": "c_within_2km",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "distance",
+      "op": "<=",
+      "value": 2000,
+      "hard": false
+    },
+    {
+      "id": "c_time_budget",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "time",
+      "op": "<=",
+      "value": 240,
+      "hard": false
+    },
+    {
+      "id": "c_cost_budget",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "cost",
+      "op": "<=",
+      "value": 100,
+      "hard": false
+    },
+    {
+      "id": "gen_c_global_cost_1",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "cost",
+      "op": "<=",
+      "value": 900.0,
+      "hard": false
+    },
+    {
+      "id": "gen_c_local_t_dining_time_1",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_dining"
+      ],
+      "attribute_id": "time",
+      "op": "<=",
+      "value": 60.54,
+      "hard": false
+    },
+    {
+      "id": "gen_c_dep_same_1",
+      "kind": "DEPENDENCY",
+      "type": "SAME_PROVIDER",
+      "tasks": [
+        "t_dining",
+        "t_shopping",
+        "t_movie"
+      ],
+      "hard": false
+    },
+    {
+      "id": "gen_c_dep_diff_1",
+      "kind": "DEPENDENCY",
+      "type": "DIFFERENT_PROVIDER",
+      "tasks": [
+        "t_shopping",
+        "t_movie"
+      ],
+      "hard": false
+    }
+  ],
+  "objective": {
+    "type": "MONO",
+    "targets": [
+      "cost"
+    ],
+    "weights": {
+      "cost": 1.0
+    },
+    "weights_sum_to_one": true
+  }
+}

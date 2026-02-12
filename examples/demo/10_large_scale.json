@@ -610,7 +610,7 @@
     }
   },
   "objective": {
-    "type": "SINGLE",
+    "type": "MONO",
     "targets": [
       "cost",
       "time",

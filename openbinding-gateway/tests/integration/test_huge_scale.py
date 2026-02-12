@@ -123,7 +123,7 @@ def create_huge_instance(constraint_mode="common"):
         "features": features,
         "composition": composition,
         "aggregation_policies": agg,
-        "objective": {"type": "SINGLE", "targets": ["cost"], "weights": {"cost": 1}},
+        "objective": {"type": "MONO", "targets": ["cost"], "weights": {"cost": 1}},
         "constraints": constraints
     }
 

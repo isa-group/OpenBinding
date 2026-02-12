@@ -42,7 +42,7 @@ _ENGINES_EXAMPLE = [
             "qos_features_supported": ["*"],
             "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
             "objective_types_supported": ["weighted_sum"],
-            "constraints_supported": ["attribute_bound"],
+            "constraints_supported": ["attribute_bound", "dependency"],
             "schema_version": "v1",
         },
         "active": True,

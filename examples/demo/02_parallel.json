@@ -50,7 +50,7 @@
     }
   },
   "objective": {
-    "type": "SINGLE",
+    "type": "MONO",
     "targets": ["latency"],
     "weights": {"latency": 1.0}
   }
