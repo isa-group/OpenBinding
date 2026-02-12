@@ -10,7 +10,7 @@ GATEWAY_URL = "http://localhost:8000/v1/solve"
 INSTANCES_DIR = "experimentation/instances"
 REPORT_FILE = "experimentation/report.md"
 DEFAULT_ITERATIONS_COUNT = 1000
-MANY_ITERATIONS_COUNT = 10000
+MANY_ITERATIONS_COUNT = 1000
 
 def build_selected_candidate_by_task(
     selection: Dict[str, str],

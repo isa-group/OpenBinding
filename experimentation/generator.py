@@ -1,4 +1,5 @@
 import copy
+import itertools
 import json
 import math
 import random
@@ -20,7 +21,7 @@ SCENARIOS = [
     "zhang.json",
 ]
 
-TARGET_BINDING_SPACE = 1024
+TARGET_BINDING_SPACE = 1_000_000
 EXTRA_FEATURES_PER_SCENARIO = 3
 EXTRA_PROVIDERS_PER_SCENARIO = 5
 
@@ -380,6 +381,282 @@ def _quantile(values: Sequence[float], q: float) -> float:
     return vs[lo] * (1 - frac) + vs[hi] * frac
 
 
+def _candidates_by_task(instance: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+    by_task: Dict[str, List[Dict[str, Any]]] = {}
+    for c in instance.get("candidates", []) or []:
+        tid = c.get("task_id")
+        if not isinstance(tid, str):
+            continue
+        by_task.setdefault(tid, []).append(c)
+    for task_id in by_task:
+        by_task[task_id].sort(key=lambda cand: str(cand.get("id", "")))
+    return by_task
+
+
+def _candidate_lookup(instance: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    return {str(c.get("id")): c for c in (instance.get("candidates", []) or []) if "id" in c}
+
+
+def _default_for(feature_id: str, features: Dict[str, Any], agg_policies: Dict[str, Any]) -> float:
+    policy = agg_policies.get(feature_id, {})
+    if "neutral" in policy and isinstance(policy.get("neutral"), (int, float)):
+        return float(policy["neutral"])
+    feat = features.get(feature_id, {})
+    direction = feat.get("direction")
+    vr = feat.get("valid_range") or {}
+    if direction in ("maximize", "MAXIMIZE"):
+        return float(vr.get("min", 0.0))
+    return float(vr.get("max", 0.0))
+
+
+def _agg_fn(fn: str, values: List[float], weights: List[float] = None) -> float:
+    if not values:
+        return 0.0
+    fn_lower = (fn or "").lower()
+    if fn_lower in ("weighted_sum",):
+        ws = weights or [1.0] * len(values)
+        return sum(v * w for v, w in zip(values, ws))
+    if fn_lower == "sum":
+        if weights is not None:
+            return sum(v * w for v, w in zip(values, weights))
+        return sum(values)
+    if fn_lower == "product":
+        res = 1.0
+        for v in values:
+            res *= v
+        return res
+    if fn_lower == "max":
+        return max(values)
+    if fn_lower == "min":
+        return min(values)
+    return sum(values)
+
+
+def _compose_value(
+    node: Dict[str, Any],
+    feature_id: str,
+    selected_by_task: Dict[str, Dict[str, Any]],
+    features: Dict[str, Any],
+    agg_policies: Dict[str, Any],
+) -> float:
+    kind = node.get("kind")
+    policy = agg_policies.get(feature_id, {})
+    compose = policy.get("compose", {})
+
+    if kind == "TASK":
+        task_id = node.get("task_id")
+        cand = selected_by_task.get(task_id)
+        if cand is None:
+            return _default_for(feature_id, features, agg_policies)
+        return float((cand.get("features", {}) or {}).get(feature_id, _default_for(feature_id, features, agg_policies)))
+
+    if kind in ("SEQ", "AND"):
+        children = node.get("children", []) or []
+        values = [_compose_value(c, feature_id, selected_by_task, features, agg_policies) for c in children]
+        fn = compose.get("seq" if kind == "SEQ" else "and", {}).get("fn")
+        return _agg_fn(fn or ("sum" if kind == "SEQ" else "max"), values)
+
+    if kind == "XOR":
+        branches = node.get("branches", []) or []
+        values = [_compose_value((b or {}).get("child", {}), feature_id, selected_by_task, features, agg_policies) for b in branches]
+        probs = [float((b or {}).get("p", 0.0)) for b in branches]
+        fn = compose.get("xor", {}).get("fn")
+        if fn in (None, "sum", "weighted_sum", "scaled_sum", "SCALED_SUM"):
+            return _agg_fn("weighted_sum", values, probs)
+        return _agg_fn(fn, values)
+
+    if kind == "LOOP":
+        body = node.get("body", {}) or {}
+        body_val = _compose_value(body, feature_id, selected_by_task, features, agg_policies)
+        fn = compose.get("loop", {}).get("fn")
+        iterations = node.get("expected_iterations")
+        if iterations is None:
+            bounds = node.get("bounds") or {}
+            iterations = bounds.get("max", 1)
+        c = float(iterations)
+
+        fn_lower = (fn or "sum").lower()
+        if "product" in fn_lower:
+            return float(body_val ** c)
+        if "sum" in fn_lower or "wsum" in fn_lower or "scale" in fn_lower:
+            return float(body_val * c)
+        return body_val
+
+    return _default_for(feature_id, features, agg_policies)
+
+
+def _compute_aggregated_qos(instance: Dict[str, Any], binding: Dict[str, str]) -> Dict[str, float]:
+    root = (instance.get("composition", {}) or {}).get("root", {})
+    features = {f["id"]: f for f in (instance.get("features", []) or [])}
+    agg_policies = instance.get("aggregation_policies", {}) or {}
+    by_id = _candidate_lookup(instance)
+    selected_by_task = {
+        task_id: by_id[cand_id]
+        for task_id, cand_id in binding.items()
+        if cand_id in by_id
+    }
+    out: Dict[str, float] = {}
+    for fid in features.keys():
+        out[fid] = _compose_value(root, fid, selected_by_task, features, agg_policies)
+    return out
+
+
+def _check_bound(current: float, op: str, rhs: float) -> bool:
+    if op == "<=":
+        return current <= rhs
+    if op == "<":
+        return current < rhs
+    if op == ">=":
+        return current >= rhs
+    if op == ">":
+        return current > rhs
+    if op == "==":
+        return abs(current - rhs) <= 1e-9
+    if op == "!=":
+        return abs(current - rhs) > 1e-9
+    return True
+
+
+def _binding_satisfies_hard_constraints(instance: Dict[str, Any], binding: Dict[str, str]) -> bool:
+    by_id = _candidate_lookup(instance)
+    selected_by_task = {
+        task_id: by_id[cid]
+        for task_id, cid in binding.items()
+        if cid in by_id
+    }
+    aggregated_qos = _compute_aggregated_qos(instance, binding)
+
+    for c in (instance.get("constraints", []) or []):
+        if c.get("hard", True) is False:
+            continue
+        kind = str(c.get("kind", "")).upper()
+
+        if kind == "ATTRIBUTE_BOUND":
+            fid = c.get("attribute_id")
+            op = c.get("op")
+            val = c.get("value")
+            if not fid or not isinstance(val, (int, float)):
+                continue
+            rhs = float(val)
+            scope = str(c.get("scope", "GLOBAL")).upper()
+
+            if scope == "LOCAL":
+                for task_id in (c.get("tasks", []) or []):
+                    cand = selected_by_task.get(task_id)
+                    if cand is None:
+                        return False
+                    current = float((cand.get("features", {}) or {}).get(fid, 0.0))
+                    if not _check_bound(current, op, rhs):
+                        return False
+            else:
+                current = float(aggregated_qos.get(fid, 0.0))
+                if not _check_bound(current, op, rhs):
+                    return False
+
+        elif kind == "DEPENDENCY":
+            dep_type = str(c.get("type", "")).upper()
+            tasks = [t for t in (c.get("tasks", []) or []) if isinstance(t, str)]
+            if len(tasks) < 2:
+                continue
+            providers: List[str] = []
+            for task_id in tasks:
+                cand = selected_by_task.get(task_id)
+                if cand is None:
+                    return False
+                providers.append(str(cand.get("provider_id", "")))
+
+            if dep_type == "SAME_PROVIDER":
+                if len(set(providers)) != 1:
+                    return False
+            elif dep_type == "DIFFERENT_PROVIDER":
+                if len(set(providers)) != len(providers):
+                    return False
+
+    return True
+
+
+def _build_fallback_binding(instance: Dict[str, Any]) -> Dict[str, str]:
+    tasks = [t["id"] for t in instance.get("tasks", [])]
+    by_task = _candidates_by_task(instance)
+    binding: Dict[str, str] = {}
+    shared_pid = "p_gen_shared"
+
+    for task_id in tasks:
+        options = by_task.get(task_id, [])
+        if not options:
+            continue
+        shared = next((c for c in options if c.get("provider_id") == shared_pid), None)
+        chosen = shared or options[0]
+        binding[task_id] = str(chosen["id"])
+
+    if len(tasks) >= 3:
+        pivot = tasks[-1]
+        options = by_task.get(pivot, [])
+        current = binding.get(pivot)
+        current_provider = None
+        if current is not None:
+            current_provider = str(_candidate_lookup(instance).get(current, {}).get("provider_id", ""))
+        alternative = next(
+            (c for c in options if str(c.get("provider_id", "")) != current_provider),
+            None,
+        )
+        if alternative is not None:
+            binding[pivot] = str(alternative["id"])
+
+    return binding
+
+
+def _find_hard_feasible_binding(instance: Dict[str, Any], rng: random.Random, attempts: int = 4000) -> Dict[str, str]:
+    tasks = [t["id"] for t in instance.get("tasks", [])]
+    by_task = _candidates_by_task(instance)
+    if any(not by_task.get(tid) for tid in tasks):
+        return {}
+
+    fallback = _build_fallback_binding(instance)
+    if fallback and _binding_satisfies_hard_constraints(instance, fallback):
+        return fallback
+
+    for _ in range(attempts):
+        binding = {
+            task_id: str(rng.choice(by_task[task_id])["id"])
+            for task_id in tasks
+        }
+        if _binding_satisfies_hard_constraints(instance, binding):
+            return binding
+
+    return fallback
+
+
+def _find_same_provider_tasks(binding: Dict[str, str], instance: Dict[str, Any]) -> List[str]:
+    by_id = _candidate_lookup(instance)
+    tasks = sorted(binding.keys())
+    provider_by_task = {
+        t: str((by_id.get(binding[t], {}) or {}).get("provider_id", ""))
+        for t in tasks
+    }
+    groups: Dict[str, List[str]] = {}
+    for task_id, pid in provider_by_task.items():
+        groups.setdefault(pid, []).append(task_id)
+    best = []
+    for group in groups.values():
+        if len(group) >= 2 and len(group) > len(best):
+            best = sorted(group)
+    return best[:2]
+
+
+def _find_different_provider_tasks(binding: Dict[str, str], instance: Dict[str, Any]) -> List[str]:
+    by_id = _candidate_lookup(instance)
+    tasks = sorted(binding.keys())
+    provider_by_task = {
+        t: str((by_id.get(binding[t], {}) or {}).get("provider_id", ""))
+        for t in tasks
+    }
+    for a, b in itertools.combinations(tasks, 2):
+        if provider_by_task.get(a) != provider_by_task.get(b):
+            return [a, b]
+    return []
+
+
 def _pick_attribute_for_constraints(feature_defs: List[Dict[str, Any]]) -> str:
     # Prefer non-ratio MINIMIZE attributes for bounds; else fall back.
     for f in feature_defs:
@@ -388,14 +665,13 @@ def _pick_attribute_for_constraints(feature_defs: List[Dict[str, Any]]) -> str:
     return feature_defs[0]["id"]
 
 
-def generate_additional_constraints(instance: Dict[str, Any], hard: bool) -> List[Dict[str, Any]]:
-    """Add constraints covering all types, keeping them *feasible-ish* and schema-consistent.
+def generate_additional_constraints(
+    instance: Dict[str, Any], hard: bool, rng: random.Random
+) -> List[Dict[str, Any]]:
+    """Add schema-consistent constraints that are feasible by construction.
 
-    Types covered:
-      - ATTRIBUTE_BOUND GLOBAL
-      - ATTRIBUTE_BOUND LOCAL (tasks-based)
-      - DEPENDENCY SAME_PROVIDER (inclusion)
-      - DEPENDENCY DIFFERENT_PROVIDER (exclusion)
+    We first obtain a witness binding that satisfies all *existing hard* constraints,
+    then derive GLOBAL/LOCAL/DEPENDENCY constraints from that witness.
     """
 
     tasks = [t["id"] for t in instance.get("tasks", [])]
@@ -405,52 +681,42 @@ def generate_additional_constraints(instance: Dict[str, Any], hard: bool) -> Lis
 
     existing_ids = _id_set(instance.get("constraints", []))
     fmap = _feature_map(instance)
+    by_id = _candidate_lookup(instance)
     constraints: List[Dict[str, Any]] = []
 
-    # 1) Global attribute bound (choose a lenient but consistent bound).
+    binding = _find_hard_feasible_binding(instance, rng)
+    if not binding:
+        return constraints
+
+    aggregated = _compute_aggregated_qos(instance, binding)
+
+    # 1) GLOBAL ATTRIBUTE_BOUND from witness aggregated value.
     global_attr = _pick_attribute_for_constraints(feature_defs)
-    fdef = fmap[global_attr]
-    mn, mx = _range_for_feature(fdef)
-    direction = fdef.get("direction")
-    if direction == "MINIMIZE":
-        op = "<="
-        val = mn + 0.90 * (mx - mn)
-    else:
-        op = ">="
-        val = mn + 0.10 * (mx - mn)
+    gdef = fmap[global_attr]
+    gdir = str(gdef.get("direction", "MINIMIZE"))
+    gvalue = float(aggregated.get(global_attr, 0.0))
+    gmn, gmx = _range_for_feature(gdef)
     constraints.append(
         {
             "id": _unique_id(f"gen_c_global_{global_attr}_", existing_ids),
             "kind": "ATTRIBUTE_BOUND",
             "scope": "GLOBAL",
             "attribute_id": global_attr,
-            "op": op,
-            "value": round(val, 6 if mx <= 1.0 else 2),
+            "op": "<=" if gdir == "MINIMIZE" else ">=",
+            "value": round(gvalue, 6 if gmx <= 1.0 else 2),
             "hard": hard,
         }
     )
 
-    # 2) Local attribute bound (pick a task and a feature; choose value based on candidate distribution).
-    local_task = tasks[0]
+    # 2) LOCAL ATTRIBUTE_BOUND from witness selected candidate feature.
+    local_task = sorted(binding.keys())[0]
     local_attr = feature_defs[min(1, len(feature_defs) - 1)]["id"]
-    lfdef = fmap[local_attr]
-    lmn, lmx = _range_for_feature(lfdef)
-    ldir = lfdef.get("direction")
-
-    values = [
-        float(c.get("features", {}).get(local_attr))
-        for c in instance.get("candidates", [])
-        if c.get("task_id") == local_task and isinstance(c.get("features", {}).get(local_attr), (int, float))
-    ]
-    if not values:
-        values = [lmn, (lmn + lmx) / 2.0, lmx]
-    if ldir == "MINIMIZE":
-        op2 = "<="
-        val2 = _quantile(values, 0.80)
-    else:
-        op2 = ">="
-        val2 = _quantile(values, 0.20)
-    val2 = _clamp(val2, lmn, lmx)
+    ldef = fmap[local_attr]
+    ldir = str(ldef.get("direction", "MINIMIZE"))
+    selected_cand = by_id.get(binding[local_task], {})
+    lraw = float((selected_cand.get("features", {}) or {}).get(local_attr, 0.0))
+    lmn, lmx = _range_for_feature(ldef)
+    lvalue = _clamp(lraw, lmn, lmx) if lmn <= lmx else lraw
     constraints.append(
         {
             "id": _unique_id(f"gen_c_local_{local_task}_{local_attr}_", existing_ids),
@@ -458,14 +724,14 @@ def generate_additional_constraints(instance: Dict[str, Any], hard: bool) -> Lis
             "scope": "LOCAL",
             "tasks": [local_task],
             "attribute_id": local_attr,
-            "op": op2,
-            "value": round(val2, 6 if lmx <= 1.0 else 2),
+            "op": "<=" if ldir == "MINIMIZE" else ">=",
+            "value": round(lvalue, 6 if lmx <= 1.0 else 2),
             "hard": hard,
         }
     )
 
-    # 3) Dependency SAME_PROVIDER (inclusion): ensure shared provider exists & candidates were created.
-    same_tasks = tasks[:3] if len(tasks) >= 3 else tasks[:2]
+    # 3) SAME_PROVIDER dependency from witness.
+    same_tasks = _find_same_provider_tasks(binding, instance)
     if len(same_tasks) >= 2:
         constraints.append(
             {
@@ -477,19 +743,18 @@ def generate_additional_constraints(instance: Dict[str, Any], hard: bool) -> Lis
             }
         )
 
-    # 4) Dependency DIFFERENT_PROVIDER (exclusion)
-    if len(tasks) >= 2:
-        diff_tasks = [tasks[-2], tasks[-1]] if len(tasks) >= 2 else tasks
-        if len(diff_tasks) >= 2:
-            constraints.append(
-                {
-                    "id": _unique_id("gen_c_dep_diff_", existing_ids),
-                    "kind": "DEPENDENCY",
-                    "type": "DIFFERENT_PROVIDER",
-                    "tasks": diff_tasks,
-                    "hard": hard,
-                }
-            )
+    # 4) DIFFERENT_PROVIDER dependency from witness.
+    diff_tasks = _find_different_provider_tasks(binding, instance)
+    if len(diff_tasks) >= 2:
+        constraints.append(
+            {
+                "id": _unique_id("gen_c_dep_diff_", existing_ids),
+                "kind": "DEPENDENCY",
+                "type": "DIFFERENT_PROVIDER",
+                "tasks": diff_tasks,
+                "hard": hard,
+            }
+        )
 
     return constraints
 
@@ -605,7 +870,8 @@ def build_variant(
     inst["objective"] = objective
 
     # Add additional constraints (hard first); then soften if needed.
-    additional = generate_additional_constraints(inst, hard=True)
+    rng = random.Random(_seed_for(base_scaled["metadata"]["id"], variant_suffix, "constraints"))
+    additional = generate_additional_constraints(inst, hard=True, rng=rng)
     inst_constraints = list(inst.get("constraints", [])) + additional
 
     if hard_constraints:

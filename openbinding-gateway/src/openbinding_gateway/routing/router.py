@@ -98,14 +98,9 @@ class Router:
                      try:
                          err_data = e.response.json()
                          if "No feasible solution" in err_data.get("error", ""):
-                             # Create Sync Job Response with empty solutions
-                             # Need to generate a job ID (use placeholder or create one)
-                             # Since it failed, no job was created in Engine probably?
-                             # Or we just return a sync completion.
-                             
-                             # We need a job ID for the response
-                             import uuid
-                             job_id = str(uuid.uuid4())
+                             # Engine found no feasible solution: return sync completion with empty solutions
+                             job = JobManager.create_job(request.engine_id, "sync-no-solution", service_url)
+                             job.status = JobStatus.COMPLETED
                              
                              result = SolveResponse(
                                  solutions=[],
@@ -117,8 +112,10 @@ class Router:
                                  diagnostics={"warnings": all_warnings} if all_warnings else None
                              )
                              
+                             job.result = result
+
                              return JobResponse(
-                                 job_id=job_id,
+                                 job_id=job.id,
                                  status=JobStatus.COMPLETED,
                                  result=result
                              )

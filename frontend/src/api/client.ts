@@ -195,6 +195,9 @@ class ApiClient {
   ): Promise<any> {
     return new Promise((resolve, reject) => {
       const start = Date.now();
+      let consecutiveErrors = 0;
+      const MAX_CONSECUTIVE_ERRORS = 3;
+
       const poll = async () => {
         try {
           if (Date.now() - start > 7200000) {
@@ -203,6 +206,7 @@ class ApiClient {
           }
 
           const status = await this.getJobStatus(jobId, 30000);
+          consecutiveErrors = 0; // Reset on success
           
           if (onUpdate) {
             onUpdate(status);
@@ -215,8 +219,27 @@ class ApiClient {
           } else {
             setTimeout(poll, interval);
           }
-        } catch (error) {
-          reject(error);
+        } catch (error: any) {
+          consecutiveErrors++;
+
+          // If the job is not found (404), it likely completed synchronously
+          // or the engine restarted. Don't retry indefinitely.
+          if (error instanceof HttpError && error.status === 404) {
+            reject(new Error(
+              'The job could not be found on the server. ' +
+              'It may have completed synchronously or the engine may have restarted.'
+            ));
+            return;
+          }
+
+          // For transient errors, allow a few retries before giving up
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            reject(error);
+            return;
+          }
+
+          // Retry with a longer backoff
+          setTimeout(poll, interval * 2);
         }
       };
 

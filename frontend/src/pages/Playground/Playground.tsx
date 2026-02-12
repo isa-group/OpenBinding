@@ -220,6 +220,38 @@ export function Playground() {
     }
   };
 
+  /**
+   * Inspects a solve result for anomalies: empty solutions, empty bindings, etc.
+   * Sets user-facing warnings/errors so issues are visible in the UI.
+   */
+  const checkAndWarnEmptyResult = (solveResult: any) => {
+    if (!solveResult) return;
+
+    const solutions = solveResult.solutions;
+
+    // No solutions at all
+    if (!solutions || solutions.length === 0) {
+      setError(
+        'The solver returned no solutions. The instance may be infeasible under the current constraints, ' +
+        'or the engine did not find any feasible binding within the given budget.'
+      );
+      return;
+    }
+
+    // Check for solutions with empty or missing bindings
+    const emptyBindingSolutions = solutions.filter(
+      (s: any) => !s.binding || Object.keys(s.binding).length === 0
+    );
+
+    if (emptyBindingSolutions.length > 0) {
+      setError(
+        `${emptyBindingSolutions.length} solution(s) have an empty binding — this likely indicates ` +
+        'an engine bug or an unsupported instance structure. Please report this instance to the administrator ' +
+        'so it can be investigated.'
+      );
+    }
+  };
+
   const handleSolve = async () => {
     setJobState('validating');
     setError(null);
@@ -263,13 +295,25 @@ export function Playground() {
         return;
       }
 
+      // Handle synchronous failure (engine returned error directly)
       if (jobResponse.status === 'failed') {
-        setResult(jobResponse.result || { error: jobResponse.error });
+        setResult(jobResponse.result || { error: jobResponse.error || 'The solver could not process this instance.' });
         setJobState('failed');
         return;
       }
 
-      // Poll for job completion
+      // Handle synchronous completion (engine returned solution directly, no polling needed)
+      if (jobResponse.status === 'completed') {
+        const syncResult = jobResponse.result;
+        if (syncResult) {
+          checkAndWarnEmptyResult(syncResult);
+        }
+        setResult(syncResult || { solutions: [], _warning: 'The engine returned an empty response.' });
+        setJobState('completed');
+        return;
+      }
+
+      // Asynchronous job: poll for completion
       setJobState('running');
       const finalResult = await apiClient.pollJob(
         jobResponse.job_id,
@@ -280,10 +324,27 @@ export function Playground() {
         }
       );
 
-      setResult(finalResult);
+      if (finalResult) {
+        checkAndWarnEmptyResult(finalResult);
+      }
+      setResult(finalResult || { solutions: [], _warning: 'The engine returned an empty response.' });
       setJobState('completed');
     } catch (err: any) {
-      setError(err.message || 'Solve failed');
+      const message = err.message || 'Solve failed';
+      // Provide user-friendly messages for common errors
+      if (message.includes('HTTP 404')) {
+        setError('The solver job could not be found. The engine may have completed synchronously or restarted. Please try again.');
+      } else if (message.includes('timed out') || message.includes('Polling timed out')) {
+        setError('The solver is taking longer than expected. The instance may be very large or the engine may be overloaded. Try reducing the problem size or iterations count.');
+      } else if (message.includes('HTTP 502') || message.includes('HTTP 503') || message.includes('HTTP 504')) {
+        setError('The solver engine is temporarily unavailable. Please check that the engine is running and try again.');
+      } else if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+        setError('Could not connect to the API gateway. Please check your network connection and ensure the server is running.');
+      } else if (message.includes('JSON')) {
+        setError('Invalid JSON in the instance or options editor. Please check the syntax and try again.');
+      } else {
+        setError(message);
+      }
       setJobState('failed');
     }
   };
@@ -550,6 +611,12 @@ export function Playground() {
 
 // Result View Components
 function SummaryView({ result }: { result: any }) {
+  const solutions = result.solutions || [];
+  const emptyBindings = solutions.filter(
+    (s: any) => !s.binding || Object.keys(s.binding).length === 0
+  );
+  const infeasibleCount = solutions.filter((s: any) => s.is_feasible === false).length;
+
   return (
     <div className="result-view summary-view">
       {result.status && (
@@ -560,6 +627,50 @@ function SummaryView({ result }: { result: any }) {
               {result.status}
             </Badge>
           </div>
+        </Card>
+      )}
+
+      {/* Solution quality summary */}
+      {solutions.length > 0 && (
+        <Card padding="md">
+          <h4>Solutions Overview</h4>
+          <div className="summary-grid">
+            <div className="summary-item">
+              <span className="summary-label">Total Solutions:</span>
+              <span className="summary-value">{solutions.length}</span>
+            </div>
+            {infeasibleCount > 0 && (
+              <div className="summary-item">
+                <span className="summary-label">Infeasible:</span>
+                <span className="summary-value" style={{ color: 'var(--color-warning, #e6a700)' }}>{infeasibleCount}</span>
+              </div>
+            )}
+          </div>
+          {emptyBindings.length > 0 && (
+            <Alert type="error" title="Engine Anomaly Detected">
+              {emptyBindings.length} solution(s) returned with empty bindings. This is likely an engine bug.
+              Please report this instance to the administrator for investigation.
+            </Alert>
+          )}
+        </Card>
+      )}
+
+      {/* No solutions warning */}
+      {result.solutions !== undefined && solutions.length === 0 && (
+        <Card padding="md">
+          <Alert type="warning" title="No Feasible Solutions">
+            The engine completed without finding any feasible solution. Try relaxing constraints, 
+            increasing the solver budget, or verifying that all tasks have candidate services.
+          </Alert>
+        </Card>
+      )}
+
+      {/* Internal warning (e.g. empty engine response) */}
+      {result._warning && (
+        <Card padding="md">
+          <Alert type="warning" title="Warning">
+            {result._warning}
+          </Alert>
         </Card>
       )}
 
@@ -623,15 +734,33 @@ function SummaryView({ result }: { result: any }) {
 
 function SolutionsView({ result }: { result: any }) {
   // Determine if there's only one binding to show features expanded by default
-  const hasSingleSolution = result.solutions && result.solutions.length === 1;
+  const solutions = result.solutions || [];
+  const hasSingleSolution = solutions.length === 1;
   const [expandedSolutions, setExpandedSolutions] = useState<Record<number, boolean>>(
     hasSingleSolution ? { 0: true } : {}
   );
 
-  if (!result.solutions || result.solutions.length === 0) {
+  // No solutions at all — explain possible causes
+  if (solutions.length === 0) {
+    const hasError = result.error || result._warning;
+    const errorMsg = result.error || result._warning;
+
     return (
-      <div className="empty-result">
-        <p>No solutions found in the result</p>
+      <div className="result-view solutions-view">
+        {hasError ? (
+          <Alert type="warning" title="No Solutions Found">
+            {errorMsg}
+          </Alert>
+        ) : (
+          <Alert type="info" title="No Solutions">
+            The solver did not return any solutions. Possible causes:
+            <ul style={{ margin: '8px 0 0 16px', padding: 0 }}>
+              <li>The instance may be infeasible under the current constraints.</li>
+              <li>The solver budget (iterations / time) may be too low.</li>
+              <li>A required task has no available candidates.</li>
+            </ul>
+          </Alert>
+        )}
       </div>
     );
   }
@@ -643,24 +772,60 @@ function SolutionsView({ result }: { result: any }) {
     }));
   };
 
+  // Count anomalies
+  const emptyBindings = solutions.filter(
+    (s: any) => !s.binding || Object.keys(s.binding).length === 0
+  );
+
   return (
     <div className="result-view solutions-view">
-      {result.solutions.map((solution: any, index: number) => {
+      {emptyBindings.length > 0 && (
+        <Alert type="error" title="Empty Binding Detected">
+          {emptyBindings.length} of {solutions.length} solution(s) have an empty binding.
+          This usually indicates an engine bug or an unsupported instance structure.
+          Please report this instance to the administrator.
+        </Alert>
+      )}
+
+      {solutions.map((solution: any, index: number) => {
         const isExpanded = expandedSolutions[index] || false;
         const hasAggregatedFeatures = solution.aggregated_features && 
           Object.keys(solution.aggregated_features).length > 0;
+        const isBindingEmpty = !solution.binding || Object.keys(solution.binding).length === 0;
+        const isInfeasible = solution.is_feasible === false;
 
         return (
           <Card key={index} padding="md">
             <div className="solution-header">
               <h4>Solution {index + 1}</h4>
-              {solution.objective_value !== undefined && solution.objective_value !== null && (
-                <div className="solution-objective">
-                  <span className="objective-label">Objective:</span>
-                  <span className="objective-value">{solution.objective_value.toFixed(4)}</span>
-                </div>
-              )}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {isInfeasible && (
+                  <Badge variant="warning">Infeasible</Badge>
+                )}
+                {isBindingEmpty && (
+                  <Badge variant="error">Empty Binding</Badge>
+                )}
+                {solution.objective_value !== undefined && solution.objective_value !== null && (
+                  <div className="solution-objective">
+                    <span className="objective-label">Objective:</span>
+                    <span className="objective-value">{solution.objective_value.toFixed(4)}</span>
+                  </div>
+                )}
+              </div>
             </div>
+
+            {isBindingEmpty && (
+              <Alert type="error" title="Empty Binding">
+                This solution has no task-to-candidate assignments. This is unexpected and likely indicates
+                an engine bug. Please save this instance and report it to the administrator.
+              </Alert>
+            )}
+
+            {isInfeasible && !isBindingEmpty && (
+              <Alert type="warning" title="Infeasible Solution">
+                This solution violates one or more hard constraints. Check the Violations tab for details.
+              </Alert>
+            )}
             
             {solution.binding && (
               <div className="binding-table">
