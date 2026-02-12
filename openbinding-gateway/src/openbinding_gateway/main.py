@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from typing import List, Dict, Any
 import json
 import asyncio
+import os
 
 from dotenv import load_dotenv
 import httpx
@@ -394,6 +395,7 @@ async def analyze_binding_space(request: BindingSpaceRequest):
     )
 
 from fastapi import Response
+from fastapi.responses import FileResponse
 
 @app.post(
     "/v1/solve",
@@ -509,32 +511,62 @@ async def get_job(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     return job
 
-import os
-from fastapi.responses import FileResponse
+def _schemas_dir() -> str:
+    return os.getenv("SCHEMAS_DIR", "/app/schemas")
 
-@app.get("/v1/schemas/general")
-async def get_general_schema():
-    # Serves the central QoS schema that everything should follow.
-    schemas_dir = os.getenv("SCHEMAS_DIR", "/app/schemas")
-    schema_path = os.path.join(schemas_dir, "general", "schema.json")
-    
-    if not os.path.exists(schema_path):
-        raise HTTPException(status_code=404, detail="General schema not found on server.")
-        
-    return FileResponse(schema_path)
 
-@app.get("/v1/schemas/{engine_id}")
-async def get_engine_schema(engine_id: str):
-    # Helps the frontend know which specific constraints an engine has.
+def _assert_engine_exists(engine_id: str) -> None:
     try:
         EngineRegistry.get_plugin(engine_id)
     except ValueError:
         raise HTTPException(status_code=404, detail=f"Engine '{engine_id}' isn't here.")
 
-    schemas_dir = os.getenv("SCHEMAS_DIR", "/app/schemas")
-    schema_path = os.path.join(schemas_dir, "specializations", f"{engine_id}.schema.json")
-    
+
+def _general_schema_path(extension: str) -> str:
+    return os.path.join(_schemas_dir(), "general", f"schema.{extension}")
+
+
+def _specialization_schema_path(engine_id: str, extension: str) -> str:
+    return os.path.join(_schemas_dir(), "specializations", f"{engine_id}.schema.{extension}")
+
+
+@app.get("/v1/schemas/general")
+async def get_general_schema():
+    schema_path = _general_schema_path("json")
+
+    if not os.path.exists(schema_path):
+        raise HTTPException(status_code=404, detail="General schema not found on server.")
+
+    return FileResponse(schema_path)
+
+
+@app.get("/v1/schemas/general/model")
+async def get_general_schema_model():
+    model_path = _general_schema_path("mermaid")
+
+    if not os.path.exists(model_path):
+        raise HTTPException(status_code=404, detail="General model not found on server.")
+
+    return FileResponse(model_path, media_type="text/plain; charset=utf-8")
+
+
+@app.get("/v1/schemas/{engine_id}")
+async def get_engine_schema(engine_id: str):
+    _assert_engine_exists(engine_id)
+    schema_path = _specialization_schema_path(engine_id, "json")
+
     if not os.path.exists(schema_path):
         raise HTTPException(status_code=404, detail=f"No specialized schema for {engine_id}.")
-        
+
     return FileResponse(schema_path)
+
+
+@app.get("/v1/schemas/{engine_id}/model")
+async def get_engine_schema_model(engine_id: str):
+    _assert_engine_exists(engine_id)
+    model_path = _specialization_schema_path(engine_id, "mermaid")
+
+    if not os.path.exists(model_path):
+        raise HTTPException(status_code=404, detail=f"No specialized model for {engine_id}.")
+
+    return FileResponse(model_path, media_type="text/plain; charset=utf-8")

@@ -70,6 +70,7 @@ OpenBinding validates incoming requests against two schema layers:
 
 1. **General schema** (engine-agnostic):
     - JSON Schema (structural validation): `schemas/general/schema.json`
+    - Visual model (Mermaid): `schemas/general/schema.mermaid`
     - Specification / semantics (human-readable): `schemas/general/schema.specification.md`
 
     The specification document explains the intent and semantics behind the JSON Schema, including:
@@ -81,6 +82,14 @@ OpenBinding validates incoming requests against two schema layers:
 2. **Specialization schemas** (engine-specific constraints):
     - `schemas/specializations/minizinc-csp.schema.json`
     - `schemas/specializations/random-search.schema.json`
+    - `schemas/specializations/many-heuristic.schema.json`
+
+   Specializations can also include a visual model in Mermaid format (recommended):
+    - `schemas/specializations/minizinc-csp.schema.mermaid`
+    - `schemas/specializations/random-search.schema.mermaid`
+    - `schemas/specializations/many-heuristic.schema.mermaid`
+
+   Mermaid models are used by the frontend **Schema Explorer** in the **Model** tab. If a specialization does not provide `.schema.mermaid`, the JSON schema workflow remains fully functional.
 
 Example payloads that follow these schemas live in `examples/`.
 

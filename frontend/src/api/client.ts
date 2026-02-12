@@ -123,6 +123,41 @@ class ApiClient {
     }
   }
 
+  private async requestText(
+    endpoint: string,
+    options: RequestInit = {},
+    timeoutMs?: number
+  ): Promise<string> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const controller = new AbortController();
+    const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...options.headers,
+        },
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new HttpError(response.status, response.statusText);
+      }
+
+      return response.text();
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        throw new Error('Request timed out');
+      }
+      throw error;
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+  }
+
   private async requestWithRetry<T>(
     endpoint: string,
     options: RequestInit,
@@ -163,6 +198,28 @@ class ApiClient {
 
   async getEngineSchema(engineId: string): Promise<any> {
     return this.request<any>(`/v1/schemas/${engineId}`);
+  }
+
+  async getGeneralSchemaModel(): Promise<string | null> {
+    try {
+      return await this.requestText('/v1/schemas/general/model');
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async getEngineSchemaModel(engineId: string): Promise<string | null> {
+    try {
+      return await this.requestText(`/v1/schemas/${engineId}/model`);
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async solve(request: SolveRequest): Promise<JobStatus> {

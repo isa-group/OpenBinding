@@ -18,14 +18,34 @@ Engines integrate through the gateway plugin interface and a specialization sche
 
 1. Engine plugin (gateway): implement `EngineValidationPlugin`.
 2. Specialization schema: `schemas/specializations/<engine-id>.schema.json`.
-3. Engine URL in registry + env wiring.
-4. Tests for validation and transformation.
+3. Specialization model (recommended): `schemas/specializations/<engine-id>.schema.mermaid`.
+4. Engine URL in registry + env wiring.
+5. Tests for validation and transformation.
 
 ## Step-by-step
 
 ### 1) Add a specialization schema
 
 Create a specialization schema under `schemas/specializations/`.
+
+### 1.1) Add a specialization model (recommended)
+
+To enable visual exploration in the frontend **Schema Explorer** (`JSON | Model` tabs), add a Mermaid model next to your specialization schema:
+
+- Path: `schemas/specializations/<engine-id>.schema.mermaid`
+- Naming must match your engine id exactly (`<engine-id>`)
+
+The Mermaid model is optional, but strongly recommended for maintainability and onboarding.
+
+If the file is missing, the frontend will show **Model not available** while keeping JSON schema validation and all engine workflows fully operational.
+
+#### Good practices
+
+- Keep JSON and Mermaid aligned conceptually (same constraints/capabilities).
+- Keep node/edge labels stable and meaningful across versions.
+- Prefer modular Mermaid subgraphs for large models.
+- Update both files in the same PR when constraints change.
+- Avoid changing `<engine-id>` naming once released, to prevent schema/model mismatch.
 
 
 ## Engine options defaults (Playground)
@@ -113,9 +133,12 @@ EngineRegistry.register("my-engine", MyEnginePlugin())
 The gateway exposes:
 
 - `/v1/schemas/general`
+- `/v1/schemas/general/model`
 - `/v1/schemas/<engine-id>`
+- `/v1/schemas/<engine-id>/model`
 
 Your specialization schema must exist and be discoverable via `SCHEMAS_DIR`.
+Your specialization model should follow the same directory and naming convention to be discoverable by the `/model` endpoint.
 
 ### 5) Add tests
 
@@ -150,3 +173,4 @@ Common checks:
 - Check `/v1/engines` to confirm the engine is registered and reachable.
 - Use `/v1/analyze` for validation errors and warnings.
 - Ensure `SCHEMAS_DIR` resolves to the folder containing your specialization schema.
+- If the Model tab shows unavailable, confirm `<engine-id>.schema.mermaid` exists under `schemas/specializations/` and matches engine id naming exactly.
