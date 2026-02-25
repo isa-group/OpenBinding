@@ -3,7 +3,7 @@
     "id": "pautasso2009-restful-ecommerce_multi_hard",
     "name": "RESTful e-Commerce scenario (Pautasso 2009) [multi, hard]",
     "version": "1.0.0",
-    "created_at": "2026-02-25T12:18:50Z",
+    "created_at": "2026-02-25T15:19:08Z",
     "description": "QoS-aware composition instance derived from the running e-Commerce example in Pautasso (2009) 'BPEL for REST'. QoS numbers are illustrative (the paper specifies the workflow/API but not QoS measurements).",
     "paper": {
       "title": "RESTful Web service composition with BPEL for REST",
@@ -18,8 +18,7 @@
         "random-search": "VALIDATION_ERROR"
       },
       "hard_feasible_witness_found": true,
-      "hard_feasible_witness_attempts": 1,
-      "hard_constraints_from_unconstrained_fallback": true
+      "hard_constraints_from_unconstrained_fallback": false
     }
   },
   "features": [
@@ -740,6 +739,216 @@
         "gen_feat_2": 0.503178,
         "gen_feat_3": 498.93
       }
+    },
+    {
+      "id": "t_add_item_gen_2",
+      "task_id": "t_add_item",
+      "provider_id": "p_gen_1",
+      "name": "ShopA POST /order/item (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 138.1,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 494.27,
+        "gen_feat_2": 0.495201,
+        "gen_feat_3": 492.8
+      }
+    },
+    {
+      "id": "t_cancel_order_gen_2",
+      "task_id": "t_cancel_order",
+      "provider_id": "p_gen_2",
+      "name": "ShopA DELETE /order (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 82.5,
+        "cost_usd": 0.0,
+        "availability": 0.974939,
+        "gen_feat_1": 513.73,
+        "gen_feat_2": 0.504326,
+        "gen_feat_3": 509.28
+      }
+    },
+    {
+      "id": "t_charge_payment_gen_2",
+      "task_id": "t_charge_payment",
+      "provider_id": "p_gen_3",
+      "name": "PaymentA POST /payment (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 319.82,
+        "cost_usd": 0.02,
+        "availability": 0.970835,
+        "gen_feat_1": 487.61,
+        "gen_feat_2": 0.48896,
+        "gen_feat_3": 507.35
+      }
+    },
+    {
+      "id": "t_checkout_gen_2",
+      "task_id": "t_checkout",
+      "provider_id": "p_gen_4",
+      "name": "ShopA POST /order/payment (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 153.71,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 494.43,
+        "gen_feat_2": 0.499538,
+        "gen_feat_3": 505.95
+      }
+    },
+    {
+      "id": "t_create_order_gen_2",
+      "task_id": "t_create_order",
+      "provider_id": "p_gen_5",
+      "name": "ShopA POST /order (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 107.32,
+        "cost_usd": 0.0,
+        "availability": 0.976762,
+        "gen_feat_1": 491.15,
+        "gen_feat_2": 0.513884,
+        "gen_feat_3": 498.93
+      }
+    },
+    {
+      "id": "t_get_amount_gen_2",
+      "task_id": "t_get_amount",
+      "provider_id": "p_shop_a",
+      "name": "ShopA GET /order/amount (Gen p_shop_a)",
+      "features": {
+        "latency_ms": 53.85,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 490.42,
+        "gen_feat_2": 0.511021,
+        "gen_feat_3": 503.37
+      }
+    },
+    {
+      "id": "t_get_quote_gen_2",
+      "task_id": "t_get_quote",
+      "provider_id": "p_shop_b",
+      "name": "CatalogA GET /quote (Gen p_shop_b)",
+      "features": {
+        "latency_ms": 87.45,
+        "cost_usd": 0.0,
+        "availability": 0.985079,
+        "gen_feat_1": 502.14,
+        "gen_feat_2": 0.496493,
+        "gen_feat_3": 490.86
+      }
+    },
+    {
+      "id": "t_list_confirmed_gen_2",
+      "task_id": "t_list_confirmed",
+      "provider_id": "p_catalog_a",
+      "name": "ShopA GET /order/confirmed (Gen p_catalog_a)",
+      "features": {
+        "latency_ms": 68.22,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 486.32,
+        "gen_feat_2": 0.493805,
+        "gen_feat_3": 501.89
+      }
+    },
+    {
+      "id": "t_refund_payment_gen_2",
+      "task_id": "t_refund_payment",
+      "provider_id": "p_catalog_b",
+      "name": "PaymentA DELETE /payment (Gen p_catalog_b)",
+      "features": {
+        "latency_ms": 236.81,
+        "cost_usd": 0.02,
+        "availability": 0.97577,
+        "gen_feat_1": 487.78,
+        "gen_feat_2": 0.513947,
+        "gen_feat_3": 501.92
+      }
+    },
+    {
+      "id": "t_remove_item_gen_2",
+      "task_id": "t_remove_item",
+      "provider_id": "p_payment_a",
+      "name": "ShopA DELETE /order/item (Gen p_payment_a)",
+      "features": {
+        "latency_ms": 87.21,
+        "cost_usd": 0.0,
+        "availability": 0.985215,
+        "gen_feat_1": 485.98,
+        "gen_feat_2": 0.508692,
+        "gen_feat_3": 505.08
+      }
+    },
+    {
+      "id": "t_request_quote_gen_2",
+      "task_id": "t_request_quote",
+      "provider_id": "p_payment_b",
+      "name": "CatalogA POST /product/quote (Gen p_payment_b)",
+      "features": {
+        "latency_ms": 118.36,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 489.81,
+        "gen_feat_2": 0.485147,
+        "gen_feat_3": 486.3
+      }
+    },
+    {
+      "id": "t_ship_order_gen_2",
+      "task_id": "t_ship_order",
+      "provider_id": "p_gen_1",
+      "name": "ShopA fulfillment (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 485.43,
+        "cost_usd": 0.05,
+        "availability": 0.9931,
+        "gen_feat_1": 505.71,
+        "gen_feat_2": 0.504465,
+        "gen_feat_3": 512.15
+      }
+    },
+    {
+      "id": "t_update_shipment_gen_2",
+      "task_id": "t_update_shipment",
+      "provider_id": "p_gen_2",
+      "name": "ShopA PUT /order/shipment (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 92.19,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 502.48,
+        "gen_feat_2": 0.508902,
+        "gen_feat_3": 494.03
+      }
+    },
+    {
+      "id": "t_add_item_gen_3",
+      "task_id": "t_add_item",
+      "provider_id": "p_gen_3",
+      "name": "ShopA POST /order/item (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 134.49,
+        "cost_usd": 0.0,
+        "availability": 0.986405,
+        "gen_feat_1": 493.7,
+        "gen_feat_2": 0.503951,
+        "gen_feat_3": 510.3
+      }
+    },
+    {
+      "id": "t_cancel_order_gen_3",
+      "task_id": "t_cancel_order",
+      "provider_id": "p_gen_4",
+      "name": "ShopA DELETE /order (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 87.12,
+        "cost_usd": 0.0,
+        "availability": 0.986711,
+        "gen_feat_1": 487.89,
+        "gen_feat_2": 0.507856,
+        "gen_feat_3": 511.13
+      }
     }
   ],
   "composition": {
@@ -995,44 +1204,61 @@
   },
   "constraints": [
     {
-      "id": "gen_c_global_latency_ms_1",
-      "kind": "ATTRIBUTE_BOUND",
-      "scope": "GLOBAL",
-      "attribute_id": "latency_ms",
-      "op": "<=",
-      "value": 1891.14,
-      "hard": true
-    },
-    {
-      "id": "gen_c_local_t_add_item_latency_ms_1",
-      "kind": "ATTRIBUTE_BOUND",
-      "scope": "LOCAL",
-      "tasks": [
-        "t_add_item"
-      ],
-      "attribute_id": "latency_ms",
-      "op": "<=",
-      "value": 159.46,
-      "hard": true
-    },
-    {
-      "id": "gen_c_dep_same_1",
+      "id": "bind_shop_mono_provider",
       "kind": "DEPENDENCY",
       "type": "SAME_PROVIDER",
       "tasks": [
+        "t_create_order",
         "t_add_item",
+        "t_remove_item",
+        "t_get_amount",
+        "t_checkout",
+        "t_list_confirmed",
+        "t_ship_order",
+        "t_update_shipment",
         "t_cancel_order"
       ],
       "hard": true
     },
     {
-      "id": "gen_c_dep_diff_1",
+      "id": "bind_catalog_mono_provider",
       "kind": "DEPENDENCY",
-      "type": "DIFFERENT_PROVIDER",
+      "type": "SAME_PROVIDER",
       "tasks": [
-        "t_add_item",
+        "t_request_quote",
+        "t_get_quote"
+      ],
+      "hard": true
+    },
+    {
+      "id": "bind_payment_mono_provider",
+      "kind": "DEPENDENCY",
+      "type": "SAME_PROVIDER",
+      "tasks": [
+        "t_charge_payment",
         "t_refund_payment"
       ],
+      "hard": true
+    },
+    {
+      "id": "gen_c_global_latency_ms_1",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "latency_ms",
+      "op": "<=",
+      "value": 1890.97,
+      "hard": true
+    },
+    {
+      "id": "gen_c_local_t_get_quote_gen_feat_3_1",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_get_quote"
+      ],
+      "attribute_id": "gen_feat_3",
+      "op": "<=",
+      "value": 497.6,
       "hard": true
     }
   ],

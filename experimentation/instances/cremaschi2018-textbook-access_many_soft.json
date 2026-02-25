@@ -3,7 +3,7 @@
     "id": "cremaschi2018-textbook-access_many_soft",
     "name": "Book info retrieval (Cremaschi et al. 2018) [many, soft]",
     "version": "1.0.0",
-    "created_at": "2026-02-25T12:18:12Z",
+    "created_at": "2026-02-25T15:19:08Z",
     "description": "QoS-aware instance derived from the running example in 'A Practical Approach to Services Composition Through Light Semantic Descriptions' (ESOCC 2018). QoS values are illustrative placeholders.",
     "paper": {
       "title": "A Practical Approach to Services Composition Through Light Semantic Descriptions",
@@ -329,40 +329,40 @@
       }
     },
     {
-      "id": "t_books_gen_2",
-      "task_id": "t_books",
+      "id": "t_archive_gen_2",
+      "task_id": "t_archive",
       "provider_id": "p_unimib",
-      "name": "Google Books API (Gen p_unimib)",
+      "name": "Archive.org API (Gen p_unimib)",
       "features": {
-        "latency_ms": 251.51,
+        "latency_ms": 503.02,
         "cost_usd": 0.0,
-        "availability": 1.0,
+        "availability": 0.983367,
         "gen_feat_1": 494.43,
         "gen_feat_2": 0.49659,
         "gen_feat_3": 492.56
       }
     },
     {
-      "id": "t_market_gen_2",
-      "task_id": "t_market",
+      "id": "t_books_gen_2",
+      "task_id": "t_books",
       "provider_id": "p_archive",
-      "name": "Amazon Market API (Gen p_archive)",
+      "name": "Google Books API (Gen p_archive)",
       "features": {
-        "latency_ms": 405.75,
+        "latency_ms": 253.59,
         "cost_usd": 0.0,
-        "availability": 0.971923,
+        "availability": 0.976832,
         "gen_feat_1": 498.31,
         "gen_feat_2": 0.504989,
         "gen_feat_3": 485.73
       }
     },
     {
-      "id": "t_library_gen_2",
-      "task_id": "t_library",
+      "id": "t_geocoding_gen_2",
+      "task_id": "t_geocoding",
       "provider_id": "p_local",
-      "name": "OPAC Library API (Gen p_local)",
+      "name": "Google Maps Geocoding API (Gen p_local)",
       "features": {
-        "latency_ms": 355.49,
+        "latency_ms": 304.7,
         "cost_usd": 0.0,
         "availability": 1.0,
         "gen_feat_1": 496.81,
@@ -371,12 +371,12 @@
       }
     },
     {
-      "id": "t_geocoding_gen_2",
-      "task_id": "t_geocoding",
+      "id": "t_library_gen_2",
+      "task_id": "t_library",
       "provider_id": "p_gen_1",
-      "name": "Google Maps Geocoding API (Gen p_gen_1)",
+      "name": "OPAC Library API (Gen p_gen_1)",
       "features": {
-        "latency_ms": 292.7,
+        "latency_ms": 341.48,
         "cost_usd": 0.0,
         "availability": 1.0,
         "gen_feat_1": 492.29,
@@ -385,31 +385,1599 @@
       }
     },
     {
-      "id": "t_transit_gen_2",
-      "task_id": "t_transit",
+      "id": "t_market_gen_2",
+      "task_id": "t_market",
       "provider_id": "p_gen_2",
-      "name": "Google Transit API (Gen p_gen_2)",
+      "name": "Amazon Market API (Gen p_gen_2)",
       "features": {
-        "latency_ms": 448.8,
+        "latency_ms": 398.93,
         "cost_usd": 0.0,
-        "availability": 0.968324,
+        "availability": 0.963458,
         "gen_feat_1": 500.1,
         "gen_feat_2": 0.489322,
         "gen_feat_3": 486.96
       }
     },
     {
-      "id": "t_archive_gen_2",
-      "task_id": "t_archive",
+      "id": "t_transit_gen_2",
+      "task_id": "t_transit",
       "provider_id": "p_gen_3",
-      "name": "Archive.org API (Gen p_gen_3)",
+      "name": "Google Transit API (Gen p_gen_3)",
       "features": {
-        "latency_ms": 489.11,
+        "latency_ms": 440.2,
         "cost_usd": 0.0,
-        "availability": 0.993695,
+        "availability": 1.0,
         "gen_feat_1": 498.49,
         "gen_feat_2": 0.509901,
         "gen_feat_3": 510.32
+      }
+    },
+    {
+      "id": "t_archive_gen_3",
+      "task_id": "t_archive",
+      "provider_id": "p_gen_4",
+      "name": "Archive.org API (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 499.85,
+        "cost_usd": 0.0,
+        "availability": 0.959942,
+        "gen_feat_1": 503.61,
+        "gen_feat_2": 0.501017,
+        "gen_feat_3": 501.49
+      }
+    },
+    {
+      "id": "t_books_gen_3",
+      "task_id": "t_books",
+      "provider_id": "p_gen_5",
+      "name": "Google Books API (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 252.75,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 505.53,
+        "gen_feat_2": 0.491572,
+        "gen_feat_3": 506.63
+      }
+    },
+    {
+      "id": "t_geocoding_gen_3",
+      "task_id": "t_geocoding",
+      "provider_id": "p_google",
+      "name": "Google Maps Geocoding API (Gen p_google)",
+      "features": {
+        "latency_ms": 292.88,
+        "cost_usd": 0.0,
+        "availability": 0.979114,
+        "gen_feat_1": 514.03,
+        "gen_feat_2": 0.504606,
+        "gen_feat_3": 509.78
+      }
+    },
+    {
+      "id": "t_library_gen_3",
+      "task_id": "t_library",
+      "provider_id": "p_amazon",
+      "name": "OPAC Library API (Gen p_amazon)",
+      "features": {
+        "latency_ms": 341.51,
+        "cost_usd": 0.0,
+        "availability": 0.954327,
+        "gen_feat_1": 490.39,
+        "gen_feat_2": 0.510618,
+        "gen_feat_3": 500.06
+      }
+    },
+    {
+      "id": "t_market_gen_3",
+      "task_id": "t_market",
+      "provider_id": "p_unimib",
+      "name": "Amazon Market API (Gen p_unimib)",
+      "features": {
+        "latency_ms": 403.22,
+        "cost_usd": 0.0,
+        "availability": 0.98629,
+        "gen_feat_1": 506.11,
+        "gen_feat_2": 0.504836,
+        "gen_feat_3": 513.95
+      }
+    },
+    {
+      "id": "t_transit_gen_3",
+      "task_id": "t_transit",
+      "provider_id": "p_archive",
+      "name": "Google Transit API (Gen p_archive)",
+      "features": {
+        "latency_ms": 442.05,
+        "cost_usd": 0.0,
+        "availability": 0.968394,
+        "gen_feat_1": 512.48,
+        "gen_feat_2": 0.514296,
+        "gen_feat_3": 505.79
+      }
+    },
+    {
+      "id": "t_archive_gen_4",
+      "task_id": "t_archive",
+      "provider_id": "p_local",
+      "name": "Archive.org API (Gen p_local)",
+      "features": {
+        "latency_ms": 491.28,
+        "cost_usd": 0.0,
+        "availability": 0.961544,
+        "gen_feat_1": 488.34,
+        "gen_feat_2": 0.514668,
+        "gen_feat_3": 505.0
+      }
+    },
+    {
+      "id": "t_books_gen_4",
+      "task_id": "t_books",
+      "provider_id": "p_gen_1",
+      "name": "Google Books API (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 257.31,
+        "cost_usd": 0.0,
+        "availability": 0.990802,
+        "gen_feat_1": 500.86,
+        "gen_feat_2": 0.497755,
+        "gen_feat_3": 497.03
+      }
+    },
+    {
+      "id": "t_geocoding_gen_4",
+      "task_id": "t_geocoding",
+      "provider_id": "p_gen_2",
+      "name": "Google Maps Geocoding API (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 302.03,
+        "cost_usd": 0.0,
+        "availability": 0.996517,
+        "gen_feat_1": 505.13,
+        "gen_feat_2": 0.49775,
+        "gen_feat_3": 491.63
+      }
+    },
+    {
+      "id": "t_library_gen_4",
+      "task_id": "t_library",
+      "provider_id": "p_gen_3",
+      "name": "OPAC Library API (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 352.23,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 510.3,
+        "gen_feat_2": 0.501032,
+        "gen_feat_3": 505.68
+      }
+    },
+    {
+      "id": "t_market_gen_4",
+      "task_id": "t_market",
+      "provider_id": "p_gen_4",
+      "name": "Amazon Market API (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 395.26,
+        "cost_usd": 0.0,
+        "availability": 0.986576,
+        "gen_feat_1": 508.48,
+        "gen_feat_2": 0.509068,
+        "gen_feat_3": 505.91
+      }
+    },
+    {
+      "id": "t_transit_gen_4",
+      "task_id": "t_transit",
+      "provider_id": "p_gen_5",
+      "name": "Google Transit API (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 459.83,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 511.52,
+        "gen_feat_2": 0.489245,
+        "gen_feat_3": 489.95
+      }
+    },
+    {
+      "id": "t_archive_gen_5",
+      "task_id": "t_archive",
+      "provider_id": "p_google",
+      "name": "Archive.org API (Gen p_google)",
+      "features": {
+        "latency_ms": 496.36,
+        "cost_usd": 0.0,
+        "availability": 0.951546,
+        "gen_feat_1": 510.48,
+        "gen_feat_2": 0.509522,
+        "gen_feat_3": 510.51
+      }
+    },
+    {
+      "id": "t_books_gen_5",
+      "task_id": "t_books",
+      "provider_id": "p_amazon",
+      "name": "Google Books API (Gen p_amazon)",
+      "features": {
+        "latency_ms": 247.2,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 510.53,
+        "gen_feat_2": 0.488512,
+        "gen_feat_3": 513.85
+      }
+    },
+    {
+      "id": "t_geocoding_gen_5",
+      "task_id": "t_geocoding",
+      "provider_id": "p_unimib",
+      "name": "Google Maps Geocoding API (Gen p_unimib)",
+      "features": {
+        "latency_ms": 302.68,
+        "cost_usd": 0.0,
+        "availability": 0.981342,
+        "gen_feat_1": 500.27,
+        "gen_feat_2": 0.497436,
+        "gen_feat_3": 511.73
+      }
+    },
+    {
+      "id": "t_library_gen_5",
+      "task_id": "t_library",
+      "provider_id": "p_archive",
+      "name": "OPAC Library API (Gen p_archive)",
+      "features": {
+        "latency_ms": 356.85,
+        "cost_usd": 0.0,
+        "availability": 0.993546,
+        "gen_feat_1": 510.3,
+        "gen_feat_2": 0.513619,
+        "gen_feat_3": 511.4
+      }
+    },
+    {
+      "id": "t_market_gen_5",
+      "task_id": "t_market",
+      "provider_id": "p_local",
+      "name": "Amazon Market API (Gen p_local)",
+      "features": {
+        "latency_ms": 408.18,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 485.06,
+        "gen_feat_2": 0.487388,
+        "gen_feat_3": 498.18
+      }
+    },
+    {
+      "id": "t_transit_gen_5",
+      "task_id": "t_transit",
+      "provider_id": "p_gen_1",
+      "name": "Google Transit API (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 457.02,
+        "cost_usd": 0.0,
+        "availability": 0.985019,
+        "gen_feat_1": 490.3,
+        "gen_feat_2": 0.497807,
+        "gen_feat_3": 495.16
+      }
+    },
+    {
+      "id": "t_archive_gen_6",
+      "task_id": "t_archive",
+      "provider_id": "p_gen_2",
+      "name": "Archive.org API (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 488.83,
+        "cost_usd": 0.0,
+        "availability": 0.950163,
+        "gen_feat_1": 508.37,
+        "gen_feat_2": 0.500348,
+        "gen_feat_3": 495.48
+      }
+    },
+    {
+      "id": "t_books_gen_6",
+      "task_id": "t_books",
+      "provider_id": "p_gen_3",
+      "name": "Google Books API (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 248.45,
+        "cost_usd": 0.0,
+        "availability": 0.985441,
+        "gen_feat_1": 501.06,
+        "gen_feat_2": 0.508714,
+        "gen_feat_3": 511.67
+      }
+    },
+    {
+      "id": "t_geocoding_gen_6",
+      "task_id": "t_geocoding",
+      "provider_id": "p_gen_4",
+      "name": "Google Maps Geocoding API (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 296.31,
+        "cost_usd": 0.0,
+        "availability": 0.970937,
+        "gen_feat_1": 504.66,
+        "gen_feat_2": 0.485959,
+        "gen_feat_3": 506.47
+      }
+    },
+    {
+      "id": "t_library_gen_6",
+      "task_id": "t_library",
+      "provider_id": "p_gen_5",
+      "name": "OPAC Library API (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 341.19,
+        "cost_usd": 0.0,
+        "availability": 0.955491,
+        "gen_feat_1": 506.54,
+        "gen_feat_2": 0.485388,
+        "gen_feat_3": 493.46
+      }
+    },
+    {
+      "id": "t_market_gen_6",
+      "task_id": "t_market",
+      "provider_id": "p_google",
+      "name": "Amazon Market API (Gen p_google)",
+      "features": {
+        "latency_ms": 395.58,
+        "cost_usd": 0.0,
+        "availability": 0.974206,
+        "gen_feat_1": 503.49,
+        "gen_feat_2": 0.509299,
+        "gen_feat_3": 501.7
+      }
+    },
+    {
+      "id": "t_transit_gen_6",
+      "task_id": "t_transit",
+      "provider_id": "p_amazon",
+      "name": "Google Transit API (Gen p_amazon)",
+      "features": {
+        "latency_ms": 449.88,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 492.43,
+        "gen_feat_2": 0.485447,
+        "gen_feat_3": 504.86
+      }
+    },
+    {
+      "id": "t_archive_gen_7",
+      "task_id": "t_archive",
+      "provider_id": "p_unimib",
+      "name": "Archive.org API (Gen p_unimib)",
+      "features": {
+        "latency_ms": 486.44,
+        "cost_usd": 0.0,
+        "availability": 0.943609,
+        "gen_feat_1": 500.94,
+        "gen_feat_2": 0.487602,
+        "gen_feat_3": 501.12
+      }
+    },
+    {
+      "id": "t_books_gen_7",
+      "task_id": "t_books",
+      "provider_id": "p_archive",
+      "name": "Google Books API (Gen p_archive)",
+      "features": {
+        "latency_ms": 252.98,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 490.48,
+        "gen_feat_2": 0.494252,
+        "gen_feat_3": 501.53
+      }
+    },
+    {
+      "id": "t_geocoding_gen_7",
+      "task_id": "t_geocoding",
+      "provider_id": "p_local",
+      "name": "Google Maps Geocoding API (Gen p_local)",
+      "features": {
+        "latency_ms": 298.54,
+        "cost_usd": 0.0,
+        "availability": 0.97876,
+        "gen_feat_1": 487.34,
+        "gen_feat_2": 0.494893,
+        "gen_feat_3": 492.66
+      }
+    },
+    {
+      "id": "t_library_gen_7",
+      "task_id": "t_library",
+      "provider_id": "p_gen_1",
+      "name": "OPAC Library API (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 353.68,
+        "cost_usd": 0.0,
+        "availability": 0.967568,
+        "gen_feat_1": 508.31,
+        "gen_feat_2": 0.486183,
+        "gen_feat_3": 501.39
+      }
+    },
+    {
+      "id": "t_market_gen_7",
+      "task_id": "t_market",
+      "provider_id": "p_gen_2",
+      "name": "Amazon Market API (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 411.64,
+        "cost_usd": 0.0,
+        "availability": 0.962352,
+        "gen_feat_1": 512.89,
+        "gen_feat_2": 0.512956,
+        "gen_feat_3": 495.23
+      }
+    },
+    {
+      "id": "t_transit_gen_7",
+      "task_id": "t_transit",
+      "provider_id": "p_gen_3",
+      "name": "Google Transit API (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 456.23,
+        "cost_usd": 0.0,
+        "availability": 0.965992,
+        "gen_feat_1": 490.49,
+        "gen_feat_2": 0.508133,
+        "gen_feat_3": 504.92
+      }
+    },
+    {
+      "id": "t_archive_gen_8",
+      "task_id": "t_archive",
+      "provider_id": "p_gen_4",
+      "name": "Archive.org API (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 489.09,
+        "cost_usd": 0.0,
+        "availability": 0.966816,
+        "gen_feat_1": 490.83,
+        "gen_feat_2": 0.504993,
+        "gen_feat_3": 492.89
+      }
+    },
+    {
+      "id": "t_books_gen_8",
+      "task_id": "t_books",
+      "provider_id": "p_gen_5",
+      "name": "Google Books API (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 257.18,
+        "cost_usd": 0.0,
+        "availability": 0.996902,
+        "gen_feat_1": 511.69,
+        "gen_feat_2": 0.506072,
+        "gen_feat_3": 487.84
+      }
+    },
+    {
+      "id": "t_geocoding_gen_8",
+      "task_id": "t_geocoding",
+      "provider_id": "p_google",
+      "name": "Google Maps Geocoding API (Gen p_google)",
+      "features": {
+        "latency_ms": 291.47,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 486.88,
+        "gen_feat_2": 0.486007,
+        "gen_feat_3": 512.05
+      }
+    },
+    {
+      "id": "t_library_gen_8",
+      "task_id": "t_library",
+      "provider_id": "p_amazon",
+      "name": "OPAC Library API (Gen p_amazon)",
+      "features": {
+        "latency_ms": 353.19,
+        "cost_usd": 0.0,
+        "availability": 0.978277,
+        "gen_feat_1": 496.88,
+        "gen_feat_2": 0.494363,
+        "gen_feat_3": 508.7
+      }
+    },
+    {
+      "id": "t_market_gen_8",
+      "task_id": "t_market",
+      "provider_id": "p_unimib",
+      "name": "Amazon Market API (Gen p_unimib)",
+      "features": {
+        "latency_ms": 393.1,
+        "cost_usd": 0.0,
+        "availability": 0.994276,
+        "gen_feat_1": 488.94,
+        "gen_feat_2": 0.490436,
+        "gen_feat_3": 502.27
+      }
+    },
+    {
+      "id": "t_transit_gen_8",
+      "task_id": "t_transit",
+      "provider_id": "p_archive",
+      "name": "Google Transit API (Gen p_archive)",
+      "features": {
+        "latency_ms": 443.7,
+        "cost_usd": 0.0,
+        "availability": 0.999241,
+        "gen_feat_1": 509.85,
+        "gen_feat_2": 0.501448,
+        "gen_feat_3": 508.14
+      }
+    },
+    {
+      "id": "t_archive_gen_9",
+      "task_id": "t_archive",
+      "provider_id": "p_local",
+      "name": "Archive.org API (Gen p_local)",
+      "features": {
+        "latency_ms": 506.7,
+        "cost_usd": 0.0,
+        "availability": 0.950007,
+        "gen_feat_1": 485.3,
+        "gen_feat_2": 0.506074,
+        "gen_feat_3": 489.97
+      }
+    },
+    {
+      "id": "t_books_gen_9",
+      "task_id": "t_books",
+      "provider_id": "p_gen_1",
+      "name": "Google Books API (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 244.58,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 498.8,
+        "gen_feat_2": 0.513697,
+        "gen_feat_3": 499.99
+      }
+    },
+    {
+      "id": "t_geocoding_gen_9",
+      "task_id": "t_geocoding",
+      "provider_id": "p_gen_2",
+      "name": "Google Maps Geocoding API (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 294.24,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 499.32,
+        "gen_feat_2": 0.492021,
+        "gen_feat_3": 511.64
+      }
+    },
+    {
+      "id": "t_library_gen_9",
+      "task_id": "t_library",
+      "provider_id": "p_gen_3",
+      "name": "OPAC Library API (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 345.67,
+        "cost_usd": 0.0,
+        "availability": 0.973839,
+        "gen_feat_1": 513.54,
+        "gen_feat_2": 0.514704,
+        "gen_feat_3": 488.6
+      }
+    },
+    {
+      "id": "t_market_gen_9",
+      "task_id": "t_market",
+      "provider_id": "p_gen_4",
+      "name": "Amazon Market API (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 401.54,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 487.31,
+        "gen_feat_2": 0.5052,
+        "gen_feat_3": 512.55
+      }
+    },
+    {
+      "id": "t_transit_gen_9",
+      "task_id": "t_transit",
+      "provider_id": "p_gen_5",
+      "name": "Google Transit API (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 447.4,
+        "cost_usd": 0.0,
+        "availability": 0.983784,
+        "gen_feat_1": 489.18,
+        "gen_feat_2": 0.487091,
+        "gen_feat_3": 488.33
+      }
+    },
+    {
+      "id": "t_archive_gen_10",
+      "task_id": "t_archive",
+      "provider_id": "p_google",
+      "name": "Archive.org API (Gen p_google)",
+      "features": {
+        "latency_ms": 505.62,
+        "cost_usd": 0.0,
+        "availability": 0.99713,
+        "gen_feat_1": 503.01,
+        "gen_feat_2": 0.506712,
+        "gen_feat_3": 502.55
+      }
+    },
+    {
+      "id": "t_books_gen_10",
+      "task_id": "t_books",
+      "provider_id": "p_amazon",
+      "name": "Google Books API (Gen p_amazon)",
+      "features": {
+        "latency_ms": 254.31,
+        "cost_usd": 0.0,
+        "availability": 0.974866,
+        "gen_feat_1": 504.59,
+        "gen_feat_2": 0.500114,
+        "gen_feat_3": 485.88
+      }
+    },
+    {
+      "id": "t_geocoding_gen_10",
+      "task_id": "t_geocoding",
+      "provider_id": "p_unimib",
+      "name": "Google Maps Geocoding API (Gen p_unimib)",
+      "features": {
+        "latency_ms": 294.92,
+        "cost_usd": 0.0,
+        "availability": 0.986515,
+        "gen_feat_1": 509.4,
+        "gen_feat_2": 0.490838,
+        "gen_feat_3": 507.74
+      }
+    },
+    {
+      "id": "t_library_gen_10",
+      "task_id": "t_library",
+      "provider_id": "p_archive",
+      "name": "OPAC Library API (Gen p_archive)",
+      "features": {
+        "latency_ms": 355.61,
+        "cost_usd": 0.0,
+        "availability": 0.962059,
+        "gen_feat_1": 503.27,
+        "gen_feat_2": 0.496355,
+        "gen_feat_3": 492.86
+      }
+    },
+    {
+      "id": "t_market_gen_10",
+      "task_id": "t_market",
+      "provider_id": "p_local",
+      "name": "Amazon Market API (Gen p_local)",
+      "features": {
+        "latency_ms": 391.3,
+        "cost_usd": 0.0,
+        "availability": 0.967196,
+        "gen_feat_1": 485.28,
+        "gen_feat_2": 0.506168,
+        "gen_feat_3": 493.59
+      }
+    },
+    {
+      "id": "t_transit_gen_10",
+      "task_id": "t_transit",
+      "provider_id": "p_gen_1",
+      "name": "Google Transit API (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 453.12,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 497.77,
+        "gen_feat_2": 0.497114,
+        "gen_feat_3": 501.1
+      }
+    },
+    {
+      "id": "t_archive_gen_11",
+      "task_id": "t_archive",
+      "provider_id": "p_gen_2",
+      "name": "Archive.org API (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 495.04,
+        "cost_usd": 0.0,
+        "availability": 0.977696,
+        "gen_feat_1": 488.45,
+        "gen_feat_2": 0.507139,
+        "gen_feat_3": 498.59
+      }
+    },
+    {
+      "id": "t_books_gen_11",
+      "task_id": "t_books",
+      "provider_id": "p_gen_3",
+      "name": "Google Books API (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 244.15,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 490.26,
+        "gen_feat_2": 0.489809,
+        "gen_feat_3": 486.01
+      }
+    },
+    {
+      "id": "t_geocoding_gen_11",
+      "task_id": "t_geocoding",
+      "provider_id": "p_gen_4",
+      "name": "Google Maps Geocoding API (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 303.51,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 492.12,
+        "gen_feat_2": 0.494309,
+        "gen_feat_3": 494.97
+      }
+    },
+    {
+      "id": "t_library_gen_11",
+      "task_id": "t_library",
+      "provider_id": "p_gen_5",
+      "name": "OPAC Library API (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 350.58,
+        "cost_usd": 0.0,
+        "availability": 0.959167,
+        "gen_feat_1": 498.23,
+        "gen_feat_2": 0.509638,
+        "gen_feat_3": 498.57
+      }
+    },
+    {
+      "id": "t_market_gen_11",
+      "task_id": "t_market",
+      "provider_id": "p_google",
+      "name": "Amazon Market API (Gen p_google)",
+      "features": {
+        "latency_ms": 410.35,
+        "cost_usd": 0.0,
+        "availability": 0.981439,
+        "gen_feat_1": 508.91,
+        "gen_feat_2": 0.513284,
+        "gen_feat_3": 504.35
+      }
+    },
+    {
+      "id": "t_transit_gen_11",
+      "task_id": "t_transit",
+      "provider_id": "p_amazon",
+      "name": "Google Transit API (Gen p_amazon)",
+      "features": {
+        "latency_ms": 447.67,
+        "cost_usd": 0.0,
+        "availability": 0.981101,
+        "gen_feat_1": 508.33,
+        "gen_feat_2": 0.502312,
+        "gen_feat_3": 490.82
+      }
+    },
+    {
+      "id": "t_archive_gen_12",
+      "task_id": "t_archive",
+      "provider_id": "p_unimib",
+      "name": "Archive.org API (Gen p_unimib)",
+      "features": {
+        "latency_ms": 498.22,
+        "cost_usd": 0.0,
+        "availability": 0.942858,
+        "gen_feat_1": 489.41,
+        "gen_feat_2": 0.506947,
+        "gen_feat_3": 500.51
+      }
+    },
+    {
+      "id": "t_books_gen_12",
+      "task_id": "t_books",
+      "provider_id": "p_archive",
+      "name": "Google Books API (Gen p_archive)",
+      "features": {
+        "latency_ms": 246.05,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 509.45,
+        "gen_feat_2": 0.49345,
+        "gen_feat_3": 499.02
+      }
+    },
+    {
+      "id": "t_geocoding_gen_12",
+      "task_id": "t_geocoding",
+      "provider_id": "p_local",
+      "name": "Google Maps Geocoding API (Gen p_local)",
+      "features": {
+        "latency_ms": 298.34,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 503.43,
+        "gen_feat_2": 0.514423,
+        "gen_feat_3": 494.59
+      }
+    },
+    {
+      "id": "t_library_gen_12",
+      "task_id": "t_library",
+      "provider_id": "p_gen_1",
+      "name": "OPAC Library API (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 341.02,
+        "cost_usd": 0.0,
+        "availability": 0.966351,
+        "gen_feat_1": 497.76,
+        "gen_feat_2": 0.489784,
+        "gen_feat_3": 510.65
+      }
+    },
+    {
+      "id": "t_market_gen_12",
+      "task_id": "t_market",
+      "provider_id": "p_gen_2",
+      "name": "Amazon Market API (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 411.13,
+        "cost_usd": 0.0,
+        "availability": 0.989619,
+        "gen_feat_1": 507.39,
+        "gen_feat_2": 0.514929,
+        "gen_feat_3": 497.87
+      }
+    },
+    {
+      "id": "t_transit_gen_12",
+      "task_id": "t_transit",
+      "provider_id": "p_gen_3",
+      "name": "Google Transit API (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 442.28,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 510.4,
+        "gen_feat_2": 0.503427,
+        "gen_feat_3": 493.14
+      }
+    },
+    {
+      "id": "t_archive_gen_13",
+      "task_id": "t_archive",
+      "provider_id": "p_gen_4",
+      "name": "Archive.org API (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 500.69,
+        "cost_usd": 0.0,
+        "availability": 0.990712,
+        "gen_feat_1": 494.06,
+        "gen_feat_2": 0.495614,
+        "gen_feat_3": 495.79
+      }
+    },
+    {
+      "id": "t_books_gen_13",
+      "task_id": "t_books",
+      "provider_id": "p_gen_5",
+      "name": "Google Books API (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 242.81,
+        "cost_usd": 0.0,
+        "availability": 0.996551,
+        "gen_feat_1": 501.01,
+        "gen_feat_2": 0.514115,
+        "gen_feat_3": 506.26
+      }
+    },
+    {
+      "id": "t_geocoding_gen_13",
+      "task_id": "t_geocoding",
+      "provider_id": "p_google",
+      "name": "Google Maps Geocoding API (Gen p_google)",
+      "features": {
+        "latency_ms": 298.13,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 495.73,
+        "gen_feat_2": 0.489432,
+        "gen_feat_3": 498.0
+      }
+    },
+    {
+      "id": "t_library_gen_13",
+      "task_id": "t_library",
+      "provider_id": "p_amazon",
+      "name": "OPAC Library API (Gen p_amazon)",
+      "features": {
+        "latency_ms": 357.18,
+        "cost_usd": 0.0,
+        "availability": 0.998491,
+        "gen_feat_1": 511.93,
+        "gen_feat_2": 0.48619,
+        "gen_feat_3": 514.89
+      }
+    },
+    {
+      "id": "t_market_gen_13",
+      "task_id": "t_market",
+      "provider_id": "p_unimib",
+      "name": "Amazon Market API (Gen p_unimib)",
+      "features": {
+        "latency_ms": 393.83,
+        "cost_usd": 0.0,
+        "availability": 0.994855,
+        "gen_feat_1": 501.91,
+        "gen_feat_2": 0.488753,
+        "gen_feat_3": 509.98
+      }
+    },
+    {
+      "id": "t_transit_gen_13",
+      "task_id": "t_transit",
+      "provider_id": "p_archive",
+      "name": "Google Transit API (Gen p_archive)",
+      "features": {
+        "latency_ms": 442.83,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 490.62,
+        "gen_feat_2": 0.501125,
+        "gen_feat_3": 485.43
+      }
+    },
+    {
+      "id": "t_archive_gen_14",
+      "task_id": "t_archive",
+      "provider_id": "p_local",
+      "name": "Archive.org API (Gen p_local)",
+      "features": {
+        "latency_ms": 489.78,
+        "cost_usd": 0.0,
+        "availability": 0.972143,
+        "gen_feat_1": 506.48,
+        "gen_feat_2": 0.503324,
+        "gen_feat_3": 497.5
+      }
+    },
+    {
+      "id": "t_books_gen_14",
+      "task_id": "t_books",
+      "provider_id": "p_gen_1",
+      "name": "Google Books API (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 244.12,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 488.19,
+        "gen_feat_2": 0.490603,
+        "gen_feat_3": 504.97
+      }
+    },
+    {
+      "id": "t_geocoding_gen_14",
+      "task_id": "t_geocoding",
+      "provider_id": "p_gen_2",
+      "name": "Google Maps Geocoding API (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 305.41,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 512.89,
+        "gen_feat_2": 0.511697,
+        "gen_feat_3": 487.74
+      }
+    },
+    {
+      "id": "t_library_gen_14",
+      "task_id": "t_library",
+      "provider_id": "p_gen_3",
+      "name": "OPAC Library API (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 348.88,
+        "cost_usd": 0.0,
+        "availability": 0.983425,
+        "gen_feat_1": 505.82,
+        "gen_feat_2": 0.487073,
+        "gen_feat_3": 503.05
+      }
+    },
+    {
+      "id": "t_market_gen_14",
+      "task_id": "t_market",
+      "provider_id": "p_gen_4",
+      "name": "Amazon Market API (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 399.74,
+        "cost_usd": 0.0,
+        "availability": 0.961085,
+        "gen_feat_1": 508.63,
+        "gen_feat_2": 0.492645,
+        "gen_feat_3": 485.8
+      }
+    },
+    {
+      "id": "t_transit_gen_14",
+      "task_id": "t_transit",
+      "provider_id": "p_gen_5",
+      "name": "Google Transit API (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 452.48,
+        "cost_usd": 0.0,
+        "availability": 0.992727,
+        "gen_feat_1": 512.79,
+        "gen_feat_2": 0.492784,
+        "gen_feat_3": 498.6
+      }
+    },
+    {
+      "id": "t_archive_gen_15",
+      "task_id": "t_archive",
+      "provider_id": "p_google",
+      "name": "Archive.org API (Gen p_google)",
+      "features": {
+        "latency_ms": 498.3,
+        "cost_usd": 0.0,
+        "availability": 0.9551,
+        "gen_feat_1": 505.14,
+        "gen_feat_2": 0.496226,
+        "gen_feat_3": 511.36
+      }
+    },
+    {
+      "id": "t_books_gen_15",
+      "task_id": "t_books",
+      "provider_id": "p_amazon",
+      "name": "Google Books API (Gen p_amazon)",
+      "features": {
+        "latency_ms": 250.03,
+        "cost_usd": 0.0,
+        "availability": 0.992289,
+        "gen_feat_1": 491.2,
+        "gen_feat_2": 0.508401,
+        "gen_feat_3": 502.25
+      }
+    },
+    {
+      "id": "t_geocoding_gen_15",
+      "task_id": "t_geocoding",
+      "provider_id": "p_unimib",
+      "name": "Google Maps Geocoding API (Gen p_unimib)",
+      "features": {
+        "latency_ms": 302.51,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 492.95,
+        "gen_feat_2": 0.499769,
+        "gen_feat_3": 506.39
+      }
+    },
+    {
+      "id": "t_library_gen_15",
+      "task_id": "t_library",
+      "provider_id": "p_archive",
+      "name": "OPAC Library API (Gen p_archive)",
+      "features": {
+        "latency_ms": 351.49,
+        "cost_usd": 0.0,
+        "availability": 0.990308,
+        "gen_feat_1": 496.99,
+        "gen_feat_2": 0.51175,
+        "gen_feat_3": 498.1
+      }
+    },
+    {
+      "id": "t_market_gen_15",
+      "task_id": "t_market",
+      "provider_id": "p_local",
+      "name": "Amazon Market API (Gen p_local)",
+      "features": {
+        "latency_ms": 400.84,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 487.84,
+        "gen_feat_2": 0.498582,
+        "gen_feat_3": 505.43
+      }
+    },
+    {
+      "id": "t_transit_gen_15",
+      "task_id": "t_transit",
+      "provider_id": "p_gen_1",
+      "name": "Google Transit API (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 446.87,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 514.42,
+        "gen_feat_2": 0.498436,
+        "gen_feat_3": 512.02
+      }
+    },
+    {
+      "id": "t_archive_gen_16",
+      "task_id": "t_archive",
+      "provider_id": "p_gen_2",
+      "name": "Archive.org API (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 499.07,
+        "cost_usd": 0.0,
+        "availability": 0.941216,
+        "gen_feat_1": 499.52,
+        "gen_feat_2": 0.513538,
+        "gen_feat_3": 509.34
+      }
+    },
+    {
+      "id": "t_books_gen_16",
+      "task_id": "t_books",
+      "provider_id": "p_gen_3",
+      "name": "Google Books API (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 252.19,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 502.67,
+        "gen_feat_2": 0.514478,
+        "gen_feat_3": 485.52
+      }
+    },
+    {
+      "id": "t_geocoding_gen_16",
+      "task_id": "t_geocoding",
+      "provider_id": "p_gen_4",
+      "name": "Google Maps Geocoding API (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 296.57,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 508.98,
+        "gen_feat_2": 0.510338,
+        "gen_feat_3": 505.47
+      }
+    },
+    {
+      "id": "t_library_gen_16",
+      "task_id": "t_library",
+      "provider_id": "p_gen_5",
+      "name": "OPAC Library API (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 340.37,
+        "cost_usd": 0.0,
+        "availability": 0.997765,
+        "gen_feat_1": 490.71,
+        "gen_feat_2": 0.49556,
+        "gen_feat_3": 496.32
+      }
+    },
+    {
+      "id": "t_market_gen_16",
+      "task_id": "t_market",
+      "provider_id": "p_google",
+      "name": "Amazon Market API (Gen p_google)",
+      "features": {
+        "latency_ms": 402.17,
+        "cost_usd": 0.0,
+        "availability": 0.988339,
+        "gen_feat_1": 507.16,
+        "gen_feat_2": 0.510104,
+        "gen_feat_3": 510.52
+      }
+    },
+    {
+      "id": "t_transit_gen_16",
+      "task_id": "t_transit",
+      "provider_id": "p_amazon",
+      "name": "Google Transit API (Gen p_amazon)",
+      "features": {
+        "latency_ms": 460.67,
+        "cost_usd": 0.0,
+        "availability": 0.986271,
+        "gen_feat_1": 510.91,
+        "gen_feat_2": 0.514415,
+        "gen_feat_3": 505.0
+      }
+    },
+    {
+      "id": "t_archive_gen_17",
+      "task_id": "t_archive",
+      "provider_id": "p_unimib",
+      "name": "Archive.org API (Gen p_unimib)",
+      "features": {
+        "latency_ms": 494.13,
+        "cost_usd": 0.0,
+        "availability": 0.98922,
+        "gen_feat_1": 489.74,
+        "gen_feat_2": 0.487627,
+        "gen_feat_3": 494.31
+      }
+    },
+    {
+      "id": "t_books_gen_17",
+      "task_id": "t_books",
+      "provider_id": "p_archive",
+      "name": "Google Books API (Gen p_archive)",
+      "features": {
+        "latency_ms": 253.97,
+        "cost_usd": 0.0,
+        "availability": 0.978471,
+        "gen_feat_1": 506.36,
+        "gen_feat_2": 0.502386,
+        "gen_feat_3": 508.92
+      }
+    },
+    {
+      "id": "t_geocoding_gen_17",
+      "task_id": "t_geocoding",
+      "provider_id": "p_local",
+      "name": "Google Maps Geocoding API (Gen p_local)",
+      "features": {
+        "latency_ms": 293.01,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 490.22,
+        "gen_feat_2": 0.490263,
+        "gen_feat_3": 487.28
+      }
+    },
+    {
+      "id": "t_library_gen_17",
+      "task_id": "t_library",
+      "provider_id": "p_gen_1",
+      "name": "OPAC Library API (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 360.41,
+        "cost_usd": 0.0,
+        "availability": 0.963085,
+        "gen_feat_1": 498.39,
+        "gen_feat_2": 0.507309,
+        "gen_feat_3": 500.97
+      }
+    },
+    {
+      "id": "t_market_gen_17",
+      "task_id": "t_market",
+      "provider_id": "p_gen_2",
+      "name": "Amazon Market API (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 391.34,
+        "cost_usd": 0.0,
+        "availability": 0.977601,
+        "gen_feat_1": 512.08,
+        "gen_feat_2": 0.507459,
+        "gen_feat_3": 493.66
+      }
+    },
+    {
+      "id": "t_transit_gen_17",
+      "task_id": "t_transit",
+      "provider_id": "p_gen_3",
+      "name": "Google Transit API (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 456.09,
+        "cost_usd": 0.0,
+        "availability": 0.974062,
+        "gen_feat_1": 485.07,
+        "gen_feat_2": 0.512164,
+        "gen_feat_3": 502.07
+      }
+    },
+    {
+      "id": "t_archive_gen_18",
+      "task_id": "t_archive",
+      "provider_id": "p_gen_4",
+      "name": "Archive.org API (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 514.54,
+        "cost_usd": 0.0,
+        "availability": 0.990269,
+        "gen_feat_1": 493.86,
+        "gen_feat_2": 0.492328,
+        "gen_feat_3": 500.81
+      }
+    },
+    {
+      "id": "t_books_gen_18",
+      "task_id": "t_books",
+      "provider_id": "p_gen_5",
+      "name": "Google Books API (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 247.12,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 510.27,
+        "gen_feat_2": 0.49525,
+        "gen_feat_3": 490.14
+      }
+    },
+    {
+      "id": "t_geocoding_gen_18",
+      "task_id": "t_geocoding",
+      "provider_id": "p_google",
+      "name": "Google Maps Geocoding API (Gen p_google)",
+      "features": {
+        "latency_ms": 305.79,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 513.11,
+        "gen_feat_2": 0.509321,
+        "gen_feat_3": 505.53
+      }
+    },
+    {
+      "id": "t_library_gen_18",
+      "task_id": "t_library",
+      "provider_id": "p_amazon",
+      "name": "OPAC Library API (Gen p_amazon)",
+      "features": {
+        "latency_ms": 359.92,
+        "cost_usd": 0.0,
+        "availability": 0.988477,
+        "gen_feat_1": 486.84,
+        "gen_feat_2": 0.506086,
+        "gen_feat_3": 491.81
+      }
+    },
+    {
+      "id": "t_market_gen_18",
+      "task_id": "t_market",
+      "provider_id": "p_unimib",
+      "name": "Amazon Market API (Gen p_unimib)",
+      "features": {
+        "latency_ms": 396.22,
+        "cost_usd": 0.0,
+        "availability": 0.995237,
+        "gen_feat_1": 493.65,
+        "gen_feat_2": 0.500636,
+        "gen_feat_3": 503.98
+      }
+    },
+    {
+      "id": "t_transit_gen_18",
+      "task_id": "t_transit",
+      "provider_id": "p_archive",
+      "name": "Google Transit API (Gen p_archive)",
+      "features": {
+        "latency_ms": 462.39,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 501.67,
+        "gen_feat_2": 0.491163,
+        "gen_feat_3": 499.03
+      }
+    },
+    {
+      "id": "t_archive_gen_19",
+      "task_id": "t_archive",
+      "provider_id": "p_local",
+      "name": "Archive.org API (Gen p_local)",
+      "features": {
+        "latency_ms": 502.18,
+        "cost_usd": 0.0,
+        "availability": 0.968706,
+        "gen_feat_1": 495.6,
+        "gen_feat_2": 0.498742,
+        "gen_feat_3": 506.41
+      }
+    },
+    {
+      "id": "t_books_gen_19",
+      "task_id": "t_books",
+      "provider_id": "p_gen_1",
+      "name": "Google Books API (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 255.45,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 499.08,
+        "gen_feat_2": 0.494606,
+        "gen_feat_3": 487.22
+      }
+    },
+    {
+      "id": "t_geocoding_gen_19",
+      "task_id": "t_geocoding",
+      "provider_id": "p_gen_2",
+      "name": "Google Maps Geocoding API (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 298.71,
+        "cost_usd": 0.0,
+        "availability": 0.984595,
+        "gen_feat_1": 506.0,
+        "gen_feat_2": 0.489207,
+        "gen_feat_3": 487.17
+      }
+    },
+    {
+      "id": "t_library_gen_19",
+      "task_id": "t_library",
+      "provider_id": "p_gen_3",
+      "name": "OPAC Library API (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 349.04,
+        "cost_usd": 0.0,
+        "availability": 0.955429,
+        "gen_feat_1": 501.13,
+        "gen_feat_2": 0.493267,
+        "gen_feat_3": 496.62
+      }
+    },
+    {
+      "id": "t_market_gen_19",
+      "task_id": "t_market",
+      "provider_id": "p_gen_4",
+      "name": "Amazon Market API (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 410.9,
+        "cost_usd": 0.0,
+        "availability": 0.993379,
+        "gen_feat_1": 490.28,
+        "gen_feat_2": 0.501509,
+        "gen_feat_3": 502.21
+      }
+    },
+    {
+      "id": "t_transit_gen_19",
+      "task_id": "t_transit",
+      "provider_id": "p_gen_5",
+      "name": "Google Transit API (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 454.36,
+        "cost_usd": 0.0,
+        "availability": 1.0,
+        "gen_feat_1": 501.65,
+        "gen_feat_2": 0.495803,
+        "gen_feat_3": 486.73
+      }
+    },
+    {
+      "id": "t_archive_gen_20",
+      "task_id": "t_archive",
+      "provider_id": "p_google",
+      "name": "Archive.org API (Gen p_google)",
+      "features": {
+        "latency_ms": 491.89,
+        "cost_usd": 0.0,
+        "availability": 0.954168,
+        "gen_feat_1": 501.03,
+        "gen_feat_2": 0.488921,
+        "gen_feat_3": 509.7
+      }
+    },
+    {
+      "id": "t_books_gen_20",
+      "task_id": "t_books",
+      "provider_id": "p_amazon",
+      "name": "Google Books API (Gen p_amazon)",
+      "features": {
+        "latency_ms": 250.48,
+        "cost_usd": 0.0,
+        "availability": 0.985935,
+        "gen_feat_1": 512.77,
+        "gen_feat_2": 0.511517,
+        "gen_feat_3": 488.9
+      }
+    },
+    {
+      "id": "t_geocoding_gen_20",
+      "task_id": "t_geocoding",
+      "provider_id": "p_unimib",
+      "name": "Google Maps Geocoding API (Gen p_unimib)",
+      "features": {
+        "latency_ms": 306.49,
+        "cost_usd": 0.0,
+        "availability": 0.967642,
+        "gen_feat_1": 498.42,
+        "gen_feat_2": 0.486838,
+        "gen_feat_3": 488.05
+      }
+    },
+    {
+      "id": "t_library_gen_20",
+      "task_id": "t_library",
+      "provider_id": "p_archive",
+      "name": "OPAC Library API (Gen p_archive)",
+      "features": {
+        "latency_ms": 344.14,
+        "cost_usd": 0.0,
+        "availability": 0.984042,
+        "gen_feat_1": 501.45,
+        "gen_feat_2": 0.506524,
+        "gen_feat_3": 498.32
+      }
+    },
+    {
+      "id": "t_market_gen_20",
+      "task_id": "t_market",
+      "provider_id": "p_local",
+      "name": "Amazon Market API (Gen p_local)",
+      "features": {
+        "latency_ms": 397.23,
+        "cost_usd": 0.0,
+        "availability": 0.960406,
+        "gen_feat_1": 507.18,
+        "gen_feat_2": 0.499712,
+        "gen_feat_3": 501.21
+      }
+    },
+    {
+      "id": "t_transit_gen_20",
+      "task_id": "t_transit",
+      "provider_id": "p_gen_1",
+      "name": "Google Transit API (Gen p_gen_1)",
+      "features": {
+        "latency_ms": 461.75,
+        "cost_usd": 0.0,
+        "availability": 0.979177,
+        "gen_feat_1": 486.25,
+        "gen_feat_2": 0.508921,
+        "gen_feat_3": 501.24
+      }
+    },
+    {
+      "id": "t_archive_gen_21",
+      "task_id": "t_archive",
+      "provider_id": "p_gen_2",
+      "name": "Archive.org API (Gen p_gen_2)",
+      "features": {
+        "latency_ms": 493.26,
+        "cost_usd": 0.0,
+        "availability": 0.989168,
+        "gen_feat_1": 509.91,
+        "gen_feat_2": 0.491803,
+        "gen_feat_3": 494.52
+      }
+    },
+    {
+      "id": "t_books_gen_21",
+      "task_id": "t_books",
+      "provider_id": "p_gen_3",
+      "name": "Google Books API (Gen p_gen_3)",
+      "features": {
+        "latency_ms": 254.37,
+        "cost_usd": 0.0,
+        "availability": 0.980876,
+        "gen_feat_1": 494.31,
+        "gen_feat_2": 0.512423,
+        "gen_feat_3": 487.61
+      }
+    },
+    {
+      "id": "t_geocoding_gen_21",
+      "task_id": "t_geocoding",
+      "provider_id": "p_gen_4",
+      "name": "Google Maps Geocoding API (Gen p_gen_4)",
+      "features": {
+        "latency_ms": 303.51,
+        "cost_usd": 0.0,
+        "availability": 0.976634,
+        "gen_feat_1": 501.03,
+        "gen_feat_2": 0.494573,
+        "gen_feat_3": 500.47
+      }
+    },
+    {
+      "id": "t_library_gen_21",
+      "task_id": "t_library",
+      "provider_id": "p_gen_5",
+      "name": "OPAC Library API (Gen p_gen_5)",
+      "features": {
+        "latency_ms": 350.76,
+        "cost_usd": 0.0,
+        "availability": 0.987565,
+        "gen_feat_1": 501.69,
+        "gen_feat_2": 0.494498,
+        "gen_feat_3": 497.28
       }
     }
   ],
@@ -586,31 +2154,21 @@
       "hard": false
     },
     {
-      "id": "gen_c_local_t_market_availability_1",
+      "id": "gen_c_local_t_market_gen_feat_1_1",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
         "t_market"
       ],
-      "attribute_id": "availability",
-      "op": ">=",
-      "value": 0.98,
+      "attribute_id": "gen_feat_1",
+      "op": "<=",
+      "value": 503.37,
       "hard": false
     },
     {
       "id": "gen_c_dep_same_1",
       "kind": "DEPENDENCY",
       "type": "SAME_PROVIDER",
-      "tasks": [
-        "t_books",
-        "t_geocoding"
-      ],
-      "hard": false
-    },
-    {
-      "id": "gen_c_dep_diff_1",
-      "kind": "DEPENDENCY",
-      "type": "DIFFERENT_PROVIDER",
       "tasks": [
         "t_archive",
         "t_books"

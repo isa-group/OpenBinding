@@ -1,12 +1,25 @@
 import asyncio
 import httpx
+import json
 from typing import Optional, Any
 from ..registry.engine import EngineRegistry
 from ..models.api import SolveRequest, SolveResponse
 from ..models.api import JobResponse, JobStatus, Feasibility
 from ..jobs import JobManager
 
+MAX_ENGINE_PAYLOAD_BYTES = 512 * 1024 * 1024
+PAYLOAD_TOO_LARGE_MESSAGE = (
+    f"Request body is too large. Maximum allowed size is {MAX_ENGINE_PAYLOAD_BYTES} bytes."
+)
+
+
+class PayloadTooLargeError(RuntimeError):
+    pass
+
 class Router:
+    def _payload_size_bytes(self, payload: Any) -> int:
+        return len(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+
     def _is_exact_engine(self, engine_id: str) -> bool:
         try:
             plugin = EngineRegistry.get_plugin(engine_id)
@@ -45,6 +58,9 @@ class Router:
             try:
                 # Apply Plugin Transformation
                 payload, plugin_warnings = plugin.transform_request(request.instance, request.options)
+
+                if self._payload_size_bytes(payload) > MAX_ENGINE_PAYLOAD_BYTES:
+                    raise PayloadTooLargeError(PAYLOAD_TOO_LARGE_MESSAGE)
                 
                 # Merge warnings
                 all_warnings = all_warnings + (plugin_warnings or [])
@@ -128,6 +144,9 @@ class Router:
                 )
                 
             except httpx.HTTPStatusError as e:
+                if e.response.status_code == 413:
+                    raise PayloadTooLargeError(PAYLOAD_TOO_LARGE_MESSAGE)
+
                 # Handle 422 from Random Search as No Solution
                 if e.response.status_code == 422:
                      try:

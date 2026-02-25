@@ -3,7 +3,7 @@
     "id": "netedu2020-transport-agency_multi_hard",
     "name": "Transport Agency case study (Netedu et al. 2020) [multi, hard]",
     "version": "1.0.0",
-    "created_at": "2026-02-25T12:18:12Z",
+    "created_at": "2026-02-25T15:19:08Z",
     "description": "Models the running example from 'A Web Service Composition Method Based on OpenAPI Semantic Annotations' (Netedu et al., 2020), Sect. 5 Case Study: A Transport Agency. QoS values are not provided in the paper; a minimal 'cost' feature is added for schema compliance.",
     "paper": {
       "title": "A Web Service Composition Method Based on OpenAPI Semantic Annotations",
@@ -18,7 +18,6 @@
         "random-search": "VALIDATION_ERROR"
       },
       "hard_feasible_witness_found": true,
-      "hard_feasible_witness_attempts": 1,
       "hard_constraints_from_unconstrained_fallback": false
     }
   },
@@ -270,10 +269,10 @@
       }
     },
     {
-      "id": "t_get_country_from_location_gen_2",
-      "task_id": "t_get_country_from_location",
+      "id": "t_get_closest_city_gen_2",
+      "task_id": "t_get_closest_city",
       "provider_id": "p_transport_agency",
-      "name": "getCountryFromLocation (Gen p_transport_agency)",
+      "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
         "cost": 0.98,
         "gen_feat_1": 487.4,
@@ -282,10 +281,10 @@
       }
     },
     {
-      "id": "t_get_transport_company_gen_2",
-      "task_id": "t_get_transport_company",
+      "id": "t_get_country_from_location_gen_2",
+      "task_id": "t_get_country_from_location",
       "provider_id": "p_gen_1",
-      "name": "getTransportCompany (Gen p_gen_1)",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
         "cost": 1.01,
         "gen_feat_1": 514.83,
@@ -294,10 +293,10 @@
       }
     },
     {
-      "id": "t_get_closest_city_gen_2",
-      "task_id": "t_get_closest_city",
+      "id": "t_get_local_subsidiary_gen_2",
+      "task_id": "t_get_local_subsidiary",
       "provider_id": "p_gen_2",
-      "name": "getClosestCity (Gen p_gen_2)",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
         "cost": 0.98,
         "gen_feat_1": 504.84,
@@ -306,10 +305,10 @@
       }
     },
     {
-      "id": "t_get_local_subsidiary_gen_2",
-      "task_id": "t_get_local_subsidiary",
+      "id": "t_get_transport_company_gen_2",
+      "task_id": "t_get_transport_company",
       "provider_id": "p_gen_3",
-      "name": "getLocalSubsidiary (Gen p_gen_3)",
+      "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
         "cost": 0.98,
         "gen_feat_1": 513.58,
@@ -339,6 +338,1350 @@
         "gen_feat_1": 507.26,
         "gen_feat_2": 0.491882,
         "gen_feat_3": 494.46
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_3",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 506.26,
+        "gen_feat_2": 0.510131,
+        "gen_feat_3": 505.7
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_3",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 486.8,
+        "gen_feat_2": 0.510302,
+        "gen_feat_3": 507.54
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_3",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 505.78,
+        "gen_feat_2": 0.498526,
+        "gen_feat_3": 487.5
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_3",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 510.84,
+        "gen_feat_2": 0.506966,
+        "gen_feat_3": 501.9
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_3",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 503.48,
+        "gen_feat_2": 0.500194,
+        "gen_feat_3": 504.85
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_3",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 493.49,
+        "gen_feat_2": 0.491039,
+        "gen_feat_3": 486.86
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_4",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 499.16,
+        "gen_feat_2": 0.495989,
+        "gen_feat_3": 512.41
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_4",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 502.63,
+        "gen_feat_2": 0.506883,
+        "gen_feat_3": 507.66
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_4",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 491.72,
+        "gen_feat_2": 0.493913,
+        "gen_feat_3": 499.04
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_4",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 511.11,
+        "gen_feat_2": 0.49489,
+        "gen_feat_3": 489.97
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_4",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 493.13,
+        "gen_feat_2": 0.514837,
+        "gen_feat_3": 502.45
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_4",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 513.16,
+        "gen_feat_2": 0.510642,
+        "gen_feat_3": 497.88
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_5",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 493.82,
+        "gen_feat_2": 0.509042,
+        "gen_feat_3": 492.58
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_5",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 485.83,
+        "gen_feat_2": 0.508367,
+        "gen_feat_3": 502.67
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_5",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 510.35,
+        "gen_feat_2": 0.507866,
+        "gen_feat_3": 485.56
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_5",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 506.43,
+        "gen_feat_2": 0.485825,
+        "gen_feat_3": 496.36
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_5",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 511.75,
+        "gen_feat_2": 0.497873,
+        "gen_feat_3": 487.86
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_5",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 489.25,
+        "gen_feat_2": 0.493981,
+        "gen_feat_3": 498.93
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_6",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 513.51,
+        "gen_feat_2": 0.496631,
+        "gen_feat_3": 501.62
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_6",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 493.1,
+        "gen_feat_2": 0.495292,
+        "gen_feat_3": 510.66
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_6",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 490.37,
+        "gen_feat_2": 0.513325,
+        "gen_feat_3": 498.92
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_6",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 502.56,
+        "gen_feat_2": 0.499451,
+        "gen_feat_3": 508.64
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_6",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 497.52,
+        "gen_feat_2": 0.505343,
+        "gen_feat_3": 497.93
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_6",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 0.97,
+        "gen_feat_1": 508.83,
+        "gen_feat_2": 0.505122,
+        "gen_feat_3": 493.09
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_7",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 498.4,
+        "gen_feat_2": 0.51387,
+        "gen_feat_3": 507.57
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_7",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 500.29,
+        "gen_feat_2": 0.501427,
+        "gen_feat_3": 499.52
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_7",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 489.79,
+        "gen_feat_2": 0.496462,
+        "gen_feat_3": 494.94
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_7",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 487.88,
+        "gen_feat_2": 0.493816,
+        "gen_feat_3": 501.37
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_7",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 498.07,
+        "gen_feat_2": 0.509826,
+        "gen_feat_3": 513.13
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_7",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 1.03,
+        "gen_feat_1": 503.58,
+        "gen_feat_2": 0.508911,
+        "gen_feat_3": 508.66
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_8",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 510.19,
+        "gen_feat_2": 0.504186,
+        "gen_feat_3": 511.03
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_8",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 503.59,
+        "gen_feat_2": 0.488626,
+        "gen_feat_3": 505.75
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_8",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 503.39,
+        "gen_feat_2": 0.487699,
+        "gen_feat_3": 511.79
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_8",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 512.8,
+        "gen_feat_2": 0.503185,
+        "gen_feat_3": 496.01
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_8",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 492.14,
+        "gen_feat_2": 0.488787,
+        "gen_feat_3": 502.39
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_8",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 494.15,
+        "gen_feat_2": 0.501903,
+        "gen_feat_3": 504.55
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_9",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 514.81,
+        "gen_feat_2": 0.488585,
+        "gen_feat_3": 512.39
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_9",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 497.66,
+        "gen_feat_2": 0.486683,
+        "gen_feat_3": 493.46
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_9",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 513.24,
+        "gen_feat_2": 0.493676,
+        "gen_feat_3": 494.85
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_9",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 500.78,
+        "gen_feat_2": 0.513493,
+        "gen_feat_3": 496.34
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_9",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 513.6,
+        "gen_feat_2": 0.503479,
+        "gen_feat_3": 494.88
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_9",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 510.22,
+        "gen_feat_2": 0.498065,
+        "gen_feat_3": 500.63
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_10",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 486.77,
+        "gen_feat_2": 0.489326,
+        "gen_feat_3": 507.7
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_10",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 513.98,
+        "gen_feat_2": 0.500477,
+        "gen_feat_3": 509.78
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_10",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 485.17,
+        "gen_feat_2": 0.500767,
+        "gen_feat_3": 486.6
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_10",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 1.03,
+        "gen_feat_1": 490.48,
+        "gen_feat_2": 0.505158,
+        "gen_feat_3": 505.25
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_10",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 491.16,
+        "gen_feat_2": 0.486032,
+        "gen_feat_3": 509.57
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_10",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 496.63,
+        "gen_feat_2": 0.509624,
+        "gen_feat_3": 496.87
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_11",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 512.73,
+        "gen_feat_2": 0.488821,
+        "gen_feat_3": 508.53
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_11",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 498.85,
+        "gen_feat_2": 0.499704,
+        "gen_feat_3": 508.28
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_11",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 0.97,
+        "gen_feat_1": 508.95,
+        "gen_feat_2": 0.489493,
+        "gen_feat_3": 497.44
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_11",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 500.48,
+        "gen_feat_2": 0.504253,
+        "gen_feat_3": 497.42
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_11",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 0.97,
+        "gen_feat_1": 499.13,
+        "gen_feat_2": 0.508674,
+        "gen_feat_3": 508.35
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_11",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 510.58,
+        "gen_feat_2": 0.494516,
+        "gen_feat_3": 490.77
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_12",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 488.77,
+        "gen_feat_2": 0.49366,
+        "gen_feat_3": 505.73
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_12",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 508.51,
+        "gen_feat_2": 0.501041,
+        "gen_feat_3": 514.6
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_12",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 508.13,
+        "gen_feat_2": 0.509104,
+        "gen_feat_3": 494.59
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_12",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 493.59,
+        "gen_feat_2": 0.485843,
+        "gen_feat_3": 508.8
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_12",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 502.71,
+        "gen_feat_2": 0.504945,
+        "gen_feat_3": 513.46
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_12",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 497.06,
+        "gen_feat_2": 0.512886,
+        "gen_feat_3": 497.51
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_13",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 513.46,
+        "gen_feat_2": 0.500723,
+        "gen_feat_3": 501.8
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_13",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 0.97,
+        "gen_feat_1": 501.79,
+        "gen_feat_2": 0.500158,
+        "gen_feat_3": 500.89
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_13",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 492.92,
+        "gen_feat_2": 0.497718,
+        "gen_feat_3": 506.35
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_13",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 0.97,
+        "gen_feat_1": 511.51,
+        "gen_feat_2": 0.511025,
+        "gen_feat_3": 490.69
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_13",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 499.2,
+        "gen_feat_2": 0.508206,
+        "gen_feat_3": 501.07
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_13",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 498.51,
+        "gen_feat_2": 0.496857,
+        "gen_feat_3": 507.17
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_14",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 501.01,
+        "gen_feat_2": 0.492277,
+        "gen_feat_3": 497.24
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_14",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 509.5,
+        "gen_feat_2": 0.507879,
+        "gen_feat_3": 505.22
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_14",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 0.97,
+        "gen_feat_1": 502.32,
+        "gen_feat_2": 0.494188,
+        "gen_feat_3": 511.73
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_14",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 510.92,
+        "gen_feat_2": 0.489375,
+        "gen_feat_3": 486.68
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_14",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 496.79,
+        "gen_feat_2": 0.498835,
+        "gen_feat_3": 509.02
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_14",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 487.21,
+        "gen_feat_2": 0.487213,
+        "gen_feat_3": 502.39
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_15",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 514.96,
+        "gen_feat_2": 0.489112,
+        "gen_feat_3": 506.15
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_15",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 496.48,
+        "gen_feat_2": 0.513266,
+        "gen_feat_3": 503.99
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_15",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 513.41,
+        "gen_feat_2": 0.503632,
+        "gen_feat_3": 504.93
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_15",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 498.59,
+        "gen_feat_2": 0.496426,
+        "gen_feat_3": 485.84
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_15",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 0.97,
+        "gen_feat_1": 503.52,
+        "gen_feat_2": 0.497684,
+        "gen_feat_3": 496.1
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_15",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 487.32,
+        "gen_feat_2": 0.493395,
+        "gen_feat_3": 503.3
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_16",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 492.64,
+        "gen_feat_2": 0.509564,
+        "gen_feat_3": 510.81
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_16",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 502.39,
+        "gen_feat_2": 0.505374,
+        "gen_feat_3": 489.28
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_16",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 513.61,
+        "gen_feat_2": 0.505365,
+        "gen_feat_3": 513.96
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_16",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 513.1,
+        "gen_feat_2": 0.495957,
+        "gen_feat_3": 498.55
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_16",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 502.45,
+        "gen_feat_2": 0.486044,
+        "gen_feat_3": 489.01
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_16",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 493.03,
+        "gen_feat_2": 0.485355,
+        "gen_feat_3": 499.2
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_17",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 502.31,
+        "gen_feat_2": 0.513504,
+        "gen_feat_3": 486.62
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_17",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 509.24,
+        "gen_feat_2": 0.495334,
+        "gen_feat_3": 489.1
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_17",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 502.86,
+        "gen_feat_2": 0.50226,
+        "gen_feat_3": 493.5
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_17",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 500.87,
+        "gen_feat_2": 0.486062,
+        "gen_feat_3": 508.94
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_17",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 0.97,
+        "gen_feat_1": 503.91,
+        "gen_feat_2": 0.495887,
+        "gen_feat_3": 489.89
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_17",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 510.35,
+        "gen_feat_2": 0.504259,
+        "gen_feat_3": 510.15
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_18",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 507.07,
+        "gen_feat_2": 0.505397,
+        "gen_feat_3": 485.46
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_18",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 488.87,
+        "gen_feat_2": 0.493457,
+        "gen_feat_3": 497.85
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_18",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 514.38,
+        "gen_feat_2": 0.485126,
+        "gen_feat_3": 510.03
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_18",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 0.99,
+        "gen_feat_1": 496.74,
+        "gen_feat_2": 0.49673,
+        "gen_feat_3": 493.58
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_18",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 1.02,
+        "gen_feat_1": 492.05,
+        "gen_feat_2": 0.505046,
+        "gen_feat_3": 511.3
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_18",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 485.66,
+        "gen_feat_2": 0.507533,
+        "gen_feat_3": 513.48
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_19",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 493.21,
+        "gen_feat_2": 0.507786,
+        "gen_feat_3": 489.41
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_19",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 485.12,
+        "gen_feat_2": 0.486918,
+        "gen_feat_3": 491.45
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_19",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 503.66,
+        "gen_feat_2": 0.495024,
+        "gen_feat_3": 496.07
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_19",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 1.03,
+        "gen_feat_1": 506.64,
+        "gen_feat_2": 0.506535,
+        "gen_feat_3": 488.63
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_19",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 502.96,
+        "gen_feat_2": 0.514598,
+        "gen_feat_3": 506.55
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_19",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 1.03,
+        "gen_feat_1": 507.45,
+        "gen_feat_2": 0.492323,
+        "gen_feat_3": 510.85
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_20",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 493.26,
+        "gen_feat_2": 0.506567,
+        "gen_feat_3": 499.02
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_20",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.03,
+        "gen_feat_1": 502.98,
+        "gen_feat_2": 0.508161,
+        "gen_feat_3": 488.85
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_20",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 514.45,
+        "gen_feat_2": 0.502197,
+        "gen_feat_3": 485.43
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_20",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 0.97,
+        "gen_feat_1": 499.37,
+        "gen_feat_2": 0.49849,
+        "gen_feat_3": 512.98
+      }
+    },
+    {
+      "id": "t_get_vehicle_gen_20",
+      "task_id": "t_get_vehicle",
+      "provider_id": "p_gen_4",
+      "name": "getVehicle (Gen p_gen_4)",
+      "features": {
+        "cost": 0.98,
+        "gen_feat_1": 501.14,
+        "gen_feat_2": 0.508529,
+        "gen_feat_3": 506.18
+      }
+    },
+    {
+      "id": "t_make_arrangements_gen_20",
+      "task_id": "t_make_arrangements",
+      "provider_id": "p_gen_5",
+      "name": "makeArrangements (Gen p_gen_5)",
+      "features": {
+        "cost": 1.01,
+        "gen_feat_1": 487.58,
+        "gen_feat_2": 0.494087,
+        "gen_feat_3": 491.56
+      }
+    },
+    {
+      "id": "t_get_closest_city_gen_21",
+      "task_id": "t_get_closest_city",
+      "provider_id": "p_transport_agency",
+      "name": "getClosestCity (Gen p_transport_agency)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 507.88,
+        "gen_feat_2": 0.512349,
+        "gen_feat_3": 505.21
+      }
+    },
+    {
+      "id": "t_get_country_from_location_gen_21",
+      "task_id": "t_get_country_from_location",
+      "provider_id": "p_gen_1",
+      "name": "getCountryFromLocation (Gen p_gen_1)",
+      "features": {
+        "cost": 1.03,
+        "gen_feat_1": 486.2,
+        "gen_feat_2": 0.513433,
+        "gen_feat_3": 508.91
+      }
+    },
+    {
+      "id": "t_get_local_subsidiary_gen_21",
+      "task_id": "t_get_local_subsidiary",
+      "provider_id": "p_gen_2",
+      "name": "getLocalSubsidiary (Gen p_gen_2)",
+      "features": {
+        "cost": 1.0,
+        "gen_feat_1": 494.32,
+        "gen_feat_2": 0.512134,
+        "gen_feat_3": 506.13
+      }
+    },
+    {
+      "id": "t_get_transport_company_gen_21",
+      "task_id": "t_get_transport_company",
+      "provider_id": "p_gen_3",
+      "name": "getTransportCompany (Gen p_gen_3)",
+      "features": {
+        "cost": 1.03,
+        "gen_feat_1": 498.61,
+        "gen_feat_2": 0.500746,
+        "gen_feat_3": 498.44
       }
     }
   ],
@@ -442,19 +1785,19 @@
       "scope": "GLOBAL",
       "attribute_id": "cost",
       "op": "<=",
-      "value": 11.01,
+      "value": 11.04,
       "hard": true
     },
     {
-      "id": "gen_c_local_t_get_closest_city_gen_feat_1_1",
+      "id": "gen_c_local_t_make_arrangements_gen_feat_1_1",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
-        "t_get_closest_city"
+        "t_make_arrangements"
       ],
       "attribute_id": "gen_feat_1",
       "op": "<=",
-      "value": 502.52,
+      "value": 494.65,
       "hard": true
     },
     {
@@ -464,16 +1807,6 @@
       "tasks": [
         "t_get_closest_city",
         "t_get_country_from_location"
-      ],
-      "hard": true
-    },
-    {
-      "id": "gen_c_dep_diff_1",
-      "kind": "DEPENDENCY",
-      "type": "DIFFERENT_PROVIDER",
-      "tasks": [
-        "t_get_closest_city",
-        "t_make_arrangements"
       ],
       "hard": true
     }
