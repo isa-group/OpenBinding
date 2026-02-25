@@ -32,7 +32,12 @@ export interface ValidationError {
 export interface JobStatus {
   job_id: string;
   status: 'queued' | 'running' | 'completed' | 'failed';
-  result?: any;
+  result?: {
+    feasibility?: 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN';
+    solutions?: Array<Record<string, unknown>>;
+    provenance?: Record<string, unknown>;
+    diagnostics?: Record<string, unknown>;
+  };
   error?: string;
 }
 

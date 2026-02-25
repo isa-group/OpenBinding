@@ -23,8 +23,9 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         return {
             "qos_features_supported": ["*"],
             "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
-            "objective_types_supported": ["weighted_sum"],
+            "objective_types_supported": ["MONO"],
             "constraints_supported": ["attribute_bound", "dependency"],
+            "type": "HEURISTIC",
             "schema_version": "v1"
         }
 
@@ -362,7 +363,6 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         objective_value = compute_objective_value(obj, normalized_qos)
 
         # Evaluate constraints for reporting
-        feasible = True
         violations = []
         
         def _check_bound(current: float, op: str, rhs_f: float):
@@ -406,9 +406,6 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
                     current = float((cand.get("features", {}) or {}).get(fid, 0.0))
                     ok, slack = _check_bound(current, op, rhs_f)
                     if not ok:
-                        hard = bool(c.get("hard", True))
-                        if hard:
-                            feasible = False
                         violations.append({
                             "constraint_id": c.get("id"),
                             "slack": float(slack),
@@ -421,9 +418,6 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             ok, slack = _check_bound(current, op, rhs_f)
 
             if not ok:
-                hard = bool(c.get("hard", True))
-                if hard:
-                    feasible = False
                 violations.append({
                     "constraint_id": c.get("id"),
                     "slack": float(slack),
@@ -452,7 +446,6 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         }
 
         new_sol = {
-            "is_feasible": feasible,
             "objective_value": objective_value,
             "binding": selection,
             "aggregated_features": aggregated_qos,

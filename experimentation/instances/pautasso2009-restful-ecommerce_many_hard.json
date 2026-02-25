@@ -3,13 +3,23 @@
     "id": "pautasso2009-restful-ecommerce_many_hard",
     "name": "RESTful e-Commerce scenario (Pautasso 2009) [many, hard]",
     "version": "1.0.0",
-    "created_at": "2026-02-12T08:35:04Z",
+    "created_at": "2026-02-25T12:19:03Z",
     "description": "QoS-aware composition instance derived from the running e-Commerce example in Pautasso (2009) 'BPEL for REST'. QoS numbers are illustrative (the paper specifies the workflow/API but not QoS measurements).",
     "paper": {
       "title": "RESTful Web service composition with BPEL for REST",
       "authors": "C. Pautasso",
       "year": 2009,
       "doi": "10.1016/j.datak.2009.02.016"
+    },
+    "experiments": {
+      "expected_feasibility_by_engine": {
+        "many-heuristic": "ANY_COMPLETED",
+        "minizinc-csp": "VALIDATION_ERROR",
+        "random-search": "VALIDATION_ERROR"
+      },
+      "hard_feasible_witness_found": true,
+      "hard_feasible_witness_attempts": 1,
+      "hard_constraints_from_unconstrained_fallback": true
     }
   },
   "features": [
@@ -985,58 +995,24 @@
   },
   "constraints": [
     {
-      "id": "bind_shop_mono_provider",
-      "kind": "DEPENDENCY",
-      "type": "SAME_PROVIDER",
-      "tasks": [
-        "t_create_order",
-        "t_add_item",
-        "t_remove_item",
-        "t_get_amount",
-        "t_checkout",
-        "t_list_confirmed",
-        "t_ship_order",
-        "t_update_shipment",
-        "t_cancel_order"
-      ]
-    },
-    {
-      "id": "bind_catalog_mono_provider",
-      "kind": "DEPENDENCY",
-      "type": "SAME_PROVIDER",
-      "tasks": [
-        "t_request_quote",
-        "t_get_quote"
-      ]
-    },
-    {
-      "id": "bind_payment_mono_provider",
-      "kind": "DEPENDENCY",
-      "type": "SAME_PROVIDER",
-      "tasks": [
-        "t_charge_payment",
-        "t_refund_payment"
-      ]
-    },
-    {
       "id": "gen_c_global_latency_ms_1",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "GLOBAL",
       "attribute_id": "latency_ms",
       "op": "<=",
-      "value": 2060.44,
+      "value": 1891.14,
       "hard": true
     },
     {
-      "id": "gen_c_local_t_add_item_cost_usd_1",
+      "id": "gen_c_local_t_add_item_latency_ms_1",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
         "t_add_item"
       ],
-      "attribute_id": "cost_usd",
+      "attribute_id": "latency_ms",
       "op": "<=",
-      "value": 0.0,
+      "value": 159.46,
       "hard": true
     },
     {
@@ -1055,7 +1031,7 @@
       "type": "DIFFERENT_PROVIDER",
       "tasks": [
         "t_add_item",
-        "t_charge_payment"
+        "t_refund_payment"
       ],
       "hard": true
     }

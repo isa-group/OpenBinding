@@ -34,6 +34,46 @@ def create_instance(**overrides) -> dict:
         instance[key] = value
     return instance
 
+
+def _extract_solution_data(result: dict):
+    solutions = result.get("solutions", [])
+    feasibility = str(result.get("feasibility") or "UNKNOWN").upper()
+    if not solutions:
+        return feasibility == "FEASIBLE", {}, None
+
+    first = solutions[0]
+    return (
+        feasibility == "FEASIBLE",
+        first.get("binding", {}),
+        first.get("objective_value"),
+    )
+
+
+def _assert_objective_matches(instance: dict, obj: float, expected_objective: float) -> None:
+    if expected_objective is None or obj is None:
+        return
+
+    norm_exp = expected_objective / 1000.0
+
+    vr_max = None
+    feats = instance.get("features", [])
+    if len(feats) == 1:
+        vr = feats[0].get("valid_range") or {}
+        vr_max = vr.get("max")
+    norm_exp_max = expected_objective / vr_max if vr_max else None
+
+    raw_match = abs(obj - expected_objective) < 1e-4
+    norm_match = abs(obj - norm_exp) < 1e-4
+    norm_max_match = norm_exp_max is not None and abs(obj - norm_exp_max) < 1e-4
+
+    if raw_match or norm_match or norm_max_match:
+        return
+
+    expected_msg = f"{expected_objective} (raw) or {norm_exp} (norm)"
+    if norm_exp_max is not None:
+        expected_msg += f" or {norm_exp_max} (max-norm)"
+    pytest.fail(f"Objective mismatch. Got {obj}, expected {expected_msg}")
+
 def run_test(gateway_url, wait_for_job, engine, instance, expected_selection, expected_objective, expect_feasible=True):
     """Run test helper."""
     res = requests.post(f"{gateway_url}/v1/solve", json={
@@ -53,17 +93,7 @@ def run_test(gateway_url, wait_for_job, engine, instance, expected_selection, ex
          pytest.fail(f"Job failed: {job.get('error')}")
 
     result = job.get("result", {})
-    solutions = result.get("solutions", [])
-    
-    if not solutions:
-        feasible = False
-        selection = {}
-        obj = None
-    else:
-        sol = solutions[0]
-        feasible = sol.get("is_feasible", False)
-        selection = sol.get("binding", {})
-        obj = sol.get("objective_value")
+    feasible, selection, obj = _extract_solution_data(result)
     
     assert feasible == expect_feasible
     
@@ -72,33 +102,8 @@ def run_test(gateway_url, wait_for_job, engine, instance, expected_selection, ex
             # Only check expected tasks
             filtered_selection = {k: v for k, v in selection.items() if k in expected_selection}
             assert filtered_selection == expected_selection
-        
-        if expected_objective is not None and obj is not None:
-             # Normalize expected based on observed engine behavior
-             # MiniZinc returns 0.02 for 20 (Factor 1000)
-             # Random Search returns 20.0 for 20 (Factor 1)
-             
-             
-             # Factor 1000 check (legacy behavior)
-             norm_exp = expected_objective / 1000.0
-             
-             # Minizinc can normalize by valid_range max
-             vr_max = None
-             feats = instance.get("features", [])
-             if len(feats) == 1:
-                 vr = feats[0].get("valid_range") or {}
-                 vr_max = vr.get("max")
-             norm_exp_max = expected_objective / vr_max if vr_max else None
-             
-             raw_match = abs(obj - expected_objective) < 1e-4
-             norm_match = abs(obj - norm_exp) < 1e-4
-             norm_max_match = norm_exp_max is not None and abs(obj - norm_exp_max) < 1e-4
-             
-             if not raw_match and not norm_match and not norm_max_match:
-                 expected_msg = f"{expected_objective} (raw) or {norm_exp} (norm)"
-                 if norm_exp_max is not None:
-                     expected_msg += f" or {norm_exp_max} (max-norm)"
-                 pytest.fail(f"Objective mismatch. Got {obj}, expected {expected_msg}")
+
+        _assert_objective_matches(instance, obj, expected_objective)
 
 # --- TESTS ---
 

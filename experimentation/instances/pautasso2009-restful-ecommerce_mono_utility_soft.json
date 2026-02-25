@@ -3,13 +3,20 @@
     "id": "pautasso2009-restful-ecommerce_mono_utility_soft",
     "name": "RESTful e-Commerce scenario (Pautasso 2009) [mono_utility, soft]",
     "version": "1.0.0",
-    "created_at": "2026-02-12T08:35:01Z",
+    "created_at": "2026-02-25T12:18:37Z",
     "description": "QoS-aware composition instance derived from the running e-Commerce example in Pautasso (2009) 'BPEL for REST'. QoS numbers are illustrative (the paper specifies the workflow/API but not QoS measurements).",
     "paper": {
       "title": "RESTful Web service composition with BPEL for REST",
       "authors": "C. Pautasso",
       "year": 2009,
       "doi": "10.1016/j.datak.2009.02.016"
+    },
+    "experiments": {
+      "expected_feasibility_by_engine": {
+        "many-heuristic": "VALIDATION_ERROR",
+        "minizinc-csp": "VALIDATION_ERROR",
+        "random-search": "ANY_COMPLETED"
+      }
     }
   },
   "features": [
@@ -1027,19 +1034,19 @@
       "scope": "GLOBAL",
       "attribute_id": "latency_ms",
       "op": "<=",
-      "value": 2259.82,
+      "value": 2284.82,
       "hard": false
     },
     {
-      "id": "gen_c_local_t_add_item_cost_usd_1",
+      "id": "gen_c_local_t_add_item_latency_ms_1",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
         "t_add_item"
       ],
-      "attribute_id": "cost_usd",
+      "attribute_id": "latency_ms",
       "op": "<=",
-      "value": 0.0,
+      "value": 159.46,
       "hard": false
     },
     {

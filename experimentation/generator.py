@@ -5,7 +5,7 @@ import math
 import random
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Sequence, Set, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 # Configuration (no CLI args; deterministic generation)
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -21,9 +21,12 @@ SCENARIOS = [
     "zhang.json",
 ]
 
-TARGET_BINDING_SPACE = 1_000_000
+TARGET_BINDING_SPACE = 100
 EXTRA_FEATURES_PER_SCENARIO = 3
 EXTRA_PROVIDERS_PER_SCENARIO = 5
+MAX_HARD_VARIANT_RETRIES = 10
+MAX_HARD_ATTRIBUTE_BOUNDS_PER_INSTANCE = 2
+MAX_HARD_DEPENDENCIES_PER_INSTANCE = 2
 
 RANDOM_SEED = 12345
 
@@ -624,7 +627,7 @@ def _find_hard_feasible_binding(instance: Dict[str, Any], rng: random.Random, at
         if _binding_satisfies_hard_constraints(instance, binding):
             return binding
 
-    return fallback
+    return {}
 
 
 def _find_same_provider_tasks(binding: Dict[str, str], instance: Dict[str, Any]) -> List[str]:
@@ -665,6 +668,91 @@ def _pick_attribute_for_constraints(feature_defs: List[Dict[str, Any]]) -> str:
     return feature_defs[0]["id"]
 
 
+def _value_precision(mx: float) -> int:
+    return 6 if mx <= 1.0 else 2
+
+
+def _slack_amount(mn: float, mx: float) -> float:
+    span = max(0.0, mx - mn)
+    if span <= 0.0:
+        return 0.0
+    if span <= 1.0:
+        return max(1e-6, 0.02 * span)
+    return max(0.01, 0.005 * span)
+
+
+def _relaxed_bound(value: float, direction: str, mn: float, mx: float) -> float:
+    delta = _slack_amount(mn, mx)
+    if direction == "MAXIMIZE":
+        return _clamp(value - delta, mn, mx)
+    return _clamp(value + delta, mn, mx)
+
+
+def _pick_local_task_and_attribute(
+    binding: Dict[str, str],
+    instance: Dict[str, Any],
+) -> Tuple[str, str]:
+    by_id = _candidate_lookup(instance)
+    by_task = _candidates_by_task(instance)
+    fmap = _feature_map(instance)
+
+    best_choice: Optional[Tuple[float, str, str]] = None
+    fallback_task = sorted(binding.keys())[0]
+    fallback_attr = sorted(fmap.keys())[0]
+
+    for task_id in sorted(binding.keys()):
+        selected = by_id.get(binding[task_id], {})
+        selected_feats = selected.get("features", {}) or {}
+        task_candidates = by_task.get(task_id, [])
+        if not task_candidates:
+            continue
+
+        for attr in sorted(fmap.keys()):
+            if attr not in selected_feats:
+                continue
+            sval = selected_feats.get(attr)
+            if not isinstance(sval, (int, float)):
+                continue
+
+            fdef = fmap[attr]
+            direction = str(fdef.get("direction", "MINIMIZE"))
+            mn, mx = _range_for_feature(fdef)
+            bound = _relaxed_bound(float(sval), direction, mn, mx)
+
+            sat = 0
+            total = 0
+            for cand in task_candidates:
+                cval = (cand.get("features", {}) or {}).get(attr)
+                if not isinstance(cval, (int, float)):
+                    continue
+                total += 1
+                if direction == "MAXIMIZE":
+                    sat += 1 if float(cval) >= bound else 0
+                else:
+                    sat += 1 if float(cval) <= bound else 0
+
+            if total == 0:
+                continue
+
+            ratio = sat / total
+            if 0.2 <= ratio <= 0.8:
+                score = abs(0.5 - ratio)
+                if best_choice is None or score < best_choice[0]:
+                    best_choice = (score, task_id, attr)
+
+            if task_id == fallback_task and attr == fallback_attr:
+                continue
+            if best_choice is None:
+                score = abs(0.5 - ratio)
+                fallback_task = task_id
+                fallback_attr = attr
+                best_choice = (score + 10.0, task_id, attr)
+
+    if best_choice is not None:
+        return best_choice[1], best_choice[2]
+    return fallback_task, fallback_attr
+
+
 def generate_additional_constraints(
     instance: Dict[str, Any], hard: bool, rng: random.Random
 ) -> List[Dict[str, Any]]:
@@ -696,6 +784,7 @@ def generate_additional_constraints(
     gdir = str(gdef.get("direction", "MINIMIZE"))
     gvalue = float(aggregated.get(global_attr, 0.0))
     gmn, gmx = _range_for_feature(gdef)
+    gbound = _relaxed_bound(gvalue, gdir, gmn, gmx)
     constraints.append(
         {
             "id": _unique_id(f"gen_c_global_{global_attr}_", existing_ids),
@@ -703,20 +792,20 @@ def generate_additional_constraints(
             "scope": "GLOBAL",
             "attribute_id": global_attr,
             "op": "<=" if gdir == "MINIMIZE" else ">=",
-            "value": round(gvalue, 6 if gmx <= 1.0 else 2),
+            "value": round(gbound, _value_precision(gmx)),
             "hard": hard,
         }
     )
 
     # 2) LOCAL ATTRIBUTE_BOUND from witness selected candidate feature.
-    local_task = sorted(binding.keys())[0]
-    local_attr = feature_defs[min(1, len(feature_defs) - 1)]["id"]
+    local_task, local_attr = _pick_local_task_and_attribute(binding, instance)
     ldef = fmap[local_attr]
     ldir = str(ldef.get("direction", "MINIMIZE"))
     selected_cand = by_id.get(binding[local_task], {})
     lraw = float((selected_cand.get("features", {}) or {}).get(local_attr, 0.0))
     lmn, lmx = _range_for_feature(ldef)
     lvalue = _clamp(lraw, lmn, lmx) if lmn <= lmx else lraw
+    lbound = _relaxed_bound(lvalue, ldir, lmn, lmx)
     constraints.append(
         {
             "id": _unique_id(f"gen_c_local_{local_task}_{local_attr}_", existing_ids),
@@ -725,7 +814,7 @@ def generate_additional_constraints(
             "tasks": [local_task],
             "attribute_id": local_attr,
             "op": "<=" if ldir == "MINIMIZE" else ">=",
-            "value": round(lvalue, 6 if lmx <= 1.0 else 2),
+            "value": round(lbound, _value_precision(lmx)),
             "hard": hard,
         }
     )
@@ -757,6 +846,58 @@ def generate_additional_constraints(
         )
 
     return constraints
+
+
+def _constraint_kind_family(constraint: Dict[str, Any]) -> str:
+    kind = str(constraint.get("kind", "")).upper()
+    if kind == "ATTRIBUTE_BOUND":
+        return "attribute_bound"
+    if kind == "DEPENDENCY":
+        return "dependency"
+    return "other"
+
+
+def _count_constraints_by_family(constraints: Sequence[Dict[str, Any]]) -> Dict[str, int]:
+    counts = {"attribute_bound": 0, "dependency": 0, "other": 0}
+    for constraint in constraints:
+        family = _constraint_kind_family(constraint)
+        counts[family] = counts.get(family, 0) + 1
+    return counts
+
+
+def _select_additional_constraints_for_hard_variant(
+    base_constraints: Sequence[Dict[str, Any]],
+    generated_constraints: Sequence[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Select generated constraints so hard variants stay within configured caps.
+
+    Base constraints are preserved as-is. Caps apply to how many *new* constraints
+    are accepted for each family, based on remaining slots after base constraints.
+    """
+
+    base_counts = _count_constraints_by_family(base_constraints)
+    max_by_family = {
+        "attribute_bound": MAX_HARD_ATTRIBUTE_BOUNDS_PER_INSTANCE,
+        "dependency": MAX_HARD_DEPENDENCIES_PER_INSTANCE,
+    }
+    remaining_slots = {
+        family: max(0, max_allowed - base_counts.get(family, 0))
+        for family, max_allowed in max_by_family.items()
+    }
+
+    selected: List[Dict[str, Any]] = []
+    selected_counts = {"attribute_bound": 0, "dependency": 0}
+
+    for constraint in generated_constraints:
+        family = _constraint_kind_family(constraint)
+        if family not in remaining_slots:
+            continue
+        if selected_counts[family] >= remaining_slots[family]:
+            continue
+        selected.append(copy.deepcopy(constraint))
+        selected_counts[family] += 1
+
+    return selected
 
 def _normalize_weights_2dp_sum1(targets: List[str], raw_weights: Dict[str, float]) -> Dict[str, float]:
     if not targets: return {}
@@ -831,6 +972,43 @@ def _objective_many(all_features: List[str]) -> Dict[str, Any]:
     }
 
 
+def _expected_behavior_by_engine(objective_type: str, hard_constraints: bool) -> Dict[str, str]:
+    objective = str(objective_type).upper()
+
+    if objective == "MANY":
+        return {
+            "many-heuristic": "ANY_COMPLETED",
+            "minizinc-csp": "VALIDATION_ERROR",
+            "random-search": "VALIDATION_ERROR",
+        }
+
+    if objective == "MONO":
+        if hard_constraints:
+            return {
+                "many-heuristic": "VALIDATION_ERROR",
+                "minizinc-csp": "FEASIBLE",
+                "random-search": "ANY_COMPLETED",
+            }
+        return {
+            "many-heuristic": "VALIDATION_ERROR",
+            "minizinc-csp": "VALIDATION_ERROR",
+            "random-search": "ANY_COMPLETED",
+        }
+
+    if objective == "MULTI":
+        return {
+            "many-heuristic": "VALIDATION_ERROR",
+            "minizinc-csp": "VALIDATION_ERROR",
+            "random-search": "VALIDATION_ERROR",
+        }
+
+    return {
+        "many-heuristic": "VALIDATION_ERROR",
+        "minizinc-csp": "VALIDATION_ERROR",
+        "random-search": "VALIDATION_ERROR",
+    }
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -869,15 +1047,93 @@ def build_variant(
     inst = copy.deepcopy(base_scaled)
     inst["objective"] = objective
 
-    # Add additional constraints (hard first); then soften if needed.
-    rng = random.Random(_seed_for(base_scaled["metadata"]["id"], variant_suffix, "constraints"))
-    additional = generate_additional_constraints(inst, hard=True, rng=rng)
-    inst_constraints = list(inst.get("constraints", [])) + additional
+    base_constraints = list(inst.get("constraints", []))
+    objective_type = str((objective or {}).get("type", "")).upper()
+    certification_attempts: Optional[int] = None
+    used_unconstrained_fallback = False
 
     if hard_constraints:
-        inst["constraints"] = inst_constraints
+        hardened: List[Dict[str, Any]] = []
+        for attempt in range(1, MAX_HARD_VARIANT_RETRIES + 1):
+            rng = random.Random(
+                _seed_for(base_scaled["metadata"]["id"], variant_suffix, "constraints", str(attempt))
+            )
+            additional = generate_additional_constraints(inst, hard=True, rng=rng)
+            limited_additional = _select_additional_constraints_for_hard_variant(
+                base_constraints,
+                additional,
+            )
+            inst_constraints = base_constraints + limited_additional
+
+            candidate_hardened: List[Dict[str, Any]] = []
+            for c in inst_constraints:
+                c2 = copy.deepcopy(c)
+                c2["hard"] = True
+                candidate_hardened.append(c2)
+
+            candidate = copy.deepcopy(inst)
+            candidate["constraints"] = candidate_hardened
+            witness_rng = random.Random(
+                _seed_for(base_scaled["metadata"]["id"], variant_suffix, "witness", str(attempt))
+            )
+            witness = _find_hard_feasible_binding(candidate, witness_rng)
+            if witness:
+                hardened = candidate_hardened
+                certification_attempts = attempt
+                break
+
+        if not hardened:
+            unconstrained_base = copy.deepcopy(inst)
+            unconstrained_base["constraints"] = []
+
+            for attempt in range(1, MAX_HARD_VARIANT_RETRIES + 1):
+                rng = random.Random(
+                    _seed_for(
+                        base_scaled["metadata"]["id"],
+                        variant_suffix,
+                        "constraints_unconstrained",
+                        str(attempt),
+                    )
+                )
+                additional = generate_additional_constraints(unconstrained_base, hard=True, rng=rng)
+                limited_additional = _select_additional_constraints_for_hard_variant(
+                    [],
+                    additional,
+                )
+                inst_constraints = list(limited_additional)
+
+                candidate_hardened: List[Dict[str, Any]] = []
+                for c in inst_constraints:
+                    c2 = copy.deepcopy(c)
+                    c2["hard"] = True
+                    candidate_hardened.append(c2)
+
+                candidate = copy.deepcopy(unconstrained_base)
+                candidate["constraints"] = candidate_hardened
+                witness_rng = random.Random(
+                    _seed_for(base_scaled["metadata"]["id"], variant_suffix, "witness_unconstrained", str(attempt))
+                )
+                witness = _find_hard_feasible_binding(candidate, witness_rng)
+                if witness:
+                    hardened = candidate_hardened
+                    certification_attempts = attempt
+                    used_unconstrained_fallback = True
+                    break
+
+        if not hardened:
+            raise RuntimeError(
+                f"Could not certify hard-feasible variant after {MAX_HARD_VARIANT_RETRIES} attempts "
+                f"(primary + unconstrained fallback): {base_scaled['metadata']['id']}::{variant_suffix}"
+            )
+
+        inst["constraints"] = hardened
+        if any(c.get("hard", True) is False for c in inst["constraints"]):
+            raise ValueError("Hard variant contains soft constraints after hardening")
         constraint_mode = "hard"
     else:
+        rng = random.Random(_seed_for(base_scaled["metadata"]["id"], variant_suffix, "constraints"))
+        additional = generate_additional_constraints(inst, hard=True, rng=rng)
+        inst_constraints = base_constraints + additional
         softened: List[Dict[str, Any]] = []
         for c in inst_constraints:
             c2 = copy.deepcopy(c)
@@ -892,6 +1148,16 @@ def build_variant(
     inst["metadata"]["id"] = f"{base_id}_{variant_suffix}_{constraint_mode}"
     inst["metadata"]["name"] = f"{inst['metadata'].get('name', base_id)} [{variant_suffix}, {constraint_mode}]"
     inst["metadata"]["created_at"] = _now_iso()
+
+    experiments_meta = inst["metadata"].setdefault("experiments", {})
+    experiments_meta["expected_feasibility_by_engine"] = _expected_behavior_by_engine(
+        objective_type=objective_type,
+        hard_constraints=hard_constraints,
+    )
+    if hard_constraints:
+        experiments_meta["hard_feasible_witness_found"] = True
+        experiments_meta["hard_feasible_witness_attempts"] = certification_attempts or 0
+        experiments_meta["hard_constraints_from_unconstrained_fallback"] = used_unconstrained_fallback
 
     return inst
 

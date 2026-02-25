@@ -3,13 +3,23 @@
     "id": "bultan2003-warehouse-example_multi_hard",
     "name": "Warehouse Composition example (Bultan et al. 2003) [multi, hard]",
     "version": "1.0.0",
-    "created_at": "2026-02-12T08:34:55Z",
+    "created_at": "2026-02-25T12:18:12Z",
     "description": "Problem instance derived from Example 2.1 and Example 3.1 (store-bank-warehouse) in Bultan et al., WWW'03.",
     "paper": {
       "title": "Conversation Specification: A New Approach to Design and Analysis of E-Service Composition",
       "authors": "T. Bultan et al.",
       "year": 2003,
       "doi": "10.1145/775152.775210"
+    },
+    "experiments": {
+      "expected_feasibility_by_engine": {
+        "many-heuristic": "VALIDATION_ERROR",
+        "minizinc-csp": "VALIDATION_ERROR",
+        "random-search": "VALIDATION_ERROR"
+      },
+      "hard_feasible_witness_found": true,
+      "hard_feasible_witness_attempts": 1,
+      "hard_constraints_from_unconstrained_fallback": false
     }
   },
   "features": [
@@ -444,286 +454,6 @@
         "gen_feat_2": 0.505463,
         "gen_feat_3": 506.65
       }
-    },
-    {
-      "id": "t_authorize_gen_2",
-      "task_id": "t_authorize",
-      "provider_id": "p_wh1",
-      "name": "authorize (Gen p_wh1)",
-      "features": {
-        "latency_ms": 55.42,
-        "cost_usd": 0.01,
-        "availability": 0.991822,
-        "gen_feat_1": 506.11,
-        "gen_feat_2": 0.506997,
-        "gen_feat_3": 513.39
-      }
-    },
-    {
-      "id": "t_authorize_gen_3",
-      "task_id": "t_authorize",
-      "provider_id": "p_wh2",
-      "name": "authorize (Gen p_wh2)",
-      "features": {
-        "latency_ms": 56.53,
-        "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 512.13,
-        "gen_feat_2": 0.51125,
-        "gen_feat_3": 514.21
-      }
-    },
-    {
-      "id": "t_ok_gen_2",
-      "task_id": "t_ok",
-      "provider_id": "p_gen_1",
-      "name": "ok (Gen p_gen_1)",
-      "features": {
-        "latency_ms": 46.32,
-        "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 489.76,
-        "gen_feat_2": 0.491295,
-        "gen_feat_3": 499.11
-      }
-    },
-    {
-      "id": "t_ok_gen_3",
-      "task_id": "t_ok",
-      "provider_id": "p_gen_2",
-      "name": "ok (Gen p_gen_2)",
-      "features": {
-        "latency_ms": 44.18,
-        "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 512.78,
-        "gen_feat_2": 0.505694,
-        "gen_feat_3": 512.51
-      }
-    },
-    {
-      "id": "t_order1_gen_2",
-      "task_id": "t_order1",
-      "provider_id": "p_gen_3",
-      "name": "order1 (Gen p_gen_3)",
-      "features": {
-        "latency_ms": 65.65,
-        "cost_usd": 0.02,
-        "availability": 0.97648,
-        "gen_feat_1": 487.32,
-        "gen_feat_2": 0.507472,
-        "gen_feat_3": 497.45
-      }
-    },
-    {
-      "id": "t_order1_gen_3",
-      "task_id": "t_order1",
-      "provider_id": "p_gen_4",
-      "name": "order1 (Gen p_gen_4)",
-      "features": {
-        "latency_ms": 64.28,
-        "cost_usd": 0.02,
-        "availability": 0.972736,
-        "gen_feat_1": 486.2,
-        "gen_feat_2": 0.503633,
-        "gen_feat_3": 504.35
-      }
-    },
-    {
-      "id": "t_receipt1_gen_2",
-      "task_id": "t_receipt1",
-      "provider_id": "p_gen_5",
-      "name": "receipt1 (Gen p_gen_5)",
-      "features": {
-        "latency_ms": 77.78,
-        "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 512.08,
-        "gen_feat_2": 0.510897,
-        "gen_feat_3": 486.77
-      }
-    },
-    {
-      "id": "t_receipt1_gen_3",
-      "task_id": "t_receipt1",
-      "provider_id": "p_store",
-      "name": "receipt1 (Gen p_store)",
-      "features": {
-        "latency_ms": 80.11,
-        "cost_usd": 0.02,
-        "availability": 1.0,
-        "gen_feat_1": 508.14,
-        "gen_feat_2": 0.486315,
-        "gen_feat_3": 489.94
-      }
-    },
-    {
-      "id": "t_bill1_gen_2",
-      "task_id": "t_bill1",
-      "provider_id": "p_bank",
-      "name": "bill1 (Gen p_bank)",
-      "features": {
-        "latency_ms": 77.07,
-        "cost_usd": 0.02,
-        "availability": 0.989736,
-        "gen_feat_1": 511.49,
-        "gen_feat_2": 0.492918,
-        "gen_feat_3": 514.68
-      }
-    },
-    {
-      "id": "t_bill1_gen_3",
-      "task_id": "t_bill1",
-      "provider_id": "p_wh1",
-      "name": "bill1 (Gen p_wh1)",
-      "features": {
-        "latency_ms": 75.44,
-        "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 510.22,
-        "gen_feat_2": 0.514368,
-        "gen_feat_3": 505.69
-      }
-    },
-    {
-      "id": "t_payment1_gen_2",
-      "task_id": "t_payment1",
-      "provider_id": "p_wh2",
-      "name": "payment1 (Gen p_wh2)",
-      "features": {
-        "latency_ms": 90.7,
-        "cost_usd": 0.03,
-        "availability": 1.0,
-        "gen_feat_1": 490.92,
-        "gen_feat_2": 0.486279,
-        "gen_feat_3": 503.21
-      }
-    },
-    {
-      "id": "t_payment1_gen_3",
-      "task_id": "t_payment1",
-      "provider_id": "p_gen_1",
-      "name": "payment1 (Gen p_gen_1)",
-      "features": {
-        "latency_ms": 89.57,
-        "cost_usd": 0.03,
-        "availability": 0.990323,
-        "gen_feat_1": 509.49,
-        "gen_feat_2": 0.510492,
-        "gen_feat_3": 494.55
-      }
-    },
-    {
-      "id": "t_order2_gen_2",
-      "task_id": "t_order2",
-      "provider_id": "p_gen_2",
-      "name": "order2 (Gen p_gen_2)",
-      "features": {
-        "latency_ms": 71.14,
-        "cost_usd": 0.02,
-        "availability": 0.997499,
-        "gen_feat_1": 498.73,
-        "gen_feat_2": 0.505964,
-        "gen_feat_3": 492.35
-      }
-    },
-    {
-      "id": "t_order2_gen_3",
-      "task_id": "t_order2",
-      "provider_id": "p_gen_3",
-      "name": "order2 (Gen p_gen_3)",
-      "features": {
-        "latency_ms": 71.51,
-        "cost_usd": 0.02,
-        "availability": 0.978474,
-        "gen_feat_1": 495.91,
-        "gen_feat_2": 0.487052,
-        "gen_feat_3": 495.32
-      }
-    },
-    {
-      "id": "t_receipt2_gen_2",
-      "task_id": "t_receipt2",
-      "provider_id": "p_gen_4",
-      "name": "receipt2 (Gen p_gen_4)",
-      "features": {
-        "latency_ms": 85.95,
-        "cost_usd": 0.02,
-        "availability": 0.996183,
-        "gen_feat_1": 507.05,
-        "gen_feat_2": 0.506274,
-        "gen_feat_3": 489.81
-      }
-    },
-    {
-      "id": "t_receipt2_gen_3",
-      "task_id": "t_receipt2",
-      "provider_id": "p_gen_5",
-      "name": "receipt2 (Gen p_gen_5)",
-      "features": {
-        "latency_ms": 83.66,
-        "cost_usd": 0.01,
-        "availability": 0.973035,
-        "gen_feat_1": 491.17,
-        "gen_feat_2": 0.494194,
-        "gen_feat_3": 512.8
-      }
-    },
-    {
-      "id": "t_bill2_gen_2",
-      "task_id": "t_bill2",
-      "provider_id": "p_store",
-      "name": "bill2 (Gen p_store)",
-      "features": {
-        "latency_ms": 78.39,
-        "cost_usd": 0.02,
-        "availability": 0.991877,
-        "gen_feat_1": 493.57,
-        "gen_feat_2": 0.506639,
-        "gen_feat_3": 505.09
-      }
-    },
-    {
-      "id": "t_bill2_gen_3",
-      "task_id": "t_bill2",
-      "provider_id": "p_bank",
-      "name": "bill2 (Gen p_bank)",
-      "features": {
-        "latency_ms": 79.37,
-        "cost_usd": 0.02,
-        "availability": 1.0,
-        "gen_feat_1": 513.41,
-        "gen_feat_2": 0.503681,
-        "gen_feat_3": 510.14
-      }
-    },
-    {
-      "id": "t_payment2_gen_2",
-      "task_id": "t_payment2",
-      "provider_id": "p_wh1",
-      "name": "payment2 (Gen p_wh1)",
-      "features": {
-        "latency_ms": 93.89,
-        "cost_usd": 0.03,
-        "availability": 0.984789,
-        "gen_feat_1": 505.36,
-        "gen_feat_2": 0.49305,
-        "gen_feat_3": 514.13
-      }
-    },
-    {
-      "id": "t_payment2_gen_3",
-      "task_id": "t_payment2",
-      "provider_id": "p_wh2",
-      "name": "payment2 (Gen p_wh2)",
-      "features": {
-        "latency_ms": 92.96,
-        "cost_usd": 0.03,
-        "availability": 0.981651,
-        "gen_feat_1": 491.52,
-        "gen_feat_2": 0.503183,
-        "gen_feat_3": 492.47
-      }
     }
   ],
   "composition": {
@@ -950,19 +680,19 @@
       "scope": "GLOBAL",
       "attribute_id": "latency_ms",
       "op": "<=",
-      "value": 1318.72,
+      "value": 1343.72,
       "hard": true
     },
     {
-      "id": "gen_c_local_t_authorize_cost_usd_1",
+      "id": "gen_c_local_t_bill2_gen_feat_1_1",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
-        "t_authorize"
+        "t_bill2"
       ],
-      "attribute_id": "cost_usd",
+      "attribute_id": "gen_feat_1",
       "op": "<=",
-      "value": 0.01,
+      "value": 493.32,
       "hard": true
     },
     {

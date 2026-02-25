@@ -84,8 +84,9 @@ class MyEnginePlugin(EngineValidationPlugin):
         return {
             "qos_features_supported": ["*"],
             "composition_nodes_supported": ["TASK", "SEQ"],
-            "objective_types_supported": ["weighted_sum"],
+            "objective_types_supported": ["MONO"],
             "constraints_supported": ["attribute_bound"],
+            "type": "HEURISTIC", # or "EXACT" depending on your engine's nature
             "schema_version": "v1",
         }
 

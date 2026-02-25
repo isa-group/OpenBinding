@@ -55,11 +55,16 @@ class ValidationViolation(BaseModel):
     description: Optional[str] = None
 
 class Solution(BaseModel):
-    is_feasible: bool = True
     objective_value: Optional[float] = None
     binding: Dict[str, str] = Field(..., description="Map of Task ID to Candidate ID")
     aggregated_features: Dict[str, float] = Field(default_factory=dict)
     violations: List[ValidationViolation] = Field(default_factory=list)
+
+
+class Feasibility(str, Enum):
+    FEASIBLE = "FEASIBLE"
+    INFEASIBLE = "INFEASIBLE"
+    UNKNOWN = "UNKNOWN"
 
 class Provenance(BaseModel):
     engine_id: str
@@ -88,6 +93,7 @@ class AnalyzeResponse(BaseModel):
     error: Optional[str] = None
 
 class SolveResponse(BaseModel):
+    feasibility: Feasibility = Feasibility.UNKNOWN
     solutions: List[Solution]
     provenance: Provenance
     diagnostics: Optional[Dict[str, Any]] = Field(default=None, description="Diagnostic information. May include 'binding_space' if verbose=True.")

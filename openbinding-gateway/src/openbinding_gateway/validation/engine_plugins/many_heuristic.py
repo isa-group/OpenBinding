@@ -25,6 +25,7 @@ class ManyHeuristicEnginePlugin(EngineValidationPlugin):
             "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
             "objective_types_supported": ["MANY"],
             "constraints_supported": ["attribute_bound", "dependency"],
+            "type": "HEURISTIC",
             "schema_version": "v1"
         }
 
@@ -193,7 +194,7 @@ class ManyHeuristicEnginePlugin(EngineValidationPlugin):
             agg_qos = compute_aggregated_qos(root, features, sel_cand, agg_policies)
             
             mapped_solutions.append({
-                "is_feasible": sol.get("is_feasible", True), "binding": sel,
+                "binding": sel,
                 "aggregated_features": agg_qos, "violations": [], "objective_value": 0.0
             })
 

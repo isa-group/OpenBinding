@@ -30,7 +30,6 @@ def test_minizinc_response_feasible(minizinc_plugin):
     # Pass dummy request
     new_sol = minizinc_plugin.transform_response(old_sol, {"composition": {"root": {}}})
     assert len(new_sol["solutions"]) == 1
-    assert new_sol["solutions"][0]["is_feasible"] is True
     assert new_sol["solutions"][0]["binding"] == {"t1": "c1"}
 
 def test_minizinc_response_unfeasible(minizinc_plugin):
@@ -45,6 +44,20 @@ def test_minizinc_response_unfeasible(minizinc_plugin):
     }
     new_sol = minizinc_plugin.transform_response(old_sol, {"composition": {"root": {}}})
     # Expect empty list for standard "No Solution Found"
+    assert new_sol["solutions"] == []
+
+
+def test_minizinc_response_feasible_but_empty_selection(minizinc_plugin):
+    """A feasible response without binding must be treated as no-solution."""
+    old_sol = {
+        "solution": {
+            "feasible": True,
+            "selection": {},
+            "objective_value": 10,
+        },
+        "provenance": {},
+    }
+    new_sol = minizinc_plugin.transform_response(old_sol, {"composition": {"root": {}}})
     assert new_sol["solutions"] == []
 
 # --- Random Search Tests ---

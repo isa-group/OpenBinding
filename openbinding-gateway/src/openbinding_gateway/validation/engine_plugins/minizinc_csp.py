@@ -18,8 +18,9 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         return {
             "qos_features_supported": ["*"],
             "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
-            "objective_types_supported": ["weighted_sum"],
+            "objective_types_supported": ["MONO"],
             "constraints_supported": ["attribute_bound", "dependency"], 
+            "type": "EXACT",
             "schema_version": "v1"
         }
 
@@ -227,8 +228,14 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
                 "diagnostics": engine_result.get("diagnostics")
             }
 
+        if not selection:
+            return {
+                "solutions": [],
+                "provenance": provenance,
+                "diagnostics": engine_result.get("diagnostics")
+            }
+
         new_sol = {
-            "is_feasible": old_sol.get("feasible", True), 
             "objective_value": old_sol.get("objective_value"),
             "binding": selection,
             "aggregated_features": aggregated_qos, # Computed in gateway

@@ -83,9 +83,9 @@ _JOB_COMPLETED_EXAMPLE = {
     "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
     "status": "completed",
     "result": {
+        "feasibility": "FEASIBLE",
         "solutions": [
             {
-                "is_feasible": True,
                 "objective_value": 0.0,
                 "binding": {"t1": "s2", "t2": "s4"},
                 "aggregated_features": {"cost": 20.0, "time": 60.0},
