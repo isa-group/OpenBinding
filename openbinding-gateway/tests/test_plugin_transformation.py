@@ -60,6 +60,39 @@ def test_minizinc_response_feasible_but_empty_selection(minizinc_plugin):
     new_sol = minizinc_plugin.transform_response(old_sol, {"composition": {"root": {}}})
     assert new_sol["solutions"] == []
 
+def test_minizinc_response_propagates_engine_violations(minizinc_plugin):
+    old_sol = {
+        "result": {
+            "solution": {
+                "feasible": False,
+                "selection": None,
+                "objective_value": None,
+            },
+            "violations": [
+                {"code": "solver_error", "message": "MiniZinc failed"}
+            ],
+            "diagnostics": {"reason": "non_zero_exit"},
+        }
+    }
+
+    new_sol = minizinc_plugin.transform_response(old_sol, {"composition": {"root": {}}})
+    assert new_sol["solutions"] == []
+    assert new_sol["diagnostics"]["reason"] == "non_zero_exit"
+    assert new_sol["diagnostics"]["engine_violations"][0]["code"] == "solver_error"
+
+def test_minizinc_transform_request_allows_debug_and_solver_options(minizinc_plugin):
+    req = {
+        "composition": {"root": {"kind": "TASK", "task_id": "t1"}},
+        "tasks": [{"id": "t1"}],
+        "candidates": [],
+        "features": [],
+        "aggregation_policies": {},
+        "objective": {"type": "MONO"},
+    }
+
+    _, warnings = minizinc_plugin.transform_request(req, {"debug": True, "solver": "gecode"})
+    assert warnings == []
+
 # --- Random Search Tests ---
 
 def test_random_search_request_dependency(random_search_plugin):

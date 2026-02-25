@@ -3,12 +3,15 @@ import { DznBuilder } from './dzn_builder';
 import { MiniZincRunner } from './minizinc_runner';
 
 export class Solver {
-    private readonly SOLVER_NAME = 'gecode';
+    private readonly DEFAULT_SOLVER_NAME = 'gecode';
     private readonly tmpDir = path.resolve(__dirname, '../tmp_minizinc');
     private readonly builder = new DznBuilder();
     private readonly runner = new MiniZincRunner();
 
     async solve(instance: any, options: any): Promise<any> {
+        const debug = Boolean(options?.debug);
+        const solverName = String(options?.solver || this.DEFAULT_SOLVER_NAME);
+
         // 0. Best Practices Validation
         const violations = this.validateBestPractices(instance);
         if (violations.length > 0) {
@@ -18,7 +21,12 @@ export class Solver {
                     selection: null,
                     objective_value: null,
                     violations: violations
-                }
+                },
+                diagnostics: {
+                    stage: 'pre_validation',
+                    reason: 'best_practices_violations',
+                    violations_count: violations.length,
+                },
             });
         }
 
@@ -30,8 +38,19 @@ export class Solver {
         // The '-' argument tells minizinc to read data from stdin
         const modelPath = path.resolve(__dirname, '../model/composition.mzn');
 
-        const runResult = await this.runner.run(this.SOLVER_NAME, modelPath, dznContent, this.tmpDir);
+        const runResult = await this.runner.run(solverName, modelPath, dznContent, this.tmpDir);
         const timeSec = runResult.durationMs / 1000;
+
+        const diagnosticsBase = {
+            solver: solverName,
+            requested_solver: solverName,
+            model_path: modelPath,
+            duration_ms: runResult.durationMs,
+            exit_code: runResult.code,
+            stderr: this.truncateText(runResult.stderr),
+            stdout_tail: this.truncateText(runResult.stdout, 4000),
+            ...(debug ? { dzn: dznContent } : {}),
+        };
 
         if (runResult.code !== 0) {
             return {
@@ -41,6 +60,11 @@ export class Solver {
                     objective_value: null,
                 },
                 violations: [{ message: `MiniZinc Error: ${runResult.stderr}`, code: 'solver_error' }],
+                diagnostics: {
+                    stage: 'solver_execution',
+                    reason: 'non_zero_exit',
+                    ...diagnosticsBase,
+                },
             };
         }
 
@@ -56,8 +80,13 @@ export class Solver {
                         objective_value: null,
                     },
                     provenance: {
-                        solver: this.SOLVER_NAME,
+                        solver: solverName,
                         time_sec: timeSec,
+                    },
+                    diagnostics: {
+                        stage: 'solver_execution',
+                        reason: 'unsat_or_inconsistent',
+                        ...diagnosticsBase,
                     },
                 };
             }
@@ -72,8 +101,13 @@ export class Solver {
                         objective_value: null,
                     },
                     provenance: {
-                        solver: this.SOLVER_NAME,
+                        solver: solverName,
                         time_sec: timeSec,
+                    },
+                    diagnostics: {
+                        stage: 'parse_output',
+                        reason: 'json_not_found_in_stdout',
+                        ...diagnosticsBase,
                     },
                 };
             }
@@ -131,8 +165,12 @@ export class Solver {
                     aggregated_features: aggregated_features,
                 },
                 provenance: {
-                    solver: this.SOLVER_NAME,
+                    solver: solverName,
                     time_sec: timeSec,
+                },
+                diagnostics: {
+                    stage: 'completed',
+                    ...diagnosticsBase,
                 },
             };
         } catch (e) {
@@ -143,8 +181,20 @@ export class Solver {
                     objective_value: null,
                 },
                 violations: [{ message: `Parse Error: ${e} \nOut: ${runResult.stdout}`, code: 'parser_error' }],
+                diagnostics: {
+                    stage: 'parse_output',
+                    reason: 'json_parse_error',
+                    error: String(e),
+                    ...diagnosticsBase,
+                },
             };
         }
+    }
+
+    private truncateText(text: string, max = 12000): string {
+        if (!text) return '';
+        if (text.length <= max) return text;
+        return `${text.slice(0, max)}\n...[truncated ${text.length - max} chars]`;
     }
 
     private computeRawAggregatedValues(instance: any, selection: Record<string, string>, features: string[]): Record<string, number> {
@@ -269,7 +319,9 @@ export class Solver {
             });
         }
         return result;
-    } private validateBestPractices(instance: any): Array<Record<string, unknown>> {
+    }
+
+    private validateBestPractices(instance: any): Array<Record<string, unknown>> {
         const violations: Array<Record<string, unknown>> = [];
         const tasks = Array.isArray(instance.tasks) ? instance.tasks : [];
         const definedTaskIds = new Set<string>(

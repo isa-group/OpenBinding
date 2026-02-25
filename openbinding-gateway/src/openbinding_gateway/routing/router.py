@@ -77,7 +77,12 @@ class Router:
                     raise RuntimeError("Failed to contact engine")
                 
                 # Check for sync response
-                if "job_id" not in data and "selection" in data:
+                # Some engines may return selection at top-level or wrapped under result.solution
+                sync_selection = data.get("selection")
+                if sync_selection is None:
+                    sync_selection = ((data.get("result") or {}).get("solution") or {}).get("selection")
+
+                if "job_id" not in data and sync_selection is not None:
                      # It's a synchronous result
                      result_data = plugin.transform_response(data, request.instance)
                      feasibility = self._compute_feasibility(request.engine_id, result_data)
@@ -113,6 +118,7 @@ class Router:
                 job = JobManager.create_job(request.engine_id, engine_job_id, service_url)
                 job.metadata["warnings"] = all_warnings
                 job.metadata["verbose"] = request.verbose
+                job.metadata["original_request"] = request.instance
                 if binding_space:
                     job.metadata["binding_space"] = binding_space
                 
@@ -192,7 +198,8 @@ class Router:
                 result = None
                 if engine_status == "completed" or engine_status == "optimized":
                     plugin = EngineRegistry.get_plugin(job.engine_id)
-                    result_data = plugin.transform_response(data, {}) 
+                    original_request = job.metadata.get("original_request") or {}
+                    result_data = plugin.transform_response(data, original_request)
                     feasibility = self._compute_feasibility(job.engine_id, result_data)
                     
                     diagnostics = {}

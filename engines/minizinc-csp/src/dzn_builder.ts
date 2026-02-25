@@ -57,13 +57,12 @@ export class DznBuilder {
 
     const scaleValue = (val: number, featId: string): number => {
       const range = featureRanges[featId] || { min: 0.0, max: 1.0 };
-      const denom = range.max - range.min;
-      if (Math.abs(denom) < 1e-12 || !Number.isFinite(val)) return 0.0;
-      let scaled = (val - range.min) / denom;
-      if (scaled < 0.0) scaled = 0.0;
-      if (scaled > 1.0) scaled = 1.0;
-      if (!Number.isFinite(scaled)) return 0.0;
-      return scaled;
+      if (!Number.isFinite(val)) return 0.0;
+      let bounded = val;
+      if (Number.isFinite(range.min) && bounded < range.min) bounded = range.min;
+      if (Number.isFinite(range.max) && bounded > range.max) bounded = range.max;
+      if (!Number.isFinite(bounded)) return 0.0;
+      return bounded;
     };
 
     const FN_MAP: Record<string, number> = {
@@ -78,18 +77,47 @@ export class DznBuilder {
     };
     const DEFAULT_FN = 1;
 
+    const usesProductSpace = (featId: string): boolean => {
+      const compose = (instance.aggregation_policies?.[featId]?.compose || {}) as Record<string, any>;
+      const fns = [compose.seq?.fn, compose.and?.fn, compose.xor?.fn, compose.loop?.fn]
+        .map((v: any) => String(v || '').toLowerCase());
+      return fns.includes('product') || fns.includes('scaled_product');
+    };
+
+    const featureUsesProductSpace: Record<string, boolean> = {};
+    for (const feat of features) {
+      featureUsesProductSpace[feat] = usesProductSpace(feat);
+    }
+
+    const toModelValue = (scaledVal: number, featId: string): number => {
+      if (!featureUsesProductSpace[featId]) {
+        return scaledVal;
+      }
+      const safe = Math.max(1e-12, scaledVal);
+      return Math.log(safe);
+    };
+
     const agg_policy: number[][] = [];
 
     for (const feat of features) {
       const pol = (instance.aggregation_policies || {})[feat] || {};
       const compose = pol.compose || {};
+      const productSpace = featureUsesProductSpace[feat];
+
+      const mapFnForFeature = (fnRaw: any): number => {
+        const fn = String(fnRaw || '').toLowerCase();
+        if (productSpace && (fn === 'product' || fn === 'scaled_product')) {
+          return 1;
+        }
+        return FN_MAP[fn] || DEFAULT_FN;
+      };
 
       const row: number[] = [];
       row.push(DEFAULT_FN);
-      row.push(FN_MAP[compose.seq?.fn?.toLowerCase()] || DEFAULT_FN);
-      row.push(FN_MAP[compose.and?.fn?.toLowerCase()] || FN_MAP.max);
-      row.push(FN_MAP[compose.xor?.fn?.toLowerCase()] || 5);
-      row.push(FN_MAP[compose.loop?.fn?.toLowerCase()] || DEFAULT_FN);
+      row.push(mapFnForFeature(compose.seq?.fn));
+      row.push(mapFnForFeature(compose.and?.fn) || FN_MAP.max);
+      row.push(mapFnForFeature(compose.xor?.fn) || 5);
+      row.push(mapFnForFeature(compose.loop?.fn));
       agg_policy.push(row);
     }
 
@@ -123,7 +151,7 @@ export class DznBuilder {
         let val = qosData[feat];
         if (val === undefined || val === null) val = 0.0;
         const scaled = scaleValue(Number(val), feat);
-        row.push(scaled);
+        row.push(toModelValue(scaled, feat));
       }
       cand_qos.push(row);
     });
@@ -149,9 +177,25 @@ export class DznBuilder {
 
     const constraints = instance.constraints || [];
 
+    const neutral_qos: number[] = [];
+    for (const featId of features) {
+      const featDef = featureDefinitions.find((feat: any) => feat.id === featId) || {};
+      const featDir = (featDef.direction || 'MINIMIZE').toUpperCase();
+      const neutralRaw =
+        (instance.aggregation_policies?.[featId]?.neutral as number | undefined) ??
+        (featDir === 'MAXIMIZE' ? featDef.valid_range?.min : featDef.valid_range?.max);
+      const neutralValue =
+        neutralRaw !== undefined && neutralRaw !== null
+          ? toModelValue(scaleValue(Number(neutralRaw), featId), featId)
+          : 0.0;
+      neutral_qos.push(neutralValue);
+    }
+
+    const qos_lb: number[] = [];
     const qos_ub: number[] = [];
     for (let f = 0; f < n_qos; f++) {
       const featId = features[f];
+      const productSpace = featureUsesProductSpace[featId];
       const isAvailability =
         featId.toLowerCase().includes('availability') || featId.toLowerCase().includes('success');
 
@@ -162,7 +206,7 @@ export class DznBuilder {
         (featDir === 'MAXIMIZE' ? featDef.valid_range?.min : featDef.valid_range?.max);
       const neutralScaled =
         neutralRaw !== undefined && neutralRaw !== null
-          ? scaleValue(Number(neutralRaw), featId)
+          ? toModelValue(scaleValue(Number(neutralRaw), featId), featId)
           : 0.0;
 
       let constraintMax = 0.0;
@@ -171,15 +215,15 @@ export class DznBuilder {
         if (c.attribute_id !== featId) continue;
 
         if (typeof c.value === 'number') {
-          constraintMax = Math.max(constraintMax, scaleValue(Number(c.value), featId));
+          constraintMax = Math.max(constraintMax, Math.abs(toModelValue(scaleValue(Number(c.value), featId), featId)));
         } else if (c.value && typeof c.value === 'object') {
           const minVal = c.value.min;
           const maxVal = c.value.max;
           if (minVal !== undefined && minVal !== null) {
-            constraintMax = Math.max(constraintMax, scaleValue(Number(minVal), featId));
+            constraintMax = Math.max(constraintMax, Math.abs(toModelValue(scaleValue(Number(minVal), featId), featId)));
           }
           if (maxVal !== undefined && maxVal !== null) {
-            constraintMax = Math.max(constraintMax, scaleValue(Number(maxVal), featId));
+            constraintMax = Math.max(constraintMax, Math.abs(toModelValue(scaleValue(Number(maxVal), featId), featId)));
           }
         }
       }
@@ -189,12 +233,17 @@ export class DznBuilder {
         maxVal = Math.max(1.0, ...cand_qos.map((row) => Math.abs(row[f])));
       }
 
-      maxVal = Math.max(maxVal, neutralScaled, constraintMax);
+      maxVal = Math.max(maxVal, Math.abs(neutralScaled), constraintMax);
 
       const seqPol = agg_policy[f]?.[1] || 1;
       const loopPol = agg_policy[f]?.[4] || 1;
 
-      if (isAvailability || seqPol === 2 || loopPol === 2) {
+      if (productSpace) {
+        const absBound = Math.max(1.0, maxVal * Math.max(1, n_tasks) * 10);
+        qos_lb.push(-absBound);
+        qos_ub.push(absBound);
+      } else if (isAvailability || seqPol === 2 || loopPol === 2) {
+        qos_lb.push(0.0);
         qos_ub.push(1.0);
       } else if (seqPol === 1 || loopPol === 1) {
         let taskSum = 0;
@@ -205,8 +254,10 @@ export class DznBuilder {
           }
         }
         const loopFactor = 10;
+        qos_lb.push(0.0);
         qos_ub.push(Math.max(1.0, taskSum * loopFactor));
       } else {
+        qos_lb.push(0.0);
         qos_ub.push(maxVal * 1.5);
       }
     }
@@ -284,7 +335,7 @@ export class DznBuilder {
     const qos_weights: number[] = [];
     for (const feat of features) {
       let w = Number(weightsObj[feat] || 0.0);
-      if (featureDirection[feat] === 'MAXIMIZE') {
+      if (featureDirection[feat] === 'MAXIMIZE' && !featureUsesProductSpace[feat]) {
         w = -w;
       }
       qos_weights.push(w);
@@ -324,7 +375,7 @@ export class DznBuilder {
         if (scope === 'global') {
           gc_attr.push(attrIdx);
           gc_op.push(validOp);
-          gc_val.push(scaleValue(c.value, featId));
+          gc_val.push(toModelValue(scaleValue(c.value, featId), featId));
         } else if (scope === 'local') {
           const taskId = c.task_id || (c.tasks && c.tasks[0]);
           const tIdx = taskId ? taskIdx[taskId] : undefined;
@@ -332,7 +383,7 @@ export class DznBuilder {
             lc_task.push(tIdx);
             lc_attr.push(attrIdx);
             lc_op.push(validOp);
-            lc_val.push(scaleValue(c.value, featId));
+            lc_val.push(toModelValue(scaleValue(c.value, featId), featId));
           }
         }
       } else if (kind === 'dependency') {
@@ -387,6 +438,8 @@ export class DznBuilder {
         agg_policy = ${fmt2d(agg_policy)};
         
         qos_weights = ${fmt(qos_weights)};
+        neutral_qos = ${fmt(neutral_qos)};
+        qos_lb = ${fmt(qos_lb)};
         qos_ub = ${fmt(qos_ub)};
 
         n_global_constraints = ${gc_attr.length};
@@ -413,7 +466,7 @@ export class DznBuilder {
     if (k === 'AND') return 3;
     if (k === 'XOR') return 4;
     if (k === 'LOOP') return 5;
-    if (k === 'ELEMENT') return 2;
+    if (k === 'ELEMENT') return 6;
     return 0;
   }
 }
