@@ -88,13 +88,14 @@ def test_global_operators(gateway_url, wait_for_job, engine, op, val, expected_f
     
     result = job.get("result", {})
     solutions = result.get("solutions", [])
+    feasibility = str(result.get("feasibility") or "UNKNOWN").upper()
     
     if not solutions:
-        feasible = False
+        feasible = feasibility == "FEASIBLE"
         selection = {}
     else:
         sol = solutions[0]
-        feasible = sol.get("is_feasible", False)
+        feasible = feasibility == "FEASIBLE"
         selection = sol.get("binding", {})
     
     assert feasible == expected_feasible
@@ -146,13 +147,14 @@ def test_local_operators(gateway_url, wait_for_job, engine, op, val, expected_fe
         job = wait_for_job(job_id)
     result = job.get("result", {})
     solutions = result.get("solutions", [])
+    feasibility = str(result.get("feasibility") or "UNKNOWN").upper()
     
     if not solutions:
-        feasible = False
+        feasible = feasibility == "FEASIBLE"
         selection = {}
     else:
         sol = solutions[0]
-        feasible = sol.get("is_feasible", False)
+        feasible = feasibility == "FEASIBLE"
         selection = sol.get("binding", {})
     
     assert feasible == expected_feasible

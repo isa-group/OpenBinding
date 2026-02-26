@@ -6,6 +6,17 @@ from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 
 class MiniZincCSPEnginePlugin(EngineValidationPlugin):
+    _SUPPORTED_AGGREGATION_FUNCS = {
+        "sum",
+        "max",
+        "min",
+        "product",
+        "weighted_sum",
+        "scaled_sum",
+        "scaled_product",
+        "scale_by_c",
+    }
+
     async def check_engine_health(self, base_url: str, client: httpx.AsyncClient) -> bool:
         url = f"{base_url.rstrip('/')}/health"
         try:
@@ -17,9 +28,10 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
     def get_capabilities(self) -> Dict[str, Any]:
         return {
             "qos_features_supported": ["*"],
-            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
-            "objective_types_supported": ["weighted_sum"],
+            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP", "ELEMENT"],
+            "objective_types_supported": ["MONO"],
             "constraints_supported": ["attribute_bound", "dependency"], 
+            "type": "EXACT",
             "schema_version": "v1"
         }
 
@@ -44,9 +56,10 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         # but requirements ask to enforce explicitly via capabilities in Stage 4.
         
         comp = instance.get("composition", {})
-        if comp.get("type") == "structured":
+        comp_type = str(comp.get("type", "")).upper()
+        if comp_type == "STRUCTURED":
             violations.extend(self._validate_node(comp.get("root", {})))
-        elif comp.get("type") == "dag":
+        elif comp_type == "DAG":
              # DAG supported if nodes are supported
              nodes = comp.get("nodes", [])
              for n in nodes:
@@ -85,7 +98,7 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         agg_policies = instance.get("aggregation_policies", {})
         for attr, policy in agg_policies.items():
             compose = policy.get("compose", {})
-            for kind in compose.keys():
+            for kind, cfg in compose.items():
                 # Map schema keys (seq, and, xor, loop) to capability kinds
                 # Capabilities: TASK, SEQ, AND, XOR
                 # Schema: seq, and, xor, loop
@@ -102,6 +115,22 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
                          code="engine_unsupported_aggregation_operator",
                          path=f"aggregation_policies.{attr}.compose.{kind}"
                      ))
+
+                fn = str((cfg or {}).get("fn", "")).strip().lower()
+                if fn and fn not in self._SUPPORTED_AGGREGATION_FUNCS:
+                    violations.append(ValidationViolation(
+                        message=f"Engine does not support aggregation function '{fn}' for attribute '{attr}' in operator '{kind}'",
+                        code="engine_unsupported_aggregation_function",
+                        path=f"aggregation_policies.{attr}.compose.{kind}.fn"
+                    ))
+
+                # MiniZinc model treats xor=sum as weighted sum; explicit check to avoid silent mismatch
+                if kind == "xor" and fn == "sum":
+                    violations.append(ValidationViolation(
+                        message="Use 'weighted_sum' for XOR aggregation in MiniZinc to match branch probabilities",
+                        code="engine_ambiguous_xor_sum",
+                        path=f"aggregation_policies.{attr}.compose.xor.fn"
+                    ))
         
         return violations
 
@@ -132,7 +161,8 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         warnings = []
         if options:
             for k in options.keys():
-                warnings.append(f"Option '{k}' is not supported by MiniZinc engine")
+                if k not in {"debug", "solver"}:
+                    warnings.append(f"Option '{k}' is not supported by MiniZinc engine")
         
         return {
             "instance": instance,
@@ -146,6 +176,12 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         if not engine_result:
             engine_result = engine_response
         old_sol = engine_result.get("solution", {})
+        raw_violations = engine_result.get("violations", []) or []
+        diagnostics = engine_result.get("diagnostics") or {}
+
+        if raw_violations:
+            diagnostics = dict(diagnostics)
+            diagnostics["engine_violations"] = raw_violations
         
         # If no solution found or empty
         if not old_sol:
@@ -155,7 +191,8 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
                     "engine_id": "minizinc-csp",
                     "execution_time_ms": 0,
                     "metadata": {}
-                }
+                },
+                "diagnostics": diagnostics if diagnostics else None
             }
 
         # Transform Selection -> Binding
@@ -217,6 +254,15 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
                 "penalty": v.get("penalty_applied", 0),
                 "description": f"Slack: {v.get('slack')}"
             })
+
+        for v in raw_violations:
+            violations.append({
+                "constraint_id": v.get("constraint_id"),
+                "message": v.get("message", "Engine violation"),
+                "code": v.get("code", "engine_violation"),
+                "penalty": v.get("penalty_applied", 0),
+                "description": v.get("description")
+            })
         
         # Construct new Solution
         # Construct new Solution
@@ -224,11 +270,17 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
             return {
                 "solutions": [],
                 "provenance": provenance,
-                "diagnostics": engine_result.get("diagnostics")
+                "diagnostics": diagnostics if diagnostics else None
+            }
+
+        if not selection:
+            return {
+                "solutions": [],
+                "provenance": provenance,
+                "diagnostics": diagnostics if diagnostics else None
             }
 
         new_sol = {
-            "is_feasible": old_sol.get("feasible", True), 
             "objective_value": old_sol.get("objective_value"),
             "binding": selection,
             "aggregated_features": aggregated_qos, # Computed in gateway
@@ -238,5 +290,5 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         return {
             "solutions": [new_sol],
             "provenance": provenance,
-            "diagnostics": engine_result.get("diagnostics") 
+            "diagnostics": diagnostics if diagnostics else None
         }

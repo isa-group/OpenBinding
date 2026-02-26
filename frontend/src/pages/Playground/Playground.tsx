@@ -612,10 +612,12 @@ export function Playground() {
 // Result View Components
 function SummaryView({ result }: { result: any }) {
   const solutions = result.solutions || [];
+  const feasibility = result.feasibility;
   const emptyBindings = solutions.filter(
     (s: any) => !s.binding || Object.keys(s.binding).length === 0
   );
-  const infeasibleCount = solutions.filter((s: any) => s.is_feasible === false).length;
+  const infeasibleCount = feasibility === 'INFEASIBLE' ? 1 : 0;
+  const unknownCount = feasibility === 'UNKNOWN' ? 1 : 0;
 
   return (
     <div className="result-view summary-view">
@@ -627,6 +629,14 @@ function SummaryView({ result }: { result: any }) {
               {result.status}
             </Badge>
           </div>
+          {feasibility && (
+            <div className="summary-item" style={{ marginTop: '8px' }}>
+              <span className="summary-label">Feasibility:</span>
+              <Badge variant={feasibility === 'FEASIBLE' ? 'success' : feasibility === 'INFEASIBLE' ? 'warning' : 'accent'}>
+                {feasibility}
+              </Badge>
+            </div>
+          )}
         </Card>
       )}
 
@@ -645,6 +655,12 @@ function SummaryView({ result }: { result: any }) {
                 <span className="summary-value" style={{ color: 'var(--color-warning, #e6a700)' }}>{infeasibleCount}</span>
               </div>
             )}
+            {unknownCount > 0 && (
+              <div className="summary-item">
+                <span className="summary-label">Unknown:</span>
+                <span className="summary-value">{unknownCount}</span>
+              </div>
+            )}
           </div>
           {emptyBindings.length > 0 && (
             <Alert type="error" title="Engine Anomaly Detected">
@@ -658,10 +674,16 @@ function SummaryView({ result }: { result: any }) {
       {/* No solutions warning */}
       {result.solutions !== undefined && solutions.length === 0 && (
         <Card padding="md">
-          <Alert type="warning" title="No Feasible Solutions">
-            The engine completed without finding any feasible solution. Try relaxing constraints, 
-            increasing the solver budget, or verifying that all tasks have candidate services.
-          </Alert>
+          {feasibility === 'INFEASIBLE' ? (
+            <Alert type="warning" title="Infeasible Instance">
+              The engine completed and reported the instance as INFEASIBLE.
+            </Alert>
+          ) : (
+            <Alert type="warning" title="No Solutions Found">
+              The engine completed without a non-empty binding. For heuristic engines this usually means
+              the execution budget was insufficient.
+            </Alert>
+          )}
         </Card>
       )}
 
@@ -792,7 +814,7 @@ function SolutionsView({ result }: { result: any }) {
         const hasAggregatedFeatures = solution.aggregated_features && 
           Object.keys(solution.aggregated_features).length > 0;
         const isBindingEmpty = !solution.binding || Object.keys(solution.binding).length === 0;
-        const isInfeasible = solution.is_feasible === false;
+        const isInfeasible = result.feasibility === 'INFEASIBLE';
 
         return (
           <Card key={index} padding="md">

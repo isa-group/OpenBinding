@@ -26,6 +26,7 @@ int: KIND_SEQ = 2;
 int: KIND_AND = 3;
 int: KIND_XOR = 4;
 int: KIND_LOOP = 5;
+int: KIND_ELEMENT = 6;
 
 array[1..n_nodes] of int: node_kind;
 array[1..n_nodes] of int: node_task_id; % 0 if not TASK
@@ -48,6 +49,8 @@ array[1..n_qos, 1..5] of int: agg_policy;
 
 % 5. Objective Weights and Bounds
 array[1..n_qos] of float: qos_weights;
+array[1..n_qos] of float: neutral_qos;
+array[1..n_qos] of float: qos_lb;
 array[1..n_qos] of float: qos_ub;
 
 % --- VARIABLES ---
@@ -100,7 +103,7 @@ array[1..n_nodes, 1..n_qos] of var float: node_qos;
 
 % Bound Constraint (Optional but helps solver)
 constraint forall(i in 1..n_nodes, q in 1..n_qos)(
-    node_qos[i,q] >= 0.0 /\ node_qos[i,q] <= qos_ub[q]
+    node_qos[i,q] >= qos_lb[q] /\ node_qos[i,q] <= qos_ub[q]
 );
 
 constraint forall(i in 1..n_nodes)(
@@ -108,6 +111,10 @@ constraint forall(i in 1..n_nodes)(
         let { var int: c = selected_cand[node_task_id[i]] } in 
         forall(q in 1..n_qos)(
             node_qos[i,q] == cand_qos[c, q]
+        )
+    elseif node_kind[i] == KIND_ELEMENT then
+        forall(q in 1..n_qos)(
+            node_qos[i,q] == neutral_qos[q]
         )
     elseif node_kind[i] == KIND_LOOP then
         % Loop Aggregation

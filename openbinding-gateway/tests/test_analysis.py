@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 from openbinding_gateway.validation.analysis import compute_binding_space_summary, generate_warnings
 from openbinding_gateway.models.api import BindingSpaceSummary, AnalyzeWarning
 from fastapi.testclient import TestClient
-from openbinding_gateway.main import app
+from openbinding_gateway.main import app, _content_length_too_large
 import json
 
 # === Unit Tests for Analysis Logic ===
@@ -142,3 +142,57 @@ def test_solve_endpoint_not_verbose(mock_registry, mock_pipeline, mock_router):
     data = response.json()
     assert "job_id" in data
     assert data["job_id"] == "test_job"
+
+
+def test_content_length_too_large_helper():
+    assert _content_length_too_large("100", 50) is True
+    assert _content_length_too_large("50", 50) is False
+    assert _content_length_too_large(None, 50) is False
+    assert _content_length_too_large("invalid", 50) is False
+
+
+def test_solve_rejects_oversized_content_length_header(mock_registry, mock_pipeline):
+    payload = {
+        "engine_id": "mock_engine",
+        "instance": {
+            "tasks": [{"id": "t1"}],
+            "candidates": [{"id": "c1", "task_id": "t1"}]
+        },
+        "verbose": False
+    }
+
+    with patch("openbinding_gateway.main.MAX_SOLVE_BODY_BYTES", 1):
+        response = client.post("/v1/solve", json=payload)
+
+    assert response.status_code == 413
+    assert "Request body is too large" in response.json().get("detail", "")
+
+
+def test_solve_rejects_oversized_transformed_payload(mock_pipeline):
+    oversized_payload = {"blob": "x" * 5000}
+
+    with patch("openbinding_gateway.main.router") as mocked_router, \
+         patch("openbinding_gateway.main.MAX_SOLVE_BODY_BYTES", 10 * 1024 * 1024), \
+         patch("openbinding_gateway.routing.router.MAX_ENGINE_PAYLOAD_BYTES", 1024), \
+         patch("openbinding_gateway.registry.engine.EngineRegistry.get_plugin") as mock_plugin_getter, \
+         patch("openbinding_gateway.registry.engine.EngineRegistry.get_url", return_value="http://mock-engine"):
+        plugin = MagicMock()
+        plugin.transform_request.return_value = (oversized_payload, [])
+        mock_plugin_getter.return_value = plugin
+
+        from openbinding_gateway.routing.router import Router
+        mocked_router.route_solve = Router().route_solve
+
+        payload = {
+            "engine_id": "mock_engine",
+            "instance": {
+                "tasks": [{"id": "t1"}],
+                "candidates": [{"id": "c1", "task_id": "t1"}]
+            },
+            "verbose": False
+        }
+
+        response = client.post("/v1/solve", json=payload)
+
+    assert response.status_code == 413
+    assert "Request body is too large" in response.json().get("detail", "")

@@ -1,26 +1,69 @@
 import asyncio
 import httpx
+import json
 from typing import Optional, Any
 from ..registry.engine import EngineRegistry
-from ..models.api import SolveRequest, SolveResponse, ValidationViolation
-from ..models.api import JobResponse, JobStatus
+from ..models.api import SolveRequest, SolveResponse
+from ..models.api import JobResponse, JobStatus, Feasibility
 from ..jobs import JobManager
 
+MAX_ENGINE_PAYLOAD_BYTES = 512 * 1024 * 1024
+PAYLOAD_TOO_LARGE_MESSAGE = (
+    f"Request body is too large. Maximum allowed size is {MAX_ENGINE_PAYLOAD_BYTES} bytes."
+)
+
+
+class PayloadTooLargeError(RuntimeError):
+    pass
+
 class Router:
+    def _payload_size_bytes(self, payload: Any) -> int:
+        return len(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+
+    def _is_exact_engine(self, engine_id: str) -> bool:
+        try:
+            plugin = EngineRegistry.get_plugin(engine_id)
+            capabilities = plugin.get_capabilities() or {}
+            engine_type = str(capabilities.get("type", "")).upper()
+            return engine_type == "EXACT"
+        except Exception:
+            return False
+
+    def _has_non_empty_binding_solution(self, result_data: dict) -> bool:
+        solutions = result_data.get("solutions", []) or []
+        for solution in solutions:
+            if not isinstance(solution, dict):
+                continue
+            binding = solution.get("binding") or {}
+            if isinstance(binding, dict) and len(binding) > 0:
+                return True
+        return False
+
+    def _compute_feasibility(self, engine_id: str, result_data: dict) -> Feasibility:
+        if self._has_non_empty_binding_solution(result_data):
+            return Feasibility.FEASIBLE
+        if self._is_exact_engine(engine_id):
+            return Feasibility.INFEASIBLE
+        return Feasibility.UNKNOWN
+
     async def route_solve(self, request: SolveRequest, binding_space: Optional[Any] = None, warnings: Optional[list] = None) -> JobResponse:
         plugin = EngineRegistry.get_plugin(request.engine_id)
         if not plugin:
             raise ValueError(f"Engine {request.engine_id} not found")
             
         service_url = EngineRegistry.get_url(request.engine_id)
+        all_warnings = (warnings or [])
         
         async with httpx.AsyncClient() as client:
             try:
                 # Apply Plugin Transformation
                 payload, plugin_warnings = plugin.transform_request(request.instance, request.options)
+
+                if self._payload_size_bytes(payload) > MAX_ENGINE_PAYLOAD_BYTES:
+                    raise PayloadTooLargeError(PAYLOAD_TOO_LARGE_MESSAGE)
                 
                 # Merge warnings
-                all_warnings = (warnings or []) + (plugin_warnings or [])
+                all_warnings = all_warnings + (plugin_warnings or [])
 
                 # Forward to Engine's /solve
                 data = None
@@ -50,9 +93,15 @@ class Router:
                     raise RuntimeError("Failed to contact engine")
                 
                 # Check for sync response
-                if "job_id" not in data and "selection" in data:
+                # Some engines may return selection at top-level or wrapped under result.solution
+                sync_selection = data.get("selection")
+                if sync_selection is None:
+                    sync_selection = ((data.get("result") or {}).get("solution") or {}).get("selection")
+
+                if "job_id" not in data and sync_selection is not None:
                      # It's a synchronous result
                      result_data = plugin.transform_response(data, request.instance)
+                     feasibility = self._compute_feasibility(request.engine_id, result_data)
                      
                      job = JobManager.create_job(request.engine_id, "sync", service_url)
                      job.status = JobStatus.COMPLETED
@@ -69,6 +118,7 @@ class Router:
                          job_id=job.id,
                          status=JobStatus.COMPLETED,
                          result=SolveResponse(
+                                     feasibility=feasibility,
                             solutions=result_data.get("solutions", []),
                             provenance=result_data.get("provenance"),
                             diagnostics=diagnostics if diagnostics else None
@@ -84,6 +134,7 @@ class Router:
                 job = JobManager.create_job(request.engine_id, engine_job_id, service_url)
                 job.metadata["warnings"] = all_warnings
                 job.metadata["verbose"] = request.verbose
+                job.metadata["original_request"] = request.instance
                 if binding_space:
                     job.metadata["binding_space"] = binding_space
                 
@@ -93,6 +144,9 @@ class Router:
                 )
                 
             except httpx.HTTPStatusError as e:
+                if e.response.status_code == 413:
+                    raise PayloadTooLargeError(PAYLOAD_TOO_LARGE_MESSAGE)
+
                 # Handle 422 from Random Search as No Solution
                 if e.response.status_code == 422:
                      try:
@@ -103,6 +157,7 @@ class Router:
                              job.status = JobStatus.COMPLETED
                              
                              result = SolveResponse(
+                                 feasibility=Feasibility.INFEASIBLE if self._is_exact_engine(request.engine_id) else Feasibility.UNKNOWN,
                                  solutions=[],
                                  provenance={
                                      "engine_id": request.engine_id,
@@ -162,7 +217,9 @@ class Router:
                 result = None
                 if engine_status == "completed" or engine_status == "optimized":
                     plugin = EngineRegistry.get_plugin(job.engine_id)
-                    result_data = plugin.transform_response(data, {}) 
+                    original_request = job.metadata.get("original_request") or {}
+                    result_data = plugin.transform_response(data, original_request)
+                    feasibility = self._compute_feasibility(job.engine_id, result_data)
                     
                     diagnostics = {}
                     verbose = job.metadata.get("verbose", False)
@@ -177,6 +234,7 @@ class Router:
                            diagnostics["binding_space"] = binding_space
 
                     result = SolveResponse(
+                        feasibility=feasibility,
                         solutions=result_data.get("solutions", []),
                         provenance=result_data.get("provenance"),
                         diagnostics=diagnostics if diagnostics else None

@@ -2,7 +2,9 @@ import Fastify from 'fastify';
 import { Solver } from './solver';
 import { JobManager } from './jobs';
 
-const fastify = Fastify({ logger: true });
+const MAX_BODY_BYTES = 512 * 1024 * 1024;
+
+const fastify = Fastify({ logger: true, bodyLimit: MAX_BODY_BYTES });
 const solver = new Solver();
 const jobManager = new JobManager();
 

@@ -15,15 +15,27 @@ import es.us.isa.qosawarewsbinding.qos.QoSProperty;
 import es.us.isa.qosawarewsbinding.solution.QoSAwareWSCompositionSolution;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
+import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Controller implements HttpHandler {
+    private static final long MAX_BODY_BYTES = 512L * 1024L * 1024L;
+    private static final String PAYLOAD_TOO_LARGE_MESSAGE =
+            "Request body is too large. Maximum allowed size is " + MAX_BODY_BYTES + " bytes.";
+
     private final Gson gson = new Gson();
+
+    private static class PayloadTooLargeException extends RuntimeException {
+        PayloadTooLargeException(String message) {
+            super(message);
+        }
+    }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -33,7 +45,18 @@ public class Controller implements HttpHandler {
         }
 
         try {
-            SolveRequest req = gson.fromJson(new InputStreamReader(exchange.getRequestBody()), SolveRequest.class);
+            String contentLength = exchange.getRequestHeaders().getFirst("Content-Length");
+            if (contentLength != null) {
+                try {
+                    if (Long.parseLong(contentLength) > MAX_BODY_BYTES) {
+                        throw new PayloadTooLargeException(PAYLOAD_TOO_LARGE_MESSAGE);
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+
+            String requestBody = readBodyWithLimit(exchange.getRequestBody(), MAX_BODY_BYTES);
+            SolveRequest req = gson.fromJson(requestBody, SolveRequest.class);
             SolveResponse resp = process(req);
 
             String jsonResp = gson.toJson(resp);
@@ -45,6 +68,12 @@ public class Controller implements HttpHandler {
         } catch (IllegalArgumentException e) {
             String error = "{\"error\": \"" + e.getMessage() + "\"}";
             exchange.sendResponseHeaders(422, error.length());
+            OutputStream os = exchange.getResponseBody();
+            os.write(error.getBytes());
+            os.close();
+        } catch (PayloadTooLargeException e) {
+            String error = "{\"error\": \"" + e.getMessage() + "\"}";
+            exchange.sendResponseHeaders(413, error.length());
             OutputStream os = exchange.getResponseBody();
             os.write(error.getBytes());
             os.close();
@@ -60,6 +89,23 @@ public class Controller implements HttpHandler {
             os.write(error.getBytes());
             os.close();
         }
+    }
+
+    private String readBodyWithLimit(InputStream inputStream, long maxBytes) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        long total = 0;
+
+        int bytesRead;
+        while ((bytesRead = inputStream.read(buffer)) != -1) {
+            total += bytesRead;
+            if (total > maxBytes) {
+                throw new PayloadTooLargeException(PAYLOAD_TOO_LARGE_MESSAGE);
+            }
+            output.write(buffer, 0, bytesRead);
+        }
+
+        return new String(output.toByteArray(), StandardCharsets.UTF_8);
     }
 
     private SolveResponse process(SolveRequest req) {

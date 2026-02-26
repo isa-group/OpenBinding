@@ -152,11 +152,12 @@ def solve(gateway_url, wait_for_job, engine, instance):
     
     result = job.get("result", {})
     solutions = result.get("solutions", [])
+    feasibility = str(result.get("feasibility") or "UNKNOWN").upper()
     if not solutions:
-        return {"is_feasible": False, "binding": {}, "objective_value": None}
+        return {"feasibility": feasibility, "binding": {}, "objective_value": None}
     sol = solutions[0]
     return {
-        "is_feasible": sol.get("is_feasible", False),
+        "feasibility": feasibility,
         "binding": sol.get("binding", {}),
         "objective_value": sol.get("objective_value")
     }
@@ -166,13 +167,13 @@ def test_huge_minizinc(gateway_url, wait_for_job):
     """Verify huge instance with complex constraints on MiniZinc."""
     inst = create_huge_instance("minizinc")
     sol = solve(gateway_url, wait_for_job, "minizinc-csp", inst)
-    assert sol["is_feasible"], "MiniZinc huge instance should be feasible"
+    assert sol["feasibility"] == "FEASIBLE", "MiniZinc huge instance should be feasible"
 
 # @pytest.mark.skip(reason="Huge scale tests timeout due to complex schema and large binding space")
 def test_huge_random(gateway_url, wait_for_job):
     """Verify huge instance with global constraints on Random Search."""
     inst = create_huge_instance("random")
-    sol = solve(gateway_url, wait_for_job, "random-search", inst)
+    solve(gateway_url, wait_for_job, "random-search", inst)
     # Random search might struggle to find feasible if constraints strict and space huge.
 
 # @pytest.mark.skip(reason="Huge scale tests timeout due to complex schema and large binding space")
@@ -181,6 +182,6 @@ def test_huge_common_comparison(gateway_url, wait_for_job):
     inst = create_huge_instance("common")
     
     sol_mz = solve(gateway_url, wait_for_job, "minizinc-csp", inst)
-    sol_rs = solve(gateway_url, wait_for_job, "random-search", inst)
+    solve(gateway_url, wait_for_job, "random-search", inst)
     
-    assert sol_mz["is_feasible"], "MiniZinc should have no trouble with this relaxed instance."
+    assert sol_mz["feasibility"] == "FEASIBLE", "MiniZinc should have no trouble with this relaxed instance."

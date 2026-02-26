@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Request
 from contextlib import asynccontextmanager
 from typing import List, Dict, Any
 import json
@@ -13,7 +13,7 @@ load_dotenv()
 from .models.api import SolveRequest, SolveResponse, JobResponse, JobStatus, AnalyzeResponse, AnalyzeWarning, BindingSpaceSummary, Provenance, BindingSpaceRequest, BindingSpacePage
 from .validation.pipeline import ValidationPipeline
 from .validation.analysis import compute_binding_space_summary, generate_warnings, generate_binding_space_subset
-from .routing.router import Router
+from .routing.router import Router, PayloadTooLargeError, PAYLOAD_TOO_LARGE_MESSAGE, MAX_ENGINE_PAYLOAD_BYTES
 from .registry.engine import EngineRegistry
 import time
 
@@ -22,6 +22,8 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="OpenBinding Gateway", lifespan=lifespan)
+
+MAX_SOLVE_BODY_BYTES = 512 * 1024 * 1024
 
 _HEALTH_EXAMPLE = {"status": "ok"}
 
@@ -83,9 +85,9 @@ _JOB_COMPLETED_EXAMPLE = {
     "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
     "status": "completed",
     "result": {
+        "feasibility": "FEASIBLE",
         "solutions": [
             {
-                "is_feasible": True,
                 "objective_value": 0.0,
                 "binding": {"t1": "s2", "t2": "s4"},
                 "aggregated_features": {"cost": 20.0, "time": 60.0},
@@ -246,6 +248,15 @@ def validate_and_prepare(request: SolveRequest):
         "binding_space": binding_space,
         "warnings": warnings
     }
+
+
+def _content_length_too_large(header_value: str | None, max_bytes: int) -> bool:
+    if not header_value:
+        return False
+    try:
+        return int(header_value) > max_bytes
+    except (TypeError, ValueError):
+        return False
 
 @app.post(
     "/v1/analyze",
@@ -434,7 +445,13 @@ from fastapi.responses import FileResponse
         },
     },
 )
-async def solve(request: SolveRequest, response: Response):
+async def solve(http_request: Request, request: SolveRequest, response: Response):
+    if _content_length_too_large(http_request.headers.get("content-length"), MAX_SOLVE_BODY_BYTES):
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=f"Request body is too large. Maximum allowed size is {MAX_SOLVE_BODY_BYTES} bytes.",
+        )
+
     result = validate_and_prepare(request)
     
     if not result["valid"]:
@@ -475,7 +492,13 @@ async def solve(request: SolveRequest, response: Response):
     warning_payload = [w.model_dump() if hasattr(w, "model_dump") else w for w in (warnings or [])]
     
     # Hand the validated request over to the router to find a solution.
-    job_resp = await router.route_solve(request, binding_space=binding_space, warnings=warning_payload)
+    try:
+        job_resp = await router.route_solve(request, binding_space=binding_space, warnings=warning_payload)
+    except PayloadTooLargeError:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=PAYLOAD_TOO_LARGE_MESSAGE,
+        )
     
     if job_resp.status == JobStatus.COMPLETED or job_resp.status == JobStatus.FAILED:
         response.status_code = status.HTTP_200_OK
