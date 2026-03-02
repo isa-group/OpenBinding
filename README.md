@@ -102,19 +102,35 @@ Example payloads that follow these schemas live in `examples/`.
 
 ### Installation & Running
 
-1.  **Start the Stack**:
+1.  **Configure environment variables**:
     ```bash
-    docker compose up --build
+    cp .env.example .env
     ```
 
-    The services will be available at:
-    *   **Frontend**: [http://localhost:80](http://localhost:80)
-    *   **Gateway API**: [http://localhost:8000/docs](http://localhost:8000/docs)
-    *   **MiniZinc Engine**: Port 3000 (Internal)
-    *   **Random Search Engine**: Port 8081 (Internal)
-    *   **Many-Heuristic Engine**: Port 8082 (Internal)
+2.  **Start development stack**:
+    ```bash
+    COMPOSE_PROFILES=dev docker compose up --build
+    ```
 
-2.  **Stop the Stack**:
+    Development services:
+    *   **Nginx (local)**: [http://localhost:80](http://localhost:80)
+    *   **Frontend dev server**: [http://localhost:5173](http://localhost:5173)
+    *   **Gateway API docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+3.  **Start production stack**:
+    ```bash
+    COMPOSE_PROFILES=prod docker compose up --build -d
+    ```
+
+    Production notes:
+    *   **Nginx** listens on ports **80/443**.
+    *   Configure DNS for `openbinding.score.us.es` and `openbinding.us.es`.
+    *   Place TLS files in `nginx/ssl/` (or override `NGINX_SSL_DIR`) with names:
+        - `fullchain.pem`
+        - `privkey.pem`
+    *   Gateway is exposed only internally behind Nginx.
+
+4.  **Stop the Stack**:
     ```bash
     docker compose down
     ```
@@ -182,13 +198,13 @@ To run the complete test suite in the Docker environment:
 
 ```bash
 # 1. Ensure stack is running
-docker compose up -d
+COMPOSE_PROFILES=dev docker compose up -d
 
 # 2. Run all tests
-docker compose exec gateway test
+docker compose exec gateway-dev test
 
 # 3. Run specific test file
-docker compose exec gateway test tests/test_analysis.py -v
+docker compose exec gateway-dev test tests/test_analysis.py -v
 ```
 
 ### Running Tests (Local)

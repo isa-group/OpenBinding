@@ -114,10 +114,21 @@ _JOB_FAILED_EXAMPLE = {
 
 from fastapi.middleware.cors import CORSMiddleware
 
+
+def _parse_csv_env(value: str) -> List[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+cors_origins = _parse_csv_env(os.getenv("CORS_ALLOW_ORIGINS", "*"))
+cors_allow_credentials = os.getenv("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
+
+if "*" in cors_origins:
+    cors_allow_credentials = False
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_credentials=cors_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

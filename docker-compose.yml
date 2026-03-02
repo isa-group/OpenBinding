@@ -3,6 +3,39 @@ services:
     build:
       context: ./openbinding-gateway
       dockerfile: Dockerfile
+    profiles: ["prod"]
+    volumes:
+      - ./schemas:/app/schemas
+      - ./openbinding-gateway:/app
+      - ./examples/generated_instances:/app/examples/generated_instances
+    environment:
+      - APP_ENV=prod
+      - GENERAL_SCHEMA_PATH=/app/schemas/general/schema.json
+      - SCHEMAS_DIR=/app/schemas
+      - PYTHONPATH=/app/src
+      - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_PROD:-https://openbinding.score.us.es,https://openbinding.us.es}
+      - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
+      - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
+      - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      engine-minizinc:
+        condition: service_healthy
+      engine-random-search:
+        condition: service_healthy
+      engine-many-heuristic:
+        condition: service_healthy
+
+  gateway-dev:
+    build:
+      context: ./openbinding-gateway
+      dockerfile: Dockerfile
+    profiles: ["dev"]
     ports:
       - "8000:8000"
     volumes:
@@ -10,9 +43,11 @@ services:
       - ./openbinding-gateway:/app
       - ./examples/generated_instances:/app/examples/generated_instances
     environment:
+      - APP_ENV=dev
       - GENERAL_SCHEMA_PATH=/app/schemas/general/schema.json
       - SCHEMAS_DIR=/app/schemas
       - PYTHONPATH=/app/src
+      - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_DEV:-http://localhost:80,http://localhost:5173,http://127.0.0.1:80,http://127.0.0.1:5173}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
@@ -34,8 +69,7 @@ services:
     build:
       context: ./engines/minizinc-csp
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
+    profiles: ["dev", "prod"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
       interval: 10s
@@ -47,8 +81,7 @@ services:
     build:
       context: ./engines/random-search
       dockerfile: Dockerfile
-    ports:
-      - "8081:8080"
+    profiles: ["dev", "prod"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
       interval: 10s
@@ -60,8 +93,7 @@ services:
     build:
       context: ./engines/many-heuristic
       dockerfile: Dockerfile
-    ports:
-      - "8082:8080"
+    profiles: ["dev", "prod"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
       interval: 10s
@@ -69,16 +101,79 @@ services:
       retries: 5
       start_period: 30s
 
-  frontend:
+  frontend-dev:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: dev
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL_DEV:-http://localhost:8000}
+    profiles: ["dev"]
     ports:
-      - "80:80"
+      - "5173:5173"
+    depends_on:
+      gateway-dev:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5173/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend-prod:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: prod-static
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL_PROD:-/api}
+    profiles: ["prod"]
     volumes:
       - ./examples:/usr/share/nginx/html/examples:ro
     depends_on:
       gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  nginx-dev:
+    build:
+      context: ./nginx/local
+      dockerfile: Dockerfile
+    profiles: ["dev"]
+    ports:
+      - "80:80"
+    depends_on:
+      gateway-dev:
+        condition: service_healthy
+      frontend-dev:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  nginx:
+    build:
+      context: ./nginx/production
+      dockerfile: Dockerfile
+    profiles: ["prod"]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${NGINX_SSL_DIR:-./nginx/ssl}:/etc/nginx/ssl:ro
+    depends_on:
+      gateway:
+        condition: service_healthy
+      frontend-prod:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost/"]
