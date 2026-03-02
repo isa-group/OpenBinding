@@ -1,8 +1,15 @@
+x-proxy-build-args: &proxy-build-args
+  HTTP_PROXY: ${HTTP_PROXY:-}
+  HTTPS_PROXY: ${HTTPS_PROXY:-}
+  NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,gateway,gateway-dev,engine-minizinc,engine-random-search,engine-many-heuristic,frontend-dev,frontend-prod,nginx,nginx-dev}
+
 services:
   gateway:
     build:
       context: ./openbinding-gateway
       dockerfile: Dockerfile
+      args:
+        <<: *proxy-build-args
     profiles: ["prod"]
     volumes:
       - ./schemas:/app/schemas
@@ -35,6 +42,8 @@ services:
     build:
       context: ./openbinding-gateway
       dockerfile: Dockerfile
+      args:
+        <<: *proxy-build-args
     profiles: ["dev"]
     ports:
       - "8000:8000"
@@ -47,7 +56,7 @@ services:
       - GENERAL_SCHEMA_PATH=/app/schemas/general/schema.json
       - SCHEMAS_DIR=/app/schemas
       - PYTHONPATH=/app/src
-      - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_DEV:-http://localhost:80,http://localhost:5173,http://127.0.0.1:80,http://127.0.0.1:5173}
+      - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_DEV:-http://localhost,http://localhost:80,http://localhost:5173,http://127.0.0.1,http://127.0.0.1:80,http://127.0.0.1:5173}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
@@ -69,6 +78,8 @@ services:
     build:
       context: ./engines/minizinc-csp
       dockerfile: Dockerfile
+      args:
+        <<: *proxy-build-args
     profiles: ["dev", "prod"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
@@ -81,6 +92,8 @@ services:
     build:
       context: ./engines/random-search
       dockerfile: Dockerfile
+      args:
+        <<: *proxy-build-args
     profiles: ["dev", "prod"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
@@ -93,6 +106,8 @@ services:
     build:
       context: ./engines/many-heuristic
       dockerfile: Dockerfile
+      args:
+        <<: *proxy-build-args
     profiles: ["dev", "prod"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
@@ -107,7 +122,8 @@ services:
       dockerfile: Dockerfile
       target: dev
       args:
-        - VITE_API_BASE_URL=${VITE_API_BASE_URL_DEV:-http://localhost:8000}
+        <<: *proxy-build-args
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL_DEV:-http://localhost:8000}
     profiles: ["dev"]
     ports:
       - "5173:5173"
@@ -115,7 +131,7 @@ services:
       gateway-dev:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:5173/"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:5173/', (r) => process.exit(r.statusCode >= 200 && r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -127,7 +143,8 @@ services:
       dockerfile: Dockerfile
       target: prod-static
       args:
-        - VITE_API_BASE_URL=${VITE_API_BASE_URL_PROD:-/api}
+        <<: *proxy-build-args
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL_PROD:-/api}
     profiles: ["prod"]
     volumes:
       - ./examples:/usr/share/nginx/html/examples:ro
@@ -145,16 +162,20 @@ services:
     build:
       context: ./nginx/local
       dockerfile: Dockerfile
+      args:
+        <<: *proxy-build-args
     profiles: ["dev"]
     ports:
       - "80:80"
+    volumes:
+      - ./examples:/usr/share/nginx/html/examples:ro
     depends_on:
       gateway-dev:
         condition: service_healthy
       frontend-dev:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost/"]
+      test: ["CMD", "nginx", "-t"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -164,6 +185,8 @@ services:
     build:
       context: ./nginx/production
       dockerfile: Dockerfile
+      args:
+        <<: *proxy-build-args
     profiles: ["prod"]
     ports:
       - "80:80"
@@ -176,7 +199,7 @@ services:
       frontend-prod:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost/"]
+      test: ["CMD", "nginx", "-t"]
       interval: 30s
       timeout: 5s
       retries: 3
