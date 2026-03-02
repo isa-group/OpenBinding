@@ -13,7 +13,6 @@ ENV HTTP_PROXY=$HTTP_PROXY \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
-RUN printf 'precedence ::ffff:0:0/96  100\n' >> /etc/gai.conf
 
 WORKDIR /app
 
