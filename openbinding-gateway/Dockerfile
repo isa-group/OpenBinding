@@ -12,14 +12,15 @@ ENV HTTP_PROXY=$HTTP_PROXY \
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN printf 'precedence ::ffff:0:0/96  100\n' >> /etc/gai.conf
 
 WORKDIR /app
 
 # Install dependencies
 COPY pyproject.toml .
 COPY src/ src/
-RUN --network=host uv pip install --system ".[test]"
+RUN uv pip install --system ".[test]"
 
 # Add test runner script
 RUN echo '#!/bin/sh\npytest "$@"' > /usr/local/bin/test && \
