@@ -1,4 +1,18 @@
 FROM maven:3.8-openjdk-8 as builder
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
+ENV HTTP_PROXY=$HTTP_PROXY \
+	HTTPS_PROXY=$HTTPS_PROXY \
+	NO_PROXY=$NO_PROXY \
+	http_proxy=$HTTP_PROXY \
+	https_proxy=$HTTPS_PROXY \
+	no_proxy=$NO_PROXY
+
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
@@ -6,6 +20,20 @@ COPY src ./src
 RUN mvn package -DskipTests
 
 FROM eclipse-temurin:8-jre
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
+ENV HTTP_PROXY=$HTTP_PROXY \
+	HTTPS_PROXY=$HTTPS_PROXY \
+	NO_PROXY=$NO_PROXY \
+	http_proxy=$HTTP_PROXY \
+	https_proxy=$HTTPS_PROXY \
+	no_proxy=$NO_PROXY
+
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/ManyHeuristicQoSawareCWSBinding-0.0.1-SNAPSHOT.jar app.jar

@@ -1,5 +1,19 @@
 FROM node:20-slim AS base
 
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
+ENV HTTP_PROXY=$HTTP_PROXY \
+	HTTPS_PROXY=$HTTPS_PROXY \
+	NO_PROXY=$NO_PROXY \
+	http_proxy=$HTTP_PROXY \
+	https_proxy=$HTTPS_PROXY \
+	no_proxy=$NO_PROXY
+
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
@@ -23,6 +37,20 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN pnpm run build
 
 FROM nginx:1.27-alpine AS prod-static
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG http_proxy
+ARG https_proxy
+ARG no_proxy
+
+ENV HTTP_PROXY=$HTTP_PROXY \
+	HTTPS_PROXY=$HTTPS_PROXY \
+	NO_PROXY=$NO_PROXY \
+	http_proxy=$HTTP_PROXY \
+	https_proxy=$HTTPS_PROXY \
+	no_proxy=$NO_PROXY
+
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
