@@ -19,7 +19,7 @@ WORKDIR /app
 # Install dependencies
 COPY pyproject.toml .
 COPY src/ src/
-RUN uv pip install --system ".[test]"
+RUN --network=host uv pip install --system ".[test]"
 
 # Add test runner script
 RUN echo '#!/bin/sh\npytest "$@"' > /usr/local/bin/test && \

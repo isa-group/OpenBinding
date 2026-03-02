@@ -8,7 +8,6 @@ services:
     build:
       context: ./openbinding-gateway
       dockerfile: Dockerfile
-      network: host
       args:
         <<: *proxy-build-args
     profiles: ["prod"]
@@ -43,7 +42,6 @@ services:
     build:
       context: ./openbinding-gateway
       dockerfile: Dockerfile
-      network: host
       args:
         <<: *proxy-build-args
     profiles: ["dev"]
@@ -80,7 +78,6 @@ services:
     build:
       context: ./engines/minizinc-csp
       dockerfile: Dockerfile
-      network: host
       args:
         <<: *proxy-build-args
     profiles: ["dev", "prod"]
@@ -95,7 +92,6 @@ services:
     build:
       context: ./engines/random-search
       dockerfile: Dockerfile
-      network: host
       args:
         <<: *proxy-build-args
     profiles: ["dev", "prod"]
@@ -110,7 +106,6 @@ services:
     build:
       context: ./engines/many-heuristic
       dockerfile: Dockerfile
-      network: host
       args:
         <<: *proxy-build-args
     profiles: ["dev", "prod"]
