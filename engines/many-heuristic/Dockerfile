@@ -13,7 +13,14 @@ WORKDIR /app
 COPY pom.xml .
 COPY src ./src
 # COPY lib ./lib # No lib present or empty
-RUN mvn package -DskipTests
+RUN mvn -DskipTests \
+  -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=false \
+  -Dhttp.proxyHost=$(echo "$HTTP_PROXY"  | sed -E 's#^https?://([^:/]+).*$#\1#') \
+  -Dhttp.proxyPort=$(echo "$HTTP_PROXY"  | sed -E 's#^https?://[^:/]+:([0-9]+).*$#\1#') \
+  -Dhttps.proxyHost=$(echo "$HTTPS_PROXY" | sed -E 's#^https?://([^:/]+).*$#\1#') \
+  -Dhttps.proxyPort=$(echo "$HTTPS_PROXY" | sed -E 's#^https?://[^:/]+:([0-9]+).*$#\1#') \
+  -Dhttp.nonProxyHosts="localhost|127.0.0.1|*.int.local|10.*|192.168.*|172.16.*" \
+  package
 
 FROM eclipse-temurin:8-jre
 ARG HTTP_PROXY
