@@ -2,10 +2,6 @@ FROM maven:3.8-openjdk-8 as builder
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NO_PROXY
-ARG http_proxy
-ARG https_proxy
-ARG no_proxy
-
 ENV HTTP_PROXY=$HTTP_PROXY \
 	HTTPS_PROXY=$HTTPS_PROXY \
 	NO_PROXY=$NO_PROXY \
@@ -23,9 +19,6 @@ FROM eclipse-temurin:8-jre
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NO_PROXY
-ARG http_proxy
-ARG https_proxy
-ARG no_proxy
 
 ENV HTTP_PROXY=$HTTP_PROXY \
 	HTTPS_PROXY=$HTTPS_PROXY \

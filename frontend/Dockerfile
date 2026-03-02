@@ -3,9 +3,6 @@ FROM node:20-slim AS base
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NO_PROXY
-ARG http_proxy
-ARG https_proxy
-ARG no_proxy
 
 ENV HTTP_PROXY=$HTTP_PROXY \
 	HTTPS_PROXY=$HTTPS_PROXY \
@@ -40,9 +37,6 @@ FROM nginx:1.27-alpine AS prod-static
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NO_PROXY
-ARG http_proxy
-ARG https_proxy
-ARG no_proxy
 
 ENV HTTP_PROXY=$HTTP_PROXY \
 	HTTPS_PROXY=$HTTPS_PROXY \

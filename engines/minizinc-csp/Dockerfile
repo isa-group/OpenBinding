@@ -3,9 +3,7 @@ FROM node:20-slim
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NO_PROXY
-ARG http_proxy
-ARG https_proxy
-ARG no_proxy
+
 
 ENV HTTP_PROXY=$HTTP_PROXY \
 	HTTPS_PROXY=$HTTPS_PROXY \
