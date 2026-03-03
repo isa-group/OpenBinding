@@ -191,7 +191,7 @@ services:
       - "443:443"
     volumes:
       - frontend_dist:/usr/share/nginx/html:ro
-      - ./examples:/usr/share/nginx/html/examples:ro
+      - ./examples:/opt/openbinding/examples:ro
       - ${NGINX_SSL_DIR:-./nginx/ssl}:/etc/nginx/ssl:ro
     depends_on:
       gateway:
