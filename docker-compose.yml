@@ -141,18 +141,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: prod-static
+      target: prod-assets
       args:
         <<: *proxy-build-args
         VITE_API_BASE_URL: ${VITE_API_BASE_URL_PROD:-/api}
     profiles: ["prod"]
     volumes:
-      - ./examples:/usr/share/nginx/html/examples:ro
-    depends_on:
-      gateway:
-        condition: service_healthy
+      - frontend_dist:/out
+    command: ["sh", "-c", "rm -rf /out/* && cp -a /dist/. /out/ && tail -f /dev/null"]
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost/"]
+      test: ["CMD", "test", "-f", "/out/index.html"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -192,6 +190,8 @@ services:
       - "80:80"
       - "443:443"
     volumes:
+      - frontend_dist:/usr/share/nginx/html:ro
+      - ./examples:/usr/share/nginx/html/examples:ro
       - ${NGINX_SSL_DIR:-./nginx/ssl}:/etc/nginx/ssl:ro
     depends_on:
       gateway:
@@ -204,3 +204,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+volumes:
+  frontend_dist:

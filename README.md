@@ -124,6 +124,7 @@ Example payloads that follow these schemas live in `examples/`.
 
     Production notes:
     *   **Nginx** listens on ports **80/443**.
+    *   `frontend-prod` generates static assets; only Nginx serves them publicly.
     *   Configure DNS for `openbinding.score.us.es` and `openbinding.us.es`.
     *   Place TLS files in `nginx/ssl/` (or override `NGINX_SSL_DIR`) with names:
         - `fullchain.pem`
