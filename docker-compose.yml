@@ -1,7 +1,7 @@
 x-proxy-build-args: &proxy-build-args
-  HTTP_PROXY: ${HTTP_PROXY:-}
-  HTTPS_PROXY: ${HTTPS_PROXY:-}
-  NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,gateway,gateway-dev,engine-minizinc,engine-random-search,engine-many-heuristic,frontend-dev,frontend-prod,nginx,nginx-dev}
+  HTTP_PROXY: ${HTTP_PROXY_ARG:-}
+  HTTPS_PROXY: ${HTTPS_PROXY_ARG:-}
+  NO_PROXY: ${NO_PROXY_ARG:-localhost,127.0.0.1,gateway,gateway-dev,engine-minizinc,engine-random-search,engine-many-heuristic,frontend-dev,frontend-prod,nginx,nginx-dev}
 
 services:
   gateway:
