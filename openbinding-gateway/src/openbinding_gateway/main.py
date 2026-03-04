@@ -21,7 +21,7 @@ import time
 async def lifespan(app: FastAPI):
     yield
 
-app = FastAPI(title="OpenBinding Gateway", lifespan=lifespan)
+app = FastAPI(title="OpenBinding Gateway", lifespan=lifespan, root_path="/api")
 
 MAX_SOLVE_BODY_BYTES = 512 * 1024 * 1024
 
