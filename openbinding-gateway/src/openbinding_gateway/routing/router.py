@@ -6,6 +6,7 @@ from ..registry.engine import EngineRegistry
 from ..models.api import SolveRequest, SolveResponse
 from ..models.api import JobResponse, JobStatus, Feasibility
 from ..jobs import JobManager
+from ..validation.engine_plugins.aggregation import canonicalize_result_data
 
 MAX_ENGINE_PAYLOAD_BYTES = 512 * 1024 * 1024
 PAYLOAD_TOO_LARGE_MESSAGE = (
@@ -101,6 +102,7 @@ class Router:
                 if "job_id" not in data and sync_selection is not None:
                      # It's a synchronous result
                      result_data = plugin.transform_response(data, request.instance)
+                     result_data = canonicalize_result_data(result_data, request.instance)
                      feasibility = self._compute_feasibility(request.engine_id, result_data)
                      
                      job = JobManager.create_job(request.engine_id, "sync", service_url)
@@ -219,6 +221,7 @@ class Router:
                     plugin = EngineRegistry.get_plugin(job.engine_id)
                     original_request = job.metadata.get("original_request") or {}
                     result_data = plugin.transform_response(data, original_request)
+                    result_data = canonicalize_result_data(result_data, original_request)
                     feasibility = self._compute_feasibility(job.engine_id, result_data)
                     
                     diagnostics = {}

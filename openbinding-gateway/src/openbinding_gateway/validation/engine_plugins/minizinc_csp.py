@@ -206,11 +206,8 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
 
         selected_candidate_by_task = build_selected_candidate_by_task(selection, candidates_by_id)
 
-        if old_sol.get("aggregated_features"):
-            aggregated_qos = old_sol.get("aggregated_features")
-        else:
-            root = (original_request.get("composition", {}) or {}).get("root", {})
-            aggregated_qos = compute_aggregated_qos(root, features, selected_candidate_by_task, agg_policies)
+        root = (original_request.get("composition", {}) or {}).get("root", {})
+        aggregated_qos = compute_aggregated_qos(root, features, selected_candidate_by_task, agg_policies)
             
         # -----------------------------------------------
         

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "file:///Users/franciscojaviercaverolopez/Workspace/OpenBinding/schemas/specializations/many-heuristic.schema.json",
+  "$id": "https://openbinding.us.es/api/v1/schemas/many-heuristic",
   "title": "Many-Heuristic Specialization",
   "description": "Profile for the Many-Heuristic Java Engine (structured workflows + many-objective + Pareto options).",
   "type": "object",

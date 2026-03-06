@@ -30,6 +30,7 @@ public class Controller implements HttpHandler {
     private static final long MAX_BODY_BYTES = 512L * 1024L * 1024L;
     private static final String PAYLOAD_TOO_LARGE_MESSAGE =
             "Request body is too large. Maximum allowed size is " + MAX_BODY_BYTES + " bytes.";
+    private static final String ERROR_PREFIX = "{\"error\": \"";
 
     private final Gson gson = new Gson();
 
@@ -48,13 +49,8 @@ public class Controller implements HttpHandler {
 
         try {
             String contentLength = exchange.getRequestHeaders().getFirst("Content-Length");
-            if (contentLength != null) {
-                try {
-                    if (Long.parseLong(contentLength) > MAX_BODY_BYTES) {
-                        throw new PayloadTooLargeException(PAYLOAD_TOO_LARGE_MESSAGE);
-                    }
-                } catch (NumberFormatException ignored) {
-                }
+            if (contentLength != null && isPayloadTooLarge(contentLength)) {
+                throw new PayloadTooLargeException(PAYLOAD_TOO_LARGE_MESSAGE);
             }
 
             String requestBody = readBodyWithLimit(exchange.getRequestBody(), MAX_BODY_BYTES);
@@ -68,13 +64,13 @@ public class Controller implements HttpHandler {
             os.write(jsonResp.getBytes());
             os.close();
         } catch (IllegalArgumentException e) {
-            String error = "{\"error\": \"" + e.getMessage() + "\"}";
+            String error = ERROR_PREFIX + e.getMessage() + "\"}";
             exchange.sendResponseHeaders(422, error.length());
             OutputStream os = exchange.getResponseBody();
             os.write(error.getBytes());
             os.close();
         } catch (PayloadTooLargeException e) {
-            String error = "{\"error\": \"" + e.getMessage() + "\"}";
+            String error = ERROR_PREFIX + e.getMessage() + "\"}";
             exchange.sendResponseHeaders(413, error.length());
             OutputStream os = exchange.getResponseBody();
             os.write(error.getBytes());
@@ -85,7 +81,7 @@ public class Controller implements HttpHandler {
             e.printStackTrace(pw);
             String stackTrace = sw.toString().replace("\"", "'").replace("\n", "\\n");
 
-            String error = "{\"error\": \"" + e.getMessage() + "\", \"stack\": \"" + stackTrace + "\"}";
+            String error = ERROR_PREFIX + e.getMessage() + "\", \"stack\": \"" + stackTrace + "\"}";
             exchange.sendResponseHeaders(500, error.length());
             OutputStream os = exchange.getResponseBody();
             os.write(error.getBytes());
@@ -108,6 +104,19 @@ public class Controller implements HttpHandler {
         }
 
         return new String(output.toByteArray(), StandardCharsets.UTF_8);
+    }
+
+    private boolean isPayloadTooLarge(String contentLength) {
+        try {
+            return Long.parseLong(contentLength) > MAX_BODY_BYTES;
+        } catch (NumberFormatException ex) {
+            return false;
+        }
+    }
+
+    static Double computeObjectiveValue(ProblemBuildResult mapped, QoSAwareWSCompositionSolution solution) {
+        Double objectiveValue = mapped.qosModel.evaluate(solution, mapped.structure);
+        return objectiveValue != null ? objectiveValue : 0.0;
     }
 
     private SolveResponse process(SolveRequest req) {
@@ -150,9 +159,7 @@ public class Controller implements HttpHandler {
             dto.selection = new HashMap<>();
             dto.aggregated_features = new HashMap<>();
 
-            // Calculate objective value? For Many-Obj, it's a vector not a single value.
-            // keeping objective_value null or 0.0 effectively.
-            dto.objective_value = 0.0;
+            dto.objective_value = computeObjectiveValue(mapped, sol);
 
             for (QoSProperty<Double> p : mapped.propertyMap.values()) {
                 double val = mapped.qosModel.evaluate(sol, p, mapped.structure);

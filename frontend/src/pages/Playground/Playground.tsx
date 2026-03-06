@@ -47,7 +47,8 @@ const AVAILABLE_EXAMPLES = {
     'demo/09_mixed.json',
     'demo/10_large_scale.json',
     'demo/11_multi_obj_negative.json',
-    'demo/12_many_obj_pareto.json'
+    'demo/12_many_obj_pareto.json',
+    'demo/13_fms.json'
   ],
   'Literature Examples': [
     'literature/benatallah.json',
