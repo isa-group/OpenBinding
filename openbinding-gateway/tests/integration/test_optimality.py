@@ -179,3 +179,45 @@ def test_loop_composition(gateway_url, wait_for_job, engine):
     
     instance["constraints"] = []
     run_test(gateway_url, wait_for_job, engine, instance, {"T1": "C1"}, 30)
+
+
+def test_product_maximize_direction(gateway_url, wait_for_job, engine):
+    """MAXIMIZE + PRODUCT must prefer highest product combination in MiniZinc."""
+    if engine != "minizinc-csp":
+        pytest.skip("Direction/product regression test is specific to MiniZinc objective mapping")
+
+    instance = copy.deepcopy(BASE_INSTANCE)
+    instance["features"] = [
+        {
+            "id": "reliability",
+            "name": "Reliability",
+            "direction": "MAXIMIZE",
+            "scale": "RATIO",
+            "unit": "ratio",
+            "valid_range": {"min": 0.0, "max": 1.0},
+        }
+    ]
+    instance["aggregation_policies"] = {
+        "reliability": {
+            "neutral": 1.0,
+            "compose": {
+                "seq": {"fn": "PRODUCT"},
+                "xor": {"fn": "SCALED_PRODUCT"},
+                "loop": {"fn": "PRODUCT"},
+            },
+        }
+    }
+    instance["objective"] = {
+        "type": "MONO",
+        "targets": ["reliability"],
+        "weights": {"reliability": 1.0},
+    }
+    instance["constraints"] = []
+    instance["candidates"] = [
+        {"id": "C1", "task_id": "T1", "provider_id": "ProvA", "name": "C1", "features": {"reliability": 0.9}},
+        {"id": "C2", "task_id": "T1", "provider_id": "ProvB", "name": "C2", "features": {"reliability": 0.3}},
+        {"id": "C3", "task_id": "T2", "provider_id": "ProvA", "name": "C3", "features": {"reliability": 0.8}},
+        {"id": "C4", "task_id": "T2", "provider_id": "ProvB", "name": "C4", "features": {"reliability": 0.4}},
+    ]
+
+    run_test(gateway_url, wait_for_job, engine, instance, {"T1": "C1", "T2": "C3"}, None)

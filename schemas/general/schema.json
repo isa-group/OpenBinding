@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "file:///Users/franciscojaviercaverolopez/Workspace/OpenBinding/schemas/general/schema.json",
+  "$id": "https://openbinding.us.es/api/v1/schemas/general",
   "title": "Compact QoS-Aware Service Composition",
   "type": "object",
   "required": [

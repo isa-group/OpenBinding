@@ -7,22 +7,32 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROFILES: dev
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Compose
+      - name: Prepare environment
         run: |
-          sudo apt-get update
-          sudo apt-get install -y docker-compose
+          if [ ! -f .env ]; then
+            cp .env.example .env
+          fi
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config
 
       - name: Build and start services
-        run: docker-compose up --build -d
+        run: docker compose up --build -d --wait gateway-dev
 
       - name: Run Tests
-        run: docker-compose exec -T gateway test
+        run: docker compose exec -T gateway-dev test
+      
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs --no-color gateway-dev engine-minizinc engine-random-search engine-many-heuristic
 
       - name: Shutdown services
         if: always()
-        run: docker-compose down
+        run: docker compose down --volumes --remove-orphans

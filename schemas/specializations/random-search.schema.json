@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "file:///Users/franciscojaviercaverolopez/Workspace/OpenBinding/schemas/specializations/random-search.schema.json",
+  "$id": "https://openbinding.us.es/api/v1/schemas/random-search",
   "title": "Random-Search Specialization",
   "description": "Profile for the Random-Search Java Engine (structured workflows + weighted-sum objective + optional global attribute bounds).",
   "type": "object",

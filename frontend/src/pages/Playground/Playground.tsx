@@ -40,14 +40,15 @@ const AVAILABLE_EXAMPLES = {
     'demo/02_parallel.json',
     'demo/03_xor_choice.json',
     'demo/04_conflict.json',
-    'demo/05_mono_obj_various.json',
+    'demo/05_single_obj_various.json',
     'demo/06_loops.json',
     'demo/07_soft_constraints.json',
     'demo/08_dependencies.json',
     'demo/09_mixed.json',
     'demo/10_large_scale.json',
     'demo/11_multi_obj_negative.json',
-    'demo/12_many_obj_pareto.json'
+    'demo/12_many_obj_pareto.json',
+    'demo/13_fms.json'
   ],
   'Literature Examples': [
     'literature/benatallah.json',

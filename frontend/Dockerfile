@@ -1,6 +1,16 @@
-FROM node:20-slim as builder
+FROM node:20-slim AS base
 
-# Enable pnpm
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+
+ENV HTTP_PROXY=$HTTP_PROXY \
+	HTTPS_PROXY=$HTTPS_PROXY \
+	NO_PROXY=$NO_PROXY \
+	http_proxy=$HTTP_PROXY \
+	https_proxy=$HTTPS_PROXY \
+	no_proxy=$NO_PROXY
+
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
@@ -12,17 +22,27 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-# Set default API URL for Docker deployment (can be overridden)
-ENV VITE_API_BASE_URL=http://localhost:8000
+FROM base AS dev
+ARG VITE_API_BASE_URL=http://localhost:8000
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+EXPOSE 5173
+CMD ["pnpm", "dev", "--host", "0.0.0.0", "--port", "5173"]
 
+FROM base AS build
+ARG VITE_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN pnpm run build
 
-FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+FROM alpine:3.21 AS prod-assets
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
 
-# Create examples directory and make it available to be mounted
-RUN mkdir -p /usr/share/nginx/html/examples
+ENV HTTP_PROXY=$HTTP_PROXY \
+	HTTPS_PROXY=$HTTPS_PROXY \
+	NO_PROXY=$NO_PROXY \
+	http_proxy=$HTTP_PROXY \
+	https_proxy=$HTTPS_PROXY \
+	no_proxy=$NO_PROXY
 
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+COPY --from=build /app/dist /dist

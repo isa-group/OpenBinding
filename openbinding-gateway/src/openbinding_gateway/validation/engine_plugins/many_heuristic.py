@@ -11,6 +11,18 @@ from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 
 class ManyHeuristicEnginePlugin(EngineValidationPlugin):
+    def _objective_weights(self, instance: Dict[str, Any]) -> Dict[str, float]:
+        weights: Dict[str, float] = {}
+        objective = instance.get("objective", {}) or {}
+
+        for feature_id, weight in (objective.get("weights", {}) or {}).items():
+            weights[str(feature_id)] = float(weight)
+
+        for target in objective.get("targets", []) or []:
+            weights.setdefault(str(target), 1.0)
+
+        return weights
+
     async def check_engine_health(self, base_url: str, client: httpx.AsyncClient) -> bool:
         url = f"{base_url.rstrip('/')}/health"
         try:
@@ -124,11 +136,16 @@ class ManyHeuristicEnginePlugin(EngineValidationPlugin):
 
         # QoS Model
         qos_props = {}
-        qos_weights = {}
+        qos_weights = self._objective_weights(instance)
         for f in instance.get("features", []):
-             vr = f.get("valid_range") or {}
-             qos_props[f["id"]] = {"direction": f["direction"].lower(), "min": float(vr.get("min", 0.0)), "max": float(vr.get("max", 1.0))}
-             qos_weights[f["id"]] = 1.0
+            vr = f.get("valid_range") or {}
+            qos_props[f["id"]] = {
+                "direction": f["direction"].lower(),
+                "min": float(vr.get("min", 0.0)),
+                "max": float(vr.get("max", 1.0)),
+            }
+            if f["id"] not in qos_weights:
+                qos_weights[f["id"]] = 0.0
         
         agg_policies = instance.get("aggregation_policies", {})
         qos_aggregation = {}
@@ -187,15 +204,20 @@ class ManyHeuristicEnginePlugin(EngineValidationPlugin):
         features = {f["id"]: f for f in original_request.get("features", [])}
         agg_policies = original_request.get("aggregation_policies", {})
         root = original_request.get("composition", {}).get("root")
+        objective = original_request.get("objective", {}) or {}
 
         for sol in raw_solutions:
             sel = sol.get("selection") or {}
             sel_cand = build_selected_candidate_by_task(sel, candidates)
             agg_qos = compute_aggregated_qos(root, features, sel_cand, agg_policies)
+            normalized_qos = normalize_qos(agg_qos, features, agg_policies)
+            objective_value = sol.get("objective_value")
+            if objective_value is None:
+                objective_value = compute_objective_value(objective, normalized_qos)
             
             mapped_solutions.append({
                 "binding": sel,
-                "aggregated_features": agg_qos, "violations": [], "objective_value": 0.0
+                "aggregated_features": agg_qos, "violations": [], "objective_value": objective_value
             })
 
         return {

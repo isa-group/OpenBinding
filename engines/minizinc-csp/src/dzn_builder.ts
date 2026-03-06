@@ -335,7 +335,7 @@ export class DznBuilder {
     const qos_weights: number[] = [];
     for (const feat of features) {
       let w = Number(weightsObj[feat] || 0.0);
-      if (featureDirection[feat] === 'MAXIMIZE' && !featureUsesProductSpace[feat]) {
+      if (featureDirection[feat] === 'MAXIMIZE') {
         w = -w;
       }
       qos_weights.push(w);
