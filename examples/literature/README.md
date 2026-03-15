@@ -12,7 +12,7 @@ The instances are adapted from the following key papers and datasets:
     *   **Note**: This work reviews the service-composition literature and highlights these scenarios as representative examples used across prior research.
 
 *   **Benatallah et al. (2002)**: *Declarative Composition and Peer-to-Peer Provisioning of Dynamic Web Services*.
-    *   **DOI**: [10.1109/ICDE.2002.994701](https://doi.org/10.1109/ICDE.2002.994701)
+    *   **DOI**: [10.1109/ICDE.2002.994738](https://doi.org/10.1109/ICDE.2002.994738)
     *   **Source**: Derived from the "Travel Solution" motivating example (CTS and ITAS statecharts).
 
 *   **Bultan et al. (2003)**: *Conversation Specification: A New Approach to Design and Analysis of Web Service Composition*.
