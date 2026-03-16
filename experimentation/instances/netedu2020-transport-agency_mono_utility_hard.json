@@ -3,7 +3,7 @@
     "id": "netedu2020-transport-agency_mono_utility_hard",
     "name": "Transport Agency case study (Netedu et al. 2020) [mono_utility, hard]",
     "version": "1.0.0",
-    "created_at": "2026-02-25T15:19:08Z",
+    "created_at": "2026-03-15T10:36:03Z",
     "description": "Models the running example from 'A Web Service Composition Method Based on OpenAPI Semantic Annotations' (Netedu et al., 2020), Sect. 5 Case Study: A Transport Agency. QoS values are not provided in the paper; a minimal 'cost' feature is added for schema compliance.",
     "paper": {
       "title": "A Web Service Composition Method Based on OpenAPI Semantic Annotations",
@@ -34,37 +34,52 @@
       }
     },
     {
-      "id": "gen_feat_1",
-      "name": "Generated feature gen_feat_1",
-      "direction": "MINIMIZE",
-      "unit": "unit",
-      "scale": "RATIO",
-      "valid_range": {
-        "min": 0,
-        "max": 1000
-      }
-    },
-    {
-      "id": "gen_feat_2",
-      "name": "Generated feature gen_feat_2",
+      "id": "availability",
+      "name": "Availability",
       "direction": "MAXIMIZE",
       "unit": "ratio",
       "scale": "RATIO",
       "valid_range": {
         "min": 0,
         "max": 1
-      }
+      },
+      "description": "Probability that service execution succeeds."
     },
     {
-      "id": "gen_feat_3",
-      "name": "Generated feature gen_feat_3",
-      "direction": "MINIMIZE",
-      "unit": "unit",
+      "id": "reliability",
+      "name": "Reliability",
+      "direction": "MAXIMIZE",
+      "unit": "percent",
       "scale": "RATIO",
       "valid_range": {
         "min": 0,
-        "max": 1000
-      }
+        "max": 100
+      },
+      "description": "Successful execution percentage."
+    },
+    {
+      "id": "security",
+      "name": "Security",
+      "direction": "MAXIMIZE",
+      "unit": "score",
+      "scale": "ORDINAL",
+      "valid_range": {
+        "min": 1,
+        "max": 5
+      },
+      "description": "Security score on a 1-5 ordinal scale."
+    },
+    {
+      "id": "execution_time",
+      "name": "Execution Time",
+      "direction": "MINIMIZE",
+      "unit": "ms",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 20000
+      },
+      "description": "Average execution latency per service invocation."
     }
   ],
   "providers": [
@@ -131,9 +146,10 @@
       "name": "getCountryFromLocation",
       "features": {
         "cost": 1,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "execution_time": 192,
+        "availability": 0.985,
+        "reliability": 98.3,
+        "security": 5
       }
     },
     {
@@ -143,9 +159,10 @@
       "name": "getTransportCompany",
       "features": {
         "cost": 1,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "execution_time": 192,
+        "availability": 0.985,
+        "reliability": 98.3,
+        "security": 5
       }
     },
     {
@@ -155,9 +172,10 @@
       "name": "getClosestCity",
       "features": {
         "cost": 1,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "execution_time": 192,
+        "availability": 0.985,
+        "reliability": 98.3,
+        "security": 5
       }
     },
     {
@@ -167,9 +185,10 @@
       "name": "getLocalSubsidiary",
       "features": {
         "cost": 1,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "execution_time": 192,
+        "availability": 0.985,
+        "reliability": 98.3,
+        "security": 5
       }
     },
     {
@@ -179,9 +198,10 @@
       "name": "getVehicle",
       "features": {
         "cost": 1,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "execution_time": 192,
+        "availability": 0.985,
+        "reliability": 98.3,
+        "security": 5
       }
     },
     {
@@ -191,9 +211,10 @@
       "name": "makeArrangements",
       "features": {
         "cost": 1,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "execution_time": 192,
+        "availability": 0.985,
+        "reliability": 98.3,
+        "security": 5
       }
     },
     {
@@ -203,9 +224,10 @@
       "name": "getCountryFromLocation (Gen Shared)",
       "features": {
         "cost": 0.98,
-        "gen_feat_1": 513.04,
-        "gen_feat_2": 0.513114,
-        "gen_feat_3": 485.63
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 4.86,
+        "execution_time": 190.91
       }
     },
     {
@@ -214,10 +236,11 @@
       "provider_id": "p_gen_shared",
       "name": "getTransportCompany (Gen Shared)",
       "features": {
-        "cost": 0.99,
-        "gen_feat_1": 506.99,
-        "gen_feat_2": 0.503453,
-        "gen_feat_3": 502.41
+        "cost": 1.01,
+        "availability": 0.991803,
+        "reliability": 98.77,
+        "security": 5.0,
+        "execution_time": 191.05
       }
     },
     {
@@ -226,10 +249,11 @@
       "provider_id": "p_gen_shared",
       "name": "getClosestCity (Gen Shared)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 497.52,
-        "gen_feat_2": 0.503882,
-        "gen_feat_3": 496.66
+        "cost": 1.01,
+        "availability": 0.97843,
+        "reliability": 98.83,
+        "security": 5.0,
+        "execution_time": 187.83
       }
     },
     {
@@ -239,9 +263,10 @@
       "name": "getLocalSubsidiary (Gen Shared)",
       "features": {
         "cost": 1.01,
-        "gen_feat_1": 512.34,
-        "gen_feat_2": 0.489132,
-        "gen_feat_3": 506.11
+        "availability": 0.996911,
+        "reliability": 98.82,
+        "security": 5.0,
+        "execution_time": 193.53
       }
     },
     {
@@ -250,10 +275,11 @@
       "provider_id": "p_gen_shared",
       "name": "getVehicle (Gen Shared)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 502.66,
-        "gen_feat_2": 0.509316,
-        "gen_feat_3": 503.99
+        "cost": 1.03,
+        "availability": 0.964604,
+        "reliability": 95.41,
+        "security": 5.0,
+        "execution_time": 187.98
       }
     },
     {
@@ -262,10 +288,11 @@
       "provider_id": "p_gen_shared",
       "name": "makeArrangements (Gen Shared)",
       "features": {
-        "cost": 1.03,
-        "gen_feat_1": 489.65,
-        "gen_feat_2": 0.485293,
-        "gen_feat_3": 513.91
+        "cost": 0.97,
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 197.69
       }
     },
     {
@@ -274,10 +301,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 487.4,
-        "gen_feat_2": 0.511921,
-        "gen_feat_3": 508.92
+        "cost": 1.0,
+        "availability": 0.999128,
+        "reliability": 96.34,
+        "security": 5.0,
+        "execution_time": 195.22
       }
     },
     {
@@ -286,10 +314,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 514.83,
-        "gen_feat_2": 0.500027,
-        "gen_feat_3": 507.17
+        "cost": 0.99,
+        "availability": 0.962685,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 194.52
       }
     },
     {
@@ -298,10 +327,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 504.84,
-        "gen_feat_2": 0.508391,
-        "gen_feat_3": 492.85
+        "cost": 1.0,
+        "availability": 0.988709,
+        "reliability": 97.29,
+        "security": 5.0,
+        "execution_time": 189.62
       }
     },
     {
@@ -310,10 +340,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 513.58,
-        "gen_feat_2": 0.512949,
-        "gen_feat_3": 506.57
+        "cost": 1.01,
+        "availability": 0.969007,
+        "reliability": 97.21,
+        "security": 5.0,
+        "execution_time": 194.4
       }
     },
     {
@@ -322,10 +353,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 1.0,
-        "gen_feat_1": 501.88,
-        "gen_feat_2": 0.494867,
-        "gen_feat_3": 507.59
+        "cost": 1.02,
+        "availability": 0.996238,
+        "reliability": 97.47,
+        "security": 4.87,
+        "execution_time": 195.96
       }
     },
     {
@@ -334,10 +366,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 0.99,
-        "gen_feat_1": 507.26,
-        "gen_feat_2": 0.491882,
-        "gen_feat_3": 494.46
+        "cost": 1.02,
+        "availability": 0.968931,
+        "reliability": 99.44,
+        "security": 4.99,
+        "execution_time": 187.2
       }
     },
     {
@@ -346,10 +379,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 506.26,
-        "gen_feat_2": 0.510131,
-        "gen_feat_3": 505.7
+        "cost": 0.98,
+        "availability": 1.0,
+        "reliability": 99.67,
+        "security": 5.0,
+        "execution_time": 196.65
       }
     },
     {
@@ -358,10 +392,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 0.99,
-        "gen_feat_1": 486.8,
-        "gen_feat_2": 0.510302,
-        "gen_feat_3": 507.54
+        "cost": 1.01,
+        "availability": 0.985383,
+        "reliability": 99.25,
+        "security": 5.0,
+        "execution_time": 189.5
       }
     },
     {
@@ -371,9 +406,10 @@
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
         "cost": 0.98,
-        "gen_feat_1": 505.78,
-        "gen_feat_2": 0.498526,
-        "gen_feat_3": 487.5
+        "availability": 0.959119,
+        "reliability": 98.22,
+        "security": 4.99,
+        "execution_time": 190.46
       }
     },
     {
@@ -382,10 +418,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 510.84,
-        "gen_feat_2": 0.506966,
-        "gen_feat_3": 501.9
+        "cost": 1.02,
+        "availability": 0.977779,
+        "reliability": 98.82,
+        "security": 5.0,
+        "execution_time": 194.94
       }
     },
     {
@@ -394,10 +431,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 503.48,
-        "gen_feat_2": 0.500194,
-        "gen_feat_3": 504.85
+        "cost": 0.98,
+        "availability": 0.968685,
+        "reliability": 97.1,
+        "security": 4.99,
+        "execution_time": 187.93
       }
     },
     {
@@ -406,10 +444,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 493.49,
-        "gen_feat_2": 0.491039,
-        "gen_feat_3": 486.86
+        "cost": 1.02,
+        "availability": 0.974933,
+        "reliability": 96.33,
+        "security": 4.88,
+        "execution_time": 189.36
       }
     },
     {
@@ -418,10 +457,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 1.0,
-        "gen_feat_1": 499.16,
-        "gen_feat_2": 0.495989,
-        "gen_feat_3": 512.41
+        "cost": 1.03,
+        "availability": 0.989821,
+        "reliability": 96.62,
+        "security": 5.0,
+        "execution_time": 196.09
       }
     },
     {
@@ -430,10 +470,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 0.99,
-        "gen_feat_1": 502.63,
-        "gen_feat_2": 0.506883,
-        "gen_feat_3": 507.66
+        "cost": 1.0,
+        "availability": 0.98547,
+        "reliability": 97.09,
+        "security": 5.0,
+        "execution_time": 189.15
       }
     },
     {
@@ -442,10 +483,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 491.72,
-        "gen_feat_2": 0.493913,
-        "gen_feat_3": 499.04
+        "cost": 1.02,
+        "availability": 0.957077,
+        "reliability": 99.94,
+        "security": 5.0,
+        "execution_time": 196.08
       }
     },
     {
@@ -454,10 +496,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 511.11,
-        "gen_feat_2": 0.49489,
-        "gen_feat_3": 489.97
+        "cost": 1.02,
+        "availability": 1.0,
+        "reliability": 95.46,
+        "security": 5.0,
+        "execution_time": 194.47
       }
     },
     {
@@ -466,10 +509,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 493.13,
-        "gen_feat_2": 0.514837,
-        "gen_feat_3": 502.45
+        "cost": 0.97,
+        "availability": 0.97782,
+        "reliability": 99.82,
+        "security": 5.0,
+        "execution_time": 191.18
       }
     },
     {
@@ -479,9 +523,10 @@
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
         "cost": 0.98,
-        "gen_feat_1": 513.16,
-        "gen_feat_2": 0.510642,
-        "gen_feat_3": 497.88
+        "availability": 0.994841,
+        "reliability": 96.19,
+        "security": 4.94,
+        "execution_time": 191.59
       }
     },
     {
@@ -490,10 +535,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 1.0,
-        "gen_feat_1": 493.82,
-        "gen_feat_2": 0.509042,
-        "gen_feat_3": 492.58
+        "cost": 1.01,
+        "availability": 1.0,
+        "reliability": 97.64,
+        "security": 5.0,
+        "execution_time": 190.92
       }
     },
     {
@@ -502,10 +548,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 485.83,
-        "gen_feat_2": 0.508367,
-        "gen_feat_3": 502.67
+        "cost": 0.99,
+        "availability": 0.975724,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 188.3
       }
     },
     {
@@ -514,10 +561,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 510.35,
-        "gen_feat_2": 0.507866,
-        "gen_feat_3": 485.56
+        "cost": 1.03,
+        "availability": 0.982868,
+        "reliability": 98.47,
+        "security": 5.0,
+        "execution_time": 191.79
       }
     },
     {
@@ -527,9 +575,10 @@
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
         "cost": 1.02,
-        "gen_feat_1": 506.43,
-        "gen_feat_2": 0.485825,
-        "gen_feat_3": 496.36
+        "availability": 0.993595,
+        "reliability": 97.81,
+        "security": 5.0,
+        "execution_time": 191.21
       }
     },
     {
@@ -538,10 +587,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 511.75,
-        "gen_feat_2": 0.497873,
-        "gen_feat_3": 487.86
+        "cost": 0.97,
+        "availability": 1.0,
+        "reliability": 99.31,
+        "security": 4.93,
+        "execution_time": 195.66
       }
     },
     {
@@ -550,10 +600,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 489.25,
-        "gen_feat_2": 0.493981,
-        "gen_feat_3": 498.93
+        "cost": 1.0,
+        "availability": 1.0,
+        "reliability": 99.79,
+        "security": 5.0,
+        "execution_time": 192.11
       }
     },
     {
@@ -562,10 +613,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 513.51,
-        "gen_feat_2": 0.496631,
-        "gen_feat_3": 501.62
+        "cost": 1.0,
+        "availability": 0.984055,
+        "reliability": 97.24,
+        "security": 4.9,
+        "execution_time": 190.64
       }
     },
     {
@@ -575,9 +627,10 @@
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
         "cost": 0.99,
-        "gen_feat_1": 493.1,
-        "gen_feat_2": 0.495292,
-        "gen_feat_3": 510.66
+        "availability": 0.972367,
+        "reliability": 95.92,
+        "security": 4.94,
+        "execution_time": 192.53
       }
     },
     {
@@ -586,10 +639,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 490.37,
-        "gen_feat_2": 0.513325,
-        "gen_feat_3": 498.92
+        "cost": 1.0,
+        "availability": 0.981194,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 197.33
       }
     },
     {
@@ -598,10 +652,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 1.0,
-        "gen_feat_1": 502.56,
-        "gen_feat_2": 0.499451,
-        "gen_feat_3": 508.64
+        "cost": 1.01,
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 4.93,
+        "execution_time": 195.91
       }
     },
     {
@@ -611,9 +666,10 @@
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
         "cost": 1.01,
-        "gen_feat_1": 497.52,
-        "gen_feat_2": 0.505343,
-        "gen_feat_3": 497.93
+        "availability": 1.0,
+        "reliability": 98.63,
+        "security": 5.0,
+        "execution_time": 187.63
       }
     },
     {
@@ -622,10 +678,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 0.97,
-        "gen_feat_1": 508.83,
-        "gen_feat_2": 0.505122,
-        "gen_feat_3": 493.09
+        "cost": 1.01,
+        "availability": 0.979578,
+        "reliability": 98.97,
+        "security": 4.88,
+        "execution_time": 196.53
       }
     },
     {
@@ -635,9 +692,10 @@
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
         "cost": 1.02,
-        "gen_feat_1": 498.4,
-        "gen_feat_2": 0.51387,
-        "gen_feat_3": 507.57
+        "availability": 1.0,
+        "reliability": 98.93,
+        "security": 4.96,
+        "execution_time": 195.29
       }
     },
     {
@@ -646,10 +704,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 500.29,
-        "gen_feat_2": 0.501427,
-        "gen_feat_3": 499.52
+        "cost": 0.98,
+        "availability": 0.962911,
+        "reliability": 98.77,
+        "security": 4.92,
+        "execution_time": 189.75
       }
     },
     {
@@ -658,10 +717,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 0.99,
-        "gen_feat_1": 489.79,
-        "gen_feat_2": 0.496462,
-        "gen_feat_3": 494.94
+        "cost": 1.0,
+        "availability": 0.993956,
+        "reliability": 98.82,
+        "security": 5.0,
+        "execution_time": 187.62
       }
     },
     {
@@ -670,10 +730,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 0.99,
-        "gen_feat_1": 487.88,
-        "gen_feat_2": 0.493816,
-        "gen_feat_3": 501.37
+        "cost": 1.02,
+        "availability": 0.998395,
+        "reliability": 97.84,
+        "security": 4.87,
+        "execution_time": 189.49
       }
     },
     {
@@ -683,9 +744,10 @@
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
         "cost": 1.0,
-        "gen_feat_1": 498.07,
-        "gen_feat_2": 0.509826,
-        "gen_feat_3": 513.13
+        "availability": 1.0,
+        "reliability": 97.06,
+        "security": 4.95,
+        "execution_time": 196.26
       }
     },
     {
@@ -694,10 +756,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 1.03,
-        "gen_feat_1": 503.58,
-        "gen_feat_2": 0.508911,
-        "gen_feat_3": 508.66
+        "cost": 1.0,
+        "availability": 1.0,
+        "reliability": 97.58,
+        "security": 4.95,
+        "execution_time": 197.22
       }
     },
     {
@@ -706,10 +769,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 0.99,
-        "gen_feat_1": 510.19,
-        "gen_feat_2": 0.504186,
-        "gen_feat_3": 511.03
+        "cost": 1.01,
+        "availability": 0.974905,
+        "reliability": 99.32,
+        "security": 5.0,
+        "execution_time": 191.26
       }
     },
     {
@@ -719,9 +783,10 @@
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
         "cost": 1.0,
-        "gen_feat_1": 503.59,
-        "gen_feat_2": 0.488626,
-        "gen_feat_3": 505.75
+        "availability": 0.991678,
+        "reliability": 95.7,
+        "security": 4.89,
+        "execution_time": 194.96
       }
     },
     {
@@ -731,9 +796,10 @@
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
         "cost": 0.99,
-        "gen_feat_1": 503.39,
-        "gen_feat_2": 0.487699,
-        "gen_feat_3": 511.79
+        "availability": 1.0,
+        "reliability": 98.39,
+        "security": 5.0,
+        "execution_time": 195.17
       }
     },
     {
@@ -742,10 +808,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 512.8,
-        "gen_feat_2": 0.503185,
-        "gen_feat_3": 496.01
+        "cost": 0.97,
+        "availability": 0.986512,
+        "reliability": 95.67,
+        "security": 5.0,
+        "execution_time": 188.34
       }
     },
     {
@@ -754,10 +821,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 492.14,
-        "gen_feat_2": 0.488787,
-        "gen_feat_3": 502.39
+        "cost": 1.01,
+        "availability": 0.995343,
+        "reliability": 99.89,
+        "security": 4.91,
+        "execution_time": 186.64
       }
     },
     {
@@ -766,10 +834,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 494.15,
-        "gen_feat_2": 0.501903,
-        "gen_feat_3": 504.55
+        "cost": 1.02,
+        "availability": 1.0,
+        "reliability": 97.64,
+        "security": 5.0,
+        "execution_time": 190.8
       }
     },
     {
@@ -778,10 +847,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 514.81,
-        "gen_feat_2": 0.488585,
-        "gen_feat_3": 512.39
+        "cost": 0.98,
+        "availability": 1.0,
+        "reliability": 96.1,
+        "security": 5.0,
+        "execution_time": 193.12
       }
     },
     {
@@ -790,10 +860,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 497.66,
-        "gen_feat_2": 0.486683,
-        "gen_feat_3": 493.46
+        "cost": 1.0,
+        "availability": 0.984417,
+        "reliability": 99.93,
+        "security": 4.86,
+        "execution_time": 195.44
       }
     },
     {
@@ -802,10 +873,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 1.0,
-        "gen_feat_1": 513.24,
-        "gen_feat_2": 0.493676,
-        "gen_feat_3": 494.85
+        "cost": 0.98,
+        "availability": 0.979951,
+        "reliability": 99.07,
+        "security": 5.0,
+        "execution_time": 193.63
       }
     },
     {
@@ -814,10 +886,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 500.78,
-        "gen_feat_2": 0.513493,
-        "gen_feat_3": 496.34
+        "cost": 0.99,
+        "availability": 0.95873,
+        "reliability": 98.13,
+        "security": 5.0,
+        "execution_time": 195.21
       }
     },
     {
@@ -826,10 +899,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 0.99,
-        "gen_feat_1": 513.6,
-        "gen_feat_2": 0.503479,
-        "gen_feat_3": 494.88
+        "cost": 0.98,
+        "availability": 1.0,
+        "reliability": 97.22,
+        "security": 4.91,
+        "execution_time": 195.14
       }
     },
     {
@@ -838,10 +912,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 510.22,
-        "gen_feat_2": 0.498065,
-        "gen_feat_3": 500.63
+        "cost": 0.98,
+        "availability": 0.972509,
+        "reliability": 99.43,
+        "security": 5.0,
+        "execution_time": 195.27
       }
     },
     {
@@ -850,10 +925,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 486.77,
-        "gen_feat_2": 0.489326,
-        "gen_feat_3": 507.7
+        "cost": 1.0,
+        "availability": 1.0,
+        "reliability": 96.73,
+        "security": 5.0,
+        "execution_time": 195.5
       }
     },
     {
@@ -863,9 +939,10 @@
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
         "cost": 0.99,
-        "gen_feat_1": 513.98,
-        "gen_feat_2": 0.500477,
-        "gen_feat_3": 509.78
+        "availability": 0.985623,
+        "reliability": 97.04,
+        "security": 4.86,
+        "execution_time": 195.38
       }
     },
     {
@@ -874,10 +951,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 485.17,
-        "gen_feat_2": 0.500767,
-        "gen_feat_3": 486.6
+        "cost": 1.01,
+        "availability": 0.990336,
+        "reliability": 99.27,
+        "security": 5.0,
+        "execution_time": 190.04
       }
     },
     {
@@ -886,10 +964,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 1.03,
-        "gen_feat_1": 490.48,
-        "gen_feat_2": 0.505158,
-        "gen_feat_3": 505.25
+        "cost": 0.99,
+        "availability": 1.0,
+        "reliability": 97.81,
+        "security": 4.96,
+        "execution_time": 197.17
       }
     },
     {
@@ -898,10 +977,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 491.16,
-        "gen_feat_2": 0.486032,
-        "gen_feat_3": 509.57
+        "cost": 1.0,
+        "availability": 0.988537,
+        "reliability": 95.47,
+        "security": 5.0,
+        "execution_time": 192.06
       }
     },
     {
@@ -910,10 +990,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 496.63,
-        "gen_feat_2": 0.509624,
-        "gen_feat_3": 496.87
+        "cost": 1.0,
+        "availability": 1.0,
+        "reliability": 96.91,
+        "security": 4.98,
+        "execution_time": 194.44
       }
     },
     {
@@ -922,10 +1003,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 512.73,
-        "gen_feat_2": 0.488821,
-        "gen_feat_3": 508.53
+        "cost": 0.97,
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 4.91,
+        "execution_time": 192.85
       }
     },
     {
@@ -934,10 +1016,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 498.85,
-        "gen_feat_2": 0.499704,
-        "gen_feat_3": 508.28
+        "cost": 1.0,
+        "availability": 1.0,
+        "reliability": 98.51,
+        "security": 5.0,
+        "execution_time": 191.43
       }
     },
     {
@@ -946,10 +1029,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 0.97,
-        "gen_feat_1": 508.95,
-        "gen_feat_2": 0.489493,
-        "gen_feat_3": 497.44
+        "cost": 0.99,
+        "availability": 0.999127,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 189.03
       }
     },
     {
@@ -958,10 +1042,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 500.48,
-        "gen_feat_2": 0.504253,
-        "gen_feat_3": 497.42
+        "cost": 0.99,
+        "availability": 0.998897,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 194.01
       }
     },
     {
@@ -971,9 +1056,10 @@
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
         "cost": 0.97,
-        "gen_feat_1": 499.13,
-        "gen_feat_2": 0.508674,
-        "gen_feat_3": 508.35
+        "availability": 0.989577,
+        "reliability": 97.16,
+        "security": 5.0,
+        "execution_time": 194.37
       }
     },
     {
@@ -982,10 +1068,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 510.58,
-        "gen_feat_2": 0.494516,
-        "gen_feat_3": 490.77
+        "cost": 1.02,
+        "availability": 0.964069,
+        "reliability": 95.68,
+        "security": 4.92,
+        "execution_time": 190.77
       }
     },
     {
@@ -994,10 +1081,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 488.77,
-        "gen_feat_2": 0.49366,
-        "gen_feat_3": 505.73
+        "cost": 1.0,
+        "availability": 1.0,
+        "reliability": 99.24,
+        "security": 4.87,
+        "execution_time": 187.09
       }
     },
     {
@@ -1007,9 +1095,10 @@
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
         "cost": 1.0,
-        "gen_feat_1": 508.51,
-        "gen_feat_2": 0.501041,
-        "gen_feat_3": 514.6
+        "availability": 0.975577,
+        "reliability": 100.0,
+        "security": 4.89,
+        "execution_time": 194.36
       }
     },
     {
@@ -1018,10 +1107,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 508.13,
-        "gen_feat_2": 0.509104,
-        "gen_feat_3": 494.59
+        "cost": 1.01,
+        "availability": 0.978063,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 194.01
       }
     },
     {
@@ -1030,10 +1120,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 1.0,
-        "gen_feat_1": 493.59,
-        "gen_feat_2": 0.485843,
-        "gen_feat_3": 508.8
+        "cost": 1.03,
+        "availability": 0.992155,
+        "reliability": 99.27,
+        "security": 4.95,
+        "execution_time": 191.46
       }
     },
     {
@@ -1042,10 +1133,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 502.71,
-        "gen_feat_2": 0.504945,
-        "gen_feat_3": 513.46
+        "cost": 0.99,
+        "availability": 0.957107,
+        "reliability": 95.7,
+        "security": 5.0,
+        "execution_time": 191.11
       }
     },
     {
@@ -1055,9 +1147,10 @@
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
         "cost": 0.99,
-        "gen_feat_1": 497.06,
-        "gen_feat_2": 0.512886,
-        "gen_feat_3": 497.51
+        "availability": 0.994209,
+        "reliability": 95.81,
+        "security": 4.93,
+        "execution_time": 193.27
       }
     },
     {
@@ -1066,10 +1159,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 0.99,
-        "gen_feat_1": 513.46,
-        "gen_feat_2": 0.500723,
-        "gen_feat_3": 501.8
+        "cost": 1.02,
+        "availability": 0.970495,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 194.73
       }
     },
     {
@@ -1078,10 +1172,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 0.97,
-        "gen_feat_1": 501.79,
-        "gen_feat_2": 0.500158,
-        "gen_feat_3": 500.89
+        "cost": 1.0,
+        "availability": 0.995586,
+        "reliability": 96.19,
+        "security": 5.0,
+        "execution_time": 197.23
       }
     },
     {
@@ -1090,10 +1185,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 492.92,
-        "gen_feat_2": 0.497718,
-        "gen_feat_3": 506.35
+        "cost": 1.01,
+        "availability": 1.0,
+        "reliability": 96.46,
+        "security": 5.0,
+        "execution_time": 190.45
       }
     },
     {
@@ -1102,10 +1198,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 0.97,
-        "gen_feat_1": 511.51,
-        "gen_feat_2": 0.511025,
-        "gen_feat_3": 490.69
+        "cost": 1.0,
+        "availability": 1.0,
+        "reliability": 98.78,
+        "security": 4.86,
+        "execution_time": 187.78
       }
     },
     {
@@ -1114,10 +1211,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 1.0,
-        "gen_feat_1": 499.2,
-        "gen_feat_2": 0.508206,
-        "gen_feat_3": 501.07
+        "cost": 1.01,
+        "availability": 0.97126,
+        "reliability": 95.42,
+        "security": 4.99,
+        "execution_time": 192.77
       }
     },
     {
@@ -1126,10 +1224,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 498.51,
-        "gen_feat_2": 0.496857,
-        "gen_feat_3": 507.17
+        "cost": 1.0,
+        "availability": 1.0,
+        "reliability": 95.67,
+        "security": 4.99,
+        "execution_time": 195.55
       }
     },
     {
@@ -1138,10 +1237,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 501.01,
-        "gen_feat_2": 0.492277,
-        "gen_feat_3": 497.24
+        "cost": 0.99,
+        "availability": 0.963526,
+        "reliability": 98.73,
+        "security": 5.0,
+        "execution_time": 192.87
       }
     },
     {
@@ -1150,10 +1250,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 509.5,
-        "gen_feat_2": 0.507879,
-        "gen_feat_3": 505.22
+        "cost": 0.99,
+        "availability": 0.998234,
+        "reliability": 98.47,
+        "security": 4.86,
+        "execution_time": 195.43
       }
     },
     {
@@ -1163,9 +1264,10 @@
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
         "cost": 0.97,
-        "gen_feat_1": 502.32,
-        "gen_feat_2": 0.494188,
-        "gen_feat_3": 511.73
+        "availability": 0.992707,
+        "reliability": 97.49,
+        "security": 4.9,
+        "execution_time": 192.4
       }
     },
     {
@@ -1174,10 +1276,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 510.92,
-        "gen_feat_2": 0.489375,
-        "gen_feat_3": 486.68
+        "cost": 1.02,
+        "availability": 0.993391,
+        "reliability": 100.0,
+        "security": 4.95,
+        "execution_time": 194.72
       }
     },
     {
@@ -1186,10 +1289,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 496.79,
-        "gen_feat_2": 0.498835,
-        "gen_feat_3": 509.02
+        "cost": 1.01,
+        "availability": 0.95636,
+        "reliability": 96.31,
+        "security": 4.89,
+        "execution_time": 189.49
       }
     },
     {
@@ -1198,10 +1302,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 487.21,
-        "gen_feat_2": 0.487213,
-        "gen_feat_3": 502.39
+        "cost": 1.0,
+        "availability": 0.968359,
+        "reliability": 100.0,
+        "security": 4.85,
+        "execution_time": 195.85
       }
     },
     {
@@ -1211,9 +1316,10 @@
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
         "cost": 0.99,
-        "gen_feat_1": 514.96,
-        "gen_feat_2": 0.489112,
-        "gen_feat_3": 506.15
+        "availability": 0.97858,
+        "reliability": 97.66,
+        "security": 4.94,
+        "execution_time": 195.05
       }
     },
     {
@@ -1222,10 +1328,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 496.48,
-        "gen_feat_2": 0.513266,
-        "gen_feat_3": 503.99
+        "cost": 0.98,
+        "availability": 0.99494,
+        "reliability": 100.0,
+        "security": 4.88,
+        "execution_time": 186.49
       }
     },
     {
@@ -1234,10 +1341,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 513.41,
-        "gen_feat_2": 0.503632,
-        "gen_feat_3": 504.93
+        "cost": 1.02,
+        "availability": 1.0,
+        "reliability": 99.45,
+        "security": 4.93,
+        "execution_time": 194.99
       }
     },
     {
@@ -1246,10 +1354,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 0.99,
-        "gen_feat_1": 498.59,
-        "gen_feat_2": 0.496426,
-        "gen_feat_3": 485.84
+        "cost": 0.98,
+        "availability": 0.981698,
+        "reliability": 95.38,
+        "security": 4.87,
+        "execution_time": 188.72
       }
     },
     {
@@ -1258,10 +1367,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 0.97,
-        "gen_feat_1": 503.52,
-        "gen_feat_2": 0.497684,
-        "gen_feat_3": 496.1
+        "cost": 1.01,
+        "availability": 0.992215,
+        "reliability": 97.32,
+        "security": 4.96,
+        "execution_time": 197.19
       }
     },
     {
@@ -1271,9 +1381,10 @@
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
         "cost": 1.01,
-        "gen_feat_1": 487.32,
-        "gen_feat_2": 0.493395,
-        "gen_feat_3": 503.3
+        "availability": 0.997873,
+        "reliability": 96.06,
+        "security": 4.98,
+        "execution_time": 193.14
       }
     },
     {
@@ -1282,10 +1393,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 492.64,
-        "gen_feat_2": 0.509564,
-        "gen_feat_3": 510.81
+        "cost": 1.03,
+        "availability": 0.997898,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 189.05
       }
     },
     {
@@ -1294,10 +1406,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 502.39,
-        "gen_feat_2": 0.505374,
-        "gen_feat_3": 489.28
+        "cost": 1.02,
+        "availability": 0.969288,
+        "reliability": 96.97,
+        "security": 5.0,
+        "execution_time": 191.62
       }
     },
     {
@@ -1306,10 +1419,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 513.61,
-        "gen_feat_2": 0.505365,
-        "gen_feat_3": 513.96
+        "cost": 1.03,
+        "availability": 0.990874,
+        "reliability": 99.9,
+        "security": 4.89,
+        "execution_time": 194.75
       }
     },
     {
@@ -1318,10 +1432,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 513.1,
-        "gen_feat_2": 0.495957,
-        "gen_feat_3": 498.55
+        "cost": 1.03,
+        "availability": 0.989328,
+        "reliability": 95.44,
+        "security": 4.85,
+        "execution_time": 191.76
       }
     },
     {
@@ -1330,10 +1445,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 502.45,
-        "gen_feat_2": 0.486044,
-        "gen_feat_3": 489.01
+        "cost": 1.0,
+        "availability": 1.0,
+        "reliability": 96.38,
+        "security": 5.0,
+        "execution_time": 195.28
       }
     },
     {
@@ -1343,9 +1459,10 @@
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
         "cost": 1.01,
-        "gen_feat_1": 493.03,
-        "gen_feat_2": 0.485355,
-        "gen_feat_3": 499.2
+        "availability": 0.997782,
+        "reliability": 95.86,
+        "security": 4.94,
+        "execution_time": 188.76
       }
     },
     {
@@ -1355,9 +1472,10 @@
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
         "cost": 1.0,
-        "gen_feat_1": 502.31,
-        "gen_feat_2": 0.513504,
-        "gen_feat_3": 486.62
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 197.5
       }
     },
     {
@@ -1366,10 +1484,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 1.0,
-        "gen_feat_1": 509.24,
-        "gen_feat_2": 0.495334,
-        "gen_feat_3": 489.1
+        "cost": 0.97,
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 4.99,
+        "execution_time": 189.82
       }
     },
     {
@@ -1378,10 +1497,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 1.0,
-        "gen_feat_1": 502.86,
-        "gen_feat_2": 0.50226,
-        "gen_feat_3": 493.5
+        "cost": 1.02,
+        "availability": 0.997078,
+        "reliability": 100.0,
+        "security": 4.99,
+        "execution_time": 192.29
       }
     },
     {
@@ -1390,10 +1510,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 500.87,
-        "gen_feat_2": 0.486062,
-        "gen_feat_3": 508.94
+        "cost": 1.0,
+        "availability": 0.956197,
+        "reliability": 99.84,
+        "security": 5.0,
+        "execution_time": 194.97
       }
     },
     {
@@ -1402,10 +1523,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 0.97,
-        "gen_feat_1": 503.91,
-        "gen_feat_2": 0.495887,
-        "gen_feat_3": 489.89
+        "cost": 1.01,
+        "availability": 0.992812,
+        "reliability": 97.97,
+        "security": 4.96,
+        "execution_time": 193.45
       }
     },
     {
@@ -1414,10 +1536,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 1.0,
-        "gen_feat_1": 510.35,
-        "gen_feat_2": 0.504259,
-        "gen_feat_3": 510.15
+        "cost": 0.99,
+        "availability": 0.987863,
+        "reliability": 97.23,
+        "security": 5.0,
+        "execution_time": 189.26
       }
     },
     {
@@ -1426,10 +1549,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 0.99,
-        "gen_feat_1": 507.07,
-        "gen_feat_2": 0.505397,
-        "gen_feat_3": 485.46
+        "cost": 0.97,
+        "availability": 0.960686,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 194.72
       }
     },
     {
@@ -1438,10 +1562,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 488.87,
-        "gen_feat_2": 0.493457,
-        "gen_feat_3": 497.85
+        "cost": 0.99,
+        "availability": 0.956918,
+        "reliability": 98.92,
+        "security": 4.98,
+        "execution_time": 187.14
       }
     },
     {
@@ -1450,10 +1575,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 514.38,
-        "gen_feat_2": 0.485126,
-        "gen_feat_3": 510.03
+        "cost": 1.0,
+        "availability": 0.997013,
+        "reliability": 97.47,
+        "security": 4.99,
+        "execution_time": 189.56
       }
     },
     {
@@ -1462,10 +1588,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 0.99,
-        "gen_feat_1": 496.74,
-        "gen_feat_2": 0.49673,
-        "gen_feat_3": 493.58
+        "cost": 1.03,
+        "availability": 1.0,
+        "reliability": 97.87,
+        "security": 5.0,
+        "execution_time": 193.63
       }
     },
     {
@@ -1474,10 +1601,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 1.02,
-        "gen_feat_1": 492.05,
-        "gen_feat_2": 0.505046,
-        "gen_feat_3": 511.3
+        "cost": 0.97,
+        "availability": 0.992388,
+        "reliability": 95.44,
+        "security": 5.0,
+        "execution_time": 194.94
       }
     },
     {
@@ -1486,10 +1614,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 485.66,
-        "gen_feat_2": 0.507533,
-        "gen_feat_3": 513.48
+        "cost": 1.01,
+        "availability": 0.978011,
+        "reliability": 99.06,
+        "security": 4.93,
+        "execution_time": 188.6
       }
     },
     {
@@ -1498,10 +1627,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 493.21,
-        "gen_feat_2": 0.507786,
-        "gen_feat_3": 489.41
+        "cost": 0.99,
+        "availability": 0.967284,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 190.16
       }
     },
     {
@@ -1511,9 +1641,10 @@
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
         "cost": 1.0,
-        "gen_feat_1": 485.12,
-        "gen_feat_2": 0.486918,
-        "gen_feat_3": 491.45
+        "availability": 0.958774,
+        "reliability": 98.47,
+        "security": 5.0,
+        "execution_time": 189.08
       }
     },
     {
@@ -1522,10 +1653,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 503.66,
-        "gen_feat_2": 0.495024,
-        "gen_feat_3": 496.07
+        "cost": 1.0,
+        "availability": 1.0,
+        "reliability": 96.22,
+        "security": 5.0,
+        "execution_time": 187.65
       }
     },
     {
@@ -1534,10 +1666,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 1.03,
-        "gen_feat_1": 506.64,
-        "gen_feat_2": 0.506535,
-        "gen_feat_3": 488.63
+        "cost": 0.99,
+        "availability": 1.0,
+        "reliability": 99.8,
+        "security": 4.94,
+        "execution_time": 192.9
       }
     },
     {
@@ -1546,10 +1679,11 @@
       "provider_id": "p_gen_4",
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
-        "cost": 1.0,
-        "gen_feat_1": 502.96,
-        "gen_feat_2": 0.514598,
-        "gen_feat_3": 506.55
+        "cost": 1.01,
+        "availability": 0.976513,
+        "reliability": 100.0,
+        "security": 5.0,
+        "execution_time": 194.41
       }
     },
     {
@@ -1558,10 +1692,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 1.03,
-        "gen_feat_1": 507.45,
-        "gen_feat_2": 0.492323,
-        "gen_feat_3": 510.85
+        "cost": 1.02,
+        "availability": 1.0,
+        "reliability": 97.84,
+        "security": 5.0,
+        "execution_time": 193.08
       }
     },
     {
@@ -1570,10 +1705,11 @@
       "provider_id": "p_transport_agency",
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
-        "cost": 0.98,
-        "gen_feat_1": 493.26,
-        "gen_feat_2": 0.506567,
-        "gen_feat_3": 499.02
+        "cost": 0.97,
+        "availability": 0.97562,
+        "reliability": 96.59,
+        "security": 4.91,
+        "execution_time": 195.9
       }
     },
     {
@@ -1582,10 +1718,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 1.03,
-        "gen_feat_1": 502.98,
-        "gen_feat_2": 0.508161,
-        "gen_feat_3": 488.85
+        "cost": 1.0,
+        "availability": 1.0,
+        "reliability": 99.43,
+        "security": 5.0,
+        "execution_time": 197.03
       }
     },
     {
@@ -1594,10 +1731,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 514.45,
-        "gen_feat_2": 0.502197,
-        "gen_feat_3": 485.43
+        "cost": 1.02,
+        "availability": 0.97548,
+        "reliability": 97.74,
+        "security": 5.0,
+        "execution_time": 186.76
       }
     },
     {
@@ -1606,10 +1744,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 0.97,
-        "gen_feat_1": 499.37,
-        "gen_feat_2": 0.49849,
-        "gen_feat_3": 512.98
+        "cost": 1.0,
+        "availability": 0.961157,
+        "reliability": 95.9,
+        "security": 5.0,
+        "execution_time": 194.3
       }
     },
     {
@@ -1619,9 +1758,10 @@
       "name": "getVehicle (Gen p_gen_4)",
       "features": {
         "cost": 0.98,
-        "gen_feat_1": 501.14,
-        "gen_feat_2": 0.508529,
-        "gen_feat_3": 506.18
+        "availability": 0.982694,
+        "reliability": 98.02,
+        "security": 4.88,
+        "execution_time": 194.96
       }
     },
     {
@@ -1630,10 +1770,11 @@
       "provider_id": "p_gen_5",
       "name": "makeArrangements (Gen p_gen_5)",
       "features": {
-        "cost": 1.01,
-        "gen_feat_1": 487.58,
-        "gen_feat_2": 0.494087,
-        "gen_feat_3": 491.56
+        "cost": 0.98,
+        "availability": 1.0,
+        "reliability": 95.83,
+        "security": 5.0,
+        "execution_time": 191.65
       }
     },
     {
@@ -1643,9 +1784,10 @@
       "name": "getClosestCity (Gen p_transport_agency)",
       "features": {
         "cost": 1.0,
-        "gen_feat_1": 507.88,
-        "gen_feat_2": 0.512349,
-        "gen_feat_3": 505.21
+        "availability": 1.0,
+        "reliability": 98.18,
+        "security": 5.0,
+        "execution_time": 196.98
       }
     },
     {
@@ -1654,10 +1796,11 @@
       "provider_id": "p_gen_1",
       "name": "getCountryFromLocation (Gen p_gen_1)",
       "features": {
-        "cost": 1.03,
-        "gen_feat_1": 486.2,
-        "gen_feat_2": 0.513433,
-        "gen_feat_3": 508.91
+        "cost": 0.99,
+        "availability": 1.0,
+        "reliability": 95.5,
+        "security": 4.89,
+        "execution_time": 193.37
       }
     },
     {
@@ -1666,10 +1809,11 @@
       "provider_id": "p_gen_2",
       "name": "getLocalSubsidiary (Gen p_gen_2)",
       "features": {
-        "cost": 1.0,
-        "gen_feat_1": 494.32,
-        "gen_feat_2": 0.512134,
-        "gen_feat_3": 506.13
+        "cost": 1.03,
+        "availability": 0.975774,
+        "reliability": 99.47,
+        "security": 4.95,
+        "execution_time": 197.21
       }
     },
     {
@@ -1678,10 +1822,11 @@
       "provider_id": "p_gen_3",
       "name": "getTransportCompany (Gen p_gen_3)",
       "features": {
-        "cost": 1.03,
-        "gen_feat_1": 498.61,
-        "gen_feat_2": 0.500746,
-        "gen_feat_3": 498.44
+        "cost": 1.0,
+        "availability": 1.0,
+        "reliability": 96.09,
+        "security": 4.86,
+        "execution_time": 196.02
       }
     }
   ],
@@ -1733,15 +1878,7 @@
         }
       }
     },
-    "gen_feat_1": {
-      "neutral": 0,
-      "compose": {
-        "seq": {
-          "fn": "SUM"
-        }
-      }
-    },
-    "gen_feat_2": {
+    "reliability": {
       "neutral": 1,
       "compose": {
         "seq": {
@@ -1755,11 +1892,45 @@
         }
       }
     },
-    "gen_feat_3": {
+    "security": {
+      "neutral": 5,
+      "compose": {
+        "seq": {
+          "fn": "MIN"
+        },
+        "and": {
+          "fn": "MIN"
+        },
+        "loop": {
+          "fn": "MIN"
+        }
+      }
+    },
+    "execution_time": {
       "neutral": 0,
       "compose": {
         "seq": {
           "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "availability": {
+      "neutral": 1,
+      "compose": {
+        "seq": {
+          "fn": "PRODUCT"
+        },
+        "and": {
+          "fn": "PRODUCT"
+        },
+        "loop": {
+          "fn": "SCALED_PRODUCT"
         }
       }
     }
@@ -1767,16 +1938,18 @@
   "objective": {
     "type": "MONO",
     "targets": [
+      "availability",
       "cost",
-      "gen_feat_1",
-      "gen_feat_2",
-      "gen_feat_3"
+      "execution_time",
+      "reliability",
+      "security"
     ],
     "weights": {
-      "cost": 0.25,
-      "gen_feat_1": 0.25,
-      "gen_feat_2": 0.25,
-      "gen_feat_3": 0.25
+      "availability": 0.2,
+      "cost": 0.2,
+      "execution_time": 0.2,
+      "reliability": 0.2,
+      "security": 0.2
     },
     "weights_sum_to_one": true
   },
@@ -1787,19 +1960,19 @@
       "scope": "GLOBAL",
       "attribute_id": "cost",
       "op": "<=",
-      "value": 11.04,
+      "value": 11.01,
       "hard": true
     },
     {
-      "id": "gen_c_local_t_make_arrangements_gen_feat_1_1",
+      "id": "gen_c_local_t_get_closest_city_reliability_1",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
-        "t_make_arrangements"
+        "t_get_closest_city"
       ],
-      "attribute_id": "gen_feat_1",
-      "op": "<=",
-      "value": 494.65,
+      "attribute_id": "reliability",
+      "op": ">=",
+      "value": 98.33,
       "hard": true
     },
     {

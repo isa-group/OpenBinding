@@ -45,6 +45,30 @@
         "min": 0,
         "max": 1
       }
+    },
+    {
+      "id": "reliability",
+      "name": "Reliability",
+      "direction": "MAXIMIZE",
+      "unit": "percent",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 100
+      },
+      "description": "Successful execution percentage."
+    },
+    {
+      "id": "security",
+      "name": "Security",
+      "direction": "MAXIMIZE",
+      "unit": "score",
+      "scale": "ORDINAL",
+      "valid_range": {
+        "min": 1,
+        "max": 5
+      },
+      "description": "Security score on a 1-5 ordinal scale."
     }
   ],
   "providers": [
@@ -132,7 +156,9 @@
       "features": {
         "latency_ms": 180,
         "cost_usd": 0,
-        "availability": 0.995
+        "availability": 0.995,
+        "reliability": 99.3,
+        "security": 3
       }
     },
     {
@@ -143,7 +169,9 @@
       "features": {
         "latency_ms": 120,
         "cost_usd": 5,
-        "availability": 0.99
+        "availability": 0.99,
+        "reliability": 98.8,
+        "security": 4
       }
     },
     {
@@ -154,7 +182,9 @@
       "features": {
         "latency_ms": 650,
         "cost_usd": 420,
-        "availability": 0.985
+        "availability": 0.985,
+        "reliability": 98.3,
+        "security": 3
       }
     },
     {
@@ -165,7 +195,9 @@
       "features": {
         "latency_ms": 520,
         "cost_usd": 460,
-        "availability": 0.99
+        "availability": 0.99,
+        "reliability": 98.8,
+        "security": 4
       }
     },
     {
@@ -176,7 +208,9 @@
       "features": {
         "latency_ms": 780,
         "cost_usd": 820,
-        "availability": 0.98
+        "availability": 0.98,
+        "reliability": 97.8,
+        "security": 4
       }
     },
     {
@@ -187,7 +221,9 @@
       "features": {
         "latency_ms": 610,
         "cost_usd": 900,
-        "availability": 0.988
+        "availability": 0.988,
+        "reliability": 98.6,
+        "security": 5
       }
     },
     {
@@ -198,7 +234,9 @@
       "features": {
         "latency_ms": 240,
         "cost_usd": 55,
-        "availability": 0.997
+        "availability": 0.997,
+        "reliability": 99.5,
+        "security": 3
       }
     },
     {
@@ -209,7 +247,9 @@
       "features": {
         "latency_ms": 190,
         "cost_usd": 70,
-        "availability": 0.999
+        "availability": 0.999,
+        "reliability": 99.7,
+        "security": 4
       }
     },
     {
@@ -220,7 +260,9 @@
       "features": {
         "latency_ms": 430,
         "cost_usd": 950,
-        "availability": 0.992
+        "availability": 0.992,
+        "reliability": 99,
+        "security": 5
       }
     },
     {
@@ -231,7 +273,9 @@
       "features": {
         "latency_ms": 350,
         "cost_usd": 1100,
-        "availability": 0.995
+        "availability": 0.995,
+        "reliability": 99.3,
+        "security": 3
       }
     },
     {
@@ -242,7 +286,9 @@
       "features": {
         "latency_ms": 310,
         "cost_usd": 260,
-        "availability": 0.99
+        "availability": 0.99,
+        "reliability": 98.8,
+        "security": 5
       }
     },
     {
@@ -253,7 +299,9 @@
       "features": {
         "latency_ms": 260,
         "cost_usd": 320,
-        "availability": 0.996
+        "availability": 0.996,
+        "reliability": 99.4,
+        "security": 3
       }
     }
   ],
@@ -355,6 +403,9 @@
         },
         "loop": {
           "fn": "SCALED_SUM"
+        },
+        "xor": {
+          "fn": "SCALED_SUM"
         }
       }
     },
@@ -368,6 +419,9 @@
           "fn": "SUM"
         },
         "loop": {
+          "fn": "SCALED_SUM"
+        },
+        "xor": {
           "fn": "SCALED_SUM"
         }
       }
@@ -383,17 +437,62 @@
         },
         "loop": {
           "fn": "SCALED_PRODUCT"
+        },
+        "xor": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "reliability": {
+      "neutral": 1,
+      "compose": {
+        "seq": {
+          "fn": "PRODUCT"
+        },
+        "and": {
+          "fn": "PRODUCT"
+        },
+        "loop": {
+          "fn": "SCALED_PRODUCT"
+        },
+        "xor": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "security": {
+      "neutral": 5,
+      "compose": {
+        "seq": {
+          "fn": "MIN"
+        },
+        "and": {
+          "fn": "MIN"
+        },
+        "loop": {
+          "fn": "MIN"
+        },
+        "xor": {
+          "fn": "SCALED_SUM"
         }
       }
     }
   },
   "objective": {
     "type": "MONO",
-    "targets": ["latency_ms", "cost_usd", "availability"],
+    "targets": [
+      "cost_usd",
+      "latency_ms",
+      "availability",
+      "reliability",
+      "security"
+    ],
     "weights": {
-      "latency_ms": 0.3,
-      "cost_usd": 0.4,
-      "availability": 0.3
+      "cost_usd": 0.28,
+      "latency_ms": 0.21,
+      "availability": 0.21,
+      "reliability": 0.15,
+      "security": 0.15
     }
   }
 }

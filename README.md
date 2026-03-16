@@ -125,11 +125,11 @@ Example payloads that follow these schemas live in `examples/`.
     Production notes:
     *   **Nginx** listens on ports **80/443**.
     *   `frontend-prod` generates static assets; only Nginx serves them publicly.
-    *   Configure DNS for `openbinding.score.us.es` and `openbinding.us.es`.
     *   Place TLS files in `nginx/ssl/` (or override `NGINX_SSL_DIR`) with names:
         - `fullchain.pem`
         - `privkey.pem`
     *   Gateway is exposed only internally behind Nginx.
+    *   Take into account that the production environment is currently configured for `openbinding.score.us.es` and `openbinding.us.es` domains (the domains where we are hosting the service in production). You may need to manually adjust nginx and docker compose configurations for your own domain or local testing.
 
 4.  **Stop the Stack**:
     ```bash

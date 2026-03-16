@@ -3,13 +3,13 @@
     "id": "benatallah2002-selfserv-travel-solution-cts-itas_multi_hard",
     "name": "Travel Solution (Benatallah et al. 2002) [multi, hard]",
     "version": "1.0.0",
-    "created_at": "2026-02-25T15:19:08Z",
+    "created_at": "2026-03-15T10:36:03Z",
     "description": "Problem instance derived from the SELF-SERV running example (CTS and ITAS statecharts). QoS values and branch probabilities are illustrative because the paper does not provide numeric QoS.",
     "paper": {
       "title": "Declarative Compositionand Peer-to-PeerProvisioning of Dynamic WebServices",
       "authors": "B. Benatallah et al.",
       "year": 2002,
-      "doi": "10.5555/876875.878987"
+      "doi": "10.1109/ICDE.2002.994738"
     },
     "experiments": {
       "expected_feasibility_by_engine": {
@@ -56,37 +56,28 @@
       }
     },
     {
-      "id": "gen_feat_1",
-      "name": "Generated feature gen_feat_1",
-      "direction": "MINIMIZE",
-      "unit": "unit",
-      "scale": "RATIO",
-      "valid_range": {
-        "min": 0,
-        "max": 1000
-      }
-    },
-    {
-      "id": "gen_feat_2",
-      "name": "Generated feature gen_feat_2",
+      "id": "reliability",
+      "name": "Reliability",
       "direction": "MAXIMIZE",
-      "unit": "ratio",
+      "unit": "percent",
       "scale": "RATIO",
       "valid_range": {
         "min": 0,
-        "max": 1
-      }
+        "max": 100
+      },
+      "description": "Successful execution percentage."
     },
     {
-      "id": "gen_feat_3",
-      "name": "Generated feature gen_feat_3",
-      "direction": "MINIMIZE",
-      "unit": "unit",
-      "scale": "RATIO",
+      "id": "security",
+      "name": "Security",
+      "direction": "MAXIMIZE",
+      "unit": "score",
+      "scale": "ORDINAL",
       "valid_range": {
-        "min": 0,
-        "max": 1000
-      }
+        "min": 1,
+        "max": 5
+      },
+      "description": "Security score on a 1-5 ordinal scale."
     }
   ],
   "providers": [
@@ -199,9 +190,8 @@
         "latency_ms": 180,
         "cost_usd": 0,
         "availability": 0.995,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.3,
+        "security": 3
       }
     },
     {
@@ -213,9 +203,8 @@
         "latency_ms": 120,
         "cost_usd": 5,
         "availability": 0.99,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 98.8,
+        "security": 4
       }
     },
     {
@@ -227,9 +216,8 @@
         "latency_ms": 650,
         "cost_usd": 420,
         "availability": 0.985,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 98.3,
+        "security": 3
       }
     },
     {
@@ -241,9 +229,8 @@
         "latency_ms": 520,
         "cost_usd": 460,
         "availability": 0.99,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 98.8,
+        "security": 4
       }
     },
     {
@@ -255,9 +242,8 @@
         "latency_ms": 780,
         "cost_usd": 820,
         "availability": 0.98,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 97.8,
+        "security": 4
       }
     },
     {
@@ -269,9 +255,8 @@
         "latency_ms": 610,
         "cost_usd": 900,
         "availability": 0.988,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 98.6,
+        "security": 5
       }
     },
     {
@@ -283,9 +268,8 @@
         "latency_ms": 240,
         "cost_usd": 55,
         "availability": 0.997,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.5,
+        "security": 3
       }
     },
     {
@@ -297,9 +281,8 @@
         "latency_ms": 190,
         "cost_usd": 70,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 4
       }
     },
     {
@@ -311,9 +294,8 @@
         "latency_ms": 430,
         "cost_usd": 950,
         "availability": 0.992,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99,
+        "security": 5
       }
     },
     {
@@ -325,9 +307,8 @@
         "latency_ms": 350,
         "cost_usd": 1100,
         "availability": 0.995,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.3,
+        "security": 3
       }
     },
     {
@@ -339,9 +320,8 @@
         "latency_ms": 310,
         "cost_usd": 260,
         "availability": 0.99,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 98.8,
+        "security": 5
       }
     },
     {
@@ -353,9 +333,8 @@
         "latency_ms": 260,
         "cost_usd": 320,
         "availability": 0.996,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.4,
+        "security": 3
       }
     },
     {
@@ -367,9 +346,8 @@
         "latency_ms": 180.56,
         "cost_usd": 0.0,
         "availability": 1.0,
-        "gen_feat_1": 509.57,
-        "gen_feat_2": 0.493935,
-        "gen_feat_3": 485.71
+        "reliability": 100.0,
+        "security": 2.96
       }
     },
     {
@@ -378,12 +356,11 @@
       "provider_id": "p_gen_shared",
       "name": "DFBS.booking (Gen Shared)",
       "features": {
-        "latency_ms": 647.32,
-        "cost_usd": 411.46,
-        "availability": 0.979506,
-        "gen_feat_1": 505.68,
-        "gen_feat_2": 0.506905,
-        "gen_feat_3": 510.18
+        "latency_ms": 631.43,
+        "cost_usd": 418.27,
+        "availability": 0.96498,
+        "reliability": 97.75,
+        "security": 3.03
       }
     },
     {
@@ -392,12 +369,11 @@
       "provider_id": "p_gen_shared",
       "name": "IFBS.booking (Gen Shared)",
       "features": {
-        "latency_ms": 759.62,
-        "cost_usd": 814.07,
-        "availability": 1.0,
-        "gen_feat_1": 494.8,
-        "gen_feat_2": 0.503149,
-        "gen_feat_3": 501.18
+        "latency_ms": 790.77,
+        "cost_usd": 836.7,
+        "availability": 0.9544,
+        "reliability": 97.09,
+        "security": 4.09
       }
     },
     {
@@ -406,12 +382,11 @@
       "provider_id": "p_gen_shared",
       "name": "TIS.getInsurance (Gen Shared)",
       "features": {
-        "latency_ms": 234.01,
-        "cost_usd": 55.73,
-        "availability": 0.994473,
-        "gen_feat_1": 505.2,
-        "gen_feat_2": 0.498515,
-        "gen_feat_3": 487.21
+        "latency_ms": 237.5,
+        "cost_usd": 55.35,
+        "availability": 0.999345,
+        "reliability": 97.02,
+        "security": 3.04
       }
     },
     {
@@ -420,12 +395,11 @@
       "provider_id": "p_gen_shared",
       "name": "ABS.booking (Gen Shared)",
       "features": {
-        "latency_ms": 423.14,
-        "cost_usd": 927.58,
-        "availability": 0.985309,
-        "gen_feat_1": 494.62,
-        "gen_feat_2": 0.504056,
-        "gen_feat_3": 495.1
+        "latency_ms": 428.91,
+        "cost_usd": 959.88,
+        "availability": 0.989053,
+        "reliability": 96.47,
+        "security": 4.92
       }
     },
     {
@@ -434,12 +408,11 @@
       "provider_id": "p_gen_shared",
       "name": "CRS.booking (Gen Shared)",
       "features": {
-        "latency_ms": 303.36,
-        "cost_usd": 252.45,
-        "availability": 0.962251,
-        "gen_feat_1": 502.73,
-        "gen_feat_2": 0.492905,
-        "gen_feat_3": 511.21
+        "latency_ms": 302.68,
+        "cost_usd": 258.25,
+        "availability": 0.979341,
+        "reliability": 99.6,
+        "security": 4.95
       }
     },
     {
@@ -448,12 +421,11 @@
       "provider_id": "p_attractions_b",
       "name": "ABS.booking (Gen p_attractions_b)",
       "features": {
-        "latency_ms": 439.32,
-        "cost_usd": 974.26,
-        "availability": 0.997007,
-        "gen_feat_1": 485.11,
-        "gen_feat_2": 0.507033,
-        "gen_feat_3": 506.35
+        "latency_ms": 420.78,
+        "cost_usd": 922.42,
+        "availability": 0.964195,
+        "reliability": 99.54,
+        "security": 4.93
       }
     },
     {
@@ -462,12 +434,11 @@
       "provider_id": "p_dom_air_a",
       "name": "ASS.getAttractions (Gen p_dom_air_a)",
       "features": {
-        "latency_ms": 184.86,
+        "latency_ms": 184.04,
         "cost_usd": 0.0,
-        "availability": 0.973261,
-        "gen_feat_1": 512.0,
-        "gen_feat_2": 0.499623,
-        "gen_feat_3": 508.68
+        "availability": 1.0,
+        "reliability": 99.8,
+        "security": 2.91
       }
     },
     {
@@ -476,12 +447,11 @@
       "provider_id": "p_dom_air_b",
       "name": "CRS.booking (Gen p_dom_air_b)",
       "features": {
-        "latency_ms": 306.52,
-        "cost_usd": 265.14,
+        "latency_ms": 314.36,
+        "cost_usd": 263.3,
         "availability": 1.0,
-        "gen_feat_1": 494.8,
-        "gen_feat_2": 0.492691,
-        "gen_feat_3": 514.53
+        "reliability": 100.0,
+        "security": 4.89
       }
     },
     {
@@ -490,12 +460,11 @@
       "provider_id": "p_int_air_a",
       "name": "DFBS.booking (Gen p_int_air_a)",
       "features": {
-        "latency_ms": 651.12,
-        "cost_usd": 418.28,
-        "availability": 0.965527,
-        "gen_feat_1": 511.15,
-        "gen_feat_2": 0.485867,
-        "gen_feat_3": 508.59
+        "latency_ms": 665.6,
+        "cost_usd": 419.68,
+        "availability": 1.0,
+        "reliability": 97.2,
+        "security": 3.06
       }
     },
     {
@@ -504,12 +473,11 @@
       "provider_id": "p_int_air_b",
       "name": "IFBS.booking (Gen p_int_air_b)",
       "features": {
-        "latency_ms": 772.85,
-        "cost_usd": 820.64,
-        "availability": 1.0,
-        "gen_feat_1": 491.67,
-        "gen_feat_2": 0.511467,
-        "gen_feat_3": 505.28
+        "latency_ms": 799.69,
+        "cost_usd": 811.47,
+        "availability": 0.965675,
+        "reliability": 100.0,
+        "security": 4.01
       }
     },
     {
@@ -518,12 +486,11 @@
       "provider_id": "p_ins_a",
       "name": "TIS.getInsurance (Gen p_ins_a)",
       "features": {
-        "latency_ms": 244.17,
-        "cost_usd": 54.94,
-        "availability": 0.984627,
-        "gen_feat_1": 486.89,
-        "gen_feat_2": 0.493076,
-        "gen_feat_3": 489.66
+        "latency_ms": 239.02,
+        "cost_usd": 53.91,
+        "availability": 1.0,
+        "reliability": 96.69,
+        "security": 3.05
       }
     },
     {
@@ -532,12 +499,11 @@
       "provider_id": "p_ins_b",
       "name": "ABS.booking (Gen p_ins_b)",
       "features": {
-        "latency_ms": 422.04,
-        "cost_usd": 925.74,
+        "latency_ms": 426.06,
+        "cost_usd": 950.75,
         "availability": 1.0,
-        "gen_feat_1": 509.91,
-        "gen_feat_2": 0.510797,
-        "gen_feat_3": 494.78
+        "reliability": 97.35,
+        "security": 5.0
       }
     },
     {
@@ -546,12 +512,11 @@
       "provider_id": "p_hotel_a",
       "name": "ASS.getAttractions (Gen p_hotel_a)",
       "features": {
-        "latency_ms": 175.0,
+        "latency_ms": 181.9,
         "cost_usd": 0.0,
-        "availability": 1.0,
-        "gen_feat_1": 509.36,
-        "gen_feat_2": 0.48832,
-        "gen_feat_3": 493.54
+        "availability": 0.993845,
+        "reliability": 98.07,
+        "security": 2.92
       }
     },
     {
@@ -560,12 +525,11 @@
       "provider_id": "p_hotel_b",
       "name": "CRS.booking (Gen p_hotel_b)",
       "features": {
-        "latency_ms": 313.34,
-        "cost_usd": 254.12,
-        "availability": 1.0,
-        "gen_feat_1": 512.88,
-        "gen_feat_2": 0.494914,
-        "gen_feat_3": 493.16
+        "latency_ms": 305.71,
+        "cost_usd": 254.63,
+        "availability": 0.97168,
+        "reliability": 96.28,
+        "security": 5.0
       }
     },
     {
@@ -574,12 +538,11 @@
       "provider_id": "p_car_a",
       "name": "DFBS.booking (Gen p_car_a)",
       "features": {
-        "latency_ms": 662.74,
-        "cost_usd": 432.29,
-        "availability": 0.955965,
-        "gen_feat_1": 500.97,
-        "gen_feat_2": 0.486536,
-        "gen_feat_3": 491.54
+        "latency_ms": 662.88,
+        "cost_usd": 429.07,
+        "availability": 0.974707,
+        "reliability": 95.57,
+        "security": 3.01
       }
     },
     {
@@ -588,12 +551,11 @@
       "provider_id": "p_car_b",
       "name": "IFBS.booking (Gen p_car_b)",
       "features": {
-        "latency_ms": 792.32,
-        "cost_usd": 825.32,
-        "availability": 1.0,
-        "gen_feat_1": 511.72,
-        "gen_feat_2": 0.496489,
-        "gen_feat_3": 514.27
+        "latency_ms": 786.57,
+        "cost_usd": 835.36,
+        "availability": 0.957108,
+        "reliability": 96.54,
+        "security": 4.04
       }
     },
     {
@@ -602,12 +564,11 @@
       "provider_id": "p_gen_1",
       "name": "TIS.getInsurance (Gen p_gen_1)",
       "features": {
-        "latency_ms": 235.89,
-        "cost_usd": 54.09,
-        "availability": 0.997782,
-        "gen_feat_1": 498.15,
-        "gen_feat_2": 0.488561,
-        "gen_feat_3": 503.45
+        "latency_ms": 234.57,
+        "cost_usd": 56.3,
+        "availability": 1.0,
+        "reliability": 98.49,
+        "security": 2.96
       }
     },
     {
@@ -616,12 +577,11 @@
       "provider_id": "p_gen_2",
       "name": "ABS.booking (Gen p_gen_2)",
       "features": {
-        "latency_ms": 424.1,
-        "cost_usd": 971.83,
-        "availability": 0.985156,
-        "gen_feat_1": 506.04,
-        "gen_feat_2": 0.496573,
-        "gen_feat_3": 510.36
+        "latency_ms": 438.43,
+        "cost_usd": 977.79,
+        "availability": 0.962759,
+        "reliability": 99.19,
+        "security": 4.87
       }
     },
     {
@@ -630,12 +590,11 @@
       "provider_id": "p_gen_3",
       "name": "ASS.getAttractions (Gen p_gen_3)",
       "features": {
-        "latency_ms": 184.07,
+        "latency_ms": 176.96,
         "cost_usd": 0.0,
-        "availability": 0.976596,
-        "gen_feat_1": 489.74,
-        "gen_feat_2": 0.487447,
-        "gen_feat_3": 486.76
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 3.07
       }
     },
     {
@@ -644,12 +603,11 @@
       "provider_id": "p_gen_4",
       "name": "CRS.booking (Gen p_gen_4)",
       "features": {
-        "latency_ms": 318.86,
-        "cost_usd": 255.49,
-        "availability": 0.998504,
-        "gen_feat_1": 509.12,
-        "gen_feat_2": 0.493932,
-        "gen_feat_3": 494.56
+        "latency_ms": 307.82,
+        "cost_usd": 267.42,
+        "availability": 0.973027,
+        "reliability": 97.16,
+        "security": 5.0
       }
     },
     {
@@ -658,12 +616,11 @@
       "provider_id": "p_gen_5",
       "name": "DFBS.booking (Gen p_gen_5)",
       "features": {
-        "latency_ms": 654.71,
-        "cost_usd": 426.49,
-        "availability": 1.0,
-        "gen_feat_1": 498.69,
-        "gen_feat_2": 0.506699,
-        "gen_feat_3": 486.23
+        "latency_ms": 647.6,
+        "cost_usd": 410.39,
+        "availability": 0.991802,
+        "reliability": 96.95,
+        "security": 3.07
       }
     },
     {
@@ -672,12 +629,11 @@
       "provider_id": "p_attractions_a",
       "name": "IFBS.booking (Gen p_attractions_a)",
       "features": {
-        "latency_ms": 795.93,
-        "cost_usd": 844.09,
-        "availability": 0.963688,
-        "gen_feat_1": 492.63,
-        "gen_feat_2": 0.50024,
-        "gen_feat_3": 503.14
+        "latency_ms": 774.62,
+        "cost_usd": 829.91,
+        "availability": 0.973283,
+        "reliability": 99.83,
+        "security": 4.09
       }
     },
     {
@@ -686,12 +642,11 @@
       "provider_id": "p_attractions_b",
       "name": "TIS.getInsurance (Gen p_attractions_b)",
       "features": {
-        "latency_ms": 234.94,
-        "cost_usd": 54.1,
-        "availability": 0.990098,
-        "gen_feat_1": 490.91,
-        "gen_feat_2": 0.504181,
-        "gen_feat_3": 493.32
+        "latency_ms": 236.96,
+        "cost_usd": 53.98,
+        "availability": 0.976545,
+        "reliability": 97.0,
+        "security": 2.92
       }
     },
     {
@@ -700,12 +655,11 @@
       "provider_id": "p_dom_air_a",
       "name": "ABS.booking (Gen p_dom_air_a)",
       "features": {
-        "latency_ms": 427.42,
-        "cost_usd": 942.92,
+        "latency_ms": 442.29,
+        "cost_usd": 933.52,
         "availability": 1.0,
-        "gen_feat_1": 514.34,
-        "gen_feat_2": 0.490809,
-        "gen_feat_3": 502.88
+        "reliability": 100.0,
+        "security": 4.94
       }
     },
     {
@@ -714,12 +668,11 @@
       "provider_id": "p_dom_air_b",
       "name": "ASS.getAttractions (Gen p_dom_air_b)",
       "features": {
-        "latency_ms": 178.64,
+        "latency_ms": 178.04,
         "cost_usd": 0.0,
         "availability": 1.0,
-        "gen_feat_1": 509.97,
-        "gen_feat_2": 0.50639,
-        "gen_feat_3": 488.65
+        "reliability": 100.0,
+        "security": 2.99
       }
     },
     {
@@ -728,12 +681,11 @@
       "provider_id": "p_int_air_a",
       "name": "CRS.booking (Gen p_int_air_a)",
       "features": {
-        "latency_ms": 319.1,
-        "cost_usd": 263.98,
+        "latency_ms": 314.15,
+        "cost_usd": 252.84,
         "availability": 1.0,
-        "gen_feat_1": 500.61,
-        "gen_feat_2": 0.492753,
-        "gen_feat_3": 489.35
+        "reliability": 100.0,
+        "security": 4.92
       }
     },
     {
@@ -742,12 +694,11 @@
       "provider_id": "p_int_air_b",
       "name": "DFBS.booking (Gen p_int_air_b)",
       "features": {
-        "latency_ms": 649.71,
-        "cost_usd": 416.51,
-        "availability": 0.966579,
-        "gen_feat_1": 504.59,
-        "gen_feat_2": 0.502031,
-        "gen_feat_3": 500.67
+        "latency_ms": 640.42,
+        "cost_usd": 420.2,
+        "availability": 0.991193,
+        "reliability": 96.23,
+        "security": 2.95
       }
     },
     {
@@ -756,12 +707,11 @@
       "provider_id": "p_ins_a",
       "name": "IFBS.booking (Gen p_ins_a)",
       "features": {
-        "latency_ms": 766.81,
-        "cost_usd": 823.65,
-        "availability": 0.990985,
-        "gen_feat_1": 510.78,
-        "gen_feat_2": 0.49515,
-        "gen_feat_3": 514.3
+        "latency_ms": 774.6,
+        "cost_usd": 805.09,
+        "availability": 0.988194,
+        "reliability": 96.49,
+        "security": 3.98
       }
     },
     {
@@ -770,12 +720,11 @@
       "provider_id": "p_ins_b",
       "name": "TIS.getInsurance (Gen p_ins_b)",
       "features": {
-        "latency_ms": 239.19,
-        "cost_usd": 54.65,
-        "availability": 0.97242,
-        "gen_feat_1": 493.99,
-        "gen_feat_2": 0.507973,
-        "gen_feat_3": 491.39
+        "latency_ms": 238.21,
+        "cost_usd": 56.61,
+        "availability": 1.0,
+        "reliability": 97.67,
+        "security": 3.02
       }
     },
     {
@@ -784,12 +733,11 @@
       "provider_id": "p_hotel_a",
       "name": "ABS.booking (Gen p_hotel_a)",
       "features": {
-        "latency_ms": 425.46,
-        "cost_usd": 956.87,
+        "latency_ms": 426.74,
+        "cost_usd": 923.19,
         "availability": 1.0,
-        "gen_feat_1": 502.98,
-        "gen_feat_2": 0.490074,
-        "gen_feat_3": 504.05
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -798,12 +746,11 @@
       "provider_id": "p_hotel_b",
       "name": "ASS.getAttractions (Gen p_hotel_b)",
       "features": {
-        "latency_ms": 185.1,
+        "latency_ms": 175.91,
         "cost_usd": 0.0,
-        "availability": 0.995177,
-        "gen_feat_1": 498.91,
-        "gen_feat_2": 0.494214,
-        "gen_feat_3": 502.98
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 3.0
       }
     },
     {
@@ -812,12 +759,11 @@
       "provider_id": "p_car_a",
       "name": "CRS.booking (Gen p_car_a)",
       "features": {
-        "latency_ms": 318.44,
-        "cost_usd": 259.53,
-        "availability": 0.992423,
-        "gen_feat_1": 492.97,
-        "gen_feat_2": 0.512985,
-        "gen_feat_3": 497.1
+        "latency_ms": 305.51,
+        "cost_usd": 254.46,
+        "availability": 0.989564,
+        "reliability": 97.98,
+        "security": 4.91
       }
     },
     {
@@ -826,12 +772,11 @@
       "provider_id": "p_car_b",
       "name": "DFBS.booking (Gen p_car_b)",
       "features": {
-        "latency_ms": 663.92,
-        "cost_usd": 411.7,
-        "availability": 1.0,
-        "gen_feat_1": 507.6,
-        "gen_feat_2": 0.491973,
-        "gen_feat_3": 489.42
+        "latency_ms": 655.97,
+        "cost_usd": 421.71,
+        "availability": 0.986318,
+        "reliability": 96.64,
+        "security": 3.01
       }
     },
     {
@@ -840,12 +785,11 @@
       "provider_id": "p_gen_1",
       "name": "IFBS.booking (Gen p_gen_1)",
       "features": {
-        "latency_ms": 757.68,
-        "cost_usd": 826.61,
-        "availability": 1.0,
-        "gen_feat_1": 491.17,
-        "gen_feat_2": 0.487995,
-        "gen_feat_3": 496.04
+        "latency_ms": 788.74,
+        "cost_usd": 837.67,
+        "availability": 0.970493,
+        "reliability": 100.0,
+        "security": 3.99
       }
     },
     {
@@ -854,12 +798,11 @@
       "provider_id": "p_gen_2",
       "name": "TIS.getInsurance (Gen p_gen_2)",
       "features": {
-        "latency_ms": 242.96,
-        "cost_usd": 54.63,
-        "availability": 0.992317,
-        "gen_feat_1": 490.66,
-        "gen_feat_2": 0.512804,
-        "gen_feat_3": 508.59
+        "latency_ms": 238.45,
+        "cost_usd": 53.64,
+        "availability": 0.985017,
+        "reliability": 100.0,
+        "security": 2.95
       }
     },
     {
@@ -868,12 +811,11 @@
       "provider_id": "p_gen_3",
       "name": "ABS.booking (Gen p_gen_3)",
       "features": {
-        "latency_ms": 424.85,
-        "cost_usd": 946.36,
-        "availability": 0.983088,
-        "gen_feat_1": 490.8,
-        "gen_feat_2": 0.498715,
-        "gen_feat_3": 489.25
+        "latency_ms": 425.46,
+        "cost_usd": 956.87,
+        "availability": 1.0,
+        "reliability": 99.59,
+        "security": 4.9
       }
     },
     {
@@ -882,12 +824,11 @@
       "provider_id": "p_gen_4",
       "name": "ASS.getAttractions (Gen p_gen_4)",
       "features": {
-        "latency_ms": 183.28,
+        "latency_ms": 181.46,
         "cost_usd": 0.0,
-        "availability": 0.992297,
-        "gen_feat_1": 486.79,
-        "gen_feat_2": 0.511194,
-        "gen_feat_3": 509.55
+        "availability": 1.0,
+        "reliability": 99.32,
+        "security": 2.99
       }
     },
     {
@@ -896,12 +837,11 @@
       "provider_id": "p_gen_5",
       "name": "CRS.booking (Gen p_gen_5)",
       "features": {
-        "latency_ms": 318.61,
-        "cost_usd": 256.91,
-        "availability": 0.998423,
-        "gen_feat_1": 500.85,
-        "gen_feat_2": 0.494949,
-        "gen_feat_3": 494.14
+        "latency_ms": 306.41,
+        "cost_usd": 261.55,
+        "availability": 1.0,
+        "reliability": 98.62,
+        "security": 5.0
       }
     },
     {
@@ -910,12 +850,11 @@
       "provider_id": "p_attractions_a",
       "name": "DFBS.booking (Gen p_attractions_a)",
       "features": {
-        "latency_ms": 662.33,
-        "cost_usd": 415.05,
-        "availability": 1.0,
-        "gen_feat_1": 485.27,
-        "gen_feat_2": 0.498913,
-        "gen_feat_3": 487.12
+        "latency_ms": 640.86,
+        "cost_usd": 430.91,
+        "availability": 0.979292,
+        "reliability": 100.0,
+        "security": 2.94
       }
     },
     {
@@ -924,12 +863,11 @@
       "provider_id": "p_attractions_b",
       "name": "IFBS.booking (Gen p_attractions_b)",
       "features": {
-        "latency_ms": 758.36,
-        "cost_usd": 796.54,
-        "availability": 1.0,
-        "gen_feat_1": 497.81,
-        "gen_feat_2": 0.502515,
-        "gen_feat_3": 509.16
+        "latency_ms": 796.63,
+        "cost_usd": 832.47,
+        "availability": 0.964267,
+        "reliability": 95.73,
+        "security": 3.89
       }
     },
     {
@@ -938,12 +876,11 @@
       "provider_id": "p_dom_air_a",
       "name": "TIS.getInsurance (Gen p_dom_air_a)",
       "features": {
-        "latency_ms": 241.65,
-        "cost_usd": 55.32,
-        "availability": 1.0,
-        "gen_feat_1": 512.64,
-        "gen_feat_2": 0.496089,
-        "gen_feat_3": 504.19
+        "latency_ms": 241.93,
+        "cost_usd": 56.65,
+        "availability": 0.979389,
+        "reliability": 97.11,
+        "security": 2.98
       }
     },
     {
@@ -952,12 +889,11 @@
       "provider_id": "p_dom_air_b",
       "name": "ABS.booking (Gen p_dom_air_b)",
       "features": {
-        "latency_ms": 435.43,
-        "cost_usd": 940.83,
-        "availability": 0.988804,
-        "gen_feat_1": 512.87,
-        "gen_feat_2": 0.505241,
-        "gen_feat_3": 507.29
+        "latency_ms": 435.3,
+        "cost_usd": 943.55,
+        "availability": 0.98734,
+        "reliability": 97.15,
+        "security": 5.0
       }
     },
     {
@@ -966,12 +902,11 @@
       "provider_id": "p_int_air_a",
       "name": "ASS.getAttractions (Gen p_int_air_a)",
       "features": {
-        "latency_ms": 175.64,
+        "latency_ms": 183.09,
         "cost_usd": 0.0,
-        "availability": 0.993164,
-        "gen_feat_1": 486.1,
-        "gen_feat_2": 0.485054,
-        "gen_feat_3": 503.99
+        "availability": 0.99119,
+        "reliability": 98.41,
+        "security": 2.94
       }
     },
     {
@@ -980,12 +915,11 @@
       "provider_id": "p_int_air_b",
       "name": "CRS.booking (Gen p_int_air_b)",
       "features": {
-        "latency_ms": 318.31,
-        "cost_usd": 266.75,
-        "availability": 0.978032,
-        "gen_feat_1": 497.95,
-        "gen_feat_2": 0.49628,
-        "gen_feat_3": 508.32
+        "latency_ms": 309.2,
+        "cost_usd": 254.41,
+        "availability": 1.0,
+        "reliability": 96.93,
+        "security": 4.99
       }
     },
     {
@@ -994,12 +928,11 @@
       "provider_id": "p_ins_a",
       "name": "DFBS.booking (Gen p_ins_a)",
       "features": {
-        "latency_ms": 661.27,
-        "cost_usd": 415.88,
-        "availability": 0.986834,
-        "gen_feat_1": 510.59,
-        "gen_feat_2": 0.501464,
-        "gen_feat_3": 495.6
+        "latency_ms": 632.82,
+        "cost_usd": 429.4,
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 2.96
       }
     },
     {
@@ -1008,12 +941,11 @@
       "provider_id": "p_ins_b",
       "name": "IFBS.booking (Gen p_ins_b)",
       "features": {
-        "latency_ms": 784.34,
-        "cost_usd": 805.83,
-        "availability": 0.97489,
-        "gen_feat_1": 498.99,
-        "gen_feat_2": 0.505672,
-        "gen_feat_3": 506.54
+        "latency_ms": 786.64,
+        "cost_usd": 821.39,
+        "availability": 0.970101,
+        "reliability": 96.65,
+        "security": 4.08
       }
     },
     {
@@ -1022,12 +954,11 @@
       "provider_id": "p_hotel_a",
       "name": "TIS.getInsurance (Gen p_hotel_a)",
       "features": {
-        "latency_ms": 237.36,
-        "cost_usd": 54.63,
-        "availability": 1.0,
-        "gen_feat_1": 512.19,
-        "gen_feat_2": 0.506375,
-        "gen_feat_3": 513.91
+        "latency_ms": 237.17,
+        "cost_usd": 56.31,
+        "availability": 0.967624,
+        "reliability": 99.28,
+        "security": 2.92
       }
     },
     {
@@ -1036,12 +967,11 @@
       "provider_id": "p_hotel_b",
       "name": "ABS.booking (Gen p_hotel_b)",
       "features": {
-        "latency_ms": 429.53,
-        "cost_usd": 950.2,
+        "latency_ms": 418.07,
+        "cost_usd": 922.82,
         "availability": 1.0,
-        "gen_feat_1": 500.26,
-        "gen_feat_2": 0.490031,
-        "gen_feat_3": 490.84
+        "reliability": 98.57,
+        "security": 5.0
       }
     },
     {
@@ -1050,12 +980,11 @@
       "provider_id": "p_car_a",
       "name": "ASS.getAttractions (Gen p_car_a)",
       "features": {
-        "latency_ms": 176.2,
+        "latency_ms": 183.3,
         "cost_usd": 0.0,
-        "availability": 0.978629,
-        "gen_feat_1": 513.17,
-        "gen_feat_2": 0.485635,
-        "gen_feat_3": 501.55
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 3.08
       }
     },
     {
@@ -1064,12 +993,11 @@
       "provider_id": "p_car_b",
       "name": "CRS.booking (Gen p_car_b)",
       "features": {
-        "latency_ms": 312.7,
-        "cost_usd": 254.45,
-        "availability": 0.983777,
-        "gen_feat_1": 494.52,
-        "gen_feat_2": 0.498931,
-        "gen_feat_3": 511.43
+        "latency_ms": 307.58,
+        "cost_usd": 262.18,
+        "availability": 1.0,
+        "reliability": 97.85,
+        "security": 4.98
       }
     },
     {
@@ -1078,12 +1006,11 @@
       "provider_id": "p_gen_1",
       "name": "DFBS.booking (Gen p_gen_1)",
       "features": {
-        "latency_ms": 664.43,
-        "cost_usd": 408.12,
-        "availability": 0.962641,
-        "gen_feat_1": 488.3,
-        "gen_feat_2": 0.490801,
-        "gen_feat_3": 512.68
+        "latency_ms": 666.73,
+        "cost_usd": 424.4,
+        "availability": 0.999365,
+        "reliability": 95.92,
+        "security": 2.92
       }
     },
     {
@@ -1092,12 +1019,11 @@
       "provider_id": "p_gen_2",
       "name": "IFBS.booking (Gen p_gen_2)",
       "features": {
-        "latency_ms": 769.04,
-        "cost_usd": 811.18,
-        "availability": 0.964168,
-        "gen_feat_1": 504.72,
-        "gen_feat_2": 0.513448,
-        "gen_feat_3": 486.86
+        "latency_ms": 778.56,
+        "cost_usd": 797.21,
+        "availability": 0.950706,
+        "reliability": 98.58,
+        "security": 4.11
       }
     },
     {
@@ -1106,12 +1032,11 @@
       "provider_id": "p_gen_3",
       "name": "TIS.getInsurance (Gen p_gen_3)",
       "features": {
-        "latency_ms": 244.33,
-        "cost_usd": 54.72,
-        "availability": 1.0,
-        "gen_feat_1": 496.15,
-        "gen_feat_2": 0.510147,
-        "gen_feat_3": 496.27
+        "latency_ms": 246.23,
+        "cost_usd": 54.34,
+        "availability": 0.992913,
+        "reliability": 98.76,
+        "security": 3.05
       }
     },
     {
@@ -1120,12 +1045,11 @@
       "provider_id": "p_gen_4",
       "name": "ABS.booking (Gen p_gen_4)",
       "features": {
-        "latency_ms": 427.72,
-        "cost_usd": 962.33,
-        "availability": 0.984144,
-        "gen_feat_1": 505.48,
-        "gen_feat_2": 0.506446,
-        "gen_feat_3": 504.14
+        "latency_ms": 437.45,
+        "cost_usd": 940.68,
+        "availability": 0.993847,
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -1134,12 +1058,11 @@
       "provider_id": "p_gen_5",
       "name": "ASS.getAttractions (Gen p_gen_5)",
       "features": {
-        "latency_ms": 177.62,
+        "latency_ms": 178.42,
         "cost_usd": 0.0,
-        "availability": 1.0,
-        "gen_feat_1": 513.87,
-        "gen_feat_2": 0.508852,
-        "gen_feat_3": 498.33
+        "availability": 0.977804,
+        "reliability": 98.78,
+        "security": 2.99
       }
     },
     {
@@ -1148,12 +1071,11 @@
       "provider_id": "p_attractions_a",
       "name": "CRS.booking (Gen p_attractions_a)",
       "features": {
-        "latency_ms": 305.71,
-        "cost_usd": 258.56,
-        "availability": 0.969217,
-        "gen_feat_1": 486.85,
-        "gen_feat_2": 0.486823,
-        "gen_feat_3": 506.8
+        "latency_ms": 313.52,
+        "cost_usd": 263.4,
+        "availability": 0.979111,
+        "reliability": 98.14,
+        "security": 5.0
       }
     },
     {
@@ -1162,12 +1084,11 @@
       "provider_id": "p_attractions_b",
       "name": "DFBS.booking (Gen p_attractions_b)",
       "features": {
-        "latency_ms": 631.42,
-        "cost_usd": 410.81,
-        "availability": 0.961011,
-        "gen_feat_1": 511.46,
-        "gen_feat_2": 0.495467,
-        "gen_feat_3": 485.55
+        "latency_ms": 665.84,
+        "cost_usd": 425.35,
+        "availability": 1.0,
+        "reliability": 98.19,
+        "security": 3.0
       }
     },
     {
@@ -1176,12 +1097,11 @@
       "provider_id": "p_dom_air_a",
       "name": "IFBS.booking (Gen p_dom_air_a)",
       "features": {
-        "latency_ms": 781.23,
-        "cost_usd": 797.8,
-        "availability": 0.957171,
-        "gen_feat_1": 492.52,
-        "gen_feat_2": 0.492049,
-        "gen_feat_3": 500.77
+        "latency_ms": 800.94,
+        "cost_usd": 820.43,
+        "availability": 0.960461,
+        "reliability": 96.01,
+        "security": 3.92
       }
     },
     {
@@ -1190,12 +1110,11 @@
       "provider_id": "p_dom_air_b",
       "name": "TIS.getInsurance (Gen p_dom_air_b)",
       "features": {
-        "latency_ms": 238.11,
-        "cost_usd": 54.56,
+        "latency_ms": 239.02,
+        "cost_usd": 54.1,
         "availability": 1.0,
-        "gen_feat_1": 486.8,
-        "gen_feat_2": 0.500884,
-        "gen_feat_3": 496.98
+        "reliability": 96.64,
+        "security": 3.01
       }
     },
     {
@@ -1204,12 +1123,11 @@
       "provider_id": "p_int_air_a",
       "name": "ABS.booking (Gen p_int_air_a)",
       "features": {
-        "latency_ms": 418.74,
-        "cost_usd": 954.2,
-        "availability": 0.992199,
-        "gen_feat_1": 505.64,
-        "gen_feat_2": 0.486038,
-        "gen_feat_3": 511.0
+        "latency_ms": 433.75,
+        "cost_usd": 929.71,
+        "availability": 0.985764,
+        "reliability": 97.92,
+        "security": 4.99
       }
     },
     {
@@ -1218,12 +1136,11 @@
       "provider_id": "p_int_air_b",
       "name": "ASS.getAttractions (Gen p_int_air_b)",
       "features": {
-        "latency_ms": 180.38,
+        "latency_ms": 184.11,
         "cost_usd": 0.0,
-        "availability": 1.0,
-        "gen_feat_1": 491.91,
-        "gen_feat_2": 0.499098,
-        "gen_feat_3": 503.66
+        "availability": 0.966846,
+        "reliability": 97.05,
+        "security": 2.93
       }
     },
     {
@@ -1232,12 +1149,11 @@
       "provider_id": "p_ins_a",
       "name": "CRS.booking (Gen p_ins_a)",
       "features": {
-        "latency_ms": 306.76,
-        "cost_usd": 263.13,
-        "availability": 0.976983,
-        "gen_feat_1": 492.7,
-        "gen_feat_2": 0.499734,
-        "gen_feat_3": 485.95
+        "latency_ms": 304.3,
+        "cost_usd": 266.59,
+        "availability": 0.976083,
+        "reliability": 97.74,
+        "security": 4.92
       }
     },
     {
@@ -1246,12 +1162,11 @@
       "provider_id": "p_ins_b",
       "name": "DFBS.booking (Gen p_ins_b)",
       "features": {
-        "latency_ms": 636.66,
-        "cost_usd": 425.63,
-        "availability": 0.982031,
-        "gen_feat_1": 512.65,
-        "gen_feat_2": 0.494772,
-        "gen_feat_3": 492.51
+        "latency_ms": 656.14,
+        "cost_usd": 431.3,
+        "availability": 0.959105,
+        "reliability": 100.0,
+        "security": 2.98
       }
     },
     {
@@ -1260,12 +1175,11 @@
       "provider_id": "p_hotel_a",
       "name": "IFBS.booking (Gen p_hotel_a)",
       "features": {
-        "latency_ms": 790.75,
-        "cost_usd": 823.65,
-        "availability": 0.992618,
-        "gen_feat_1": 491.03,
-        "gen_feat_2": 0.503645,
-        "gen_feat_3": 485.06
+        "latency_ms": 790.25,
+        "cost_usd": 813.69,
+        "availability": 0.999889,
+        "reliability": 97.07,
+        "security": 3.98
       }
     },
     {
@@ -1274,12 +1188,11 @@
       "provider_id": "p_hotel_b",
       "name": "TIS.getInsurance (Gen p_hotel_b)",
       "features": {
-        "latency_ms": 235.86,
-        "cost_usd": 55.7,
+        "latency_ms": 243.12,
+        "cost_usd": 54.56,
         "availability": 1.0,
-        "gen_feat_1": 495.28,
-        "gen_feat_2": 0.503818,
-        "gen_feat_3": 507.38
+        "reliability": 100.0,
+        "security": 3.02
       }
     },
     {
@@ -1288,12 +1201,11 @@
       "provider_id": "p_car_a",
       "name": "ABS.booking (Gen p_car_a)",
       "features": {
-        "latency_ms": 437.49,
-        "cost_usd": 970.76,
+        "latency_ms": 424.32,
+        "cost_usd": 953.24,
         "availability": 1.0,
-        "gen_feat_1": 495.34,
-        "gen_feat_2": 0.488174,
-        "gen_feat_3": 500.57
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -1302,12 +1214,11 @@
       "provider_id": "p_car_b",
       "name": "ASS.getAttractions (Gen p_car_b)",
       "features": {
-        "latency_ms": 179.55,
+        "latency_ms": 179.4,
         "cost_usd": 0.0,
-        "availability": 0.98352,
-        "gen_feat_1": 491.54,
-        "gen_feat_2": 0.509419,
-        "gen_feat_3": 505.03
+        "availability": 0.989475,
+        "reliability": 97.22,
+        "security": 2.92
       }
     },
     {
@@ -1316,12 +1227,11 @@
       "provider_id": "p_gen_1",
       "name": "CRS.booking (Gen p_gen_1)",
       "features": {
-        "latency_ms": 302.98,
-        "cost_usd": 257.81,
-        "availability": 0.965594,
-        "gen_feat_1": 514.58,
-        "gen_feat_2": 0.509602,
-        "gen_feat_3": 514.68
+        "latency_ms": 301.83,
+        "cost_usd": 263.54,
+        "availability": 0.961694,
+        "reliability": 96.64,
+        "security": 4.88
       }
     },
     {
@@ -1330,12 +1240,11 @@
       "provider_id": "p_gen_2",
       "name": "DFBS.booking (Gen p_gen_2)",
       "features": {
-        "latency_ms": 653.97,
-        "cost_usd": 421.67,
-        "availability": 0.98476,
-        "gen_feat_1": 503.39,
-        "gen_feat_2": 0.485416,
-        "gen_feat_3": 493.81
+        "latency_ms": 664.9,
+        "cost_usd": 416.19,
+        "availability": 0.956532,
+        "reliability": 98.45,
+        "security": 2.92
       }
     },
     {
@@ -1344,12 +1253,11 @@
       "provider_id": "p_gen_3",
       "name": "IFBS.booking (Gen p_gen_3)",
       "features": {
-        "latency_ms": 799.14,
-        "cost_usd": 842.44,
-        "availability": 1.0,
-        "gen_feat_1": 513.9,
-        "gen_feat_2": 0.487402,
-        "gen_feat_3": 487.08
+        "latency_ms": 761.83,
+        "cost_usd": 807.73,
+        "availability": 0.964417,
+        "reliability": 97.95,
+        "security": 3.97
       }
     },
     {
@@ -1358,12 +1266,11 @@
       "provider_id": "p_gen_4",
       "name": "TIS.getInsurance (Gen p_gen_4)",
       "features": {
-        "latency_ms": 240.81,
-        "cost_usd": 53.44,
-        "availability": 1.0,
-        "gen_feat_1": 485.24,
-        "gen_feat_2": 0.488279,
-        "gen_feat_3": 485.0
+        "latency_ms": 238.07,
+        "cost_usd": 55.5,
+        "availability": 0.97068,
+        "reliability": 99.68,
+        "security": 2.98
       }
     },
     {
@@ -1372,12 +1279,11 @@
       "provider_id": "p_gen_5",
       "name": "ABS.booking (Gen p_gen_5)",
       "features": {
-        "latency_ms": 435.3,
-        "cost_usd": 927.98,
-        "availability": 0.971127,
-        "gen_feat_1": 514.75,
-        "gen_feat_2": 0.496304,
-        "gen_feat_3": 511.56
+        "latency_ms": 418.74,
+        "cost_usd": 954.2,
+        "availability": 0.992199,
+        "reliability": 100.0,
+        "security": 4.86
       }
     },
     {
@@ -1386,12 +1292,11 @@
       "provider_id": "p_attractions_a",
       "name": "ASS.getAttractions (Gen p_attractions_a)",
       "features": {
-        "latency_ms": 178.79,
+        "latency_ms": 183.96,
         "cost_usd": 0.0,
-        "availability": 0.975804,
-        "gen_feat_1": 502.29,
-        "gen_feat_2": 0.495439,
-        "gen_feat_3": 512.96
+        "availability": 0.997268,
+        "reliability": 100.0,
+        "security": 2.95
       }
     },
     {
@@ -1400,12 +1305,11 @@
       "provider_id": "p_attractions_b",
       "name": "CRS.booking (Gen p_attractions_b)",
       "features": {
-        "latency_ms": 314.22,
-        "cost_usd": 266.35,
-        "availability": 0.976829,
-        "gen_feat_1": 494.29,
-        "gen_feat_2": 0.507552,
-        "gen_feat_3": 499.97
+        "latency_ms": 309.44,
+        "cost_usd": 261.9,
+        "availability": 0.979668,
+        "reliability": 99.99,
+        "security": 4.93
       }
     },
     {
@@ -1414,12 +1318,11 @@
       "provider_id": "p_dom_air_a",
       "name": "DFBS.booking (Gen p_dom_air_a)",
       "features": {
-        "latency_ms": 631.19,
-        "cost_usd": 410.02,
-        "availability": 0.984608,
-        "gen_feat_1": 495.52,
-        "gen_feat_2": 0.500857,
-        "gen_feat_3": 506.45
+        "latency_ms": 640.51,
+        "cost_usd": 419.78,
+        "availability": 0.957316,
+        "reliability": 96.28,
+        "security": 3.04
       }
     },
     {
@@ -1428,12 +1331,11 @@
       "provider_id": "p_dom_air_b",
       "name": "IFBS.booking (Gen p_dom_air_b)",
       "features": {
-        "latency_ms": 763.1,
-        "cost_usd": 812.18,
-        "availability": 0.980456,
-        "gen_feat_1": 508.25,
-        "gen_feat_2": 0.487396,
-        "gen_feat_3": 512.89
+        "latency_ms": 777.65,
+        "cost_usd": 840.75,
+        "availability": 0.969753,
+        "reliability": 96.33,
+        "security": 4.06
       }
     },
     {
@@ -1442,12 +1344,11 @@
       "provider_id": "p_int_air_a",
       "name": "TIS.getInsurance (Gen p_int_air_a)",
       "features": {
-        "latency_ms": 243.75,
-        "cost_usd": 54.76,
-        "availability": 0.99044,
-        "gen_feat_1": 509.74,
-        "gen_feat_2": 0.496713,
-        "gen_feat_3": 498.31
+        "latency_ms": 241.07,
+        "cost_usd": 55.71,
+        "availability": 0.979118,
+        "reliability": 100.0,
+        "security": 2.91
       }
     },
     {
@@ -1456,12 +1357,11 @@
       "provider_id": "p_int_air_b",
       "name": "ABS.booking (Gen p_int_air_b)",
       "features": {
-        "latency_ms": 441.31,
-        "cost_usd": 968.73,
-        "availability": 0.964236,
-        "gen_feat_1": 501.55,
-        "gen_feat_2": 0.490482,
-        "gen_feat_3": 485.79
+        "latency_ms": 422.59,
+        "cost_usd": 962.08,
+        "availability": 0.999634,
+        "reliability": 98.07,
+        "security": 5.0
       }
     },
     {
@@ -1470,12 +1370,11 @@
       "provider_id": "p_ins_a",
       "name": "ASS.getAttractions (Gen p_ins_a)",
       "features": {
-        "latency_ms": 176.78,
+        "latency_ms": 182.66,
         "cost_usd": 0.0,
         "availability": 1.0,
-        "gen_feat_1": 497.07,
-        "gen_feat_2": 0.507041,
-        "gen_feat_3": 499.84
+        "reliability": 100.0,
+        "security": 2.97
       }
     },
     {
@@ -1484,12 +1383,11 @@
       "provider_id": "p_ins_b",
       "name": "CRS.booking (Gen p_ins_b)",
       "features": {
-        "latency_ms": 301.23,
-        "cost_usd": 267.29,
-        "availability": 0.987894,
-        "gen_feat_1": 494.29,
-        "gen_feat_2": 0.510039,
-        "gen_feat_3": 504.33
+        "latency_ms": 302.67,
+        "cost_usd": 260.3,
+        "availability": 0.987535,
+        "reliability": 98.67,
+        "security": 4.94
       }
     },
     {
@@ -1498,12 +1396,11 @@
       "provider_id": "p_hotel_a",
       "name": "DFBS.booking (Gen p_hotel_a)",
       "features": {
-        "latency_ms": 661.69,
-        "cost_usd": 431.97,
-        "availability": 0.977715,
-        "gen_feat_1": 501.05,
-        "gen_feat_2": 0.512818,
-        "gen_feat_3": 496.66
+        "latency_ms": 639.0,
+        "cost_usd": 427.91,
+        "availability": 0.994908,
+        "reliability": 96.08,
+        "security": 2.97
       }
     },
     {
@@ -1512,12 +1409,11 @@
       "provider_id": "p_hotel_b",
       "name": "IFBS.booking (Gen p_hotel_b)",
       "features": {
-        "latency_ms": 782.32,
-        "cost_usd": 841.79,
-        "availability": 0.992158,
-        "gen_feat_1": 498.5,
-        "gen_feat_2": 0.486434,
-        "gen_feat_3": 497.53
+        "latency_ms": 760.77,
+        "cost_usd": 843.91,
+        "availability": 0.99882,
+        "reliability": 100.0,
+        "security": 4.02
       }
     },
     {
@@ -1526,12 +1422,11 @@
       "provider_id": "p_car_a",
       "name": "TIS.getInsurance (Gen p_car_a)",
       "features": {
-        "latency_ms": 235.56,
-        "cost_usd": 54.59,
-        "availability": 0.979113,
-        "gen_feat_1": 500.93,
-        "gen_feat_2": 0.485278,
-        "gen_feat_3": 501.57
+        "latency_ms": 240.95,
+        "cost_usd": 54.99,
+        "availability": 1.0,
+        "reliability": 96.6,
+        "security": 2.96
       }
     },
     {
@@ -1540,12 +1435,11 @@
       "provider_id": "p_car_b",
       "name": "ABS.booking (Gen p_car_b)",
       "features": {
-        "latency_ms": 427.59,
-        "cost_usd": 939.47,
+        "latency_ms": 440.55,
+        "cost_usd": 976.0,
         "availability": 1.0,
-        "gen_feat_1": 486.48,
-        "gen_feat_2": 0.489445,
-        "gen_feat_3": 490.42
+        "reliability": 100.0,
+        "security": 4.87
       }
     },
     {
@@ -1554,12 +1448,11 @@
       "provider_id": "p_gen_1",
       "name": "ASS.getAttractions (Gen p_gen_1)",
       "features": {
-        "latency_ms": 179.89,
+        "latency_ms": 175.35,
         "cost_usd": 0.0,
-        "availability": 1.0,
-        "gen_feat_1": 496.21,
-        "gen_feat_2": 0.507269,
-        "gen_feat_3": 493.26
+        "availability": 0.966804,
+        "reliability": 100.0,
+        "security": 2.91
       }
     },
     {
@@ -1568,12 +1461,11 @@
       "provider_id": "p_gen_2",
       "name": "CRS.booking (Gen p_gen_2)",
       "features": {
-        "latency_ms": 305.87,
-        "cost_usd": 257.73,
-        "availability": 0.984414,
-        "gen_feat_1": 496.22,
-        "gen_feat_2": 0.48981,
-        "gen_feat_3": 514.39
+        "latency_ms": 302.73,
+        "cost_usd": 252.2,
+        "availability": 1.0,
+        "reliability": 96.51,
+        "security": 4.89
       }
     },
     {
@@ -1582,12 +1474,11 @@
       "provider_id": "p_gen_3",
       "name": "DFBS.booking (Gen p_gen_3)",
       "features": {
-        "latency_ms": 666.03,
-        "cost_usd": 423.43,
-        "availability": 0.972729,
-        "gen_feat_1": 485.43,
-        "gen_feat_2": 0.494579,
-        "gen_feat_3": 499.97
+        "latency_ms": 669.17,
+        "cost_usd": 416.89,
+        "availability": 1.0,
+        "reliability": 97.64,
+        "security": 3.02
       }
     },
     {
@@ -1596,12 +1487,11 @@
       "provider_id": "p_gen_4",
       "name": "IFBS.booking (Gen p_gen_4)",
       "features": {
-        "latency_ms": 801.74,
-        "cost_usd": 815.64,
-        "availability": 0.984204,
-        "gen_feat_1": 509.57,
-        "gen_feat_2": 0.489701,
-        "gen_feat_3": 505.18
+        "latency_ms": 764.95,
+        "cost_usd": 823.75,
+        "availability": 0.971061,
+        "reliability": 100.0,
+        "security": 4.05
       }
     },
     {
@@ -1610,12 +1500,11 @@
       "provider_id": "p_gen_5",
       "name": "TIS.getInsurance (Gen p_gen_5)",
       "features": {
-        "latency_ms": 239.76,
-        "cost_usd": 56.02,
-        "availability": 0.977056,
-        "gen_feat_1": 513.49,
-        "gen_feat_2": 0.504511,
-        "gen_feat_3": 506.91
+        "latency_ms": 245.86,
+        "cost_usd": 54.27,
+        "availability": 0.985615,
+        "reliability": 100.0,
+        "security": 3.0
       }
     },
     {
@@ -1624,12 +1513,11 @@
       "provider_id": "p_attractions_a",
       "name": "ABS.booking (Gen p_attractions_a)",
       "features": {
-        "latency_ms": 432.81,
-        "cost_usd": 934.17,
-        "availability": 0.988295,
-        "gen_feat_1": 498.85,
-        "gen_feat_2": 0.495888,
-        "gen_feat_3": 503.63
+        "latency_ms": 417.56,
+        "cost_usd": 927.42,
+        "availability": 0.991605,
+        "reliability": 98.11,
+        "security": 5.0
       }
     },
     {
@@ -1638,12 +1526,11 @@
       "provider_id": "p_attractions_b",
       "name": "ASS.getAttractions (Gen p_attractions_b)",
       "features": {
-        "latency_ms": 182.74,
+        "latency_ms": 182.32,
         "cost_usd": 0.0,
-        "availability": 0.969678,
-        "gen_feat_1": 491.47,
-        "gen_feat_2": 0.508508,
-        "gen_feat_3": 509.65
+        "availability": 0.985515,
+        "reliability": 99.35,
+        "security": 3.05
       }
     },
     {
@@ -1652,12 +1539,11 @@
       "provider_id": "p_dom_air_a",
       "name": "CRS.booking (Gen p_dom_air_a)",
       "features": {
-        "latency_ms": 308.42,
-        "cost_usd": 260.38,
+        "latency_ms": 302.19,
+        "cost_usd": 266.7,
         "availability": 1.0,
-        "gen_feat_1": 488.25,
-        "gen_feat_2": 0.511232,
-        "gen_feat_3": 488.47
+        "reliability": 98.36,
+        "security": 4.97
       }
     },
     {
@@ -1666,12 +1552,11 @@
       "provider_id": "p_dom_air_b",
       "name": "DFBS.booking (Gen p_dom_air_b)",
       "features": {
-        "latency_ms": 663.65,
-        "cost_usd": 413.81,
-        "availability": 1.0,
-        "gen_feat_1": 507.29,
-        "gen_feat_2": 0.491919,
-        "gen_feat_3": 511.43
+        "latency_ms": 662.66,
+        "cost_usd": 417.24,
+        "availability": 0.981665,
+        "reliability": 100.0,
+        "security": 3.06
       }
     },
     {
@@ -1680,12 +1565,11 @@
       "provider_id": "p_int_air_a",
       "name": "IFBS.booking (Gen p_int_air_a)",
       "features": {
-        "latency_ms": 802.09,
-        "cost_usd": 826.76,
-        "availability": 0.97671,
-        "gen_feat_1": 508.44,
-        "gen_feat_2": 0.496971,
-        "gen_feat_3": 507.36
+        "latency_ms": 758.17,
+        "cost_usd": 822.54,
+        "availability": 0.961346,
+        "reliability": 95.02,
+        "security": 3.93
       }
     },
     {
@@ -1694,12 +1578,11 @@
       "provider_id": "p_int_air_b",
       "name": "TIS.getInsurance (Gen p_int_air_b)",
       "features": {
-        "latency_ms": 233.54,
-        "cost_usd": 54.17,
-        "availability": 1.0,
-        "gen_feat_1": 486.26,
-        "gen_feat_2": 0.511655,
-        "gen_feat_3": 513.16
+        "latency_ms": 237.92,
+        "cost_usd": 56.52,
+        "availability": 0.991152,
+        "reliability": 100.0,
+        "security": 3.0
       }
     },
     {
@@ -1708,12 +1591,11 @@
       "provider_id": "p_ins_a",
       "name": "ABS.booking (Gen p_ins_a)",
       "features": {
-        "latency_ms": 426.1,
-        "cost_usd": 952.29,
-        "availability": 0.996617,
-        "gen_feat_1": 490.18,
-        "gen_feat_2": 0.51465,
-        "gen_feat_3": 491.54
+        "latency_ms": 417.83,
+        "cost_usd": 976.62,
+        "availability": 0.98989,
+        "reliability": 97.87,
+        "security": 5.0
       }
     },
     {
@@ -1722,12 +1604,11 @@
       "provider_id": "p_ins_b",
       "name": "ASS.getAttractions (Gen p_ins_b)",
       "features": {
-        "latency_ms": 177.86,
+        "latency_ms": 181.56,
         "cost_usd": 0.0,
-        "availability": 0.976247,
-        "gen_feat_1": 486.49,
-        "gen_feat_2": 0.496304,
-        "gen_feat_3": 489.53
+        "availability": 1.0,
+        "reliability": 98.57,
+        "security": 3.01
       }
     },
     {
@@ -1736,12 +1617,11 @@
       "provider_id": "p_hotel_a",
       "name": "CRS.booking (Gen p_hotel_a)",
       "features": {
-        "latency_ms": 305.44,
-        "cost_usd": 255.43,
-        "availability": 0.965194,
-        "gen_feat_1": 508.59,
-        "gen_feat_2": 0.50946,
-        "gen_feat_3": 507.81
+        "latency_ms": 317.95,
+        "cost_usd": 258.27,
+        "availability": 0.992943,
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -1750,12 +1630,11 @@
       "provider_id": "p_hotel_b",
       "name": "DFBS.booking (Gen p_hotel_b)",
       "features": {
-        "latency_ms": 637.61,
-        "cost_usd": 415.16,
-        "availability": 0.979378,
-        "gen_feat_1": 511.93,
-        "gen_feat_2": 0.488433,
-        "gen_feat_3": 495.1
+        "latency_ms": 648.06,
+        "cost_usd": 408.6,
+        "availability": 0.980141,
+        "reliability": 96.48,
+        "security": 2.98
       }
     },
     {
@@ -1764,12 +1643,11 @@
       "provider_id": "p_car_a",
       "name": "IFBS.booking (Gen p_car_a)",
       "features": {
-        "latency_ms": 800.37,
-        "cost_usd": 801.71,
-        "availability": 0.974798,
-        "gen_feat_1": 493.16,
-        "gen_feat_2": 0.496834,
-        "gen_feat_3": 489.26
+        "latency_ms": 766.01,
+        "cost_usd": 821.52,
+        "availability": 0.951145,
+        "reliability": 98.11,
+        "security": 3.98
       }
     },
     {
@@ -1778,12 +1656,11 @@
       "provider_id": "p_car_b",
       "name": "TIS.getInsurance (Gen p_car_b)",
       "features": {
-        "latency_ms": 244.35,
-        "cost_usd": 54.3,
-        "availability": 1.0,
-        "gen_feat_1": 509.04,
-        "gen_feat_2": 0.491957,
-        "gen_feat_3": 514.08
+        "latency_ms": 237.34,
+        "cost_usd": 55.92,
+        "availability": 0.970043,
+        "reliability": 97.4,
+        "security": 2.94
       }
     },
     {
@@ -1792,12 +1669,11 @@
       "provider_id": "p_gen_1",
       "name": "ABS.booking (Gen p_gen_1)",
       "features": {
-        "latency_ms": 425.28,
-        "cost_usd": 931.27,
+        "latency_ms": 429.73,
+        "cost_usd": 944.51,
         "availability": 1.0,
-        "gen_feat_1": 491.34,
-        "gen_feat_2": 0.506838,
-        "gen_feat_3": 503.82
+        "reliability": 98.25,
+        "security": 5.0
       }
     },
     {
@@ -1806,12 +1682,11 @@
       "provider_id": "p_gen_2",
       "name": "ASS.getAttractions (Gen p_gen_2)",
       "features": {
-        "latency_ms": 178.98,
+        "latency_ms": 177.57,
         "cost_usd": 0.0,
-        "availability": 1.0,
-        "gen_feat_1": 496.47,
-        "gen_feat_2": 0.49141,
-        "gen_feat_3": 504.43
+        "availability": 0.986296,
+        "reliability": 98.74,
+        "security": 2.98
       }
     },
     {
@@ -1820,12 +1695,11 @@
       "provider_id": "p_gen_3",
       "name": "CRS.booking (Gen p_gen_3)",
       "features": {
-        "latency_ms": 300.88,
-        "cost_usd": 252.33,
-        "availability": 0.997123,
-        "gen_feat_1": 507.95,
-        "gen_feat_2": 0.498887,
-        "gen_feat_3": 510.98
+        "latency_ms": 303.68,
+        "cost_usd": 267.48,
+        "availability": 1.0,
+        "reliability": 99.61,
+        "security": 4.94
       }
     },
     {
@@ -1834,12 +1708,11 @@
       "provider_id": "p_gen_4",
       "name": "DFBS.booking (Gen p_gen_4)",
       "features": {
-        "latency_ms": 664.94,
-        "cost_usd": 410.68,
-        "availability": 0.965359,
-        "gen_feat_1": 496.32,
-        "gen_feat_2": 0.502946,
-        "gen_feat_3": 495.99
+        "latency_ms": 631.06,
+        "cost_usd": 415.45,
+        "availability": 0.984941,
+        "reliability": 100.0,
+        "security": 2.98
       }
     },
     {
@@ -1848,12 +1721,11 @@
       "provider_id": "p_gen_5",
       "name": "IFBS.booking (Gen p_gen_5)",
       "features": {
-        "latency_ms": 794.12,
-        "cost_usd": 836.67,
-        "availability": 0.985896,
-        "gen_feat_1": 488.16,
-        "gen_feat_2": 0.499944,
-        "gen_feat_3": 498.57
+        "latency_ms": 783.35,
+        "cost_usd": 835.69,
+        "availability": 0.959814,
+        "reliability": 98.81,
+        "security": 4.0
       }
     },
     {
@@ -1862,12 +1734,11 @@
       "provider_id": "p_attractions_a",
       "name": "TIS.getInsurance (Gen p_attractions_a)",
       "features": {
-        "latency_ms": 244.5,
-        "cost_usd": 54.49,
-        "availability": 0.987127,
-        "gen_feat_1": 505.73,
-        "gen_feat_2": 0.498489,
-        "gen_feat_3": 496.34
+        "latency_ms": 244.43,
+        "cost_usd": 53.9,
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 3.04
       }
     },
     {
@@ -1876,12 +1747,11 @@
       "provider_id": "p_attractions_b",
       "name": "ABS.booking (Gen p_attractions_b)",
       "features": {
-        "latency_ms": 438.83,
-        "cost_usd": 921.73,
-        "availability": 0.99889,
-        "gen_feat_1": 497.17,
-        "gen_feat_2": 0.493454,
-        "gen_feat_3": 485.84
+        "latency_ms": 432.81,
+        "cost_usd": 934.17,
+        "availability": 0.988295,
+        "reliability": 98.77,
+        "security": 4.96
       }
     },
     {
@@ -1890,12 +1760,11 @@
       "provider_id": "p_dom_air_a",
       "name": "ASS.getAttractions (Gen p_dom_air_a)",
       "features": {
-        "latency_ms": 179.09,
+        "latency_ms": 181.31,
         "cost_usd": 0.0,
-        "availability": 0.976492,
-        "gen_feat_1": 497.73,
-        "gen_feat_2": 0.498348,
-        "gen_feat_3": 496.99
+        "availability": 0.998639,
+        "reliability": 96.77,
+        "security": 2.95
       }
     },
     {
@@ -1904,12 +1773,11 @@
       "provider_id": "p_dom_air_b",
       "name": "CRS.booking (Gen p_dom_air_b)",
       "features": {
-        "latency_ms": 316.42,
-        "cost_usd": 262.02,
-        "availability": 0.991599,
-        "gen_feat_1": 489.15,
-        "gen_feat_2": 0.498115,
-        "gen_feat_3": 485.99
+        "latency_ms": 315.28,
+        "cost_usd": 265.02,
+        "availability": 0.984961,
+        "reliability": 98.95,
+        "security": 5.0
       }
     },
     {
@@ -1918,12 +1786,11 @@
       "provider_id": "p_int_air_a",
       "name": "DFBS.booking (Gen p_int_air_a)",
       "features": {
-        "latency_ms": 667.0,
-        "cost_usd": 413.25,
-        "availability": 0.962466,
-        "gen_feat_1": 513.82,
-        "gen_feat_2": 0.503379,
-        "gen_feat_3": 509.66
+        "latency_ms": 634.73,
+        "cost_usd": 429.43,
+        "availability": 0.962286,
+        "reliability": 100.0,
+        "security": 2.96
       }
     },
     {
@@ -1932,12 +1799,11 @@
       "provider_id": "p_int_air_b",
       "name": "IFBS.booking (Gen p_int_air_b)",
       "features": {
-        "latency_ms": 758.34,
-        "cost_usd": 834.24,
-        "availability": 0.969654,
-        "gen_feat_1": 491.8,
-        "gen_feat_2": 0.508679,
-        "gen_feat_3": 487.73
+        "latency_ms": 795.36,
+        "cost_usd": 831.96,
+        "availability": 0.964161,
+        "reliability": 100.0,
+        "security": 4.11
       }
     },
     {
@@ -1946,12 +1812,11 @@
       "provider_id": "p_ins_a",
       "name": "TIS.getInsurance (Gen p_ins_a)",
       "features": {
-        "latency_ms": 237.08,
-        "cost_usd": 56.6,
+        "latency_ms": 241.98,
+        "cost_usd": 54.82,
         "availability": 1.0,
-        "gen_feat_1": 492.29,
-        "gen_feat_2": 0.511799,
-        "gen_feat_3": 491.54
+        "reliability": 98.9,
+        "security": 3.04
       }
     },
     {
@@ -1960,12 +1825,11 @@
       "provider_id": "p_ins_b",
       "name": "ABS.booking (Gen p_ins_b)",
       "features": {
-        "latency_ms": 420.13,
-        "cost_usd": 956.38,
-        "availability": 0.993592,
-        "gen_feat_1": 495.98,
-        "gen_feat_2": 0.505424,
-        "gen_feat_3": 514.02
+        "latency_ms": 418.42,
+        "cost_usd": 935.62,
+        "availability": 1.0,
+        "reliability": 96.28,
+        "security": 5.0
       }
     },
     {
@@ -1974,12 +1838,11 @@
       "provider_id": "p_hotel_a",
       "name": "ASS.getAttractions (Gen p_hotel_a)",
       "features": {
-        "latency_ms": 182.4,
+        "latency_ms": 184.74,
         "cost_usd": 0.0,
-        "availability": 1.0,
-        "gen_feat_1": 510.3,
-        "gen_feat_2": 0.494928,
-        "gen_feat_3": 505.76
+        "availability": 0.997399,
+        "reliability": 99.76,
+        "security": 2.94
       }
     },
     {
@@ -1988,12 +1851,11 @@
       "provider_id": "p_hotel_b",
       "name": "CRS.booking (Gen p_hotel_b)",
       "features": {
-        "latency_ms": 319.09,
-        "cost_usd": 255.7,
-        "availability": 1.0,
-        "gen_feat_1": 488.78,
-        "gen_feat_2": 0.508927,
-        "gen_feat_3": 505.98
+        "latency_ms": 319.08,
+        "cost_usd": 255.6,
+        "availability": 0.978203,
+        "reliability": 99.73,
+        "security": 4.91
       }
     },
     {
@@ -2002,12 +1864,11 @@
       "provider_id": "p_car_a",
       "name": "DFBS.booking (Gen p_car_a)",
       "features": {
-        "latency_ms": 649.56,
-        "cost_usd": 413.08,
-        "availability": 0.98686,
-        "gen_feat_1": 504.29,
-        "gen_feat_2": 0.485327,
-        "gen_feat_3": 497.69
+        "latency_ms": 632.43,
+        "cost_usd": 416.9,
+        "availability": 0.964364,
+        "reliability": 96.85,
+        "security": 2.95
       }
     }
   ],
@@ -2149,24 +2010,7 @@
         }
       }
     },
-    "gen_feat_1": {
-      "neutral": 0,
-      "compose": {
-        "seq": {
-          "fn": "SUM"
-        },
-        "and": {
-          "fn": "MAX"
-        },
-        "loop": {
-          "fn": "SCALED_SUM"
-        },
-        "xor": {
-          "fn": "SCALED_SUM"
-        }
-      }
-    },
-    "gen_feat_2": {
+    "reliability": {
       "neutral": 1,
       "compose": {
         "seq": {
@@ -2183,17 +2027,17 @@
         }
       }
     },
-    "gen_feat_3": {
-      "neutral": 0,
+    "security": {
+      "neutral": 5,
       "compose": {
         "seq": {
-          "fn": "SUM"
+          "fn": "MIN"
         },
         "and": {
-          "fn": "MAX"
+          "fn": "MIN"
         },
         "loop": {
-          "fn": "SCALED_SUM"
+          "fn": "MIN"
         },
         "xor": {
           "fn": "SCALED_SUM"
@@ -2206,12 +2050,12 @@
     "targets": [
       "availability",
       "cost_usd",
-      "gen_feat_1"
+      "latency_ms"
     ],
     "weights": {
       "availability": 0.34,
       "cost_usd": 0.33,
-      "gen_feat_1": 0.33
+      "latency_ms": 0.33
     },
     "weights_sum_to_one": true
   },
@@ -2222,19 +2066,19 @@
       "scope": "GLOBAL",
       "attribute_id": "latency_ms",
       "op": "<=",
-      "value": 1349.99,
+      "value": 1359.88,
       "hard": true
     },
     {
-      "id": "gen_c_local_t_accommodation_booking_gen_feat_1_1",
+      "id": "gen_c_local_t_flight_booking_domestic_reliability_1",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
-        "t_accommodation_booking"
+        "t_flight_booking_domestic"
       ],
-      "attribute_id": "gen_feat_1",
-      "op": "<=",
-      "value": 499.62,
+      "attribute_id": "reliability",
+      "op": ">=",
+      "value": 97.25,
       "hard": true
     },
     {

@@ -19,7 +19,10 @@
       "direction": "MINIMIZE",
       "unit": "ms",
       "scale": "RATIO",
-      "valid_range": { "min": 0, "max": 10000 }
+      "valid_range": {
+        "min": 0,
+        "max": 10000
+      }
     },
     {
       "id": "cost_usd",
@@ -27,7 +30,10 @@
       "direction": "MINIMIZE",
       "unit": "usd",
       "scale": "RATIO",
-      "valid_range": { "min": 0, "max": 10 }
+      "valid_range": {
+        "min": 0,
+        "max": 10
+      }
     },
     {
       "id": "availability",
@@ -35,7 +41,34 @@
       "direction": "MAXIMIZE",
       "unit": "ratio",
       "scale": "RATIO",
-      "valid_range": { "min": 0, "max": 1 }
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "reliability",
+      "name": "Reliability",
+      "direction": "MAXIMIZE",
+      "unit": "percent",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 100
+      },
+      "description": "Successful execution percentage."
+    },
+    {
+      "id": "security",
+      "name": "Security",
+      "direction": "MAXIMIZE",
+      "unit": "score",
+      "scale": "ORDINAL",
+      "valid_range": {
+        "min": 1,
+        "max": 5
+      },
+      "description": "Security score on a 1-5 ordinal scale."
     }
   ],
   "providers": [
@@ -61,12 +94,30 @@
     }
   ],
   "tasks": [
-    { "id": "t_books", "name": "Retrieve book metadata from title (ISBN/author/title)" },
-    { "id": "t_market", "name": "Check e-commerce availability/price by ISBN" },
-    { "id": "t_library", "name": "Check library availability and retrieve library address" },
-    { "id": "t_geocoding", "name": "Geocode library address into coordinates" },
-    { "id": "t_transit", "name": "Retrieve public transport options to the library" },
-    { "id": "t_archive", "name": "Check free eBook availability (Archive.org)" }
+    {
+      "id": "t_books",
+      "name": "Retrieve book metadata from title (ISBN/author/title)"
+    },
+    {
+      "id": "t_market",
+      "name": "Check e-commerce availability/price by ISBN"
+    },
+    {
+      "id": "t_library",
+      "name": "Check library availability and retrieve library address"
+    },
+    {
+      "id": "t_geocoding",
+      "name": "Geocode library address into coordinates"
+    },
+    {
+      "id": "t_transit",
+      "name": "Retrieve public transport options to the library"
+    },
+    {
+      "id": "t_archive",
+      "name": "Check free eBook availability (Archive.org)"
+    }
   ],
   "candidates": [
     {
@@ -77,7 +128,9 @@
       "features": {
         "latency_ms": 250,
         "cost_usd": 0.0001,
-        "availability": 0.995
+        "availability": 0.995,
+        "reliability": 99.3,
+        "security": 4
       }
     },
     {
@@ -87,8 +140,10 @@
       "name": "Amazon Market API",
       "features": {
         "latency_ms": 400,
-        "cost_usd": 0.0010,
-        "availability": 0.990
+        "cost_usd": 0.001,
+        "availability": 0.99,
+        "reliability": 98.8,
+        "security": 5
       }
     },
     {
@@ -99,7 +154,9 @@
       "features": {
         "latency_ms": 350,
         "cost_usd": 0.0001,
-        "availability": 0.980
+        "availability": 0.98,
+        "reliability": 97.8,
+        "security": 3
       }
     },
     {
@@ -109,8 +166,10 @@
       "name": "Google Maps Geocoding API",
       "features": {
         "latency_ms": 300,
-        "cost_usd": 0.0020,
-        "availability": 0.995
+        "cost_usd": 0.002,
+        "availability": 0.995,
+        "reliability": 99.3,
+        "security": 4
       }
     },
     {
@@ -121,7 +180,9 @@
       "features": {
         "latency_ms": 450,
         "cost_usd": 0.0001,
-        "availability": 0.995
+        "availability": 0.995,
+        "reliability": 99.3,
+        "security": 4
       }
     },
     {
@@ -132,7 +193,9 @@
       "features": {
         "latency_ms": 500,
         "cost_usd": 0.0001,
-        "availability": 0.970
+        "availability": 0.97,
+        "reliability": 96.8,
+        "security": 5
       }
     }
   ],
@@ -142,25 +205,53 @@
       "id": "n_root",
       "kind": "SEQ",
       "children": [
-        { "id": "n_books", "kind": "TASK", "task_id": "t_books" },
+        {
+          "id": "n_books",
+          "kind": "TASK",
+          "task_id": "t_books"
+        },
         {
           "id": "n_parallel_options",
           "kind": "AND",
           "children": [
-            { "id": "n_amazon", "kind": "TASK", "task_id": "t_market" },
+            {
+              "id": "n_amazon",
+              "kind": "TASK",
+              "task_id": "t_market"
+            },
             {
               "id": "n_library_trip",
               "kind": "SEQ",
               "children": [
-                { "id": "n_opac", "kind": "TASK", "task_id": "t_library" },
-                { "id": "n_geocode", "kind": "TASK", "task_id": "t_geocoding" },
-                { "id": "n_transit", "kind": "TASK", "task_id": "t_transit" }
+                {
+                  "id": "n_opac",
+                  "kind": "TASK",
+                  "task_id": "t_library"
+                },
+                {
+                  "id": "n_geocode",
+                  "kind": "TASK",
+                  "task_id": "t_geocoding"
+                },
+                {
+                  "id": "n_transit",
+                  "kind": "TASK",
+                  "task_id": "t_transit"
+                }
               ]
             },
-            { "id": "n_archive", "kind": "TASK", "task_id": "t_archive" }
+            {
+              "id": "n_archive",
+              "kind": "TASK",
+              "task_id": "t_archive"
+            }
           ]
         },
-        { "id": "n_report", "kind": "ELEMENT", "description": "Assemble final textbook access report"}
+        {
+          "id": "n_report",
+          "kind": "ELEMENT",
+          "description": "Assemble final textbook access report"
+        }
       ]
     }
   },
@@ -168,35 +259,89 @@
     "latency_ms": {
       "neutral": 0,
       "compose": {
-        "seq": { "fn": "SUM" },
-        "and": { "fn": "MAX" },
-        "loop": { "fn": "SCALED_SUM" }
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
       }
     },
     "cost_usd": {
       "neutral": 0,
       "compose": {
-        "seq": { "fn": "SUM" },
-        "and": { "fn": "SUM" },
-        "loop": { "fn": "SCALED_SUM" }
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
       }
     },
     "availability": {
       "neutral": 1,
       "compose": {
-        "seq": { "fn": "PRODUCT" },
-        "and": { "fn": "PRODUCT" },
-        "loop": { "fn": "SCALED_PRODUCT" }
+        "seq": {
+          "fn": "PRODUCT"
+        },
+        "and": {
+          "fn": "PRODUCT"
+        },
+        "loop": {
+          "fn": "SCALED_PRODUCT"
+        }
+      }
+    },
+    "reliability": {
+      "neutral": 1,
+      "compose": {
+        "seq": {
+          "fn": "PRODUCT"
+        },
+        "and": {
+          "fn": "PRODUCT"
+        },
+        "loop": {
+          "fn": "SCALED_PRODUCT"
+        }
+      }
+    },
+    "security": {
+      "neutral": 5,
+      "compose": {
+        "seq": {
+          "fn": "MIN"
+        },
+        "and": {
+          "fn": "MIN"
+        },
+        "loop": {
+          "fn": "MIN"
+        }
       }
     }
   },
   "objective": {
     "type": "MONO",
-    "targets": ["latency_ms", "cost_usd", "availability"],
+    "targets": [
+      "cost_usd",
+      "latency_ms",
+      "availability",
+      "reliability",
+      "security"
+    ],
     "weights": {
-      "availability": 0.4,
-      "latency_ms": 0.3,
-      "cost_usd": 0.3
+      "cost_usd": 0.21,
+      "latency_ms": 0.21,
+      "availability": 0.28,
+      "reliability": 0.15,
+      "security": 0.15
     }
   }
 }
