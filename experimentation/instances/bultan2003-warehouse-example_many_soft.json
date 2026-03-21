@@ -3,7 +3,7 @@
     "id": "bultan2003-warehouse-example_many_soft",
     "name": "Warehouse Composition example (Bultan et al. 2003) [many, soft]",
     "version": "1.0.0",
-    "created_at": "2026-02-25T15:19:08Z",
+    "created_at": "2026-03-15T10:36:03Z",
     "description": "Problem instance derived from Example 2.1 and Example 3.1 (store-bank-warehouse) in Bultan et al., WWW'03.",
     "paper": {
       "title": "Conversation Specification: A New Approach to Design and Analysis of E-Service Composition",
@@ -54,37 +54,28 @@
       }
     },
     {
-      "id": "gen_feat_1",
-      "name": "Generated feature gen_feat_1",
-      "direction": "MINIMIZE",
-      "unit": "unit",
-      "scale": "RATIO",
-      "valid_range": {
-        "min": 0,
-        "max": 1000
-      }
-    },
-    {
-      "id": "gen_feat_2",
-      "name": "Generated feature gen_feat_2",
+      "id": "reliability",
+      "name": "Reliability",
       "direction": "MAXIMIZE",
-      "unit": "ratio",
+      "unit": "percent",
       "scale": "RATIO",
       "valid_range": {
         "min": 0,
-        "max": 1
-      }
+        "max": 100
+      },
+      "description": "Successful execution percentage."
     },
     {
-      "id": "gen_feat_3",
-      "name": "Generated feature gen_feat_3",
-      "direction": "MINIMIZE",
-      "unit": "unit",
-      "scale": "RATIO",
+      "id": "security",
+      "name": "Security",
+      "direction": "MAXIMIZE",
+      "unit": "score",
+      "scale": "ORDINAL",
       "valid_range": {
-        "min": 0,
-        "max": 1000
-      }
+        "min": 1,
+        "max": 5
+      },
+      "description": "Security score on a 1-5 ordinal scale."
     }
   ],
   "providers": [
@@ -181,9 +172,8 @@
         "latency_ms": 55,
         "cost_usd": 0.01,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 3
       }
     },
     {
@@ -195,9 +185,8 @@
         "latency_ms": 45,
         "cost_usd": 0.01,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 5
       }
     },
     {
@@ -209,9 +198,8 @@
         "latency_ms": 65,
         "cost_usd": 0.02,
         "availability": 0.998,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.6,
+        "security": 3
       }
     },
     {
@@ -223,9 +211,8 @@
         "latency_ms": 80,
         "cost_usd": 0.015,
         "availability": 0.997,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.5,
+        "security": 3
       }
     },
     {
@@ -237,9 +224,8 @@
         "latency_ms": 75,
         "cost_usd": 0.015,
         "availability": 0.998,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.6,
+        "security": 3
       }
     },
     {
@@ -251,9 +237,8 @@
         "latency_ms": 90,
         "cost_usd": 0.03,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 5
       }
     },
     {
@@ -265,9 +250,8 @@
         "latency_ms": 70,
         "cost_usd": 0.02,
         "availability": 0.998,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.6,
+        "security": 3
       }
     },
     {
@@ -279,9 +263,8 @@
         "latency_ms": 85,
         "cost_usd": 0.015,
         "availability": 0.997,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.5,
+        "security": 4
       }
     },
     {
@@ -293,9 +276,8 @@
         "latency_ms": 78,
         "cost_usd": 0.015,
         "availability": 0.998,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.6,
+        "security": 4
       }
     },
     {
@@ -307,9 +289,8 @@
         "latency_ms": 95,
         "cost_usd": 0.03,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 5
       }
     },
     {
@@ -321,9 +302,8 @@
         "latency_ms": 56.03,
         "cost_usd": 0.01,
         "availability": 0.9942,
-        "gen_feat_1": 506.18,
-        "gen_feat_2": 0.499392,
-        "gen_feat_3": 514.16
+        "reliability": 100.0,
+        "security": 3.0
       }
     },
     {
@@ -332,12 +312,11 @@
       "provider_id": "p_gen_shared",
       "name": "ok (Gen Shared)",
       "features": {
-        "latency_ms": 45.04,
+        "latency_ms": 46.27,
         "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 498.62,
-        "gen_feat_2": 0.512982,
-        "gen_feat_3": 510.57
+        "availability": 0.984384,
+        "reliability": 100.0,
+        "security": 4.99
       }
     },
     {
@@ -346,12 +325,11 @@
       "provider_id": "p_gen_shared",
       "name": "order1 (Gen Shared)",
       "features": {
-        "latency_ms": 65.77,
+        "latency_ms": 66.69,
         "cost_usd": 0.02,
-        "availability": 0.969077,
-        "gen_feat_1": 495.0,
-        "gen_feat_2": 0.514614,
-        "gen_feat_3": 491.26
+        "availability": 1.0,
+        "reliability": 97.52,
+        "security": 2.91
       }
     },
     {
@@ -360,12 +338,11 @@
       "provider_id": "p_gen_shared",
       "name": "receipt1 (Gen Shared)",
       "features": {
-        "latency_ms": 78.06,
+        "latency_ms": 79.2,
         "cost_usd": 0.02,
-        "availability": 0.967727,
-        "gen_feat_1": 500.39,
-        "gen_feat_2": 0.485136,
-        "gen_feat_3": 489.78
+        "availability": 0.97957,
+        "reliability": 97.09,
+        "security": 3.01
       }
     },
     {
@@ -374,12 +351,11 @@
       "provider_id": "p_gen_shared",
       "name": "bill1 (Gen Shared)",
       "features": {
-        "latency_ms": 74.23,
-        "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 499.46,
-        "gen_feat_2": 0.510726,
-        "gen_feat_3": 507.43
+        "latency_ms": 72.8,
+        "cost_usd": 0.02,
+        "availability": 0.968331,
+        "reliability": 97.56,
+        "security": 2.97
       }
     },
     {
@@ -388,12 +364,11 @@
       "provider_id": "p_gen_shared",
       "name": "payment1 (Gen Shared)",
       "features": {
-        "latency_ms": 92.58,
+        "latency_ms": 87.89,
         "cost_usd": 0.03,
-        "availability": 1.0,
-        "gen_feat_1": 485.22,
-        "gen_feat_2": 0.502923,
-        "gen_feat_3": 500.11
+        "availability": 0.997928,
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -402,12 +377,11 @@
       "provider_id": "p_gen_shared",
       "name": "order2 (Gen Shared)",
       "features": {
-        "latency_ms": 69.52,
+        "latency_ms": 72.01,
         "cost_usd": 0.02,
-        "availability": 0.98773,
-        "gen_feat_1": 498.95,
-        "gen_feat_2": 0.488362,
-        "gen_feat_3": 485.48
+        "availability": 1.0,
+        "reliability": 96.66,
+        "security": 3.02
       }
     },
     {
@@ -416,12 +390,11 @@
       "provider_id": "p_gen_shared",
       "name": "receipt2 (Gen Shared)",
       "features": {
-        "latency_ms": 82.92,
+        "latency_ms": 85.02,
         "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 494.35,
-        "gen_feat_2": 0.50285,
-        "gen_feat_3": 507.12
+        "availability": 0.997673,
+        "reliability": 98.48,
+        "security": 3.99
       }
     },
     {
@@ -430,12 +403,11 @@
       "provider_id": "p_gen_shared",
       "name": "bill2 (Gen Shared)",
       "features": {
-        "latency_ms": 79.01,
+        "latency_ms": 76.18,
         "cost_usd": 0.01,
-        "availability": 0.984644,
-        "gen_feat_1": 488.32,
-        "gen_feat_2": 0.499763,
-        "gen_feat_3": 489.55
+        "availability": 0.973522,
+        "reliability": 97.08,
+        "security": 4.08
       }
     },
     {
@@ -444,12 +416,11 @@
       "provider_id": "p_gen_shared",
       "name": "payment2 (Gen Shared)",
       "features": {
-        "latency_ms": 92.24,
+        "latency_ms": 93.93,
         "cost_usd": 0.03,
-        "availability": 0.973888,
-        "gen_feat_1": 499.15,
-        "gen_feat_2": 0.505463,
-        "gen_feat_3": 506.65
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 4.85
       }
     },
     {
@@ -458,12 +429,11 @@
       "provider_id": "p_wh1",
       "name": "authorize (Gen p_wh1)",
       "features": {
-        "latency_ms": 55.42,
+        "latency_ms": 54.26,
         "cost_usd": 0.01,
-        "availability": 0.991822,
-        "gen_feat_1": 506.11,
-        "gen_feat_2": 0.506997,
-        "gen_feat_3": 513.39
+        "availability": 0.998527,
+        "reliability": 97.62,
+        "security": 2.91
       }
     },
     {
@@ -472,12 +442,11 @@
       "provider_id": "p_wh2",
       "name": "bill1 (Gen p_wh2)",
       "features": {
-        "latency_ms": 77.09,
-        "cost_usd": 0.02,
-        "availability": 1.0,
-        "gen_feat_1": 512.13,
-        "gen_feat_2": 0.51125,
-        "gen_feat_3": 514.21
+        "latency_ms": 73.99,
+        "cost_usd": 0.01,
+        "availability": 0.996294,
+        "reliability": 100.0,
+        "security": 3.04
       }
     },
     {
@@ -486,12 +455,11 @@
       "provider_id": "p_gen_1",
       "name": "bill2 (Gen p_gen_1)",
       "features": {
-        "latency_ms": 80.28,
-        "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 489.76,
-        "gen_feat_2": 0.491295,
-        "gen_feat_3": 499.11
+        "latency_ms": 78.59,
+        "cost_usd": 0.02,
+        "availability": 0.990829,
+        "reliability": 100.0,
+        "security": 4.06
       }
     },
     {
@@ -500,12 +468,11 @@
       "provider_id": "p_gen_2",
       "name": "ok (Gen p_gen_2)",
       "features": {
-        "latency_ms": 44.18,
+        "latency_ms": 46.21,
         "cost_usd": 0.01,
         "availability": 1.0,
-        "gen_feat_1": 512.78,
-        "gen_feat_2": 0.505694,
-        "gen_feat_3": 512.51
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -514,12 +481,11 @@
       "provider_id": "p_gen_3",
       "name": "order1 (Gen p_gen_3)",
       "features": {
-        "latency_ms": 65.65,
+        "latency_ms": 66.46,
         "cost_usd": 0.02,
-        "availability": 0.97648,
-        "gen_feat_1": 487.32,
-        "gen_feat_2": 0.507472,
-        "gen_feat_3": 497.45
+        "availability": 1.0,
+        "reliability": 97.4,
+        "security": 3.02
       }
     },
     {
@@ -528,12 +494,11 @@
       "provider_id": "p_gen_4",
       "name": "order2 (Gen p_gen_4)",
       "features": {
-        "latency_ms": 69.22,
+        "latency_ms": 68.57,
         "cost_usd": 0.02,
-        "availability": 0.972736,
-        "gen_feat_1": 486.2,
-        "gen_feat_2": 0.503633,
-        "gen_feat_3": 504.35
+        "availability": 0.996217,
+        "reliability": 97.78,
+        "security": 3.03
       }
     },
     {
@@ -542,12 +507,11 @@
       "provider_id": "p_gen_5",
       "name": "payment1 (Gen p_gen_5)",
       "features": {
-        "latency_ms": 87.5,
+        "latency_ms": 90.48,
         "cost_usd": 0.03,
         "availability": 1.0,
-        "gen_feat_1": 512.08,
-        "gen_feat_2": 0.510897,
-        "gen_feat_3": 486.77
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -556,12 +520,11 @@
       "provider_id": "p_store",
       "name": "payment2 (Gen p_store)",
       "features": {
-        "latency_ms": 95.13,
+        "latency_ms": 94.53,
         "cost_usd": 0.03,
-        "availability": 1.0,
-        "gen_feat_1": 508.14,
-        "gen_feat_2": 0.486315,
-        "gen_feat_3": 489.94
+        "availability": 0.973657,
+        "reliability": 100.0,
+        "security": 4.97
       }
     },
     {
@@ -570,12 +533,11 @@
       "provider_id": "p_bank",
       "name": "receipt1 (Gen p_bank)",
       "features": {
-        "latency_ms": 82.21,
-        "cost_usd": 0.02,
-        "availability": 0.988745,
-        "gen_feat_1": 511.49,
-        "gen_feat_2": 0.492918,
-        "gen_feat_3": 514.68
+        "latency_ms": 79.11,
+        "cost_usd": 0.01,
+        "availability": 0.971762,
+        "reliability": 96.75,
+        "security": 3.02
       }
     },
     {
@@ -584,12 +546,11 @@
       "provider_id": "p_wh1",
       "name": "receipt2 (Gen p_wh1)",
       "features": {
-        "latency_ms": 85.49,
+        "latency_ms": 85.74,
         "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 510.22,
-        "gen_feat_2": 0.514368,
-        "gen_feat_3": 505.69
+        "availability": 0.996048,
+        "reliability": 100.0,
+        "security": 4.1
       }
     },
     {
@@ -598,12 +559,11 @@
       "provider_id": "p_wh2",
       "name": "authorize (Gen p_wh2)",
       "features": {
-        "latency_ms": 55.43,
+        "latency_ms": 56.2,
         "cost_usd": 0.01,
         "availability": 1.0,
-        "gen_feat_1": 490.92,
-        "gen_feat_2": 0.486279,
-        "gen_feat_3": 503.21
+        "reliability": 100.0,
+        "security": 3.03
       }
     },
     {
@@ -612,12 +572,11 @@
       "provider_id": "p_gen_1",
       "name": "bill1 (Gen p_gen_1)",
       "features": {
-        "latency_ms": 74.64,
+        "latency_ms": 76.22,
         "cost_usd": 0.01,
-        "availability": 0.989332,
-        "gen_feat_1": 509.49,
-        "gen_feat_2": 0.510492,
-        "gen_feat_3": 494.55
+        "availability": 0.977922,
+        "reliability": 100.0,
+        "security": 3.03
       }
     },
     {
@@ -626,12 +585,11 @@
       "provider_id": "p_gen_2",
       "name": "bill2 (Gen p_gen_2)",
       "features": {
-        "latency_ms": 79.27,
-        "cost_usd": 0.01,
-        "availability": 0.997499,
-        "gen_feat_1": 498.73,
-        "gen_feat_2": 0.505964,
-        "gen_feat_3": 492.35
+        "latency_ms": 77.35,
+        "cost_usd": 0.02,
+        "availability": 0.983864,
+        "reliability": 100.0,
+        "security": 4.02
       }
     },
     {
@@ -640,12 +598,11 @@
       "provider_id": "p_gen_3",
       "name": "ok (Gen p_gen_3)",
       "features": {
-        "latency_ms": 45.97,
+        "latency_ms": 44.98,
         "cost_usd": 0.01,
-        "availability": 0.979454,
-        "gen_feat_1": 495.91,
-        "gen_feat_2": 0.487052,
-        "gen_feat_3": 495.32
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -654,12 +611,11 @@
       "provider_id": "p_gen_4",
       "name": "order1 (Gen p_gen_4)",
       "features": {
-        "latency_ms": 65.73,
+        "latency_ms": 65.5,
         "cost_usd": 0.02,
-        "availability": 0.997182,
-        "gen_feat_1": 507.05,
-        "gen_feat_2": 0.506274,
-        "gen_feat_3": 489.81
+        "availability": 1.0,
+        "reliability": 97.79,
+        "security": 2.92
       }
     },
     {
@@ -668,12 +624,11 @@
       "provider_id": "p_gen_5",
       "name": "order2 (Gen p_gen_5)",
       "features": {
-        "latency_ms": 68.9,
+        "latency_ms": 70.45,
         "cost_usd": 0.02,
-        "availability": 0.974011,
-        "gen_feat_1": 491.17,
-        "gen_feat_2": 0.494194,
-        "gen_feat_3": 512.8
+        "availability": 0.982687,
+        "reliability": 98.73,
+        "security": 3.06
       }
     },
     {
@@ -682,12 +637,11 @@
       "provider_id": "p_store",
       "name": "payment1 (Gen p_store)",
       "features": {
-        "latency_ms": 90.46,
+        "latency_ms": 91.89,
         "cost_usd": 0.03,
-        "availability": 0.992871,
-        "gen_feat_1": 493.57,
-        "gen_feat_2": 0.506639,
-        "gen_feat_3": 505.09
+        "availability": 1.0,
+        "reliability": 96.99,
+        "security": 5.0
       }
     },
     {
@@ -696,12 +650,11 @@
       "provider_id": "p_bank",
       "name": "payment2 (Gen p_bank)",
       "features": {
-        "latency_ms": 96.67,
+        "latency_ms": 94.76,
         "cost_usd": 0.03,
-        "availability": 1.0,
-        "gen_feat_1": 513.41,
-        "gen_feat_2": 0.503681,
-        "gen_feat_3": 510.14
+        "availability": 0.983712,
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -710,12 +663,11 @@
       "provider_id": "p_wh1",
       "name": "receipt1 (Gen p_wh1)",
       "features": {
-        "latency_ms": 79.06,
-        "cost_usd": 0.02,
-        "availability": 0.982817,
-        "gen_feat_1": 505.36,
-        "gen_feat_2": 0.49305,
-        "gen_feat_3": 514.13
+        "latency_ms": 78.43,
+        "cost_usd": 0.01,
+        "availability": 0.971182,
+        "reliability": 98.57,
+        "security": 3.03
       }
     },
     {
@@ -724,12 +676,11 @@
       "provider_id": "p_wh2",
       "name": "receipt2 (Gen p_wh2)",
       "features": {
-        "latency_ms": 83.17,
-        "cost_usd": 0.02,
-        "availability": 0.979686,
-        "gen_feat_1": 491.52,
-        "gen_feat_2": 0.503183,
-        "gen_feat_3": 492.47
+        "latency_ms": 85.75,
+        "cost_usd": 0.01,
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 3.92
       }
     },
     {
@@ -738,12 +689,11 @@
       "provider_id": "p_gen_1",
       "name": "authorize (Gen p_gen_1)",
       "features": {
-        "latency_ms": 53.88,
+        "latency_ms": 54.13,
         "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 499.38,
-        "gen_feat_2": 0.494457,
-        "gen_feat_3": 503.98
+        "availability": 0.974987,
+        "reliability": 97.94,
+        "security": 2.97
       }
     },
     {
@@ -752,12 +702,11 @@
       "provider_id": "p_gen_2",
       "name": "bill1 (Gen p_gen_2)",
       "features": {
-        "latency_ms": 74.79,
-        "cost_usd": 0.01,
+        "latency_ms": 76.92,
+        "cost_usd": 0.02,
         "availability": 1.0,
-        "gen_feat_1": 489.22,
-        "gen_feat_2": 0.508781,
-        "gen_feat_3": 503.47
+        "reliability": 98.99,
+        "security": 2.96
       }
     },
     {
@@ -766,12 +715,11 @@
       "provider_id": "p_gen_3",
       "name": "bill2 (Gen p_gen_3)",
       "features": {
-        "latency_ms": 76.28,
-        "cost_usd": 0.01,
+        "latency_ms": 79.04,
+        "cost_usd": 0.02,
         "availability": 1.0,
-        "gen_feat_1": 511.73,
-        "gen_feat_2": 0.506837,
-        "gen_feat_3": 491.48
+        "reliability": 100.0,
+        "security": 4.12
       }
     },
     {
@@ -780,12 +728,11 @@
       "provider_id": "p_gen_4",
       "name": "ok (Gen p_gen_4)",
       "features": {
-        "latency_ms": 45.39,
+        "latency_ms": 46.21,
         "cost_usd": 0.01,
         "availability": 1.0,
-        "gen_feat_1": 504.44,
-        "gen_feat_2": 0.50677,
-        "gen_feat_3": 490.84
+        "reliability": 98.53,
+        "security": 5.0
       }
     },
     {
@@ -794,12 +741,11 @@
       "provider_id": "p_gen_5",
       "name": "order1 (Gen p_gen_5)",
       "features": {
-        "latency_ms": 64.75,
+        "latency_ms": 64.08,
         "cost_usd": 0.02,
-        "availability": 0.995368,
-        "gen_feat_1": 503.07,
-        "gen_feat_2": 0.511063,
-        "gen_feat_3": 513.85
+        "availability": 0.984128,
+        "reliability": 100.0,
+        "security": 2.94
       }
     },
     {
@@ -808,12 +754,11 @@
       "provider_id": "p_store",
       "name": "order2 (Gen p_store)",
       "features": {
-        "latency_ms": 69.85,
+        "latency_ms": 70.0,
         "cost_usd": 0.02,
-        "availability": 1.0,
-        "gen_feat_1": 505.45,
-        "gen_feat_2": 0.485955,
-        "gen_feat_3": 491.6
+        "availability": 0.981079,
+        "reliability": 100.0,
+        "security": 2.95
       }
     },
     {
@@ -822,12 +767,11 @@
       "provider_id": "p_bank",
       "name": "payment1 (Gen p_bank)",
       "features": {
-        "latency_ms": 89.16,
+        "latency_ms": 88.16,
         "cost_usd": 0.03,
-        "availability": 0.978971,
-        "gen_feat_1": 506.12,
-        "gen_feat_2": 0.505503,
-        "gen_feat_3": 510.41
+        "availability": 1.0,
+        "reliability": 99.58,
+        "security": 4.94
       }
     },
     {
@@ -836,12 +780,11 @@
       "provider_id": "p_wh1",
       "name": "payment2 (Gen p_wh1)",
       "features": {
-        "latency_ms": 96.51,
+        "latency_ms": 95.76,
         "cost_usd": 0.03,
-        "availability": 1.0,
-        "gen_feat_1": 502.61,
-        "gen_feat_2": 0.500872,
-        "gen_feat_3": 511.5
+        "availability": 0.975464,
+        "reliability": 100.0,
+        "security": 4.89
       }
     },
     {
@@ -850,12 +793,11 @@
       "provider_id": "p_wh2",
       "name": "receipt1 (Gen p_wh2)",
       "features": {
-        "latency_ms": 80.8,
+        "latency_ms": 81.41,
         "cost_usd": 0.02,
-        "availability": 0.993192,
-        "gen_feat_1": 497.46,
-        "gen_feat_2": 0.513616,
-        "gen_feat_3": 486.35
+        "availability": 0.975061,
+        "reliability": 96.77,
+        "security": 3.05
       }
     },
     {
@@ -864,12 +806,11 @@
       "provider_id": "p_gen_1",
       "name": "receipt2 (Gen p_gen_1)",
       "features": {
-        "latency_ms": 87.2,
-        "cost_usd": 0.01,
-        "availability": 0.978006,
-        "gen_feat_1": 507.81,
-        "gen_feat_2": 0.511924,
-        "gen_feat_3": 501.68
+        "latency_ms": 86.99,
+        "cost_usd": 0.02,
+        "availability": 0.980013,
+        "reliability": 100.0,
+        "security": 3.91
       }
     },
     {
@@ -878,12 +819,11 @@
       "provider_id": "p_gen_2",
       "name": "authorize (Gen p_gen_2)",
       "features": {
-        "latency_ms": 55.52,
+        "latency_ms": 55.25,
         "cost_usd": 0.01,
-        "availability": 0.974453,
-        "gen_feat_1": 495.33,
-        "gen_feat_2": 0.509506,
-        "gen_feat_3": 497.14
+        "availability": 1.0,
+        "reliability": 97.87,
+        "security": 2.99
       }
     },
     {
@@ -892,12 +832,11 @@
       "provider_id": "p_gen_3",
       "name": "bill1 (Gen p_gen_3)",
       "features": {
-        "latency_ms": 75.57,
-        "cost_usd": 0.02,
+        "latency_ms": 75.35,
+        "cost_usd": 0.01,
         "availability": 1.0,
-        "gen_feat_1": 492.19,
-        "gen_feat_2": 0.486586,
-        "gen_feat_3": 490.35
+        "reliability": 100.0,
+        "security": 3.08
       }
     },
     {
@@ -906,12 +845,11 @@
       "provider_id": "p_gen_4",
       "name": "bill2 (Gen p_gen_4)",
       "features": {
-        "latency_ms": 77.84,
+        "latency_ms": 77.83,
         "cost_usd": 0.01,
         "availability": 1.0,
-        "gen_feat_1": 496.09,
-        "gen_feat_2": 0.508474,
-        "gen_feat_3": 514.82
+        "reliability": 100.0,
+        "security": 3.89
       }
     },
     {
@@ -920,12 +858,11 @@
       "provider_id": "p_gen_5",
       "name": "ok (Gen p_gen_5)",
       "features": {
-        "latency_ms": 43.78,
+        "latency_ms": 44.24,
         "cost_usd": 0.01,
-        "availability": 0.973886,
-        "gen_feat_1": 509.68,
-        "gen_feat_2": 0.504897,
-        "gen_feat_3": 498.83
+        "availability": 0.969617,
+        "reliability": 97.7,
+        "security": 5.0
       }
     },
     {
@@ -934,12 +871,11 @@
       "provider_id": "p_store",
       "name": "order1 (Gen p_store)",
       "features": {
-        "latency_ms": 64.96,
+        "latency_ms": 65.72,
         "cost_usd": 0.02,
-        "availability": 0.980318,
-        "gen_feat_1": 491.05,
-        "gen_feat_2": 0.491285,
-        "gen_feat_3": 507.04
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 3.06
       }
     },
     {
@@ -948,12 +884,11 @@
       "provider_id": "p_bank",
       "name": "order2 (Gen p_bank)",
       "features": {
-        "latency_ms": 69.98,
+        "latency_ms": 70.37,
         "cost_usd": 0.02,
         "availability": 1.0,
-        "gen_feat_1": 512.86,
-        "gen_feat_2": 0.491732,
-        "gen_feat_3": 491.76
+        "reliability": 100.0,
+        "security": 3.06
       }
     },
     {
@@ -962,12 +897,11 @@
       "provider_id": "p_wh1",
       "name": "payment1 (Gen p_wh1)",
       "features": {
-        "latency_ms": 87.94,
+        "latency_ms": 89.66,
         "cost_usd": 0.03,
-        "availability": 0.997174,
-        "gen_feat_1": 493.29,
-        "gen_feat_2": 0.487966,
-        "gen_feat_3": 506.1
+        "availability": 1.0,
+        "reliability": 96.98,
+        "security": 5.0
       }
     },
     {
@@ -976,12 +910,11 @@
       "provider_id": "p_wh2",
       "name": "payment2 (Gen p_wh2)",
       "features": {
-        "latency_ms": 97.2,
+        "latency_ms": 94.01,
         "cost_usd": 0.03,
         "availability": 1.0,
-        "gen_feat_1": 511.04,
-        "gen_feat_2": 0.48995,
-        "gen_feat_3": 493.08
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -990,12 +923,11 @@
       "provider_id": "p_gen_1",
       "name": "receipt1 (Gen p_gen_1)",
       "features": {
-        "latency_ms": 79.61,
-        "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 507.66,
-        "gen_feat_2": 0.497265,
-        "gen_feat_3": 504.31
+        "latency_ms": 80.75,
+        "cost_usd": 0.02,
+        "availability": 0.972502,
+        "reliability": 98.57,
+        "security": 3.06
       }
     },
     {
@@ -1004,12 +936,11 @@
       "provider_id": "p_gen_2",
       "name": "receipt2 (Gen p_gen_2)",
       "features": {
-        "latency_ms": 86.62,
-        "cost_usd": 0.01,
-        "availability": 0.977335,
-        "gen_feat_1": 503.99,
-        "gen_feat_2": 0.502461,
-        "gen_feat_3": 493.15
+        "latency_ms": 84.51,
+        "cost_usd": 0.02,
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 3.94
       }
     },
     {
@@ -1018,12 +949,11 @@
       "provider_id": "p_gen_3",
       "name": "authorize (Gen p_gen_3)",
       "features": {
-        "latency_ms": 55.99,
+        "latency_ms": 53.52,
         "cost_usd": 0.01,
-        "availability": 0.99793,
-        "gen_feat_1": 506.53,
-        "gen_feat_2": 0.509189,
-        "gen_feat_3": 511.64
+        "availability": 0.996913,
+        "reliability": 99.55,
+        "security": 3.06
       }
     },
     {
@@ -1032,12 +962,11 @@
       "provider_id": "p_gen_4",
       "name": "bill1 (Gen p_gen_4)",
       "features": {
-        "latency_ms": 74.05,
-        "cost_usd": 0.01,
-        "availability": 0.97079,
-        "gen_feat_1": 493.17,
-        "gen_feat_2": 0.496102,
-        "gen_feat_3": 487.15
+        "latency_ms": 74.41,
+        "cost_usd": 0.02,
+        "availability": 1.0,
+        "reliability": 96.91,
+        "security": 3.07
       }
     },
     {
@@ -1046,12 +975,11 @@
       "provider_id": "p_gen_5",
       "name": "bill2 (Gen p_gen_5)",
       "features": {
-        "latency_ms": 76.89,
-        "cost_usd": 0.01,
-        "availability": 0.968066,
-        "gen_feat_1": 508.39,
-        "gen_feat_2": 0.504321,
-        "gen_feat_3": 495.81
+        "latency_ms": 76.04,
+        "cost_usd": 0.02,
+        "availability": 1.0,
+        "reliability": 99.37,
+        "security": 4.0
       }
     },
     {
@@ -1060,12 +988,11 @@
       "provider_id": "p_store",
       "name": "ok (Gen p_store)",
       "features": {
-        "latency_ms": 46.29,
+        "latency_ms": 44.16,
         "cost_usd": 0.01,
-        "availability": 1.0,
-        "gen_feat_1": 505.82,
-        "gen_feat_2": 0.493522,
-        "gen_feat_3": 490.64
+        "availability": 0.981122,
+        "reliability": 97.96,
+        "security": 5.0
       }
     }
   ],
@@ -1229,21 +1156,7 @@
         }
       }
     },
-    "gen_feat_1": {
-      "neutral": 0,
-      "compose": {
-        "seq": {
-          "fn": "SUM"
-        },
-        "and": {
-          "fn": "MAX"
-        },
-        "loop": {
-          "fn": "SCALED_SUM"
-        }
-      }
-    },
-    "gen_feat_2": {
+    "reliability": {
       "neutral": 1,
       "compose": {
         "seq": {
@@ -1257,17 +1170,17 @@
         }
       }
     },
-    "gen_feat_3": {
-      "neutral": 0,
+    "security": {
+      "neutral": 5,
       "compose": {
         "seq": {
-          "fn": "SUM"
+          "fn": "MIN"
         },
         "and": {
-          "fn": "MAX"
+          "fn": "MIN"
         },
         "loop": {
-          "fn": "SCALED_SUM"
+          "fn": "MIN"
         }
       }
     }
@@ -1277,18 +1190,16 @@
     "targets": [
       "availability",
       "cost_usd",
-      "gen_feat_1",
-      "gen_feat_2",
-      "gen_feat_3",
-      "latency_ms"
+      "latency_ms",
+      "reliability",
+      "security"
     ],
     "weights": {
-      "availability": 0.17,
-      "cost_usd": 0.17,
-      "gen_feat_1": 0.17,
-      "gen_feat_2": 0.17,
-      "gen_feat_3": 0.16,
-      "latency_ms": 0.16
+      "availability": 0.2,
+      "cost_usd": 0.2,
+      "latency_ms": 0.2,
+      "reliability": 0.2,
+      "security": 0.2
     },
     "weights_sum_to_one": true
   },
@@ -1299,19 +1210,19 @@
       "scope": "GLOBAL",
       "attribute_id": "latency_ms",
       "op": "<=",
-      "value": 1329.92,
+      "value": 1337.9,
       "hard": false
     },
     {
-      "id": "gen_c_local_t_payment2_gen_feat_1_1",
+      "id": "gen_c_local_t_receipt2_security_1",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
-        "t_payment2"
+        "t_receipt2"
       ],
-      "attribute_id": "gen_feat_1",
-      "op": "<=",
-      "value": 504.15,
+      "attribute_id": "security",
+      "op": ">=",
+      "value": 3.97,
       "hard": false
     },
     {

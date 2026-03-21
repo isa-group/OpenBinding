@@ -3,7 +3,7 @@
     "id": "pautasso2009-restful-ecommerce_multi_soft",
     "name": "RESTful e-Commerce scenario (Pautasso 2009) [multi, soft]",
     "version": "1.0.0",
-    "created_at": "2026-02-25T15:19:08Z",
+    "created_at": "2026-03-15T10:36:03Z",
     "description": "QoS-aware composition instance derived from the running e-Commerce example in Pautasso (2009) 'BPEL for REST'. QoS numbers are illustrative (the paper specifies the workflow/API but not QoS measurements).",
     "paper": {
       "title": "RESTful Web service composition with BPEL for REST",
@@ -54,37 +54,28 @@
       }
     },
     {
-      "id": "gen_feat_1",
-      "name": "Generated feature gen_feat_1",
-      "direction": "MINIMIZE",
-      "unit": "unit",
-      "scale": "RATIO",
-      "valid_range": {
-        "min": 0,
-        "max": 1000
-      }
-    },
-    {
-      "id": "gen_feat_2",
-      "name": "Generated feature gen_feat_2",
+      "id": "reliability",
+      "name": "Reliability",
       "direction": "MAXIMIZE",
-      "unit": "ratio",
+      "unit": "percent",
       "scale": "RATIO",
       "valid_range": {
         "min": 0,
-        "max": 1
-      }
+        "max": 100
+      },
+      "description": "Successful execution percentage."
     },
     {
-      "id": "gen_feat_3",
-      "name": "Generated feature gen_feat_3",
-      "direction": "MINIMIZE",
-      "unit": "unit",
-      "scale": "RATIO",
+      "id": "security",
+      "name": "Security",
+      "direction": "MAXIMIZE",
+      "unit": "score",
+      "scale": "ORDINAL",
       "valid_range": {
-        "min": 0,
-        "max": 1000
-      }
+        "min": 1,
+        "max": 5
+      },
+      "description": "Security score on a 1-5 ordinal scale."
     }
   ],
   "providers": [
@@ -201,9 +192,8 @@
         "latency_ms": 105,
         "cost_usd": 0.0006,
         "availability": 0.997,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.5,
+        "security": 5
       }
     },
     {
@@ -215,9 +205,8 @@
         "latency_ms": 130,
         "cost_usd": 0.0004,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 3
       }
     },
     {
@@ -229,9 +218,8 @@
         "latency_ms": 135,
         "cost_usd": 0.0008,
         "availability": 0.997,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.5,
+        "security": 5
       }
     },
     {
@@ -243,9 +231,8 @@
         "latency_ms": 160,
         "cost_usd": 0.0006,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 3
       }
     },
     {
@@ -257,9 +244,8 @@
         "latency_ms": 85,
         "cost_usd": 0.0005,
         "availability": 0.997,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.5,
+        "security": 5
       }
     },
     {
@@ -271,9 +257,8 @@
         "latency_ms": 100,
         "cost_usd": 0.0003,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 3
       }
     },
     {
@@ -285,9 +270,8 @@
         "latency_ms": 55,
         "cost_usd": 0.00025,
         "availability": 0.998,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.6,
+        "security": 5
       }
     },
     {
@@ -299,9 +283,8 @@
         "latency_ms": 75,
         "cost_usd": 0.00018,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 3
       }
     },
     {
@@ -313,9 +296,8 @@
         "latency_ms": 150,
         "cost_usd": 0.0012,
         "availability": 0.996,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.4,
+        "security": 5
       }
     },
     {
@@ -327,9 +309,8 @@
         "latency_ms": 185,
         "cost_usd": 0.001,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 3
       }
     },
     {
@@ -341,9 +322,8 @@
         "latency_ms": 70,
         "cost_usd": 0.00025,
         "availability": 0.998,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.6,
+        "security": 5
       }
     },
     {
@@ -355,9 +335,8 @@
         "latency_ms": 90,
         "cost_usd": 0.0002,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 3
       }
     },
     {
@@ -369,9 +348,8 @@
         "latency_ms": 480,
         "cost_usd": 0.05,
         "availability": 0.995,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.3,
+        "security": 5
       }
     },
     {
@@ -383,9 +361,8 @@
         "latency_ms": 520,
         "cost_usd": 0.045,
         "availability": 0.998,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.6,
+        "security": 3
       }
     },
     {
@@ -397,9 +374,8 @@
         "latency_ms": 95,
         "cost_usd": 0.0006,
         "availability": 0.997,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.5,
+        "security": 5
       }
     },
     {
@@ -411,9 +387,8 @@
         "latency_ms": 110,
         "cost_usd": 0.00045,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 3
       }
     },
     {
@@ -425,9 +400,8 @@
         "latency_ms": 85,
         "cost_usd": 0.00035,
         "availability": 0.998,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.6,
+        "security": 5
       }
     },
     {
@@ -439,9 +413,8 @@
         "latency_ms": 95,
         "cost_usd": 0.00025,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 3
       }
     },
     {
@@ -453,9 +426,8 @@
         "latency_ms": 120,
         "cost_usd": 0.002,
         "availability": 0.995,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.3,
+        "security": 3
       }
     },
     {
@@ -467,9 +439,8 @@
         "latency_ms": 210,
         "cost_usd": 0.0015,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 4
       }
     },
     {
@@ -481,9 +452,8 @@
         "latency_ms": 85,
         "cost_usd": 0.001,
         "availability": 0.995,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.3,
+        "security": 3
       }
     },
     {
@@ -495,9 +465,8 @@
         "latency_ms": 155,
         "cost_usd": 0.0007,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 4
       }
     },
     {
@@ -509,9 +478,8 @@
         "latency_ms": 320,
         "cost_usd": 0.02,
         "availability": 0.997,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.5,
+        "security": 5
       }
     },
     {
@@ -523,9 +491,8 @@
         "latency_ms": 380,
         "cost_usd": 0.017,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 3
       }
     },
     {
@@ -537,9 +504,8 @@
         "latency_ms": 240,
         "cost_usd": 0.015,
         "availability": 0.997,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.5,
+        "security": 5
       }
     },
     {
@@ -551,9 +517,8 @@
         "latency_ms": 290,
         "cost_usd": 0.013,
         "availability": 0.999,
-        "gen_feat_1": 500.0,
-        "gen_feat_2": 0.5,
-        "gen_feat_3": 500.0
+        "reliability": 99.7,
+        "security": 3
       }
     },
     {
@@ -565,9 +530,8 @@
         "latency_ms": 105.45,
         "cost_usd": 0.0,
         "availability": 0.997768,
-        "gen_feat_1": 512.31,
-        "gen_feat_2": 0.494924,
-        "gen_feat_3": 495.49
+        "reliability": 100.0,
+        "security": 4.95
       }
     },
     {
@@ -576,12 +540,11 @@
       "provider_id": "p_gen_shared",
       "name": "CatalogA POST /product/quote (Gen Shared)",
       "features": {
-        "latency_ms": 122.37,
+        "latency_ms": 118.92,
         "cost_usd": 0.0,
-        "availability": 0.979755,
-        "gen_feat_1": 507.51,
-        "gen_feat_2": 0.493998,
-        "gen_feat_3": 513.92
+        "availability": 0.978049,
+        "reliability": 97.78,
+        "security": 3.05
       }
     },
     {
@@ -590,12 +553,11 @@
       "provider_id": "p_gen_shared",
       "name": "CatalogA GET /quote (Gen Shared)",
       "features": {
-        "latency_ms": 84.6,
+        "latency_ms": 83.98,
         "cost_usd": 0.0,
-        "availability": 0.999119,
-        "gen_feat_1": 499.61,
-        "gen_feat_2": 0.498885,
-        "gen_feat_3": 492.6
+        "availability": 0.990365,
+        "reliability": 100.0,
+        "security": 3.01
       }
     },
     {
@@ -604,12 +566,11 @@
       "provider_id": "p_gen_shared",
       "name": "ShopA POST /order/item (Gen Shared)",
       "features": {
-        "latency_ms": 134.46,
+        "latency_ms": 134.89,
         "cost_usd": 0.0,
-        "availability": 0.987007,
-        "gen_feat_1": 499.47,
-        "gen_feat_2": 0.51104,
-        "gen_feat_3": 510.35
+        "availability": 0.98225,
+        "reliability": 99.1,
+        "security": 4.99
       }
     },
     {
@@ -618,12 +579,11 @@
       "provider_id": "p_gen_shared",
       "name": "ShopA DELETE /order/item (Gen Shared)",
       "features": {
-        "latency_ms": 84.0,
+        "latency_ms": 84.15,
         "cost_usd": 0.0,
-        "availability": 0.986162,
-        "gen_feat_1": 504.01,
-        "gen_feat_2": 0.48957,
-        "gen_feat_3": 508.22
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 4.94
       }
     },
     {
@@ -632,12 +592,11 @@
       "provider_id": "p_gen_shared",
       "name": "ShopA GET /order/amount (Gen Shared)",
       "features": {
-        "latency_ms": 56.45,
+        "latency_ms": 56.61,
         "cost_usd": 0.0,
-        "availability": 0.980217,
-        "gen_feat_1": 496.14,
-        "gen_feat_2": 0.50654,
-        "gen_feat_3": 490.74
+        "availability": 1.0,
+        "reliability": 97.52,
+        "security": 5.0
       }
     },
     {
@@ -646,12 +605,11 @@
       "provider_id": "p_gen_shared",
       "name": "ShopA POST /order/payment (Gen Shared)",
       "features": {
-        "latency_ms": 151.81,
+        "latency_ms": 153.96,
         "cost_usd": 0.0,
-        "availability": 0.994297,
-        "gen_feat_1": 498.47,
-        "gen_feat_2": 0.487221,
-        "gen_feat_3": 493.19
+        "availability": 0.978253,
+        "reliability": 98.63,
+        "security": 5.0
       }
     },
     {
@@ -660,12 +618,11 @@
       "provider_id": "p_gen_shared",
       "name": "PaymentA POST /payment (Gen Shared)",
       "features": {
-        "latency_ms": 313.81,
+        "latency_ms": 314.07,
         "cost_usd": 0.02,
-        "availability": 0.997468,
-        "gen_feat_1": 510.71,
-        "gen_feat_2": 0.511215,
-        "gen_feat_3": 498.76
+        "availability": 1.0,
+        "reliability": 99.33,
+        "security": 4.98
       }
     },
     {
@@ -674,12 +631,11 @@
       "provider_id": "p_gen_shared",
       "name": "ShopA GET /order/confirmed (Gen Shared)",
       "features": {
-        "latency_ms": 70.26,
+        "latency_ms": 68.21,
         "cost_usd": 0.0,
-        "availability": 1.0,
-        "gen_feat_1": 490.98,
-        "gen_feat_2": 0.510011,
-        "gen_feat_3": 494.46
+        "availability": 0.978701,
+        "reliability": 98.88,
+        "security": 5.0
       }
     },
     {
@@ -688,12 +644,11 @@
       "provider_id": "p_gen_shared",
       "name": "ShopA fulfillment (Gen Shared)",
       "features": {
-        "latency_ms": 469.4,
+        "latency_ms": 490.28,
         "cost_usd": 0.05,
-        "availability": 0.974618,
-        "gen_feat_1": 487.5,
-        "gen_feat_2": 0.512786,
-        "gen_feat_3": 513.89
+        "availability": 0.992531,
+        "reliability": 99.68,
+        "security": 5.0
       }
     },
     {
@@ -702,12 +657,11 @@
       "provider_id": "p_gen_shared",
       "name": "ShopA PUT /order/shipment (Gen Shared)",
       "features": {
-        "latency_ms": 94.57,
+        "latency_ms": 96.93,
         "cost_usd": 0.0,
         "availability": 1.0,
-        "gen_feat_1": 502.81,
-        "gen_feat_2": 0.50761,
-        "gen_feat_3": 507.89
+        "reliability": 98.4,
+        "security": 4.89
       }
     },
     {
@@ -716,12 +670,11 @@
       "provider_id": "p_gen_shared",
       "name": "ShopA DELETE /order (Gen Shared)",
       "features": {
-        "latency_ms": 86.15,
+        "latency_ms": 85.97,
         "cost_usd": 0.0,
-        "availability": 0.993874,
-        "gen_feat_1": 498.93,
-        "gen_feat_2": 0.503401,
-        "gen_feat_3": 512.39
+        "availability": 0.973053,
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -730,12 +683,11 @@
       "provider_id": "p_gen_shared",
       "name": "PaymentA DELETE /payment (Gen Shared)",
       "features": {
-        "latency_ms": 236.32,
+        "latency_ms": 238.9,
         "cost_usd": 0.02,
-        "availability": 0.993549,
-        "gen_feat_1": 487.89,
-        "gen_feat_2": 0.503178,
-        "gen_feat_3": 498.93
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -744,12 +696,11 @@
       "provider_id": "p_gen_1",
       "name": "ShopA POST /order/item (Gen p_gen_1)",
       "features": {
-        "latency_ms": 138.1,
+        "latency_ms": 137.13,
         "cost_usd": 0.0,
         "availability": 1.0,
-        "gen_feat_1": 494.27,
-        "gen_feat_2": 0.495201,
-        "gen_feat_3": 492.8
+        "reliability": 99.09,
+        "security": 4.99
       }
     },
     {
@@ -758,12 +709,11 @@
       "provider_id": "p_gen_2",
       "name": "ShopA DELETE /order (Gen p_gen_2)",
       "features": {
-        "latency_ms": 82.5,
+        "latency_ms": 85.58,
         "cost_usd": 0.0,
-        "availability": 0.974939,
-        "gen_feat_1": 513.73,
-        "gen_feat_2": 0.504326,
-        "gen_feat_3": 509.28
+        "availability": 0.982691,
+        "reliability": 99.94,
+        "security": 4.98
       }
     },
     {
@@ -772,12 +722,11 @@
       "provider_id": "p_gen_3",
       "name": "PaymentA POST /payment (Gen p_gen_3)",
       "features": {
-        "latency_ms": 319.82,
+        "latency_ms": 312.25,
         "cost_usd": 0.02,
-        "availability": 0.970835,
-        "gen_feat_1": 487.61,
-        "gen_feat_2": 0.48896,
-        "gen_feat_3": 507.35
+        "availability": 0.994872,
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -786,12 +735,11 @@
       "provider_id": "p_gen_4",
       "name": "ShopA POST /order/payment (Gen p_gen_4)",
       "features": {
-        "latency_ms": 153.71,
+        "latency_ms": 150.74,
         "cost_usd": 0.0,
-        "availability": 1.0,
-        "gen_feat_1": 494.43,
-        "gen_feat_2": 0.499538,
-        "gen_feat_3": 505.95
+        "availability": 0.986441,
+        "reliability": 97.97,
+        "security": 4.85
       }
     },
     {
@@ -800,12 +748,11 @@
       "provider_id": "p_gen_5",
       "name": "ShopA POST /order (Gen p_gen_5)",
       "features": {
-        "latency_ms": 107.32,
+        "latency_ms": 107.0,
         "cost_usd": 0.0,
-        "availability": 0.976762,
-        "gen_feat_1": 491.15,
-        "gen_feat_2": 0.513884,
-        "gen_feat_3": 498.93
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -814,12 +761,11 @@
       "provider_id": "p_shop_a",
       "name": "ShopA GET /order/amount (Gen p_shop_a)",
       "features": {
-        "latency_ms": 53.85,
+        "latency_ms": 54.97,
         "cost_usd": 0.0,
-        "availability": 1.0,
-        "gen_feat_1": 490.42,
-        "gen_feat_2": 0.511021,
-        "gen_feat_3": 503.37
+        "availability": 0.971809,
+        "reliability": 97.13,
+        "security": 4.89
       }
     },
     {
@@ -828,12 +774,11 @@
       "provider_id": "p_shop_b",
       "name": "CatalogA GET /quote (Gen p_shop_b)",
       "features": {
-        "latency_ms": 87.45,
+        "latency_ms": 86.25,
         "cost_usd": 0.0,
-        "availability": 0.985079,
-        "gen_feat_1": 502.14,
-        "gen_feat_2": 0.496493,
-        "gen_feat_3": 490.86
+        "availability": 0.966728,
+        "reliability": 99.7,
+        "security": 2.97
       }
     },
     {
@@ -842,12 +787,11 @@
       "provider_id": "p_catalog_a",
       "name": "ShopA GET /order/confirmed (Gen p_catalog_a)",
       "features": {
-        "latency_ms": 68.22,
+        "latency_ms": 69.94,
         "cost_usd": 0.0,
         "availability": 1.0,
-        "gen_feat_1": 486.32,
-        "gen_feat_2": 0.493805,
-        "gen_feat_3": 501.89
+        "reliability": 100.0,
+        "security": 4.9
       }
     },
     {
@@ -856,12 +800,11 @@
       "provider_id": "p_catalog_b",
       "name": "PaymentA DELETE /payment (Gen p_catalog_b)",
       "features": {
-        "latency_ms": 236.81,
+        "latency_ms": 235.75,
         "cost_usd": 0.02,
-        "availability": 0.97577,
-        "gen_feat_1": 487.78,
-        "gen_feat_2": 0.513947,
-        "gen_feat_3": 501.92
+        "availability": 0.994872,
+        "reliability": 97.42,
+        "security": 4.9
       }
     },
     {
@@ -870,12 +813,11 @@
       "provider_id": "p_payment_a",
       "name": "ShopA DELETE /order/item (Gen p_payment_a)",
       "features": {
-        "latency_ms": 87.21,
+        "latency_ms": 87.12,
         "cost_usd": 0.0,
-        "availability": 0.985215,
-        "gen_feat_1": 485.98,
-        "gen_feat_2": 0.508692,
-        "gen_feat_3": 505.08
+        "availability": 1.0,
+        "reliability": 100.0,
+        "security": 5.0
       }
     },
     {
@@ -884,12 +826,11 @@
       "provider_id": "p_payment_b",
       "name": "CatalogA POST /product/quote (Gen p_payment_b)",
       "features": {
-        "latency_ms": 118.36,
+        "latency_ms": 119.55,
         "cost_usd": 0.0,
-        "availability": 1.0,
-        "gen_feat_1": 489.81,
-        "gen_feat_2": 0.485147,
-        "gen_feat_3": 486.3
+        "availability": 0.999266,
+        "reliability": 98.6,
+        "security": 2.95
       }
     },
     {
@@ -898,12 +839,11 @@
       "provider_id": "p_gen_1",
       "name": "ShopA fulfillment (Gen p_gen_1)",
       "features": {
-        "latency_ms": 485.43,
+        "latency_ms": 467.79,
         "cost_usd": 0.05,
-        "availability": 0.9931,
-        "gen_feat_1": 505.71,
-        "gen_feat_2": 0.504465,
-        "gen_feat_3": 512.15
+        "availability": 1.0,
+        "reliability": 96.58,
+        "security": 4.94
       }
     },
     {
@@ -912,12 +852,11 @@
       "provider_id": "p_gen_2",
       "name": "ShopA PUT /order/shipment (Gen p_gen_2)",
       "features": {
-        "latency_ms": 92.19,
+        "latency_ms": 95.36,
         "cost_usd": 0.0,
         "availability": 1.0,
-        "gen_feat_1": 502.48,
-        "gen_feat_2": 0.508902,
-        "gen_feat_3": 494.03
+        "reliability": 97.38,
+        "security": 4.88
       }
     },
     {
@@ -926,12 +865,11 @@
       "provider_id": "p_gen_3",
       "name": "ShopA POST /order/item (Gen p_gen_3)",
       "features": {
-        "latency_ms": 134.49,
+        "latency_ms": 138.77,
         "cost_usd": 0.0,
-        "availability": 0.986405,
-        "gen_feat_1": 493.7,
-        "gen_feat_2": 0.503951,
-        "gen_feat_3": 510.3
+        "availability": 1.0,
+        "reliability": 99.18,
+        "security": 4.94
       }
     },
     {
@@ -940,12 +878,11 @@
       "provider_id": "p_gen_4",
       "name": "ShopA DELETE /order (Gen p_gen_4)",
       "features": {
-        "latency_ms": 87.12,
+        "latency_ms": 82.62,
         "cost_usd": 0.0,
-        "availability": 0.986711,
-        "gen_feat_1": 487.89,
-        "gen_feat_2": 0.507856,
-        "gen_feat_3": 511.13
+        "availability": 1.0,
+        "reliability": 98.24,
+        "security": 4.98
       }
     }
   ],
@@ -1148,24 +1085,7 @@
         }
       }
     },
-    "gen_feat_1": {
-      "neutral": 0,
-      "compose": {
-        "seq": {
-          "fn": "SUM"
-        },
-        "and": {
-          "fn": "MAX"
-        },
-        "loop": {
-          "fn": "SCALED_SUM"
-        },
-        "xor": {
-          "fn": "SCALED_SUM"
-        }
-      }
-    },
-    "gen_feat_2": {
+    "reliability": {
       "neutral": 1,
       "compose": {
         "seq": {
@@ -1182,17 +1102,17 @@
         }
       }
     },
-    "gen_feat_3": {
-      "neutral": 0,
+    "security": {
+      "neutral": 5,
       "compose": {
         "seq": {
-          "fn": "SUM"
+          "fn": "MIN"
         },
         "and": {
-          "fn": "MAX"
+          "fn": "MIN"
         },
         "loop": {
-          "fn": "SCALED_SUM"
+          "fn": "MIN"
         },
         "xor": {
           "fn": "SCALED_SUM"
@@ -1244,19 +1164,19 @@
       "scope": "GLOBAL",
       "attribute_id": "latency_ms",
       "op": "<=",
-      "value": 1890.97,
+      "value": 1903.85,
       "hard": false
     },
     {
-      "id": "gen_c_local_t_get_quote_gen_feat_3_1",
+      "id": "gen_c_local_t_checkout_security_1",
       "kind": "ATTRIBUTE_BOUND",
       "scope": "LOCAL",
       "tasks": [
-        "t_get_quote"
+        "t_checkout"
       ],
-      "attribute_id": "gen_feat_3",
-      "op": "<=",
-      "value": 497.6,
+      "attribute_id": "security",
+      "op": ">=",
+      "value": 4.98,
       "hard": false
     },
     {
@@ -1275,12 +1195,12 @@
     "targets": [
       "availability",
       "cost_usd",
-      "gen_feat_1"
+      "latency_ms"
     ],
     "weights": {
       "availability": 0.34,
       "cost_usd": 0.33,
-      "gen_feat_1": 0.33
+      "latency_ms": 0.33
     },
     "weights_sum_to_one": true
   }

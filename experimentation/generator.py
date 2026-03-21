@@ -22,7 +22,6 @@ SCENARIOS = [
 ]
 
 TARGET_BINDING_SPACE = 100_000_000
-EXTRA_FEATURES_PER_SCENARIO = 3
 EXTRA_PROVIDERS_PER_SCENARIO = 5
 MAX_HARD_ATTRIBUTE_BOUNDS_PER_INSTANCE = 2
 MAX_HARD_DEPENDENCIES_PER_INSTANCE = 2
@@ -201,36 +200,8 @@ def ensure_aggregation_policies_complete(instance: Dict[str, Any]) -> None:
             compose[op] = {"fn": _default_compose_fn(direction, op)}
 
 
-def expand_features(instance: Dict[str, Any], count: int) -> None:
-    used_feature_ids = _id_set(instance.get("features", []))
-    existing_features = instance.get("features", [])
-
-    # Alternate directions to have both MINIMIZE and MAXIMIZE features.
-    directions = ["MINIMIZE", "MAXIMIZE"]
-    for i in range(count):
-        direction = directions[i % len(directions)]
-        new_id = _unique_id("gen_feat_", used_feature_ids)
-
-        if direction == "MAXIMIZE":
-            valid_range = {"min": 0, "max": 1}
-            unit = "ratio"
-        else:
-            valid_range = {"min": 0, "max": 1000}
-            unit = "unit"
-
-        existing_features.append(
-            {
-                "id": new_id,
-                "name": f"Generated feature {new_id}",
-                "direction": direction,
-                "unit": unit,
-                "scale": "RATIO",
-                "valid_range": valid_range,
-            }
-        )
-        _ensure_aggregation_policy_for_feature(instance, new_id, direction)
-
-    # Ensure every candidate has a numeric value for every feature.
+def ensure_all_candidates_have_all_features(instance: Dict[str, Any]) -> None:
+    # Ensure every candidate has a numeric value for every existing feature.
     fmap = _feature_map(instance)
     for candidate in instance.get("candidates", []):
         feats = candidate.setdefault("features", {})
@@ -263,7 +234,17 @@ def _candidate_template_for_task(instance: Dict[str, Any], task_id: str) -> Dict
     # Fallback minimal candidate (should be rare; schema expects candidates)
     providers = [p["id"] for p in instance.get("providers", [])]
     provider_id = providers[0] if providers else "p_gen_shared"
-    return {"id": f"tmpl_{task_id}", "task_id": task_id, "provider_id": provider_id, "name": task_id, "features": {}}
+    placeholder_features: Dict[str, float] = {}
+    for fid, fdef in _feature_map(instance).items():
+        mn, mx = _range_for_feature(fdef)
+        placeholder_features[fid] = round((mn + mx) / 2.0, 6)
+    return {
+        "id": f"tmpl_{task_id}",
+        "task_id": task_id,
+        "provider_id": provider_id,
+        "name": task_id,
+        "features": placeholder_features,
+    }
 
 
 def _generate_feature_values_from_base(
@@ -1369,7 +1350,7 @@ def build_scaled_base_instance(base: Dict[str, Any]) -> Dict[str, Any]:
     # Expand features/providers/candidates deterministically.
     rng = random.Random(_seed_for(instance["metadata"]["id"], "scale"))
     expand_providers(instance, EXTRA_PROVIDERS_PER_SCENARIO)
-    expand_features(instance, EXTRA_FEATURES_PER_SCENARIO)
+    ensure_all_candidates_have_all_features(instance)
     ensure_aggregation_policies_complete(instance)
     ensure_binding_space_gt(instance, TARGET_BINDING_SPACE, rng)
     return instance

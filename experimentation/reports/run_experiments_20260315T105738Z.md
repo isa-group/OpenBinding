@@ -1,8 +1,8 @@
 # OpenBinding Experiment Report
 
-- Started (UTC): 2026-02-25T15:19:16.787433+00:00
-- Finished (UTC): 2026-02-25T16:59:13.703948+00:00
-- Duration: 1h 39m 57s
+- Started (UTC): 2026-03-15T10:40:37.160951+00:00
+- Finished (UTC): 2026-03-15T10:57:38.057774+00:00
+- Duration: 17m 01s
 - Gateway: http://localhost:8000
 - Engines: many-heuristic, minizinc-csp, random-search
 - Instances dir: /Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/instances

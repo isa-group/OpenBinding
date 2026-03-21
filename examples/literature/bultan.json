@@ -19,7 +19,10 @@
       "direction": "MINIMIZE",
       "unit": "ms",
       "scale": "RATIO",
-      "valid_range": { "min": 0, "max": 5000 }
+      "valid_range": {
+        "min": 0,
+        "max": 5000
+      }
     },
     {
       "id": "cost_usd",
@@ -27,7 +30,10 @@
       "direction": "MINIMIZE",
       "unit": "usd",
       "scale": "RATIO",
-      "valid_range": { "min": 0, "max": 1000 }
+      "valid_range": {
+        "min": 0,
+        "max": 1000
+      }
     },
     {
       "id": "availability",
@@ -35,26 +41,95 @@
       "direction": "MAXIMIZE",
       "unit": "prob",
       "scale": "RATIO",
-      "valid_range": { "min": 0, "max": 1 }
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "reliability",
+      "name": "Reliability",
+      "direction": "MAXIMIZE",
+      "unit": "percent",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 100
+      },
+      "description": "Successful execution percentage."
+    },
+    {
+      "id": "security",
+      "name": "Security",
+      "direction": "MAXIMIZE",
+      "unit": "score",
+      "scale": "ORDINAL",
+      "valid_range": {
+        "min": 1,
+        "max": 5
+      },
+      "description": "Security score on a 1-5 ordinal scale."
     }
   ],
   "providers": [
-    { "id": "p_store", "name": "Store" },
-    { "id": "p_bank", "name": "Bank" },
-    { "id": "p_wh1", "name": "Warehouse1" },
-    { "id": "p_wh2", "name": "Warehouse2" }
+    {
+      "id": "p_store",
+      "name": "Store"
+    },
+    {
+      "id": "p_bank",
+      "name": "Bank"
+    },
+    {
+      "id": "p_wh1",
+      "name": "Warehouse1"
+    },
+    {
+      "id": "p_wh2",
+      "name": "Warehouse2"
+    }
   ],
   "tasks": [
-    { "id": "t_authorize", "name": "Send authorize (store→bank)" },
-    { "id": "t_ok", "name": "Send ok (bank→store)" },
-    { "id": "t_order1", "name": "Send order1 (store→warehouse1)" },
-    { "id": "t_receipt1", "name": "Send receipt1 (warehouse1→store)" },
-    { "id": "t_bill1", "name": "Send bill1 (warehouse1→bank)" },
-    { "id": "t_payment1", "name": "Send payment1 (bank→warehouse1)" },
-    { "id": "t_order2", "name": "Send order2 (store→warehouse2)" },
-    { "id": "t_receipt2", "name": "Send receipt2 (warehouse2→store)" },
-    { "id": "t_bill2", "name": "Send bill2 (warehouse2→bank)" },
-    { "id": "t_payment2", "name": "Send payment2 (bank→warehouse2)" }
+    {
+      "id": "t_authorize",
+      "name": "Send authorize (store→bank)"
+    },
+    {
+      "id": "t_ok",
+      "name": "Send ok (bank→store)"
+    },
+    {
+      "id": "t_order1",
+      "name": "Send order1 (store→warehouse1)"
+    },
+    {
+      "id": "t_receipt1",
+      "name": "Send receipt1 (warehouse1→store)"
+    },
+    {
+      "id": "t_bill1",
+      "name": "Send bill1 (warehouse1→bank)"
+    },
+    {
+      "id": "t_payment1",
+      "name": "Send payment1 (bank→warehouse1)"
+    },
+    {
+      "id": "t_order2",
+      "name": "Send order2 (store→warehouse2)"
+    },
+    {
+      "id": "t_receipt2",
+      "name": "Send receipt2 (warehouse2→store)"
+    },
+    {
+      "id": "t_bill2",
+      "name": "Send bill2 (warehouse2→bank)"
+    },
+    {
+      "id": "t_payment2",
+      "name": "Send payment2 (bank→warehouse2)"
+    }
   ],
   "candidates": [
     {
@@ -62,70 +137,130 @@
       "task_id": "t_authorize",
       "provider_id": "p_store",
       "name": "authorize",
-      "features": { "latency_ms": 55, "cost_usd": 0.01, "availability": 0.999 }
+      "features": {
+        "latency_ms": 55,
+        "cost_usd": 0.01,
+        "availability": 0.999,
+        "reliability": 99.7,
+        "security": 3
+      }
     },
     {
       "id": "c_ok_bank_v1",
       "task_id": "t_ok",
       "provider_id": "p_bank",
       "name": "ok",
-      "features": { "latency_ms": 45, "cost_usd": 0.01, "availability": 0.999 }
+      "features": {
+        "latency_ms": 45,
+        "cost_usd": 0.01,
+        "availability": 0.999,
+        "reliability": 99.7,
+        "security": 5
+      }
     },
     {
       "id": "c_order1_store_v1",
       "task_id": "t_order1",
       "provider_id": "p_store",
       "name": "order1",
-      "features": { "latency_ms": 65, "cost_usd": 0.02, "availability": 0.998 }
+      "features": {
+        "latency_ms": 65,
+        "cost_usd": 0.02,
+        "availability": 0.998,
+        "reliability": 99.6,
+        "security": 3
+      }
     },
     {
       "id": "c_receipt1_wh1_v1",
       "task_id": "t_receipt1",
       "provider_id": "p_wh1",
       "name": "receipt1",
-      "features": { "latency_ms": 80, "cost_usd": 0.015, "availability": 0.997 }
+      "features": {
+        "latency_ms": 80,
+        "cost_usd": 0.015,
+        "availability": 0.997,
+        "reliability": 99.5,
+        "security": 3
+      }
     },
     {
       "id": "c_bill1_wh1_v1",
       "task_id": "t_bill1",
       "provider_id": "p_wh1",
       "name": "bill1",
-      "features": { "latency_ms": 75, "cost_usd": 0.015, "availability": 0.998 }
+      "features": {
+        "latency_ms": 75,
+        "cost_usd": 0.015,
+        "availability": 0.998,
+        "reliability": 99.6,
+        "security": 3
+      }
     },
     {
       "id": "c_payment1_bank_v1",
       "task_id": "t_payment1",
       "provider_id": "p_bank",
       "name": "payment1",
-      "features": { "latency_ms": 90, "cost_usd": 0.03, "availability": 0.999 }
+      "features": {
+        "latency_ms": 90,
+        "cost_usd": 0.03,
+        "availability": 0.999,
+        "reliability": 99.7,
+        "security": 5
+      }
     },
     {
       "id": "c_order2_store_v1",
       "task_id": "t_order2",
       "provider_id": "p_store",
       "name": "order2",
-      "features": { "latency_ms": 70, "cost_usd": 0.02, "availability": 0.998 }
+      "features": {
+        "latency_ms": 70,
+        "cost_usd": 0.02,
+        "availability": 0.998,
+        "reliability": 99.6,
+        "security": 3
+      }
     },
     {
       "id": "c_receipt2_wh2_v1",
       "task_id": "t_receipt2",
       "provider_id": "p_wh2",
       "name": "receipt2",
-      "features": { "latency_ms": 85, "cost_usd": 0.015, "availability": 0.997 }
+      "features": {
+        "latency_ms": 85,
+        "cost_usd": 0.015,
+        "availability": 0.997,
+        "reliability": 99.5,
+        "security": 4
+      }
     },
     {
       "id": "c_bill2_wh2_v1",
       "task_id": "t_bill2",
       "provider_id": "p_wh2",
       "name": "bill2",
-      "features": { "latency_ms": 78, "cost_usd": 0.015, "availability": 0.998 }
+      "features": {
+        "latency_ms": 78,
+        "cost_usd": 0.015,
+        "availability": 0.998,
+        "reliability": 99.6,
+        "security": 4
+      }
     },
     {
       "id": "c_payment2_bank_v1",
       "task_id": "t_payment2",
       "provider_id": "p_bank",
       "name": "payment2",
-      "features": { "latency_ms": 95, "cost_usd": 0.03, "availability": 0.999 }
+      "features": {
+        "latency_ms": 95,
+        "cost_usd": 0.03,
+        "availability": 0.999,
+        "reliability": 99.7,
+        "security": 5
+      }
     }
   ],
   "composition": {
@@ -134,8 +269,16 @@
       "id": "n_root_seq",
       "kind": "SEQ",
       "children": [
-        { "id": "n_authorize", "kind": "TASK", "task_id": "t_authorize" },
-        { "id": "n_ok", "kind": "TASK", "task_id": "t_ok" },
+        {
+          "id": "n_authorize",
+          "kind": "TASK",
+          "task_id": "t_authorize"
+        },
+        {
+          "id": "n_ok",
+          "kind": "TASK",
+          "task_id": "t_ok"
+        },
         {
           "id": "n_parallel_orders",
           "kind": "AND",
@@ -143,23 +286,42 @@
             {
               "id": "n_loop_wh1",
               "kind": "LOOP",
-              "bounds": { "min": 0, "max": 5 },
+              "bounds": {
+                "min": 0,
+                "max": 5
+              },
               "body": {
                 "id": "n_wh1_iter_seq",
                 "kind": "SEQ",
                 "children": [
-                  { "id": "n_order1", "kind": "TASK", "task_id": "t_order1" },
+                  {
+                    "id": "n_order1",
+                    "kind": "TASK",
+                    "task_id": "t_order1"
+                  },
                   {
                     "id": "n_wh1_after_order",
                     "kind": "AND",
                     "children": [
-                      { "id": "n_receipt1", "kind": "TASK", "task_id": "t_receipt1" },
+                      {
+                        "id": "n_receipt1",
+                        "kind": "TASK",
+                        "task_id": "t_receipt1"
+                      },
                       {
                         "id": "n_wh1_billpay",
                         "kind": "SEQ",
                         "children": [
-                          { "id": "n_bill1", "kind": "TASK", "task_id": "t_bill1" },
-                          { "id": "n_payment1", "kind": "TASK", "task_id": "t_payment1" }
+                          {
+                            "id": "n_bill1",
+                            "kind": "TASK",
+                            "task_id": "t_bill1"
+                          },
+                          {
+                            "id": "n_payment1",
+                            "kind": "TASK",
+                            "task_id": "t_payment1"
+                          }
                         ]
                       }
                     ]
@@ -170,23 +332,42 @@
             {
               "id": "n_loop_wh2",
               "kind": "LOOP",
-              "bounds": { "min": 0, "max": 5 },
+              "bounds": {
+                "min": 0,
+                "max": 5
+              },
               "body": {
                 "id": "n_wh2_iter_seq",
                 "kind": "SEQ",
                 "children": [
-                  { "id": "n_order2", "kind": "TASK", "task_id": "t_order2" },
+                  {
+                    "id": "n_order2",
+                    "kind": "TASK",
+                    "task_id": "t_order2"
+                  },
                   {
                     "id": "n_wh2_after_order",
                     "kind": "AND",
                     "children": [
-                      { "id": "n_receipt2", "kind": "TASK", "task_id": "t_receipt2" },
+                      {
+                        "id": "n_receipt2",
+                        "kind": "TASK",
+                        "task_id": "t_receipt2"
+                      },
                       {
                         "id": "n_wh2_billpay",
                         "kind": "SEQ",
                         "children": [
-                          { "id": "n_bill2", "kind": "TASK", "task_id": "t_bill2" },
-                          { "id": "n_payment2", "kind": "TASK", "task_id": "t_payment2" }
+                          {
+                            "id": "n_bill2",
+                            "kind": "TASK",
+                            "task_id": "t_bill2"
+                          },
+                          {
+                            "id": "n_payment2",
+                            "kind": "TASK",
+                            "task_id": "t_payment2"
+                          }
                         ]
                       }
                     ]
@@ -203,35 +384,89 @@
     "latency_ms": {
       "neutral": 0,
       "compose": {
-        "seq": { "fn": "SUM" },
-        "and": { "fn": "MAX" },
-        "loop": { "fn": "SCALED_SUM" }
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
       }
     },
     "cost_usd": {
       "neutral": 0,
       "compose": {
-        "seq": { "fn": "SUM" },
-        "and": { "fn": "SUM" },
-        "loop": { "fn": "SCALED_SUM" }
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
       }
     },
     "availability": {
       "neutral": 1,
       "compose": {
-        "seq": { "fn": "PRODUCT" },
-        "and": { "fn": "PRODUCT" },
-        "loop": { "fn": "SCALED_PRODUCT" }
+        "seq": {
+          "fn": "PRODUCT"
+        },
+        "and": {
+          "fn": "PRODUCT"
+        },
+        "loop": {
+          "fn": "SCALED_PRODUCT"
+        }
+      }
+    },
+    "reliability": {
+      "neutral": 1,
+      "compose": {
+        "seq": {
+          "fn": "PRODUCT"
+        },
+        "and": {
+          "fn": "PRODUCT"
+        },
+        "loop": {
+          "fn": "SCALED_PRODUCT"
+        }
+      }
+    },
+    "security": {
+      "neutral": 5,
+      "compose": {
+        "seq": {
+          "fn": "MIN"
+        },
+        "and": {
+          "fn": "MIN"
+        },
+        "loop": {
+          "fn": "MIN"
+        }
       }
     }
   },
   "objective": {
     "type": "MONO",
-    "targets": ["latency_ms", "cost_usd", "availability"],
+    "targets": [
+      "cost_usd",
+      "latency_ms",
+      "availability",
+      "reliability",
+      "security"
+    ],
     "weights": {
-      "latency_ms": 0.5,
-      "cost_usd": 0.3,
-      "availability": 0.2
+      "cost_usd": 0.21,
+      "latency_ms": 0.35,
+      "availability": 0.14,
+      "reliability": 0.15,
+      "security": 0.15
     }
   }
 }

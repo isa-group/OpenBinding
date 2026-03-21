@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openbinding.us.es/api/v1/schemas/minizinc-csp",
+  "$id": "https://openbinding.score.us.es/api/v1/schemas/minizinc-csp",
   "title": "MiniZinc CSP Specialization",
   "description": "Restricted profile of the General QoS Schema for the MVP MiniZinc CSP engine.",
   "type": "object",
