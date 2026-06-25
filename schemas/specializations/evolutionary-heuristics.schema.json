@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openbinding.score.us.es/api/v1/schemas/evolutionary-heuristics",
+  "title": "Evolutionary Heuristics Specialization",
+  "description": "Profile for the Java 21/jMetal evolutionary engine.",
+  "type": "object",
+  "properties": {
+    "composition": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "STRUCTURED" }
+      },
+      "required": ["type", "root"]
+    },
+    "objective": {
+      "type": "object",
+      "properties": {
+        "type": { "enum": ["MONO", "MULTI", "MANY"] }
+      },
+      "required": ["type", "targets", "weights"]
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": { "enum": ["ATTRIBUTE_BOUND", "DEPENDENCY"] }
+        },
+        "required": ["kind"]
+      }
+    }
+  },
+  "required": [
+    "composition",
+    "features",
+    "candidates",
+    "aggregation_policies",
+    "objective"
+  ]
+}

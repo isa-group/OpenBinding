@@ -1,0 +1,28 @@
+classDiagram
+  class EvolutionaryBindingProblem {
+    +STRUCTURED composition
+    +MONO|MULTI|MANY objective
+    +ATTRIBUTE_BOUND constraints
+    +DEPENDENCY constraints
+  }
+  class IntegerChromosome {
+    +one gene per task
+    +candidate index allele
+  }
+  class QualityEvaluator {
+    +aggregate composition QoS
+    +normalize global quality
+    +compute objective losses
+  }
+  class ConstraintEvaluator {
+    +hard feasibility distance
+    +soft violation distance
+  }
+  class NSGAII
+  class NSGAIII
+
+  EvolutionaryBindingProblem --> IntegerChromosome
+  EvolutionaryBindingProblem --> QualityEvaluator
+  EvolutionaryBindingProblem --> ConstraintEvaluator
+  EvolutionaryBindingProblem --> NSGAII : MONO / MULTI
+  EvolutionaryBindingProblem --> NSGAIII : MANY
