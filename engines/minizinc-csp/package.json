@@ -1,6 +1,7 @@
 {
   "name": "minizinc-csp-engine",
   "version": "0.1.0",
+  "packageManager": "pnpm@10.12.4",
   "description": "MiniZinc CSP Solver Service for OpenBinding",
   "main": "dist/index.js",
   "scripts": {
