@@ -1,7 +1,7 @@
 x-proxy-build-args: &proxy-build-args
   HTTP_PROXY: ${HTTP_PROXY_ARG:-}
   HTTPS_PROXY: ${HTTPS_PROXY_ARG:-}
-  NO_PROXY: ${NO_PROXY_ARG:-localhost,127.0.0.1,gateway,gateway-dev,engine-minizinc,engine-random-search,engine-many-heuristic,frontend-dev,frontend-prod,nginx,nginx-dev}
+  NO_PROXY: ${NO_PROXY_ARG:-localhost,127.0.0.1,gateway,gateway-dev,engine-minizinc,engine-random-search,engine-many-heuristic,engine-evolutionary-heuristics,frontend-dev,frontend-prod,nginx,nginx-dev}
 
 services:
   gateway:
@@ -24,6 +24,7 @@ services:
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
+      - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 10s
@@ -36,6 +37,8 @@ services:
       engine-random-search:
         condition: service_healthy
       engine-many-heuristic:
+        condition: service_healthy
+      engine-evolutionary-heuristics:
         condition: service_healthy
 
   gateway-dev:
@@ -60,6 +63,7 @@ services:
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
+      - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 10s
@@ -72,6 +76,8 @@ services:
       engine-random-search:
         condition: service_healthy
       engine-many-heuristic:
+        condition: service_healthy
+      engine-evolutionary-heuristics:
         condition: service_healthy
 
   engine-minizinc:
@@ -105,6 +111,20 @@ services:
   engine-many-heuristic:
     build:
       context: ./engines/many-heuristic
+      dockerfile: Dockerfile
+      args:
+        <<: *proxy-build-args
+    profiles: ["dev", "prod"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  engine-evolutionary-heuristics:
+    build:
+      context: ./engines/evolutionary-heuristics
       dockerfile: Dockerfile
       args:
         <<: *proxy-build-args

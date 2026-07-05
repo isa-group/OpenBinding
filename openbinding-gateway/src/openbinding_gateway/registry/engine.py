@@ -4,6 +4,7 @@ from ..validation.engine_plugins.base import EngineValidationPlugin
 from ..validation.engine_plugins.minizinc_csp import MiniZincCSPEnginePlugin
 from ..validation.engine_plugins.random_search import RandomSearchEnginePlugin
 from ..validation.engine_plugins.many_heuristic import ManyHeuristicEnginePlugin
+from ..validation.engine_plugins.evolutionary_heuristics import EvolutionaryHeuristicsEnginePlugin
 
 class EngineRegistry:
     # Keeps track of all solver engines and where to find them.
@@ -11,7 +12,11 @@ class EngineRegistry:
     _engine_urls: Dict[str, str] = {
         "minizinc-csp": os.getenv("ENGINE_MINIZINC_URL", "http://engine-minizinc:3000"),
         "random-search": os.getenv("ENGINE_RANDOM_SEARCH_URL", "http://engine-random-search:8080"),
-        "many-heuristic": os.getenv("ENGINE_MANY_HEURISTIC_URL", "http://engine-many-heuristic:8080")
+        "many-heuristic": os.getenv("ENGINE_MANY_HEURISTIC_URL", "http://engine-many-heuristic:8080"),
+        "evolutionary-heuristics": os.getenv(
+            "ENGINE_EVOLUTIONARY_HEURISTICS_URL",
+            "http://engine-evolutionary-heuristics:8080",
+        ),
     }
 
     @classmethod
@@ -44,3 +49,4 @@ class EngineRegistry:
 EngineRegistry.register("minizinc-csp", MiniZincCSPEnginePlugin())
 EngineRegistry.register("random-search", RandomSearchEnginePlugin())
 EngineRegistry.register("many-heuristic", ManyHeuristicEnginePlugin())
+EngineRegistry.register("evolutionary-heuristics", EvolutionaryHeuristicsEnginePlugin())
