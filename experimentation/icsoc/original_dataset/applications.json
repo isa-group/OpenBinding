@@ -1,0 +1,415 @@
+[
+    {
+        "name": "Siotec2022",
+        "orchestration_id": "arOrch",
+        "trigger": "event02, [top,low,medium]",
+        "functions": [
+            {
+                "id": "fLogin",
+                "sw_reqs": [
+                    "js"
+                ],
+                "hw_reqs": {
+                    "memory": "1024",
+                    "v_cpu": "2",
+                    "mhz": "500"
+                },
+                "service_reqs": [
+                    {
+                        "type": "userDB",
+                        "latency": 13
+                    }
+                ],
+                "inputs": [
+                    "U",
+                    "Sc",
+                    "G"
+                ],
+                "outputs": [
+                    "U",
+                    "Sc",
+                    "G"
+                ]
+            },
+            {
+                "id": "fCrop",
+                "sw_reqs": [
+                    "py3",
+                    "numPy"
+                ],
+                "hw_reqs": {
+                    "memory": "2048",
+                    "v_cpu": "4",
+                    "mhz": "1200"
+                },
+                "service_reqs": [],
+                "inputs": [
+                    "_",
+                    "Sc",
+                    "G"
+                ],
+                "outputs": [
+                    "Sc",
+                    "G"
+                ]
+            },
+            {
+                "id": "fGeo",
+                "sw_reqs": [
+                    "js"
+                ],
+                "hw_reqs": {
+                    "memory": "256",
+                    "v_cpu": "2",
+                    "mhz": "400"
+                },
+                "service_reqs": [
+                    {
+                        "type": "maps",
+                        "latency": 30
+                    }
+                ],
+                "inputs": [
+                    "Sc",
+                    "G"
+                ],
+                "outputs": [
+                    "Sc"
+                ]
+            },
+            {
+                "id": "fDCC",
+                "sw_reqs": [
+                    "js"
+                ],
+                "hw_reqs": {
+                    "memory": "128",
+                    "v_cpu": "2",
+                    "mhz": "500"
+                },
+                "service_reqs": [],
+                "inputs": [
+                    "U",
+                    "_",
+                    "_"
+                ],
+                "outputs": [
+                    "U",
+                    "U"
+                ]
+            },
+            {
+                "id": "fCheckDCC",
+                "sw_reqs": [
+                    "js"
+                ],
+                "hw_reqs": {
+                    "memory": "1600",
+                    "v_cpu": "2",
+                    "mhz": "500"
+                },
+                "service_reqs": [
+                    {
+                        "type": "checkGp",
+                        "latency": 50
+                    }
+                ],
+                "inputs": [
+                    "_",
+                    "U"
+                ],
+                "outputs": [
+                    "low"
+                ]
+            },
+            {
+                "id": "fRules",
+                "sw_reqs": [
+                    "py3"
+                ],
+                "hw_reqs": {
+                    "memory": "1800",
+                    "v_cpu": "1",
+                    "mhz": "400"
+                },
+                "service_reqs": [
+                    {
+                        "type": "checkRules",
+                        "latency": 20
+                    }
+                ],
+                "inputs": [
+                    "_",
+                    "U"
+                ],
+                "outputs": [
+                    "low"
+                ]
+            },
+            {
+                "id": "fAR",
+                "sw_reqs": [
+                    "py3",
+                    "numPy"
+                ],
+                "hw_reqs": {
+                    "memory": "2048",
+                    "v_cpu": "4",
+                    "mhz": "1200"
+                },
+                "service_reqs": [],
+                "inputs": [
+                    "U",
+                    "Draw"
+                ],
+                "outputs": [
+                    "ScAr"
+                ]
+            }
+        ],
+        "orchestration_structure": "seq(fun(fLogin,[myUserDb],25),seq(par([if(fun(fDCC,[],15),fun(fCheckDCC,[],15),fun(fRules,[],18)),seq(fun(fCrop,[],18),fun(fGeo,[],12))]),fun(fAR,[],18)))"
+    },
+    {
+        "name": "Media Processing",
+        "orchestration_id": "mediaOrch",
+        "trigger": "event02, [low,top,medium]",
+        "functions": [
+            {
+                "id": "fDocAnalysis",
+                "sw_reqs": [
+                    "py3"
+                ],
+                "hw_reqs": {
+                    "memory": "1024",
+                    "v_cpu": "2",
+                    "mhz": "500"
+                },
+                "service_reqs": [
+                    {
+                        "type": "bucket",
+                        "latency": 160
+                    }
+                ],
+                "inputs": [
+                    "Head",
+                    "User",
+                    "Value"
+                ],
+                "outputs": [
+                    "Head",
+                    "User",
+                    "Value"
+                ]
+            },
+            {
+                "id": "fProcDoc",
+                "sw_reqs": [
+                    "js"
+                ],
+                "hw_reqs": {
+                    "memory": "1024",
+                    "v_cpu": "1",
+                    "mhz": "800"
+                },
+                "service_reqs": [
+                    {
+                        "type": "userDB",
+                        "latency": 210
+                    }
+                ],
+                "inputs": [
+                    "Head",
+                    "User",
+                    "Value"
+                ],
+                "outputs": [
+                    "Head",
+                    "Value"
+                ]
+            },
+            {
+                "id": "fPayAppr",
+                "sw_reqs": [
+                    "py3"
+                ],
+                "hw_reqs": {
+                    "memory": "256",
+                    "v_cpu": "2",
+                    "mhz": "400"
+                },
+                "service_reqs": [],
+                "inputs": [
+                    "Head",
+                    "Value"
+                ],
+                "outputs": [
+                    "Head",
+                    "Value"
+                ]
+            },
+            {
+                "id": "fNotify",
+                "sw_reqs": [
+                    "py3"
+                ],
+                "hw_reqs": {
+                    "memory": "128",
+                    "v_cpu": "2",
+                    "mhz": "500"
+                },
+                "service_reqs": [],
+                "inputs": [
+                    "Head",
+                    "Value"
+                ],
+                "outputs": [
+                    "Res",
+                    "low"
+                ]
+            },
+            {
+                "id": "fArchive",
+                "sw_reqs": [
+                    "py3"
+                ],
+                "hw_reqs": {
+                    "memory": "256",
+                    "v_cpu": "2",
+                    "mhz": "500"
+                },
+                "service_reqs": [],
+                "inputs": [
+                    "Head",
+                    "Value"
+                ],
+                "outputs": [
+                    "Head",
+                    "Value"
+                ]
+            }
+        ],
+        "orchestration_structure": "seq(fun(fDocAnalysis,[],220),seq(fun(fProcDoc,[],200),if(fun(fPayAppr,[],180),fun(fNotify,[],220),fun(fArchive,[],200))))"
+    },
+    {
+        "name": "Stock Market",
+        "orchestration_id": "stockOrch",
+        "trigger": "event2, [medium,low, top]",
+        "functions": [
+            {
+                "id": "fCheck",
+                "sw_reqs": [
+                    "py3"
+                ],
+                "hw_reqs": {
+                    "memory": "512",
+                    "v_cpu": "2",
+                    "mhz": "500"
+                },
+                "service_reqs": [
+                    {
+                        "type": "database",
+                        "latency": 21
+                    }
+                ],
+                "inputs": [
+                    "Stock",
+                    "Value",
+                    "Purchase"
+                ],
+                "outputs": [
+                    "Stock",
+                    "Value",
+                    "Purchase"
+                ]
+            },
+            {
+                "id": "fBuyOrSell",
+                "sw_reqs": [
+                    "py3"
+                ],
+                "hw_reqs": {
+                    "memory": "2048",
+                    "v_cpu": "4",
+                    "mhz": "1200"
+                },
+                "service_reqs": [],
+                "inputs": [
+                    "Stock",
+                    "Value",
+                    "_"
+                ],
+                "outputs": [
+                    "Stock",
+                    "Value"
+                ]
+            },
+            {
+                "id": "fSell",
+                "sw_reqs": [
+                    "js",
+                    "py3"
+                ],
+                "hw_reqs": {
+                    "memory": "256",
+                    "v_cpu": "2",
+                    "mhz": "400"
+                },
+                "service_reqs": [],
+                "inputs": [
+                    "Stock",
+                    "Value"
+                ],
+                "outputs": [
+                    "Stock",
+                    "Value"
+                ]
+            },
+            {
+                "id": "fBuy",
+                "sw_reqs": [
+                    "js",
+                    "py3"
+                ],
+                "hw_reqs": {
+                    "memory": "256",
+                    "v_cpu": "2",
+                    "mhz": "400"
+                },
+                "service_reqs": [],
+                "inputs": [
+                    "Stock",
+                    "Value"
+                ],
+                "outputs": [
+                    "Stock",
+                    "Value"
+                ]
+            },
+            {
+                "id": "fRecord",
+                "sw_reqs": [
+                    "py3"
+                ],
+                "hw_reqs": {
+                    "memory": "1600",
+                    "v_cpu": "2",
+                    "mhz": "500"
+                },
+                "service_reqs": [
+                    {
+                        "type": "database",
+                        "latency": 22
+                    }
+                ],
+                "inputs": [
+                    "_",
+                    "Value"
+                ],
+                "outputs": [
+                    "Value"
+                ]
+            }
+        ],
+        "orchestration_structure": "seq(fun(fCheck,[],25),seq(if(fun(fBuyOrSell,[],15),fun(fSell,[],14),fun(fBuy,[],22)),fun(fRecord,[],24)))"
+    }
+]

@@ -124,13 +124,13 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
                         path=f"aggregation_policies.{attr}.compose.{kind}.fn"
                     ))
 
-                # MiniZinc model treats xor=sum as weighted sum; explicit check to avoid silent mismatch
-                if kind == "xor" and fn == "sum":
-                    violations.append(ValidationViolation(
-                        message="Use 'weighted_sum' for XOR aggregation in MiniZinc to match branch probabilities",
-                        code="engine_ambiguous_xor_sum",
-                        path=f"aggregation_policies.{attr}.compose.xor.fn"
-                    ))
+                # # MiniZinc model treats xor=sum as weighted sum; explicit check to avoid silent mismatch
+                # if kind == "xor" and fn == "sum":
+                #     violations.append(ValidationViolation(
+                #         message="Use 'weighted_sum' for XOR aggregation in MiniZinc to match branch probabilities",
+                #         code="engine_ambiguous_xor_sum",
+                #         path=f"aggregation_policies.{attr}.compose.xor.fn"
+                #     ))
         
         return violations
 

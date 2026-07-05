@@ -368,7 +368,7 @@ export class Solver {
         });
 
         const obj = instance.objective || {};
-        if (obj.type === 'weighted_sum' && obj.weights) {
+        if (obj.type === 'SCALED_SUM' && obj.weights) {
             const weights = Object.values(obj.weights).map((w: any) => Number(w));
             const sum = weights.reduce((a, b) => a + Math.abs(b), 0);
             if (sum === 0 && weights.length > 0) {
