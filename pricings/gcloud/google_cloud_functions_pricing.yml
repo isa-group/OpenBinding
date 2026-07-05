@@ -1,0 +1,501 @@
+syntaxVersion: '3.2'
+name: Google Cloud Run Functions
+description: Google Cloud Run Functions priced as modern Cloud Run functions. This model covers request-based billing, request-based billing with minimum instances, instance-based billing and GPU instance-based billing. Cloud Functions 1st gen, Cloud Run jobs, worker pools, networking, Cloud Build, Artifact Registry and Eventarc are excluded.
+version: 0.1.0
+createdAt: '2026-05-07'
+url: https://cloud.google.com/run/pricing
+currency: USD
+billing:
+  monthly: 1
+  annual: 1
+  triannual: 1
+variables:
+  requestBasedRegion:
+    description: Google Cloud region used for Cloud Run functions with request-based billing.
+    defaultValue: us-central1
+    valueType: ENUM
+    enumValues: '#requestBasedPricesPerRegion.keys()'
+  requestBasedPricesPerRegion:
+    description: Cloud Run functions request-based prices by region. CUD fields are customBilling multipliers.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./google_cloud_functions_variables.yml
+      key: requestBasedPricesPerRegion
+  minimumInstancesRegion:
+    description: Google Cloud region used for Cloud Run functions with request-based billing and minimum instances. Availability can differ from the simple request-based map.
+    defaultValue: us-central1
+    valueType: ENUM
+    enumValues: '#minimumInstancesPricesPerRegion.keys()'
+  minimumInstancesPricesPerRegion:
+    description: Cloud Run request-based prices plus idle minimum-instance prices by region. CUD fields are customBilling multipliers.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./google_cloud_functions_variables.yml
+      key: minimumInstancesPricesPerRegion
+  instanceBasedRegion:
+    description: Google Cloud region used for Cloud Run functions with instance-based billing.
+    defaultValue: us-central1
+    valueType: ENUM
+    enumValues: '#instanceBasedPricesPerRegion.keys()'
+  instanceBasedPricesPerRegion:
+    description: Cloud Run instance-based CPU and memory prices by region. CUD fields are customBilling multipliers.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./google_cloud_functions_variables.yml
+      key: instanceBasedPricesPerRegion
+  gpuRegion:
+    description: Google Cloud region used for Cloud Run GPU instance-based billing.
+    defaultValue: us-central1
+    valueType: ENUM
+    enumValues: '#gpuPricesPerRegionAndType.keys()'
+  gpuType:
+    description: GPU type used by Cloud Run GPU services/functions.
+    defaultValue: nvidiaL4
+    valueType: ENUM
+    enumValues: '#gpuPricesPerRegionAndType[#gpuRegion].keys()'
+  gpuZonalRedundancy:
+    description: Whether the Cloud Run GPU price uses zonal redundancy. Cloud Run GPU requires instance-based billing and zonal redundancy can change GPU seconds pricing.
+    defaultValue: zonalRedundancy
+    valueType: ENUM
+    enumValues:
+      - zonalRedundancy
+      - noZonalRedundancy
+  gpuPricesPerRegionAndType:
+    description: Cloud Run GPU prices by region and GPU type. The GPU seconds price has zonalRedundancy and noZonalRedundancy variants.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./google_cloud_functions_variables.yml
+      key: gpuPricesPerRegionAndType
+features:
+  cloudRunFunctionsRequestBased:
+    description: Cloud Run functions using request-based billing. Google charges requests plus vCPU-seconds and GiB-seconds during billable request processing time.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  cloudRunFunctionsMinimumInstances:
+    description: Minimum instances kept warm under request-based billing. Idle minimum instances have separate idle vCPU-second and GiB-second rates; idle instances that are not minimum instances are not charged.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  cloudRunFunctionsInstanceBased:
+    description: Cloud Run functions using instance-based billing. Google charges the entire lifecycle of each instance and does not charge a per-request fee.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  cloudRunFunctionsGpu:
+    description: Cloud Run functions/services using GPUs. GPU services must use instance-based billing; GPU seconds are charged for the instance lifecycle, with different prices for zonal redundancy versus no zonal redundancy.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+usageLimits:
+  numberOfRequests:
+    description: Requests handled by request-based Cloud Run functions. The request-based free tier includes 2 million requests per month.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: request/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - cloudRunFunctionsRequestBased
+  computeTimeInVcpuSeconds:
+    description: Active request-based vCPU-seconds during billable request processing time. The request-based free tier includes 180,000 vCPU-seconds per month.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: vCPU-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - cloudRunFunctionsRequestBased
+  computeTimeInGibSeconds:
+    description: Active request-based memory time in GiB-seconds during billable request processing time. The request-based free tier includes 360,000 GiB-seconds per month.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GiB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - cloudRunFunctionsRequestBased
+  idleMinInstanceVcpuSeconds:
+    description: Idle vCPU-seconds for minimum instances kept warm under request-based billing.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: vCPU-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - cloudRunFunctionsMinimumInstances
+  idleMinInstanceGibSeconds:
+    description: Idle memory GiB-seconds for minimum instances kept warm under request-based billing.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GiB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - cloudRunFunctionsMinimumInstances
+  instanceBasedVcpuSeconds:
+    description: vCPU-seconds for Cloud Run functions with instance-based billing, charged over the full lifecycle of each instance. The instance-based free tier includes 240,000 vCPU-seconds per month.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: vCPU-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - cloudRunFunctionsInstanceBased
+  instanceBasedGibSeconds:
+    description: Memory GiB-seconds for Cloud Run functions with instance-based billing, charged over the full lifecycle of each instance. The instance-based free tier includes 450,000 GiB-seconds per month.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GiB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - cloudRunFunctionsInstanceBased
+  gpuSeconds:
+    description: GPU seconds for Cloud Run GPU instance-based billing. GPU services do not have per-request fees and the GPU price can differ with zonal redundancy.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GPU-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - cloudRunFunctionsGpu
+  gpuVcpuSeconds:
+    description: vCPU-seconds for Cloud Run GPU instances. GPU workloads still consume CPU under instance-based billing.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: vCPU-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - cloudRunFunctionsGpu
+      - cloudRunFunctionsInstanceBased
+  gpuGibSeconds:
+    description: Memory GiB-seconds for Cloud Run GPU instances. GPU workloads still consume memory under instance-based billing.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GiB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - cloudRunFunctionsGpu
+      - cloudRunFunctionsInstanceBased
+plans:
+  REQUEST_BASED:
+    description: Cloud Run functions with request-based billing. Includes the monthly free tier of 2 million requests, 180,000 vCPU-seconds and 360,000 GiB-seconds, applied as a spending-based discount using Tier 1 pricing.
+    price: 0
+    unit: per month
+    features:
+      cloudRunFunctionsRequestBased:
+        value: true
+    usageLimits:
+      numberOfRequests:
+        value: 2000000
+      computeTimeInVcpuSeconds:
+        value: 180000
+      computeTimeInGibSeconds:
+        value: 360000
+  REQUEST_BASED_WITH_MIN_INSTANCES:
+    description: Cloud Run functions with request-based billing and minimum instances. Active request processing uses request-based meters; idle warm minimum instances use idle minimum-instance meters.
+    price: 0
+    unit: per month
+    features:
+      cloudRunFunctionsRequestBased:
+        value: true
+      cloudRunFunctionsMinimumInstances:
+        value: true
+    usageLimits:
+      numberOfRequests:
+        value: 2000000
+      computeTimeInVcpuSeconds:
+        value: 180000
+      computeTimeInGibSeconds:
+        value: 360000
+      idleMinInstanceVcpuSeconds:
+        value: 0
+      idleMinInstanceGibSeconds:
+        value: 0
+  INSTANCE_BASED:
+    description: Cloud Run functions with instance-based billing. No per-request fee applies; CPU and memory are charged for the full lifecycle of instances. Includes the monthly free tier of 240,000 vCPU-seconds and 450,000 GiB-seconds.
+    price: 0
+    unit: per month
+    features:
+      cloudRunFunctionsInstanceBased:
+        value: true
+    usageLimits:
+      instanceBasedVcpuSeconds:
+        value: 240000
+      instanceBasedGibSeconds:
+        value: 450000
+  GPU_INSTANCE_BASED:
+    description: Cloud Run functions/services using GPU. GPU requires instance-based billing, has no per-request fee and charges GPU, CPU and memory for the full lifecycle of the instance.
+    price: 0
+    unit: per month
+    features:
+      cloudRunFunctionsInstanceBased:
+        value: true
+      cloudRunFunctionsGpu:
+        value: true
+    usageLimits:
+      gpuSeconds:
+        value: 0
+      gpuVcpuSeconds:
+        value: 240000
+      gpuGibSeconds:
+        value: 450000
+addOns:
+  additionalRequestBasedRequests:
+    description: Additional requests for request-based Cloud Run functions after the monthly free tier.
+    price: '#requestBasedPricesPerRegion[#requestBasedRegion]["request"]'
+    unit: per request
+    availableFor:
+      - REQUEST_BASED
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      numberOfRequests:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#requestBasedPricesPerRegion[#requestBasedRegion]["requestCommittedUseDiscount1Year"]'
+      triannual: '#requestBasedPricesPerRegion[#requestBasedRegion]["requestCommittedUseDiscount3Year"]'
+  additionalRequestBasedVcpuSeconds:
+    description: Additional active request-based vCPU-seconds after the monthly free tier.
+    price: '#requestBasedPricesPerRegion[#requestBasedRegion]["vcpuSecond"]'
+    unit: per vCPU-second
+    availableFor:
+      - REQUEST_BASED
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      computeTimeInVcpuSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#requestBasedPricesPerRegion[#requestBasedRegion]["vcpuCommittedUseDiscount1Year"]'
+      triannual: '#requestBasedPricesPerRegion[#requestBasedRegion]["vcpuCommittedUseDiscount3Year"]'
+  additionalRequestBasedGibSeconds:
+    description: Additional active request-based memory GiB-seconds after the monthly free tier.
+    price: '#requestBasedPricesPerRegion[#requestBasedRegion]["gibSecond"]'
+    unit: per GiB-second
+    availableFor:
+      - REQUEST_BASED
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      computeTimeInGibSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#requestBasedPricesPerRegion[#requestBasedRegion]["gibCommittedUseDiscount1Year"]'
+      triannual: '#requestBasedPricesPerRegion[#requestBasedRegion]["gibCommittedUseDiscount3Year"]'
+  additionalMinimumInstancesPlanRequests:
+    description: Additional requests for request-based Cloud Run functions with minimum instances after the monthly free tier.
+    price: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["request"]'
+    unit: per request
+    availableFor:
+      - REQUEST_BASED_WITH_MIN_INSTANCES
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      numberOfRequests:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["requestCommittedUseDiscount1Year"]'
+      triannual: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["requestCommittedUseDiscount3Year"]'
+  additionalMinimumInstancesPlanVcpuSeconds:
+    description: Additional active request-based vCPU-seconds for Cloud Run functions with minimum instances.
+    price: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["vcpuSecond"]'
+    unit: per vCPU-second
+    availableFor:
+      - REQUEST_BASED_WITH_MIN_INSTANCES
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      computeTimeInVcpuSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["vcpuCommittedUseDiscount1Year"]'
+      triannual: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["vcpuCommittedUseDiscount3Year"]'
+  additionalMinimumInstancesPlanGibSeconds:
+    description: Additional active request-based memory GiB-seconds for Cloud Run functions with minimum instances.
+    price: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["gibSecond"]'
+    unit: per GiB-second
+    availableFor:
+      - REQUEST_BASED_WITH_MIN_INSTANCES
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      computeTimeInGibSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["gibCommittedUseDiscount1Year"]'
+      triannual: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["gibCommittedUseDiscount3Year"]'
+  additionalIdleMinInstanceVcpuSeconds:
+    description: Idle vCPU-seconds for warm minimum instances under request-based billing.
+    price: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["idleVcpuSecond"]'
+    unit: per vCPU-second
+    availableFor:
+      - REQUEST_BASED_WITH_MIN_INSTANCES
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      idleMinInstanceVcpuSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["idleVcpuCommittedUseDiscount1Year"]'
+      triannual: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["idleVcpuCommittedUseDiscount3Year"]'
+  additionalIdleMinInstanceGibSeconds:
+    description: Idle memory GiB-seconds for warm minimum instances under request-based billing.
+    price: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["idleGibSecond"]'
+    unit: per GiB-second
+    availableFor:
+      - REQUEST_BASED_WITH_MIN_INSTANCES
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      idleMinInstanceGibSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["idleGibCommittedUseDiscount1Year"]'
+      triannual: '#minimumInstancesPricesPerRegion[#minimumInstancesRegion]["idleGibCommittedUseDiscount3Year"]'
+  additionalInstanceBasedVcpuSeconds:
+    description: Additional instance-based vCPU-seconds after the monthly free tier.
+    price: '#instanceBasedPricesPerRegion[#instanceBasedRegion]["vcpuSecond"]'
+    unit: per vCPU-second
+    availableFor:
+      - INSTANCE_BASED
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      instanceBasedVcpuSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#instanceBasedPricesPerRegion[#instanceBasedRegion]["vcpuCommittedUseDiscount1Year"]'
+      triannual: '#instanceBasedPricesPerRegion[#instanceBasedRegion]["vcpuCommittedUseDiscount3Year"]'
+  additionalInstanceBasedGibSeconds:
+    description: Additional instance-based memory GiB-seconds after the monthly free tier.
+    price: '#instanceBasedPricesPerRegion[#instanceBasedRegion]["gibSecond"]'
+    unit: per GiB-second
+    availableFor:
+      - INSTANCE_BASED
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      instanceBasedGibSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#instanceBasedPricesPerRegion[#instanceBasedRegion]["gibCommittedUseDiscount1Year"]'
+      triannual: '#instanceBasedPricesPerRegion[#instanceBasedRegion]["gibCommittedUseDiscount3Year"]'
+  additionalGpuSeconds:
+    description: Additional Cloud Run GPU seconds. GPU services have no request fee and are charged for the full lifecycle of the instance.
+    price: '#gpuPricesPerRegionAndType[#gpuRegion][#gpuType][#gpuZonalRedundancy]'
+    unit: per GPU-second
+    availableFor:
+      - GPU_INSTANCE_BASED
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      gpuSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalGpuVcpuSeconds:
+    description: Additional vCPU-seconds for Cloud Run GPU instances.
+    price: '#gpuPricesPerRegionAndType[#gpuRegion][#gpuType]["vcpuSecond"]'
+    unit: per vCPU-second
+    availableFor:
+      - GPU_INSTANCE_BASED
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      gpuVcpuSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#gpuPricesPerRegionAndType[#gpuRegion][#gpuType]["vcpuCommittedUseDiscount1Year"]'
+      triannual: '#gpuPricesPerRegionAndType[#gpuRegion][#gpuType]["vcpuCommittedUseDiscount3Year"]'
+  additionalGpuGibSeconds:
+    description: Additional memory GiB-seconds for Cloud Run GPU instances.
+    price: '#gpuPricesPerRegionAndType[#gpuRegion][#gpuType]["gibSecond"]'
+    unit: per GiB-second
+    availableFor:
+      - GPU_INSTANCE_BASED
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      gpuGibSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#gpuPricesPerRegionAndType[#gpuRegion][#gpuType]["gibCommittedUseDiscount1Year"]'
+      triannual: '#gpuPricesPerRegionAndType[#gpuRegion][#gpuType]["gibCommittedUseDiscount3Year"]'

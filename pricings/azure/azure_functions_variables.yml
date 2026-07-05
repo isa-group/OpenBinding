@@ -1,0 +1,1484 @@
+consumptionPricesPerRegion:
+  australiacentral:
+    execution: 0.000002
+    gbSecond: 0.000016
+  australiacentral2:
+    execution: 0.000002
+    gbSecond: 0.000016
+  australiaeast:
+    execution: 0.000002
+    gbSecond: 0.000016
+  australiasoutheast:
+    execution: 0.000002
+    gbSecond: 0.000016
+  austriaeast:
+    execution: 0.000002
+    gbSecond: 0.000016
+  belgiumcentral:
+    execution: 0.000002
+    gbSecond: 0.000016
+  brazilsouth:
+    execution: 0.000002
+    gbSecond: 0.000016
+  canadacentral:
+    execution: 0.000002
+    gbSecond: 0.000016
+  canadaeast:
+    execution: 0.000002
+    gbSecond: 0.000016
+  centralindia:
+    execution: 0.000002
+    gbSecond: 0.000016
+  centralus:
+    execution: 0.000002
+    gbSecond: 0.000016
+  deloscloudgermanycentral:
+    execution: 0.000002
+    gbSecond: 0.000018
+  deloscloudgermanynorth:
+    execution: 0.000002
+    gbSecond: 0.000018
+  denmarkeast:
+    execution: 0.000003
+    gbSecond: 0.000021
+  eastasia:
+    execution: 0.000002
+    gbSecond: 0.000016
+  eastus:
+    execution: 0.000002
+    gbSecond: 0.000016
+  eastus2:
+    execution: 0.000002
+    gbSecond: 0.000016
+  francecentral:
+    execution: 0.000002
+    gbSecond: 0.000016
+  francesouth:
+    execution: 0.000002
+    gbSecond: 0.000016
+  germanywestcentral:
+    execution: 0.000002
+    gbSecond: 0.000016
+  indonesiacentral:
+    execution: 0.000002
+    gbSecond: 0.000019
+  israelcentral:
+    execution: 0.000002
+    gbSecond: 0.000016
+  israelnorthwest:
+    execution: 0.000003
+    gbSecond: 0.000023
+  italynorth:
+    execution: 0.000002
+    gbSecond: 0.000016
+  japaneast:
+    execution: 0.000002
+    gbSecond: 0.000016
+  japanwest:
+    execution: 0.000002
+    gbSecond: 0.000016
+  jioindiawest:
+    execution: 0.000002
+    gbSecond: 0.000016
+  koreacentral:
+    execution: 0.000002
+    gbSecond: 0.000016
+  malaysiawest:
+    execution: 0.000002
+    gbSecond: 0.000019
+  mexicocentral:
+    execution: 0.000002
+    gbSecond: 0.000016
+  newzealandnorth:
+    execution: 0.000002
+    gbSecond: 0.000016
+  northcentralus:
+    execution: 0.000002
+    gbSecond: 0.000016
+  northeurope:
+    execution: 0.000002
+    gbSecond: 0.000016
+  norwayeast:
+    execution: 0.000002
+    gbSecond: 0.000016
+  polandcentral:
+    execution: 0.000002
+    gbSecond: 0.000016
+  southafricanorth:
+    execution: 0.000002
+    gbSecond: 0.000016
+  southafricawest:
+    execution: 0.000002
+    gbSecond: 0.000016
+  southcentralus:
+    execution: 0.000002
+    gbSecond: 0.000016
+  southcentralus2:
+    execution: 0.000002
+    gbSecond: 0.000018
+  southeastasia:
+    execution: 0.000002
+    gbSecond: 0.000016
+  southindia:
+    execution: 0.000002
+    gbSecond: 0.000016
+  spaincentral:
+    execution: 0.000002
+    gbSecond: 0.000016
+  swedencentral:
+    execution: 0.000002
+    gbSecond: 0.000016
+  swedensouth:
+    execution: 0.000002
+    gbSecond: 0.000016
+  switzerlandnorth:
+    execution: 0.000002
+    gbSecond: 0.000016
+  uaenorth:
+    execution: 0.000002
+    gbSecond: 0.000016
+  uksouth:
+    execution: 0.000002
+    gbSecond: 0.000016
+  ukwest:
+    execution: 0.000002
+    gbSecond: 0.000016
+  usgovarizona:
+    execution: 0.000002
+    gbSecond: 0.000016
+  usgovtexas:
+    execution: 0.000002
+    gbSecond: 0.000016
+  usgovvirginia:
+    execution: 0.000002
+    gbSecond: 0.000016
+  westcentralus:
+    execution: 0.000002
+    gbSecond: 0.000016
+  westeurope:
+    execution: 0.000002
+    gbSecond: 0.000016
+  westindia:
+    execution: 0.000002
+    gbSecond: 0.000016
+  westus:
+    execution: 0.000002
+    gbSecond: 0.000016
+  westus2:
+    execution: 0.000002
+    gbSecond: 0.000016
+  westus3:
+    execution: 0.000002
+    gbSecond: 0.000016
+flexConsumptionPricesPerRegion:
+  australiaeast:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  australiasoutheast:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  austriaeast:
+    onDemandExecution: 0.000005
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000034
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000005
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000021
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  belgiumcentral:
+    onDemandExecution: 0.000005
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000034
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000005
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000021
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  brazilsouth:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  canadacentral:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  canadaeast:
+    onDemandExecution: 0.000005
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000031
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000005
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  centralindia:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  centralus:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  eastasia:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  eastus:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  eastus2:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  francecentral:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  francesouth:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  germanynorth:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  germanywestcentral:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  indonesiacentral:
+    onDemandExecution: 0.000005
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000031
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000005
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  israelcentral:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  israelnorthwest:
+    onDemandExecution: 0.000006
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000006
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000006
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000023
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  italynorth:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  japaneast:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  japanwest:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  jioindiacentral:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  jioindiawest:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  koreacentral:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  koreasouth:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  malaysiawest:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000033
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000017
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  mexicocentral:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  newzealandnorth:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000039
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.00002
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  northcentralus:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  northeurope:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  norwayeast:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  norwaywest:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  polandcentral:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  southafricanorth:
+    onDemandExecution: 0.000006
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000038
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000006
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000006
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000023
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  southafricawest:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  southcentralus:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  southeastasia:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  southindia:
+    onDemandExecution: 0.000006
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000039
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000006
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000006
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000024
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  spaincentral:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  swedencentral:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  switzerlandnorth:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  switzerlandwest:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  uaecentral:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  uaenorth:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  uksouth:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  ukwest:
+    onDemandExecution: 0.000005
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000034
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000005
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000021
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  usgovvirginia:
+    onDemandExecution: 0.000005
+    onDemandExecutionSavingsPlan1Year: 1
+    onDemandExecutionSavingsPlan3Year: 1
+    onDemandGbSecond: 0.000033
+    onDemandGbSecondSavingsPlan1Year: 1
+    onDemandGbSecondSavingsPlan3Year: 1
+    alwaysReadyExecution: 0.000005
+    alwaysReadyExecutionSavingsPlan1Year: 1
+    alwaysReadyExecutionSavingsPlan3Year: 1
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 1
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 1
+    alwaysReadyExecutionGbSecond: 0.00002
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 1
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 1
+  westcentralus:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  westeurope:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  westus:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  westus2:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000026
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000004
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000016
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+  westus3:
+    onDemandExecution: 0.000004
+    onDemandExecutionSavingsPlan1Year: 0.83
+    onDemandExecutionSavingsPlan3Year: 0.83
+    onDemandGbSecond: 0.000037
+    onDemandGbSecondSavingsPlan1Year: 0.83
+    onDemandGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecution: 0.000004
+    alwaysReadyExecutionSavingsPlan1Year: 0.83
+    alwaysReadyExecutionSavingsPlan3Year: 0.83
+    alwaysReadyBaselineGbSecond: 0.000005
+    alwaysReadyBaselineGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyBaselineGbSecondSavingsPlan3Year: 0.83
+    alwaysReadyExecutionGbSecond: 0.000019
+    alwaysReadyExecutionGbSecondSavingsPlan1Year: 0.83
+    alwaysReadyExecutionGbSecondSavingsPlan3Year: 0.83
+premiumPricesPerRegion:
+  australiacentral:
+    vcpuSecond: 0.000050555556
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003611111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  australiacentral2:
+    vcpuSecond: 0.000050555556
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003611111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  australiaeast:
+    vcpuSecond: 0.000050555556
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003611111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  australiasoutheast:
+    vcpuSecond: 0.000049166667
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.0000035
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  austriaeast:
+    vcpuSecond: 0.000046944444
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003361111
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  belgiumcentral:
+    vcpuSecond: 0.000046944444
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003361111
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  brazilsouth:
+    vcpuSecond: 0.000050833333
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003638889
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  brazilsoutheast:
+    vcpuSecond: 0.000066083333
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000004730556
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  canadacentral:
+    vcpuSecond: 0.000048611111
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003472222
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  canadaeast:
+    vcpuSecond: 0.000047222222
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003388889
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  centralindia:
+    vcpuSecond: 0.000050555556
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003611111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  centralus:
+    vcpuSecond: 0.000048055556
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003416667
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  chilecentral:
+    vcpuSecond: 0.000062222222
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000004433333
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  deloscloudgermanycentral:
+    vcpuSecond: 0.000051638889
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003697222
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  deloscloudgermanynorth:
+    vcpuSecond: 0.000051638889
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003697222
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  denmarkeast:
+    vcpuSecond: 0.000046944444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003361111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  eastasia:
+    vcpuSecond: 0.000055555556
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003972222
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  eastus:
+    vcpuSecond: 0.000048055556
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003416667
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  eastus2:
+    vcpuSecond: 0.000044444444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003166667
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  francecentral:
+    vcpuSecond: 0.000051388889
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003666667
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  francesouth:
+    vcpuSecond: 0.000057222222
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000004083333
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  germanynorth:
+    vcpuSecond: 0.000054722222
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003916667
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  germanywestcentral:
+    vcpuSecond: 0.000046944444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003361111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  indiasouthcentral:
+    vcpuSecond: 0.000050555556
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003611111
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  indonesiacentral:
+    vcpuSecond: 0.000048055556
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003416667
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  israelcentral:
+    vcpuSecond: 0.000051638889
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003694444
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  israelnorthwest:
+    vcpuSecond: 0.000051638889
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003694444
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  italynorth:
+    vcpuSecond: 0.000046944444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003361111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  japaneast:
+    vcpuSecond: 0.000054444444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003888889
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  japanwest:
+    vcpuSecond: 0.000051944444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003722222
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  jioindiacentral:
+    vcpuSecond: 0.000050555556
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003611111
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  jioindiawest:
+    vcpuSecond: 0.000050555556
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003611111
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  koreacentral:
+    vcpuSecond: 0.00005
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003583333
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  koreasouth:
+    vcpuSecond: 0.000048333333
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003444444
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  malaysiawest:
+    vcpuSecond: 0.000048055556
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003416667
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  mexicocentral:
+    vcpuSecond: 0.000048888889
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003483333
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  newzealandnorth:
+    vcpuSecond: 0.000053083333
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003791667
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  northcentralus:
+    vcpuSecond: 0.000048055556
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003416667
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  northeurope:
+    vcpuSecond: 0.000046388889
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003305556
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  norwayeast:
+    vcpuSecond: 0.000051638889
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003697222
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  norwaywest:
+    vcpuSecond: 0.000067130556
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000004806389
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  polandcentral:
+    vcpuSecond: 0.000046944444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003361111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  qatarcentral:
+    vcpuSecond: 0.000051638889
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003694444
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  southafricanorth:
+    vcpuSecond: 0.000048888889
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.0000035
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  southafricawest:
+    vcpuSecond: 0.000053055556
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003805556
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  southcentralus:
+    vcpuSecond: 0.000045833333
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003277778
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  southeastasia:
+    vcpuSecond: 0.000049444444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003527778
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  southindia:
+    vcpuSecond: 0.000050555556
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003611111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  spaincentral:
+    vcpuSecond: 0.000046944444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003361111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  swedencentral:
+    vcpuSecond: 0.000046944444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003361111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  swedensouth:
+    vcpuSecond: 0.000061027778
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000004361111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  switzerlandnorth:
+    vcpuSecond: 0.00005
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003555556
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  switzerlandwest:
+    vcpuSecond: 0.000065
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000004611111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  uaecentral:
+    vcpuSecond: 0.000051666667
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003694444
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  uaenorth:
+    vcpuSecond: 0.000046944444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003361111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  uksouth:
+    vcpuSecond: 0.000051388889
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003666667
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  ukwest:
+    vcpuSecond: 0.000051388889
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003666667
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  usgovarizona:
+    vcpuSecond: 0.000055555556
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003972222
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  usgovtexas:
+    vcpuSecond: 0.000055555556
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003944444
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  usgovvirginia:
+    vcpuSecond: 0.000055555556
+    vcpuSecondSavingsPlan1Year: 1
+    vcpuSecondSavingsPlan3Year: 1
+    gbSecond: 0.000003972222
+    gbSecondSavingsPlan1Year: 1
+    gbSecondSavingsPlan3Year: 1
+  westcentralus:
+    vcpuSecond: 0.000046111111
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003277778
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  westeurope:
+    vcpuSecond: 0.000046944444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003361111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  westindia:
+    vcpuSecond: 0.000050555556
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003611111
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  westus:
+    vcpuSecond: 0.000047222222
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003388889
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  westus2:
+    vcpuSecond: 0.000044444444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003166667
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83
+  westus3:
+    vcpuSecond: 0.000044444444
+    vcpuSecondSavingsPlan1Year: 0.83
+    vcpuSecondSavingsPlan3Year: 0.83
+    gbSecond: 0.000003166667
+    gbSecondSavingsPlan1Year: 0.83
+    gbSecondSavingsPlan3Year: 0.83

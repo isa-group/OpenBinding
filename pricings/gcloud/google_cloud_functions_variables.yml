@@ -1,0 +1,1482 @@
+requestBasedPricesPerRegion:
+  africa-south1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  asia-east1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  asia-east2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  asia-northeast1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  asia-northeast2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  asia-northeast3:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  asia-south1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  asia-south2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  asia-southeast1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  asia-southeast2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  australia-southeast1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  australia-southeast2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  europe-central2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  europe-north1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  europe-southwest1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  europe-west1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  europe-west10:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  europe-west12:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  europe-west2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  europe-west3:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  europe-west4:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  europe-west6:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  europe-west8:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  europe-west9:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  me-central1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  me-central2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  me-west1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  northamerica-northeast1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  northamerica-northeast2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  southamerica-east1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  southamerica-west1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  us-central1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  us-east1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  us-east4:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  us-east5:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  us-east7:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  us-south1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  us-west1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  us-west2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  us-west3:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+  us-west4:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+minimumInstancesPricesPerRegion:
+  africa-south1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  asia-east1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  asia-east2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  asia-northeast1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  asia-northeast2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  asia-northeast3:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  asia-south1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  asia-south2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  asia-southeast1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  asia-southeast2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  australia-southeast1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  australia-southeast2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  europe-central2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  europe-north1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  europe-southwest1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  europe-west1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  europe-west10:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  europe-west12:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  europe-west2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  europe-west3:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  europe-west4:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  europe-west6:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  europe-west8:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  europe-west9:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  me-central1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  me-central2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  me-west1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  northamerica-northeast1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  northamerica-northeast2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  southamerica-east1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  southamerica-west1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  us-central1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  us-east1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  us-east4:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  us-east5:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  us-east7:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  us-south1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  us-west1:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.000024
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000025
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000025
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000025
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  us-west2:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  us-west3:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+  us-west4:
+    request: 0.0000004
+    requestCommittedUseDiscount1Year: 0.83
+    requestCommittedUseDiscount3Year: 0.83
+    vcpuSecond: 0.0000336
+    vcpuCommittedUseDiscount1Year: 0.83
+    vcpuCommittedUseDiscount3Year: 0.83
+    gibSecond: 0.0000035
+    gibCommittedUseDiscount1Year: 0.83
+    gibCommittedUseDiscount3Year: 0.83
+    idleVcpuSecond: 0.0000035
+    idleVcpuCommittedUseDiscount1Year: 0.83
+    idleVcpuCommittedUseDiscount3Year: 0.83
+    idleGibSecond: 0.0000035
+    idleGibCommittedUseDiscount1Year: 0.83
+    idleGibCommittedUseDiscount3Year: 0.83
+instanceBasedPricesPerRegion:
+  africa-south1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  asia-east1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  asia-east2:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  asia-northeast1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  asia-northeast2:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  asia-northeast3:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  asia-south1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  asia-south2:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  asia-southeast1:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  asia-southeast2:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  asia-southeast3:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  australia-southeast1:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  australia-southeast2:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-central2:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-north1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-north2:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-southwest1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-west1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-west10:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-west12:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-west2:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-west3:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-west4:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-west6:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-west8:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  europe-west9:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  me-central1:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  me-central2:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  me-west1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  northamerica-northeast1:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  northamerica-northeast2:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  northamerica-south1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  southamerica-east1:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  southamerica-west1:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  us-central1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  us-east1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  us-east4:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  us-east5:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  us-east7:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  us-south1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  us-west1:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  us-west2:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  us-west3:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  us-west4:
+    vcpuSecond: 0.0000216
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.0000024
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+  us-west8:
+    vcpuSecond: 0.000018
+    vcpuCommittedUseDiscount1Year: 0.72
+    vcpuCommittedUseDiscount3Year: 0.54
+    gibSecond: 0.000002
+    gibCommittedUseDiscount1Year: 0.72
+    gibCommittedUseDiscount3Year: 0.54
+gpuPricesPerRegionAndType:
+  asia-south1:
+    nvidiaL4:
+      zonalRedundancy: 0.0002909
+      noZonalRedundancy: 0.0001867
+      vcpuSecond: 0.000018
+      vcpuCommittedUseDiscount1Year: 0.72
+      vcpuCommittedUseDiscount3Year: 0.54
+      gibSecond: 0.000002
+      gibCommittedUseDiscount1Year: 0.72
+      gibCommittedUseDiscount3Year: 0.54
+  asia-south2:
+    nvidiaRtxPro6000:
+      zonalRedundancy: 0.00068296
+      noZonalRedundancy: 0.00043826
+      vcpuSecond: 0.0000216
+      vcpuCommittedUseDiscount1Year: 0.72
+      vcpuCommittedUseDiscount3Year: 0.54
+      gibSecond: 0.0000024
+      gibCommittedUseDiscount1Year: 0.72
+      gibCommittedUseDiscount3Year: 0.54
+  asia-southeast1:
+    nvidiaL4:
+      zonalRedundancy: 0.00034908
+      noZonalRedundancy: 0.00022404
+      vcpuSecond: 0.0000216
+      vcpuCommittedUseDiscount1Year: 0.72
+      vcpuCommittedUseDiscount3Year: 0.54
+      gibSecond: 0.0000024
+      gibCommittedUseDiscount1Year: 0.72
+      gibCommittedUseDiscount3Year: 0.54
+    nvidiaRtxPro6000:
+      zonalRedundancy: 0.00068296
+      noZonalRedundancy: 0.00043826
+      vcpuSecond: 0.0000216
+      vcpuCommittedUseDiscount1Year: 0.72
+      vcpuCommittedUseDiscount3Year: 0.54
+      gibSecond: 0.0000024
+      gibCommittedUseDiscount1Year: 0.72
+      gibCommittedUseDiscount3Year: 0.54
+  europe-west1:
+    nvidiaL4:
+      zonalRedundancy: 0.0002909
+      noZonalRedundancy: 0.0001867
+      vcpuSecond: 0.000018
+      vcpuCommittedUseDiscount1Year: 0.72
+      vcpuCommittedUseDiscount3Year: 0.54
+      gibSecond: 0.000002
+      gibCommittedUseDiscount1Year: 0.72
+      gibCommittedUseDiscount3Year: 0.54
+  europe-west4:
+    nvidiaL4:
+      zonalRedundancy: 0.0002909
+      noZonalRedundancy: 0.0001867
+      vcpuSecond: 0.000018
+      vcpuCommittedUseDiscount1Year: 0.72
+      vcpuCommittedUseDiscount3Year: 0.54
+      gibSecond: 0.000002
+      gibCommittedUseDiscount1Year: 0.72
+      gibCommittedUseDiscount3Year: 0.54
+    nvidiaRtxPro6000:
+      zonalRedundancy: 0.00056913
+      noZonalRedundancy: 0.00036522
+      vcpuSecond: 0.000018
+      vcpuCommittedUseDiscount1Year: 0.72
+      vcpuCommittedUseDiscount3Year: 0.54
+      gibSecond: 0.000002
+      gibCommittedUseDiscount1Year: 0.72
+      gibCommittedUseDiscount3Year: 0.54
+  us-central1:
+    nvidiaL4:
+      zonalRedundancy: 0.0002909
+      noZonalRedundancy: 0.0001867
+      vcpuSecond: 0.000018
+      vcpuCommittedUseDiscount1Year: 0.72
+      vcpuCommittedUseDiscount3Year: 0.54
+      gibSecond: 0.000002
+      gibCommittedUseDiscount1Year: 0.72
+      gibCommittedUseDiscount3Year: 0.54
+    nvidiaRtxPro6000:
+      zonalRedundancy: 0.00056913
+      noZonalRedundancy: 0.00036522
+      vcpuSecond: 0.000018
+      vcpuCommittedUseDiscount1Year: 0.72
+      vcpuCommittedUseDiscount3Year: 0.54
+      gibSecond: 0.000002
+      gibCommittedUseDiscount1Year: 0.72
+      gibCommittedUseDiscount3Year: 0.54
+  us-east4:
+    nvidiaL4:
+      zonalRedundancy: 0.0002909
+      noZonalRedundancy: 0.0001867
+      vcpuSecond: 0.000018
+      vcpuCommittedUseDiscount1Year: 0.72
+      vcpuCommittedUseDiscount3Year: 0.54
+      gibSecond: 0.000002
+      gibCommittedUseDiscount1Year: 0.72
+      gibCommittedUseDiscount3Year: 0.54

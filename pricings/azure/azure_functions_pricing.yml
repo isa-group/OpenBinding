@@ -1,0 +1,351 @@
+syntaxVersion: '3.2'
+name: Azure Functions
+description: Azure Functions pricing model covering Consumption, Flex Consumption and Premium. Storage accounts, networking, App Service plan hosting and other dependent Azure services are excluded.
+version: 0.1.0
+createdAt: '2026-05-07'
+url: https://azure.microsoft.com/pricing/details/functions/
+currency: USD
+billing:
+  monthly: 1
+  annual: 1
+  triannual: 1
+variables:
+  consumptionRegion:
+    description: Azure region used for the legacy Consumption plan meters.
+    defaultValue: eastus
+    valueType: ENUM
+    enumValues: '#consumptionPricesPerRegion.keys()'
+  consumptionPricesPerRegion:
+    description: Consumption plan execution and GB-second prices by region.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./azure_functions_variables.yml
+      key: consumptionPricesPerRegion
+  flexConsumptionRegion:
+    description: Azure region used for Flex Consumption meters. Flex regional availability can differ from Consumption and Premium.
+    defaultValue: belgiumcentral
+    valueType: ENUM
+    enumValues: '#flexConsumptionPricesPerRegion.keys()'
+  flexConsumptionPricesPerRegion:
+    description: Flex Consumption on-demand and Always Ready prices by region. Savings plan fields are customBilling multipliers.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./azure_functions_variables.yml
+      key: flexConsumptionPricesPerRegion
+  premiumRegion:
+    description: Azure region used for Premium plan meters.
+    defaultValue: eastus
+    valueType: ENUM
+    enumValues: '#premiumPricesPerRegion.keys()'
+  premiumPricesPerRegion:
+    description: Premium vCPU-second and GB-second prices by region. Savings plan fields are customBilling multipliers.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./azure_functions_variables.yml
+      key: premiumPricesPerRegion
+features:
+  azureFunctionsConsumption:
+    description: Azure Functions Consumption plan. Billing is based on observed execution resource consumption in GB-seconds and total executions, with monthly free grants.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  azureFunctionsFlexConsumption:
+    description: Azure Functions Flex Consumption on-demand execution. Billing has on-demand execution-time and total-execution meters with separate monthly free grants.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  azureFunctionsFlexAlwaysReady:
+    description: Azure Functions Flex Consumption Always Ready. Always Ready has baseline GB-second, execution GB-second and execution-count meters; the Flex on-demand free grant applies only to on-demand meters.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  azureFunctionsPremium:
+    description: Azure Functions Premium plan. Billing is per second based on allocated vCPU-seconds and memory GB-seconds; there is no execution charge and at least one instance must be allocated at all times per plan.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+usageLimits:
+  numberOfExecutions:
+    description: Executions handled by Consumption or Flex Consumption on-demand. Consumption includes 1 million executions per month; Flex Consumption on-demand includes 250,000 executions per month.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: execution/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - azureFunctionsConsumption
+      - azureFunctionsFlexConsumption
+  computeTimeInGbSeconds:
+    description: On-demand execution resource consumption in GB-seconds for Consumption or Flex Consumption. Consumption includes 400,000 GB-s per month; Flex on-demand includes 100,000 GB-s per month.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - azureFunctionsConsumption
+      - azureFunctionsFlexConsumption
+  alwaysReadyExecutions:
+    description: Executions handled by Flex Consumption Always Ready instances. These do not share the Flex on-demand free execution grant.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: execution/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - azureFunctionsFlexAlwaysReady
+  alwaysReadyBaselineInGbSeconds:
+    description: Baseline GB-seconds for Flex Consumption Always Ready instances while kept ready.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - azureFunctionsFlexAlwaysReady
+  alwaysReadyExecutionTimeInGbSeconds:
+    description: Execution GB-seconds consumed by functions running on Flex Consumption Always Ready instances.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - azureFunctionsFlexAlwaysReady
+  premiumComputeTimeInVcpuSeconds:
+    description: vCPU-seconds allocated to Azure Functions Premium instances.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: vCPU-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - azureFunctionsPremium
+  premiumMemoryTimeInGbSeconds:
+    description: Memory GB-seconds allocated to Azure Functions Premium instances.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - azureFunctionsPremium
+plans:
+  CONSUMPTION:
+    description: Azure Functions Consumption plan. Includes 1 million executions and 400,000 GB-s per month per subscription for paid consumption subscriptions.
+    price: 0
+    unit: per month
+    features:
+      azureFunctionsConsumption:
+        value: true
+    usageLimits:
+      numberOfExecutions:
+        value: 1000000
+      computeTimeInGbSeconds:
+        value: 400000
+  FLEX_CONSUMPTION:
+    description: Azure Functions Flex Consumption. Includes Flex on-demand free grants of 250,000 executions and 100,000 GB-s per month. Always Ready meters have no on-demand free grant.
+    price: 0
+    unit: per month
+    features:
+      azureFunctionsFlexConsumption:
+        value: true
+      azureFunctionsFlexAlwaysReady:
+        value: true
+    usageLimits:
+      numberOfExecutions:
+        value: 250000
+      computeTimeInGbSeconds:
+        value: 100000
+      alwaysReadyExecutions:
+        value: 0
+      alwaysReadyBaselineInGbSeconds:
+        value: 0
+      alwaysReadyExecutionTimeInGbSeconds:
+        value: 0
+  PREMIUM:
+    description: Azure Functions Premium plan. There is no execution charge; billing is based on allocated vCPU-seconds and GB-seconds, with at least one instance allocated at all times per plan.
+    price: 0
+    unit: per month
+    features:
+      azureFunctionsPremium:
+        value: true
+    usageLimits:
+      premiumComputeTimeInVcpuSeconds:
+        value: 0
+      premiumMemoryTimeInGbSeconds:
+        value: 0
+addOns:
+  additionalConsumptionExecutions:
+    description: Additional executions for Azure Functions Consumption after the monthly free grant.
+    price: '#consumptionPricesPerRegion[#consumptionRegion]["execution"]'
+    unit: per execution
+    availableFor:
+      - CONSUMPTION
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      numberOfExecutions:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalConsumptionGbSeconds:
+    description: Additional GB-seconds for Azure Functions Consumption after the monthly free grant.
+    price: '#consumptionPricesPerRegion[#consumptionRegion]["gbSecond"]'
+    unit: per GB-second
+    availableFor:
+      - CONSUMPTION
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      computeTimeInGbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalFlexOnDemandExecutions:
+    description: Additional on-demand executions for Azure Functions Flex Consumption after the monthly free grant.
+    price: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["onDemandExecution"]'
+    unit: per execution
+    availableFor:
+      - FLEX_CONSUMPTION
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      numberOfExecutions:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["onDemandExecutionSavingsPlan1Year"]'
+      triannual: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["onDemandExecutionSavingsPlan3Year"]'
+  additionalFlexOnDemandGbSeconds:
+    description: Additional on-demand GB-seconds for Azure Functions Flex Consumption after the monthly free grant.
+    price: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["onDemandGbSecond"]'
+    unit: per GB-second
+    availableFor:
+      - FLEX_CONSUMPTION
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      computeTimeInGbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["onDemandGbSecondSavingsPlan1Year"]'
+      triannual: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["onDemandGbSecondSavingsPlan3Year"]'
+  additionalFlexAlwaysReadyExecutions:
+    description: Executions handled by Flex Consumption Always Ready instances. These executions do not share the Flex on-demand free execution grant.
+    price: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["alwaysReadyExecution"]'
+    unit: per execution
+    availableFor:
+      - FLEX_CONSUMPTION
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      alwaysReadyExecutions:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["alwaysReadyExecutionSavingsPlan1Year"]'
+      triannual: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["alwaysReadyExecutionSavingsPlan3Year"]'
+  additionalFlexAlwaysReadyBaselineGbSeconds:
+    description: Baseline GB-seconds for Flex Consumption Always Ready instances kept ready.
+    price: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["alwaysReadyBaselineGbSecond"]'
+    unit: per GB-second
+    availableFor:
+      - FLEX_CONSUMPTION
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      alwaysReadyBaselineInGbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["alwaysReadyBaselineGbSecondSavingsPlan1Year"]'
+      triannual: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["alwaysReadyBaselineGbSecondSavingsPlan3Year"]'
+  additionalFlexAlwaysReadyExecutionGbSeconds:
+    description: Execution GB-seconds consumed by functions running on Flex Consumption Always Ready instances.
+    price: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["alwaysReadyExecutionGbSecond"]'
+    unit: per GB-second
+    availableFor:
+      - FLEX_CONSUMPTION
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      alwaysReadyExecutionTimeInGbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["alwaysReadyExecutionGbSecondSavingsPlan1Year"]'
+      triannual: '#flexConsumptionPricesPerRegion[#flexConsumptionRegion]["alwaysReadyExecutionGbSecondSavingsPlan3Year"]'
+  additionalPremiumVcpuSeconds:
+    description: Additional vCPU-seconds allocated to Azure Functions Premium instances.
+    price: '#premiumPricesPerRegion[#premiumRegion]["vcpuSecond"]'
+    unit: per vCPU-second
+    availableFor:
+      - PREMIUM
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      premiumComputeTimeInVcpuSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#premiumPricesPerRegion[#premiumRegion]["vcpuSecondSavingsPlan1Year"]'
+      triannual: '#premiumPricesPerRegion[#premiumRegion]["vcpuSecondSavingsPlan3Year"]'
+  additionalPremiumGbSeconds:
+    description: Additional memory GB-seconds allocated to Azure Functions Premium instances.
+    price: '#premiumPricesPerRegion[#premiumRegion]["gbSecond"]'
+    unit: per GB-second
+    availableFor:
+      - PREMIUM
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      premiumMemoryTimeInGbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#premiumPricesPerRegion[#premiumRegion]["gbSecondSavingsPlan1Year"]'
+      triannual: '#premiumPricesPerRegion[#premiumRegion]["gbSecondSavingsPlan3Year"]'

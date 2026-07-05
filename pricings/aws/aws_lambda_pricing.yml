@@ -1,0 +1,875 @@
+syntaxVersion: '3.2'
+name: AWS Lambda
+description: AWS Lambda pricing model covering on-demand Lambda, Provisioned Concurrency, optional Lambda capabilities, Lambda Managed Instances, Lambda@Edge and Provisioned Mode for Event Source Mapping. Data transfer, VPC networking, EFS, S3, CloudFront and other dependent AWS services are excluded.
+version: 0.1.0
+createdAt: '2026-05-07'
+url: https://aws.amazon.com/lambda/pricing/
+currency: USD
+billing:
+  monthly: 1
+  annual: 1
+  triannual: 1
+variables:
+  region:
+    description: AWS Region used for on-demand Lambda request and duration pricing.
+    defaultValue: us-east-1
+    valueType: ENUM
+    enumValues: '#pricesPerRegionAndArchitecture.keys()'
+  architecture:
+    description: Lambda instruction-set architecture for regional Lambda compute meters.
+    defaultValue: x86
+    valueType: ENUM
+    enumValues: '#limitsGbSeconds.keys()'
+  limitsGbSeconds:
+    description: Tier thresholds for on-demand Lambda duration GB-seconds by architecture.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./lambda_variables.yml
+      key: limitsGbSeconds
+  pricesPerRegionAndArchitecture:
+    description: On-demand Lambda request and duration prices by region and architecture. durationDiscount1Year and durationDiscount3Year are independent Savings Plans multipliers for annual and triannual custom billing.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./lambda_variables.yml
+      key: pricesPerRegionAndArchitecture
+  provisionedConcurrencyRegion:
+    description: AWS Region used for Provisioned Concurrency pricing. Availability and tiering can differ from on-demand Lambda.
+    defaultValue: us-east-1
+    valueType: ENUM
+    enumValues: '#provisionedConcurrencyPricesPerRegionAndArchitecture.keys()'
+  provisionedConcurrencyArchitecture:
+    description: Lambda architecture used for Provisioned Concurrency configured-capacity and execution-duration meters.
+    defaultValue: x86
+    valueType: ENUM
+    enumValues: '#limitsGbSeconds.keys()'
+  provisionedConcurrencyPricesPerRegionAndArchitecture:
+    description: Provisioned Concurrency request, configured-capacity and execution-duration prices by region and architecture. Discount fields are Savings Plans multipliers.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./lambda_variables.yml
+      key: provisionedConcurrencyPricesPerRegionAndArchitecture
+  ephemeralStorageRegion:
+    description: AWS Region used for additional ephemeral storage pricing.
+    defaultValue: us-east-1
+    valueType: ENUM
+    enumValues: '#ephemeralStoragePricesPerRegionAndArchitecture.keys()'
+  ephemeralStorageArchitecture:
+    description: Lambda architecture used for additional ephemeral storage pricing when AWS exposes architecture-specific SKUs.
+    defaultValue: x86
+    valueType: ENUM
+    enumValues: '#ephemeralStoragePricesPerRegionAndArchitecture[#ephemeralStorageRegion].keys()'
+  ephemeralStoragePricesPerRegionAndArchitecture:
+    description: Additional ephemeral storage prices by region and architecture. 512 MB are included at no additional cost; the add-on represents the additional GB-seconds configured above 512 MB.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./lambda_variables.yml
+      key: ephemeralStoragePricesPerRegionAndArchitecture
+  responseStreamingRegion:
+    description: AWS Region used for Lambda HTTP response stream pricing.
+    defaultValue: us-east-1
+    valueType: ENUM
+    enumValues: '#responseStreamingPricesPerRegion.keys()'
+  responseStreamingPricesPerRegion:
+    description: HTTP response stream prices by region. The usage limit expects billable GB after the first 6 MB per request and after the monthly free tier.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./lambda_variables.yml
+      key: responseStreamingPricesPerRegion
+  snapStartRegion:
+    description: AWS Region used for SnapStart pricing. SnapStart is unavailable in some Regions.
+    defaultValue: us-east-1
+    valueType: ENUM
+    enumValues: '#snapStartPricesPerRegionAndArchitecture.keys()'
+  snapStartArchitecture:
+    description: Architecture used for SnapStart cache and restore meters when AWS exposes architecture-specific SKUs.
+    defaultValue: x86
+    valueType: ENUM
+    enumValues: '#snapStartPricesPerRegionAndArchitecture[#snapStartRegion].keys()'
+  snapStartPricesPerRegionAndArchitecture:
+    description: SnapStart cache GB-second and restore GB prices by region and architecture. SnapStart cache has a minimum charge of 3 hours per active function version.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./lambda_variables.yml
+      key: snapStartPricesPerRegionAndArchitecture
+  tenantIsolationRegion:
+    description: AWS Region used for Lambda tenant isolation pricing.
+    defaultValue: us-east-1
+    valueType: ENUM
+    enumValues: '#tenantIsolationPricesPerRegionAndArchitecture.keys()'
+  tenantIsolationArchitecture:
+    description: Architecture used for tenant-isolated execution environment pricing.
+    defaultValue: x86
+    valueType: ENUM
+    enumValues: '#tenantIsolationPricesPerRegionAndArchitecture[#tenantIsolationRegion].keys()'
+  tenantIsolationPricesPerRegionAndArchitecture:
+    description: Tenant isolation prices by region and architecture. The price depends on memory and architecture; the usage limit is expressed as GB-weighted execution environments.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./lambda_variables.yml
+      key: tenantIsolationPricesPerRegionAndArchitecture
+  durableFunctionsRegion:
+    description: AWS Region used for Lambda Durable Functions durable operations, data written and data retained pricing.
+    defaultValue: us-east-1
+    valueType: ENUM
+    enumValues: '#durableFunctionsPricesPerRegion.keys()'
+  durableFunctionsPricesPerRegion:
+    description: Lambda Durable Functions prices by region for durable operations, data written and data retained. Lambda compute and request charges remain modeled by the on-demand add-ons.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./lambda_variables.yml
+      key: durableFunctionsPricesPerRegion
+  eventSourceMappingRegion:
+    description: AWS Region used for Provisioned Mode for Event Source Mapping pricing.
+    defaultValue: us-east-1
+    valueType: ENUM
+    enumValues: '#eventSourceMappingProvisionedModePricesPerRegionAndSourceType.keys()'
+  eventSourceMappingSourceType:
+    description: Event source type for Provisioned Mode for Event Source Mapping. SQS and Kafka/MSK/self-managed Kafka have different EPU economics.
+    defaultValue: kafka
+    valueType: ENUM
+    enumValues: '#eventSourceMappingProvisionedModePricesPerRegionAndSourceType[#eventSourceMappingRegion].keys()'
+  eventSourceMappingProvisionedModePricesPerRegionAndSourceType:
+    description: Provisioned Mode for Event Source Mapping prices by region and source type, measured in Event-Poller-Unit-hours.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./lambda_variables.yml
+      key: eventSourceMappingProvisionedModePricesPerRegionAndSourceType
+  managedInstanceRegion:
+    description: AWS Region used for Lambda Managed Instances pricing.
+    defaultValue: us-east-1
+    valueType: ENUM
+    enumValues: '#managedInstancePricesPerRegionAndType.keys()'
+  managedInstanceType:
+    description: EC2 instance type used by Lambda Managed Instances capacity providers.
+    defaultValue: m7g.xlarge
+    valueType: ENUM
+    enumValues: '#managedInstancePricesPerRegionAndType[#managedInstanceRegion].keys()'
+  managedInstancePricesPerRegionAndType:
+    description: Lambda Managed Instances request, EC2 instance-hour and Lambda management-fee prices by region and instance type. EC2 discounts apply only to the EC2 instance-hour add-on, not to the management fee.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./lambda_variables.yml
+      key: managedInstancePricesPerRegionAndType
+  edgePrices:
+    description: Lambda@Edge global request and compute prices. Lambda@Edge compute is measured per 128 MB-second.
+    valueType: EXTERNAL
+    connector:
+      type: LOCAL
+      path: ./lambda_variables.yml
+      key: edgePrices
+features:
+  lambdaFunctions:
+    description: Regional AWS Lambda functions using the default on-demand compute type. Requests are billable request units; asynchronous events over 256 KB can count as additional request units.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  lambdaProvisionedConcurrency:
+    description: Provisioned Concurrency keeps Lambda execution environments initialized and ready. You pay for configured capacity while enabled and for requests and duration served while enabled; the Lambda free tier does not apply to functions using Provisioned Concurrency.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  lambdaEphemeralStorage:
+    description: Additional Lambda ephemeral storage in /tmp above the included 512 MB. AWS allows 512 MB to 10,240 MB in 1 MB increments and charges only the additional configured storage.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  lambdaResponseStreaming:
+    description: Lambda HTTP response streaming via InvokeWithResponseStream or function URLs using ResponseStream mode. The first 6 MB per request are free; this model expects billable streamed GB after that per-request allowance.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  lambdaSnapStart:
+    description: Lambda SnapStart caches initialized snapshots and restores execution environments from them. AWS charges cache while a published function version is active, with a 3-hour minimum, and charges each restore; both depend on configured memory. SnapStart does not support Provisioned Concurrency, EFS, or ephemeral storage greater than 512 MB.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  lambdaTenantIsolation:
+    description: Lambda tenant isolation creates execution environments dedicated to individual tenants. Charges apply when Lambda creates a tenant-isolated execution environment and depend on allocated memory and architecture.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  lambdaDurableFunctions:
+    description: Lambda Durable Functions for resilient multi-step workflows. Durable operations, data written and data retained are charged in addition to normal Lambda compute and request charges.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  lambdaEventSourceMappingProvisionedMode:
+    description: Provisioned Mode for Lambda Event Source Mapping allocates event pollers and charges Event-Poller-Unit-hours. SQS and Kafka/MSK/self-managed Kafka have different EPU throughput semantics and prices.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  lambdaManagedInstances:
+    description: Lambda Managed Instances runs Lambda functions on fully managed EC2 instances in a VPC. Pricing has request charges, EC2 instance charges and a Lambda management fee; execution duration is not billed separately as in default Lambda compute.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+  lambdaEdgeFunctions:
+    description: Lambda@Edge functions associated with CloudFront. Lambda@Edge uses distinct request pricing and compute metered per 128 MB-second at 1 ms granularity.
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: false
+usageLimits:
+  creationOfLambdaFunctions:
+    description: The number of regional Lambda functions included in the selected plan.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: function
+    type: NON_RENEWABLE
+    linkedFeatures:
+      - lambdaFunctions
+  numberOfRequests:
+    description: Billable request units for on-demand regional Lambda. The on-demand free tier includes 1 million request units per month.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: request/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaFunctions
+  computeTimeInGbSeconds:
+    description: On-demand regional Lambda compute duration in GB-seconds. The on-demand free tier includes 400,000 GB-seconds per month.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaFunctions
+  provisionedConcurrencyRequests:
+    description: Requests handled while Provisioned Concurrency is enabled. The on-demand Lambda free tier does not apply.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: request/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaProvisionedConcurrency
+  provisionedConcurrencyConfiguredGbSeconds:
+    description: Configured Provisioned Concurrency capacity, measured as allocated memory GB multiplied by configured concurrency and configured seconds. AWS rounds configured time up to the nearest five minutes.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaProvisionedConcurrency
+  provisionedConcurrencyComputeTimeInGbSeconds:
+    description: Execution duration served while Provisioned Concurrency is enabled, measured in GB-seconds. AWS bills handler code, initialization code and extension shutdown time where applicable.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaProvisionedConcurrency
+  ephemeralStorageGbSeconds:
+    description: Additional ephemeral storage GB-seconds above the included 512 MB. SnapStart cannot be combined with additional ephemeral storage above 512 MB.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaEphemeralStorage
+  responseStreamingGb:
+    description: Billable HTTP response stream GB after the first 6 MB per request and after the monthly 100 GiB free tier. Use net billable GB rather than total payload GB.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaResponseStreaming
+  snapStartCacheGbSeconds:
+    description: SnapStart snapshot cache GB-seconds while a published function version is active. AWS applies a 3-hour minimum per active snapshot.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaSnapStart
+  snapStartRestoreGb:
+    description: SnapStart restore usage in GB. Each restore is weighted by the configured memory of the function.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaSnapStart
+  tenantIsolatedExecutionEnvironmentGb:
+    description: Tenant-isolated execution environments created, weighted by configured memory in GB. Tenant Isolation does not support Provisioned Concurrency or SnapStart.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB-weighted environment/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaTenantIsolation
+  durableOperations:
+    description: Lambda Durable Functions operations such as starts, steps and waits.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: operation/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaDurableFunctions
+  durableDataWrittenGb:
+    description: Data written by Lambda Durable Functions checkpoints and state transitions.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaDurableFunctions
+  durableDataRetainedGbMonth:
+    description: Data retained by Lambda Durable Functions, including running waits and post-completion retention.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: GB-month/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaDurableFunctions
+  eventPollerUnitHours:
+    description: Event-Poller-Unit-hours consumed by Provisioned Mode for Lambda Event Source Mapping. Pricing is per second with a 1-minute minimum.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: EPU-hour/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaEventSourceMappingProvisionedMode
+  managedInstanceRequests:
+    description: Requests processed by Lambda Managed Instances. This is separate from on-demand Lambda requests to avoid applying the on-demand free tier accidentally.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: request/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaManagedInstances
+  managedEc2InstanceHours:
+    description: EC2 instance-hours consumed by Lambda Managed Instances. EC2 Savings Plans or Reserved Instances may reduce this component.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: instance-hour/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaManagedInstances
+  managedInstanceManagementFeeHours:
+    description: Lambda management-fee hours for Managed Instances. AWS states the management fee is a 15% premium on EC2 on-demand instance price and is not the EC2 instance charge itself.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: instance-hour/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaManagedInstances
+  edgeRequests:
+    description: Lambda@Edge requests.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: request/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaEdgeFunctions
+  edgeCompute128MbSeconds:
+    description: Lambda@Edge compute measured in 128 MB-seconds at 1 ms granularity.
+    valueType: NUMERIC
+    defaultValue: 0
+    unit: 128MB-second/month
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    linkedFeatures:
+      - lambdaEdgeFunctions
+plans:
+  ON_DEMAND:
+    description: AWS Lambda on-demand regional compute. Includes 1 million request units and 400,000 GB-seconds per month in the Lambda free tier. The plan also includes the 100 GiB monthly response streaming free tier; the first 6 MB streamed per request are free and should be subtracted before using the responseStreamingGb add-on.
+    price: 0
+    unit: per month
+    features:
+      lambdaFunctions:
+        value: true
+    usageLimits:
+      creationOfLambdaFunctions:
+        value: 1
+      numberOfRequests:
+        value: 1000000
+      computeTimeInGbSeconds:
+        value: 400000
+      responseStreamingGb:
+        value: 100
+  PROVISIONED_CONCURRENCY:
+    description: AWS Lambda with Provisioned Concurrency enabled. You pay for configured Provisioned Concurrency capacity, requests and execution duration while enabled; the on-demand Lambda free tier does not apply to this plan.
+    price: 0
+    unit: per month
+    features:
+      lambdaFunctions:
+        value: true
+      lambdaProvisionedConcurrency:
+        value: true
+    usageLimits:
+      creationOfLambdaFunctions:
+        value: 1
+      provisionedConcurrencyRequests:
+        value: 0
+      provisionedConcurrencyConfiguredGbSeconds:
+        value: 0
+      provisionedConcurrencyComputeTimeInGbSeconds:
+        value: 0
+      responseStreamingGb:
+        value: 100
+  MANAGED_INSTANCES:
+    description: AWS Lambda Managed Instances. Pricing is split into Managed Instance requests, EC2 instance-hours and Lambda management-fee hours. Execution duration is not billed separately like default Lambda compute.
+    price: 0
+    unit: per month
+    features:
+      lambdaManagedInstances:
+        value: true
+    usageLimits:
+      managedInstanceRequests:
+        value: 0
+      managedEc2InstanceHours:
+        value: 0
+      managedInstanceManagementFeeHours:
+        value: 0
+  LAMBDA_EDGE:
+    description: Lambda@Edge functions associated with CloudFront. Uses separate request pricing and compute metered per 128 MB-second.
+    price: 0
+    unit: per month
+    features:
+      lambdaEdgeFunctions:
+        value: true
+    usageLimits:
+      edgeRequests:
+        value: 0
+      edgeCompute128MbSeconds:
+        value: 0
+addOns:
+  additionalLambdaRequests:
+    description: Additional on-demand regional Lambda request units after the monthly free tier.
+    price: '#pricesPerRegionAndArchitecture[#region]["lambdaRequest"]'
+    unit: per request
+    availableFor:
+      - ON_DEMAND
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      numberOfRequests:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  firstAdditionalGbSeconds:
+    description: First tier of additional on-demand regional Lambda GB-seconds after the monthly free tier.
+    price: '#pricesPerRegionAndArchitecture[#region][#architecture]["firstGbSeconds"]'
+    unit: per GB-second
+    availableFor:
+      - ON_DEMAND
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      computeTimeInGbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: '#limitsGbSeconds[#architecture]["firstLimit"]'
+      step: 1
+    customBilling:
+      annual: '#pricesPerRegionAndArchitecture[#region]["durationDiscount1Year"]'
+      triannual: '#pricesPerRegionAndArchitecture[#region]["durationDiscount3Year"]'
+  nextAdditionalGbSeconds:
+    description: Second tier of additional on-demand regional Lambda GB-seconds.
+    price: '#pricesPerRegionAndArchitecture[#region][#architecture]["nextGbSeconds"]'
+    unit: per GB-second
+    availableFor:
+      - ON_DEMAND
+    dependsOn:
+      firstAdditionalGbSeconds:
+        min: '#limitsGbSeconds[#architecture]["firstLimit"]'
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      computeTimeInGbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: '#limitsGbSeconds[#architecture]["secondLimit"]'
+      step: 1
+    customBilling:
+      annual: '#pricesPerRegionAndArchitecture[#region]["durationDiscount1Year"]'
+      triannual: '#pricesPerRegionAndArchitecture[#region]["durationDiscount3Year"]'
+  lastAdditionalGbSeconds:
+    description: Final tier of additional on-demand regional Lambda GB-seconds.
+    price: '#pricesPerRegionAndArchitecture[#region][#architecture]["lastGbSeconds"]'
+    unit: per GB-second
+    availableFor:
+      - ON_DEMAND
+    dependsOn:
+      nextAdditionalGbSeconds:
+        min: '#limitsGbSeconds[#architecture]["secondLimit"]'
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      computeTimeInGbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#pricesPerRegionAndArchitecture[#region]["durationDiscount1Year"]'
+      triannual: '#pricesPerRegionAndArchitecture[#region]["durationDiscount3Year"]'
+  additionalProvisionedConcurrencyRequests:
+    description: Requests handled while Provisioned Concurrency is enabled. The on-demand free tier does not apply.
+    price: '#provisionedConcurrencyPricesPerRegionAndArchitecture[#provisionedConcurrencyRegion]["lambdaRequest"]'
+    unit: per request
+    availableFor:
+      - PROVISIONED_CONCURRENCY
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      provisionedConcurrencyRequests:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalProvisionedConcurrencyConfiguredGbSeconds:
+    description: Configured Provisioned Concurrency capacity in GB-seconds. AWS rounds configured time up to the nearest five minutes.
+    price: '#provisionedConcurrencyPricesPerRegionAndArchitecture[#provisionedConcurrencyRegion][#provisionedConcurrencyArchitecture]["configuredGbSecond"]'
+    unit: per GB-second
+    availableFor:
+      - PROVISIONED_CONCURRENCY
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      provisionedConcurrencyConfiguredGbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#provisionedConcurrencyPricesPerRegionAndArchitecture[#provisionedConcurrencyRegion]["configuredDiscount1Year"]'
+      triannual: '#provisionedConcurrencyPricesPerRegionAndArchitecture[#provisionedConcurrencyRegion]["configuredDiscount3Year"]'
+  additionalProvisionedConcurrencyComputeGbSeconds:
+    description: Execution GB-seconds while Provisioned Concurrency is enabled. The generated variables expose a single computeGbSecond rate, so this add-on is intentionally not tiered.
+    price: '#provisionedConcurrencyPricesPerRegionAndArchitecture[#provisionedConcurrencyRegion][#provisionedConcurrencyArchitecture]["computeGbSecond"]'
+    unit: per GB-second
+    availableFor:
+      - PROVISIONED_CONCURRENCY
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      provisionedConcurrencyComputeTimeInGbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#provisionedConcurrencyPricesPerRegionAndArchitecture[#provisionedConcurrencyRegion]["computeDiscount1Year"]'
+      triannual: '#provisionedConcurrencyPricesPerRegionAndArchitecture[#provisionedConcurrencyRegion]["computeDiscount3Year"]'
+  additionalEphemeralStorageGbSeconds:
+    description: Additional ephemeral storage GB-seconds above the included 512 MB. Excluded by SnapStart add-ons because SnapStart does not support ephemeral storage greater than 512 MB.
+    price: '#ephemeralStoragePricesPerRegionAndArchitecture[#ephemeralStorageRegion][#ephemeralStorageArchitecture]["gbSecond"]'
+    unit: per GB-second
+    availableFor:
+      - ON_DEMAND
+      - PROVISIONED_CONCURRENCY
+    features:
+      lambdaEphemeralStorage:
+        value: true
+    usageLimits: null
+    usageLimitsExtensions:
+      ephemeralStorageGbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalResponseStreamingGb:
+    description: Additional billable HTTP response stream GB. The first 6 MB per request are free and the plan includes 100 GiB per month; enter only the net billable GB above those allowances.
+    price: '#responseStreamingPricesPerRegion[#responseStreamingRegion]["gb"]'
+    unit: per GB
+    availableFor:
+      - ON_DEMAND
+      - PROVISIONED_CONCURRENCY
+    features:
+      lambdaResponseStreaming:
+        value: true
+    usageLimits: null
+    usageLimitsExtensions:
+      responseStreamingGb:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalSnapStartCacheGbSeconds:
+    description: SnapStart snapshot cache GB-seconds. AWS charges while a published function version is active, with a minimum of 3 hours, and the price depends on allocated memory.
+    price: '#snapStartPricesPerRegionAndArchitecture[#snapStartRegion][#snapStartArchitecture]["cacheGbSecond"]'
+    unit: per GB-second
+    availableFor:
+      - ON_DEMAND
+    excludes:
+      - additionalEphemeralStorageGbSeconds
+      - additionalTenantIsolatedExecutionEnvironmentGb
+    features:
+      lambdaSnapStart:
+        value: true
+    usageLimits: null
+    usageLimitsExtensions:
+      snapStartCacheGbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalSnapStartRestoreGb:
+    description: SnapStart restore GB. AWS charges each time Lambda restores an execution environment from a snapshot, with price depending on allocated memory.
+    price: '#snapStartPricesPerRegionAndArchitecture[#snapStartRegion][#snapStartArchitecture]["restoreGb"]'
+    unit: per GB
+    availableFor:
+      - ON_DEMAND
+    excludes:
+      - additionalEphemeralStorageGbSeconds
+      - additionalTenantIsolatedExecutionEnvironmentGb
+    features:
+      lambdaSnapStart:
+        value: true
+    usageLimits: null
+    usageLimitsExtensions:
+      snapStartRestoreGb:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalTenantIsolatedExecutionEnvironmentGb:
+    description: Tenant-isolated execution environments created, weighted by function memory in GB. Tenant isolation does not support Provisioned Concurrency or SnapStart.
+    price: '#tenantIsolationPricesPerRegionAndArchitecture[#tenantIsolationRegion][#tenantIsolationArchitecture]["environmentGb"]'
+    unit: per GB-weighted environment
+    availableFor:
+      - ON_DEMAND
+    excludes:
+      - additionalSnapStartCacheGbSeconds
+      - additionalSnapStartRestoreGb
+    features:
+      lambdaTenantIsolation:
+        value: true
+    usageLimits: null
+    usageLimitsExtensions:
+      tenantIsolatedExecutionEnvironmentGb:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalDurableOperations:
+    description: Lambda Durable Functions operations such as starts, steps and waits. Durable compute still uses the on-demand Lambda request and GB-second add-ons.
+    price: '#durableFunctionsPricesPerRegion[#durableFunctionsRegion]["operation"]'
+    unit: per operation
+    availableFor:
+      - ON_DEMAND
+    features:
+      lambdaDurableFunctions:
+        value: true
+    usageLimits: null
+    usageLimitsExtensions:
+      durableOperations:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalDurableDataWrittenGb:
+    description: Data written by Lambda Durable Functions checkpoints and state transitions.
+    price: '#durableFunctionsPricesPerRegion[#durableFunctionsRegion]["dataWrittenGb"]'
+    unit: per GB
+    availableFor:
+      - ON_DEMAND
+    features:
+      lambdaDurableFunctions:
+        value: true
+    usageLimits: null
+    usageLimitsExtensions:
+      durableDataWrittenGb:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalDurableDataRetainedGbMonth:
+    description: Data retained by Lambda Durable Functions. This includes data retained during running waits and post-completion retention.
+    price: '#durableFunctionsPricesPerRegion[#durableFunctionsRegion]["dataRetainedGbMonth"]'
+    unit: per GB-month
+    availableFor:
+      - ON_DEMAND
+    features:
+      lambdaDurableFunctions:
+        value: true
+    usageLimits: null
+    usageLimitsExtensions:
+      durableDataRetainedGbMonth:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalEventPollerUnitHours:
+    description: Provisioned Mode for Event Source Mapping EPU-hours. SQS and Kafka/MSK/self-managed Kafka use different EPU prices and throughput semantics.
+    price: '#eventSourceMappingProvisionedModePricesPerRegionAndSourceType[#eventSourceMappingRegion][#eventSourceMappingSourceType]["epuHour"]'
+    unit: per EPU-hour
+    availableFor:
+      - ON_DEMAND
+      - PROVISIONED_CONCURRENCY
+      - MANAGED_INSTANCES
+    features:
+      lambdaEventSourceMappingProvisionedMode:
+        value: true
+    usageLimits: null
+    usageLimitsExtensions:
+      eventPollerUnitHours:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalManagedInstanceRequests:
+    description: Additional Lambda Managed Instances requests.
+    price: '#managedInstancePricesPerRegionAndType[#managedInstanceRegion][#managedInstanceType]["request"]'
+    unit: per request
+    availableFor:
+      - MANAGED_INSTANCES
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      managedInstanceRequests:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalManagedEc2InstanceHours:
+    description: EC2 instance-hours consumed by Lambda Managed Instances. EC2 Savings Plans or Reserved Instances may reduce this component.
+    price: '#managedInstancePricesPerRegionAndType[#managedInstanceRegion][#managedInstanceType]["ec2InstanceHour"]'
+    unit: per instance-hour
+    availableFor:
+      - MANAGED_INSTANCES
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      managedEc2InstanceHours:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+    customBilling:
+      annual: '#managedInstancePricesPerRegionAndType[#managedInstanceRegion][#managedInstanceType]["ec2SavingsPlan1Year"]'
+      triannual: '#managedInstancePricesPerRegionAndType[#managedInstanceRegion][#managedInstanceType]["ec2SavingsPlan3Year"]'
+  additionalManagedInstanceManagementFeeHours:
+    description: Lambda management-fee hours for Managed Instances. The management fee is modeled separately so EC2 discounts do not apply to it.
+    price: '#managedInstancePricesPerRegionAndType[#managedInstanceRegion][#managedInstanceType]["managementFeeHour"]'
+    unit: per instance-hour
+    availableFor:
+      - MANAGED_INSTANCES
+    dependsOn:
+      additionalManagedEc2InstanceHours:
+        min: 1
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      managedInstanceManagementFeeHours:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalEdgeRequests:
+    description: Lambda@Edge requests.
+    price: '#edgePrices["edgeRequest"]'
+    unit: per request
+    availableFor:
+      - LAMBDA_EDGE
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      edgeRequests:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
+  additionalEdgeCompute128MbSeconds:
+    description: Lambda@Edge compute, measured per 128 MB-second at 1 ms granularity.
+    price: '#edgePrices["edge128MbSecond"]'
+    unit: per 128MB-second
+    availableFor:
+      - LAMBDA_EDGE
+    features: null
+    usageLimits: null
+    usageLimitsExtensions:
+      edgeCompute128MbSeconds:
+        value: 1
+    subscriptionConstraints:
+      min: 1
+      max: .inf
+      step: 1
