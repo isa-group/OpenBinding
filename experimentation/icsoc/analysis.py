@@ -209,6 +209,83 @@ def improvement_over_baseline(runs: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(rows, ignore_index=True).dropna()
 
 
+def first_feasible_vs_best(traces: pd.DataFrame) -> pd.DataFrame:
+    """Per-run quality of the first feasible solution vs the final best.
+
+    The first feasible improvement event in a trace is the closest observable
+    proxy for what a feasibility-oriented placer (eligibility-only, a la
+    SecFaaS2Fog) would return; the drop to the final best quantifies what
+    optimization adds on top of mere validity.
+
+    optimization_gain = (J_first_feasible - J_best) / J_first_feasible.
+    """
+    feas = traces[traces.feasible == True].sort_values("elapsed_ms")  # noqa: E712
+    grouped = feas.groupby("run_id")
+    out = pd.DataFrame({
+        "J_first_feasible": grouped.best_objective.first(),
+        "J_best": grouped.best_objective.min(),
+        "first_feasible_ms": grouped.elapsed_ms.first(),
+        "engine": grouped.engine.first(),
+    }).reset_index()
+    out["instance_id"] = out.run_id.str.split("|").str[0]
+    out["optimization_gain"] = (
+        (out.J_first_feasible - out.J_best)
+        / out.J_first_feasible.abs().clip(lower=1e-9)
+    )
+    return out
+
+
+def time_to_reference(
+    runs: pd.DataFrame,
+    traces: pd.DataFrame,
+    references: pd.DataFrame,
+    engine: str = "evolutionary-heuristics",
+    tolerance: float = 0.0,
+) -> pd.DataFrame:
+    """Per-instance time for an engine to reach the instance reference J.
+
+    For every run, the elapsed time of the first feasible best-so-far value
+    within ``tolerance`` of ``reference_J``. Per instance, the median over the
+    seeds is taken with non-reaching seeds counted as +inf, so ``t_reach_ms``
+    is NaN unless the majority of seeds actually reach the reference. The
+    exact solver's time and completion status are attached for comparison.
+    """
+    ref = references.set_index("instance_id")
+    feas = traces[(traces.engine == engine) & (traces.feasible == True)].copy()  # noqa: E712
+    feas["instance_id"] = feas.run_id.str.split("|").str[0]
+
+    rows = []
+    for (instance_id, run_id), g in feas.groupby(["instance_id", "run_id"]):
+        if instance_id not in ref.index or pd.isna(ref.loc[instance_id, "reference_J"]):
+            continue
+        target = ref.loc[instance_id, "reference_J"] * (1 + tolerance) + 1e-12
+        hit = g[g.best_objective <= target].elapsed_ms
+        rows.append({
+            "instance_id": instance_id,
+            "run_id": run_id,
+            "t_reach_ms": hit.min() if len(hit) else np.nan,
+        })
+    per_run = pd.DataFrame(rows)
+
+    def strict_median(s: pd.Series) -> float:
+        med = np.median(s.fillna(np.inf).values)
+        return med if np.isfinite(med) else np.nan
+
+    per_instance = per_run.groupby("instance_id").t_reach_ms.agg(
+        t_reach_ms=strict_median,
+        reach_rate=lambda s: s.notna().mean(),
+    ).reset_index()
+
+    exact = (
+        runs[runs.engine == EXACT_ENGINE]
+        [["instance_id", "engine_execution_time_ms", "solver_status"]]
+        .rename(columns={"engine_execution_time_ms": "exact_ms"})
+    )
+    return (per_instance
+            .merge(exact, on="instance_id", how="left")
+            .merge(references, on="instance_id", how="left"))
+
+
 # ---------------------------------------------------------------------------
 # Performance profiles (Dolan & More, 2002)
 # ---------------------------------------------------------------------------
