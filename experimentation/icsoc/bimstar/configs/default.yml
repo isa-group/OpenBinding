@@ -1,0 +1,94 @@
+cloud_regions:
+  aws:
+    - eu-west-1
+    - us-east-1
+  azure:
+    - westeurope
+    - eastus
+  gcp:
+    - europe-west1
+    - us-central1
+
+cloud_memory_mb_domain:
+  - 128
+  - 256
+  - 512
+  - 1024
+  - 2048
+  - 4096
+
+workload_defaults:
+  invocations_per_month: 1000000
+  avg_duration_ms: 120
+  data_out_mb: 0.05
+  concurrency: 20
+
+objective:
+  weights:
+    latency: 0.33
+    cost: 0.34
+    security: 0.33
+
+security:
+  labels:
+    low: 0.33
+    medium: 0.66
+    top: 1.0
+  node_scores:
+    none: 0.33
+    pubKeyE: 0.66
+    pubKeyE+antiTamp: 1.0
+  # How the information-flow analysis labels task outputs:
+  #   variable - per-variable dataflow: an output named like an existing variable
+  #              keeps that variable's label; new variables inherit the task's
+  #              required level. Thresholds vary per task, so security is a real
+  #              optimization trade-off.
+  #   saturate - classic non-interference join (every output inherits the max of
+  #              all inputs + context); on pipeline-shaped apps this creeps every
+  #              task to 'top' and the security objective becomes constant.
+  output_propagation: variable
+
+non_cloud_costs:
+  base_monthly_usd:
+    edge: [2, 15]
+    fog: [15, 80]
+    cloud: [30, 200]
+  coefficients:
+    memory_gb: 1.5
+    vcpu: 2.5
+    mhz_per_1000: 1.0
+
+cloud_faas_capacity:
+  concurrency: 1000000
+
+pricing_constraints:
+  enabled: true
+  # Fallback multiplier on the cheapest eligible binding when no certified
+  # feasible witness is found (degenerate instances only).
+  global_budget_factor: 1.5
+  local_budget_quantile: 0.75
+  # Difficulty of the global cost budget: the budget always covers the
+  # certified feasible witness binding, plus this share of the headroom up to
+  # the fold of the per-task local budgets. 0 = as tight as certifiable,
+  # 1 = as loose as the local budgets allow.
+  global_budget_slack: 0.25
+
+# Provider/region-aware cloud latency model. Ranges are disjoint per
+# geography class so that, by construction, same-provider links are faster
+# than cross-provider links (provider backbone vs public peering) and
+# intra-geo links are faster than inter-geo links.
+latency_generation:
+  region_geo:
+    eu-west-1: eu
+    us-east-1: us
+    westeurope: eu
+    eastus: us
+    europe-west1: eu
+    us-central1: us
+  cloud_same_provider_same_region_ms: [1, 3]
+  cloud_same_provider_intra_geo_ms: [8, 18]     # provider backbone, same continent
+  cloud_same_provider_inter_geo_ms: [60, 85]    # provider backbone, cross-continent
+  cloud_cross_provider_intra_geo_ms: [20, 35]   # public peering, same continent
+  cloud_cross_provider_inter_geo_ms: [90, 130]  # public peering, cross-continent
+  original_to_cloud_intra_geo_ms: [20, 60]      # edge/fog infrastructure assumed EU
+  original_to_cloud_inter_geo_ms: [80, 150]
