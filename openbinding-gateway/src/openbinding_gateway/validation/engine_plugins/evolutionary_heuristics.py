@@ -4,12 +4,14 @@ from typing import Any, Dict, List, Tuple
 import httpx
 
 from .base import EngineValidationPlugin
+from .bimstar import build_placement_payload
 from ...models.api import ValidationViolation
 
 
 class EvolutionaryHeuristicsEnginePlugin(EngineValidationPlugin):
     _VALID_OPTIONS = {
         "algorithm",
+        "operators",
         "population_size",
         "max_evaluations",
         "crossover_probability",
@@ -19,6 +21,7 @@ class EvolutionaryHeuristicsEnginePlugin(EngineValidationPlugin):
         "soft_penalty",
         "seed",
         "reference_divisions",
+        "time_budget_ms",
     }
 
     async def check_engine_health(self, base_url: str, client: httpx.AsyncClient) -> bool:
@@ -33,7 +36,12 @@ class EvolutionaryHeuristicsEnginePlugin(EngineValidationPlugin):
             "qos_features_supported": ["*"],
             "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
             "objective_types_supported": ["MONO", "MULTI", "MANY"],
-            "constraints_supported": ["attribute_bound", "dependency"],
+            "constraints_supported": [
+                "attribute_bound",
+                "dependency",
+                "resource_capacity",
+                "latency_transition",
+            ],
             "algorithms_supported": ["NSGAII", "NSGAIII"],
             "type": "HEURISTIC",
             "schema_version": "v1",
@@ -57,7 +65,7 @@ class EvolutionaryHeuristicsEnginePlugin(EngineValidationPlugin):
         base_path = os.getenv("SCHEMAS_DIR", "/app/schemas")
         if not os.path.exists(base_path):
             base_path = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "../../../../../../schemas")
+                os.path.join(os.path.dirname(__file__), "../../../../../schemas")
             )
         return os.path.join(
             base_path, "specializations/evolutionary-heuristics.schema.json"
@@ -116,7 +124,11 @@ class EvolutionaryHeuristicsEnginePlugin(EngineValidationPlugin):
             for name, value in options.items()
             if name in self._VALID_OPTIONS and value is not None
         }
-        return {"instance": instance, "options": filtered_options}, warnings
+        payload: Dict[str, Any] = {"instance": instance, "options": filtered_options}
+        placement = build_placement_payload(instance)
+        if placement is not None:
+            payload["placement"] = placement
+        return payload, warnings
 
     def transform_response(
         self, engine_response: Dict[str, Any], original_request: Dict[str, Any]

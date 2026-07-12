@@ -1,6 +1,15 @@
-package es.us.isa.openbinding.evolutionary;
+package es.us.isa.qosawarewsbinding.bimstar;
 
-import static es.us.isa.openbinding.evolutionary.ApiModels.*;
+import es.us.isa.qosawarewsbinding.bimstar.BimStarModels.AggregationFunction;
+import es.us.isa.qosawarewsbinding.bimstar.BimStarModels.AggregationPolicy;
+import es.us.isa.qosawarewsbinding.bimstar.BimStarModels.Branch;
+import es.us.isa.qosawarewsbinding.bimstar.BimStarModels.Candidate;
+import es.us.isa.qosawarewsbinding.bimstar.BimStarModels.Constraint;
+import es.us.isa.qosawarewsbinding.bimstar.BimStarModels.Feature;
+import es.us.isa.qosawarewsbinding.bimstar.BimStarModels.Instance;
+import es.us.isa.qosawarewsbinding.bimstar.BimStarModels.Node;
+import es.us.isa.qosawarewsbinding.bimstar.BimStarModels.NumericRange;
+import es.us.isa.qosawarewsbinding.bimstar.BimStarModels.ViolationDto;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -10,13 +19,71 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-final class BindingEvaluator {
-  record ConstraintEvaluation(double hardViolation, double softViolation, List<ViolationDto> violations) {}
-  record Evaluation(
-      Map<String, String> binding,
-      Map<String, Double> aggregated,
-      Map<String, Double> losses,
-      ConstraintEvaluation constraints) {}
+/**
+ * Binding evaluation for BIM* instances. Kept in sync with the evolutionary
+ * engine's {@code BindingEvaluator} (aggregation semantics, normalization
+ * losses, constraint magnitudes) so both engines optimize the same function.
+ * Written in Java 8 style: this engine builds with JDK 8.
+ */
+public final class BindingEvaluator {
+
+  public static final class ConstraintEvaluation {
+    private final double hardViolation;
+    private final double softViolation;
+    private final List<ViolationDto> violations;
+
+    ConstraintEvaluation(double hardViolation, double softViolation, List<ViolationDto> violations) {
+      this.hardViolation = hardViolation;
+      this.softViolation = softViolation;
+      this.violations = violations;
+    }
+
+    public double hardViolation() {
+      return hardViolation;
+    }
+
+    public double softViolation() {
+      return softViolation;
+    }
+
+    public List<ViolationDto> violations() {
+      return violations;
+    }
+  }
+
+  public static final class Evaluation {
+    private final Map<String, String> binding;
+    private final Map<String, Double> aggregated;
+    private final Map<String, Double> losses;
+    private final ConstraintEvaluation constraints;
+
+    Evaluation(
+        Map<String, String> binding,
+        Map<String, Double> aggregated,
+        Map<String, Double> losses,
+        ConstraintEvaluation constraints) {
+      this.binding = binding;
+      this.aggregated = aggregated;
+      this.losses = losses;
+      this.constraints = constraints;
+    }
+
+    public Map<String, String> binding() {
+      return binding;
+    }
+
+    public Map<String, Double> aggregated() {
+      return aggregated;
+    }
+
+    public Map<String, Double> losses() {
+      return losses;
+    }
+
+    public ConstraintEvaluation constraints() {
+      return constraints;
+    }
+  }
 
   private final Instance instance;
   private final List<String> taskIds;
@@ -24,16 +91,12 @@ final class BindingEvaluator {
   private final Map<String, Feature> features;
   private final PlacementEvaluator placement;
 
-  BindingEvaluator(Instance instance) {
-    this(instance, null);
-  }
-
-  BindingEvaluator(Instance instance, PlacementEvaluator placement) {
+  public BindingEvaluator(Instance instance, PlacementEvaluator placement) {
     this.instance = instance;
     this.placement = placement;
     this.taskIds = collectTaskIds(instance.composition.root);
     this.candidatesByTask = groupCandidates(instance.candidates);
-    this.features = new LinkedHashMap<>();
+    this.features = new LinkedHashMap<String, Feature>();
     for (Feature feature : instance.features) {
       features.put(feature.id, feature);
     }
@@ -44,17 +107,17 @@ final class BindingEvaluator {
     }
   }
 
-  List<String> taskIds() {
+  public List<String> taskIds() {
     return taskIds;
   }
 
-  int candidateCount(int taskIndex) {
+  public int candidateCount(int taskIndex) {
     return candidatesByTask.get(taskIds.get(taskIndex)).size();
   }
 
-  Evaluation evaluate(List<Integer> chromosome) {
-    Map<String, Candidate> selected = new LinkedHashMap<>();
-    Map<String, String> binding = new LinkedHashMap<>();
+  public Evaluation evaluate(List<Integer> chromosome) {
+    Map<String, Candidate> selected = new LinkedHashMap<String, Candidate>();
+    Map<String, String> binding = new LinkedHashMap<String, String>();
     for (int i = 0; i < taskIds.size(); i++) {
       String taskId = taskIds.get(i);
       Candidate candidate = candidatesByTask.get(taskId).get(chromosome.get(i));
@@ -62,16 +125,14 @@ final class BindingEvaluator {
       binding.put(taskId, candidate.id);
     }
 
-    Map<String, Double> aggregated = new LinkedHashMap<>();
-    Map<String, Double> losses = new LinkedHashMap<>();
+    Map<String, Double> aggregated = new LinkedHashMap<String, Double>();
+    Map<String, Double> losses = new LinkedHashMap<String, Double>();
     for (Feature feature : instance.features) {
       double raw = fromCompositionValue(feature, aggregate(instance.composition.root, feature, selected));
       aggregated.put(feature.id, raw);
       losses.put(feature.id, objectiveLoss(feature, raw));
     }
 
-    // BIM*: the end-to-end latency feature is derived from the placement
-    // scheduling model instead of the aggregation tree.
     if (placement != null) {
       String latAttr = placement.e2eAttribute();
       Feature latFeature = latAttr != null ? features.get(latAttr) : null;
@@ -85,33 +146,46 @@ final class BindingEvaluator {
     return new Evaluation(binding, aggregated, losses, evaluateConstraints(selected, aggregated));
   }
 
-  double qualityScore(Evaluation evaluation) {
-    double score = 0.0;
+  /** MONO objective: weighted normalized loss (lower is better). */
+  public double monoObjective(Evaluation evaluation, double softPenalty) {
+    double weightedLoss = 0.0;
     double totalWeight = 0.0;
     for (String target : instance.objective.targets) {
-      double weight = instance.objective.weights.getOrDefault(target, 1.0);
-      score += weight * (1.0 - evaluation.losses.getOrDefault(target, 1.0));
-      totalWeight += weight;
+      Double weight = instance.objective.weights.get(target);
+      double w = weight == null ? 1.0 : weight.doubleValue();
+      Double loss = evaluation.losses().get(target);
+      weightedLoss += w * (loss == null ? 1.0 : loss.doubleValue());
+      totalWeight += w;
     }
-    return totalWeight > 0.0 ? score / totalWeight : 0.0;
+    return (totalWeight > 0.0 ? weightedLoss / totalWeight : weightedLoss)
+        + softPenalty * evaluation.constraints().softViolation();
   }
 
   private double aggregate(Node node, Feature feature, Map<String, Candidate> selected) {
     String kind = upper(node.kind);
-    return switch (kind) {
-      case "TASK" -> toCompositionValue(
-          feature, selected.get(node.task_id).features.getOrDefault(feature.id, neutral(feature)));
-      case "ELEMENT" -> toCompositionValue(feature, neutral(feature));
-      case "SEQ", "AND" -> aggregateChildren(node.children, feature, selected, function(feature, kind));
-      case "XOR" -> aggregateXor(node, feature, selected);
-      case "LOOP" -> aggregateLoop(node, feature, selected);
-      default -> throw new IllegalArgumentException("Unsupported composition node: " + node.kind);
-    };
+    if ("TASK".equals(kind)) {
+      Candidate candidate = selected.get(node.task_id);
+      Double value = candidate.features.get(feature.id);
+      return toCompositionValue(feature, value == null ? neutral(feature) : value.doubleValue());
+    }
+    if ("ELEMENT".equals(kind)) {
+      return toCompositionValue(feature, neutral(feature));
+    }
+    if ("SEQ".equals(kind) || "AND".equals(kind)) {
+      return aggregateChildren(node.children, feature, selected, function(feature, kind));
+    }
+    if ("XOR".equals(kind)) {
+      return aggregateXor(node, feature, selected);
+    }
+    if ("LOOP".equals(kind)) {
+      return aggregateLoop(node, feature, selected);
+    }
+    throw new IllegalArgumentException("Unsupported composition node: " + node.kind);
   }
 
   private double aggregateChildren(
       List<Node> children, Feature feature, Map<String, Candidate> selected, String function) {
-    List<Double> values = new ArrayList<>();
+    List<Double> values = new ArrayList<Double>();
     if (children != null) {
       for (Node child : children) {
         values.add(aggregate(child, feature, selected));
@@ -121,8 +195,8 @@ final class BindingEvaluator {
   }
 
   private double aggregateXor(Node node, Feature feature, Map<String, Candidate> selected) {
-    List<Double> values = new ArrayList<>();
-    List<Double> weights = new ArrayList<>();
+    List<Double> values = new ArrayList<Double>();
+    List<Double> weights = new ArrayList<Double>();
     if (node.branches != null) {
       for (Branch branch : node.branches) {
         values.add(aggregate(branch.child, feature, selected));
@@ -130,7 +204,7 @@ final class BindingEvaluator {
       }
     }
     String fn = function(feature, "XOR");
-    if (fn.equals("SUM") || fn.equals("WEIGHTED_SUM") || fn.equals("SCALED_SUM")) {
+    if ("SUM".equals(fn) || "WEIGHTED_SUM".equals(fn) || "SCALED_SUM".equals(fn)) {
       return aggregateValues(
           values, weights, "WEIGHTED_SUM", toCompositionValue(feature, neutral(feature)));
     }
@@ -139,9 +213,14 @@ final class BindingEvaluator {
 
   private double aggregateLoop(Node node, Feature feature, Map<String, Candidate> selected) {
     double value = aggregate(node.body, feature, selected);
-    double iterations = node.expected_iterations != null
-        ? node.expected_iterations
-        : node.bounds != null ? (node.bounds.min + node.bounds.max) / 2.0 : 1.0;
+    double iterations;
+    if (node.expected_iterations != null) {
+      iterations = node.expected_iterations.doubleValue();
+    } else if (node.bounds != null) {
+      iterations = (node.bounds.min + node.bounds.max) / 2.0;
+    } else {
+      iterations = 1.0;
+    }
     String fn = function(feature, "LOOP");
     if (fn.contains("PRODUCT")) {
       return Math.pow(value, iterations);
@@ -157,20 +236,50 @@ final class BindingEvaluator {
     if (values.isEmpty()) {
       return neutral;
     }
-    return switch (function) {
-      case "PRODUCT", "SCALED_PRODUCT" -> values.stream().reduce(1.0, (a, b) -> a * b);
-      case "MAX", "SCALED_MAX" -> values.stream().mapToDouble(Double::doubleValue).max().orElse(neutral);
-      case "MIN", "SCALED_MIN" -> values.stream().mapToDouble(Double::doubleValue).min().orElse(neutral);
-      case "MEAN", "AVERAGE" -> values.stream().mapToDouble(Double::doubleValue).average().orElse(neutral);
-      case "WEIGHTED_SUM" -> {
-        double result = 0.0;
-        for (int i = 0; i < values.size(); i++) {
-          result += values.get(i) * weights.get(i);
-        }
-        yield result;
+    if ("PRODUCT".equals(function) || "SCALED_PRODUCT".equals(function)) {
+      double result = 1.0;
+      for (Double value : values) {
+        result *= value.doubleValue();
       }
-      default -> values.stream().mapToDouble(Double::doubleValue).sum();
-    };
+      return result;
+    }
+    if ("MAX".equals(function) || "SCALED_MAX".equals(function)) {
+      double result = neutral;
+      boolean first = true;
+      for (Double value : values) {
+        result = first ? value.doubleValue() : Math.max(result, value.doubleValue());
+        first = false;
+      }
+      return result;
+    }
+    if ("MIN".equals(function) || "SCALED_MIN".equals(function)) {
+      double result = neutral;
+      boolean first = true;
+      for (Double value : values) {
+        result = first ? value.doubleValue() : Math.min(result, value.doubleValue());
+        first = false;
+      }
+      return result;
+    }
+    if ("MEAN".equals(function) || "AVERAGE".equals(function)) {
+      double total = 0.0;
+      for (Double value : values) {
+        total += value.doubleValue();
+      }
+      return total / values.size();
+    }
+    if ("WEIGHTED_SUM".equals(function)) {
+      double result = 0.0;
+      for (int i = 0; i < values.size(); i++) {
+        result += values.get(i).doubleValue() * weights.get(i).doubleValue();
+      }
+      return result;
+    }
+    double total = 0.0;
+    for (Double value : values) {
+      total += value.doubleValue();
+    }
+    return total;
   }
 
   private double objectiveLoss(Feature feature, double raw) {
@@ -179,7 +288,7 @@ final class BindingEvaluator {
       return 0.0;
     }
     double normalized = clamp((raw - range.min) / (range.max - range.min));
-    return upper(feature.direction).equals("MAXIMIZE") ? 1.0 - normalized : normalized;
+    return "MAXIMIZE".equals(upper(feature.direction)) ? 1.0 - normalized : normalized;
   }
 
   private double toCompositionValue(Feature feature, double raw) {
@@ -210,15 +319,19 @@ final class BindingEvaluator {
     if (policy == null || policy.compose == null) {
       return false;
     }
-    return policy.compose.values().stream()
-        .anyMatch(fn -> fn != null && upper(fn.fn).contains("PRODUCT"));
+    for (AggregationFunction fn : policy.compose.values()) {
+      if (fn != null && upper(fn.fn).contains("PRODUCT")) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private ConstraintEvaluation evaluateConstraints(
       Map<String, Candidate> selected, Map<String, Double> aggregated) {
     double hard = 0.0;
     double soft = 0.0;
-    List<ViolationDto> violations = new ArrayList<>();
+    List<ViolationDto> violations = new ArrayList<ViolationDto>();
 
     for (Constraint constraint : instance.constraints) {
       double violation = constraintViolation(constraint, selected, aggregated);
@@ -238,7 +351,6 @@ final class BindingEvaluator {
       violations.add(dto);
     }
 
-    // BIM* placement constraints: resource capacity + transition latency.
     if (placement != null) {
       for (PlacementEvaluator.Violation violation : placement.check(selected)) {
         if (violation.hard()) {
@@ -259,10 +371,10 @@ final class BindingEvaluator {
 
   private double constraintViolation(
       Constraint constraint, Map<String, Candidate> selected, Map<String, Double> aggregated) {
-    if (upper(constraint.kind).equals("DEPENDENCY")) {
+    if ("DEPENDENCY".equals(upper(constraint.kind))) {
       return dependencyViolation(constraint, selected);
     }
-    if (!upper(constraint.kind).equals("ATTRIBUTE_BOUND")) {
+    if (!"ATTRIBUTE_BOUND".equals(upper(constraint.kind))) {
       return 0.0;
     }
 
@@ -271,26 +383,29 @@ final class BindingEvaluator {
       return 1.0;
     }
     double scale = featureRange(feature);
-    if (upper(constraint.scope).equals("LOCAL")) {
+    if ("LOCAL".equals(upper(constraint.scope))) {
       double sum = 0.0;
       for (String task : constraint.tasks) {
         Candidate candidate = selected.get(task);
         if (candidate == null) {
           sum += 1.0;
         } else {
-          sum += boundViolation(
-              candidate.features.getOrDefault(feature.id, neutral(feature)), constraint) / scale;
+          Double value = candidate.features.get(feature.id);
+          double current = value == null ? neutral(feature) : value.doubleValue();
+          sum += boundViolation(current, constraint) / scale;
         }
       }
       return constraint.tasks.isEmpty() ? 0.0 : sum / constraint.tasks.size();
     }
-    return boundViolation(aggregated.getOrDefault(feature.id, neutral(feature)), constraint) / scale;
+    Double aggregatedValue = aggregated.get(feature.id);
+    double current = aggregatedValue == null ? neutral(feature) : aggregatedValue.doubleValue();
+    return boundViolation(current, constraint) / scale;
   }
 
   private double dependencyViolation(Constraint constraint, Map<String, Candidate> selected) {
     // SAME_POOL / DIFFERENT_POOL group by placement pool; provider otherwise.
     boolean poolBased = upper(constraint.type).endsWith("_POOL");
-    Set<String> groups = new LinkedHashSet<>();
+    Set<String> groups = new LinkedHashSet<String>();
     for (String task : constraint.tasks) {
       Candidate candidate = selected.get(task);
       if (candidate != null) {
@@ -310,7 +425,7 @@ final class BindingEvaluator {
   }
 
   private double boundViolation(double current, Constraint constraint) {
-    if (upper(constraint.op).equals("IN_RANGE")) {
+    if ("IN_RANGE".equals(upper(constraint.op))) {
       NumericRange range = rangeValue(constraint.value);
       if (range == null) {
         return 1.0;
@@ -318,21 +433,33 @@ final class BindingEvaluator {
       return current < range.min ? range.min - current : Math.max(0.0, current - range.max);
     }
     double target = numberValue(constraint.value);
-    return switch (constraint.op) {
-      case "<=" -> Math.max(0.0, current - target);
-      case "<" -> current < target ? 0.0 : current - target + 1e-12;
-      case ">=" -> Math.max(0.0, target - current);
-      case ">" -> current > target ? 0.0 : target - current + 1e-12;
-      case "==" -> Math.abs(current - target);
-      case "!=" -> Math.abs(current - target) < 1e-12 ? 1.0 : 0.0;
-      default -> 0.0;
-    };
+    String operator = constraint.op;
+    if ("<=".equals(operator)) {
+      return Math.max(0.0, current - target);
+    }
+    if ("<".equals(operator)) {
+      return current < target ? 0.0 : current - target + 1e-12;
+    }
+    if (">=".equals(operator)) {
+      return Math.max(0.0, target - current);
+    }
+    if (">".equals(operator)) {
+      return current > target ? 0.0 : target - current + 1e-12;
+    }
+    if ("==".equals(operator)) {
+      return Math.abs(current - target);
+    }
+    if ("!=".equals(operator)) {
+      return Math.abs(current - target) < 1e-12 ? 1.0 : 0.0;
+    }
+    return 0.0;
   }
 
   private NumericRange rangeValue(Object value) {
-    if (!(value instanceof Map<?, ?> map)) {
+    if (!(value instanceof Map)) {
       return null;
     }
+    Map<?, ?> map = (Map<?, ?>) value;
     NumericRange range = new NumericRange();
     range.min = ((Number) map.get("min")).doubleValue();
     range.max = ((Number) map.get("max")).doubleValue();
@@ -340,8 +467,8 @@ final class BindingEvaluator {
   }
 
   private double numberValue(Object value) {
-    if (value instanceof Number number) {
-      return number.doubleValue();
+    if (value instanceof Number) {
+      return ((Number) value).doubleValue();
     }
     throw new IllegalArgumentException("Constraint value must be numeric");
   }
@@ -363,9 +490,9 @@ final class BindingEvaluator {
   private double neutral(Feature feature) {
     AggregationPolicy policy = instance.aggregation_policies.get(feature.id);
     if (policy != null && policy.neutral != null) {
-      return policy.neutral;
+      return policy.neutral.doubleValue();
     }
-    return upper(feature.direction).equals("MAXIMIZE")
+    return "MAXIMIZE".equals(upper(feature.direction))
         ? feature.valid_range.min
         : feature.valid_range.max;
   }
@@ -373,50 +500,65 @@ final class BindingEvaluator {
   private String function(Feature feature, String nodeKind) {
     AggregationPolicy policy = instance.aggregation_policies.get(feature.id);
     if (policy == null || policy.compose == null) {
-      return nodeKind.equals("AND") ? "MAX" : "SUM";
+      return "AND".equals(nodeKind) ? "MAX" : "SUM";
     }
-    String key = switch (nodeKind) {
-      case "AND" -> "and";
-      case "XOR" -> "xor";
-      case "LOOP" -> "loop";
-      default -> "seq";
-    };
+    String key;
+    if ("AND".equals(nodeKind)) {
+      key = "and";
+    } else if ("XOR".equals(nodeKind)) {
+      key = "xor";
+    } else if ("LOOP".equals(nodeKind)) {
+      key = "loop";
+    } else {
+      key = "seq";
+    }
     AggregationFunction fn = policy.compose.get(key);
-    return fn == null || fn.fn == null ? (nodeKind.equals("AND") ? "MAX" : "SUM") : upper(fn.fn);
+    if (fn == null || fn.fn == null) {
+      return "AND".equals(nodeKind) ? "MAX" : "SUM";
+    }
+    return upper(fn.fn);
   }
 
   private static Map<String, List<Candidate>> groupCandidates(List<Candidate> candidates) {
-    Map<String, List<Candidate>> result = new LinkedHashMap<>();
+    Map<String, List<Candidate>> result = new LinkedHashMap<String, List<Candidate>>();
     for (Candidate candidate : candidates) {
-      result.computeIfAbsent(candidate.task_id, ignored -> new ArrayList<>()).add(candidate);
+      List<Candidate> bucket = result.get(candidate.task_id);
+      if (bucket == null) {
+        bucket = new ArrayList<Candidate>();
+        result.put(candidate.task_id, bucket);
+      }
+      bucket.add(candidate);
     }
     return result;
   }
 
   private static List<String> collectTaskIds(Node root) {
-    Set<String> result = new LinkedHashSet<>();
+    Set<String> result = new LinkedHashSet<String>();
     collectTaskIds(root, result);
-    return new ArrayList<>(result);
+    return new ArrayList<String>(result);
   }
 
   private static void collectTaskIds(Node node, Set<String> result) {
     if (node == null) {
       return;
     }
-    switch (upper(node.kind)) {
-      case "TASK" -> result.add(node.task_id);
-      case "SEQ", "AND" -> {
-        if (node.children != null) {
-          node.children.forEach(child -> collectTaskIds(child, result));
+    String kind = upper(node.kind);
+    if ("TASK".equals(kind)) {
+      result.add(node.task_id);
+    } else if ("SEQ".equals(kind) || "AND".equals(kind)) {
+      if (node.children != null) {
+        for (Node child : node.children) {
+          collectTaskIds(child, result);
         }
       }
-      case "XOR" -> {
-        if (node.branches != null) {
-          node.branches.forEach(branch -> collectTaskIds(branch.child, result));
+    } else if ("XOR".equals(kind)) {
+      if (node.branches != null) {
+        for (Branch branch : node.branches) {
+          collectTaskIds(branch.child, result);
         }
       }
-      case "LOOP" -> collectTaskIds(node.body, result);
-      default -> {}
+    } else if ("LOOP".equals(kind)) {
+      collectTaskIds(node.body, result);
     }
   }
 

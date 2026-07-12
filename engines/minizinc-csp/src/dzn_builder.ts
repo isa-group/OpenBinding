@@ -3,10 +3,14 @@ export interface DznBuildResult {
   features: string[];
 }
 
+// Latencies are encoded as integers (milliseconds * LAT_SCALE) because
+// Gecode propagates integers far better than floats.
+const LAT_SCALE = 1000;
+
 export class DznBuilder {
-  build(instance: any, options: any): DznBuildResult {
+  build(instance: any, options: any, placement?: any): DznBuildResult {
     const features = this.getFeatures(instance);
-    const dznContent = this.transformToDZN(instance, features, options);
+    const dznContent = this.transformToDZN(instance, features, options, placement);
     return { dznContent, features };
   }
 
@@ -27,7 +31,7 @@ export class DznBuilder {
     return Array.from(featureSet).sort();
   }
 
-  private transformToDZN(instance: any, features: string[], options: any): string {
+  private transformToDZN(instance: any, features: string[], options: any, placement?: any): string {
     const fmt = (arr: any[]) => `[${arr.join(', ')}]`;
     const fmt2d = (arr: any[][]) => {
       if (arr.length === 0) return `[| |]`;
@@ -55,14 +59,13 @@ export class DznBuilder {
     const featureMap: Record<string, number> = {};
     features.forEach((f, i) => (featureMap[f] = i + 1));
 
-    const scaleValue = (val: number, featId: string): number => {
-      const range = featureRanges[featId] || { min: 0.0, max: 1.0 };
+    // The gateway reference evaluator never clamps raw values into the
+    // feature's valid_range (out-of-range candidate values are rejected by
+    // the gateway's semantic validation, and constraint bounds may legally
+    // lie outside the range), so the engine must not clamp either.
+    const scaleValue = (val: number, _featId: string): number => {
       if (!Number.isFinite(val)) return 0.0;
-      let bounded = val;
-      if (Number.isFinite(range.min) && bounded < range.min) bounded = range.min;
-      if (Number.isFinite(range.max) && bounded > range.max) bounded = range.max;
-      if (!Number.isFinite(bounded)) return 0.0;
-      return bounded;
+      return val;
     };
 
     const FN_MAP: Record<string, number> = {
@@ -279,7 +282,9 @@ export class DznBuilder {
             iters = node.iterations;
           }
         }
-        loopIters = Math.round(iters || 1);
+        // The CSP model iterates loop bodies an integer number of times; a
+        // fractional expected iteration count cannot be encoded faithfully.
+        loopIters = requireInt(Number(iters || 1), 'LOOP expected iteration count');
       }
 
       const nodeEntry = {
@@ -406,10 +411,283 @@ export class DznBuilder {
               dc_t2.push(tIndices[j]);
             }
           }
+        } else if (type === 'same_pool' && placement) {
+          // Pool-based dependencies need the placement payload; without it the
+          // reference evaluator ignores them too, so skipping stays aligned.
+          for (let i = 0; i < tIndices.length - 1; i++) {
+            dc_type.push(3);
+            dc_t1.push(tIndices[i]);
+            dc_t2.push(tIndices[i + 1]);
+          }
+        } else if (type === 'different_pool' && placement) {
+          for (let i = 0; i < tIndices.length; i++) {
+            for (let j = i + 1; j < tIndices.length; j++) {
+              dc_type.push(4);
+              dc_t1.push(tIndices[i]);
+              dc_t2.push(tIndices[j]);
+            }
+          }
         }
       }
     }
 
+
+    // ------------------------------------------------------------------
+    // BIM* placement data (pools, capacities, latency matrix, scenarios)
+    // ------------------------------------------------------------------
+    // Loud validation: the integer-scaled CSP model must not silently distort
+    // inputs. Latencies must be representable at 1/LAT_SCALE ms; resource
+    // demands and capacities must be integral.
+    const scaleLat = (v: number) => {
+      const scaled = Number(v) * LAT_SCALE;
+      const rounded = Math.round(scaled);
+      if (Math.abs(scaled - rounded) > 1e-6) {
+        throw new Error(
+          `Latency value ${v} ms is not representable at 1/${LAT_SCALE} ms ` +
+          'resolution; the integer-scaled CSP model would silently distort it'
+        );
+      }
+      return rounded;
+    };
+    const requireInt = (v: number, what: string): number => {
+      const n = Number(v);
+      const rounded = Math.round(n);
+      if (Math.abs(n - rounded) > 1e-9) {
+        throw new Error(`${what} must be integral for the CSP model, got ${v}`);
+      }
+      return rounded;
+    };
+    const fmtA2d = (rows: number, cols: number, arr: number[][]) =>
+      `array2d(1..${rows}, 1..${cols}, [${arr.flat().join(', ')}])`;
+
+    let n_pools = 0;
+    let n_resources = 0;
+    let n_events = 0;
+    let cand_pool: number[] = candidates.map(() => 0);
+    let cand_demand: number[][] = candidates.map(() => []);
+    let cand_exec_lat: number[] = candidates.map(() => 0);
+    let pool_lat: number[][] = [];
+    let event_lat: number[][] = [];
+    const cap_pool: number[] = [];
+    const cap_res: number[] = [];
+    const cap_limit: number[] = [];
+    const tr_from_task: number[] = [];
+    const tr_event: number[] = [];
+    const tr_to_task: number[] = [];
+    const tr_op: number[] = [];
+    const tr_val: number[] = [];
+    let n_scenarios = 0;
+    const scen_prob: number[] = [];
+    let scen_active: number[][] = [];
+    const pe_scen: number[] = [];
+    const pe_to_task: number[] = [];
+    const pe_from_task: number[] = [];
+    const pe_event: number[] = [];
+    const sink_scen: number[] = [];
+    const sink_task: number[] = [];
+    let xor_semantics = 1;
+    let lat_feature_idx = 0;
+    let MAX_LAT_INT = 1;
+    let use_canonical = false;
+
+    if (placement) {
+      const pools: any[] = placement.pools || [];
+      const poolIdx: Record<string, number> = {};
+      pools.forEach((p: any, i: number) => (poolIdx[p.id] = i + 1));
+      n_pools = pools.length;
+
+      const resourceSet = new Set<string>();
+      pools.forEach((p: any) => Object.keys(p.capacity || {}).forEach((r) => resourceSet.add(r)));
+      Object.values(placement.demand_of_candidate || {}).forEach((d: any) =>
+        Object.keys(d || {}).forEach((r) => resourceSet.add(r))
+      );
+      const resources = Array.from(resourceSet).sort();
+      const resIdx: Record<string, number> = {};
+      resources.forEach((r, i) => (resIdx[r] = i + 1));
+      n_resources = resources.length;
+
+      const e2e = placement.e2e || null;
+      const latAttr = e2e?.attribute_id;
+      lat_feature_idx = latAttr ? featureMap[latAttr] || 0 : 0;
+      const includeExec = Boolean(e2e?.include_execution_latency_feature);
+
+      cand_pool = candidates.map((c: any) => poolIdx[placement.pool_of_candidate?.[c.id]] || 0);
+      cand_demand = candidates.map((c: any) => {
+        const demand = placement.demand_of_candidate?.[c.id] || {};
+        return resources.map((r) =>
+          requireInt(Number(demand[r] || 0), `Resource demand '${r}' of candidate '${c.id}'`)
+        );
+      });
+      cand_exec_lat = candidates.map((c: any) => {
+        if (!includeExec || !latAttr) return 0;
+        const qosData = c.qos || c.features || {};
+        return scaleLat(Number(qosData[latAttr] || 0));
+      });
+
+      const matrix = placement.latency_matrix || {};
+      const lookupLat = (a: string, b: string): number => {
+        let v = matrix[a]?.[b];
+        if (v === undefined || v === null) v = matrix[b]?.[a];
+        if (v === undefined || v === null) {
+          if (a === b) return 0;
+          throw new Error(`Missing pool latency entry for '${a}' -> '${b}'`);
+        }
+        return Number(v);
+      };
+      let maxLatMs = 0;
+      pool_lat = pools.map((pa: any) =>
+        pools.map((pb: any) => {
+          const v = lookupLat(pa.id, pb.id);
+          if (v > maxLatMs) maxLatMs = v;
+          return scaleLat(v);
+        })
+      );
+
+      const eventLatency = placement.event_latency || {};
+      const eventPools = placement.event_pools || {};
+      const eventIds = Array.from(
+        new Set([...Object.keys(eventLatency), ...Object.keys(eventPools)])
+      ).sort();
+      const eventIdx: Record<string, number> = {};
+      eventIds.forEach((e, i) => (eventIdx[e] = i + 1));
+      n_events = eventIds.length;
+      let maxEventMs = 0;
+      event_lat = eventIds.map((eid) =>
+        pools.map((p: any) => {
+          let v = eventLatency[eid]?.[p.id];
+          if (v === undefined || v === null) {
+            // Fall back to the latency from the event generator's own pool.
+            const evPool = eventPools[eid];
+            if (evPool === undefined) {
+              throw new Error(`Missing event latency entry for '${eid}' -> '${p.id}'`);
+            }
+            v = lookupLat(evPool, p.id);
+          }
+          if (Number(v) > maxEventMs) maxEventMs = Number(v);
+          return scaleLat(Number(v));
+        })
+      );
+
+      for (const rc of placement.resource_constraints || []) {
+        if (rc.hard === false) continue; // the CSP model enforces hard constraints only
+        for (const poolId of rc.pools || []) {
+          const pIdx = poolIdx[poolId];
+          const pool = pools[pIdx - 1];
+          if (!pIdx || !pool) continue;
+          for (const r of rc.resources || []) {
+            const cap = (pool.capacity || {})[r];
+            if (cap === undefined || cap === null) continue; // undeclared = unconstrained
+            cap_pool.push(pIdx);
+            cap_res.push(resIdx[r]);
+            cap_limit.push(requireInt(Number(cap), `Capacity of resource '${r}' in pool '${poolId}'`));
+          }
+        }
+      }
+
+      const trOpMap: Record<string, number> = { '<=': 1, '>=': 2, '==': 3, '<': 4, '>': 5 };
+      for (const tc of placement.transitions || []) {
+        if (tc.hard === false) continue;
+        const toIdx = taskIdx[tc.to_task];
+        if (!toIdx) throw new Error(`Transition constraint targets unknown task '${tc.to_task}'`);
+        const fromIdx = tc.from_task ? taskIdx[tc.from_task] || 0 : 0;
+        const evIdx = tc.from_event ? eventIdx[tc.from_event] || 0 : 0;
+        if (!fromIdx && !evIdx) {
+          throw new Error(`Transition constraint '${tc.id}' has no valid source`);
+        }
+        const emit = (op: string, value: number) => {
+          tr_from_task.push(fromIdx);
+          tr_event.push(evIdx);
+          tr_to_task.push(toIdx);
+          tr_op.push(trOpMap[op]);
+          tr_val.push(scaleLat(value));
+        };
+        const op = String(tc.op || '<=').toUpperCase() === 'IN_RANGE' ? 'IN_RANGE' : tc.op;
+        if (op === 'IN_RANGE') {
+          emit('>=', Number(tc.value?.min ?? 0));
+          emit('<=', Number(tc.value?.max ?? 0));
+        } else if (trOpMap[op] !== undefined) {
+          emit(op, Number(tc.value));
+        } else {
+          throw new Error(`Unsupported transition operator '${tc.op}'`);
+        }
+      }
+
+      if (e2e && lat_feature_idx > 0) {
+        const scenarios: any[] = e2e.scenarios || [];
+        n_scenarios = scenarios.length;
+        xor_semantics = String(e2e.xor_semantics || 'EXPECTED').toUpperCase() === 'WORST_CASE' ? 2 : 1;
+        scen_active = scenarios.map(() => Array(n_tasks).fill(0));
+        scenarios.forEach((s: any, sIdx: number) => {
+          scen_prob.push(Number(s.prob));
+          for (const t of s.order || []) {
+            const tIdx = taskIdx[t];
+            if (!tIdx) throw new Error(`Scenario references unknown task '${t}'`);
+            scen_active[sIdx][tIdx - 1] = 1;
+            for (const src of (s.preds || {})[t] || []) {
+              const [srcKind, srcId] = src;
+              pe_scen.push(sIdx + 1);
+              pe_to_task.push(tIdx);
+              if (srcKind === 'task') {
+                pe_from_task.push(taskIdx[srcId] || 0);
+                pe_event.push(0);
+              } else {
+                pe_from_task.push(0);
+                pe_event.push(eventIdx[srcId] || 0);
+              }
+            }
+          }
+          for (const t of s.sinks || []) {
+            sink_scen.push(sIdx + 1);
+            sink_task.push(taskIdx[t]);
+          }
+        });
+
+        const maxExecMs = Math.max(0, ...cand_exec_lat.map((v) => v / LAT_SCALE));
+        MAX_LAT_INT = scaleLat(maxEventMs + n_tasks * (maxLatMs + maxExecMs) + 1);
+
+        // Soundness of the PERT lower-bound encoding: the latency feature may
+        // only be minimized or bounded from above.
+        for (const c of constraints) {
+          if ((c.kind || '').toLowerCase() !== 'attribute_bound') continue;
+          if ((c.scope || '').toLowerCase() !== 'global') continue;
+          if (c.attribute_id !== latAttr) continue;
+          if (!['<=', '<'].includes(String(c.op))) {
+            throw new Error(
+              `Global bound '${c.op}' on end-to-end latency feature '${latAttr}' is not ` +
+              'supported by the exact engine (only <= and < are sound)'
+            );
+          }
+        }
+      }
+
+      // Canonical objective (matches the gateway reference evaluator).
+      use_canonical = String((instance.objective || {}).type || '').toUpperCase() === 'MONO';
+      if (use_canonical) {
+        for (const target of (instance.objective || {}).targets || []) {
+          if (featureUsesProductSpace[target]) {
+            throw new Error(
+              `Objective target '${target}' uses product-space aggregation, which is ` +
+              'incompatible with the canonical normalized objective'
+            );
+          }
+        }
+      }
+    }
+
+    const qos_dir: number[] = [];
+    const norm_lb: number[] = [];
+    const norm_ub: number[] = [];
+    const canon_w: number[] = [];
+    const objTargets = new Set<string>(((instance.objective || {}).targets || []) as string[]);
+    const objWeights = (instance.objective || {}).weights || {};
+    for (const feat of features) {
+      qos_dir.push(featureDirection[feat] === 'MAXIMIZE' ? -1 : 1);
+      const normBounds = instance.aggregation_policies?.[feat]?.normalize?.bounds || {};
+      const vr = featureRanges[feat] || { min: 0.0, max: 1.0 };
+      norm_lb.push(Number(normBounds.min ?? vr.min ?? 0.0));
+      norm_ub.push(Number(normBounds.max ?? vr.max ?? 1.0));
+      canon_w.push(use_canonical && objTargets.has(feat) ? Math.abs(Number(objWeights[feat] ?? 1.0)) : 0.0);
+    }
 
     return `
         root_id = ${root_id};
@@ -457,6 +735,50 @@ export class DznBuilder {
         dc_type = ${fmt(dc_type)};
         dc_t1 = ${fmt(dc_t1)};
         dc_t2 = ${fmt(dc_t2)};
+
+        n_pools = ${n_pools};
+        n_resources = ${n_resources};
+        n_events = ${n_events};
+        LAT_SCALE = ${LAT_SCALE};
+        MAX_LAT_INT = ${MAX_LAT_INT};
+        xor_semantics = ${xor_semantics};
+        lat_feature_idx = ${lat_feature_idx};
+
+        cand_pool = ${fmt(cand_pool)};
+        cand_demand = ${fmtA2d(n_candidates, n_resources, cand_demand)};
+        cand_exec_lat = ${fmt(cand_exec_lat)};
+        pool_lat = ${fmtA2d(n_pools, n_pools, pool_lat)};
+        event_lat = ${fmtA2d(n_events, n_pools, event_lat)};
+
+        n_cap_checks = ${cap_pool.length};
+        cap_pool = ${fmt(cap_pool)};
+        cap_res = ${fmt(cap_res)};
+        cap_limit = ${fmt(cap_limit)};
+
+        n_transitions = ${tr_to_task.length};
+        tr_from_task = ${fmt(tr_from_task)};
+        tr_event = ${fmt(tr_event)};
+        tr_to_task = ${fmt(tr_to_task)};
+        tr_op = ${fmt(tr_op)};
+        tr_val = ${fmt(tr_val)};
+
+        n_scenarios = ${n_scenarios};
+        scen_prob = ${fmt(scen_prob)};
+        scen_active = ${fmtA2d(n_scenarios, n_tasks, scen_active)};
+        n_prec_edges = ${pe_scen.length};
+        pe_scen = ${fmt(pe_scen)};
+        pe_to_task = ${fmt(pe_to_task)};
+        pe_from_task = ${fmt(pe_from_task)};
+        pe_event = ${fmt(pe_event)};
+        n_sinks = ${sink_scen.length};
+        sink_scen = ${fmt(sink_scen)};
+        sink_task = ${fmt(sink_task)};
+
+        use_canonical = ${use_canonical};
+        qos_dir = ${fmt(qos_dir)};
+        norm_lb = ${fmt(norm_lb)};
+        norm_ub = ${fmt(norm_ub)};
+        canon_w = ${fmt(canon_w)};
         `;
   }
 

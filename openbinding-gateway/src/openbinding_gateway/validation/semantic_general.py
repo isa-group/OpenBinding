@@ -211,6 +211,176 @@ class GeneralSemanticValidator:
                         code="referential_integrity_error"
                     ))
 
+        # BIM* placement extensions (resource + latency models).
+        if 'resource_model' in instance or 'latency_model' in instance:
+            violations.extend(self._validate_bimstar(instance, task_ids, candidate_ids, feature_ids))
+
+        return violations
+
+    def _validate_bimstar(
+        self,
+        instance: Dict[str, Any],
+        task_ids: Set[str],
+        candidate_ids: Set[str],
+        feature_ids: Set[str],
+    ) -> List[ValidationViolation]:
+        violations: List[ValidationViolation] = []
+
+        resource_model = instance.get('resource_model') or {}
+        latency_model = instance.get('latency_model') or {}
+
+        declared_resources = set(resource_model.get('resources', []) or [])
+        pool_ids: Set[str] = set()
+        for i, pool in enumerate(resource_model.get('pools', []) or []):
+            pid = pool.get('id')
+            if pid in pool_ids:
+                violations.append(ValidationViolation(
+                    message=f"Duplicate pool id '{pid}'",
+                    path=f"resource_model.pools[{i}].id",
+                    code="duplicate_id_error"
+                ))
+            pool_ids.add(pid)
+            for resource in (pool.get('capacity') or {}).keys():
+                if resource not in declared_resources:
+                    violations.append(ValidationViolation(
+                        message=f"Pool '{pid}' declares capacity for undeclared resource '{resource}'",
+                        path=f"resource_model.pools[{i}].capacity.{resource}",
+                        code="referential_integrity_error"
+                    ))
+
+        bound_candidates: Set[str] = set()
+        for i, cb in enumerate(resource_model.get('candidate_bindings', []) or []):
+            cand_id = cb.get('candidate_id')
+            pool_id = cb.get('pool_id')
+            if cand_id not in candidate_ids:
+                violations.append(ValidationViolation(
+                    message=f"Candidate binding refers to unknown candidate '{cand_id}'",
+                    path=f"resource_model.candidate_bindings[{i}].candidate_id",
+                    code="referential_integrity_error"
+                ))
+            if pool_id not in pool_ids:
+                violations.append(ValidationViolation(
+                    message=f"Candidate binding refers to unknown pool '{pool_id}'",
+                    path=f"resource_model.candidate_bindings[{i}].pool_id",
+                    code="referential_integrity_error"
+                ))
+            if cand_id in bound_candidates:
+                violations.append(ValidationViolation(
+                    message=f"Candidate '{cand_id}' has more than one pool binding",
+                    path=f"resource_model.candidate_bindings[{i}].candidate_id",
+                    code="duplicate_id_error"
+                ))
+            bound_candidates.add(cand_id)
+            for resource in (cb.get('demand') or {}).keys():
+                if resource not in declared_resources:
+                    violations.append(ValidationViolation(
+                        message=f"Candidate '{cand_id}' declares demand for undeclared resource '{resource}'",
+                        path=f"resource_model.candidate_bindings[{i}].demand.{resource}",
+                        code="referential_integrity_error"
+                    ))
+
+        unbound = candidate_ids - bound_candidates
+        if resource_model and unbound:
+            sample = ', '.join(sorted(unbound)[:5])
+            violations.append(ValidationViolation(
+                message=f"{len(unbound)} candidate(s) have no pool binding (e.g. {sample})",
+                path="resource_model.candidate_bindings",
+                code="missing_pool_binding"
+            ))
+
+        for i, rc in enumerate(resource_model.get('constraints', []) or []):
+            for resource in rc.get('resources', []) or []:
+                if resource not in declared_resources:
+                    violations.append(ValidationViolation(
+                        message=f"Resource constraint refers to undeclared resource '{resource}'",
+                        path=f"resource_model.constraints[{i}].resources",
+                        code="referential_integrity_error"
+                    ))
+
+        if not latency_model:
+            return violations
+
+        event_pools = latency_model.get('event_generator_pools') or {}
+        event_latency = latency_model.get('event_latency_matrix_ms') or {}
+        for event_id, pool_id in event_pools.items():
+            if pool_ids and pool_id not in pool_ids:
+                violations.append(ValidationViolation(
+                    message=f"Event generator '{event_id}' refers to unknown pool '{pool_id}'",
+                    path=f"latency_model.event_generator_pools.{event_id}",
+                    code="referential_integrity_error"
+                ))
+
+        for i, tc in enumerate(latency_model.get('transition_constraints', []) or []):
+            to_task = tc.get('to_task')
+            if to_task not in task_ids:
+                violations.append(ValidationViolation(
+                    message=f"Transition constraint refers to unknown task '{to_task}'",
+                    path=f"latency_model.transition_constraints[{i}].to_task",
+                    code="referential_integrity_error"
+                ))
+            from_task = tc.get('from_task')
+            if from_task is not None and from_task not in task_ids:
+                violations.append(ValidationViolation(
+                    message=f"Transition constraint refers to unknown task '{from_task}'",
+                    path=f"latency_model.transition_constraints[{i}].from_task",
+                    code="referential_integrity_error"
+                ))
+            from_event = tc.get('from_event')
+            if from_event is not None and from_event not in event_pools and from_event not in event_latency:
+                violations.append(ValidationViolation(
+                    message=f"Transition constraint refers to unknown event '{from_event}'",
+                    path=f"latency_model.transition_constraints[{i}].from_event",
+                    code="referential_integrity_error"
+                ))
+
+        global_latency = latency_model.get('global_latency') or {}
+        lat_attr = global_latency.get('attribute_id')
+        if lat_attr is not None and lat_attr not in feature_ids:
+            violations.append(ValidationViolation(
+                message=f"global_latency refers to unknown feature '{lat_attr}'",
+                path="latency_model.global_latency.attribute_id",
+                code="referential_integrity_error"
+            ))
+        if str(global_latency.get('and_semantics') or 'MAX').upper() != 'MAX':
+            violations.append(ValidationViolation(
+                message="Only and_semantics=MAX is supported by the BIM* latency semantics",
+                path="latency_model.global_latency.and_semantics",
+                code="semantic_invariant_error"
+            ))
+
+        # The latency model interprets the composition as a precedence DAG:
+        # LOOP nodes and repeated task occurrences are not supported.
+        occurrences: Dict[str, int] = {}
+
+        def walk(node: Dict[str, Any]) -> None:
+            kind = node.get('kind')
+            if kind == 'TASK':
+                tid = node.get('task_id')
+                occurrences[tid] = occurrences.get(tid, 0) + 1
+            elif kind == 'LOOP':
+                violations.append(ValidationViolation(
+                    message="LOOP nodes are not supported when a latency_model is present",
+                    path=f"composition...[id={node.get('id')}]",
+                    code="semantic_invariant_error"
+                ))
+                walk(node.get('body', {}) or {})
+            elif kind in ('SEQ', 'AND'):
+                for child in node.get('children', []) or []:
+                    walk(child)
+            elif kind == 'XOR':
+                for branch in node.get('branches', []) or []:
+                    walk(branch.get('child', {}) or {})
+
+        walk((instance.get('composition') or {}).get('root') or {})
+        for tid, count in occurrences.items():
+            if count > 1:
+                violations.append(ValidationViolation(
+                    message=f"Task '{tid}' appears {count} times in the composition; "
+                            "the latency model requires a single occurrence per task",
+                    path="composition",
+                    code="semantic_invariant_error"
+                ))
+
         return violations
 
     def _validate_structured(self, node: Dict[str, Any], task_ids: Set[str], node_ids: Set[str]) -> List[ValidationViolation]:

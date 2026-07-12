@@ -1,0 +1,93 @@
+classDiagram
+    direction LR
+
+    class BimStarInstance {
+        metadata
+        features : Feature[]
+        providers : Provider[]
+        tasks : Task[]
+        candidates : Candidate[]
+        composition : StructuredTree
+        aggregation_policies : map~feature, AggregationPolicy~
+        constraints : Constraint[]
+        objective : Objective
+        resource_model : ResourceModel
+        latency_model : LatencyModel
+    }
+
+    class Candidate {
+        id
+        task_id
+        provider_id
+        features : map~feature, number~
+    }
+
+    class AggregationPolicy {
+        neutral : number
+        compose : seq | and | xor | loop
+        normalize : minmax bounds (canonical)
+    }
+
+    class Constraint {
+        ATTRIBUTE_BOUND : GLOBAL | LOCAL
+        DEPENDENCY : SAME_PROVIDER | DIFFERENT_PROVIDER | SAME_POOL | DIFFERENT_POOL
+    }
+
+    class Objective {
+        type : MONO | MULTI | MANY
+        targets : feature ids
+        weights : map~feature, weight~
+    }
+
+    class ResourceModel {
+        resources : ids
+        pools : Pool[]
+        candidate_bindings : CandidateBinding[]
+        constraints : RESOURCE_CAPACITY[]
+    }
+
+    class Pool {
+        id
+        kind : EDGE | FOG | CLOUD | CLOUD_FAAS
+        capacity : map~resource, number~
+    }
+
+    class CandidateBinding {
+        candidate_id
+        pool_id
+        demand : map~resource, number~
+    }
+
+    class LatencyModel {
+        pool_latency_matrix_ms
+        event_generator_pools
+        event_latency_matrix_ms
+        transition_constraints : TransitionConstraint[]
+        global_latency : GlobalLatency
+    }
+
+    class TransitionConstraint {
+        from_task | from_event
+        to_task
+        op, value (ms)
+    }
+
+    class GlobalLatency {
+        attribute_id
+        include_execution_latency_feature
+        xor_semantics : EXPECTED | WORST_CASE
+        and_semantics : MAX
+    }
+
+    BimStarInstance --> Candidate
+    BimStarInstance --> AggregationPolicy
+    BimStarInstance --> Constraint
+    BimStarInstance --> Objective
+    BimStarInstance --> ResourceModel
+    BimStarInstance --> LatencyModel
+    ResourceModel --> Pool
+    ResourceModel --> CandidateBinding
+    CandidateBinding --> Candidate : places
+    CandidateBinding --> Pool : on
+    LatencyModel --> TransitionConstraint
+    LatencyModel --> GlobalLatency

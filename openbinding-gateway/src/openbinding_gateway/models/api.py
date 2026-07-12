@@ -59,6 +59,14 @@ class Solution(BaseModel):
     binding: Dict[str, str] = Field(..., description="Map of Task ID to Candidate ID")
     aggregated_features: Dict[str, float] = Field(default_factory=dict)
     violations: List[ValidationViolation] = Field(default_factory=list)
+    feasible: Optional[bool] = Field(
+        default=None,
+        description="Reference-evaluator verdict: True when no hard constraint is violated.",
+    )
+    engine_objective_value: Optional[float] = Field(
+        default=None,
+        description="Objective value as reported by the engine, before canonical re-evaluation.",
+    )
 
 
 class Feasibility(str, Enum):

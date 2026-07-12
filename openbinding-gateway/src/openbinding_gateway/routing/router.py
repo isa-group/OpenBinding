@@ -1,6 +1,7 @@
 import asyncio
 import httpx
 import json
+import os
 from typing import Optional, Any
 from ..registry.engine import EngineRegistry
 from ..models.api import SolveRequest, SolveResponse
@@ -30,6 +31,22 @@ class Router:
         except Exception:
             return False
 
+    @staticmethod
+    def _is_sync_response(data: dict) -> bool:
+        """True when an engine answered synchronously.
+
+        Engines answer either with a job envelope ({"job_id": ...}) or with a
+        finished result: a selection at the top level, a selection wrapped
+        under result.solution, or an already-general "solutions" list.
+        """
+        if "job_id" in data:
+            return False
+        if data.get("selection") is not None:
+            return True
+        if ((data.get("result") or {}).get("solution") or {}).get("selection") is not None:
+            return True
+        return isinstance(data.get("solutions"), list)
+
     def _has_non_empty_binding_solution(self, result_data: dict) -> bool:
         solutions = result_data.get("solutions", []) or []
         for solution in solutions:
@@ -37,6 +54,10 @@ class Router:
                 continue
             binding = solution.get("binding") or {}
             if isinstance(binding, dict) and len(binding) > 0:
+                # Solutions flagged infeasible by the reference evaluator do
+                # not make the response FEASIBLE (they are still reported).
+                if solution.get("feasible") is False:
+                    continue
                 return True
         return False
 
@@ -73,7 +94,7 @@ class Router:
                         response = await client.post(
                             f"{service_url.rstrip('/')}/solve",
                             json=payload,
-                            timeout=900
+                            timeout=float(os.getenv("ENGINE_SOLVE_TIMEOUT_S", "1800"))
                         )
 
                         if response.status_code in (502, 503, 504):
@@ -94,12 +115,7 @@ class Router:
                     raise RuntimeError("Failed to contact engine")
                 
                 # Check for sync response
-                # Some engines may return selection at top-level or wrapped under result.solution
-                sync_selection = data.get("selection")
-                if sync_selection is None:
-                    sync_selection = ((data.get("result") or {}).get("solution") or {}).get("selection")
-
-                if "job_id" not in data and sync_selection is not None:
+                if self._is_sync_response(data):
                      # It's a synchronous result
                      result_data = plugin.transform_response(data, request.instance)
                      result_data = canonicalize_result_data(result_data, request.instance)

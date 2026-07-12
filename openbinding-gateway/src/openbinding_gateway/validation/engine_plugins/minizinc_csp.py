@@ -2,6 +2,7 @@ import os
 from typing import List, Dict, Any, Optional, Tuple
 import httpx
 from .aggregation import build_selected_candidate_by_task, compute_aggregated_qos
+from .bimstar import build_placement_payload
 from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 
@@ -30,9 +31,21 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
             "qos_features_supported": ["*"],
             "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP", "ELEMENT"],
             "objective_types_supported": ["MONO"],
-            "constraints_supported": ["attribute_bound", "dependency"], 
+            "constraints_supported": [
+                "attribute_bound",
+                "dependency",
+                "resource_capacity",
+                "latency_transition",
+            ],
             "type": "EXACT",
             "schema_version": "v1"
+        }
+
+    def get_default_options(self) -> Dict[str, Any]:
+        return {
+            "solver": "gecode",
+            "time_limit_ms": 900000,
+            "intermediate_solutions": True,
         }
 
     def get_specialization_schema_path(self) -> str:
@@ -43,7 +56,7 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         # Fallback for local dev if not in docker
         if not os.path.exists(base_path):
              # Try workspace relative
-             base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../../schemas"))
+             base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../schemas"))
         
         return os.path.join(base_path, "specializations/minizinc-csp.schema.json")
 
@@ -159,15 +172,21 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
             
     def transform_request(self, instance: Dict[str, Any], options: Dict[str, Any] = {}) -> Tuple[Dict[str, Any], List[str]]:
         warnings = []
+        supported_options = {"debug", "solver", "time_limit_ms", "intermediate_solutions"}
         if options:
             for k in options.keys():
-                if k not in {"debug", "solver"}:
+                if k not in supported_options:
                     warnings.append(f"Option '{k}' is not supported by MiniZinc engine")
-        
-        return {
+
+        payload = {
             "instance": instance,
             "options": options
-        }, warnings
+        }
+        placement = build_placement_payload(instance)
+        if placement is not None:
+            payload["placement"] = placement
+
+        return payload, warnings
 
     def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:
         """Transform engine response to general solution format."""

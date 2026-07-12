@@ -46,15 +46,20 @@ flowchart TD
 
 3.  **Random Search Engine** (`engines/random-search`):
     *   Java service.
-    *   Uses random search.
-    *   Best for exploring large solution spaces.
+    *   Uses random search (seeded and reproducible on the BIM* path).
+    *   Best for exploring large solution spaces; serves as the experimental baseline.
 
 4.  **Many-Heuristic Engine** (`engines/many-heuristic`):
     *   Java service (extends Random Search).
     *   Specialized for **Many-Objective** problems (3+ objectives).
     *   Returns a **Pareto front** of non-dominated solutions.
 
-4.  **Frontend** (`frontend`):
+5.  **Evolutionary Heuristics Engine** (`engines/evolutionary-heuristics`):
+    *   Java service built on jMetal (NSGA-II / NSGA-III).
+    *   MONO mode folds Deb's feasibility rules into the scalar objective and
+        tracks the best individual ever evaluated (anytime behavior).
+
+6.  **Frontend** (`frontend`):
     *   React + Vite web UI for modeling and submitting problems.
     *   Multi-page SPA with professional design inspired by modern developer tools.
     *   **Features**:
@@ -92,6 +97,33 @@ OpenBinding validates incoming requests against two schema layers:
    Mermaid models are used by the frontend **Schema Explorer** in the **Model** tab. If a specialization does not provide `.schema.mermaid`, the JSON schema workflow remains fully functional.
 
 Example payloads that follow these schemas live in `examples/`.
+
+### BIM\* placement extension
+
+`schemas/general/bimstar.schema.json` extends the general BIM with **placement semantics** for
+FaaS-orchestration binding over the Cloud-Edge continuum:
+
+- **`resource_model`** — infrastructure pools with capacities, per-candidate pool bindings and
+  resource demands, and `RESOURCE_CAPACITY` constraints (cumulative bin-packing per node).
+- **`latency_model`** — a pool-to-pool latency matrix, event generators, pairwise transition
+  latency bounds, and an end-to-end latency attribute defined as the **expected makespan over the
+  XOR scenarios** of the composition (critical-path scheduling on the precedence DAG).
+- **Canonical normalization** — per-feature min–max bounds embedded in the instance
+  (`aggregation_policies.<id>.normalize`), so every engine optimizes and reports the same
+  normalized weighted objective.
+- **Dependency extensions** — `SAME_POOL` / `DIFFERENT_POOL` co-location constraints.
+
+The reference implementation of these semantics lives in the gateway
+(`openbinding_gateway/validation/engine_plugins/bimstar.py`); every engine solution is re-evaluated
+against it. All engines support shared **wall-clock time budgets** (`time_budget_ms`) with anytime
+best-so-far traces; the exact engine additionally reports its incumbent trace and completion status
+(`OPTIMAL` / `SATISFIED` / `UNSATISFIABLE` / `UNKNOWN`).
+
+## 🔬 Experimentation
+
+The FaaS placement-as-QACO experimental campaign (dataset transformation, priced corpus, campaign
+runner and evaluation notebooks) is documented in
+[`experimentation/icsoc/README.md`](experimentation/icsoc/README.md).
 
 ## 🚀 Getting Started
 

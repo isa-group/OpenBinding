@@ -1,11 +1,17 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 
+export interface MiniZincStdoutEvent {
+  atMs: number;
+  text: string;
+}
+
 export interface MiniZincRunResult {
   code: number | null;
   stdout: string;
   stderr: string;
   durationMs: number;
+  stdoutEvents: MiniZincStdoutEvent[];
 }
 
 export class MiniZincRunner {
@@ -13,9 +19,10 @@ export class MiniZincRunner {
     solverName: string,
     modelPath: string,
     dznContent: string,
-    tmpDir: string
+    tmpDir: string,
+    extraArgs: string[] = []
   ): Promise<MiniZincRunResult> {
-    const args = ['--solver', solverName, modelPath, '-'];
+    const args = ['--solver', solverName, ...extraArgs, modelPath, '-'];
 
     if (!fs.existsSync(tmpDir)) {
       fs.mkdirSync(tmpDir, { recursive: true });
@@ -29,9 +36,12 @@ export class MiniZincRunner {
 
       let stdout = '';
       let stderr = '';
+      const stdoutEvents: MiniZincStdoutEvent[] = [];
 
       minizinc.stdout.on('data', (data) => {
-        stdout += data.toString();
+        const text = data.toString();
+        stdout += text;
+        stdoutEvents.push({ atMs: Date.now() - startTime, text });
       });
       minizinc.stderr.on('data', (data) => {
         stderr += data.toString();
@@ -43,7 +53,7 @@ export class MiniZincRunner {
 
       minizinc.on('close', (code) => {
         const durationMs = Date.now() - startTime;
-        resolve({ code, stdout, stderr, durationMs });
+        resolve({ code, stdout, stderr, durationMs, stdoutEvents });
       });
 
       minizinc.stdin.write(dznContent);

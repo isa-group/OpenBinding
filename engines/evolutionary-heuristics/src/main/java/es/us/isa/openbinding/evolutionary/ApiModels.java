@@ -11,6 +11,69 @@ final class ApiModels {
   static final class SolveRequest {
     Instance instance;
     Options options = new Options();
+    Placement placement;
+  }
+
+  /**
+   * Placement payload precomputed by the gateway for BIM* instances: pool
+   * bindings, capacities, latency matrices and the XOR-scenario precedence
+   * DAGs used to evaluate end-to-end latency.
+   */
+  static final class Placement {
+    Map<String, String> pool_of_candidate = new LinkedHashMap<>();
+    Map<String, Map<String, Double>> demand_of_candidate = new LinkedHashMap<>();
+    List<Pool> pools = new ArrayList<>();
+    List<PlacementResourceConstraint> resource_constraints = new ArrayList<>();
+    Map<String, Map<String, Double>> latency_matrix = new LinkedHashMap<>();
+    Map<String, Map<String, Double>> event_latency = new LinkedHashMap<>();
+    Map<String, String> event_pools = new LinkedHashMap<>();
+    List<PlacementTransition> transitions = new ArrayList<>();
+    E2eModel e2e;
+  }
+
+  static final class Pool {
+    String id;
+    String kind;
+    Map<String, Double> capacity = new LinkedHashMap<>();
+  }
+
+  static final class PlacementResourceConstraint {
+    String id;
+    Boolean hard;
+    List<String> resources = new ArrayList<>();
+    List<String> pools = new ArrayList<>();
+
+    boolean isHard() {
+      return hard == null || hard;
+    }
+  }
+
+  static final class PlacementTransition {
+    String id;
+    Boolean hard;
+    String from_task;
+    String from_event;
+    String to_task;
+    String op;
+    Object value;
+
+    boolean isHard() {
+      return hard == null || hard;
+    }
+  }
+
+  static final class E2eModel {
+    String attribute_id;
+    boolean include_execution_latency_feature;
+    String xor_semantics;
+    List<E2eScenario> scenarios = new ArrayList<>();
+  }
+
+  static final class E2eScenario {
+    double prob;
+    List<String> order = new ArrayList<>();
+    Map<String, List<List<String>>> preds = new LinkedHashMap<>();
+    List<String> sinks = new ArrayList<>();
   }
 
   static final class Instance {
@@ -107,7 +170,13 @@ final class ApiModels {
 
   static final class Options {
     String algorithm = "AUTO";
+    // Variation operators: SBX (IntegerSBX + polynomial mutation, jMetal
+    // defaults) or UNIFORM (uniform crossover + random-reset mutation, the
+    // standard choice for categorical candidate indices).
+    String operators = "SBX";
     int population_size = 100;
+    // Without a time budget: total evaluation budget. With a time budget:
+    // minimum number of evaluations that is always honoured.
     int max_evaluations = 10_000;
     double crossover_probability = 0.9;
     Double mutation_probability;
@@ -116,6 +185,8 @@ final class ApiModels {
     double soft_penalty = 10.0;
     long seed = 1L;
     int reference_divisions = 12;
+    // Wall-clock stopping criterion (MONO only).
+    Long time_budget_ms;
   }
 
   static final class SolveResponse {

@@ -7,6 +7,7 @@ from .aggregation import (
     normalize_qos,
     compute_objective_value,
 )
+from .bimstar import build_placement_payload
 from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 
@@ -24,7 +25,12 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             "qos_features_supported": ["*"],
             "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
             "objective_types_supported": ["MONO"],
-            "constraints_supported": ["attribute_bound", "dependency"],
+            "constraints_supported": [
+                "attribute_bound",
+                "dependency",
+                "resource_capacity",
+                "latency_transition",
+            ],
             "type": "HEURISTIC",
             "schema_version": "v1"
         }
@@ -32,12 +38,14 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
     def get_default_options(self) -> Dict[str, Any]:
         return {
             "iterations_count": 1000,
+            "seed": 1,
+            "time_budget_ms": None,
         }
 
     def get_specialization_schema_path(self) -> str:
         base_path = os.getenv("SCHEMAS_DIR", "/app/schemas") 
         if not os.path.exists(base_path):
-             base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../../schemas"))
+             base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../schemas"))
         return os.path.join(base_path, "specializations/random-search.schema.json")
 
     def validate_semantics(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
@@ -151,12 +159,35 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
 
     def transform_request(self, instance: Dict[str, Any], options: Dict[str, Any] = {}) -> Tuple[Dict[str, Any], List[str]]:
         """Map General JSON to Random-Search API DTO structure."""
-        
+
         warnings = []
+        supported_options = {"iterations_count", "seed", "time_budget_ms"}
         if options:
             for k in options.keys():
-                if k != "iterations_count":
+                if k not in supported_options:
                     warnings.append(f"Option '{k}' is not supported by Random-Search engine")
+
+        # BIM* instances take the placement-native path: the engine consumes
+        # the raw instance plus the precomputed placement payload, so that the
+        # placement semantics live in a single evaluator implementation.
+        placement = build_placement_payload(instance)
+        if placement is not None:
+            # iterations_count is the minimum evaluation budget; when
+            # time_budget_ms is set the search runs until the wall-clock
+            # budget expires (never below the minimum).
+            config: Dict[str, Any] = {
+                "max_iterations": options.get("iterations_count", 1000)
+            }
+            if options.get("seed") is not None:
+                config["seed"] = int(options["seed"])
+            if options.get("time_budget_ms") is not None:
+                config["time_budget_ms"] = int(options["time_budget_ms"])
+            return {
+                "id": instance.get("metadata", {}).get("id", "req-1"),
+                "instance": instance,
+                "placement": placement,
+                "config": config,
+            }, warnings
 
         # 1. Composition
         def map_node(node):
@@ -217,14 +248,20 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         if obj.get("type") == "MONO" and len(obj.get("weights", {}).keys()) > 0:
             qos_weights = {k: float(v) for k, v in (obj.get("weights", {}) or {}).items()}
 
-        # Engine requires weights for all properties (use 0.0 for omitted attributes)
+        # Engine requires weights for all properties (use 0.0 for omitted attributes).
+        # Normalization bounds: prefer the instance-declared canonical bounds
+        # (aggregation_policies[fid].normalize.bounds) so the engine's internal
+        # fitness matches the gateway's reference objective; fall back to the
+        # feature valid_range otherwise.
+        declared_policies = instance.get("aggregation_policies", {}) or {}
         for f in features:
              fid = f["id"]
              vr = f.get("valid_range") or {}
+             norm_bounds = ((declared_policies.get(fid) or {}).get("normalize") or {}).get("bounds") or {}
              qos_props[fid] = {
                  "direction": f["direction"].lower(),
-                 "min": float(vr.get("min", 0.0)),
-                 "max": float(vr.get("max", 1.0))
+                 "min": float(norm_bounds.get("min", vr.get("min", 0.0))),
+                 "max": float(norm_bounds.get("max", vr.get("max", 1.0)))
              }
              if fid not in qos_weights:
                 qos_weights[fid] = 0.0
@@ -323,7 +360,13 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             
             constraints_out.append(con_dto)
 
-        return {
+        config = {
+            "max_iterations": options.get("iterations_count", 1000)
+        }
+        if options.get("seed") is not None:
+            config["seed"] = int(options["seed"])
+
+        payload = {
             "id": instance.get("metadata", {}).get("id", "req-1"),
             "composition": composition,
             "market": market,
@@ -333,10 +376,10 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
                 "aggregation": qos_aggregation
             },
             "constraints": constraints_out,
-            "config": {
-                "max_iterations": options.get("iterations_count", 1000)
-            }
-        }, warnings
+            "config": config
+        }
+
+        return payload, warnings
 
     def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:
         """Map Random-Search response to General Solution."""
@@ -359,8 +402,15 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         aggregated_qos = compute_aggregated_qos(root, features, selected_candidate_by_task, agg_policies)
         normalized_qos = normalize_qos(aggregated_qos, features, agg_policies)
 
-        obj = original_request.get("objective", {}) or {}
-        objective_value = compute_objective_value(obj, normalized_qos)
+        # Prefer the engine's own internal search objective (BIM* path) so
+        # the canonicalization step can audit it; the legacy "goodness"
+        # recomputation remains as a fallback for the legacy DTO path.
+        engine_objective = engine_response.get("objective_value")
+        if engine_objective is not None:
+            objective_value = float(engine_objective)
+        else:
+            obj = original_request.get("objective", {}) or {}
+            objective_value = compute_objective_value(obj, normalized_qos)
 
         # Evaluate constraints for reporting
         violations = []
@@ -437,13 +487,17 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
 
         provenance = {
              "engine_id": "random-search",
-             "execution_time_ms": engine_response.get("execution_time", 0), 
+             "execution_time_ms": engine_response.get("execution_time", 0),
              "metadata": {
                  "solver": "Random-Search",
                  "version": "0.0.1-SNAPSHOT",
                  "iterations_count": engine_response.get("iterations_count")
              }
         }
+        if engine_response.get("seed") is not None:
+            provenance["metadata"]["seed"] = engine_response.get("seed")
+        if engine_response.get("trace") is not None:
+            provenance["metadata"]["trace"] = engine_response.get("trace")
 
         new_sol = {
             "objective_value": objective_value,

@@ -5,38 +5,53 @@ import jsonschema # type: ignore
 from typing import Dict, Any, List, Optional
 from ..models.api import ValidationViolation
 
+
+def _resolve_schema_path(env_var: str, filename: str) -> Path:
+    env_path = os.getenv(env_var)
+    schema_candidates: List[Path] = []
+    if env_path:
+        schema_candidates.append(Path(env_path))
+
+    # Support both layouts:
+    # - gateway repo has its own schemas/: <openbinding-gateway>/schemas/general/<filename>
+    # - monorepo has schemas/ at the workspace root: <OpenBinding>/schemas/general/<filename>
+    this_file = Path(__file__).resolve()
+    schema_candidates.extend(
+        [
+            this_file.parents[3] / "schemas" / "general" / filename,
+            this_file.parents[4] / "schemas" / "general" / filename,
+            Path(f"/app/schemas/general/{filename}"),
+        ]
+    )
+
+    schema_path: Optional[Path] = next((p for p in schema_candidates if p.exists()), None)
+    if schema_path is None:
+        raise FileNotFoundError(
+            f"Schema '{filename}' not found. Tried: " + ", ".join(str(p) for p in schema_candidates)
+        )
+    return schema_path
+
+
+def is_bimstar_instance(instance: Dict[str, Any]) -> bool:
+    return isinstance(instance, dict) and (
+        "resource_model" in instance or "latency_model" in instance
+    )
+
+
 class GeneralSchemaValidator:
     def __init__(self):
-        env_path = os.getenv("GENERAL_SCHEMA_PATH")
-        schema_candidates: List[Path] = []
-        if env_path:
-            schema_candidates.append(Path(env_path))
-
-        # Support both layouts:
-        # - gateway repo has its own schemas/: <openbinding-gateway>/schemas/general/schema.json
-        # - monorepo has schemas/ at the workspace root: <OpenBinding>/schemas/general/schema.json
-        this_file = Path(__file__).resolve()
-        schema_candidates.extend(
-            [
-                this_file.parents[3] / "schemas" / "general" / "schema.json",
-                this_file.parents[4] / "schemas" / "general" / "schema.json",
-                Path("/app/schemas/general/schema.json"),
-            ]
-        )
-
-        schema_path: Optional[Path] = next((p for p in schema_candidates if p.exists()), None)
-        if schema_path is None:
-            raise FileNotFoundError(
-                "General schema not found. Tried: " + ", ".join(str(p) for p in schema_candidates)
-            )
-
-        with open(schema_path, "r") as f:
+        with open(_resolve_schema_path("GENERAL_SCHEMA_PATH", "schema.json"), "r") as f:
             self.schema = json.load(f)
-            
+        with open(_resolve_schema_path("BIMSTAR_SCHEMA_PATH", "bimstar.schema.json"), "r") as f:
+            self.bimstar_schema = json.load(f)
+
+    def schema_for(self, instance: Dict[str, Any]) -> Dict[str, Any]:
+        return self.bimstar_schema if is_bimstar_instance(instance) else self.schema
+
     def validate(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
         violations = []
-        validator = jsonschema.Draft202012Validator(self.schema)
-        
+        validator = jsonschema.Draft202012Validator(self.schema_for(instance))
+
         for error in validator.iter_errors(instance):
             path_str = ".".join([str(p) for p in error.path]) if error.path else "root"
             violations.append(ValidationViolation(
@@ -45,5 +60,5 @@ class GeneralSchemaValidator:
                 code="general_schema_invalid",
                 constraint_id=None
             ))
-            
+
         return violations

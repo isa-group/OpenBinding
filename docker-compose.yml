@@ -147,6 +147,10 @@ services:
     profiles: ["dev"]
     ports:
       - "5173:5173"
+    environment:
+      # /examples requests hitting the vite dev server directly are proxied to
+      # the nginx-dev static server (see frontend/vite.config.ts).
+      - EXAMPLES_PROXY_TARGET=http://nginx-dev:80
     depends_on:
       gateway-dev:
         condition: service_healthy

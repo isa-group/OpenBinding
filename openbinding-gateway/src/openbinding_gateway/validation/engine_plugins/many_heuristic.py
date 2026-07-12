@@ -50,7 +50,7 @@ class ManyHeuristicEnginePlugin(EngineValidationPlugin):
     def get_specialization_schema_path(self) -> str:
         base_path = os.getenv("SCHEMAS_DIR", "/app/schemas") 
         if not os.path.exists(base_path):
-             base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../../schemas"))
+             base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../schemas"))
         return os.path.join(base_path, "specializations/many-heuristic.schema.json")
 
     def validate_semantics(self, instance: Dict[str, Any]) -> List[ValidationViolation]:

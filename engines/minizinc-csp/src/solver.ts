@@ -8,9 +8,11 @@ export class Solver {
     private readonly builder = new DznBuilder();
     private readonly runner = new MiniZincRunner();
 
-    async solve(instance: any, options: any): Promise<any> {
+    async solve(instance: any, options: any, placement?: any): Promise<any> {
         const debug = Boolean(options?.debug);
         const solverName = String(options?.solver || this.DEFAULT_SOLVER_NAME);
+        const timeLimitMs = options?.time_limit_ms != null ? Number(options.time_limit_ms) : null;
+        const intermediateSolutions = options?.intermediate_solutions !== false;
 
         // 0. Best Practices Validation
         const violations = this.validateBestPractices(instance);
@@ -30,15 +32,38 @@ export class Solver {
             });
         }
 
-        // 1. Identify Features
-        const { dznContent, features } = this.builder.build(instance, options);
+        // 1. Identify Features + build data (placement-aware)
+        let dznContent: string;
+        let features: string[];
+        try {
+            const built = this.builder.build(instance, options, placement);
+            dznContent = built.dznContent;
+            features = built.features;
+        } catch (e) {
+            return {
+                solution: {
+                    feasible: false,
+                    selection: null,
+                    objective_value: null,
+                },
+                violations: [{ message: `DZN build error: ${e}`, code: 'dzn_build_error' }],
+                diagnostics: { stage: 'dzn_build', reason: 'build_error', error: String(e) },
+            };
+        }
 
         // 3. Run MiniZinc
-        // minizinc --solver <SOLVER_NAME> model.mzn -
+        // minizinc --solver <SOLVER_NAME> [--time-limit ms] [--intermediate-solutions] model.mzn -
         // The '-' argument tells minizinc to read data from stdin
         const modelPath = path.resolve(__dirname, '../model/composition.mzn');
+        const extraArgs: string[] = [];
+        if (timeLimitMs != null && Number.isFinite(timeLimitMs) && timeLimitMs > 0) {
+            extraArgs.push('--time-limit', String(Math.round(timeLimitMs)));
+        }
+        if (intermediateSolutions) {
+            extraArgs.push('--intermediate-solutions');
+        }
 
-        const runResult = await this.runner.run(solverName, modelPath, dznContent, this.tmpDir);
+        const runResult = await this.runner.run(solverName, modelPath, dznContent, this.tmpDir, extraArgs);
         const timeSec = runResult.durationMs / 1000;
 
         const diagnosticsBase = {
@@ -52,27 +77,30 @@ export class Solver {
             ...(debug ? { dzn: dznContent } : {}),
         };
 
+        // Flattening/solver errors must fail the job loudly: an exact engine
+        // returning "no solution" is interpreted downstream as an
+        // infeasibility proof, silently masking model or data bugs.
         if (runResult.code !== 0) {
-            return {
-                solution: {
-                    feasible: false,
-                    selection: null,
-                    objective_value: null,
-                },
-                violations: [{ message: `MiniZinc Error: ${runResult.stderr}`, code: 'solver_error' }],
-                diagnostics: {
-                    stage: 'solver_execution',
-                    reason: 'non_zero_exit',
-                    ...diagnosticsBase,
-                },
-            };
+            throw new Error(
+                `MiniZinc exited with code ${runResult.code}: ` +
+                this.truncateText(runResult.stderr || runResult.stdout, 500)
+            );
+        }
+        if (runResult.stdout.includes('=====ERROR=====') || /(^|\n)Error:/.test(runResult.stderr)) {
+            throw new Error(
+                'MiniZinc reported an error: ' +
+                this.truncateText(runResult.stderr || runResult.stdout, 500)
+            );
         }
 
         try {
-            if (
-                runResult.stdout.includes('=====UNSATISFIABLE=====') ||
-                runResult.stdout.includes('model inconsistency detected')
-            ) {
+            const stdout = runResult.stdout;
+            const isUnsat =
+                stdout.includes('=====UNSATISFIABLE=====') ||
+                stdout.includes('model inconsistency detected');
+            const isComplete = stdout.includes('==========');
+
+            if (isUnsat) {
                 return {
                     solution: {
                         feasible: false,
@@ -82,6 +110,8 @@ export class Solver {
                     provenance: {
                         solver: solverName,
                         time_sec: timeSec,
+                        status: 'UNSATISFIABLE',
+                        time_limit_ms: timeLimitMs,
                     },
                     diagnostics: {
                         stage: 'solver_execution',
@@ -91,9 +121,11 @@ export class Solver {
                 };
             }
 
-            const lastBrace = runResult.stdout.lastIndexOf('}');
-            const firstBrace = runResult.stdout.indexOf('{');
-            if (firstBrace === -1 || lastBrace === -1) {
+            // Each incumbent solution is printed as a JSON block followed by a
+            // '----------' separator; timestamps come from stdout arrival times.
+            const incumbents = this.parseIncumbents(stdout, runResult.stdoutEvents);
+
+            if (incumbents.length === 0) {
                 return {
                     solution: {
                         feasible: false,
@@ -103,6 +135,8 @@ export class Solver {
                     provenance: {
                         solver: solverName,
                         time_sec: timeSec,
+                        status: 'UNKNOWN',
+                        time_limit_ms: timeLimitMs,
                     },
                     diagnostics: {
                         stage: 'parse_output',
@@ -112,8 +146,12 @@ export class Solver {
                 };
             }
 
-            const jsonStr = runResult.stdout.substring(firstBrace, lastBrace + 1);
-            const result = JSON.parse(jsonStr);
+            const result = incumbents[incumbents.length - 1].json;
+            const trace = incumbents.map((b) => ({
+                elapsed_ms: b.atMs,
+                objective_value: b.json.objective_value,
+                e2e_latency_ms: b.json.e2e_latency_ms,
+            }));
 
             const taskMap = this.mapTasks(instance);
             const candMap = this.mapCandidates(instance);
@@ -167,6 +205,10 @@ export class Solver {
                 provenance: {
                     solver: solverName,
                     time_sec: timeSec,
+                    status: isComplete ? 'OPTIMAL' : 'SATISFIED',
+                    time_limit_ms: timeLimitMs,
+                    trace: trace,
+                    e2e_latency_ms: result.e2e_latency_ms,
                 },
                 diagnostics: {
                     stage: 'completed',
@@ -189,6 +231,62 @@ export class Solver {
                 },
             };
         }
+    }
+
+    private parseIncumbents(
+        stdout: string,
+        events: Array<{ atMs: number; text: string }>
+    ): Array<{ json: any; atMs: number }> {
+        // Map a character offset in the accumulated stdout to the arrival time
+        // of the chunk containing it.
+        const offsets: number[] = [];
+        let acc = 0;
+        for (const ev of events) {
+            acc += ev.text.length;
+            offsets.push(acc);
+        }
+        const timeAt = (offset: number): number => {
+            for (let i = 0; i < offsets.length; i++) {
+                if (offset <= offsets[i]) return events[i].atMs;
+            }
+            return events.length > 0 ? events[events.length - 1].atMs : 0;
+        };
+
+        const incumbents: Array<{ json: any; atMs: number }> = [];
+        const SEP = '----------';
+        let cursor = 0;
+        while (true) {
+            const sepIdx = stdout.indexOf(SEP, cursor);
+            if (sepIdx === -1) break;
+            const segment = stdout.substring(cursor, sepIdx);
+            const first = segment.indexOf('{');
+            const last = segment.lastIndexOf('}');
+            if (first !== -1 && last !== -1 && last > first) {
+                try {
+                    const json = JSON.parse(segment.substring(first, last + 1));
+                    incumbents.push({ json, atMs: timeAt(sepIdx) });
+                } catch {
+                    // Malformed block: skip it, later incumbents still count.
+                }
+            }
+            cursor = sepIdx + SEP.length;
+        }
+
+        // Without --intermediate-solutions there is a single JSON block and no
+        // separator when the solver is interrupted; fall back to whole-output parse.
+        if (incumbents.length === 0) {
+            const first = stdout.indexOf('{');
+            const last = stdout.lastIndexOf('}');
+            if (first !== -1 && last !== -1 && last > first) {
+                try {
+                    const json = JSON.parse(stdout.substring(first, last + 1));
+                    incumbents.push({ json, atMs: timeAt(last) });
+                } catch {
+                    // No parsable solution at all.
+                }
+            }
+        }
+        return incumbents;
     }
 
     private truncateText(text: string, max = 12000): string {

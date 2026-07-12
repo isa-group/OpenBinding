@@ -10,6 +10,8 @@ import es.us.isa.qosawarewsbinding.api.dto.SolveResponse;
 import es.us.isa.qosawarewsbinding.api.mapping.ProblemBuildResult;
 import es.us.isa.qosawarewsbinding.api.mapping.ProblemBuilder;
 import es.us.isa.qosawarewsbinding.api.solver.RandomSearchSolver;
+import es.us.isa.qosawarewsbinding.bimstar.BimStarModels;
+import es.us.isa.qosawarewsbinding.bimstar.BimStarRandomSearch;
 import es.us.isa.qosawarewsbinding.problem.QoSAwareWSCompositionProblem;
 import es.us.isa.qosawarewsbinding.qos.QoSProperty;
 import es.us.isa.qosawarewsbinding.solution.QoSAwareWSCompositionSolution;
@@ -56,8 +58,19 @@ public class Controller implements HttpHandler {
             }
 
             String requestBody = readBodyWithLimit(exchange.getRequestBody(), MAX_BODY_BYTES);
-            SolveRequest req = gson.fromJson(requestBody, SolveRequest.class);
-            SolveResponse resp = process(req);
+
+            SolveResponse resp;
+            com.google.gson.JsonObject raw =
+                    com.google.gson.JsonParser.parseString(requestBody).getAsJsonObject();
+            if (raw.has("placement") && raw.has("instance")) {
+                // BIM* placement-native path: raw instance + precomputed placement payload.
+                BimStarModels.BimStarSolveRequest bimReq =
+                        gson.fromJson(requestBody, BimStarModels.BimStarSolveRequest.class);
+                resp = processBimStar(bimReq);
+            } else {
+                SolveRequest req = gson.fromJson(requestBody, SolveRequest.class);
+                resp = process(req);
+            }
 
             String jsonResp = gson.toJson(resp);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -106,6 +119,37 @@ public class Controller implements HttpHandler {
         }
 
         return new String(output.toByteArray(), StandardCharsets.UTF_8);
+    }
+
+    private SolveResponse processBimStar(BimStarModels.BimStarSolveRequest req) {
+        if (req == null || req.instance == null) {
+            throw new IllegalArgumentException("Missing OpenBinding instance");
+        }
+        int iterations = req.config != null && req.config.max_iterations > 0
+                ? req.config.max_iterations
+                : 1000;
+        Long timeBudgetMs = req.config != null ? req.config.time_budget_ms : null;
+        long seed = req.config != null && req.config.seed != null ? req.config.seed : 1L;
+
+        long start = System.currentTimeMillis();
+        BimStarRandomSearch.Result result =
+                BimStarRandomSearch.run(req.instance, req.placement, iterations, timeBudgetMs, seed);
+        long end = System.currentTimeMillis();
+
+        // Unlike the legacy path, infeasible bests are returned (not a 422):
+        // the gateway reference evaluator marks them feasible=false, and the
+        // best-so-far trace documents the progress towards feasibility.
+        SolveResponse resp = new SolveResponse();
+        resp.status = "optimized";
+        resp.execution_time = end - start;
+        resp.iterations_count = (int) Math.min(Integer.MAX_VALUE, result.evaluations);
+        resp.seed = seed;
+        resp.trace = result.trace;
+        resp.selection = result.binding;
+        resp.aggregated_features = result.aggregated;
+        resp.objective_value = result.binding.isEmpty() ? null : result.objective;
+        resp.feasible = result.binding.isEmpty() ? null : result.feasible;
+        return resp;
     }
 
     private SolveResponse process(SolveRequest req) {

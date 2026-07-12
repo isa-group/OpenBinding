@@ -16,12 +16,13 @@ fastify.post('/solve', async (request, reply) => {
   const body = request.body as any;
   const instance = body.instance;
   const options = body.options || {};
+  const placement = body.placement;
 
   const job = jobManager.createJob();
 
   // Start processing asynchronously
   jobManager.updateJob(job.id, { status: 'running' });
-  solver.solve(instance, options)
+  solver.solve(instance, options, placement)
     .then(result => {
       jobManager.updateJob(job.id, { status: 'completed', result });
     })

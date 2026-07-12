@@ -1,0 +1,3952 @@
+{
+  "metadata": {
+    "id": "stock-market-placement-sample",
+    "name": "Stock Market placement sample (BIM*)",
+    "version": "1.0.0",
+    "created_at": "2026-07-05T00:00:00Z",
+    "description": "Mid-size playground sample derived from the experimentation corpus (stockOrch application, 50-node infrastructure, dataset seed 146588263): candidates subset to ~10 per task, pools and latency matrices pruned accordingly. Real on-demand iPricing costs, security thresholds, transition latency bounds, resource capacities and pricing budgets.",
+    "source_dataset": "experimentation/icsoc/original_dataset",
+    "application_id": "stockOrch",
+    "dataset_seed": "146588263",
+    "infrastructure": "infrastructure_50.json",
+    "generator_seed": 12345,
+    "generator_version": "0.1.0"
+  },
+  "features": [
+    {
+      "id": "latency",
+      "name": "Latency",
+      "direction": "MINIMIZE",
+      "unit": "ms",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1000000
+      }
+    },
+    {
+      "id": "cost",
+      "name": "Expected monthly cost",
+      "direction": "MINIMIZE",
+      "unit": "USD/month",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1000000
+      }
+    },
+    {
+      "id": "security",
+      "name": "Security score",
+      "direction": "MAXIMIZE",
+      "unit": "score",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "has.service.bucket",
+      "name": "Has service bucket",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "has.service.checkGp",
+      "name": "Has service checkGp",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "has.service.checkRules",
+      "name": "Has service checkRules",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "has.service.database",
+      "name": "Has service database",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "has.service.maps",
+      "name": "Has service maps",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "has.service.userDB",
+      "name": "Has service userDB",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.bucket3",
+      "name": "Binds service bucket3",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.bucket4",
+      "name": "Binds service bucket4",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.bucket5",
+      "name": "Binds service bucket5",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.cMaps1",
+      "name": "Binds service cMaps1",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.cMaps2",
+      "name": "Binds service cMaps2",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.gp14",
+      "name": "Binds service gp14",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.gp15",
+      "name": "Binds service gp15",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.gp16",
+      "name": "Binds service gp16",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.gp17",
+      "name": "Binds service gp17",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.myDatabase10",
+      "name": "Binds service myDatabase10",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.myDatabase11",
+      "name": "Binds service myDatabase11",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.myDatabase12",
+      "name": "Binds service myDatabase12",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.myDatabase13",
+      "name": "Binds service myDatabase13",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.myUserDb6",
+      "name": "Binds service myUserDb6",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.myUserDb7",
+      "name": "Binds service myUserDb7",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.myUserDb8",
+      "name": "Binds service myUserDb8",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.myUserDb9",
+      "name": "Binds service myUserDb9",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.openM22",
+      "name": "Binds service openM22",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.openM23",
+      "name": "Binds service openM23",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.openM24",
+      "name": "Binds service openM24",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.openM25",
+      "name": "Binds service openM25",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.openM26",
+      "name": "Binds service openM26",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.rules18",
+      "name": "Binds service rules18",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.rules19",
+      "name": "Binds service rules19",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.rules20",
+      "name": "Binds service rules20",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    },
+    {
+      "id": "bind.service.rules21",
+      "name": "Binds service rules21",
+      "direction": "MAXIMIZE",
+      "unit": "boolean",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    }
+  ],
+  "providers": [
+    {
+      "id": "aws",
+      "name": "AWS"
+    },
+    {
+      "id": "azure",
+      "name": "Azure"
+    },
+    {
+      "id": "cloudProvider",
+      "name": "cloudProvider"
+    },
+    {
+      "id": "gcp",
+      "name": "Google Cloud"
+    },
+    {
+      "id": "privateCitizen1",
+      "name": "privateCitizen1"
+    },
+    {
+      "id": "privateCitizen2",
+      "name": "privateCitizen2"
+    },
+    {
+      "id": "privateCitizen3",
+      "name": "privateCitizen3"
+    },
+    {
+      "id": "telco",
+      "name": "telco"
+    },
+    {
+      "id": "university",
+      "name": "university"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "fCheck",
+      "name": "fCheck"
+    },
+    {
+      "id": "fBuyOrSell",
+      "name": "fBuyOrSell"
+    },
+    {
+      "id": "fSell",
+      "name": "fSell"
+    },
+    {
+      "id": "fBuy",
+      "name": "fBuy"
+    },
+    {
+      "id": "fRecord",
+      "name": "fRecord"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "cand_fCheck_fog5_orig_3a70e90c",
+      "name": "fCheck on fog5",
+      "task_id": "fCheck",
+      "provider_id": "telco",
+      "features": {
+        "latency": 0.0,
+        "cost": 20.98417438,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 1.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    },
+    {
+      "id": "cand_fCheck_fog2_orig_1c007edb",
+      "name": "fCheck on fog2",
+      "task_id": "fCheck",
+      "provider_id": "university",
+      "features": {
+        "latency": 0.0,
+        "cost": 17.78557172,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 1.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    },
+    {
+      "id": "cand_fCheck_fog2_orig_1db3dbdc",
+      "name": "fCheck on fog2",
+      "task_id": "fCheck",
+      "provider_id": "university",
+      "features": {
+        "latency": 0.0,
+        "cost": 17.78557172,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 1.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    },
+    {
+      "id": "cand_fCheck_fog2_orig_da6e8f74",
+      "name": "fCheck on fog2",
+      "task_id": "fCheck",
+      "provider_id": "university",
+      "features": {
+        "latency": 0.0,
+        "cost": 17.78557172,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 1.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    },
+    {
+      "id": "cand_fCheck_fog2_orig_1555d474",
+      "name": "fCheck on fog2",
+      "task_id": "fCheck",
+      "provider_id": "university",
+      "features": {
+        "latency": 0.0,
+        "cost": 17.78557172,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 1.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    },
+    {
+      "id": "cand_fCheck_fog5_orig_7e21be4d",
+      "name": "fCheck on fog5",
+      "task_id": "fCheck",
+      "provider_id": "telco",
+      "features": {
+        "latency": 0.0,
+        "cost": 20.98417438,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 1.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    },
+    {
+      "id": "cand_fCheck_fog5_orig_47218c21",
+      "name": "fCheck on fog5",
+      "task_id": "fCheck",
+      "provider_id": "telco",
+      "features": {
+        "latency": 0.0,
+        "cost": 20.98417438,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 1.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    },
+    {
+      "id": "cand_fBuyOrSell_fog2_orig_7bda1723",
+      "name": "fBuyOrSell on fog2",
+      "task_id": "fBuyOrSell",
+      "provider_id": "university",
+      "features": {
+        "latency": 0.0,
+        "cost": 35.57114344,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    },
+    {
+      "id": "cand_fBuyOrSell_cloud3_orig_1622d05e",
+      "name": "fBuyOrSell on cloud3",
+      "task_id": "fBuyOrSell",
+      "provider_id": "cloudProvider",
+      "features": {
+        "latency": 0.0,
+        "cost": 0.31711059,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original cloud node, security=top"
+    },
+    {
+      "id": "cand_fBuyOrSell_cloud1_orig_4d017223",
+      "name": "fBuyOrSell on cloud1",
+      "task_id": "fBuyOrSell",
+      "provider_id": "cloudProvider",
+      "features": {
+        "latency": 0.0,
+        "cost": 1.06063389,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original cloud node, security=top"
+    },
+    {
+      "id": "cand_fBuyOrSell_cloud2_orig_72d85ab4",
+      "name": "fBuyOrSell on cloud2",
+      "task_id": "fBuyOrSell",
+      "provider_id": "cloudProvider",
+      "features": {
+        "latency": 0.0,
+        "cost": 1.37455637,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original cloud node, security=top"
+    },
+    {
+      "id": "cand_fBuyOrSell_aws.faas.eu-west-1_mem2048_937190b0",
+      "name": "fBuyOrSell on AWS eu-west-1 (2048 MB)",
+      "task_id": "fBuyOrSell",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 4.200008,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fBuyOrSell_aws.faas.us-east-1_mem2048_fca4c019",
+      "name": "fBuyOrSell on AWS us-east-1 (2048 MB)",
+      "task_id": "fBuyOrSell",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 4.750008,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fBuyOrSell_azure.faas.westeurope_mem2048_d3da1020",
+      "name": "fBuyOrSell on AZURE westeurope (2048 MB)",
+      "task_id": "fBuyOrSell",
+      "provider_id": "azure",
+      "features": {
+        "latency": 0.0,
+        "cost": 5.84,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fBuyOrSell_azure.faas.eastus_mem2048_95892990",
+      "name": "fBuyOrSell on AZURE eastus (2048 MB)",
+      "task_id": "fBuyOrSell",
+      "provider_id": "azure",
+      "features": {
+        "latency": 0.0,
+        "cost": 5.84,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fBuyOrSell_aws.faas.eu-west-1_mem4096_bfb5ff15",
+      "name": "fBuyOrSell on AWS eu-west-1 (4096 MB)",
+      "task_id": "fBuyOrSell",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 8.200016,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fBuyOrSell_aws.faas.us-east-1_mem4096_2d423c8f",
+      "name": "fBuyOrSell on AWS us-east-1 (4096 MB)",
+      "task_id": "fBuyOrSell",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 8.750016,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fSell_fog9_orig_b04d55e5",
+      "name": "fSell on fog9",
+      "task_id": "fSell",
+      "provider_id": "telco",
+      "features": {
+        "latency": 0.0,
+        "cost": 17.3868091,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    },
+    {
+      "id": "cand_fSell_cloud3_orig_9815e1b8",
+      "name": "fSell on cloud3",
+      "task_id": "fSell",
+      "provider_id": "cloudProvider",
+      "features": {
+        "latency": 0.0,
+        "cost": 0.31711059,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original cloud node, security=top"
+    },
+    {
+      "id": "cand_fSell_aws.faas.eu-west-1_mem256_7ac79ad3",
+      "name": "fSell on AWS eu-west-1 (256 MB)",
+      "task_id": "fSell",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 0.700001,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fSell_cloud1_orig_6284fade",
+      "name": "fSell on cloud1",
+      "task_id": "fSell",
+      "provider_id": "cloudProvider",
+      "features": {
+        "latency": 0.0,
+        "cost": 1.06063389,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original cloud node, security=top"
+    },
+    {
+      "id": "cand_fSell_aws.faas.eu-west-1_mem512_3b0e404b",
+      "name": "fSell on AWS eu-west-1 (512 MB)",
+      "task_id": "fSell",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 1.200002,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fSell_aws.faas.us-east-1_mem256_20de2790",
+      "name": "fSell on AWS us-east-1 (256 MB)",
+      "task_id": "fSell",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 1.250001,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fSell_cloud2_orig_523a0778",
+      "name": "fSell on cloud2",
+      "task_id": "fSell",
+      "provider_id": "cloudProvider",
+      "features": {
+        "latency": 0.0,
+        "cost": 1.37455637,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original cloud node, security=top"
+    },
+    {
+      "id": "cand_fSell_aws.faas.us-east-1_mem512_23d26335",
+      "name": "fSell on AWS us-east-1 (512 MB)",
+      "task_id": "fSell",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 1.750002,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fSell_aws.faas.eu-west-1_mem1024_97e4d6a3",
+      "name": "fSell on AWS eu-west-1 (1024 MB)",
+      "task_id": "fSell",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 2.200004,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fSell_azure.faas.westeurope_mem256_f096d601",
+      "name": "fSell on AZURE westeurope (256 MB)",
+      "task_id": "fSell",
+      "provider_id": "azure",
+      "features": {
+        "latency": 0.0,
+        "cost": 2.48,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fBuy_fog9_orig_0e17942b",
+      "name": "fBuy on fog9",
+      "task_id": "fBuy",
+      "provider_id": "telco",
+      "features": {
+        "latency": 0.0,
+        "cost": 17.3868091,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    },
+    {
+      "id": "cand_fBuy_cloud3_orig_8d287ecd",
+      "name": "fBuy on cloud3",
+      "task_id": "fBuy",
+      "provider_id": "cloudProvider",
+      "features": {
+        "latency": 0.0,
+        "cost": 0.31711059,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original cloud node, security=top"
+    },
+    {
+      "id": "cand_fBuy_aws.faas.eu-west-1_mem256_986184bb",
+      "name": "fBuy on AWS eu-west-1 (256 MB)",
+      "task_id": "fBuy",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 0.700001,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fBuy_cloud1_orig_f86fc30f",
+      "name": "fBuy on cloud1",
+      "task_id": "fBuy",
+      "provider_id": "cloudProvider",
+      "features": {
+        "latency": 0.0,
+        "cost": 1.06063389,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original cloud node, security=top"
+    },
+    {
+      "id": "cand_fBuy_aws.faas.eu-west-1_mem512_2fde36d8",
+      "name": "fBuy on AWS eu-west-1 (512 MB)",
+      "task_id": "fBuy",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 1.200002,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fBuy_aws.faas.us-east-1_mem256_e9bbee65",
+      "name": "fBuy on AWS us-east-1 (256 MB)",
+      "task_id": "fBuy",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 1.250001,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fBuy_cloud2_orig_6f68d5e9",
+      "name": "fBuy on cloud2",
+      "task_id": "fBuy",
+      "provider_id": "cloudProvider",
+      "features": {
+        "latency": 0.0,
+        "cost": 1.37455637,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original cloud node, security=top"
+    },
+    {
+      "id": "cand_fBuy_aws.faas.us-east-1_mem512_2b561a88",
+      "name": "fBuy on AWS us-east-1 (512 MB)",
+      "task_id": "fBuy",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 1.750002,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fBuy_aws.faas.eu-west-1_mem1024_35db5f23",
+      "name": "fBuy on AWS eu-west-1 (1024 MB)",
+      "task_id": "fBuy",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 2.200004,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fBuy_azure.faas.westeurope_mem256_55ccaeea",
+      "name": "fBuy on AZURE westeurope (256 MB)",
+      "task_id": "fBuy",
+      "provider_id": "azure",
+      "features": {
+        "latency": 0.0,
+        "cost": 2.48,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 0.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fRecord_aws.faas.eu-west-1_mem2048_934e82be",
+      "name": "fRecord on AWS eu-west-1 (2048 MB)",
+      "task_id": "fRecord",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 4.200008,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 1.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fRecord_gcp.faas.europe-west1_mem2048_7e198e3b",
+      "name": "fRecord on GCP europe-west1 (2048 MB)",
+      "task_id": "fRecord",
+      "provider_id": "gcp",
+      "features": {
+        "latency": 0.0,
+        "cost": 6.76,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 1.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fRecord_gcp.faas.europe-west1_mem4096_61ce5a71",
+      "name": "fRecord on GCP europe-west1 (4096 MB)",
+      "task_id": "fRecord",
+      "provider_id": "gcp",
+      "features": {
+        "latency": 0.0,
+        "cost": 7.36,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 1.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fRecord_aws.faas.eu-west-1_mem4096_57ea71a5",
+      "name": "fRecord on AWS eu-west-1 (4096 MB)",
+      "task_id": "fRecord",
+      "provider_id": "aws",
+      "features": {
+        "latency": 0.0,
+        "cost": 8.200016,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 1.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Generated regional FaaS candidate"
+    },
+    {
+      "id": "cand_fRecord_fog2_orig_e596d480",
+      "name": "fRecord on fog2",
+      "task_id": "fRecord",
+      "provider_id": "university",
+      "features": {
+        "latency": 0.0,
+        "cost": 17.78557172,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 1.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    },
+    {
+      "id": "cand_fRecord_fog2_orig_862e2a3b",
+      "name": "fRecord on fog2",
+      "task_id": "fRecord",
+      "provider_id": "university",
+      "features": {
+        "latency": 0.0,
+        "cost": 17.78557172,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 1.0,
+        "bind.service.myDatabase12": 0.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    },
+    {
+      "id": "cand_fRecord_fog2_orig_9409211d",
+      "name": "fRecord on fog2",
+      "task_id": "fRecord",
+      "provider_id": "university",
+      "features": {
+        "latency": 0.0,
+        "cost": 17.78557172,
+        "security": 1.0,
+        "has.service.bucket": 0.0,
+        "has.service.checkGp": 0.0,
+        "has.service.checkRules": 0.0,
+        "has.service.database": 1.0,
+        "has.service.maps": 0.0,
+        "has.service.userDB": 0.0,
+        "bind.service.bucket3": 0.0,
+        "bind.service.bucket4": 0.0,
+        "bind.service.bucket5": 0.0,
+        "bind.service.cMaps1": 0.0,
+        "bind.service.cMaps2": 0.0,
+        "bind.service.gp14": 0.0,
+        "bind.service.gp15": 0.0,
+        "bind.service.gp16": 0.0,
+        "bind.service.gp17": 0.0,
+        "bind.service.myDatabase10": 0.0,
+        "bind.service.myDatabase11": 0.0,
+        "bind.service.myDatabase12": 1.0,
+        "bind.service.myDatabase13": 0.0,
+        "bind.service.myUserDb6": 0.0,
+        "bind.service.myUserDb7": 0.0,
+        "bind.service.myUserDb8": 0.0,
+        "bind.service.myUserDb9": 0.0,
+        "bind.service.openM22": 0.0,
+        "bind.service.openM23": 0.0,
+        "bind.service.openM24": 0.0,
+        "bind.service.openM25": 0.0,
+        "bind.service.openM26": 0.0,
+        "bind.service.rules18": 0.0,
+        "bind.service.rules19": 0.0,
+        "bind.service.rules20": 0.0,
+        "bind.service.rules21": 0.0
+      },
+      "description": "Original fog node, security=top"
+    }
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "n_1_seq",
+      "kind": "SEQ",
+      "children": [
+        {
+          "id": "n_2_fCheck",
+          "kind": "TASK",
+          "task_id": "fCheck"
+        },
+        {
+          "id": "n_3_seq",
+          "kind": "SEQ",
+          "children": [
+            {
+              "id": "n_7_if_seq",
+              "kind": "SEQ",
+              "children": [
+                {
+                  "id": "n_8_fBuyOrSell",
+                  "kind": "TASK",
+                  "task_id": "fBuyOrSell"
+                },
+                {
+                  "id": "n_4_xor",
+                  "kind": "XOR",
+                  "branches": [
+                    {
+                      "p": 0.5,
+                      "child": {
+                        "id": "n_5_fSell",
+                        "kind": "TASK",
+                        "task_id": "fSell"
+                      }
+                    },
+                    {
+                      "p": 0.5,
+                      "child": {
+                        "id": "n_6_fBuy",
+                        "kind": "TASK",
+                        "task_id": "fBuy"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "n_9_fRecord",
+              "kind": "TASK",
+              "task_id": "fRecord"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "cost": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "xor": {
+          "fn": "SCALED_SUM"
+        }
+      },
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 14.45990841,
+          "max": 264.23741579
+        }
+      }
+    },
+    "latency": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "SCALED_SUM"
+        }
+      },
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0.0,
+          "max": 599.28
+        }
+      }
+    },
+    "security": {
+      "neutral": 1,
+      "compose": {
+        "seq": {
+          "fn": "MIN"
+        },
+        "and": {
+          "fn": "MIN"
+        },
+        "xor": {
+          "fn": "MIN"
+        }
+      },
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0.66,
+          "max": 1.0
+        }
+      }
+    },
+    "has.service.bucket": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "has.service.checkGp": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "has.service.checkRules": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "has.service.database": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "has.service.maps": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "has.service.userDB": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.bucket3": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.bucket4": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.bucket5": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.cMaps1": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.cMaps2": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.gp14": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.gp15": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.gp16": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.gp17": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.myDatabase10": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.myDatabase11": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.myDatabase12": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.myDatabase13": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.myUserDb6": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.myUserDb7": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.myUserDb8": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.myUserDb9": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.openM22": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.openM23": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.openM24": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.openM25": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.openM26": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.rules18": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.rules19": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.rules20": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    },
+    "bind.service.rules21": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "MAX"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "MAX"
+        }
+      }
+    }
+  },
+  "constraints": [
+    {
+      "id": "security_min_fBuy",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "fBuy"
+      ],
+      "attribute_id": "security",
+      "op": ">=",
+      "value": 1.0,
+      "hard": true
+    },
+    {
+      "id": "security_min_fBuyOrSell",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "fBuyOrSell"
+      ],
+      "attribute_id": "security",
+      "op": ">=",
+      "value": 1.0,
+      "hard": true
+    },
+    {
+      "id": "security_min_fCheck",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "fCheck"
+      ],
+      "attribute_id": "security",
+      "op": ">=",
+      "value": 1.0,
+      "hard": true
+    },
+    {
+      "id": "security_min_fRecord",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "fRecord"
+      ],
+      "attribute_id": "security",
+      "op": ">=",
+      "value": 1.0,
+      "hard": true
+    },
+    {
+      "id": "security_min_fSell",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "fSell"
+      ],
+      "attribute_id": "security",
+      "op": ">=",
+      "value": 1.0,
+      "hard": true
+    },
+    {
+      "id": "fCheck_requires_database",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "fCheck"
+      ],
+      "attribute_id": "has.service.database",
+      "op": "==",
+      "value": 1,
+      "hard": true
+    },
+    {
+      "id": "fRecord_requires_database",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "fRecord"
+      ],
+      "attribute_id": "has.service.database",
+      "op": "==",
+      "value": 1,
+      "hard": true
+    },
+    {
+      "id": "budget_global_stockOrch",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "cost",
+      "op": "<=",
+      "value": 99.45059011,
+      "hard": true
+    },
+    {
+      "id": "budget_local_fCheck",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "fCheck"
+      ],
+      "attribute_id": "cost",
+      "op": "<=",
+      "value": 32.03485725,
+      "hard": true
+    },
+    {
+      "id": "budget_local_fBuyOrSell",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "fBuyOrSell"
+      ],
+      "attribute_id": "cost",
+      "op": "<=",
+      "value": 67.039127,
+      "hard": true
+    },
+    {
+      "id": "budget_local_fSell",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "fSell"
+      ],
+      "attribute_id": "cost",
+      "op": "<=",
+      "value": 24.65581241,
+      "hard": true
+    },
+    {
+      "id": "budget_local_fBuy",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "fBuy"
+      ],
+      "attribute_id": "cost",
+      "op": "<=",
+      "value": 20.50388885,
+      "hard": true
+    },
+    {
+      "id": "budget_local_fRecord",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "fRecord"
+      ],
+      "attribute_id": "cost",
+      "op": "<=",
+      "value": 50.05446445,
+      "hard": true
+    }
+  ],
+  "objective": {
+    "type": "MONO",
+    "targets": [
+      "latency",
+      "cost",
+      "security"
+    ],
+    "weights": {
+      "latency": 0.33,
+      "cost": 0.34,
+      "security": 0.33
+    },
+    "weights_sum_to_one": true
+  },
+  "resource_model": {
+    "resources": [
+      "memory_mb",
+      "vcpu",
+      "mhz",
+      "concurrency"
+    ],
+    "pools": [
+      {
+        "id": "edge23",
+        "name": "edge23",
+        "kind": "EDGE",
+        "capacity": {
+          "memory_mb": 1024.0,
+          "vcpu": 4.0,
+          "mhz": 3000.0
+        },
+        "metadata": {
+          "source": "original_dataset",
+          "provider": "privateCitizen3",
+          "node_type": "edge"
+        }
+      },
+      {
+        "id": "fog2",
+        "name": "fog2",
+        "kind": "FOG",
+        "capacity": {
+          "memory_mb": 4096.0,
+          "vcpu": 4.0,
+          "mhz": 2000.0
+        },
+        "metadata": {
+          "source": "original_dataset",
+          "provider": "university",
+          "node_type": "fog"
+        }
+      },
+      {
+        "id": "fog5",
+        "name": "fog5",
+        "kind": "FOG",
+        "capacity": {
+          "memory_mb": 3500.0,
+          "vcpu": 16.0,
+          "mhz": 2000.0
+        },
+        "metadata": {
+          "source": "original_dataset",
+          "provider": "telco",
+          "node_type": "fog"
+        }
+      },
+      {
+        "id": "fog9",
+        "name": "fog9",
+        "kind": "FOG",
+        "capacity": {
+          "memory_mb": 3500.0,
+          "vcpu": 16.0,
+          "mhz": 2000.0
+        },
+        "metadata": {
+          "source": "original_dataset",
+          "provider": "telco",
+          "node_type": "fog"
+        }
+      },
+      {
+        "id": "cloud1",
+        "name": "cloud1",
+        "kind": "CLOUD",
+        "capacity": {
+          "memory_mb": 1000000000.0,
+          "vcpu": 1000000000.0,
+          "mhz": 1000000000.0
+        },
+        "metadata": {
+          "source": "original_dataset",
+          "provider": "cloudProvider",
+          "node_type": "cloud"
+        }
+      },
+      {
+        "id": "cloud2",
+        "name": "cloud2",
+        "kind": "CLOUD",
+        "capacity": {
+          "memory_mb": 1000000000.0,
+          "vcpu": 1000000000.0,
+          "mhz": 1000000000.0
+        },
+        "metadata": {
+          "source": "original_dataset",
+          "provider": "cloudProvider",
+          "node_type": "cloud"
+        }
+      },
+      {
+        "id": "cloud3",
+        "name": "cloud3",
+        "kind": "CLOUD",
+        "capacity": {
+          "memory_mb": 1000000000.0,
+          "vcpu": 1000000000.0,
+          "mhz": 1000000000.0
+        },
+        "metadata": {
+          "source": "original_dataset",
+          "provider": "cloudProvider",
+          "node_type": "cloud"
+        }
+      },
+      {
+        "id": "aws.faas.eu-west-1",
+        "name": "AWS FaaS eu-west-1",
+        "kind": "CLOUD_FAAS",
+        "capacity": {
+          "concurrency": 1000000.0
+        },
+        "metadata": {
+          "source": "generated_cloud_faas",
+          "commercial_provider": "aws",
+          "region": "eu-west-1"
+        }
+      },
+      {
+        "id": "aws.faas.us-east-1",
+        "name": "AWS FaaS us-east-1",
+        "kind": "CLOUD_FAAS",
+        "capacity": {
+          "concurrency": 1000000.0
+        },
+        "metadata": {
+          "source": "generated_cloud_faas",
+          "commercial_provider": "aws",
+          "region": "us-east-1"
+        }
+      },
+      {
+        "id": "azure.faas.westeurope",
+        "name": "AZURE FaaS westeurope",
+        "kind": "CLOUD_FAAS",
+        "capacity": {
+          "concurrency": 1000000.0
+        },
+        "metadata": {
+          "source": "generated_cloud_faas",
+          "commercial_provider": "azure",
+          "region": "westeurope"
+        }
+      },
+      {
+        "id": "azure.faas.eastus",
+        "name": "AZURE FaaS eastus",
+        "kind": "CLOUD_FAAS",
+        "capacity": {
+          "concurrency": 1000000.0
+        },
+        "metadata": {
+          "source": "generated_cloud_faas",
+          "commercial_provider": "azure",
+          "region": "eastus"
+        }
+      },
+      {
+        "id": "gcp.faas.europe-west1",
+        "name": "GCP FaaS europe-west1",
+        "kind": "CLOUD_FAAS",
+        "capacity": {
+          "concurrency": 1000000.0
+        },
+        "metadata": {
+          "source": "generated_cloud_faas",
+          "commercial_provider": "gcp",
+          "region": "europe-west1"
+        }
+      }
+    ],
+    "candidate_bindings": [
+      {
+        "candidate_id": "cand_fCheck_fog2_orig_1c007edb",
+        "pool_id": "fog2",
+        "demand": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate_id": "cand_fCheck_fog2_orig_1db3dbdc",
+        "pool_id": "fog2",
+        "demand": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate_id": "cand_fCheck_fog2_orig_da6e8f74",
+        "pool_id": "fog2",
+        "demand": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate_id": "cand_fCheck_fog2_orig_1555d474",
+        "pool_id": "fog2",
+        "demand": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate_id": "cand_fCheck_fog5_orig_3a70e90c",
+        "pool_id": "fog5",
+        "demand": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate_id": "cand_fCheck_fog5_orig_7e21be4d",
+        "pool_id": "fog5",
+        "demand": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate_id": "cand_fCheck_fog5_orig_47218c21",
+        "pool_id": "fog5",
+        "demand": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuyOrSell_fog2_orig_7bda1723",
+        "pool_id": "fog2",
+        "demand": {
+          "memory_mb": 2048.0,
+          "vcpu": 4.0,
+          "mhz": 1200.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuyOrSell_cloud1_orig_4d017223",
+        "pool_id": "cloud1",
+        "demand": {
+          "memory_mb": 2048.0,
+          "vcpu": 4.0,
+          "mhz": 1200.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuyOrSell_cloud2_orig_72d85ab4",
+        "pool_id": "cloud2",
+        "demand": {
+          "memory_mb": 2048.0,
+          "vcpu": 4.0,
+          "mhz": 1200.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuyOrSell_cloud3_orig_1622d05e",
+        "pool_id": "cloud3",
+        "demand": {
+          "memory_mb": 2048.0,
+          "vcpu": 4.0,
+          "mhz": 1200.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuyOrSell_aws.faas.eu-west-1_mem2048_937190b0",
+        "pool_id": "aws.faas.eu-west-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuyOrSell_aws.faas.eu-west-1_mem4096_bfb5ff15",
+        "pool_id": "aws.faas.eu-west-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuyOrSell_aws.faas.us-east-1_mem2048_fca4c019",
+        "pool_id": "aws.faas.us-east-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuyOrSell_aws.faas.us-east-1_mem4096_2d423c8f",
+        "pool_id": "aws.faas.us-east-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuyOrSell_azure.faas.westeurope_mem2048_d3da1020",
+        "pool_id": "azure.faas.westeurope",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuyOrSell_azure.faas.eastus_mem2048_95892990",
+        "pool_id": "azure.faas.eastus",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fSell_fog9_orig_b04d55e5",
+        "pool_id": "fog9",
+        "demand": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate_id": "cand_fSell_cloud1_orig_6284fade",
+        "pool_id": "cloud1",
+        "demand": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate_id": "cand_fSell_cloud2_orig_523a0778",
+        "pool_id": "cloud2",
+        "demand": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate_id": "cand_fSell_cloud3_orig_9815e1b8",
+        "pool_id": "cloud3",
+        "demand": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate_id": "cand_fSell_aws.faas.eu-west-1_mem256_7ac79ad3",
+        "pool_id": "aws.faas.eu-west-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fSell_aws.faas.eu-west-1_mem512_3b0e404b",
+        "pool_id": "aws.faas.eu-west-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fSell_aws.faas.eu-west-1_mem1024_97e4d6a3",
+        "pool_id": "aws.faas.eu-west-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fSell_aws.faas.us-east-1_mem256_20de2790",
+        "pool_id": "aws.faas.us-east-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fSell_aws.faas.us-east-1_mem512_23d26335",
+        "pool_id": "aws.faas.us-east-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fSell_azure.faas.westeurope_mem256_f096d601",
+        "pool_id": "azure.faas.westeurope",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuy_fog9_orig_0e17942b",
+        "pool_id": "fog9",
+        "demand": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuy_cloud1_orig_f86fc30f",
+        "pool_id": "cloud1",
+        "demand": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuy_cloud2_orig_6f68d5e9",
+        "pool_id": "cloud2",
+        "demand": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuy_cloud3_orig_8d287ecd",
+        "pool_id": "cloud3",
+        "demand": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuy_aws.faas.eu-west-1_mem256_986184bb",
+        "pool_id": "aws.faas.eu-west-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuy_aws.faas.eu-west-1_mem512_2fde36d8",
+        "pool_id": "aws.faas.eu-west-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuy_aws.faas.eu-west-1_mem1024_35db5f23",
+        "pool_id": "aws.faas.eu-west-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuy_aws.faas.us-east-1_mem256_e9bbee65",
+        "pool_id": "aws.faas.us-east-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuy_aws.faas.us-east-1_mem512_2b561a88",
+        "pool_id": "aws.faas.us-east-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fBuy_azure.faas.westeurope_mem256_55ccaeea",
+        "pool_id": "azure.faas.westeurope",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fRecord_fog2_orig_e596d480",
+        "pool_id": "fog2",
+        "demand": {
+          "memory_mb": 1600.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate_id": "cand_fRecord_fog2_orig_862e2a3b",
+        "pool_id": "fog2",
+        "demand": {
+          "memory_mb": 1600.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate_id": "cand_fRecord_fog2_orig_9409211d",
+        "pool_id": "fog2",
+        "demand": {
+          "memory_mb": 1600.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate_id": "cand_fRecord_aws.faas.eu-west-1_mem2048_934e82be",
+        "pool_id": "aws.faas.eu-west-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fRecord_aws.faas.eu-west-1_mem4096_57ea71a5",
+        "pool_id": "aws.faas.eu-west-1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fRecord_gcp.faas.europe-west1_mem2048_7e198e3b",
+        "pool_id": "gcp.faas.europe-west1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate_id": "cand_fRecord_gcp.faas.europe-west1_mem4096_61ce5a71",
+        "pool_id": "gcp.faas.europe-west1",
+        "demand": {
+          "concurrency": 20.0
+        }
+      }
+    ],
+    "constraints": [
+      {
+        "id": "accumulated_node_capacity",
+        "kind": "RESOURCE_CAPACITY",
+        "scope": "POOL_KIND",
+        "pool_kinds": [
+          "EDGE",
+          "FOG",
+          "CLOUD"
+        ],
+        "resources": [
+          "memory_mb",
+          "vcpu",
+          "mhz"
+        ],
+        "hard": true
+      },
+      {
+        "id": "cloud_concurrency_capacity",
+        "kind": "RESOURCE_CAPACITY",
+        "scope": "POOL_KIND",
+        "pool_kinds": [
+          "CLOUD_FAAS"
+        ],
+        "resources": [
+          "concurrency"
+        ],
+        "hard": true
+      }
+    ]
+  },
+  "latency_model": {
+    "unit": "ms",
+    "pool_latency_matrix_ms": {
+      "edge23": {
+        "edge23": 0.0,
+        "cloud1": 39.0,
+        "cloud2": 39.0,
+        "cloud3": 37.0,
+        "fog2": 6.0,
+        "fog5": 5.0,
+        "fog9": 8.0,
+        "aws.faas.eu-west-1": 34.321,
+        "aws.faas.us-east-1": 99.931,
+        "azure.faas.westeurope": 40.076,
+        "azure.faas.eastus": 149.82,
+        "gcp.faas.europe-west1": 36.807
+      },
+      "fog2": {
+        "fog2": 0.0,
+        "cloud1": 40.0,
+        "cloud2": 37.0,
+        "cloud3": 38.0,
+        "fog5": 6.0,
+        "fog9": 14.0,
+        "edge23": 6.0,
+        "aws.faas.eu-west-1": 51.476,
+        "aws.faas.us-east-1": 82.794,
+        "azure.faas.westeurope": 23.553,
+        "azure.faas.eastus": 108.37,
+        "gcp.faas.europe-west1": 45.691
+      },
+      "fog5": {
+        "fog5": 0.0,
+        "cloud1": 38.0,
+        "cloud2": 39.0,
+        "cloud3": 32.0,
+        "fog2": 6.0,
+        "fog9": 13.0,
+        "edge23": 5.0,
+        "aws.faas.eu-west-1": 50.41,
+        "aws.faas.us-east-1": 129.722,
+        "azure.faas.westeurope": 37.877,
+        "azure.faas.eastus": 112.72,
+        "gcp.faas.europe-west1": 36.93
+      },
+      "fog9": {
+        "fog9": 0.0,
+        "cloud1": 31.0,
+        "cloud2": 36.0,
+        "cloud3": 35.0,
+        "fog2": 14.0,
+        "fog5": 13.0,
+        "edge23": 8.0,
+        "aws.faas.eu-west-1": 22.168,
+        "aws.faas.us-east-1": 146.905,
+        "azure.faas.westeurope": 30.176,
+        "azure.faas.eastus": 116.555,
+        "gcp.faas.europe-west1": 23.847
+      },
+      "cloud1": {
+        "cloud1": 0.0,
+        "cloud2": 44.0,
+        "cloud3": 42.0,
+        "fog2": 40.0,
+        "fog5": 38.0,
+        "fog9": 31.0,
+        "edge23": 39.0,
+        "aws.faas.eu-west-1": 35.137,
+        "aws.faas.us-east-1": 128.723,
+        "azure.faas.westeurope": 26.431,
+        "azure.faas.eastus": 146.711,
+        "gcp.faas.europe-west1": 49.26
+      },
+      "cloud2": {
+        "cloud2": 0.0,
+        "cloud1": 44.0,
+        "cloud3": 53.0,
+        "fog2": 37.0,
+        "fog5": 39.0,
+        "fog9": 36.0,
+        "edge23": 39.0,
+        "aws.faas.eu-west-1": 21.029,
+        "aws.faas.us-east-1": 94.054,
+        "azure.faas.westeurope": 48.977,
+        "azure.faas.eastus": 83.837,
+        "gcp.faas.europe-west1": 26.99
+      },
+      "cloud3": {
+        "cloud3": 0.0,
+        "cloud1": 42.0,
+        "cloud2": 53.0,
+        "fog2": 38.0,
+        "fog5": 32.0,
+        "fog9": 35.0,
+        "edge23": 37.0,
+        "aws.faas.eu-west-1": 25.584,
+        "aws.faas.us-east-1": 125.859,
+        "azure.faas.westeurope": 38.188,
+        "azure.faas.eastus": 144.849,
+        "gcp.faas.europe-west1": 59.555
+      },
+      "aws.faas.eu-west-1": {
+        "aws.faas.eu-west-1": 0.0,
+        "edge23": 34.321,
+        "fog2": 51.476,
+        "fog5": 50.41,
+        "fog9": 22.168,
+        "cloud1": 35.137,
+        "cloud2": 21.029,
+        "cloud3": 25.584,
+        "aws.faas.us-east-1": 73.021,
+        "azure.faas.westeurope": 30.367,
+        "azure.faas.eastus": 102.197,
+        "gcp.faas.europe-west1": 30.978
+      },
+      "aws.faas.us-east-1": {
+        "aws.faas.us-east-1": 0.0,
+        "edge23": 99.931,
+        "fog2": 82.794,
+        "fog5": 129.722,
+        "fog9": 146.905,
+        "cloud1": 128.723,
+        "cloud2": 94.054,
+        "cloud3": 125.859,
+        "aws.faas.eu-west-1": 73.021,
+        "azure.faas.westeurope": 90.605,
+        "azure.faas.eastus": 20.371,
+        "gcp.faas.europe-west1": 104.692
+      },
+      "azure.faas.westeurope": {
+        "azure.faas.westeurope": 0.0,
+        "edge23": 40.076,
+        "fog2": 23.553,
+        "fog5": 37.877,
+        "fog9": 30.176,
+        "cloud1": 26.431,
+        "cloud2": 48.977,
+        "cloud3": 38.188,
+        "aws.faas.eu-west-1": 30.367,
+        "aws.faas.us-east-1": 90.605,
+        "azure.faas.eastus": 72.052,
+        "gcp.faas.europe-west1": 20.673
+      },
+      "azure.faas.eastus": {
+        "azure.faas.eastus": 0.0,
+        "edge23": 149.82,
+        "fog2": 108.37,
+        "fog5": 112.72,
+        "fog9": 116.555,
+        "cloud1": 146.711,
+        "cloud2": 83.837,
+        "cloud3": 144.849,
+        "aws.faas.eu-west-1": 102.197,
+        "aws.faas.us-east-1": 20.371,
+        "azure.faas.westeurope": 72.052,
+        "gcp.faas.europe-west1": 123.277
+      },
+      "gcp.faas.europe-west1": {
+        "gcp.faas.europe-west1": 0.0,
+        "edge23": 36.807,
+        "fog2": 45.691,
+        "fog5": 36.93,
+        "fog9": 23.847,
+        "cloud1": 49.26,
+        "cloud2": 26.99,
+        "cloud3": 59.555,
+        "aws.faas.eu-west-1": 30.978,
+        "aws.faas.us-east-1": 104.692,
+        "azure.faas.westeurope": 20.673,
+        "azure.faas.eastus": 123.277
+      }
+    },
+    "event_generator_pools": {
+      "device3_event2": "edge23"
+    },
+    "event_latency_matrix_ms": {
+      "device3_event2": {
+        "edge23": 0.0,
+        "fog2": 6.0,
+        "fog5": 5.0,
+        "fog9": 8.0,
+        "cloud1": 39.0,
+        "cloud2": 39.0,
+        "cloud3": 37.0,
+        "aws.faas.eu-west-1": 34.321,
+        "aws.faas.us-east-1": 99.931,
+        "azure.faas.westeurope": 40.076,
+        "azure.faas.eastus": 149.82,
+        "gcp.faas.europe-west1": 36.807
+      }
+    },
+    "transition_constraints": [
+      {
+        "id": "latency_device3_event2_to_fCheck",
+        "from_event": "device3_event2",
+        "to_task": "fCheck",
+        "op": "<=",
+        "value": 25.0,
+        "hard": true
+      },
+      {
+        "id": "latency_1_fBuyOrSell_to_fSell",
+        "from_task": "fBuyOrSell",
+        "to_task": "fSell",
+        "op": "<=",
+        "value": 14.0,
+        "hard": true
+      },
+      {
+        "id": "latency_2_fBuyOrSell_to_fBuy",
+        "from_task": "fBuyOrSell",
+        "to_task": "fBuy",
+        "op": "<=",
+        "value": 22.0,
+        "hard": true
+      },
+      {
+        "id": "latency_3_fBuy_to_fRecord",
+        "from_task": "fBuy",
+        "to_task": "fRecord",
+        "op": "<=",
+        "value": 24.0,
+        "hard": true
+      },
+      {
+        "id": "latency_4_fSell_to_fRecord",
+        "from_task": "fSell",
+        "to_task": "fRecord",
+        "op": "<=",
+        "value": 24.0,
+        "hard": true
+      },
+      {
+        "id": "latency_5_fCheck_to_fBuyOrSell",
+        "from_task": "fCheck",
+        "to_task": "fBuyOrSell",
+        "op": "<=",
+        "value": 15.0,
+        "hard": true
+      }
+    ],
+    "global_latency": {
+      "attribute_id": "latency",
+      "include_execution_latency_feature": true,
+      "xor_semantics": "EXPECTED",
+      "and_semantics": "MAX"
+    }
+  }
+}

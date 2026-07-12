@@ -161,8 +161,12 @@ def _compose_loop(
 
     iterations = node.get("expected_iterations")
     if iterations is None:
+        # Fallback shared with the Java engines and the MiniZinc dzn builder:
+        # midpoint of the declared bounds, 1 when no usable bounds exist.
         bounds = node.get("bounds") or {}
-        iterations = bounds.get("max", 1)
+        mn = float(bounds.get("min", 0.0) or 0.0)
+        mx = float(bounds.get("max", 0.0) or 0.0)
+        iterations = (mn + mx) / 2.0 if (mn > 0.0 or mx > 0.0) else 1.0
     count = float(iterations)
 
     if "product" in fn:
@@ -278,6 +282,13 @@ def canonicalize_result_data(result_data: Dict[str, Any], original_request: Dict
     solutions = result_data.get("solutions")
     if not isinstance(solutions, list):
         return result_data
+
+    # BIM* instances get the full reference evaluation (end-to-end latency,
+    # capacity/transition constraints, canonical normalized objective).
+    from .bimstar import apply_bimstar_evaluation, is_bimstar
+
+    if is_bimstar(original_request):
+        return apply_bimstar_evaluation(result_data, original_request)
 
     root = (original_request.get("composition") or {}).get("root") or {}
     features = {feature["id"]: feature for feature in (original_request.get("features") or [])}

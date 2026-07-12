@@ -1,0 +1,454 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openbinding.local/schemas/bimstar.schema.json",
+  "title": "BIM* Placement-Aware Binding Instance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "metadata",
+    "features",
+    "providers",
+    "tasks",
+    "candidates",
+    "composition",
+    "aggregation_policies",
+    "objective",
+    "resource_model",
+    "latency_model"
+  ],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "required": ["id", "name", "version", "created_at"],
+      "additionalProperties": true,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "name": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "created_at": {"type": "string", "format": "date-time"},
+        "description": {"type": "string"}
+      }
+    },
+    "features": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/feature"}
+    },
+    "providers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/provider"}
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/task"}
+    },
+    "candidates": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/candidate"}
+    },
+    "composition": {"$ref": "#/$defs/structured_tree"},
+    "aggregation_policies": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"$ref": "#/$defs/identifier"},
+      "additionalProperties": {"$ref": "#/$defs/aggregation_policy"}
+    },
+    "constraints": {
+      "type": "array",
+      "default": [],
+      "items": {"$ref": "#/$defs/constraint"}
+    },
+    "objective": {"$ref": "#/$defs/objective"},
+    "resource_model": {"$ref": "#/$defs/resource_model"},
+    "latency_model": {"$ref": "#/$defs/latency_model"}
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+$",
+      "minLength": 1
+    },
+    "numeric_range": {
+      "type": "object",
+      "required": ["min", "max"],
+      "additionalProperties": false,
+      "properties": {
+        "min": {"type": "number"},
+        "max": {"type": "number"}
+      }
+    },
+    "feature": {
+      "type": "object",
+      "required": ["id", "name", "direction", "unit", "scale", "valid_range"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "name": {"type": "string", "minLength": 1},
+        "direction": {"enum": ["MAXIMIZE", "MINIMIZE"]},
+        "unit": {"type": "string", "minLength": 1},
+        "scale": {"enum": ["RATIO", "INTERVAL", "ORDINAL"]},
+        "valid_range": {"$ref": "#/$defs/numeric_range"},
+        "description": {"type": "string"}
+      }
+    },
+    "provider": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "name": {"type": "string", "minLength": 1},
+        "description": {"type": "string"}
+      }
+    },
+    "task": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "name": {"type": "string", "minLength": 1},
+        "description": {"type": "string"}
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "required": ["id", "name", "task_id", "provider_id", "features"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "name": {"type": "string", "minLength": 1},
+        "task_id": {"$ref": "#/$defs/identifier"},
+        "provider_id": {"$ref": "#/$defs/identifier"},
+        "features": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"type": "number"}
+        },
+        "description": {"type": "string"}
+      }
+    },
+    "structured_tree": {
+      "type": "object",
+      "required": ["type", "root"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"const": "STRUCTURED"},
+        "root": {"$ref": "#/$defs/node"}
+      }
+    },
+    "node": {
+      "oneOf": [
+        {"$ref": "#/$defs/task_node"},
+        {"$ref": "#/$defs/seq_node"},
+        {"$ref": "#/$defs/and_node"},
+        {"$ref": "#/$defs/xor_node"},
+        {"$ref": "#/$defs/loop_node"}
+      ]
+    },
+    "task_node": {
+      "type": "object",
+      "required": ["id", "kind", "task_id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "kind": {"const": "TASK"},
+        "task_id": {"$ref": "#/$defs/identifier"}
+      }
+    },
+    "seq_node": {
+      "type": "object",
+      "required": ["id", "kind", "children"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "kind": {"const": "SEQ"},
+        "children": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/node"}}
+      }
+    },
+    "and_node": {
+      "type": "object",
+      "required": ["id", "kind", "children"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "kind": {"const": "AND"},
+        "children": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/node"}}
+      }
+    },
+    "xor_node": {
+      "type": "object",
+      "required": ["id", "kind", "branches"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "kind": {"const": "XOR"},
+        "branches": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["p", "child"],
+            "additionalProperties": false,
+            "properties": {
+              "p": {"type": "number", "minimum": 0, "maximum": 1},
+              "child": {"$ref": "#/$defs/node"}
+            }
+          }
+        }
+      }
+    },
+    "loop_node": {
+      "type": "object",
+      "required": ["id", "kind", "body"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "kind": {"const": "LOOP"},
+        "body": {"$ref": "#/$defs/node"},
+        "expected_iterations": {"type": "number", "minimum": 0},
+        "bounds": {"$ref": "#/$defs/numeric_range"}
+      },
+      "anyOf": [
+        {"required": ["expected_iterations"]},
+        {"required": ["bounds"]}
+      ]
+    },
+    "aggregation_policy": {
+      "type": "object",
+      "required": ["neutral", "compose"],
+      "additionalProperties": false,
+      "properties": {
+        "neutral": {"type": "number"},
+        "compose": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "seq": {"$ref": "#/$defs/compose_fn"},
+            "and": {"$ref": "#/$defs/compose_fn"},
+            "xor": {"$ref": "#/$defs/compose_fn"},
+            "loop": {"$ref": "#/$defs/compose_fn"}
+          }
+        },
+        "normalize": {"$ref": "#/$defs/normalization"}
+      }
+    },
+    "normalization": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["minmax", "identity"]},
+        "bounds": {"$ref": "#/$defs/numeric_range"},
+        "increasing_is_better": {"type": "boolean"}
+      }
+    },
+    "compose_fn": {
+      "type": "object",
+      "required": ["fn"],
+      "additionalProperties": false,
+      "properties": {
+        "fn": {
+          "enum": [
+            "SUM",
+            "PRODUCT",
+            "MAX",
+            "MIN",
+            "SCALED_SUM",
+            "SCALED_PRODUCT",
+            "SCALED_MIN",
+            "SCALED_MAX",
+            "MEAN",
+            "WEIGHTED_SUM"
+          ]
+        }
+      }
+    },
+    "constraint": {
+      "oneOf": [
+        {"$ref": "#/$defs/attr_bound_constraint"},
+        {"$ref": "#/$defs/dependency_constraint"}
+      ]
+    },
+    "attr_bound_constraint": {
+      "type": "object",
+      "required": ["id", "kind", "scope", "attribute_id", "op", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "kind": {"const": "ATTRIBUTE_BOUND"},
+        "scope": {"enum": ["GLOBAL", "LOCAL"]},
+        "attribute_id": {"$ref": "#/$defs/identifier"},
+        "op": {"enum": ["<=", "<", ">=", ">", "==", "!=", "IN_RANGE"]},
+        "value": {
+          "oneOf": [
+            {"type": "number"},
+            {"$ref": "#/$defs/numeric_range"}
+          ]
+        },
+        "tasks": {"type": "array", "items": {"$ref": "#/$defs/identifier"}},
+        "candidates": {"type": "array", "items": {"$ref": "#/$defs/identifier"}},
+        "hard": {"type": "boolean", "default": true}
+      }
+    },
+    "dependency_constraint": {
+      "type": "object",
+      "required": ["id", "kind", "type", "tasks"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "kind": {"const": "DEPENDENCY"},
+        "type": {"enum": ["SAME_PROVIDER", "DIFFERENT_PROVIDER", "SAME_POOL", "DIFFERENT_POOL"]},
+        "tasks": {"type": "array", "minItems": 2, "items": {"$ref": "#/$defs/identifier"}},
+        "hard": {"type": "boolean", "default": true}
+      }
+    },
+    "objective": {
+      "type": "object",
+      "required": ["type", "targets", "weights"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["MONO", "MULTI", "MANY"]},
+        "targets": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "weights": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}
+        },
+        "weights_sum_to_one": {"type": "boolean", "default": true}
+      }
+    },
+    "resource_model": {
+      "type": "object",
+      "required": ["resources", "pools", "candidate_bindings", "constraints"],
+      "additionalProperties": false,
+      "properties": {
+        "resources": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/identifier"}},
+        "pools": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/resource_pool"}},
+        "candidate_bindings": {"type": "array", "items": {"$ref": "#/$defs/candidate_resource_binding"}},
+        "constraints": {"type": "array", "items": {"$ref": "#/$defs/resource_constraint"}}
+      }
+    },
+    "resource_pool": {
+      "type": "object",
+      "required": ["id", "name", "kind", "capacity"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "name": {"type": "string", "minLength": 1},
+        "kind": {"$ref": "#/$defs/identifier"},
+        "capacity": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"type": "number", "minimum": 0}
+        },
+        "metadata": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "candidate_resource_binding": {
+      "type": "object",
+      "required": ["candidate_id", "pool_id", "demand"],
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {"$ref": "#/$defs/identifier"},
+        "pool_id": {"$ref": "#/$defs/identifier"},
+        "demand": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"type": "number", "minimum": 0}
+        }
+      }
+    },
+    "resource_constraint": {
+      "type": "object",
+      "required": ["id", "kind", "scope", "resources", "hard"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "kind": {"const": "RESOURCE_CAPACITY"},
+        "scope": {"enum": ["ALL_POOLS", "POOL_KIND"]},
+        "resources": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/identifier"}},
+        "pool_kinds": {"type": "array", "items": {"$ref": "#/$defs/identifier"}},
+        "hard": {"type": "boolean"}
+      }
+    },
+    "latency_model": {
+      "type": "object",
+      "required": [
+        "unit",
+        "pool_latency_matrix_ms",
+        "event_generator_pools",
+        "event_latency_matrix_ms",
+        "transition_constraints",
+        "global_latency"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "unit": {"const": "ms"},
+        "pool_latency_matrix_ms": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {
+            "type": "object",
+            "propertyNames": {"$ref": "#/$defs/identifier"},
+            "additionalProperties": {"type": "number", "minimum": 0}
+          }
+        },
+        "event_generator_pools": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {"$ref": "#/$defs/identifier"}
+        },
+        "event_latency_matrix_ms": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {
+            "type": "object",
+            "propertyNames": {"$ref": "#/$defs/identifier"},
+            "additionalProperties": {"type": "number", "minimum": 0}
+          }
+        },
+        "transition_constraints": {"type": "array", "items": {"$ref": "#/$defs/latency_constraint"}},
+        "global_latency": {
+          "type": "object",
+          "required": ["attribute_id", "include_execution_latency_feature", "xor_semantics", "and_semantics"],
+          "additionalProperties": false,
+          "properties": {
+            "attribute_id": {"$ref": "#/$defs/identifier"},
+            "include_execution_latency_feature": {"type": "boolean"},
+            "xor_semantics": {"enum": ["EXPECTED", "WORST_CASE"]},
+            "and_semantics": {"enum": ["MAX", "SUM"]}
+          }
+        }
+      }
+    },
+    "latency_constraint": {
+      "type": "object",
+      "required": ["id", "to_task", "op", "value", "hard"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "from_task": {"$ref": "#/$defs/identifier"},
+        "from_event": {"$ref": "#/$defs/identifier"},
+        "to_task": {"$ref": "#/$defs/identifier"},
+        "op": {"enum": ["<=", "<", ">=", ">", "==", "IN_RANGE"]},
+        "value": {
+          "oneOf": [
+            {"type": "number"},
+            {"$ref": "#/$defs/numeric_range"}
+          ]
+        },
+        "hard": {"type": "boolean"}
+      },
+      "oneOf": [
+        {"required": ["from_task"]},
+        {"required": ["from_event"]}
+      ]
+    }
+  }
+}

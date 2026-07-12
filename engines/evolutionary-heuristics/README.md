@@ -14,14 +14,40 @@ The initial implementation supports:
 - Structured compositions: `TASK`, `SEQ`, `AND`, `XOR`, `LOOP`, and `ELEMENT`.
 - Mono-, multi-, and many-objective problems.
 - Global and local attribute bounds.
-- Same-provider and different-provider dependency constraints.
+- Same-provider and different-provider dependency constraints (plus
+  `SAME_POOL`/`DIFFERENT_POOL` on the BIM\* path).
 - Hard and soft constraints.
 - Reproducible runs through an explicit random seed.
 
 The HTTP contract is:
 
 - `GET /health`
-- `POST /solve` with `{ "instance": <general OpenBinding instance>, "options": {...} }`
+- `POST /solve` with `{ "instance": <general OpenBinding instance>, "options": {...}, "placement": {...}? }`
+
+## BIM\* placement support and anytime behavior
+
+When the gateway attaches a `placement` payload (BIM\* instances), the evaluator additionally
+computes the end-to-end latency over precomputed XOR-scenario precedence DAGs, resource-capacity
+and transition-latency violations (`PlacementEvaluator`), mirroring the gateway reference
+evaluator.
+
+For **MONO** objectives:
+
+- Deb's feasibility rules are folded into the scalar objective (any feasible solution beats any
+  infeasible one; infeasible solutions rank by hard violation) — necessary because jMetal's
+  dominance comparator ignores `constraints()`.
+- The engine tracks the **best individual ever evaluated** and returns it (anytime behavior — it
+  survives generational replacement and budget interruptions); when nothing feasible was found the
+  least-violating individual is returned instead.
+- A wall-clock budget can be set with `options.time_budget_ms`; `options.max_evaluations` then acts
+  as a minimum-evaluation floor that is always honoured. A best-so-far trace
+  `[{eval_index, elapsed_ms, best_objective, feasible, hard_violation}]` is reported in provenance
+  metadata for offline convergence and cutoff studies.
+- Each solution's `objective_value` is the engine's **internal search objective**
+  (`objectives()[0]`: weighted mean of normalized losses, plus Deb's offset when infeasible);
+  the legacy quality score moved to `metadata.quality_score`. The gateway replaces the objective
+  with the canonical reference value and keeps the engine's number as `engine_objective_value`
+  for the per-run integrity audit.
 
 ## Representation
 
