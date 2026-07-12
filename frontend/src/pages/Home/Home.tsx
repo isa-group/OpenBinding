@@ -121,6 +121,26 @@ export function Home() {
                 specialization, semantic, and engine-specific validation.
               </p>
             </Card>
+
+            <Card padding="lg">
+              <div className="feature-icon">🌍</div>
+              <h3 className="feature-title">Placement-Aware BIM*</h3>
+              <p className="feature-description">
+                Bind FaaS compositions across the Cloud-Edge continuum: resource
+                capacities, network latencies, security levels and real on-demand
+                pricing budgets — solved as one QoS-aware composition problem.
+              </p>
+            </Card>
+
+            <Card padding="lg">
+              <div className="feature-icon">⏱️</div>
+              <h3 className="feature-title">Anytime Solving &amp; Traces</h3>
+              <p className="feature-description">
+                Shared time budgets across engines, best-so-far convergence traces,
+                anytime incumbents from the exact solver, and canonical objective
+                values recomputed by a single reference evaluator.
+              </p>
+            </Card>
           </div>
         </div>
       </section>

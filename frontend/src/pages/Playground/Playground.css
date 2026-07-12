@@ -601,6 +601,16 @@
   }
 }
 
+.engine-objective-note {
+  margin: -4px 0 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.engine-objective-note code {
+  font-size: 12px;
+}
+
 @media (max-width: 768px) {
   .playground-container {
     padding: 0 var(--space-4);

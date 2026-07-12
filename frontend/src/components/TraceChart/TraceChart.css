@@ -1,0 +1,73 @@
+.trace-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.trace-chart-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.trace-chart-modes {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.trace-mode-button {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.trace-mode-button + .trace-mode-button {
+  border-left: 1px solid var(--color-border);
+}
+
+.trace-mode-button.active {
+  background: var(--color-accent, #7c3aed);
+  color: #fff;
+}
+
+.trace-mode-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.trace-chart-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.trace-chart-canvas {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 8px 4px 4px 0;
+  background: var(--color-surface);
+}
+
+.trace-chart-footnote {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .trace-chart-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

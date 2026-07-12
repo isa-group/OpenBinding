@@ -10,6 +10,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Tabs } from '../../components/ui/Tabs';
 import { CodeEditor } from '../../components/CodeEditor/CodeEditor';
 import { BindingSpaceExplorer } from '../../components/BindingSpaceExplorer/BindingSpaceExplorer';
+import { TraceChart } from '../../components/TraceChart/TraceChart';
 import './Playground.css';
 
 const ajv = new Ajv({ allErrors: true });
@@ -57,6 +58,10 @@ const AVAILABLE_EXAMPLES = {
     'literature/netedu.json',
     'literature/pautasso.json',
     'literature/zhang.json'
+  ],
+  'Placement (BIM*)': [
+    'placement/01_small_placement.json',
+    'placement/02_stock_market_sample.json'
   ]
 };
 
@@ -578,6 +583,21 @@ export function Playground() {
                     content: <SolutionsView result={result} />
                   },
                   {
+                    id: 'trace',
+                    label: 'Trace',
+                    badge: Array.isArray(result?.provenance?.metadata?.trace)
+                      ? result.provenance.metadata.trace.length
+                      : 0,
+                    content: (
+                      <div className="result-view">
+                        <TraceChart
+                          trace={result?.provenance?.metadata?.trace}
+                          engineId={result?.provenance?.engine_id || selectedEngine}
+                        />
+                      </div>
+                    )
+                  },
+                  {
                     id: 'binding-space',
                     label: 'Binding Space',
                     content: <BindingSpaceView result={result} engineId={selectedEngine} instance={currentInstance} />
@@ -748,6 +768,39 @@ function SummaryView({ result }: { result: any }) {
                 <span className="summary-value">{result.provenance.execution_time_ms}ms</span>
               </div>
             )}
+            {result.provenance.metadata?.status && (
+              <div className="summary-item">
+                <span className="summary-label">Solver Status:</span>
+                <Badge
+                  variant={
+                    result.provenance.metadata.status === 'OPTIMAL' ? 'success' :
+                    result.provenance.metadata.status === 'SATISFIED' ? 'info' :
+                    result.provenance.metadata.status === 'UNSATISFIABLE' ? 'warning' :
+                    'default'
+                  }
+                  title={
+                    result.provenance.metadata.status === 'OPTIMAL' ? 'Search completed with an optimality proof' :
+                    result.provenance.metadata.status === 'SATISFIED' ? 'Time budget expired: best (unproven) incumbent returned' :
+                    result.provenance.metadata.status === 'UNSATISFIABLE' ? 'Infeasibility proved: no assignment satisfies the hard constraints' :
+                    'Budget expired before any incumbent was found'
+                  }
+                >
+                  {result.provenance.metadata.status}
+                </Badge>
+              </div>
+            )}
+            {result.provenance.metadata?.seed !== undefined && result.provenance.metadata?.seed !== null && (
+              <div className="summary-item">
+                <span className="summary-label">Seed:</span>
+                <span className="summary-value">{String(result.provenance.metadata.seed)}</span>
+              </div>
+            )}
+            {result.provenance.metadata?.evaluations !== undefined && result.provenance.metadata?.evaluations !== null && (
+              <div className="summary-item">
+                <span className="summary-label">Evaluations:</span>
+                <span className="summary-value">{String(result.provenance.metadata.evaluations)}</span>
+              </div>
+            )}
           </div>
         </Card>
       )}
@@ -812,30 +865,54 @@ function SolutionsView({ result }: { result: any }) {
 
       {solutions.map((solution: any, index: number) => {
         const isExpanded = expandedSolutions[index] || false;
-        const hasAggregatedFeatures = solution.aggregated_features && 
+        const hasAggregatedFeatures = solution.aggregated_features &&
           Object.keys(solution.aggregated_features).length > 0;
         const isBindingEmpty = !solution.binding || Object.keys(solution.binding).length === 0;
-        const isInfeasible = result.feasibility === 'INFEASIBLE';
+        // Prefer the per-solution reference-evaluator verdict (BIM* instances);
+        // fall back to the response-level feasibility flag otherwise.
+        const isInfeasible = solution.feasible === false ||
+          (solution.feasible === undefined && result.feasibility === 'INFEASIBLE');
+        const hasEngineObjective = solution.engine_objective_value !== undefined &&
+          solution.engine_objective_value !== null;
 
         return (
           <Card key={index} padding="md">
             <div className="solution-header">
               <h4>Solution {index + 1}</h4>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                {solution.feasible === true && (
+                  <Badge variant="success" title="Verified by the gateway reference evaluator: all hard constraints hold.">
+                    Feasible
+                  </Badge>
+                )}
                 {isInfeasible && (
-                  <Badge variant="warning">Infeasible</Badge>
+                  <Badge variant="warning" title="The reference evaluator found violated hard constraints (best-effort anytime solution).">
+                    Infeasible
+                  </Badge>
                 )}
                 {isBindingEmpty && (
                   <Badge variant="error">Empty Binding</Badge>
                 )}
                 {solution.objective_value !== undefined && solution.objective_value !== null && (
-                  <div className="solution-objective">
+                  <div
+                    className="solution-objective"
+                    title="Canonical objective: recomputed by the gateway reference evaluator from the returned binding (lower is better). Engine-independent, used for fair comparison."
+                  >
                     <span className="objective-label">Objective:</span>
                     <span className="objective-value">{solution.objective_value.toFixed(4)}</span>
                   </div>
                 )}
               </div>
             </div>
+
+            {hasEngineObjective && (
+              <div
+                className="engine-objective-note"
+                title="The engine's own internal search objective. It should match the canonical objective for feasible solutions (integrity audit)."
+              >
+                Engine-reported objective: <code>{Number(solution.engine_objective_value).toFixed(6)}</code>
+              </div>
+            )}
 
             {isBindingEmpty && (
               <Alert type="error" title="Empty Binding">
@@ -846,7 +923,8 @@ function SolutionsView({ result }: { result: any }) {
 
             {isInfeasible && !isBindingEmpty && (
               <Alert type="warning" title="Infeasible Solution">
-                This solution violates one or more hard constraints. Check the Violations tab for details.
+                This is the engine's best-effort (anytime) solution: it violates one or more hard
+                constraints. Check the Violations tab for details.
               </Alert>
             )}
             
