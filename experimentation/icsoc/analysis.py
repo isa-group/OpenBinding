@@ -10,6 +10,7 @@ value at the standard 1000-evaluation cutoff otherwise.
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -106,12 +107,17 @@ def convergence_band(
     if not curves:
         return None
     matrix = np.vstack(curves)
-    return {
-        "median": np.nanmedian(matrix, axis=0),
-        "q1": np.nanpercentile(matrix, 25, axis=0),
-        "q3": np.nanpercentile(matrix, 75, axis=0),
-        "n": matrix.shape[0],
-    }
+    with warnings.catch_warnings():
+        # Grid points before the first feasible improvement of every seed are
+        # all-NaN by construction; the resulting NaN aggregate is simply not
+        # plotted, so the RuntimeWarning is noise.
+        warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+        return {
+            "median": np.nanmedian(matrix, axis=0),
+            "q1": np.nanpercentile(matrix, 25, axis=0),
+            "q3": np.nanpercentile(matrix, 75, axis=0),
+            "n": matrix.shape[0],
+        }
 
 
 # ---------------------------------------------------------------------------
