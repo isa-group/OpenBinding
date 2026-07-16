@@ -112,7 +112,7 @@
       {"candidate_id": "c_t_render_cloud", "pool_id": "p_cloud", "demand": {"memory": 2.0}}
     ],
     "constraints": [
-      {"id": "node_capacity", "kind": "RESOURCE_CAPACITY", "scope": "ALL_POOLS", "resources": ["memory"], "hard": true}
+      {"id": "node_capacity", "kind": "DEPENDENCY", "type": "RESOURCE_CAPACITY", "scope": "ALL_POOLS", "resources": ["memory"], "hard": true}
     ]
   },
   "latency_model": {

@@ -43,7 +43,7 @@ classDiagram
         resources : ids
         pools : Pool[]
         candidate_bindings : CandidateBinding[]
-        constraints : RESOURCE_CAPACITY[]
+        constraints : DEPENDENCY(RESOURCE_CAPACITY)[]
     }
 
     class Pool {

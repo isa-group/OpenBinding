@@ -454,7 +454,8 @@ def build_instance(
             "constraints": [
                 {
                     "id": "accumulated_node_capacity",
-                    "kind": "RESOURCE_CAPACITY",
+                    "kind": "DEPENDENCY",
+                    "type": "RESOURCE_CAPACITY",
                     "scope": "POOL_KIND",
                     "pool_kinds": ["EDGE", "FOG", "CLOUD"],
                     "resources": ["memory_mb", "vcpu", "mhz"],
@@ -462,7 +463,8 @@ def build_instance(
                 },
                 {
                     "id": "cloud_concurrency_capacity",
-                    "kind": "RESOURCE_CAPACITY",
+                    "kind": "DEPENDENCY",
+                    "type": "RESOURCE_CAPACITY",
                     "scope": "POOL_KIND",
                     "pool_kinds": ["CLOUD_FAAS"],
                     "resources": ["concurrency"],

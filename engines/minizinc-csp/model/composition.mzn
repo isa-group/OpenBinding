@@ -242,8 +242,9 @@ predicate check_op_int(var int: val, int: op, int: target) =
     elseif op == 5 then val > target
     else true endif;
 
-% 1. RESOURCE_CAPACITY: cumulative demand of the tasks placed on a pool must
-%    fit its capacity. One check per (pool, resource) pair in scope.
+% 1. RESOURCE_CAPACITY dependency constraint: cumulative demand of the tasks
+%    placed on a pool must fit its capacity. One check per (pool, resource)
+%    pair in scope.
 int: n_cap_checks;
 array[1..n_cap_checks] of int: cap_pool;
 array[1..n_cap_checks] of int: cap_res;

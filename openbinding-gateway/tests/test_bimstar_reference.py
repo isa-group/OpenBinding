@@ -119,8 +119,8 @@ def micro_instance():
             ],
             "candidate_bindings": bindings,
             "constraints": [
-                {"id": "cap_all", "kind": "RESOURCE_CAPACITY", "scope": "ALL_POOLS",
-                 "resources": ["memory"], "hard": True},
+                {"id": "cap_all", "kind": "DEPENDENCY", "type": "RESOURCE_CAPACITY",
+                 "scope": "ALL_POOLS", "resources": ["memory"], "hard": True},
             ],
         },
         "latency_model": {
@@ -271,6 +271,24 @@ def test_capacity_violation_detected():
     codes = [v["constraint_id"] for v in result["violations"]]
     assert "cap_all" in codes
     assert result["feasible"] is False
+
+
+def test_capacity_legacy_kind_still_enforced():
+    """The legacy spelling ``kind: RESOURCE_CAPACITY`` must behave exactly as
+    the canonical ``kind: DEPENDENCY`` + ``type: RESOURCE_CAPACITY`` form."""
+    canonical = micro_instance()
+    legacy = copy.deepcopy(canonical)
+    legacy["resource_model"]["constraints"] = [
+        {"id": "cap_all", "kind": "RESOURCE_CAPACITY", "scope": "ALL_POOLS",
+         "resources": ["memory"], "hard": True},
+    ]
+    binding = all_p1_binding(canonical)
+    r_canonical = evaluate_solution(canonical, binding)
+    r_legacy = evaluate_solution(legacy, binding)
+    assert [v["constraint_id"] for v in r_legacy["violations"]] == \
+        [v["constraint_id"] for v in r_canonical["violations"]]
+    assert r_legacy["feasible"] is False
+    assert build_placement_payload(legacy) == build_placement_payload(canonical)
 
 
 def test_capacity_satisfied_when_spread():

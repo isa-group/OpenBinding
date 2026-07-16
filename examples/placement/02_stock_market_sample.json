@@ -3673,7 +3673,8 @@
     "constraints": [
       {
         "id": "accumulated_node_capacity",
-        "kind": "RESOURCE_CAPACITY",
+        "kind": "DEPENDENCY",
+        "type": "RESOURCE_CAPACITY",
         "scope": "POOL_KIND",
         "pool_kinds": [
           "EDGE",
@@ -3689,7 +3690,8 @@
       },
       {
         "id": "cloud_concurrency_capacity",
-        "kind": "RESOURCE_CAPACITY",
+        "kind": "DEPENDENCY",
+        "type": "RESOURCE_CAPACITY",
         "scope": "POOL_KIND",
         "pool_kinds": [
           "CLOUD_FAAS"

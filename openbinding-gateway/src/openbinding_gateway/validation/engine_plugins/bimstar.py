@@ -8,8 +8,11 @@ This module is the single source of truth for the placement extensions of BIM:
   makespan is computed by critical-path scheduling where every task starts
   once all its predecessors have finished and their outputs have been
   transferred over the network (pool-to-pool latency matrix).
-- RESOURCE_CAPACITY constraints: cumulative demand of the selected candidates
-  placed on a pool must not exceed the pool capacity, for every resource.
+- RESOURCE_CAPACITY dependency constraints (canonical form ``kind: DEPENDENCY``
+  with ``type: RESOURCE_CAPACITY``; the legacy spelling
+  ``kind: RESOURCE_CAPACITY`` is still accepted): cumulative demand of the
+  selected candidates placed on a pool must not exceed the pool capacity, for
+  every resource.
 - Transition latency constraints: pairwise bounds on the network latency
   between the pools hosting two tasks (or an event generator and a task).
 - SAME_POOL / DIFFERENT_POOL dependency constraints.
@@ -407,6 +410,19 @@ def _check_dependencies(
     return violations
 
 
+def _is_capacity_constraint(constraint: Dict[str, Any]) -> bool:
+    """Resource capacity is a dependency-type constraint: canonical form
+    ``kind: DEPENDENCY`` + ``type: RESOURCE_CAPACITY``; the legacy spelling
+    ``kind: RESOURCE_CAPACITY`` is still accepted."""
+    kind = str(constraint.get("kind") or "").upper()
+    if kind == "RESOURCE_CAPACITY":
+        return True
+    return (
+        kind == "DEPENDENCY"
+        and str(constraint.get("type") or "").upper() == "RESOURCE_CAPACITY"
+    )
+
+
 def _check_resource_capacity(
     model: BimStarModel,
     selected: Dict[str, Dict[str, Any]],
@@ -424,7 +440,7 @@ def _check_resource_capacity(
             pool_usage[resource] = pool_usage.get(resource, 0.0) + float(demand)
 
     for constraint in model.resource_constraints:
-        if str(constraint.get("kind") or "").upper() != "RESOURCE_CAPACITY":
+        if not _is_capacity_constraint(constraint):
             continue
         hard = bool(constraint.get("hard", True))
         cid = constraint.get("id") or "resource_capacity"
@@ -642,7 +658,7 @@ def build_placement_payload(instance: Dict[str, Any]) -> Optional[Dict[str, Any]
 
     resource_constraints = []
     for constraint in model.resource_constraints:
-        if str(constraint.get("kind") or "").upper() != "RESOURCE_CAPACITY":
+        if not _is_capacity_constraint(constraint):
             continue
         resource_constraints.append(
             {

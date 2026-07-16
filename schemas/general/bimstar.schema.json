@@ -370,12 +370,24 @@
       "additionalProperties": false,
       "properties": {
         "id": {"$ref": "#/$defs/identifier"},
-        "kind": {"const": "RESOURCE_CAPACITY"},
+        "kind": {"enum": ["DEPENDENCY", "RESOURCE_CAPACITY"]},
+        "type": {"const": "RESOURCE_CAPACITY"},
         "scope": {"enum": ["ALL_POOLS", "POOL_KIND"]},
         "resources": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/identifier"}},
         "pool_kinds": {"type": "array", "items": {"$ref": "#/$defs/identifier"}},
         "hard": {"type": "boolean"}
-      }
+      },
+      "oneOf": [
+        {
+          "$comment": "Canonical form: resource capacity as a dependency-type constraint.",
+          "properties": {"kind": {"const": "DEPENDENCY"}},
+          "required": ["type"]
+        },
+        {
+          "$comment": "Legacy spelling kept for backward compatibility.",
+          "properties": {"kind": {"const": "RESOURCE_CAPACITY"}}
+        }
+      ]
     },
     "latency_model": {
       "type": "object",

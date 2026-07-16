@@ -17,8 +17,9 @@ import java.util.Map;
  *   <li>End-to-end latency = expected (or worst-case) makespan over the XOR
  *       scenarios shipped in the placement payload, computed by critical-path
  *       scheduling over each scenario's precedence DAG.</li>
- *   <li>RESOURCE_CAPACITY: cumulative demand of selected candidates placed on
- *       a pool must fit its declared capacity, per resource.</li>
+ *   <li>RESOURCE_CAPACITY dependency constraints: cumulative demand of
+ *       selected candidates placed on a pool must fit its declared capacity,
+ *       per resource.</li>
  *   <li>Transition latency constraints: pairwise bounds over the latency
  *       matrix (or event latency matrix for event-driven transitions).</li>
  * </ul>
@@ -136,7 +137,7 @@ final class PlacementEvaluator {
   List<Violation> check(Map<String, Candidate> selected) {
     List<Violation> violations = new ArrayList<>();
 
-    // RESOURCE_CAPACITY: accumulate demands per pool over all selected candidates.
+    // RESOURCE_CAPACITY dependency: accumulate demands per pool over all selected candidates.
     Map<String, Map<String, Double>> usage = new LinkedHashMap<>();
     for (Candidate candidate : selected.values()) {
       String pool = poolOf(candidate);
