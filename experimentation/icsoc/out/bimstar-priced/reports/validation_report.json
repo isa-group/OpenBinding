@@ -1,0 +1,532 @@
+{
+  "total": 105,
+  "valid": 105,
+  "invalid": 0,
+  "results": [
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_100.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_105.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_110.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_115.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_120.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_125.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_130.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_135.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_140.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_145.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_150.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_155.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_160.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_165.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_170.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_175.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_180.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_185.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_190.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_195.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_200.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_205.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_210.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_215.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_220.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_50.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_55.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_60.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_65.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_70.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_75.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_80.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_85.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_90.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/arOrch/146588263/infrastructure_95.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_100.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_105.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_110.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_115.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_120.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_125.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_130.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_135.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_140.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_145.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_150.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_155.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_160.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_165.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_170.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_175.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_180.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_185.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_190.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_195.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_200.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_205.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_210.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_215.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_220.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_50.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_55.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_60.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_65.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_70.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_75.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_80.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_85.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_90.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/mediaOrch/146588263/infrastructure_95.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_100.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_105.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_110.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_115.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_120.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_125.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_130.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_135.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_140.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_145.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_150.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_155.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_160.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_165.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_170.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_175.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_180.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_185.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_190.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_195.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_200.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_205.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_210.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_215.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_220.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_50.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_55.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_60.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_65.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_70.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_75.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_80.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_85.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_90.bimstar.json",
+      "valid": true,
+      "violations": []
+    },
+    {
+      "path": "/Users/franciscojaviercaverolopez/Workspace/OpenBinding/experimentation/icsoc/out/bimstar-priced/instances/stockOrch/146588263/infrastructure_95.bimstar.json",
+      "valid": true,
+      "violations": []
+    }
+  ]
+}

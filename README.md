@@ -2,6 +2,8 @@
 
 OpenBinding is a QoS-aware service composition gateway and solver engine framework. It provides a unified interface to model and solve service composition problems using various underlying optimization engines.
 
+> Looking for **OpenBinding4Placement**? See the full documentation and experimental pipeline in [`experimentation/icsoc/README.md`](experimentation/icsoc/README.md).
+
 ## 🏗️ Architecture
 
 ```mermaid
