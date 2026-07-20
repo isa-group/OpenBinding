@@ -22,7 +22,7 @@ def test_random_search_bimstar_payload_carries_budget_and_seed():
         {"iterations_count": 1000, "seed": 7, "time_budget_ms": 300_000},
     )
     assert warnings == []
-    # BIM* instances take the placement-native path.
+    # BIM' instances take the placement-native path.
     assert "placement" in payload and "instance" in payload
     assert payload["config"] == {
         "max_iterations": 1000,

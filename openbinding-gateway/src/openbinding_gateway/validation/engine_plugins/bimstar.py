@@ -1,4 +1,4 @@
-"""Reference evaluation semantics for BIM* (placement-aware) instances.
+"""Reference evaluation semantics for BIM' (placement-aware) instances.
 
 This module is the single source of truth for the placement extensions of BIM:
 
@@ -38,7 +38,7 @@ TASK_SOURCE = "task"
 
 
 class BimStarError(ValueError):
-    """Raised when a BIM* instance cannot be interpreted."""
+    """Raised when a BIM' instance cannot be interpreted."""
 
 
 def is_bimstar(instance: Dict[str, Any]) -> bool:
@@ -84,7 +84,7 @@ def _build_dag(
         if task_id in preds:
             raise BimStarError(
                 f"Task '{task_id}' appears more than once in the composition; "
-                "the BIM* latency model requires a single occurrence per task"
+                "the BIM' latency model requires a single occurrence per task"
             )
         preds[task_id] = list(entries)
         order.append(task_id)
@@ -111,7 +111,7 @@ def _build_dag(
         return _build_dag(branches[idx].get("child", {}) or {}, entries, choice, preds, order)
 
     if kind == "LOOP":
-        raise BimStarError("LOOP nodes are not supported by the BIM* latency model")
+        raise BimStarError("LOOP nodes are not supported by the BIM' latency model")
 
     raise BimStarError(f"Unsupported composition node kind '{kind}'")
 
@@ -153,11 +153,11 @@ def build_scenarios(
 
 
 # ---------------------------------------------------------------------------
-# BIM* model view
+# BIM' model view
 # ---------------------------------------------------------------------------
 
 class BimStarModel:
-    """Parsed view of the placement extensions of a BIM* instance."""
+    """Parsed view of the placement extensions of a BIM' instance."""
 
     def __init__(self, instance: Dict[str, Any]):
         self.instance = instance
@@ -572,7 +572,7 @@ def canonical_objective(instance: Dict[str, Any], aggregated: Dict[str, float]) 
 # ---------------------------------------------------------------------------
 
 def evaluate_solution(instance: Dict[str, Any], binding: Dict[str, str]) -> Dict[str, Any]:
-    """Reference evaluation of a binding against a (BIM or BIM*) instance."""
+    """Reference evaluation of a binding against a (BIM or BIM') instance."""
     candidates_by_id = {c["id"]: c for c in instance.get("candidates", []) or []}
     features = {f["id"]: f for f in instance.get("features", []) or []}
     agg_policies = instance.get("aggregation_policies") or {}

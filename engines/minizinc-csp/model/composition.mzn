@@ -212,7 +212,7 @@ constraint forall(i in 1..n_dep_constraints)(
         else true endif
 );
 
-% --- BIM* PLACEMENT EXTENSIONS ---
+% --- BIM' PLACEMENT EXTENSIONS ---
 % All placement quantities are integers: latencies are scaled by LAT_SCALE
 % (milliseconds * LAT_SCALE), resource demands/capacities are integral.
 
@@ -361,7 +361,7 @@ constraint forall(i in 1..n_nodes where node_kind[i] == KIND_LOOP)(
 
 % --- OBJECTIVE ---
 
-% Canonical (BIM*) objective: weighted sum of per-feature losses normalized
+% Canonical (BIM') objective: weighted sum of per-feature losses normalized
 % with instance-declared bounds and clamped to [0, 1]. Identical to the
 % gateway reference evaluator (and the Java engines):
 %   loss_q = clamp((v - lb) / (ub - lb))   for MINIMIZE features
@@ -407,7 +407,7 @@ var -obj_ub..obj_ub: obj_val =
     endif;
 
 % Branch on the per-task candidate picks; first_fail + indomain_min proved
-% far stronger than default search on BIM* placement instances.
+% far stronger than default search on BIM' placement instances.
 solve :: int_search(pick_idx, first_fail, indomain_min) minimize obj_val;
 
 output [

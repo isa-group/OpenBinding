@@ -9,7 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Evaluation of the BIM* placement semantics for a selected binding.
+ * Evaluation of the BIM' placement semantics for a selected binding.
  *
  * <p>Mirrors the gateway reference evaluator
  * ({@code openbinding_gateway.validation.engine_plugins.bimstar}):

@@ -63,7 +63,7 @@ public class Controller implements HttpHandler {
             com.google.gson.JsonObject raw =
                     com.google.gson.JsonParser.parseString(requestBody).getAsJsonObject();
             if (raw.has("placement") && raw.has("instance")) {
-                // BIM* placement-native path: raw instance + precomputed placement payload.
+                // BIM' placement-native path: raw instance + precomputed placement payload.
                 BimStarModels.BimStarSolveRequest bimReq =
                         gson.fromJson(requestBody, BimStarModels.BimStarSolveRequest.class);
                 resp = processBimStar(bimReq);

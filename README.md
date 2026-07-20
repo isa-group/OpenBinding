@@ -46,7 +46,7 @@ flowchart TD
 
 3.  **Random Search Engine** (`engines/random-search`):
     *   Java service.
-    *   Uses random search (seeded and reproducible on the BIM* path).
+    *   Uses random search (seeded and reproducible on the BIM′ path).
     *   Best for exploring large solution spaces; serves as the experimental baseline.
 
 4.  **Many-Heuristic Engine** (`engines/many-heuristic`):
@@ -98,9 +98,13 @@ OpenBinding validates incoming requests against two schema layers:
 
 Example payloads that follow these schemas live in `examples/`.
 
-### BIM\* placement extension
+### BIM′ placement extension (OpenBinding4Placement)
 
-`schemas/general/bimstar.schema.json` extends the general BIM with **placement semantics** for
+**OpenBinding4Placement** is the placement-aware extension of OpenBinding used to solve
+**CLASP-FaaS** — the Cost- and Latency-Aware Secure Placement of FaaS Compositions — by
+formulating it as a placement-aware QACO problem (QACO′).
+`schemas/general/bimstar.schema.json` (implementation slug: `bimstar`) defines **BIM′**, the
+placement-aware BIM: it extends the general BIM with **placement semantics** for
 FaaS-orchestration binding over the Cloud-Edge continuum:
 
 - **`resource_model`** — infrastructure pools with capacities, per-candidate pool bindings and
@@ -121,9 +125,10 @@ best-so-far traces; the exact engine additionally reports its incumbent trace an
 
 ## 🔬 Experimentation
 
-The FaaS placement-as-QACO experimental campaign (dataset transformation, priced corpus, campaign
-runner and evaluation notebooks) is documented in
-[`experimentation/icsoc/README.md`](experimentation/icsoc/README.md).
+The OpenBinding4Placement experimental campaign — solving CLASP-FaaS as QACO′ (dataset
+transformation, priced BIM′ corpus, campaign runner and evaluation notebooks) — is documented in
+[`experimentation/icsoc/README.md`](experimentation/icsoc/README.md), supporting the paper
+*QoS-aware Placement of FaaS Compositions in the Cloud-Edge Continuum*.
 
 ## 🚀 Getting Started
 

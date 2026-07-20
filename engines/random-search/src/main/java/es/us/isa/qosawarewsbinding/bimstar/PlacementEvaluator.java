@@ -15,7 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Evaluation of the BIM* placement semantics for a selected binding.
+ * Evaluation of the BIM' placement semantics for a selected binding.
  *
  * <p>Kept in sync with the evolutionary engine's {@code PlacementEvaluator}
  * and the gateway reference evaluator

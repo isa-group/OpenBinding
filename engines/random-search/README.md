@@ -8,13 +8,13 @@ weakest solutions.
 
 - **Legacy path** (`SolveRequest` DTO: `composition` + `market` + `features`): the original
   QoS-aware composition solver (`es.us.isa.qosawarewsbinding`). Budget: `config.max_iterations`.
-- **BIM\* placement path** (payload with `instance` + `placement` + `config`): activated by the
+- **BIM′ placement path** (payload with `instance` + `placement` + `config`): activated by the
   gateway for placement-aware instances. Implemented in `es.us.isa.qosawarewsbinding.bimstar`
   (Java 8 — this engine builds with JDK 8), which mirrors the evolutionary engine's evaluator and
   the gateway reference evaluator: end-to-end latency over precomputed XOR-scenario DAGs, resource
   capacity, transition latency, budgets and the canonical normalized objective.
 
-## BIM\* options and anytime behavior
+## BIM′ options and anytime behavior
 
 ```json
 {"max_iterations": 1000, "seed": 7, "time_budget_ms": 300000}

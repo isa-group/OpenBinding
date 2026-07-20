@@ -15,7 +15,7 @@ The initial implementation supports:
 - Mono-, multi-, and many-objective problems.
 - Global and local attribute bounds.
 - Same-provider and different-provider dependency constraints (plus
-  `SAME_POOL`/`DIFFERENT_POOL` on the BIM\* path).
+  `SAME_POOL`/`DIFFERENT_POOL` on the BIM′ path).
 - Hard and soft constraints.
 - Reproducible runs through an explicit random seed.
 
@@ -24,9 +24,9 @@ The HTTP contract is:
 - `GET /health`
 - `POST /solve` with `{ "instance": <general OpenBinding instance>, "options": {...}, "placement": {...}? }`
 
-## BIM\* placement support and anytime behavior
+## BIM′ placement support and anytime behavior
 
-When the gateway attaches a `placement` payload (BIM\* instances), the evaluator additionally
+When the gateway attaches a `placement` payload (BIM′ instances), the evaluator additionally
 computes the end-to-end latency over precomputed XOR-scenario precedence DAGs, resource-capacity
 and transition-latency violations (`PlacementEvaluator`), mirroring the gateway reference
 evaluator.

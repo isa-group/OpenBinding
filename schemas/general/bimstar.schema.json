@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openbinding.local/schemas/bimstar.schema.json",
-  "title": "BIM* Placement-Aware Binding Instance",
+  "title": "Placement-Aware Binding Instance (BIM′)",
   "type": "object",
   "additionalProperties": false,
   "required": [

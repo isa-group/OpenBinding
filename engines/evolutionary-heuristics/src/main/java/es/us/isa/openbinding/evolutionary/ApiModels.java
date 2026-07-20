@@ -15,7 +15,7 @@ final class ApiModels {
   }
 
   /**
-   * Placement payload precomputed by the gateway for BIM* instances: pool
+   * Placement payload precomputed by the gateway for BIM' instances: pool
    * bindings, capacities, latency matrices and the XOR-scenario precedence
    * DAGs used to evaluate end-to-end latency.
    */

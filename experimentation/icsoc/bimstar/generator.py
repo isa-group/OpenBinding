@@ -426,7 +426,7 @@ def build_instance(
             "name": f"{app['name']} on {infra.path.stem} ({infra.seed})",
             "version": "1.0.0",
             "created_at": "2026-07-05T00:00:00Z",
-            "description": "Generated BIM* instance from the ICSOC placement dataset.",
+            "description": "Generated BIM' instance from the ICSOC placement dataset.",
             "source_dataset": "experimentation/icsoc/original_dataset",
             "application_id": app_id,
             "dataset_seed": infra.seed,

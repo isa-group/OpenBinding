@@ -283,7 +283,7 @@ def canonicalize_result_data(result_data: Dict[str, Any], original_request: Dict
     if not isinstance(solutions, list):
         return result_data
 
-    # BIM* instances get the full reference evaluation (end-to-end latency,
+    # BIM' instances get the full reference evaluation (end-to-end latency,
     # capacity/transition constraints, canonical normalized objective).
     from .bimstar import apply_bimstar_evaluation, is_bimstar
 

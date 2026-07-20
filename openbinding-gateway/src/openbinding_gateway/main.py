@@ -590,11 +590,11 @@ def _bimstar_schema_path(extension: str) -> str:
 
 @app.get("/v1/schemas/{engine_id}")
 async def get_engine_schema(engine_id: str):
-    # "bimstar" is a general-schema variant (placement-aware BIM*), not an engine.
+    # "bimstar" is a general-schema variant (placement-aware BIM), not an engine.
     if engine_id == "bimstar":
         schema_path = _bimstar_schema_path("json")
         if not os.path.exists(schema_path):
-            raise HTTPException(status_code=404, detail="BIM* schema not found on server.")
+            raise HTTPException(status_code=404, detail="BIM' schema not found on server.")
         return FileResponse(schema_path)
 
     _assert_engine_exists(engine_id)
@@ -611,7 +611,7 @@ async def get_engine_schema_model(engine_id: str):
     if engine_id == "bimstar":
         model_path = _bimstar_schema_path("mermaid")
         if not os.path.exists(model_path):
-            raise HTTPException(status_code=404, detail="No model for the BIM* schema.")
+            raise HTTPException(status_code=404, detail="No model for the BIM' schema.")
         return FileResponse(model_path, media_type="text/plain; charset=utf-8")
 
     _assert_engine_exists(engine_id)

@@ -36,7 +36,7 @@ def validate_json_schema(instance: dict[str, Any], schema_path: str | Path) -> l
                 stage="schema",
                 code="jsonschema_not_installed",
                 path="$",
-                message="jsonschema is not installed; semantic BIM* validation was still executed",
+                message="jsonschema is not installed; semantic BIM' validation was still executed",
             )
         ]
 

@@ -9,7 +9,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Tabs } from '../../components/ui/Tabs';
 import './Schemas.css';
 
-// 'bimstar' is the placement-aware BIM* variant of the general schema
+// 'bimstar' is the placement-aware BIM variant of the general schema
 // (resource model, latency model, budgets); it is served by the gateway under
 // the same schema endpoints with the pseudo-id 'bimstar'.
 type SchemaType = 'general' | 'bimstar' | 'engine';
@@ -492,9 +492,9 @@ export function Schemas() {
             <Button
               variant={selectedType === 'bimstar' ? 'primary' : 'secondary'}
               onClick={() => setSelectedType('bimstar')}
-              title="Placement-aware BIM* variant: resource model, latency model, budgets and canonical normalization"
+              title="Placement-aware BIM variant: resource model, latency model, budgets and canonical normalization"
             >
-              BIM* Placement
+              BIM′ Placement
             </Button>
             <Button
               variant={selectedType === 'engine' ? 'primary' : 'secondary'}

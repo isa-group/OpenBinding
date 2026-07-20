@@ -433,7 +433,7 @@ export class DznBuilder {
 
 
     // ------------------------------------------------------------------
-    // BIM* placement data (pools, capacities, latency matrix, scenarios)
+    // BIM' placement data (pools, capacities, latency matrix, scenarios)
     // ------------------------------------------------------------------
     // Loud validation: the integer-scaled CSP model must not silently distort
     // inputs. Latencies must be representable at 1/LAT_SCALE ms; resource

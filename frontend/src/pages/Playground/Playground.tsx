@@ -59,7 +59,7 @@ const AVAILABLE_EXAMPLES = {
     'literature/pautasso.json',
     'literature/zhang.json'
   ],
-  'Placement (BIM*)': [
+  'Placement (BIM′)': [
     'placement/01_small_placement.json',
     'placement/02_stock_market_sample.json'
   ]
@@ -868,7 +868,7 @@ function SolutionsView({ result }: { result: any }) {
         const hasAggregatedFeatures = solution.aggregated_features &&
           Object.keys(solution.aggregated_features).length > 0;
         const isBindingEmpty = !solution.binding || Object.keys(solution.binding).length === 0;
-        // Prefer the per-solution reference-evaluator verdict (BIM* instances);
+        // Prefer the per-solution reference-evaluator verdict (BIM′ instances);
         // fall back to the response-level feasibility flag otherwise.
         const isInfeasible = solution.feasible === false ||
           (solution.feasible === undefined && result.feasibility === 'INFEASIBLE');

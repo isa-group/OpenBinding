@@ -167,7 +167,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
                 if k not in supported_options:
                     warnings.append(f"Option '{k}' is not supported by Random-Search engine")
 
-        # BIM* instances take the placement-native path: the engine consumes
+        # BIM' instances take the placement-native path: the engine consumes
         # the raw instance plus the precomputed placement payload, so that the
         # placement semantics live in a single evaluator implementation.
         placement = build_placement_payload(instance)
@@ -402,7 +402,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         aggregated_qos = compute_aggregated_qos(root, features, selected_candidate_by_task, agg_policies)
         normalized_qos = normalize_qos(aggregated_qos, features, agg_policies)
 
-        # Prefer the engine's own internal search objective (BIM* path) so
+        # Prefer the engine's own internal search objective (BIM' path) so
         # the canonicalization step can audit it; the legacy "goodness"
         # recomputation remains as a fallback for the legacy DTO path.
         engine_objective = engine_response.get("objective_value")

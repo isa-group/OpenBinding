@@ -1,12 +1,12 @@
 # MiniZinc CSP engine
 
-Exact solver for OpenBinding instances. A TypeScript service translates each BIM / BIM\* instance
+Exact solver for OpenBinding instances. A TypeScript service translates each BIM / BIM′ instance
 into MiniZinc data (`src/dzn_builder.ts`) and solves `model/composition.mzn` with Gecode.
 
 ## Model highlights
 
 - Generic QoS aggregation over the composition tree (SEQ / AND / XOR / LOOP / ELEMENT).
-- **BIM\* placement extensions**: per-candidate pool bindings, cumulative `RESOURCE_CAPACITY`
+- **BIM′ placement extensions**: per-candidate pool bindings, cumulative `RESOURCE_CAPACITY`
   constraints, pairwise transition-latency constraints (2-D `element` over the latency matrix), and
   end-to-end latency as the expected makespan over XOR scenarios, encoded as a PERT-style
   lower-bounded scheduling model per scenario (sound because the latency feature is only minimized

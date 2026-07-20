@@ -1,4 +1,4 @@
-"""Analysis helpers for the PI4SecFaaS2Fog campaign results.
+"""Analysis helpers for the OpenBinding4Placement campaign results.
 
 Keeps the evaluation notebook thin: loading, reference objectives (with the
 exact-failure fallback protocol), offline cutoff studies over the best-so-far

@@ -124,7 +124,7 @@ export function Home() {
 
             <Card padding="lg">
               <div className="feature-icon">🌍</div>
-              <h3 className="feature-title">Placement-Aware BIM*</h3>
+              <h3 className="feature-title">Placement-Aware BIM</h3>
               <p className="feature-description">
                 Bind FaaS compositions across the Cloud-Edge continuum: resource
                 capacities, network latencies, security levels and real on-demand

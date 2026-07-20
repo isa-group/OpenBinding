@@ -1,7 +1,7 @@
 {
   "metadata": {
     "id": "stock-market-placement-sample",
-    "name": "Stock Market placement sample (BIM*)",
+    "name": "Stock Market placement sample (BIM′)",
     "version": "1.0.0",
     "created_at": "2026-07-05T00:00:00Z",
     "description": "Mid-size playground sample derived from the experimentation corpus (stockOrch application, 50-node infrastructure, dataset seed 146588263): candidates subset to ~10 per task, pools and latency matrices pruned accordingly. Real on-demand iPricing costs, security thresholds, transition latency bounds, resource capacities and pricing budgets.",

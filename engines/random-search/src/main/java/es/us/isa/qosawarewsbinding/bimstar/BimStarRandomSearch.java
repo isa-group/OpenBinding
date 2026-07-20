@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * Seeded uniform random search over the binding space of a BIM* instance.
+ * Seeded uniform random search over the binding space of a BIM' instance.
  *
  * <p>Each iteration draws one candidate per task uniformly at random and
  * evaluates the canonical MONO objective. Best-so-far improvements are traced

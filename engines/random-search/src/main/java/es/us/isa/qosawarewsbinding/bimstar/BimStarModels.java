@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * BIM* request models for the placement-native path of the random-search
+ * BIM' request models for the placement-native path of the random-search
  * engine. Deliberately kept structurally identical to the evolutionary
- * engine's {@code ApiModels} so that both engines evaluate BIM* instances
+ * engine's {@code ApiModels} so that both engines evaluate BIM' instances
  * with the same semantics (the gateway re-validates every solution against
  * its Python reference evaluator).
  */

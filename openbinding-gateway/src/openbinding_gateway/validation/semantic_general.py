@@ -211,7 +211,7 @@ class GeneralSemanticValidator:
                         code="referential_integrity_error"
                     ))
 
-        # BIM* placement extensions (resource + latency models).
+        # BIM' placement extensions (resource + latency models).
         if 'resource_model' in instance or 'latency_model' in instance:
             violations.extend(self._validate_bimstar(instance, task_ids, candidate_ids, feature_ids))
 
@@ -343,7 +343,7 @@ class GeneralSemanticValidator:
             ))
         if str(global_latency.get('and_semantics') or 'MAX').upper() != 'MAX':
             violations.append(ValidationViolation(
-                message="Only and_semantics=MAX is supported by the BIM* latency semantics",
+                message="Only and_semantics=MAX is supported by the BIM' latency semantics",
                 path="latency_model.global_latency.and_semantics",
                 code="semantic_invariant_error"
             ))

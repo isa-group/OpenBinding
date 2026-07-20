@@ -70,7 +70,7 @@ final class BindingEvaluator {
       losses.put(feature.id, objectiveLoss(feature, raw));
     }
 
-    // BIM*: the end-to-end latency feature is derived from the placement
+    // BIM': the end-to-end latency feature is derived from the placement
     // scheduling model instead of the aggregation tree.
     if (placement != null) {
       String latAttr = placement.e2eAttribute();
@@ -238,7 +238,7 @@ final class BindingEvaluator {
       violations.add(dto);
     }
 
-    // BIM* placement constraints: resource capacity + transition latency.
+    // BIM' placement constraints: resource capacity + transition latency.
     if (placement != null) {
       for (PlacementEvaluator.Violation violation : placement.check(selected)) {
         if (violation.hard()) {

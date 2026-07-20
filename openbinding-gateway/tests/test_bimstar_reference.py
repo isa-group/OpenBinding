@@ -1,4 +1,4 @@
-"""Correctness tests for the BIM* reference evaluator.
+"""Correctness tests for the BIM' reference evaluator.
 
 Every expected value in this file is computed by hand (or by an independent
 brute-force path enumerator) so that the reference evaluator — the single

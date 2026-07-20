@@ -1,15 +1,17 @@
-# PI4SecFaaS2Fog experimentation: FaaS placement as QACO
+# OpenBinding4Placement experimentation: solving CLASP-FaaS as QACO′
 
-Experimental pipeline for the paper *A Pricing Intelligence Approach for Self-Adaptive Binding of
-Secure FaaS-Based Compositions in the Cloud-Edge Continuum*. It reformulates the SecFaaS2Fog
-placement problem as QoS-aware service composition (QACO), encodes it as priced **BIM\*** instances,
-and solves it through the OpenBinding gateway with three engines.
+Experimental pipeline for the paper *QoS-aware Placement of FaaS Compositions in the Cloud-Edge
+Continuum*. It gives CLASP-FaaS — the Cost- and Latency-Aware Secure Placement of FaaS
+Compositions — an operational semantics as a placement-aware extension of the QoS-aware service
+composition problem (QACO′), encodes each instance as a priced **BIM′** instance
+(implementation slug: `bimstar`), and solves it through the OpenBinding gateway with three
+engines. OpenBinding4Placement is the name of this placement-aware extension of OpenBinding.
 
 ## Pipeline
 
 ```
 original_dataset/          bimstar generator            OpenBinding stack           campaign.py            notebooks/03
-(3 apps, 20 seeds,   ──►   priced BIM* corpus     ──►   gateway + 3 engines   ──►   runs.csv/traces.csv ──► figures &
+(3 apps, 20 seeds,   ──►   priced BIM′ corpus     ──►   gateway + 3 engines   ──►   runs.csv/traces.csv ──► figures &
  35 sizes each)            (105 instances, 1 seed)      (docker compose)            (resumable)            statistics
 ```
 
@@ -63,7 +65,7 @@ cutoff as the per-instance reference.
 ```
 experimentation/icsoc/
 ├── original_dataset/          # SecFaaS2Fog input (applications + infrastructures)
-├── bimstar/                   # generator package (+ unit tests in bimstar/tests/)
+├── bimstar/                   # BIM′ generator package (+ unit tests in bimstar/tests/)
 ├── campaign.py                # resumable campaign runner (CLI + importable)
 ├── analysis.py                # evaluation helpers (references, profiles, stats, figures)
 ├── notebooks/
@@ -71,7 +73,7 @@ experimentation/icsoc/
 │   ├── 02_campaign_execution.ipynb      # stack, pilot, launch commands, monitoring
 │   └── 03_results_evaluation.ipynb      # full evaluation + paper figures
 └── out/
-    ├── bimstar-priced/        # generated corpus + provenance reports (CSV)
+    ├── bimstar-priced/        # generated BIM′ corpus + provenance reports (CSV)
     └── results/               # runs.csv, traces.csv, corpus_summary.csv, figures/
 ```
 

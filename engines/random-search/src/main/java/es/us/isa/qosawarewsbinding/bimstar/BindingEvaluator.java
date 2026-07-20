@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Binding evaluation for BIM* instances. Kept in sync with the evolutionary
+ * Binding evaluation for BIM' instances. Kept in sync with the evolutionary
  * engine's {@code BindingEvaluator} (aggregation semantics, normalization
  * losses, constraint magnitudes) so both engines optimize the same function.
  * Written in Java 8 style: this engine builds with JDK 8.
