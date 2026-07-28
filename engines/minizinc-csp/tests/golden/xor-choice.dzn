@@ -1,0 +1,95 @@
+
+        root_id = 1;
+        PROB_EPS = 1e-6;
+
+        n_tasks = 3;
+        n_candidates = 3;
+        n_nodes = 5;
+        n_qos = 1;
+        max_children = 2;
+
+        max_cands_per_task = 1;
+        n_task_cands = [1, 1, 1];
+        task_cands = [| 1 | 2 | 3 |];
+
+        cand_qos = [| -0.01005033585350145 | -0.05129329438755058 | -0.0010005003335835344 |];
+        candidate_provider = [1, 1, 1];
+
+        node_kind = [2, 1, 4, 1, 1];
+        node_task_id = [0, 1, 0, 2, 3];
+        node_n_children = [2, 0, 2, 0, 0];
+        node_children = [| 2, 3 | 0, 0 | 4, 5 | 0, 0 | 0, 0 |];
+        node_xor_probs = [| 0, 0 | 0, 0 | 0.8, 0.2 | 0, 0 | 0, 0 |];
+        node_loop_iters = [0, 0, 0, 0, 0];
+
+        agg_policy = [| 1, 1, 1, 1, 1 |];
+        
+        qos_weights = [-1];
+        neutral_qos = [0];
+        qos_lb = [-30];
+        qos_ub = [30];
+
+        n_global_constraints = 0;
+        gc_attr = [];
+        gc_op = [];
+        gc_val = [];
+
+        n_local_constraints = 0;
+        lc_task = [];
+        lc_attr = [];
+        lc_op = [];
+        lc_val = [];
+
+        n_excluded_candidates = 0;
+        excluded_task = [];
+        excluded_cand = [];
+
+        n_dep_constraints = 0;
+        dc_type = [];
+        dc_t1 = [];
+        dc_t2 = [];
+
+        n_pools = 0;
+        n_resources = 0;
+        n_events = 0;
+        LAT_SCALE = 1000;
+        MAX_LAT_INT = 1;
+        xor_semantics = 1;
+        lat_feature_idx = 0;
+
+        cand_pool = [0, 0, 0];
+        cand_demand = array2d(1..3, 1..0, []);
+        cand_exec_lat = [0, 0, 0];
+        pool_lat = array2d(1..0, 1..0, []);
+        event_lat = array2d(1..0, 1..0, []);
+
+        n_cap_checks = 0;
+        cap_pool = [];
+        cap_res = [];
+        cap_limit = [];
+
+        n_transitions = 0;
+        tr_from_task = [];
+        tr_event = [];
+        tr_to_task = [];
+        tr_op = [];
+        tr_val = [];
+
+        n_scenarios = 0;
+        scen_prob = [];
+        scen_active = array2d(1..0, 1..3, []);
+        n_prec_edges = 0;
+        pe_scen = [];
+        pe_to_task = [];
+        pe_from_task = [];
+        pe_event = [];
+        n_sinks = 0;
+        sink_scen = [];
+        sink_task = [];
+
+        use_canonical = false;
+        qos_dir = [-1];
+        norm_lb = [0];
+        norm_ub = [1];
+        canon_w = [0];
+        
