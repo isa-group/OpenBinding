@@ -1,0 +1,175 @@
+{
+  "cases": [
+    {
+      "binding": {
+        "t1": "c1_A",
+        "t2": "c2_A"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 20.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 20.0
+      },
+      "index": 0,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 20.0
+        },
+        "feasible": true,
+        "objective_value": 0.2,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t1": "c1_A",
+        "t2": "c2_B"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 15.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 15.0
+      },
+      "index": 1,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 15.0
+        },
+        "feasible": false,
+        "objective_value": 0.15,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "c_same_prov",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t1', 't2'] must share the same provider",
+            "penalty": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "binding": {
+        "t1": "c1_B",
+        "t2": "c2_A"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 30.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 30.0
+      },
+      "index": 2,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 30.0
+        },
+        "feasible": false,
+        "objective_value": 0.3,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "c_same_prov",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t1', 't2'] must share the same provider",
+            "penalty": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "binding": {
+        "t1": "c1_A",
+        "t2": "c2_B"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 15.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 15.0
+      },
+      "index": 3,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 15.0
+        },
+        "feasible": false,
+        "objective_value": 0.15,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "c_same_prov",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t1', 't2'] must share the same provider",
+            "penalty": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "binding": {
+        "t1": "c1_B",
+        "t2": "c2_B"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 25.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 25.0
+      },
+      "index": 4,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 25.0
+        },
+        "feasible": true,
+        "objective_value": 0.25,
+        "violations": []
+      }
+    }
+  ],
+  "instance": "examples/demo/08_dependencies.json",
+  "normalized_targets": [],
+  "objective_targets": [
+    "cost"
+  ],
+  "objective_type": "MONO",
+  "placement": false
+}

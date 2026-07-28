@@ -1,0 +1,156 @@
+{
+  "cases": [
+    {
+      "binding": {
+        "t_common": "c_common",
+        "t_path_a": "c_a",
+        "t_path_b": "c_b"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.950202
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.950202
+      },
+      "index": 0,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.950202
+        },
+        "feasible": true,
+        "objective_value": 0.04979800000000001,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t_common": "c_common",
+        "t_path_a": "c_a",
+        "t_path_b": "c_b"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.950202
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.950202
+      },
+      "index": 1,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.950202
+        },
+        "feasible": true,
+        "objective_value": 0.04979800000000001,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t_common": "c_common",
+        "t_path_a": "c_a",
+        "t_path_b": "c_b"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.950202
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.950202
+      },
+      "index": 2,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.950202
+        },
+        "feasible": true,
+        "objective_value": 0.04979800000000001,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t_common": "c_common",
+        "t_path_a": "c_a",
+        "t_path_b": "c_b"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.950202
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.950202
+      },
+      "index": 3,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.950202
+        },
+        "feasible": true,
+        "objective_value": 0.04979800000000001,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t_common": "c_common",
+        "t_path_a": "c_a",
+        "t_path_b": "c_b"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.950202
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.950202
+      },
+      "index": 4,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.950202
+        },
+        "feasible": true,
+        "objective_value": 0.04979800000000001,
+        "violations": []
+      }
+    }
+  ],
+  "instance": "examples/demo/03_xor_choice.json",
+  "normalized_targets": [],
+  "objective_targets": [
+    "availability"
+  ],
+  "objective_type": "MONO",
+  "placement": false
+}

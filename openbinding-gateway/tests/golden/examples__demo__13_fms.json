@@ -1,0 +1,210 @@
+{
+  "cases": [
+    {
+      "binding": {
+        "T1": "cand_t1_aws",
+        "T2": "cand_t2_radius_iot_network",
+        "T3": "cand_t3_distance_matrix_api",
+        "T5": "cand_t5_amazon_braket",
+        "T6": "cand_t6_paypal"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 99.63044476255753,
+          "cost": 3060.0,
+          "execution_time": 3180.0,
+          "reliability": 97.670566058688,
+          "security": 4.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 1743.1951516231868
+      },
+      "index": 0,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 99.63044476255753,
+          "cost": 3060.0,
+          "execution_time": 3180.0,
+          "reliability": 97.670566058688,
+          "security": 4.0
+        },
+        "feasible": true,
+        "objective_value": 0.1730984837681317,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "T1": "cand_t1_aws",
+        "T2": "cand_t2_samsara_fleet_api",
+        "T3": "cand_t3_here_routing_api",
+        "T5": "cand_t5_amazon_braket",
+        "T6": "cand_t6_paypal"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 99.63049470258001,
+          "cost": 2610.0,
+          "execution_time": 3360.0,
+          "reliability": 97.67076356688001,
+          "security": 4.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 1653.1951887404189
+      },
+      "index": 1,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 99.63049470258001,
+          "cost": 2610.0,
+          "execution_time": 3360.0,
+          "reliability": 97.67076356688001,
+          "security": 4.0
+        },
+        "feasible": true,
+        "objective_value": 0.16184811259580995,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "T1": "cand_t1_google_cloud",
+        "T2": "cand_t2_samsara_fleet_api",
+        "T3": "cand_t3_here_routing_api",
+        "T5": "cand_t5_amazon_braket",
+        "T6": "cand_t6_stripe"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 99.70028290461299,
+          "cost": 2380.0,
+          "execution_time": 3440.0,
+          "reliability": 98.01524469394,
+          "security": 4.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 1604.2573291397828
+      },
+      "index": 2,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 99.70028290461299,
+          "cost": 2380.0,
+          "execution_time": 3440.0,
+          "reliability": 98.01524469394,
+          "security": 4.0
+        },
+        "feasible": true,
+        "objective_value": 0.1553267086021705,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "T1": "cand_t1_aws",
+        "T2": "cand_t2_radius_iot_network",
+        "T3": "cand_t3_here_routing_api",
+        "T5": "cand_t5_amazon_braket",
+        "T6": "cand_t6_stripe"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 99.62045678803702,
+          "cost": 2210.0,
+          "execution_time": 3330.0,
+          "reliability": 97.86758137616249,
+          "security": 4.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 1525.72320572463
+      },
+      "index": 3,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 99.62045678803702,
+          "cost": 2210.0,
+          "execution_time": 3330.0,
+          "reliability": 97.86758137616249,
+          "security": 4.0
+        },
+        "feasible": true,
+        "objective_value": 0.14919294275370074,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "T1": "cand_t1_aws",
+        "T2": "cand_t2_radius_iot_network",
+        "T3": "cand_t3_distance_matrix_api",
+        "T5": "cand_t5_amazon_braket",
+        "T6": "cand_t6_paypal"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 99.63044476255753,
+          "cost": 3060.0,
+          "execution_time": 3180.0,
+          "reliability": 97.670566058688,
+          "security": 4.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 1743.1951516231868
+      },
+      "index": 4,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 99.63044476255753,
+          "cost": 3060.0,
+          "execution_time": 3180.0,
+          "reliability": 97.670566058688,
+          "security": 4.0
+        },
+        "feasible": true,
+        "objective_value": 0.1730984837681317,
+        "violations": []
+      }
+    }
+  ],
+  "instance": "examples/demo/13_fms.json",
+  "normalized_targets": [],
+  "objective_targets": [
+    "availability",
+    "cost",
+    "execution_time",
+    "reliability",
+    "security"
+  ],
+  "objective_type": "MONO",
+  "placement": false
+}

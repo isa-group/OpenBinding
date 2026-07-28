@@ -1,0 +1,314 @@
+{
+  "cases": [
+    {
+      "binding": {
+        "t_check": "c_t_check_cloud",
+        "t_login": "c_t_login_cloud",
+        "t_process": "c_t_process_cloud",
+        "t_render": "c_t_render_cloud",
+        "t_rules": "c_t_rules_cloud"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 36.0,
+          "latency": 15.0,
+          "security": 1.0
+        },
+        "engine_objective_value": 0.5,
+        "feasible": false,
+        "objective_value": 0.348,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "tr_event_login",
+            "description": "Slack: -3.0",
+            "message": "Transition latency from event 'user_device' to task 't_login' violated (9.0 <= 6.0)",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "budget_global",
+            "description": "Slack: -6.0",
+            "message": "Global bound on 'cost' violated (36.0 <= 30.0)",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "budget_local_render",
+            "description": "Slack: -3.0",
+            "message": "Local bound on 'cost' violated for task 't_render' (9.0 <= 6.0)",
+            "penalty": 0.0
+          }
+        ]
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.348
+      },
+      "index": 0,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 36.0,
+          "latency": 15.0,
+          "security": 1.0
+        },
+        "feasible": false,
+        "objective_value": 0.348,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "tr_event_login",
+            "description": "Slack: -3.0",
+            "message": "Transition latency from event 'user_device' to task 't_login' violated (9.0 <= 6.0)",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "budget_global",
+            "description": "Slack: -6.0",
+            "message": "Global bound on 'cost' violated (36.0 <= 30.0)",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "budget_local_render",
+            "description": "Slack: -3.0",
+            "message": "Local bound on 'cost' violated for task 't_render' (9.0 <= 6.0)",
+            "penalty": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "binding": {
+        "t_check": "c_t_check_cloud",
+        "t_login": "c_t_login_edge",
+        "t_process": "c_t_process_edge",
+        "t_render": "c_t_render_cloud",
+        "t_rules": "c_t_rules_fog"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 18.0,
+          "latency": 26.0,
+          "security": 0.33
+        },
+        "engine_objective_value": 0.5,
+        "feasible": false,
+        "objective_value": 0.382,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "security_min_login",
+            "description": "Slack: -0.33",
+            "message": "Local bound on 'security' violated for task 't_login' (0.33 >= 0.66)",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "budget_local_render",
+            "description": "Slack: -3.0",
+            "message": "Local bound on 'cost' violated for task 't_render' (9.0 <= 6.0)",
+            "penalty": 0.0
+          }
+        ]
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.382
+      },
+      "index": 1,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 18.0,
+          "latency": 26.0,
+          "security": 0.33
+        },
+        "feasible": false,
+        "objective_value": 0.382,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "security_min_login",
+            "description": "Slack: -0.33",
+            "message": "Local bound on 'security' violated for task 't_login' (0.33 >= 0.66)",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "budget_local_render",
+            "description": "Slack: -3.0",
+            "message": "Local bound on 'cost' violated for task 't_render' (9.0 <= 6.0)",
+            "penalty": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "binding": {
+        "t_check": "c_t_check_cloud",
+        "t_login": "c_t_login_fog",
+        "t_process": "c_t_process_fog",
+        "t_render": "c_t_render_edge",
+        "t_rules": "c_t_rules_fog"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 18.0,
+          "latency": 19.0,
+          "security": 0.33
+        },
+        "engine_objective_value": 0.5,
+        "feasible": false,
+        "objective_value": 0.354,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "node_capacity",
+            "description": "Slack: -2.0",
+            "message": "Pool 'p_fog' exceeds capacity of 'memory' (6.0 > 4.0)",
+            "penalty": 0.0
+          }
+        ]
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.354
+      },
+      "index": 2,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 18.0,
+          "latency": 19.0,
+          "security": 0.33
+        },
+        "feasible": false,
+        "objective_value": 0.354,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "node_capacity",
+            "description": "Slack: -2.0",
+            "message": "Pool 'p_fog' exceeds capacity of 'memory' (6.0 > 4.0)",
+            "penalty": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "binding": {
+        "t_check": "c_t_check_fog",
+        "t_login": "c_t_login_edge",
+        "t_process": "c_t_process_fog",
+        "t_render": "c_t_render_edge",
+        "t_rules": "c_t_rules_cloud"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 14.0,
+          "latency": 19.0,
+          "security": 0.33
+        },
+        "engine_objective_value": 0.5,
+        "feasible": false,
+        "objective_value": 0.322,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "security_min_login",
+            "description": "Slack: -0.33",
+            "message": "Local bound on 'security' violated for task 't_login' (0.33 >= 0.66)",
+            "penalty": 0.0
+          }
+        ]
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.322
+      },
+      "index": 3,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 14.0,
+          "latency": 19.0,
+          "security": 0.33
+        },
+        "feasible": false,
+        "objective_value": 0.322,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "security_min_login",
+            "description": "Slack: -0.33",
+            "message": "Local bound on 'security' violated for task 't_login' (0.33 >= 0.66)",
+            "penalty": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "binding": {
+        "t_check": "c_t_check_edge",
+        "t_login": "c_t_login_fog",
+        "t_process": "c_t_process_cloud",
+        "t_render": "c_t_render_cloud",
+        "t_rules": "c_t_rules_edge"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 24.0,
+          "latency": 35.0,
+          "security": 0.33
+        },
+        "engine_objective_value": 0.5,
+        "feasible": false,
+        "objective_value": 0.46599999999999997,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "budget_local_render",
+            "description": "Slack: -3.0",
+            "message": "Local bound on 'cost' violated for task 't_render' (9.0 <= 6.0)",
+            "penalty": 0.0
+          }
+        ]
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.46599999999999997
+      },
+      "index": 4,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 24.0,
+          "latency": 35.0,
+          "security": 0.33
+        },
+        "feasible": false,
+        "objective_value": 0.46599999999999997,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "budget_local_render",
+            "description": "Slack: -3.0",
+            "message": "Local bound on 'cost' violated for task 't_render' (9.0 <= 6.0)",
+            "penalty": 0.0
+          }
+        ]
+      }
+    }
+  ],
+  "instance": "examples/placement/01_small_placement.json",
+  "normalized_targets": [
+    "cost",
+    "latency",
+    "security"
+  ],
+  "objective_targets": [
+    "cost",
+    "latency",
+    "security"
+  ],
+  "objective_type": "MONO",
+  "placement": true
+}

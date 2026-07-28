@@ -1,0 +1,235 @@
+{
+  "cases": [
+    {
+      "binding": {
+        "t_authorize": "c_authorize_store_v1",
+        "t_bill1": "c_bill1_wh1_v1",
+        "t_bill2": "c_bill2_wh2_v1",
+        "t_ok": "c_ok_bank_v1",
+        "t_order1": "c_order1_store_v1",
+        "t_order2": "c_order2_store_v1",
+        "t_payment1": "c_payment1_bank_v1",
+        "t_payment2": "c_payment2_bank_v1",
+        "t_receipt1": "c_receipt1_wh1_v1",
+        "t_receipt2": "c_receipt2_wh2_v1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.9588256024865411,
+          "cost_usd": 0.42000000000000004,
+          "latency_ms": 707.5,
+          "reliability": 91.7434137624774,
+          "security": 3.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 262.0589476487197
+      },
+      "index": 0,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.9588256024865411,
+          "cost_usd": 0.42000000000000004,
+          "latency_ms": 707.5,
+          "reliability": 91.7434137624774,
+          "security": 3.0
+        },
+        "feasible": true,
+        "objective_value": 0.14276249500816812,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t_authorize": "c_authorize_store_v1",
+        "t_bill1": "c_bill1_wh1_v1",
+        "t_bill2": "c_bill2_wh2_v1",
+        "t_ok": "c_ok_bank_v1",
+        "t_order1": "c_order1_store_v1",
+        "t_order2": "c_order2_store_v1",
+        "t_payment1": "c_payment1_bank_v1",
+        "t_payment2": "c_payment2_bank_v1",
+        "t_receipt1": "c_receipt1_wh1_v1",
+        "t_receipt2": "c_receipt2_wh2_v1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.9588256024865411,
+          "cost_usd": 0.42000000000000004,
+          "latency_ms": 707.5,
+          "reliability": 91.7434137624774,
+          "security": 3.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 262.0589476487197
+      },
+      "index": 1,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.9588256024865411,
+          "cost_usd": 0.42000000000000004,
+          "latency_ms": 707.5,
+          "reliability": 91.7434137624774,
+          "security": 3.0
+        },
+        "feasible": true,
+        "objective_value": 0.14276249500816812,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t_authorize": "c_authorize_store_v1",
+        "t_bill1": "c_bill1_wh1_v1",
+        "t_bill2": "c_bill2_wh2_v1",
+        "t_ok": "c_ok_bank_v1",
+        "t_order1": "c_order1_store_v1",
+        "t_order2": "c_order2_store_v1",
+        "t_payment1": "c_payment1_bank_v1",
+        "t_payment2": "c_payment2_bank_v1",
+        "t_receipt1": "c_receipt1_wh1_v1",
+        "t_receipt2": "c_receipt2_wh2_v1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.9588256024865411,
+          "cost_usd": 0.42000000000000004,
+          "latency_ms": 707.5,
+          "reliability": 91.7434137624774,
+          "security": 3.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 262.0589476487197
+      },
+      "index": 2,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.9588256024865411,
+          "cost_usd": 0.42000000000000004,
+          "latency_ms": 707.5,
+          "reliability": 91.7434137624774,
+          "security": 3.0
+        },
+        "feasible": true,
+        "objective_value": 0.14276249500816812,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t_authorize": "c_authorize_store_v1",
+        "t_bill1": "c_bill1_wh1_v1",
+        "t_bill2": "c_bill2_wh2_v1",
+        "t_ok": "c_ok_bank_v1",
+        "t_order1": "c_order1_store_v1",
+        "t_order2": "c_order2_store_v1",
+        "t_payment1": "c_payment1_bank_v1",
+        "t_payment2": "c_payment2_bank_v1",
+        "t_receipt1": "c_receipt1_wh1_v1",
+        "t_receipt2": "c_receipt2_wh2_v1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.9588256024865411,
+          "cost_usd": 0.42000000000000004,
+          "latency_ms": 707.5,
+          "reliability": 91.7434137624774,
+          "security": 3.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 262.0589476487197
+      },
+      "index": 3,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.9588256024865411,
+          "cost_usd": 0.42000000000000004,
+          "latency_ms": 707.5,
+          "reliability": 91.7434137624774,
+          "security": 3.0
+        },
+        "feasible": true,
+        "objective_value": 0.14276249500816812,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t_authorize": "c_authorize_store_v1",
+        "t_bill1": "c_bill1_wh1_v1",
+        "t_bill2": "c_bill2_wh2_v1",
+        "t_ok": "c_ok_bank_v1",
+        "t_order1": "c_order1_store_v1",
+        "t_order2": "c_order2_store_v1",
+        "t_payment1": "c_payment1_bank_v1",
+        "t_payment2": "c_payment2_bank_v1",
+        "t_receipt1": "c_receipt1_wh1_v1",
+        "t_receipt2": "c_receipt2_wh2_v1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.9588256024865411,
+          "cost_usd": 0.42000000000000004,
+          "latency_ms": 707.5,
+          "reliability": 91.7434137624774,
+          "security": 3.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 262.0589476487197
+      },
+      "index": 4,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.9588256024865411,
+          "cost_usd": 0.42000000000000004,
+          "latency_ms": 707.5,
+          "reliability": 91.7434137624774,
+          "security": 3.0
+        },
+        "feasible": true,
+        "objective_value": 0.14276249500816812,
+        "violations": []
+      }
+    }
+  ],
+  "instance": "examples/literature/bultan.json",
+  "normalized_targets": [],
+  "objective_targets": [
+    "availability",
+    "cost_usd",
+    "latency_ms",
+    "reliability",
+    "security"
+  ],
+  "objective_type": "MONO",
+  "placement": false
+}

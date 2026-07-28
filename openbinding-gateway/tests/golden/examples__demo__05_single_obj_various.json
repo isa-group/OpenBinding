@@ -1,0 +1,157 @@
+{
+  "cases": [
+    {
+      "binding": {
+        "t1": "c_bad"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 100.0,
+          "latency": 100.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 100.0
+      },
+      "index": 0,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 100.0,
+          "latency": 100.0
+        },
+        "feasible": true,
+        "objective_value": 1.0,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t1": "c_balanced"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 50.0,
+          "latency": 50.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 50.0
+      },
+      "index": 1,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 50.0,
+          "latency": 50.0
+        },
+        "feasible": true,
+        "objective_value": 0.5,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t1": "c_slow_cheap"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 10.0,
+          "latency": 90.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 50.0
+      },
+      "index": 2,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 10.0,
+          "latency": 90.0
+        },
+        "feasible": true,
+        "objective_value": 0.5,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t1": "c_slow_cheap"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 10.0,
+          "latency": 90.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 50.0
+      },
+      "index": 3,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 10.0,
+          "latency": 90.0
+        },
+        "feasible": true,
+        "objective_value": 0.5,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t1": "c_bad"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 100.0,
+          "latency": 100.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 100.0
+      },
+      "index": 4,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 100.0,
+          "latency": 100.0
+        },
+        "feasible": true,
+        "objective_value": 1.0,
+        "violations": []
+      }
+    }
+  ],
+  "instance": "examples/demo/05_single_obj_various.json",
+  "normalized_targets": [],
+  "objective_targets": [
+    "cost",
+    "latency"
+  ],
+  "objective_type": "MONO",
+  "placement": false
+}

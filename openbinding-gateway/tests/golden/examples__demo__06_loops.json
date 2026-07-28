@@ -1,0 +1,146 @@
+{
+  "cases": [
+    {
+      "binding": {
+        "t1": "c1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 50.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 50.0
+      },
+      "index": 0,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 50.0
+        },
+        "feasible": true,
+        "objective_value": 0.05,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t1": "c1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 50.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 50.0
+      },
+      "index": 1,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 50.0
+        },
+        "feasible": true,
+        "objective_value": 0.05,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t1": "c1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 50.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 50.0
+      },
+      "index": 2,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 50.0
+        },
+        "feasible": true,
+        "objective_value": 0.05,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t1": "c1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 50.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 50.0
+      },
+      "index": 3,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 50.0
+        },
+        "feasible": true,
+        "objective_value": 0.05,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t1": "c1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 50.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 50.0
+      },
+      "index": 4,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 50.0
+        },
+        "feasible": true,
+        "objective_value": 0.05,
+        "violations": []
+      }
+    }
+  ],
+  "instance": "examples/demo/06_loops.json",
+  "normalized_targets": [],
+  "objective_targets": [
+    "cost"
+  ],
+  "objective_type": "MONO",
+  "placement": false
+}

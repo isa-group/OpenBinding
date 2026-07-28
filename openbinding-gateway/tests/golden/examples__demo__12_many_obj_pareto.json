@@ -1,0 +1,178 @@
+{
+  "cases": [
+    {
+      "binding": {
+        "T1": "S1_1",
+        "T2": "S2_1",
+        "T3": "S3_1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 45.0,
+          "reliability": 0.84645,
+          "time": 12.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 19.5393285,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 19.5393285
+      },
+      "index": 0,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 45.0,
+          "reliability": 0.84645,
+          "time": 12.0
+        },
+        "feasible": true,
+        "objective_value": 0.2432715,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "T1": "S1_1",
+        "T2": "S2_2",
+        "T3": "S3_2"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 45.0,
+          "reliability": 0.7524,
+          "time": 17.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 21.158292,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 21.158292
+      },
+      "index": 1,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 45.0,
+          "reliability": 0.7524,
+          "time": 17.0
+        },
+        "feasible": true,
+        "objective_value": 0.29080800000000007,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "T1": "S1_1",
+        "T2": "S2_1",
+        "T3": "S3_2"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 60.0,
+          "reliability": 0.8934749999999999,
+          "time": 11.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 24.324846750000003,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 24.324846750000003
+      },
+      "index": 2,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 60.0,
+          "reliability": 0.8934749999999999,
+          "time": 11.0
+        },
+        "feasible": true,
+        "objective_value": 0.27545325000000004,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "T1": "S1_2",
+        "T2": "S2_2",
+        "T3": "S3_1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 70.0,
+          "reliability": 0.71928,
+          "time": 14.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 28.6573624,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 28.6573624
+      },
+      "index": 3,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 70.0,
+          "reliability": 0.71928,
+          "time": 14.0
+        },
+        "feasible": true,
+        "objective_value": 0.3768376,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "T1": "S1_2",
+        "T2": "S2_1",
+        "T3": "S3_1"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 85.0,
+          "reliability": 0.8541449999999999,
+          "time": 8.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 31.821867850000004,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 31.821867850000004
+      },
+      "index": 4,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 85.0,
+          "reliability": 0.8541449999999999,
+          "time": 8.0
+        },
+        "feasible": true,
+        "objective_value": 0.36353215000000005,
+        "violations": []
+      }
+    }
+  ],
+  "instance": "examples/demo/12_many_obj_pareto.json",
+  "normalized_targets": [],
+  "objective_targets": [
+    "cost",
+    "reliability",
+    "time"
+  ],
+  "objective_type": "MANY",
+  "placement": false
+}

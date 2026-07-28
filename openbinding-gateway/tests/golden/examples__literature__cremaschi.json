@@ -1,0 +1,215 @@
+{
+  "cases": [
+    {
+      "binding": {
+        "t_archive": "c_archive_api",
+        "t_books": "c_google_books_api",
+        "t_geocoding": "c_google_geocoding_api",
+        "t_library": "c_opac_library_api",
+        "t_market": "c_amazon_market_api",
+        "t_transit": "c_google_transit_api"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.9270480544132499,
+          "cost_usd": 0.0034,
+          "latency_ms": 1350.0,
+          "reliability": 91.58385120873055,
+          "security": 3.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 297.94786513654526
+      },
+      "index": 0,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.9270480544132499,
+          "cost_usd": 0.0034,
+          "latency_ms": 1350.0,
+          "reliability": 91.58385120873055,
+          "security": 3.0
+        },
+        "feasible": true,
+        "objective_value": 0.1364721679511942,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t_archive": "c_archive_api",
+        "t_books": "c_google_books_api",
+        "t_geocoding": "c_google_geocoding_api",
+        "t_library": "c_opac_library_api",
+        "t_market": "c_amazon_market_api",
+        "t_transit": "c_google_transit_api"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.9270480544132499,
+          "cost_usd": 0.0034,
+          "latency_ms": 1350.0,
+          "reliability": 91.58385120873055,
+          "security": 3.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 297.94786513654526
+      },
+      "index": 1,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.9270480544132499,
+          "cost_usd": 0.0034,
+          "latency_ms": 1350.0,
+          "reliability": 91.58385120873055,
+          "security": 3.0
+        },
+        "feasible": true,
+        "objective_value": 0.1364721679511942,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t_archive": "c_archive_api",
+        "t_books": "c_google_books_api",
+        "t_geocoding": "c_google_geocoding_api",
+        "t_library": "c_opac_library_api",
+        "t_market": "c_amazon_market_api",
+        "t_transit": "c_google_transit_api"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.9270480544132499,
+          "cost_usd": 0.0034,
+          "latency_ms": 1350.0,
+          "reliability": 91.58385120873055,
+          "security": 3.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 297.94786513654526
+      },
+      "index": 2,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.9270480544132499,
+          "cost_usd": 0.0034,
+          "latency_ms": 1350.0,
+          "reliability": 91.58385120873055,
+          "security": 3.0
+        },
+        "feasible": true,
+        "objective_value": 0.1364721679511942,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t_archive": "c_archive_api",
+        "t_books": "c_google_books_api",
+        "t_geocoding": "c_google_geocoding_api",
+        "t_library": "c_opac_library_api",
+        "t_market": "c_amazon_market_api",
+        "t_transit": "c_google_transit_api"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.9270480544132499,
+          "cost_usd": 0.0034,
+          "latency_ms": 1350.0,
+          "reliability": 91.58385120873055,
+          "security": 3.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 297.94786513654526
+      },
+      "index": 3,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.9270480544132499,
+          "cost_usd": 0.0034,
+          "latency_ms": 1350.0,
+          "reliability": 91.58385120873055,
+          "security": 3.0
+        },
+        "feasible": true,
+        "objective_value": 0.1364721679511942,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t_archive": "c_archive_api",
+        "t_books": "c_google_books_api",
+        "t_geocoding": "c_google_geocoding_api",
+        "t_library": "c_opac_library_api",
+        "t_market": "c_amazon_market_api",
+        "t_transit": "c_google_transit_api"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "availability": 0.9270480544132499,
+          "cost_usd": 0.0034,
+          "latency_ms": 1350.0,
+          "reliability": 91.58385120873055,
+          "security": 3.0
+        },
+        "engine_objective_value": null,
+        "feasible": null,
+        "objective_value": 0.5,
+        "violations": null
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 297.94786513654526
+      },
+      "index": 4,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "availability": 0.9270480544132499,
+          "cost_usd": 0.0034,
+          "latency_ms": 1350.0,
+          "reliability": 91.58385120873055,
+          "security": 3.0
+        },
+        "feasible": true,
+        "objective_value": 0.1364721679511942,
+        "violations": []
+      }
+    }
+  ],
+  "instance": "examples/literature/cremaschi.json",
+  "normalized_targets": [],
+  "objective_targets": [
+    "availability",
+    "cost_usd",
+    "latency_ms",
+    "reliability",
+    "security"
+  ],
+  "objective_type": "MONO",
+  "placement": false
+}
