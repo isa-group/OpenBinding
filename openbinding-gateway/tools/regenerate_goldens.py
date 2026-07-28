@@ -27,8 +27,7 @@ import os
 import random
 from typing import Any, Dict, List
 
-from openbinding_gateway.validation.engine_plugins.aggregation import canonicalize_result_data
-from openbinding_gateway.validation.engine_plugins.reference_evaluator import evaluate_solution
+from openbinding_gateway.semantics import canonicalize_result_data, evaluate_solution
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))

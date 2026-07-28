@@ -7,7 +7,7 @@ from ..registry.engine import EngineRegistry
 from ..models.api import SolveRequest, SolveResponse
 from ..models.api import JobResponse, JobStatus, Feasibility
 from ..jobs import JobManager
-from ..validation.engine_plugins.aggregation import canonicalize_result_data
+from ..semantics import canonicalize_result_data
 
 MAX_ENGINE_PAYLOAD_BYTES = 512 * 1024 * 1024
 PAYLOAD_TOO_LARGE_MESSAGE = (

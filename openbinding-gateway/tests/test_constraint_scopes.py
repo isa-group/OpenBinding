@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 
 import pytest
 
-from openbinding_gateway.validation.engine_plugins.reference_evaluator import evaluate_solution
+from openbinding_gateway.semantics import evaluate_solution
 
 
 def instance_with(constraints: List[Dict[str, Any]]) -> Dict[str, Any]:

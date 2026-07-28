@@ -12,7 +12,7 @@ import random
 import pytest
 
 from _fixtures import EVENT_LAT, LAT, micro_instance
-from openbinding_gateway.validation.engine_plugins.reference_evaluator import (
+from openbinding_gateway.semantics import (
     build_scenarios,
     evaluate_solution,
 )

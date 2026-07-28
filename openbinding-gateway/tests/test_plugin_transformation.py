@@ -2,7 +2,7 @@ import pytest
 from openbinding_gateway.validation.engine_plugins.minizinc_csp import MiniZincCSPEnginePlugin
 from openbinding_gateway.validation.engine_plugins.random_search import RandomSearchEnginePlugin
 from openbinding_gateway.validation.engine_plugins.many_heuristic import ManyHeuristicEnginePlugin
-from openbinding_gateway.validation.engine_plugins.aggregation import canonicalize_result_data
+from openbinding_gateway.semantics import canonicalize_result_data
 
 @pytest.fixture
 def minizinc_plugin():

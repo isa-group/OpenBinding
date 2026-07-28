@@ -25,92 +25,17 @@ app = FastAPI(title="OpenBinding Gateway", lifespan=lifespan, root_path="/api")
 
 MAX_SOLVE_BODY_BYTES = 512 * 1024 * 1024
 
-_HEALTH_EXAMPLE = {"status": "ok"}
-
-_ENGINES_EXAMPLE = [
-    {
-        "id": "minizinc-csp",
-        "capabilities": {
-            "qos_features_supported": ["*"],
-            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
-            "objective_types_supported": ["weighted_sum"],
-            "constraints_supported": ["attribute_bound", "dependency"],
-            "schema_version": "v1",
-        },
-        "active": True,
-    },
-    {
-        "id": "random-search",
-        "capabilities": {
-            "qos_features_supported": ["*"],
-            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
-            "objective_types_supported": ["weighted_sum"],
-            "constraints_supported": ["attribute_bound", "dependency"],
-            "schema_version": "v1",
-        },
-        "active": True,
-    },
-]
-
-_BINDING_SPACE_EXAMPLE = {
-    "cardinality": "4",
-    "log10_cardinality": 0.6020599913,
-    "per_task_counts": {"t1": 2, "t2": 2},
-    "empty_tasks": [],
-}
-
-_ANALYZE_VALIDATED_EXAMPLE = {
-    "status": "validated",
-    "binding_space": _BINDING_SPACE_EXAMPLE,
-    "warnings": None,
-    "provenance": {"engine_id": "random-search", "execution_time_ms": 12.3},
-}
-
-_ANALYZE_FAILED_EXAMPLE = {
-    "status": "failed",
-    "error": "Validation failed",
-    "warnings": [
-        {
-            "code": "missing_candidates",
-            "message": "Missing candidates for tasks: t2",
-            "details": {"path": "candidates", "constraint_id": None, "stage": None},
-        }
-    ],
-    "provenance": {"engine_id": "random-search", "execution_time_ms": 4.8},
-}
-
-_JOB_QUEUED_EXAMPLE = {"job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6", "status": "queued"}
-
-_JOB_COMPLETED_EXAMPLE = {
-    "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    "status": "completed",
-    "result": {
-        "feasibility": "FEASIBLE",
-        "solutions": [
-            {
-                "objective_value": 0.0,
-                "binding": {"t1": "s2", "t2": "s4"},
-                "aggregated_features": {"cost": 20.0, "time": 60.0},
-                "violations": [],
-            }
-        ],
-        "provenance": {
-            "engine_id": "random-search",
-            "execution_time_ms": 123.4,
-            "metadata": {"solver": "Random-Search", "version": "0.0.1-SNAPSHOT", "iterations_count": 1000},
-        },
-        "diagnostics": {
-            "binding_space": _BINDING_SPACE_EXAMPLE,
-            "warnings": ["Option 'foo' ignored by engine"],
-        },
-    },
-}
-
-_JOB_FAILED_EXAMPLE = {
-    "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-    "status": "failed",
-    "error": "Job not found on engine",
-}
+from .routes.schemas import router as schemas_router
+from .openapi_examples import (  # noqa: F401
+    _ANALYZE_FAILED_EXAMPLE,
+    _ANALYZE_VALIDATED_EXAMPLE,
+    _BINDING_SPACE_EXAMPLE,
+    _ENGINES_EXAMPLE,
+    _HEALTH_EXAMPLE,
+    _JOB_COMPLETED_EXAMPLE,
+    _JOB_FAILED_EXAMPLE,
+    _JOB_QUEUED_EXAMPLE,
+)
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -545,62 +470,7 @@ async def get_job(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     return job
 
-def _schemas_dir() -> str:
-    return os.getenv("SCHEMAS_DIR", "/app/schemas")
 
-
-def _assert_engine_exists(engine_id: str) -> None:
-    try:
-        EngineRegistry.get_plugin(engine_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail=f"Engine '{engine_id}' isn't here.")
-
-
-def _general_schema_path(extension: str) -> str:
-    return os.path.join(_schemas_dir(), "general", f"schema.{extension}")
-
-
-def _specialization_schema_path(engine_id: str, extension: str) -> str:
-    return os.path.join(_schemas_dir(), "specializations", f"{engine_id}.schema.{extension}")
-
-
-@app.get("/v1/schemas/general")
-async def get_general_schema():
-    schema_path = _general_schema_path("json")
-
-    if not os.path.exists(schema_path):
-        raise HTTPException(status_code=404, detail="General schema not found on server.")
-
-    return FileResponse(schema_path)
-
-
-@app.get("/v1/schemas/general/model")
-async def get_general_schema_model():
-    model_path = _general_schema_path("mermaid")
-
-    if not os.path.exists(model_path):
-        raise HTTPException(status_code=404, detail="General model not found on server.")
-
-    return FileResponse(model_path, media_type="text/plain; charset=utf-8")
-
-
-@app.get("/v1/schemas/{engine_id}")
-async def get_engine_schema(engine_id: str):
-    _assert_engine_exists(engine_id)
-    schema_path = _specialization_schema_path(engine_id, "json")
-
-    if not os.path.exists(schema_path):
-        raise HTTPException(status_code=404, detail=f"No specialized schema for {engine_id}.")
-
-    return FileResponse(schema_path)
-
-
-@app.get("/v1/schemas/{engine_id}/model")
-async def get_engine_schema_model(engine_id: str):
-    _assert_engine_exists(engine_id)
-    model_path = _specialization_schema_path(engine_id, "mermaid")
-
-    if not os.path.exists(model_path):
-        raise HTTPException(status_code=404, detail=f"No specialized model for {engine_id}.")
-
-    return FileResponse(model_path, media_type="text/plain; charset=utf-8")
+# Serving the schema files themselves has nothing to do with solving, so it
+# lives in its own module.
+app.include_router(schemas_router)

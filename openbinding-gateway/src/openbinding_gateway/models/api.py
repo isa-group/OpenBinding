@@ -1,36 +1,43 @@
 import json
 import os
 from pathlib import Path
+from functools import lru_cache
 from typing import Dict, Any, Optional, List
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
 
-# Try to look for schema relative to this file or in standard locations
+def _general_schema_path() -> Path:
+    """Where the general schema lives, in order of preference.
 
-# Try to get path from environment, otherwise fallback to relative (for local dev without env)
-_env_path = os.getenv("GENERAL_SCHEMA_PATH")
-if _env_path:
-    _schema_path = Path(_env_path)
-else:
-    # Fallback: assuming .../OpenBinding/schemas/general/schema.json layout
-    # api.py is in src/openbinding_gateway/models/api.py
-    # parents[4] is OpenBinding root
-    _schema_path = Path(__file__).parents[4] / "schemas/general/schema.json"
+    The environment variable is what deployments set; the repository-relative
+    path is what local development uses; /app is the Docker image layout.
+    """
+    env_path = os.getenv("GENERAL_SCHEMA_PATH")
+    candidates = [Path(env_path)] if env_path else []
+    candidates.append(Path(__file__).parents[4] / "schemas/general/schema.json")
+    candidates.append(Path("/app/schemas/general/schema.json"))
+    return next((path for path in candidates if path.exists()), candidates[-1])
 
-if not _schema_path.exists():
-    _schema_path = Path("/app/schemas/general/schema.json") # Docker default
 
-_GENERAL_SCHEMA = {}
-if _schema_path.exists():
-    try:
-        with open(_schema_path, "r") as _f:
-            _GENERAL_SCHEMA = json.load(_f)
-    except Exception:
-        pass
+@lru_cache(maxsize=1)
+def general_schema() -> Dict[str, Any]:
+    """The general schema, for the OpenAPI description of a solve request.
+
+    Read on first use rather than at import time, and loudly: this used to be
+    import-time I/O whose failure was swallowed, leaving the API documented
+    with an empty schema and no sign of why.
+    """
+    path = _general_schema_path()
+    if not path.exists():
+        raise FileNotFoundError(
+            f"General schema not found at {path}. Set GENERAL_SCHEMA_PATH to its location."
+        )
+    with open(path, "r") as handle:
+        return json.load(handle)
 
 class SolveRequest(BaseModel):
     engine_id: str = Field(..., description="ID of the target engine/solver")
-    instance: Dict[str, Any] = Field(..., description="The general problem instance", json_schema_extra=_GENERAL_SCHEMA)
+    instance: Dict[str, Any] = Field(..., description="The general problem instance", json_schema_extra=lambda schema: schema.update(general_schema()))
     options: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Solver-specific options. E.g. {'iterations_count': 1000} for Random-Search.")
     verbose: bool = Field(default=False, description="If true, return diagnostics and warnings.")
 

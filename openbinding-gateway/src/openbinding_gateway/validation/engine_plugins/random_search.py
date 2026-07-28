@@ -1,17 +1,12 @@
 import os
 from typing import List, Dict, Any, Tuple
 import httpx
-from .base import EngineValidationPlugin
+from .base import EngineValidationPlugin, missing_candidate_violations
 from ...models.api import ValidationViolation
 
 class RandomSearchEnginePlugin(EngineValidationPlugin):
-    async def check_engine_health(self, base_url: str, client: httpx.AsyncClient) -> bool:
-        url = f"{base_url.rstrip('/')}/health"
-        try:
-            resp = await client.get(url)
-            return resp.status_code == 200
-        except Exception:
-            return False
+    engine_id = "random-search"
+
 
     def get_capabilities(self) -> Dict[str, Any]:
         return {
@@ -35,40 +30,11 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             "time_budget_ms": None,
         }
 
-    def get_specialization_schema_path(self) -> str:
-        base_path = os.getenv("SCHEMAS_DIR", "/app/schemas") 
-        if not os.path.exists(base_path):
-             base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../schemas"))
-        return os.path.join(base_path, "specializations/random-search.schema.json")
 
     def validate_semantics(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
         violations = []
         
-        # 1. Collect all task IDs from composition
-        task_ids = set()
-        def visit(node):
-            if node["kind"] == "TASK":
-                task_ids.add(node["task_id"])
-            elif "children" in node:
-                for c in node["children"]:
-                    visit(c)
-            elif "branches" in node:
-                for b in node["branches"]:
-                    visit(b["child"])
-            elif "body" in node:
-                visit(node["body"])
-        
-        visit(instance["composition"]["root"])
-
-        # 2. Check market coverage
-        market_candidates = {c["task_id"] for c in instance.get("candidates", [])}
-        missing_tasks = task_ids - market_candidates
-        if missing_tasks:
-            violations.append(ValidationViolation(
-                code="missing_candidates",
-                path="candidates",
-                message=f"Missing candidates for tasks: {', '.join(missing_tasks)}"
-            ))
+        violations.extend(missing_candidate_violations(instance))
 
         # 3. Check QoS completeness
         required_qos = {f["id"] for f in instance.get("features", [])}

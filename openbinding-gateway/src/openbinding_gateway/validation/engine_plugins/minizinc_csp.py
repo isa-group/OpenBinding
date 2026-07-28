@@ -1,11 +1,13 @@
 import os
 from typing import List, Dict, Any, Tuple
 import httpx
-from .aggregation import build_selected_candidate_by_task, compute_aggregated_qos
+from ...semantics import build_selected_candidate_by_task, compute_aggregated_qos
 from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 
 class MiniZincCSPEnginePlugin(EngineValidationPlugin):
+    engine_id = "minizinc-csp"
+
     _SUPPORTED_AGGREGATION_FUNCS = {
         "sum",
         "max",
@@ -17,13 +19,6 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         "scale_by_c",
     }
 
-    async def check_engine_health(self, base_url: str, client: httpx.AsyncClient) -> bool:
-        url = f"{base_url.rstrip('/')}/health"
-        try:
-            resp = await client.get(url)
-            return resp.status_code == 200
-        except Exception:
-            return False
 
     def get_capabilities(self) -> Dict[str, Any]:
         return {
@@ -47,17 +42,6 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
             "intermediate_solutions": True,
         }
 
-    def get_specialization_schema_path(self) -> str:
-        # Assuming run from root or known location, better to use absolute path relative to project root
-        # In Docker, schemas are at /app/schemas if mapped or copied.
-        # We will assume a standard location or env var.
-        base_path = os.getenv("SCHEMAS_DIR", "/app/schemas") 
-        # Fallback for local dev if not in docker
-        if not os.path.exists(base_path):
-             # Try workspace relative
-             base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../../schemas"))
-        
-        return os.path.join(base_path, "specializations/minizinc-csp.schema.json")
 
     def validate_semantics(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
         violations = []

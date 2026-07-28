@@ -8,6 +8,8 @@ from ...models.api import ValidationViolation
 
 
 class EvolutionaryHeuristicsEnginePlugin(EngineValidationPlugin):
+    engine_id = "evolutionary-heuristics"
+
     _VALID_OPTIONS = {
         "algorithm",
         "operators",
@@ -23,12 +25,6 @@ class EvolutionaryHeuristicsEnginePlugin(EngineValidationPlugin):
         "time_budget_ms",
     }
 
-    async def check_engine_health(self, base_url: str, client: httpx.AsyncClient) -> bool:
-        try:
-            response = await client.get(f"{base_url.rstrip('/')}/health")
-            return response.status_code == 200
-        except Exception:
-            return False
 
     def get_capabilities(self) -> Dict[str, Any]:
         return {
@@ -59,16 +55,6 @@ class EvolutionaryHeuristicsEnginePlugin(EngineValidationPlugin):
             "seed": 1,
             "reference_divisions": 12,
         }
-
-    def get_specialization_schema_path(self) -> str:
-        base_path = os.getenv("SCHEMAS_DIR", "/app/schemas")
-        if not os.path.exists(base_path):
-            base_path = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "../../../../../schemas")
-            )
-        return os.path.join(
-            base_path, "specializations/evolutionary-heuristics.schema.json"
-        )
 
     def validate_semantics(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
         violations: List[ValidationViolation] = []

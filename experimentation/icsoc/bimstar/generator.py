@@ -917,7 +917,7 @@ def _latency_norm_bounds(
         default=0.0,
     )
 
-    from openbinding_gateway.validation.engine_plugins.reference_evaluator import build_scenarios
+    from openbinding_gateway.semantics import build_scenarios
 
     scenarios = build_scenarios(composition["root"], sorted(event_latencies.keys()))
 

@@ -1,6 +1,6 @@
 import pytest
 
-from openbinding_gateway.validation.engine_plugins.aggregation import (
+from openbinding_gateway.semantics import (
     build_selected_candidate_by_task,
     canonicalize_result_data,
     compute_aggregated_qos,

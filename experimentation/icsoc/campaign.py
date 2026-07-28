@@ -35,7 +35,7 @@ from typing import Any, Iterator
 
 import httpx
 
-from openbinding_gateway.validation.engine_plugins.reference_evaluator import evaluate_solution
+from openbinding_gateway.semantics import evaluate_solution
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CORPUS = REPO_ROOT / "experimentation/icsoc/out/bimstar-priced/instances"
