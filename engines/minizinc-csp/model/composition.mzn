@@ -93,13 +93,16 @@ array[1..n_dep_constraints] of int: dc_t1;
 array[1..n_dep_constraints] of int: dc_t2;      
 
 % Helper Predicate: Check Operation
-% Float equality tolerance matches the gateway reference evaluator (EPS=1e-6).
+% Every operator uses the tolerance of the gateway reference evaluator
+% (EPS=1e-6). Deciding a bound more tightly here would let this engine prove a
+% binding optimal that the gateway then reports as infeasible: a disagreement
+% about the answer, not about rounding.
 predicate check_op(var float: val, int: op, float: target) =
-    if op == 1 then val <= target
-    elseif op == 2 then val >= target
+    if op == 1 then val <= target + 1e-6
+    elseif op == 2 then val >= target - 1e-6
     elseif op == 3 then (val <= target + 1e-6 /\ val >= target - 1e-6)
-    elseif op == 4 then val < target
-    elseif op == 5 then val > target
+    elseif op == 4 then val < target - 1e-6
+    elseif op == 5 then val > target + 1e-6
     elseif op == 6 then (val > target + 1e-6 \/ val < target - 1e-6)
     else false endif;
 

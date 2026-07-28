@@ -902,7 +902,10 @@ def _latency_norm_bounds(
     The makespan is monotone in every transfer latency and every execution
     latency, so scheduling the scenario DAGs with constant extremal transfer
     latencies and per-task extremal execution latencies yields valid bounds.
-    Falls back to a coarse upper bound if the gateway evaluator is missing.
+
+    Requires the gateway's reference evaluator: it owns the scenario
+    enumeration, and deriving the bounds from a second implementation would be
+    the kind of drift the reference exists to prevent.
     """
     min_exec = min_exec or {}
     max_exec = max_exec or {}
@@ -914,10 +917,7 @@ def _latency_norm_bounds(
         default=0.0,
     )
 
-    try:
-        from openbinding_gateway.validation.engine_plugins.bimstar import build_scenarios
-    except ImportError:
-        return 0.0, max_event + (len(tasks) + 1) * max_lat + sum(max_exec.values())
+    from openbinding_gateway.validation.engine_plugins.reference_evaluator import build_scenarios
 
     scenarios = build_scenarios(composition["root"], sorted(event_latencies.keys()))
 

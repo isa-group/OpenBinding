@@ -14,7 +14,7 @@ from experimentation.icsoc.bimstar.validation import validate_instance
 ROOT = Path(__file__).resolve().parents[4]
 DATASET = ROOT / "experimentation/icsoc/original_dataset"
 PRICINGS = ROOT / "pricings"
-SCHEMA = ROOT / "schemas/general/bimstar.schema.json"
+SCHEMA = ROOT / "schemas/general/schema.json"
 CONFIG = ROOT / "experimentation/icsoc/bimstar/configs/default.yml"
 
 
@@ -268,3 +268,41 @@ def root_calls(root):
     from experimentation.icsoc.bimstar.orchestration import collect_task_calls
 
     return collect_task_calls(root)
+
+
+def test_latency_bounds_come_from_the_reference_evaluator() -> None:
+    """The witness must schedule the real scenario DAGs, not a coarse bound.
+
+    This used to sit behind a try/except ImportError that silently fell back to
+    `max_event + (n_tasks + 1) * max_lat + sum(max_exec)` when the gateway
+    module moved. The fallback is valid but far looser, so the normalization
+    bounds it produced were wrong without anything failing.
+    """
+    from experimentation.icsoc.bimstar.generator import InfraContext, _latency_norm_bounds
+
+    # Two tasks in sequence, fed by one event generator.
+    composition = {
+        "root": {
+            "id": "s",
+            "kind": "SEQ",
+            "children": [
+                {"id": "n1", "kind": "TASK", "task_id": "T1"},
+                {"id": "n2", "kind": "TASK", "task_id": "T2"},
+            ],
+        }
+    }
+    tasks = [{"id": "T1"}, {"id": "T2"}]
+    infra = InfraContext.__new__(InfraContext)
+    infra.pool_latency = {"a": {"a": 0.0, "b": 10.0}, "b": {"a": 10.0, "b": 0.0}}
+    event_latencies = {"ev": {"a": 1.0, "b": 4.0}}
+    exec_of = {"T1": 2.0, "T2": 3.0}
+
+    low, high = _latency_norm_bounds(
+        composition, tasks, infra, event_latencies, min_exec=exec_of, max_exec=exec_of
+    )
+
+    # Critical path with the worst transfer: event(4) + T1(2) + hop(10) + T2(3).
+    assert high == 19.0
+    # The coarse fallback would have been 4 + (2 + 1) * 10 + 5 = 39.
+    assert high < 39.0
+    assert low == 1.0 + 2.0 + 0.0 + 3.0

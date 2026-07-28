@@ -27,6 +27,9 @@ import java.util.Set;
  */
 public final class BindingEvaluator {
 
+  /** Feasibility tolerance, identical to the gateway reference evaluator's. */
+  static final double EPS = 1e-6;
+
   public static final class ConstraintEvaluation {
     private final double hardViolation;
     private final double softViolation;
@@ -426,33 +429,46 @@ public final class BindingEvaluator {
     return Math.max(0, constraint.tasks.size() - groups.size()) / (double) taskCount;
   }
 
+  /**
+   * Magnitude by which a bound is broken; zero when it is satisfied.
+   *
+   * <p>Whether a bound counts as satisfied is decided with the same tolerance
+   * as the gateway reference evaluator ({@code EPS}). A tighter tolerance here
+   * would let the engine call a binding feasible that the gateway then reports
+   * as infeasible, which is a disagreement about the answer, not about
+   * rounding. The magnitude itself stays continuous so that the search can
+   * still tell a near miss from a gross one.
+   */
   private double boundViolation(double current, Constraint constraint) {
     if ("IN_RANGE".equals(upper(constraint.op))) {
       NumericRange range = rangeValue(constraint.value);
       if (range == null) {
         return 1.0;
       }
-      return current < range.min ? range.min - current : Math.max(0.0, current - range.max);
+      if (current < range.min - EPS) {
+        return range.min - current;
+      }
+      return current > range.max + EPS ? current - range.max : 0.0;
     }
     double target = numberValue(constraint.value);
     String operator = constraint.op;
     if ("<=".equals(operator)) {
-      return Math.max(0.0, current - target);
+      return current <= target + EPS ? 0.0 : current - target;
     }
     if ("<".equals(operator)) {
-      return current < target ? 0.0 : current - target + 1e-12;
+      return current < target - EPS ? 0.0 : current - target + EPS;
     }
     if (">=".equals(operator)) {
-      return Math.max(0.0, target - current);
+      return current >= target - EPS ? 0.0 : target - current;
     }
     if (">".equals(operator)) {
-      return current > target ? 0.0 : target - current + 1e-12;
+      return current > target + EPS ? 0.0 : target - current + EPS;
     }
     if ("==".equals(operator)) {
-      return Math.abs(current - target);
+      return Math.abs(current - target) <= EPS ? 0.0 : Math.abs(current - target);
     }
     if ("!=".equals(operator)) {
-      return Math.abs(current - target) < 1e-12 ? 1.0 : 0.0;
+      return Math.abs(current - target) > EPS ? 0.0 : 1.0;
     }
     return 0.0;
   }

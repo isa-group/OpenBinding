@@ -36,7 +36,12 @@ class ManyHeuristicEnginePlugin(EngineValidationPlugin):
             "qos_features_supported": ["*"],
             "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
             "objective_types_supported": ["MANY"],
-            "constraints_supported": ["attribute_bound", "dependency"],
+            "constraints_supported": [
+                "attribute_bound",
+                "dependency",
+                "resource_capacity",
+                "latency_transition",
+            ],
             "type": "HEURISTIC",
             "schema_version": "v1"
         }
