@@ -40,6 +40,31 @@ export class DznBuilder {
       return `[| ${arr.map((r) => r.join(', ')).join(' | ')} |]`;
     };
 
+    // Loud validation: the integer-scaled CSP model must not silently distort
+    // inputs. Latencies must be representable at 1/LAT_SCALE ms; resource
+    // demands and capacities must be integral.
+    const scaleLat = (v: number) => {
+      const scaled = Number(v) * LAT_SCALE;
+      const rounded = Math.round(scaled);
+      if (Math.abs(scaled - rounded) > 1e-6) {
+        throw new Error(
+          `Latency value ${v} ms is not representable at 1/${LAT_SCALE} ms ` +
+          'resolution; the integer-scaled CSP model would silently distort it'
+        );
+      }
+      return rounded;
+    };
+    const requireInt = (v: number, what: string): number => {
+      const n = Number(v);
+      const rounded = Math.round(n);
+      if (Math.abs(n - rounded) > 1e-9) {
+        throw new Error(`${what} must be integral for the CSP model, got ${v}`);
+      }
+      return rounded;
+    };
+    const fmtA2d = (rows: number, cols: number, arr: number[][]) =>
+      `array2d(1..${rows}, 1..${cols}, [${arr.flat().join(', ')}])`;
+
     // Derived from the optional resource_model / latency_model blocks; empty
     // when the instance carries neither.
     const model = new PlacementModel(instance);
@@ -445,30 +470,6 @@ export class DznBuilder {
     // instance. When they are absent the model below is empty, every array
     // emitted here is empty, and the placement constraints of the MiniZinc
     // model are vacuous — there is no separate code path for that case.
-    // Loud validation: the integer-scaled CSP model must not silently distort
-    // inputs. Latencies must be representable at 1/LAT_SCALE ms; resource
-    // demands and capacities must be integral.
-    const scaleLat = (v: number) => {
-      const scaled = Number(v) * LAT_SCALE;
-      const rounded = Math.round(scaled);
-      if (Math.abs(scaled - rounded) > 1e-6) {
-        throw new Error(
-          `Latency value ${v} ms is not representable at 1/${LAT_SCALE} ms ` +
-          'resolution; the integer-scaled CSP model would silently distort it'
-        );
-      }
-      return rounded;
-    };
-    const requireInt = (v: number, what: string): number => {
-      const n = Number(v);
-      const rounded = Math.round(n);
-      if (Math.abs(n - rounded) > 1e-9) {
-        throw new Error(`${what} must be integral for the CSP model, got ${v}`);
-      }
-      return rounded;
-    };
-    const fmtA2d = (rows: number, cols: number, arr: number[][]) =>
-      `array2d(1..${rows}, 1..${cols}, [${arr.flat().join(', ')}])`;
 
     let n_pools = 0;
     let n_resources = 0;
