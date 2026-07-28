@@ -3,19 +3,10 @@ package es.us.isa.qosawarewsbinding.api;
 import com.google.gson.Gson;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-import es.us.isa.qosawarewsbinding.AbstractWebService;
-import es.us.isa.qosawarewsbinding.ConcreteWebService;
-import es.us.isa.qosawarewsbinding.api.dto.SolveRequest;
 import es.us.isa.qosawarewsbinding.api.dto.SolveResponse;
-import es.us.isa.qosawarewsbinding.api.mapping.ProblemBuildResult;
-import es.us.isa.qosawarewsbinding.api.mapping.ProblemBuilder;
-import es.us.isa.qosawarewsbinding.api.solver.RandomSearchSolver;
-import es.us.isa.qosawarewsbinding.bimstar.BimStarModels;
-import es.us.isa.qosawarewsbinding.bimstar.PlacementAdapter;
+import es.us.isa.openbinding.core.BimStarModels;
+import es.us.isa.openbinding.core.PlacementAdapter;
 import es.us.isa.qosawarewsbinding.bimstar.BimStarRandomSearch;
-import es.us.isa.qosawarewsbinding.problem.QoSAwareWSCompositionProblem;
-import es.us.isa.qosawarewsbinding.qos.QoSProperty;
-import es.us.isa.qosawarewsbinding.solution.QoSAwareWSCompositionSolution;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,7 +15,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.io.ByteArrayOutputStream;
-import java.util.HashMap;
 import java.util.Map;
 
 public class Controller implements HttpHandler {
@@ -154,50 +144,6 @@ public class Controller implements HttpHandler {
         resp.aggregated_features = result.aggregated;
         resp.objective_value = result.binding.isEmpty() ? null : result.objective;
         resp.feasible = result.binding.isEmpty() ? null : result.feasible;
-        return resp;
-    }
-
-    private SolveResponse process(SolveRequest req) {
-        ProblemBuilder builder = new ProblemBuilder();
-        ProblemBuildResult mapped = builder.build(req);
-        QoSAwareWSCompositionProblem problem = mapped.problem;
-
-        int iterations = 1000;
-        if (req.config != null && req.config.max_iterations > 0) {
-            iterations = req.config.max_iterations;
-        }
-
-        long start = System.currentTimeMillis();
-        RandomSearchSolver solver = new RandomSearchSolver();
-        QoSAwareWSCompositionSolution bestSol = solver.solve(problem, iterations);
-        long end = System.currentTimeMillis();
-
-        if (problem.feasibilityDistance(bestSol) > 0) {
-            throw new IllegalArgumentException(
-                    "No feasible solution found after " + iterations + " iterations.");
-        }
-
-        SolveResponse resp = new SolveResponse();
-        resp.execution_time = end - start;
-        resp.iterations_count = iterations;
-        resp.status = "optimized";
-        resp.selection = new HashMap<String, String>();
-        resp.aggregated_features = new HashMap<String, Double>();
-
-        for (QoSProperty<Double> p : mapped.propertyMap.values()) {
-            double val = mapped.qosModel.evaluate(bestSol, p, mapped.structure);
-            resp.aggregated_features.put(p.getName(), val);
-        }
-
-        for (Map.Entry<String, AbstractWebService> entry : mapped.taskMap.entrySet()) {
-            String taskId = entry.getKey();
-            AbstractWebService aws = entry.getValue();
-            ConcreteWebService cws = bestSol.getSelectedService(aws);
-            if (cws != null) {
-                resp.selection.put(taskId, cws.getName());
-            }
-        }
-
         return resp;
     }
 

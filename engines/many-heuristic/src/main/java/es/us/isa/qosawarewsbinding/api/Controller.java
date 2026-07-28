@@ -3,16 +3,10 @@ package es.us.isa.qosawarewsbinding.api;
 import com.google.gson.Gson;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-import es.us.isa.qosawarewsbinding.AbstractWebService;
-import es.us.isa.qosawarewsbinding.ConcreteWebService;
-import es.us.isa.qosawarewsbinding.api.dto.SolveRequest;
 import es.us.isa.qosawarewsbinding.api.dto.SolveResponse;
-import es.us.isa.qosawarewsbinding.api.mapping.ProblemBuildResult;
-import es.us.isa.qosawarewsbinding.api.mapping.ProblemBuilder;
-import es.us.isa.qosawarewsbinding.api.solver.ManyHeuristicSolver;
-import es.us.isa.qosawarewsbinding.problem.QoSAwareWSCompositionProblem;
-import es.us.isa.qosawarewsbinding.qos.QoSProperty;
-import es.us.isa.qosawarewsbinding.solution.QoSAwareWSCompositionSolution;
+import es.us.isa.openbinding.core.BimStarModels;
+import es.us.isa.openbinding.core.PlacementAdapter;
+import es.us.isa.qosawarewsbinding.bimstar.ManyBindingSearch;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,7 +48,21 @@ public class Controller implements HttpHandler {
             }
 
             String requestBody = readBodyWithLimit(exchange.getRequestBody(), MAX_BODY_BYTES);
-            SolveRequest req = gson.fromJson(requestBody, SolveRequest.class);
+            com.google.gson.JsonObject raw =
+                    com.google.gson.JsonParser.parseString(requestBody).getAsJsonObject();
+            if (!raw.has("instance")) {
+                throw new IllegalArgumentException("Missing OpenBinding instance");
+            }
+
+            BimStarModels.BimStarSolveRequest req =
+                    gson.fromJson(requestBody, BimStarModels.BimStarSolveRequest.class);
+            // Derived from the instance's optional resource_model / latency_model
+            // blocks; empty when it carries neither, so the search is the same
+            // either way.
+            @SuppressWarnings("unchecked")
+            Map<String, Object> instanceMap = gson.fromJson(raw.get("instance"), Map.class);
+            req.placement = PlacementAdapter.from(instanceMap);
+
             SolveResponse resp = process(req);
 
             String jsonResp = gson.toJson(resp);
@@ -114,71 +122,39 @@ public class Controller implements HttpHandler {
         }
     }
 
-    static Double computeObjectiveValue(ProblemBuildResult mapped, QoSAwareWSCompositionSolution solution) {
-        Double objectiveValue = mapped.qosModel.evaluate(solution, mapped.structure);
-        return objectiveValue != null ? objectiveValue : 0.0;
-    }
-
-    private SolveResponse process(SolveRequest req) {
-        ProblemBuilder builder = new ProblemBuilder();
-        ProblemBuildResult mapped = builder.build(req);
-        QoSAwareWSCompositionProblem problem = mapped.problem;
-
-        int iterations = 1000;
-        int archiveSize = 20;
-        // int populationSize = 100; // Passed but not used in current simple
-        // implementation
-
-        if (req.config != null) {
-            if (req.config.max_iterations > 0)
-                iterations = req.config.max_iterations;
-            if (req.config.archive_size > 0)
-                archiveSize = req.config.archive_size;
+    private SolveResponse process(BimStarModels.BimStarSolveRequest req) {
+        if (req.instance == null) {
+            throw new IllegalArgumentException("Missing OpenBinding instance");
         }
+
+        int iterations = req.config != null && req.config.max_iterations > 0
+                ? req.config.max_iterations
+                : 1000;
+        int archiveSize = req.config != null && req.config.archive_size > 0
+                ? req.config.archive_size
+                : 20;
+        Long timeBudgetMs = req.config != null ? req.config.time_budget_ms : null;
+        long seed = req.config != null && req.config.seed != null ? req.config.seed : 1L;
 
         long start = System.currentTimeMillis();
-        ManyHeuristicSolver solver = new ManyHeuristicSolver();
-        // Passing population size to solver if we decide to use it in future
-        List<QoSAwareWSCompositionSolution> paretoFront = solver.solve(problem, iterations, archiveSize);
+        ManyBindingSearch.Result result = ManyBindingSearch.run(
+                req.instance, req.placement, iterations, timeBudgetMs, archiveSize, seed);
         long end = System.currentTimeMillis();
-
-        if (paretoFront.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "No feasible solution found after " + iterations + " iterations.");
-        }
 
         SolveResponse resp = new SolveResponse();
         resp.execution_time = end - start;
-        resp.iterations_count = iterations;
+        resp.iterations_count = (int) Math.min(Integer.MAX_VALUE, result.evaluations);
         resp.status = "optimized";
         resp.solutions = new ArrayList<>();
 
-        for (QoSAwareWSCompositionSolution sol : paretoFront) {
+        for (int i = 0; i < result.bindings.size(); i++) {
             SolveResponse.SolutionDTO dto = new SolveResponse.SolutionDTO();
-            dto.is_feasible = problem.feasibilityDistance(sol) <= 0;
-            dto.selection = new HashMap<>();
-            dto.aggregated_features = new HashMap<>();
-
-            dto.objective_value = computeObjectiveValue(mapped, sol);
-
-            for (QoSProperty<Double> p : mapped.propertyMap.values()) {
-                double val = mapped.qosModel.evaluate(sol, p, mapped.structure);
-                dto.aggregated_features.put(p.getName(), val);
-            }
-
-            for (Map.Entry<String, AbstractWebService> entry : mapped.taskMap.entrySet()) {
-                String taskId = entry.getKey();
-                AbstractWebService aws = entry.getValue();
-                ConcreteWebService cws = sol.getSelectedService(aws);
-                if (cws != null) {
-                    dto.selection.put(taskId, cws.getName());
-                }
-            }
+            dto.selection = new HashMap<>(result.bindings.get(i));
+            dto.aggregated_features = new HashMap<>(result.aggregated.get(i));
+            dto.is_feasible = result.feasible.get(i).booleanValue();
             resp.solutions.add(dto);
         }
 
-        // Fill top-level selection with the first solution for backward compatibility
-        // (optional but good practice)
         if (!resp.solutions.isEmpty()) {
             resp.selection = resp.solutions.get(0).selection;
             resp.aggregated_features = resp.solutions.get(0).aggregated_features;

@@ -10,8 +10,17 @@ ENV HTTP_PROXY=$HTTP_PROXY \
 	no_proxy=$NO_PROXY
 
 WORKDIR /app
-COPY pom.xml .
-COPY src ./src
+# The build context is engines/, so that the shared placement core can be
+# built and installed before the engine that depends on it.
+COPY binding-core ./binding-core
+COPY many-heuristic/pom.xml ./many-heuristic/pom.xml
+COPY many-heuristic/src ./many-heuristic/src
+
+RUN cd /app/binding-core && mvn -B -q -DskipTests \
+  -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=false \
+  install
+
+WORKDIR /app/many-heuristic
 # COPY lib ./lib # No lib present or empty
 RUN mvn -DskipTests \
   -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=false \
@@ -36,7 +45,7 @@ ENV HTTP_PROXY=$HTTP_PROXY \
 
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/ManyHeuristicQoSawareCWSBinding-0.0.1-SNAPSHOT.jar app.jar
-COPY --from=builder /app/target/dependency /app/dependency
+COPY --from=builder /app/many-heuristic/target/ManyHeuristicQoSawareCWSBinding-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=builder /app/many-heuristic/target/dependency /app/dependency
 EXPOSE 8080
 CMD ["java", "-cp", "app.jar:dependency/*", "es.us.isa.qosawarewsbinding.api.Server"]

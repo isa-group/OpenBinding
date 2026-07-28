@@ -1,6 +1,8 @@
 package es.us.isa.qosawarewsbinding.bimstar;
 
-import static es.us.isa.qosawarewsbinding.bimstar.BimStarModels.*;
+import static es.us.isa.openbinding.core.BimStarModels.*;
+import es.us.isa.openbinding.core.BindingEvaluator;
+import es.us.isa.openbinding.core.PlacementEvaluator;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

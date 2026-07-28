@@ -2,6 +2,7 @@ import pytest
 from openbinding_gateway.validation.engine_plugins.minizinc_csp import MiniZincCSPEnginePlugin
 from openbinding_gateway.validation.engine_plugins.random_search import RandomSearchEnginePlugin
 from openbinding_gateway.validation.engine_plugins.many_heuristic import ManyHeuristicEnginePlugin
+from openbinding_gateway.validation.engine_plugins.aggregation import canonicalize_result_data
 
 @pytest.fixture
 def minizinc_plugin():
@@ -272,10 +273,8 @@ def test_many_heuristic_request_dependency(many_heuristic_plugin):
 
     transformed, _ = many_heuristic_plugin.transform_request(instance)
 
-    constraints = transformed["constraints"]
-    assert len(constraints) == 1
-    c = constraints[0]
-    assert c["kind"] == "dependency"
+    c = transformed["instance"]["constraints"][0]
+    assert c["kind"] == "DEPENDENCY"
     assert c["type"] == "DIFFERENT_PROVIDER"
     assert c["tasks"] == ["t1", "t2"]
     assert c["hard"] is True
@@ -312,9 +311,12 @@ def test_many_heuristic_request_uses_objective_weights(many_heuristic_plugin):
 
     transformed, _ = many_heuristic_plugin.transform_request(instance)
 
-    assert transformed["features"]["weights"]["latency"] == pytest.approx(0.3)
-    assert transformed["features"]["weights"]["availability"] == pytest.approx(0.7)
-    assert transformed["features"]["weights"]["cost"] == pytest.approx(0.0)
+    # Weights are no longer re-encoded for the engine: it reads the objective
+    # off the instance, which travels verbatim.
+    weights = transformed["instance"]["objective"]["weights"]
+    assert weights["latency"] == pytest.approx(0.3)
+    assert weights["availability"] == pytest.approx(0.7)
+    assert "cost" not in weights
 
 
 def test_many_heuristic_response_recomputes_missing_objective_value(many_heuristic_plugin):
@@ -353,6 +355,15 @@ def test_many_heuristic_response_recomputes_missing_objective_value(many_heurist
 
     transformed = many_heuristic_plugin.transform_response(engine_response, request)
 
-    assert transformed["solutions"][0]["aggregated_features"]["cost"] == pytest.approx(10.0)
-    assert transformed["solutions"][0]["aggregated_features"]["reliability"] == pytest.approx(90.0)
-    assert transformed["solutions"][0]["objective_value"] == pytest.approx(0.9225)
+    # The plugin only carries the binding across; metrics are filled in by
+    # canonicalize_result_data, which every engine goes through.
+    assert transformed["solutions"][0]["binding"] == {"T1": "cand_t1"}
+    assert "aggregated_features" not in transformed["solutions"][0]
+
+    canonicalize_result_data(transformed, request)
+    solution = transformed["solutions"][0]
+    assert solution["aggregated_features"]["cost"] == pytest.approx(10.0)
+    assert solution["aggregated_features"]["reliability"] == pytest.approx(90.0)
+    # This instance declares normalization, so the canonical loss convention
+    # applies: the complement of the 0.9225 goodness it used to report.
+    assert solution["objective_value"] == pytest.approx(0.0775)

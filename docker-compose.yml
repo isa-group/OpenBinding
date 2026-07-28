@@ -110,8 +110,8 @@ services:
 
   engine-many-heuristic:
     build:
-      context: ./engines/many-heuristic
-      dockerfile: Dockerfile
+      context: ./engines
+      dockerfile: many-heuristic/Dockerfile
       args:
         <<: *proxy-build-args
     profiles: ["dev", "prod"]
