@@ -377,6 +377,27 @@ def _check_attribute_bounds(
                             slack,
                         )
                     )
+
+            # A LOCAL constraint may be scoped by candidate id instead of by
+            # task, in which case it binds only those candidates, and only when
+            # they are the selected one for their task.
+            scoped = set(constraint.get("candidates", []) or [])
+            for task_id, cand in selected.items():
+                if cand.get("id") not in scoped:
+                    continue
+                current = float((cand.get("features") or {}).get(attr, 0.0))
+                ok, slack = check_bound(current, op, value)
+                if not ok:
+                    violations.append(
+                        _violation(
+                            cid,
+                            f"Local bound on '{attr}' violated for candidate "
+                            f"'{cand.get('id')}' of task '{task_id}' "
+                            f"({current} {op} {value})",
+                            hard,
+                            slack,
+                        )
+                    )
             continue
 
         current = float(aggregated.get(attr, 0.0))

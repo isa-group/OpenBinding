@@ -158,6 +158,9 @@ export class DznBuilder {
     const taskIdx: Record<string, number> = {};
     tasks.forEach((t: any, i: number) => (taskIdx[t.id] = i + 1));
 
+    const candidateIdx: Record<string, number> = {};
+    candidates.forEach((c: any, i: number) => (candidateIdx[c.id] = i + 1));
+
     const providerIdx: Record<string, number> = {};
     if (instance.providers) {
       instance.providers.forEach((p: any, i: number) => (providerIdx[p.id] = i + 1));
@@ -377,7 +380,46 @@ export class DznBuilder {
       qos_weights.push(w);
     }
 
-    const opMap: Record<string, number> = { '<=': 1, '>=': 2, '==': 3, '<': 4, '>': 5 };
+    const opMap: Record<string, number> = { '<=': 1, '>=': 2, '==': 3, '<': 4, '>': 5, '!=': 6 };
+
+    // IN_RANGE has no operator code of its own: it is the conjunction of a
+    // lower and an upper bound, which is exactly what the model already knows
+    // how to enforce.
+    const expandOp = (op: string, value: any): Array<{ op: number; value: number }> => {
+      if (op === 'in_range') {
+        const range = value || {};
+        return [
+          { op: opMap['>='], value: Number(range.min) },
+          { op: opMap['<='], value: Number(range.max) },
+        ];
+      }
+      const code = opMap[op];
+      if (code === undefined) {
+        // Dropping it would let the engine report OPTIMAL for a solution that
+        // breaks a hard constraint.
+        throw new Error(`Unsupported attribute bound operator '${op}'`);
+      }
+      return [{ op: code, value: Number(value) }];
+    };
+
+    // Same tolerance and orientation as the gateway reference evaluator.
+    const satisfiesBound = (current: number, op: string, value: any): boolean => {
+      const EPS = 1e-6;
+      if (op === 'in_range') {
+        const range = value || {};
+        return current >= Number(range.min) - EPS && current <= Number(range.max) + EPS;
+      }
+      const rhs = Number(value);
+      switch (op) {
+        case '<=': return current <= rhs + EPS;
+        case '<': return current < rhs - EPS;
+        case '>=': return current >= rhs - EPS;
+        case '>': return current > rhs + EPS;
+        case '==': return Math.abs(current - rhs) <= EPS;
+        case '!=': return Math.abs(current - rhs) > EPS;
+        default: throw new Error(`Unsupported attribute bound operator '${op}'`);
+      }
+    };
 
     const gc_attr: number[] = [];
     const gc_op: number[] = [];
@@ -387,6 +429,9 @@ export class DznBuilder {
     const lc_attr: number[] = [];
     const lc_op: number[] = [];
     const lc_val: number[] = [];
+
+    const excluded_task: number[] = [];
+    const excluded_cand: number[] = [];
 
     const dc_type: number[] = [];
     const dc_t1: number[] = [];
@@ -403,23 +448,44 @@ export class DznBuilder {
       if (kind === 'attribute_bound') {
         const attrIdx = featureMap[c.attribute_id];
         const featId = c.attribute_id;
-        const op = opMap[opRaw];
-        const validOp = opMap[c.op] || opMap[opRaw];
-
-        if (!attrIdx || !validOp) continue;
+        if (!attrIdx) {
+          throw new Error(`Attribute bound constraint refers to unknown feature '${c.attribute_id}'`);
+        }
+        const bounds = expandOp(opRaw, c.value);
 
         if (scope === 'global') {
-          gc_attr.push(attrIdx);
-          gc_op.push(validOp);
-          gc_val.push(toModelValue(scaleValue(c.value, featId), featId));
+          for (const bound of bounds) {
+            gc_attr.push(attrIdx);
+            gc_op.push(bound.op);
+            gc_val.push(toModelValue(scaleValue(bound.value, featId), featId));
+          }
         } else if (scope === 'local') {
-          const taskId = c.task_id || (c.tasks && c.tasks[0]);
-          const tIdx = taskId ? taskIdx[taskId] : undefined;
-          if (tIdx) {
-            lc_task.push(tIdx);
-            lc_attr.push(attrIdx);
-            lc_op.push(validOp);
-            lc_val.push(toModelValue(scaleValue(c.value, featId), featId));
+          // Every task the constraint lists, not just the first one.
+          const taskIds = c.task_id ? [c.task_id] : c.tasks || [];
+          for (const taskId of taskIds) {
+            const tIdx = taskIdx[taskId];
+            if (!tIdx) continue;
+            for (const bound of bounds) {
+              lc_task.push(tIdx);
+              lc_attr.push(attrIdx);
+              lc_op.push(bound.op);
+              lc_val.push(toModelValue(scaleValue(bound.value, featId), featId));
+            }
+          }
+
+          // Scoping by candidate id constrains those candidates only. Their
+          // feature values are data, so the ones that break the bound are
+          // simply not selectable.
+          for (const candidateId of c.candidates || []) {
+            const cIdx = candidateIdx[candidateId];
+            if (!cIdx) continue;
+            const tIdx = taskIdx[candidates[cIdx - 1].task_id];
+            if (!tIdx) continue;
+            const raw = Number((candidates[cIdx - 1].qos || candidates[cIdx - 1].features || {})[featId] ?? 0);
+            if (!satisfiesBound(raw, opRaw, c.value)) {
+              excluded_task.push(tIdx);
+              excluded_cand.push(cIdx);
+            }
           }
         }
       } else if (kind === 'dependency') {
@@ -725,6 +791,10 @@ export class DznBuilder {
         lc_attr = ${fmt(lc_attr)};
         lc_op = ${fmt(lc_op)};
         lc_val = ${fmt(lc_val)};
+
+        n_excluded_candidates = ${excluded_cand.length};
+        excluded_task = ${fmt(excluded_task)};
+        excluded_cand = ${fmt(excluded_cand)};
 
         n_dep_constraints = ${dc_type.length};
         dc_type = ${fmt(dc_type)};

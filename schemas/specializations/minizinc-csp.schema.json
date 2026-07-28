@@ -67,6 +67,7 @@
                   "<=",
                   ">=",
                   "==",
+                  "!=",
                   "<",
                   ">",
                   "IN_RANGE"
@@ -126,7 +127,9 @@
               "type": {
                 "enum": [
                   "SAME_PROVIDER",
-                  "DIFFERENT_PROVIDER"
+                  "DIFFERENT_PROVIDER",
+                  "SAME_POOL",
+                  "DIFFERENT_POOL"
                 ]
               },
               "tasks": {

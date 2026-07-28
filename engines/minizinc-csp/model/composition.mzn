@@ -78,8 +78,13 @@ array[1..n_global_constraints] of float: gc_val;
 int: n_local_constraints;
 array[1..n_local_constraints] of int: lc_task;  
 array[1..n_local_constraints] of int: lc_attr;  % Index into 1..n_qos
-array[1..n_local_constraints] of int: lc_op;    
+array[1..n_local_constraints] of int: lc_op;
 array[1..n_local_constraints] of float: lc_val;
+
+% Candidates a local constraint scoped by candidate id rules out.
+int: n_excluded_candidates;
+array[1..n_excluded_candidates] of int: excluded_task;
+array[1..n_excluded_candidates] of int: excluded_cand;
 
 % 3. Dependency Constraints
 int: n_dep_constraints;
@@ -95,7 +100,8 @@ predicate check_op(var float: val, int: op, float: target) =
     elseif op == 3 then (val <= target + 1e-6 /\ val >= target - 1e-6)
     elseif op == 4 then val < target
     elseif op == 5 then val > target
-    else true endif;
+    elseif op == 6 then (val > target + 1e-6 \/ val < target - 1e-6)
+    else false endif;
 
 % --- AGGREGATION COMPUTATION ---
 
@@ -189,12 +195,20 @@ constraint forall(i in 1..n_global_constraints)(
     in check_op(val, gc_op[i], gc_val[i])
 );
 
-% Local
+% Local, scoped to tasks: every task listed by the constraint is bound, not
+% just the first one.
 constraint forall(i in 1..n_local_constraints)(
-    let { 
+    let {
         var int: c = selected_cand[lc_task[i]];
         var float: val = cand_qos[c, lc_attr[i]];
     } in check_op(val, lc_op[i], lc_val[i])
+);
+
+% Local, scoped to candidates. A candidate's feature values are data, so the
+% builder already knows which listed candidates break the bound; forbidding
+% their selection is the whole constraint.
+constraint forall(i in 1..n_excluded_candidates)(
+    selected_cand[excluded_task[i]] != excluded_cand[i]
 );
 
 % Dependency
