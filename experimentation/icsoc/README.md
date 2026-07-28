@@ -88,9 +88,9 @@ docker compose --profile dev up -d --build gateway-dev engine-minizinc \
   engine-random-search engine-evolutionary-heuristics engine-many-heuristic
 
 # 2) Corpus (deterministic; also available from notebook 01)
-.venv/bin/python -m experimentation.icsoc.bimstar.cli generate \
+.venv/bin/python -m experimentation.icsoc.generator.cli generate \
   --dataset experimentation/icsoc/original_dataset --pricing-dir pricings \
-  --config experimentation/icsoc/bimstar/configs/default.yml \
+  --config experimentation/icsoc/generator/configs/default.yml \
   --seed 12345 --out experimentation/icsoc/out/bimstar-priced --dataset-seeds 146588263
 
 # 3) Campaign — three parallel lanes (three terminals), resumable
@@ -132,4 +132,4 @@ solver-reported numbers directly:
 - Runs: solver seeds are explicit (1–10); run ids are deterministic (`instance|engine#seed`).
 - Objectives: every reported value is recomputed by the gateway reference evaluator
   (`oracle_match` flags any divergence; expected count 0).
-- Tests: `pytest experimentation/icsoc/bimstar/tests openbinding-gateway/tests`.
+- Tests: `pytest experimentation/icsoc/generator/tests openbinding-gateway/tests`.

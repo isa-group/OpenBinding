@@ -75,8 +75,16 @@ flowchart TD
 
 OpenBinding validates incoming requests against two schema layers:
 
-1. **General schema** (engine-agnostic):
-    - JSON Schema (structural validation): `schemas/general/schema.json`
+1. **General schema** (engine-agnostic), one file per element of the tuple
+   `I' = (M_A, M'_C, Δ, O)` so that a model can be referenced and reused on its own:
+    - Root, composing the rest by `$ref`: `schemas/general/schema.json`
+    - `application-model.schema.json` — `M_A = (T, G, Λ)`: tasks, orchestration, aggregation policies
+    - `candidate-model.schema.json` — `M'_C = (P, C, F, R, L)`: providers, candidates, features,
+      node resources, network latency
+    - `constraints.schema.json` — `Δ` · `objective.schema.json` — `O` · `common.schema.json` — shared primitives
+
+    `GET /v1/schemas/general` serves them bundled into one self-contained document, so
+    consumers see exactly what a monolithic file would have been.
     - Visual model (Mermaid): `schemas/general/schema.mermaid`
     - Specification / semantics (human-readable): `schemas/general/schema.specification.md`
 
@@ -90,6 +98,7 @@ OpenBinding validates incoming requests against two schema layers:
     - `schemas/specializations/minizinc-csp.schema.json`
     - `schemas/specializations/random-search.schema.json`
     - `schemas/specializations/many-heuristic.schema.json`
+    - `schemas/specializations/evolutionary-heuristics.schema.json`
 
    Specializations can also include a visual model in Mermaid format (recommended):
     - `schemas/specializations/minizinc-csp.schema.mermaid`
@@ -127,7 +136,7 @@ decisions, and engines that support them take them into account natively. The bl
   require a `resource_model` declaring pools.
 
 The reference implementation of these semantics lives in the gateway
-(`openbinding_gateway/validation/engine_plugins/reference_evaluator.py`); solutions of instances
+(`openbinding_gateway/semantics/`, one module per element of the tuple); solutions of instances
 that declare canonical normalization are re-evaluated against it. All engines support shared **wall-clock time budgets** (`time_budget_ms`) with anytime
 best-so-far traces; the exact engine additionally reports its incumbent trace and completion status
 (`OPTIMAL` / `SATISFIED` / `UNSATISFIABLE` / `UNKNOWN`).
@@ -184,7 +193,7 @@ transformation, priced BIM′ corpus, campaign runner and evaluation notebooks) 
 
 ### 💻 Local Development (No Docker)
 
-If you have the necessary runtimes installed (Python 3.11+, Node.js 20.19+, Java 17+, and Maven), you can run the components locally for faster development:
+If you have the necessary runtimes installed (Python 3.11+, Node.js 20.19+, Maven, and a JDK: 8 or later builds random-search and many-heuristic, 21 is needed for evolutionary-heuristics), you can run the components locally for faster development:
 
 1.  **Gateway** (Python):
     ```bash
@@ -215,11 +224,15 @@ If you have the necessary runtimes installed (Python 3.11+, Node.js 20.19+, Java
     npm run dev
     ```
 
-4.  **Random Search Engine** (Java + Maven):
+4.  **JVM Engines** (Java + Maven):
     ```bash
-    cd engines/random-search
-    # Build and run
-    mvn compile exec:java -Dexec.mainClass="es.us.isa.qosawarewsbinding.Controller"
+    # The aggregator installs the shared core before the engines that need it
+    cd engines
+    mvn install
+
+    # Then run one of them
+    cd random-search
+    mvn exec:java -Dexec.mainClass="es.us.isa.qosawarewsbinding.api.Server"
     ```
 
 ---
@@ -267,7 +280,17 @@ pytest -v
 pytest tests/test_validation_comprehensive.py -v
 ```
 
-**Test Coverage**: 60 tests covering validation, analysis, routing, and integration with engines.
+**Test Coverage**: 218 gateway unit tests plus 53 integration tests across all four
+engines, 32 tests in the shared JVM core, 6 in each legacy engine, and 27 in the MiniZinc
+engine - including snapshots that pin both the gateway's canonical output and the generated
+MiniZinc data file.
+
+```bash
+cd openbinding-gateway && pytest              # unit tests
+cd openbinding-gateway && pytest -m integration  # needs the compose stack up
+cd engines && mvn test                        # shared core and the JVM engines
+cd engines/minizinc-csp && pnpm test
+```
 
 ## 📝 Usage Example
 

@@ -3,24 +3,35 @@ name = "openbinding-gateway"
 version = "0.1.0"
 description = "QoS-aware service composition gateway"
 requires-python = ">=3.11"
+# Upper bounds on the majors: FastAPI and Pydantic have broken things across
+# them before, and an unbounded floor means a fresh install can fail for
+# reasons unrelated to any change here.
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
-    "pydantic>=2.0",
-    "httpx",
-    "jsonschema",
-    "pyyaml",
-    "python-dotenv"
+    "fastapi>=0.110,<1.0",
+    "uvicorn[standard]>=0.27,<1.0",
+    "pydantic>=2.0,<3.0",
+    "httpx>=0.27,<1.0",
+    "jsonschema>=4.21,<5.0",
+    "pyyaml>=6.0,<7.0",
+    "python-dotenv>=1.0,<2.0"
 ]
 
 [project.optional-dependencies]
 test = [
-    "pytest",
-    "httpx",
-    "requests",
-    "ruff",
-    "mypy"
+    "pytest>=8.0,<9.0",
+    "httpx>=0.27,<1.0",
+    "requests>=2.31,<3.0",
+    "ruff>=0.4,<1.0"
 ]
+
+[tool.ruff]
+line-length = 110
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# Errors, unused imports and names, and the bug patterns worth catching.
+select = ["E", "F", "B"]
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -40,7 +42,17 @@ def validate_json_schema(instance: dict[str, Any], schema_path: str | Path) -> l
             )
         ]
 
-    schema = load_json(schema_path)
+    # The general schema is split one file per element of the tuple, so it has
+    # to be assembled before it can validate anything. The gateway owns that
+    # assembly; loading the root document on its own would leave every
+    # cross-file reference dangling.
+    try:
+        from openbinding_gateway.validation.schema_bundle import load_general_schema
+
+        os.environ.setdefault("GENERAL_SCHEMA_PATH", str(schema_path))
+        schema = load_general_schema()
+    except ImportError:
+        schema = load_json(schema_path)
     validator = jsonschema.Draft202012Validator(schema)
     violations = []
     for error in sorted(validator.iter_errors(instance), key=lambda e: list(e.path)):

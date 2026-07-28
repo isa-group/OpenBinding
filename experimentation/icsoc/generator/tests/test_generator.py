@@ -2,20 +2,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from experimentation.icsoc.bimstar.config import load_config
-from experimentation.icsoc.bimstar.generator import generate_dataset
-from experimentation.icsoc.bimstar.orchestration import derive_transitions, parse_orchestration
-from experimentation.icsoc.bimstar.pricing import FaaSPricing
-from experimentation.icsoc.bimstar.security import infer_task_security
-from experimentation.icsoc.bimstar.utils import load_json, safe_id
-from experimentation.icsoc.bimstar.validation import validate_instance
+from experimentation.icsoc.generator.config import load_config
+from experimentation.icsoc.generator.generator import generate_dataset
+from experimentation.icsoc.generator.orchestration import derive_transitions, parse_orchestration
+from experimentation.icsoc.generator.pricing import FaaSPricing
+from experimentation.icsoc.generator.security import infer_task_security
+from experimentation.icsoc.generator.utils import load_json, safe_id
+from experimentation.icsoc.generator.validation import validate_instance
 
 
 ROOT = Path(__file__).resolve().parents[4]
 DATASET = ROOT / "experimentation/icsoc/original_dataset"
 PRICINGS = ROOT / "pricings"
 SCHEMA = ROOT / "schemas/general/schema.json"
-CONFIG = ROOT / "experimentation/icsoc/bimstar/configs/default.yml"
+CONFIG = ROOT / "experimentation/icsoc/generator/configs/default.yml"
 
 
 def test_orchestration_parser_derives_expected_transitions() -> None:
@@ -120,7 +120,7 @@ def test_pricing_is_monotone_in_decision_variables() -> None:
 
 
 def test_generated_latency_provider_and_geo_classes() -> None:
-    from experimentation.icsoc.bimstar.generator import generated_latency
+    from experimentation.icsoc.generator.generator import generated_latency
 
     config = load_config(CONFIG)
     lat_cfg = config["latency_generation"]
@@ -265,7 +265,7 @@ def _assert_latency_matrix_properties(instance) -> None:
 
 
 def root_calls(root):
-    from experimentation.icsoc.bimstar.orchestration import collect_task_calls
+    from experimentation.icsoc.generator.orchestration import collect_task_calls
 
     return collect_task_calls(root)
 
@@ -278,7 +278,7 @@ def test_latency_bounds_come_from_the_reference_evaluator() -> None:
     module moved. The fallback is valid but far looser, so the normalization
     bounds it produced were wrong without anything failing.
     """
-    from experimentation.icsoc.bimstar.generator import InfraContext, _latency_norm_bounds
+    from experimentation.icsoc.generator.generator import InfraContext, _latency_norm_bounds
 
     # Two tasks in sequence, fed by one event generator.
     composition = {

@@ -4,17 +4,21 @@ Java service implementing uniform random search over the binding space. It serve
 **baseline** of the OpenBinding experimental studies: fast, unbiased, and expected to produce the
 weakest solutions.
 
-## Two request paths
+## One request path
 
-- **Legacy path** (`SolveRequest` DTO: `composition` + `market` + `features`): the original
-  QoS-aware composition solver (`es.us.isa.qosawarewsbinding`). Budget: `config.max_iterations`.
-- **BIM′ placement path** (payload with `instance` + `placement` + `config`): activated by the
-  gateway for placement-aware instances. Implemented in `es.us.isa.qosawarewsbinding.bimstar`
-  (Java 8 — this engine builds with JDK 8), which mirrors the evolutionary engine's evaluator and
-  the gateway reference evaluator: end-to-end latency over precomputed XOR-scenario DAGs, resource
-  capacity, transition latency, budgets and the canonical normalized objective.
+The engine takes `{"instance": ..., "options": ...}` and reads the instance itself. Placement
+is not a separate path: if the instance carries `resource_model` or `latency_model`, the view
+derived from them has pools, capacities and latencies in it; if not, it is empty and the same
+search runs unchanged.
 
-## BIM′ options and anytime behavior
+Everything but the search strategy lives in [`binding-core`](../binding-core): the instance
+model, the evaluator, and the placement semantics - end-to-end latency over the XOR-scenario
+DAGs, resource capacity, transition latency and the canonical normalized objective. What is
+this engine's own is `RandomBindingSearch`: uniform sampling with feasibility-first selection.
+
+Builds against a JDK 8 runtime, so the core it consumes targets Java 8 bytecode.
+
+## Options and anytime behavior
 
 ```json
 {"max_iterations": 1000, "seed": 7, "time_budget_ms": 300000}

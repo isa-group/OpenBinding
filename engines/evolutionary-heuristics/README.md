@@ -1,10 +1,16 @@
 # Evolutionary Heuristics Engine
 
 This engine solves OpenBinding service-binding problems with evolutionary
-algorithms. It is intentionally isolated from the legacy Java engines: it uses
-Java 21, jMetal, and the general OpenBinding request model.
+algorithms: Java 21 and jMetal, over the instance model and evaluator shared
+with every other JVM engine in [`binding-core`](../binding-core). What is its
+own is the search - NSGA-II/III, its operators, and its options.
 
-The reasoning behind the architectural and algorithmic choices is recorded in
+It used to carry a private copy of the evaluator and the instance models, each
+with a note promising it was kept in sync with the core by hand;
+`DESIGN_RATIONALE.md` Decision 1 ("implement an independent engine") records
+the reasoning from that period and is superseded on that point.
+
+The reasoning behind the remaining architectural and algorithmic choices is in
 [`DESIGN_RATIONALE.md`](DESIGN_RATIONALE.md).
 
 ## Scope
@@ -22,11 +28,11 @@ The initial implementation supports:
 The HTTP contract is:
 
 - `GET /health`
-- `POST /solve` with `{ "instance": <general OpenBinding instance>, "options": {...}, "placement": {...}? }`
+- `POST /solve` with `{ "instance": <general OpenBinding instance>, "options": {...}, "options": {...}? }`
 
-## BIM′ placement support and anytime behavior
+## Placement support and anytime behavior
 
-When the gateway attaches a `placement` payload (BIM′ instances), the evaluator additionally
+When the instance carries `resource_model` or `latency_model`, the evaluator additionally
 computes the end-to-end latency over precomputed XOR-scenario precedence DAGs, resource-capacity
 and transition-latency violations (`PlacementEvaluator`), mirroring the gateway reference
 evaluator.

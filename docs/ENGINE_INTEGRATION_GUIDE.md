@@ -14,13 +14,45 @@ Validation stages:
 
 Engines integrate through the gateway plugin interface and a specialization schema.
 
+## Four things to know before you start
+
+**The instance travels whole and untouched.** The gateway sends
+`{"instance": ..., "options": ...}` and nothing else. It does not pre-digest the
+problem: an engine reads the composition, the constraints and the optional
+`resource_model` / `latency_model` blocks itself. If your engine runs on the
+JVM, `engines/binding-core` already does that reading, and using it is how your
+results stay comparable with the others'.
+
+**Placement is not a separate problem.** `resource_model` and `latency_model`
+are optional blocks of the same instance. An engine that supports them derives
+its placement view with `PlacementAdapter.from(instance)`; an instance without
+them yields an empty view, so the same code path serves both. There is no
+placement mode to branch on.
+
+**Your reported metrics are overwritten.** Every solution goes through
+`semantics.canonicalization`, which re-derives `aggregated_features`,
+`violations` and `feasible` with the reference evaluator. Do not compute them
+in your plugin - four separate copies of that arithmetic is exactly what this
+architecture exists to avoid. Return the binding and, if you have one, your own
+objective value: it is kept as `engine_objective_value` and compared against
+the reference, which is how a divergence in your semantics gets caught.
+
+**Declare only what you enforce, and enforce what you declare.** Capabilities
+and the specialization schema are a contract in both directions: a capability
+you advertise but do not enforce returns wrong answers marked feasible, and one
+you enforce but the schema rejects is unreachable. Both have happened here.
+
 ## Required artifacts
 
-1. Engine plugin (gateway): implement `EngineValidationPlugin`.
+1. Engine plugin (gateway): implement `EngineValidationPlugin`. Set `engine_id`;
+   the base class then resolves your specialization schema path and provides the
+   `/health` check.
 2. Specialization schema: `schemas/specializations/<engine-id>.schema.json`.
 3. Specialization model (recommended): `schemas/specializations/<engine-id>.schema.mermaid`.
 4. Engine URL in registry + env wiring.
-5. Tests for validation and transformation.
+5. Tests: unit tests for your search, and your engine id in the integration
+   suite's engine list (`tests/integration/conftest.py`), where tests skip
+   themselves for objective types you do not claim to support.
 
 ## Step-by-step
 
