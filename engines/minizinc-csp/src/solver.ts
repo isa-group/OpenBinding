@@ -8,7 +8,7 @@ export class Solver {
     private readonly builder = new DznBuilder();
     private readonly runner = new MiniZincRunner();
 
-    async solve(instance: any, options: any, placement?: any): Promise<any> {
+    async solve(instance: any, options: any): Promise<any> {
         const debug = Boolean(options?.debug);
         const solverName = String(options?.solver || this.DEFAULT_SOLVER_NAME);
         const timeLimitMs = options?.time_limit_ms != null ? Number(options.time_limit_ms) : null;
@@ -32,11 +32,11 @@ export class Solver {
             });
         }
 
-        // 1. Identify Features + build data (placement-aware)
+        // 1. Identify Features + build data
         let dznContent: string;
         let features: string[];
         try {
-            const built = this.builder.build(instance, options, placement);
+            const built = this.builder.build(instance, options);
             dznContent = built.dznContent;
             features = built.features;
         } catch (e) {

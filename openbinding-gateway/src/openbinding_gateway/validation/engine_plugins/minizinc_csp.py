@@ -2,7 +2,6 @@ import os
 from typing import List, Dict, Any, Optional, Tuple
 import httpx
 from .aggregation import build_selected_candidate_by_task, compute_aggregated_qos
-from .reference_evaluator import build_placement_payload
 from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 
@@ -178,15 +177,9 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
                 if k not in supported_options:
                     warnings.append(f"Option '{k}' is not supported by MiniZinc engine")
 
-        payload = {
-            "instance": instance,
-            "options": options
-        }
-        placement = build_placement_payload(instance)
-        if placement is not None:
-            payload["placement"] = placement
-
-        return payload, warnings
+        # The instance is sent as-is: the engine derives the placement view it
+        # needs from resource_model / latency_model itself.
+        return {"instance": instance, "options": options}, warnings
 
     def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:
         """Transform engine response to general solution format."""

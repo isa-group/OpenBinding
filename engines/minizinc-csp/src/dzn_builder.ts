@@ -1,3 +1,5 @@
+import { PlacementModel, declaresNormalization } from './placement';
+
 export interface DznBuildResult {
   dznContent: string;
   features: string[];
@@ -8,9 +10,9 @@ export interface DznBuildResult {
 const LAT_SCALE = 1000;
 
 export class DznBuilder {
-  build(instance: any, options: any, placement?: any): DznBuildResult {
+  build(instance: any, options: any): DznBuildResult {
     const features = this.getFeatures(instance);
-    const dznContent = this.transformToDZN(instance, features, options, placement);
+    const dznContent = this.transformToDZN(instance, features, options);
     return { dznContent, features };
   }
 
@@ -31,12 +33,16 @@ export class DznBuilder {
     return Array.from(featureSet).sort();
   }
 
-  private transformToDZN(instance: any, features: string[], options: any, placement?: any): string {
+  private transformToDZN(instance: any, features: string[], options: any): string {
     const fmt = (arr: any[]) => `[${arr.join(', ')}]`;
     const fmt2d = (arr: any[][]) => {
       if (arr.length === 0) return `[| |]`;
       return `[| ${arr.map((r) => r.join(', ')).join(' | ')} |]`;
     };
+
+    // Derived from the optional resource_model / latency_model blocks; empty
+    // when the instance carries neither.
+    const model = new PlacementModel(instance);
 
     const tasks = instance.tasks || [];
     const candidates = instance.candidates || [];
@@ -411,15 +417,15 @@ export class DznBuilder {
               dc_t2.push(tIndices[j]);
             }
           }
-        } else if (type === 'same_pool' && placement) {
-          // Pool-based dependencies need the placement payload; without it the
-          // reference evaluator ignores them too, so skipping stays aligned.
+        } else if (type === 'same_pool' && model.pools.length) {
+          // Pool dependencies need declared pools to compare. Validation
+          // rejects the instance before it reaches the engine otherwise.
           for (let i = 0; i < tIndices.length - 1; i++) {
             dc_type.push(3);
             dc_t1.push(tIndices[i]);
             dc_t2.push(tIndices[i + 1]);
           }
-        } else if (type === 'different_pool' && placement) {
+        } else if (type === 'different_pool' && model.pools.length) {
           for (let i = 0; i < tIndices.length; i++) {
             for (let j = i + 1; j < tIndices.length; j++) {
               dc_type.push(4);
@@ -433,8 +439,12 @@ export class DznBuilder {
 
 
     // ------------------------------------------------------------------
-    // BIM' placement data (pools, capacities, latency matrix, scenarios)
+    // Placement data (pools, capacities, latency matrix, scenarios)
     // ------------------------------------------------------------------
+    // Derived from the optional resource_model / latency_model blocks of the
+    // instance. When they are absent the model below is empty, every array
+    // emitted here is empty, and the placement constraints of the MiniZinc
+    // model are vacuous — there is no separate code path for that case.
     // Loud validation: the integer-scaled CSP model must not silently distort
     // inputs. Latencies must be representable at 1/LAT_SCALE ms; resource
     // demands and capacities must be integral.
@@ -490,15 +500,15 @@ export class DznBuilder {
     let MAX_LAT_INT = 1;
     let use_canonical = false;
 
-    if (placement) {
-      const pools: any[] = placement.pools || [];
+    {
+      const pools = model.pools;
       const poolIdx: Record<string, number> = {};
-      pools.forEach((p: any, i: number) => (poolIdx[p.id] = i + 1));
+      pools.forEach((p, i) => (poolIdx[p.id] = i + 1));
       n_pools = pools.length;
 
       const resourceSet = new Set<string>();
-      pools.forEach((p: any) => Object.keys(p.capacity || {}).forEach((r) => resourceSet.add(r)));
-      Object.values(placement.demand_of_candidate || {}).forEach((d: any) =>
+      pools.forEach((p) => Object.keys(p.capacity || {}).forEach((r) => resourceSet.add(r)));
+      Object.values(model.demandOfCandidate).forEach((d) =>
         Object.keys(d || {}).forEach((r) => resourceSet.add(r))
       );
       const resources = Array.from(resourceSet).sort();
@@ -506,14 +516,14 @@ export class DznBuilder {
       resources.forEach((r, i) => (resIdx[r] = i + 1));
       n_resources = resources.length;
 
-      const e2e = placement.e2e || null;
+      const e2e = model.globalLatency;
       const latAttr = e2e?.attribute_id;
       lat_feature_idx = latAttr ? featureMap[latAttr] || 0 : 0;
       const includeExec = Boolean(e2e?.include_execution_latency_feature);
 
-      cand_pool = candidates.map((c: any) => poolIdx[placement.pool_of_candidate?.[c.id]] || 0);
+      cand_pool = candidates.map((c: any) => poolIdx[model.poolOfCandidate[c.id]] || 0);
       cand_demand = candidates.map((c: any) => {
-        const demand = placement.demand_of_candidate?.[c.id] || {};
+        const demand = model.demandOfCandidate[c.id] || {};
         return resources.map((r) =>
           requireInt(Number(demand[r] || 0), `Resource demand '${r}' of candidate '${c.id}'`)
         );
@@ -524,51 +534,32 @@ export class DznBuilder {
         return scaleLat(Number(qosData[latAttr] || 0));
       });
 
-      const matrix = placement.latency_matrix || {};
-      const lookupLat = (a: string, b: string): number => {
-        let v = matrix[a]?.[b];
-        if (v === undefined || v === null) v = matrix[b]?.[a];
-        if (v === undefined || v === null) {
-          if (a === b) return 0;
-          throw new Error(`Missing pool latency entry for '${a}' -> '${b}'`);
-        }
-        return Number(v);
-      };
+      const lookupLat = (a: string, b: string): number => model.poolLatency(a, b);
       let maxLatMs = 0;
-      pool_lat = pools.map((pa: any) =>
-        pools.map((pb: any) => {
+      pool_lat = pools.map((pa) =>
+        pools.map((pb) => {
           const v = lookupLat(pa.id, pb.id);
           if (v > maxLatMs) maxLatMs = v;
           return scaleLat(v);
         })
       );
 
-      const eventLatency = placement.event_latency || {};
-      const eventPools = placement.event_pools || {};
       const eventIds = Array.from(
-        new Set([...Object.keys(eventLatency), ...Object.keys(eventPools)])
+        new Set([...Object.keys(model.eventLatency), ...Object.keys(model.eventPools)])
       ).sort();
       const eventIdx: Record<string, number> = {};
       eventIds.forEach((e, i) => (eventIdx[e] = i + 1));
       n_events = eventIds.length;
       let maxEventMs = 0;
       event_lat = eventIds.map((eid) =>
-        pools.map((p: any) => {
-          let v = eventLatency[eid]?.[p.id];
-          if (v === undefined || v === null) {
-            // Fall back to the latency from the event generator's own pool.
-            const evPool = eventPools[eid];
-            if (evPool === undefined) {
-              throw new Error(`Missing event latency entry for '${eid}' -> '${p.id}'`);
-            }
-            v = lookupLat(evPool, p.id);
-          }
-          if (Number(v) > maxEventMs) maxEventMs = Number(v);
-          return scaleLat(Number(v));
+        pools.map((p) => {
+          const v = model.eventPoolLatency(eid, p.id);
+          if (v > maxEventMs) maxEventMs = v;
+          return scaleLat(v);
         })
       );
 
-      for (const rc of placement.resource_constraints || []) {
+      for (const rc of model.capacityConstraints) {
         if (rc.hard === false) continue; // the CSP model enforces hard constraints only
         for (const poolId of rc.pools || []) {
           const pIdx = poolIdx[poolId];
@@ -585,9 +576,9 @@ export class DznBuilder {
       }
 
       const trOpMap: Record<string, number> = { '<=': 1, '>=': 2, '==': 3, '<': 4, '>': 5 };
-      for (const tc of placement.transitions || []) {
+      for (const tc of model.transitions) {
         if (tc.hard === false) continue;
-        const toIdx = taskIdx[tc.to_task];
+        const toIdx = tc.to_task ? taskIdx[tc.to_task] : 0;
         if (!toIdx) throw new Error(`Transition constraint targets unknown task '${tc.to_task}'`);
         const fromIdx = tc.from_task ? taskIdx[tc.from_task] || 0 : 0;
         const evIdx = tc.from_event ? eventIdx[tc.from_event] || 0 : 0;
@@ -601,7 +592,8 @@ export class DznBuilder {
           tr_op.push(trOpMap[op]);
           tr_val.push(scaleLat(value));
         };
-        const op = String(tc.op || '<=').toUpperCase() === 'IN_RANGE' ? 'IN_RANGE' : tc.op;
+        const rawOp = String(tc.op ?? '<=');
+        const op = rawOp.toUpperCase() === 'IN_RANGE' ? 'IN_RANGE' : rawOp;
         if (op === 'IN_RANGE') {
           emit('>=', Number(tc.value?.min ?? 0));
           emit('<=', Number(tc.value?.max ?? 0));
@@ -613,18 +605,17 @@ export class DznBuilder {
       }
 
       if (e2e && lat_feature_idx > 0) {
-        const scenarios: any[] = e2e.scenarios || [];
+        const scenarios = model.scenarios();
         n_scenarios = scenarios.length;
-        xor_semantics = String(e2e.xor_semantics || 'EXPECTED').toUpperCase() === 'WORST_CASE' ? 2 : 1;
+        xor_semantics = e2e.xor_semantics === 'WORST_CASE' ? 2 : 1;
         scen_active = scenarios.map(() => Array(n_tasks).fill(0));
-        scenarios.forEach((s: any, sIdx: number) => {
+        scenarios.forEach((s, sIdx) => {
           scen_prob.push(Number(s.prob));
-          for (const t of s.order || []) {
+          for (const t of s.order) {
             const tIdx = taskIdx[t];
             if (!tIdx) throw new Error(`Scenario references unknown task '${t}'`);
             scen_active[sIdx][tIdx - 1] = 1;
-            for (const src of (s.preds || {})[t] || []) {
-              const [srcKind, srcId] = src;
+            for (const [srcKind, srcId] of s.preds[t] || []) {
               pe_scen.push(sIdx + 1);
               pe_to_task.push(tIdx);
               if (srcKind === 'task') {
@@ -636,7 +627,7 @@ export class DznBuilder {
               }
             }
           }
-          for (const t of s.sinks || []) {
+          for (const t of s.sinks) {
             sink_scen.push(sIdx + 1);
             sink_task.push(taskIdx[t]);
           }
@@ -660,8 +651,11 @@ export class DznBuilder {
         }
       }
 
-      // Canonical objective (matches the gateway reference evaluator).
-      use_canonical = String((instance.objective || {}).type || '').toUpperCase() === 'MONO';
+      // Canonical objective (matches the gateway reference evaluator): selected
+      // by declared normalization, not by the presence of placement blocks.
+      use_canonical =
+        String((instance.objective || {}).type || '').toUpperCase() === 'MONO' &&
+        declaresNormalization(instance);
       if (use_canonical) {
         for (const target of (instance.objective || {}).targets || []) {
           if (featureUsesProductSpace[target]) {
