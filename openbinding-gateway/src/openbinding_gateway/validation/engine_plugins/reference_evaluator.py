@@ -72,6 +72,26 @@ def declares_normalization(instance: Dict[str, Any]) -> bool:
 # Scenario enumeration and precedence DAG construction
 # ---------------------------------------------------------------------------
 
+def composition_task_ids(node: Dict[str, Any]) -> set:
+    """Task ids the composition can execute, across every XOR branch."""
+    kind = node.get("kind")
+    if kind == "TASK":
+        return {node.get("task_id")}
+    if kind in ("SEQ", "AND"):
+        found = set()
+        for child in node.get("children", []) or []:
+            found |= composition_task_ids(child)
+        return found
+    if kind == "XOR":
+        found = set()
+        for branch in node.get("branches", []) or []:
+            found |= composition_task_ids(branch.get("child", {}) or {})
+        return found
+    if kind == "LOOP":
+        return composition_task_ids(node.get("body", {}) or {})
+    return set()
+
+
 def _collect_xor_nodes(node: Dict[str, Any], acc: List[Dict[str, Any]]) -> None:
     kind = node.get("kind")
     if kind == "XOR":
@@ -631,7 +651,11 @@ def evaluate_solution(instance: Dict[str, Any], binding: Dict[str, str]) -> Dict
     aggregated = compute_aggregated_qos(root, features, selected, agg_policies)
 
     violations: List[Dict[str, Any]] = []
-    task_ids = {t.get("id") for t in instance.get("tasks", []) or []}
+    # Only tasks the composition actually reaches need a binding. A task that
+    # is declared but never executed contributes nothing to any feature, so
+    # demanding a candidate for it would call a perfectly good binding
+    # infeasible over a choice that cannot matter.
+    task_ids = composition_task_ids((instance.get("composition") or {}).get("root") or {})
     missing = sorted(task_ids - set(selected.keys()))
     if missing:
         violations.append(

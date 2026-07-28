@@ -7,8 +7,8 @@ from .aggregation import (
     normalize_qos,
     compute_objective_value,
 )
-from .reference_evaluator import build_placement_payload
 from .base import EngineValidationPlugin
+from .reference_evaluator import declares_normalization, evaluate_solution
 from ...models.api import ValidationViolation
 
 class RandomSearchEnginePlugin(EngineValidationPlugin):
@@ -167,219 +167,24 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
                 if k not in supported_options:
                     warnings.append(f"Option '{k}' is not supported by Random-Search engine")
 
-        # BIM' instances take the placement-native path: the engine consumes
-        # the raw instance plus the precomputed placement payload, so that the
-        # placement semantics live in a single evaluator implementation.
-        placement = build_placement_payload(instance)
-        if placement is not None:
-            # iterations_count is the minimum evaluation budget; when
-            # time_budget_ms is set the search runs until the wall-clock
-            # budget expires (never below the minimum).
-            config: Dict[str, Any] = {
-                "max_iterations": options.get("iterations_count", 1000)
-            }
-            if options.get("seed") is not None:
-                config["seed"] = int(options["seed"])
-            if options.get("time_budget_ms") is not None:
-                config["time_budget_ms"] = int(options["time_budget_ms"])
-            return {
-                "id": instance.get("metadata", {}).get("id", "req-1"),
-                "instance": instance,
-                "placement": placement,
-                "config": config,
-            }, warnings
-
-        # 1. Composition
-        def map_node(node):
-            res = {
-                "id": node.get("id"),
-                "kind": node.get("kind")
-            }
-            if node["kind"] == "TASK":
-                res["task_id"] = node.get("task_id")
-            elif node["kind"] in ["SEQ", "AND"]:
-                res["children"] = [map_node(c) for c in node.get("children", [])]
-            elif node["kind"] == "XOR":
-                res["branches"] = [
-                    {"p": float(b["p"]), "child": map_node(b["child"])} 
-                    for b in node.get("branches", [])
-                ]
-            elif node["kind"] == "LOOP":
-                res["body"] = map_node(node.get("body"))
-                if "expected_iterations" in node and node.get("expected_iterations") is not None:
-                    res["expected_iterations"] = float(node.get("expected_iterations"))
-                elif "bounds" in node:
-                    defaults = node["bounds"]
-                    mn = defaults.get("min", 0)
-                    mx = defaults.get("max", 0)
-                    res["expected_iterations"] = (mn + mx) / 2.0
-            return res
-
-        composition = {
-            "type": "structured",
-            "root": map_node(instance["composition"]["root"])
-        }
-
-        # 2. Market
-        market = {}
-        for c in instance.get("candidates", []):
-            tid = c["task_id"]
-            if tid not in market:
-                market[tid] = {"services": []}
-            
-            # Ensure QoS values are floats
-            qos_map = {k: float(v) for k, v in c.get("features", {}).items()}
-            
-            svc = {
-                "id": c["id"],
-                "name": c.get("name", c["id"]),
-                "provider_id": c.get("provider_id"),
-                "features": qos_map
-            }
-            market[tid]["services"].append(svc)
-
-
-        # 3. QoS Model
-        qos_props = {}
-        features = instance.get("features", [])
-        
-        qos_weights = {}
-        obj = instance.get("objective", {})
-        if obj.get("type") == "MONO" and len(obj.get("weights", {}).keys()) > 0:
-            qos_weights = {k: float(v) for k, v in (obj.get("weights", {}) or {}).items()}
-
-        # Engine requires weights for all properties (use 0.0 for omitted attributes).
-        # Normalization bounds: prefer the instance-declared canonical bounds
-        # (aggregation_policies[fid].normalize.bounds) so the engine's internal
-        # fitness matches the gateway's reference objective; fall back to the
-        # feature valid_range otherwise.
-        declared_policies = instance.get("aggregation_policies", {}) or {}
-        for f in features:
-             fid = f["id"]
-             vr = f.get("valid_range") or {}
-             norm_bounds = ((declared_policies.get(fid) or {}).get("normalize") or {}).get("bounds") or {}
-             qos_props[fid] = {
-                 "direction": f["direction"].lower(),
-                 "min": float(norm_bounds.get("min", vr.get("min", 0.0))),
-                 "max": float(norm_bounds.get("max", vr.get("max", 1.0)))
-             }
-             if fid not in qos_weights:
-                qos_weights[fid] = 0.0
-        
-        qos_aggregation = {}
-        agg_policies = instance.get("aggregation_policies", {})
-        for attr, policy in agg_policies.items():
-            compose = policy.get("compose", {})
-
-            def map_fn(fn: str, operator: str) -> str:
-                # Engine's aggregation is driven by (values, ponderations).
-                # - XOR probabilities and LOOP iterations are passed as ponderations.
-                # - Using 'sum' produces weighted_sum and scale_by_c semantics.
-                if not fn:
-                    return "sum"
-                fn_lower = fn.lower()
-                
-                # XOR/LOOP specialized mappings
-                if operator == "xor" and fn_lower == "weighted_sum":
-                    return "sum"
-                if operator == "loop" and fn_lower == "scale_by_c":
-                    return "scaled_sum"
-                if operator == "loop" and fn_lower == "scaled_sum":
-                    return "scaled_sum"
-                if operator == "loop" and fn_lower == "scaled_product":
-                    return "product"
-
-                if operator == "xor" and fn_lower == "sum":
-                    return "sum"
-                if operator == "loop" and fn_lower == "sum":
-                    return "sum"
-                
-                return fn_lower
-
-            pol = {
-                "seq": map_fn(compose.get("seq", {}).get("fn", "sum"), "seq"),
-                "flow": map_fn(compose.get("and", {}).get("fn", "max"), "and"), # Map 'and' to 'flow'
-                "branch": map_fn(compose.get("xor", {}).get("fn", "sum"), "xor"),
-                "loop": map_fn(compose.get("loop", {}).get("fn", "sum"), "loop")
-            }
-            qos_aggregation[attr] = pol
-
-        # 4. Constraints
-        constraints_out = []
-        for c in (instance.get("constraints", []) or []):
-            kind = c.get("kind")
-            if kind == "DEPENDENCY":
-                # Pass dependency constraints
-                constraints_out.append({
-                    "id": c.get("id"),
-                    "kind": "dependency",
-                    "type": c.get("type"),
-                    "tasks": c.get("tasks", []),
-                    "hard": bool(c.get("hard", True))
-                })
-                continue
-
-            if (c.get("kind") or "").lower() != "attribute_bound":
-                continue
-            scope = (c.get("scope") or "").lower()
-            if c.get("op") == "in_range" or c.get("op") == "IN_RANGE":
-                # Handle IN_RANGE: pass value as object {min, max} (or transform if needed by engine)
-                # The engine's RangeGlobalQoSWSCompositionConstraint expects min/max separately in constructor?
-                # Check Controller.java:
-                # if (BinaryOperator.IN_RANGE.equals(op)) {
-                #     problem.getConstraints().add(new RangeGlobalQoSWSCompositionConstraint(problem, prop, c.min, c.max, hard));
-                # }
-                # So we need to flatten the value object or pass it as is if the DTO handles it.
-                # SolveRequest.java Constraint DTO has min/max fields?
-                # Let's assume the "value" in the instance is an object {min, max}.
-                # But Controller.java uses c.min and c.max from the DTO, not c.value.
-                # transform_request needs to map value.min/max to constraint.min/max
-                pass
-            if not isinstance(c.get("value"), (int, float)):
-                continue
-            con_dto = {
-                "id": c.get("id"),
-                "kind": "attribute_bound",
-                "scope": scope,
-                "attribute_id": c.get("attribute_id"),
-                "op": c.get("op"),
-                "hard": bool(c.get("hard", True)),
-            }
-            
-            # For LOCAL constraints, include the tasks list
-            if scope == "local" and c.get("tasks"):
-                con_dto["tasks"] = c.get("tasks")
-            
-            val = c.get("value")
-            if isinstance(val, (int, float)):
-                con_dto["value"] = float(val)
-            elif isinstance(val, dict) and (c.get("op") == "IN_RANGE" or c.get("op") == "in_range"):
-                con_dto["min"] = float(val.get("min", 0))
-                con_dto["max"] = float(val.get("max", 0))
-                # Controller.java expects min/max in the Constraint object
-            
-            constraints_out.append(con_dto)
-
-        config = {
-            "max_iterations": options.get("iterations_count", 1000)
-        }
+        # The instance travels as-is. The engine derives from it whatever
+        # placement view it needs, so there is one request shape and one
+        # evaluator regardless of whether the instance carries placement.
+        #
+        # iterations_count is the minimum evaluation budget; when
+        # time_budget_ms is set the search runs until the wall-clock budget
+        # expires (never below the minimum).
+        config: Dict[str, Any] = {"max_iterations": options.get("iterations_count", 1000)}
         if options.get("seed") is not None:
             config["seed"] = int(options["seed"])
+        if options.get("time_budget_ms") is not None:
+            config["time_budget_ms"] = int(options["time_budget_ms"])
 
-        payload = {
+        return {
             "id": instance.get("metadata", {}).get("id", "req-1"),
-            "composition": composition,
-            "market": market,
-            "features": {
-                "properties": qos_props,
-                "weights": qos_weights,
-                "aggregation": qos_aggregation
-            },
-            "constraints": constraints_out,
-            "config": config
-        }
-
-        return payload, warnings
+            "instance": instance,
+            "config": config,
+        }, warnings
 
     def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:
         """Map Random-Search response to General Solution."""
@@ -402,88 +207,25 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         aggregated_qos = compute_aggregated_qos(root, features, selected_candidate_by_task, agg_policies)
         normalized_qos = normalize_qos(aggregated_qos, features, agg_policies)
 
-        # Prefer the engine's own internal search objective (BIM' path) so
-        # the canonicalization step can audit it; the legacy "goodness"
-        # recomputation remains as a fallback for the legacy DTO path.
+        # The engine always searches on the canonical normalized loss, which is
+        # only the convention the instance asked for when it declares
+        # normalization for every objective target. Adopting it otherwise would
+        # report a loss where the instance's own convention is a weighted sum of
+        # normalized goodness - the same solution with the opposite orientation.
         engine_objective = engine_response.get("objective_value")
-        if engine_objective is not None:
+        if engine_objective is not None and declares_normalization(original_request):
             objective_value = float(engine_objective)
         else:
             obj = original_request.get("objective", {}) or {}
             objective_value = compute_objective_value(obj, normalized_qos)
 
-        # Evaluate constraints for reporting
-        violations = []
-        
-        def _check_bound(current: float, op: str, rhs_f: float):
-            """Return (ok, slack) for a bound check."""
-            if op == "<=":
-                return current <= rhs_f, rhs_f - current
-            elif op == "<":
-                return current < rhs_f, rhs_f - current
-            elif op == ">=":
-                return current >= rhs_f, current - rhs_f
-            elif op == ">":
-                return current > rhs_f, current - rhs_f
-            elif op == "==":
-                return abs(current - rhs_f) <= 1e-9, rhs_f - current
-            elif op == "!=":
-                ok = abs(current - rhs_f) > 1e-9
-                return ok, (0.0 if ok else -1.0)
-            return True, 0.0
-
-        for c in (original_request.get("constraints", []) or []):
-            kind = (c.get("kind") or "").upper()
-            scope = (c.get("scope") or "").upper()
-            if kind != "ATTRIBUTE_BOUND":
-                continue
-            fid = c.get("attribute_id")
-            if not fid:
-                continue
-            op = c.get("op")
-            rhs = c.get("value")
-            if not isinstance(rhs, (int, float)):
-                continue
-            rhs_f = float(rhs)
-            
-            if scope == "LOCAL":
-                # For LOCAL constraints, check the raw feature of the selected candidate
-                constraint_tasks = c.get("tasks", []) or []
-                for task_id in constraint_tasks:
-                    cand = selected_candidate_by_task.get(task_id)
-                    if cand is None:
-                        continue
-                    current = float((cand.get("features", {}) or {}).get(fid, 0.0))
-                    ok, slack = _check_bound(current, op, rhs_f)
-                    if not ok:
-                        violations.append({
-                            "constraint_id": c.get("id"),
-                            "slack": float(slack),
-                            "penalty_applied": 0
-                        })
-                continue
-            
-            # GLOBAL scope
-            current = float(aggregated_qos.get(fid, 0.0))
-            ok, slack = _check_bound(current, op, rhs_f)
-
-            if not ok:
-                violations.append({
-                    "constraint_id": c.get("id"),
-                    "slack": float(slack),
-                    "penalty_applied": 0
-                })
-
-        # Transform violations to new schema
-        new_violations = []
-        for v in violations:
-             new_violations.append({
-                "constraint_id": v.get("constraint_id"),
-                "message": f"Constraint {v.get('constraint_id')} violated",
-                "code": "constraint_violation",
-                "penalty": v.get("penalty_applied", 0),
-                "description": f"Slack: {v.get('slack')}"
-            })
+        # Constraint checking is the reference evaluator's job. Re-implementing
+        # it here is how this plugin ended up ignoring candidate-scoped bounds,
+        # IN_RANGE values and dependency constraints, and reporting a solution
+        # as feasible while listing a hard violation of it.
+        evaluation = evaluate_solution(original_request, selection)
+        new_violations = evaluation["violations"]
+        feasible = evaluation["feasible"]
 
         provenance = {
              "engine_id": "random-search",
@@ -503,7 +245,8 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             "objective_value": objective_value,
             "binding": selection,
             "aggregated_features": aggregated_qos,
-            "violations": new_violations
+            "violations": new_violations,
+            "feasible": feasible,
         }
         
         return {

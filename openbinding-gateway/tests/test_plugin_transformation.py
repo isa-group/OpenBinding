@@ -196,13 +196,11 @@ def test_random_search_request_dependency(random_search_plugin):
     }
     
     transformed, _ = random_search_plugin.transform_request(instance)
-    
-    # Check constraints
-    constraints = transformed["constraints"]
-    # We expect 1 constraint
-    assert len(constraints) == 1
-    c = constraints[0]
-    assert c["kind"] == "dependency"
+
+    # The instance travels verbatim; the engine reads the constraints itself
+    # rather than receiving a re-encoded copy of them.
+    c = transformed["instance"]["constraints"][0]
+    assert c["kind"] == "DEPENDENCY"
     assert c["type"] == "SAME_PROVIDER"
     assert c["tasks"] == ["t1", "t2"]
     assert c["hard"] is True
@@ -235,12 +233,12 @@ def test_random_search_request_attribute_bound(random_search_plugin):
     }
     
     transformed, _ = random_search_plugin.transform_request(instance)
-    
-    constraints = transformed["constraints"]
-    assert len(constraints) == 1
-    c = constraints[0]
-    assert c["kind"] == "attribute_bound" # Schema uses lowercase
+
+    c = transformed["instance"]["constraints"][0]
+    assert c["kind"] == "ATTRIBUTE_BOUND"
     assert c["attribute_id"] == "cost"
+    assert c["op"] == "<="
+    assert c["value"] == 100
 
 
 def test_many_heuristic_request_dependency(many_heuristic_plugin):

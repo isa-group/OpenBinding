@@ -11,6 +11,7 @@ import es.us.isa.qosawarewsbinding.api.mapping.ProblemBuildResult;
 import es.us.isa.qosawarewsbinding.api.mapping.ProblemBuilder;
 import es.us.isa.qosawarewsbinding.api.solver.RandomSearchSolver;
 import es.us.isa.qosawarewsbinding.bimstar.BimStarModels;
+import es.us.isa.qosawarewsbinding.bimstar.PlacementAdapter;
 import es.us.isa.qosawarewsbinding.bimstar.BimStarRandomSearch;
 import es.us.isa.qosawarewsbinding.problem.QoSAwareWSCompositionProblem;
 import es.us.isa.qosawarewsbinding.qos.QoSProperty;
@@ -59,18 +60,22 @@ public class Controller implements HttpHandler {
 
             String requestBody = readBodyWithLimit(exchange.getRequestBody(), MAX_BODY_BYTES);
 
-            SolveResponse resp;
             com.google.gson.JsonObject raw =
                     com.google.gson.JsonParser.parseString(requestBody).getAsJsonObject();
-            if (raw.has("placement") && raw.has("instance")) {
-                // BIM' placement-native path: raw instance + precomputed placement payload.
-                BimStarModels.BimStarSolveRequest bimReq =
-                        gson.fromJson(requestBody, BimStarModels.BimStarSolveRequest.class);
-                resp = processBimStar(bimReq);
-            } else {
-                SolveRequest req = gson.fromJson(requestBody, SolveRequest.class);
-                resp = process(req);
+            if (!raw.has("instance")) {
+                throw new IllegalArgumentException("Missing OpenBinding instance");
             }
+
+            BimStarModels.BimStarSolveRequest req =
+                    gson.fromJson(requestBody, BimStarModels.BimStarSolveRequest.class);
+            // The placement view is derived from the instance's optional
+            // resource_model / latency_model blocks; it comes back empty when
+            // the instance carries neither, and the search is the same either way.
+            @SuppressWarnings("unchecked")
+            Map<String, Object> instanceMap = gson.fromJson(raw.get("instance"), Map.class);
+            req.placement = PlacementAdapter.from(instanceMap);
+
+            SolveResponse resp = processBimStar(req);
 
             String jsonResp = gson.toJson(resp);
             exchange.getResponseHeaders().set("Content-Type", "application/json");

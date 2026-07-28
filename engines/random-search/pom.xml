@@ -18,6 +18,11 @@
         <version>2.8.9</version>
     </dependency>
     <dependency>
+        <groupId>es.us.isa.openbinding</groupId>
+        <artifactId>binding-core</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
         <groupId>junit</groupId>
         <artifactId>junit</artifactId>
         <version>4.12</version>

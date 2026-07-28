@@ -96,8 +96,8 @@ services:
 
   engine-random-search:
     build:
-      context: ./engines/random-search
-      dockerfile: Dockerfile
+      context: ./engines
+      dockerfile: random-search/Dockerfile
       args:
         <<: *proxy-build-args
     profiles: ["dev", "prod"]

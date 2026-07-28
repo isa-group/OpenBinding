@@ -15,15 +15,13 @@ sys.path.insert(0, str(Path(__file__).parent))
 from test_reference_evaluator import micro_instance  # noqa: E402
 
 
-def test_random_search_bimstar_payload_carries_budget_and_seed():
+def test_random_search_payload_carries_budget_and_seed():
     plugin = RandomSearchEnginePlugin()
     payload, warnings = plugin.transform_request(
         micro_instance(),
         {"iterations_count": 1000, "seed": 7, "time_budget_ms": 300_000},
     )
     assert warnings == []
-    # BIM' instances take the placement-native path.
-    assert "placement" in payload and "instance" in payload
     assert payload["config"] == {
         "max_iterations": 1000,
         "seed": 7,
@@ -31,14 +29,22 @@ def test_random_search_bimstar_payload_carries_budget_and_seed():
     }
 
 
-def test_random_search_legacy_payload_unaffected_by_budget_shape():
+def test_random_search_sends_the_instance_whether_or_not_it_has_placement():
+    """One request shape: the engine derives the placement view it needs."""
     plugin = RandomSearchEnginePlugin()
-    instance = micro_instance()
-    del instance["resource_model"]
-    del instance["latency_model"]
-    payload, _ = plugin.transform_request(instance, {"iterations_count": 500})
-    assert "market" in payload  # legacy DTO path
-    assert payload["config"]["max_iterations"] == 500
+
+    with_placement, _ = plugin.transform_request(micro_instance(), {"iterations_count": 500})
+
+    plain = micro_instance()
+    del plain["resource_model"]
+    del plain["latency_model"]
+    without_placement, _ = plugin.transform_request(plain, {"iterations_count": 500})
+
+    assert set(with_placement) == set(without_placement) == {"id", "instance", "config"}
+    assert "placement" not in with_placement
+    assert with_placement["instance"]["resource_model"]
+    assert "resource_model" not in without_placement["instance"]
+    assert without_placement["config"]["max_iterations"] == 500
 
 
 def test_evolutionary_payload_keeps_time_budget_option():
