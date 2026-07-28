@@ -16,7 +16,7 @@ script or on the random seed.
 
 Usage (from the repository root):
 
-    PYTHONPATH=openbinding-gateway/src python openbinding-gateway/tests/golden/regenerate.py
+    PYTHONPATH=openbinding-gateway/src python openbinding-gateway/tools/regenerate_goldens.py
 """
 
 from __future__ import annotations
@@ -31,7 +31,8 @@ from openbinding_gateway.validation.engine_plugins.aggregation import canonicali
 from openbinding_gateway.validation.engine_plugins.reference_evaluator import evaluate_solution
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+GOLDEN_DIR = os.path.join(HERE, "..", "tests", "golden")
 EXAMPLE_DIRS = ("demo", "literature", "placement")
 BINDINGS_PER_INSTANCE = 5
 SEED = 20260728
@@ -126,7 +127,7 @@ def main() -> None:
     for path in instance_files():
         entry = snapshot(path)
         name = entry["instance"].replace("/", "__").replace(".json", "")
-        with open(os.path.join(HERE, f"{name}.json"), "w") as handle:
+        with open(os.path.join(GOLDEN_DIR, f"{name}.json"), "w") as handle:
             json.dump(entry, handle, indent=2, sort_keys=True)
             handle.write("\n")
         print(f"wrote {name}.json ({len(entry['cases'])} bindings)")

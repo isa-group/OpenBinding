@@ -5,7 +5,7 @@ instance, with and without placement extensions. They exist so that
 refactors of the validation and aggregation code can be proven behaviour
 preserving rather than argued to be.
 
-Regenerate the snapshots with tests/golden/regenerate.py, and only ever do so
+Regenerate the snapshots with tools/regenerate_goldens.py, and only ever do so
 when a change of the produced numbers is intended and reviewed.
 """
 

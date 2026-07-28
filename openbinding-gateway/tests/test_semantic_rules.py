@@ -5,15 +5,6 @@ import pytest
 from openbinding_gateway.validation.semantic_general import GeneralSemanticValidator
 
 
-if "GENERAL_SCHEMA_PATH" not in os.environ:
-    os.environ["GENERAL_SCHEMA_PATH"] = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../schemas/general/schema.json")
-    )
-
-if "SCHEMAS_DIR" not in os.environ:
-    os.environ["SCHEMAS_DIR"] = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../schemas")
-    )
 
 
 @pytest.fixture

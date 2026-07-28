@@ -32,6 +32,8 @@ jobs:
         run: mvn -B test
 
       - name: Install the shared placement core
+        # Also publishes its test-jar: the engines test their searches against
+        # the same instances this module tests its evaluator with.
         working-directory: engines/binding-core
         run: mvn -B -DskipTests install
 
@@ -75,8 +77,11 @@ jobs:
       - name: Build and start services
         run: docker compose up --build -d --wait gateway-dev
 
-      - name: Run Tests
+      - name: Run unit tests
         run: docker compose exec -T gateway-dev test
+
+      - name: Run integration tests
+        run: docker compose exec -T gateway-dev test tests/integration -m integration
       
       - name: Show service logs on failure
         if: failure()

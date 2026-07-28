@@ -1,8 +1,7 @@
 """Regression tests for the shared time-budget option and sync-response routing."""
 
-import sys
-from pathlib import Path
 
+from _fixtures import micro_instance
 from openbinding_gateway.routing.router import Router
 from openbinding_gateway.validation.engine_plugins.evolutionary_heuristics import (
     EvolutionaryHeuristicsEnginePlugin,
@@ -11,8 +10,6 @@ from openbinding_gateway.validation.engine_plugins.random_search import (
     RandomSearchEnginePlugin,
 )
 
-sys.path.insert(0, str(Path(__file__).parent))
-from test_reference_evaluator import micro_instance  # noqa: E402
 
 
 def test_random_search_payload_carries_budget_and_seed():

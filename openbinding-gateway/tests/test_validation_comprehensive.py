@@ -3,13 +3,6 @@ import os
 from openbinding_gateway.validation.pipeline import ValidationPipeline
 from openbinding_gateway.validation.engine_plugins.minizinc_csp import MiniZincCSPEnginePlugin
 
-# Path to schemas - relying on docker-compose env setup mocking or relative paths
-# We need to simulate the environment variables for schema paths locally if not set
-if "GENERAL_SCHEMA_PATH" not in os.environ:
-    os.environ["GENERAL_SCHEMA_PATH"] = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../schemas/general/schema.json"))
-
-if "SCHEMAS_DIR" not in os.environ:
-    os.environ["SCHEMAS_DIR"] = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../schemas"))
 
 @pytest.fixture
 def pipeline():
