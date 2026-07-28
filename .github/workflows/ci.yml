@@ -50,8 +50,9 @@ jobs:
       - name: Test minizinc-csp
         working-directory: engines/minizinc-csp
         run: |
-          npm ci || npm install
-          npm test
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm test
 
   test:
     runs-on: ubuntu-latest

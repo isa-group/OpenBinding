@@ -1,5 +1,5 @@
 import os
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple
 import httpx
 from .aggregation import build_selected_candidate_by_task, compute_aggregated_qos
 from .base import EngineValidationPlugin

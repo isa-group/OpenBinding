@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Any, Type
+from typing import Dict, List, Any
 from ..validation.engine_plugins.base import EngineValidationPlugin
 from ..validation.engine_plugins.minizinc_csp import MiniZincCSPEnginePlugin
 from ..validation.engine_plugins.random_search import RandomSearchEnginePlugin

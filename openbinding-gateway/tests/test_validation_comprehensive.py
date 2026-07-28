@@ -1,12 +1,7 @@
 import pytest
-from unittest.mock import MagicMock, patch
-import json
 import os
 from openbinding_gateway.validation.pipeline import ValidationPipeline
-from openbinding_gateway.models.api import ValidationViolation
-from openbinding_gateway.registry.engine import EngineRegistry
 from openbinding_gateway.validation.engine_plugins.minizinc_csp import MiniZincCSPEnginePlugin
-from openbinding_gateway.validation.engine_plugins.random_search import RandomSearchEnginePlugin
 
 # Path to schemas - relying on docker-compose env setup mocking or relative paths
 # We need to simulate the environment variables for schema paths locally if not set

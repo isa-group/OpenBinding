@@ -717,27 +717,3 @@ def evaluate_solution(instance: Dict[str, Any], binding: Dict[str, str]) -> Dict
         "violations": violations,
         "feasible": feasible,
     }
-
-
-def apply_reference_evaluation(result_data: Dict[str, Any], instance: Dict[str, Any]) -> Dict[str, Any]:
-    """Overwrite engine-reported metrics of every solution with the reference ones."""
-    solutions = result_data.get("solutions")
-    if not isinstance(solutions, list):
-        return result_data
-
-    for solution in solutions:
-        if not isinstance(solution, dict):
-            continue
-        binding = solution.get("binding")
-        if not isinstance(binding, dict) or not binding:
-            continue
-        engine_objective = solution.get("objective_value")
-        evaluation = evaluate_solution(instance, binding)
-        solution["aggregated_features"] = evaluation["aggregated_features"]
-        solution["objective_value"] = evaluation["objective_value"]
-        solution["violations"] = evaluation["violations"]
-        solution["feasible"] = evaluation["feasible"]
-        if engine_objective is not None:
-            solution["engine_objective_value"] = float(engine_objective)
-
-    return result_data

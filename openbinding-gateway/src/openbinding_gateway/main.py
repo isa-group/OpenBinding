@@ -10,10 +10,10 @@ import httpx
 
 load_dotenv()
 
-from .models.api import SolveRequest, SolveResponse, JobResponse, JobStatus, AnalyzeResponse, AnalyzeWarning, BindingSpaceSummary, Provenance, BindingSpaceRequest, BindingSpacePage
+from .models.api import SolveRequest, JobResponse, JobStatus, AnalyzeResponse, AnalyzeWarning, Provenance, BindingSpaceRequest, BindingSpacePage
 from .validation.pipeline import ValidationPipeline
 from .validation.analysis import compute_binding_space_summary, generate_warnings, generate_binding_space_subset
-from .routing.router import Router, PayloadTooLargeError, PAYLOAD_TOO_LARGE_MESSAGE, MAX_ENGINE_PAYLOAD_BYTES
+from .routing.router import Router, PayloadTooLargeError, PAYLOAD_TOO_LARGE_MESSAGE
 from .registry.engine import EngineRegistry
 import time
 

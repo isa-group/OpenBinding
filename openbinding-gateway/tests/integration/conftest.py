@@ -1,5 +1,4 @@
 import pytest
-import os
 import requests
 import time
 import json
@@ -42,16 +41,7 @@ def target_engines(request):
     return engines
 
 # Shared summary stats for generated instances
-@pytest.fixture(scope="session")
-def comparison_stats():
-    return {"total": 0, "match": 0, "mismatch": 0, "details": []}
 
-@pytest.hookimpl(tryfirst=True)
-def pytest_sessionfinish(session, exitstatus):
-    # We can print summary here if we access the comparison_stats fixture, 
-    # but fixtures are not easily accessible in hooks. 
-    # We will rely on printing in the test file itself or use a class-based collector.
-    pass
 
 def pytest_generate_tests(metafunc):
     """Parametrize tests with 'engine' fixture automatically."""

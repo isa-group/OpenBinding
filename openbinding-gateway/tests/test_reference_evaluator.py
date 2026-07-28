@@ -12,9 +12,7 @@ import random
 import pytest
 
 from openbinding_gateway.validation.engine_plugins.reference_evaluator import (
-    PlacementModel,
     build_scenarios,
-    canonical_objective,
     evaluate_solution,
 )
 

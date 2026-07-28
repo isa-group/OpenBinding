@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from openbinding_gateway.validation.analysis import compute_binding_space_summary, generate_warnings
-from openbinding_gateway.models.api import BindingSpaceSummary, AnalyzeWarning
+from openbinding_gateway.models.api import BindingSpaceSummary
 from fastapi.testclient import TestClient
 from openbinding_gateway.main import app, _content_length_too_large
 import json

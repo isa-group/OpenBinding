@@ -1,28 +1,10 @@
 import os
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple
 import httpx
-from .aggregation import (
-    build_selected_candidate_by_task,
-    compute_aggregated_qos,
-    normalize_qos,
-    compute_objective_value,
-)
 from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 
 class ManyHeuristicEnginePlugin(EngineValidationPlugin):
-    def _objective_weights(self, instance: Dict[str, Any]) -> Dict[str, float]:
-        weights: Dict[str, float] = {}
-        objective = instance.get("objective", {}) or {}
-
-        for feature_id, weight in (objective.get("weights", {}) or {}).items():
-            weights[str(feature_id)] = float(weight)
-
-        for target in objective.get("targets", []) or []:
-            weights.setdefault(str(target), 1.0)
-
-        return weights
-
     async def check_engine_health(self, base_url: str, client: httpx.AsyncClient) -> bool:
         url = f"{base_url.rstrip('/')}/health"
         try:

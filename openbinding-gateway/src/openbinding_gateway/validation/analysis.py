@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 import math
 from ..models.api import BindingSpaceSummary, AnalyzeWarning
 

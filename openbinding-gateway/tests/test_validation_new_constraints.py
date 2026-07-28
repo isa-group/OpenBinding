@@ -1,6 +1,5 @@
 import pytest
 import os
-import json
 from openbinding_gateway.validation.pipeline import ValidationPipeline
 from openbinding_gateway.registry.engine import EngineRegistry
 

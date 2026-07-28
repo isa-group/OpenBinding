@@ -222,27 +222,6 @@ def compute_aggregated_qos(
     return aggregated_qos
 
 
-def _recompute_solution_aggregated_features(
-    solution: Dict[str, Any],
-    root: Dict[str, Any],
-    features: Dict[str, Any],
-    agg_policies: Dict[str, Any],
-    candidates_by_id: Dict[str, Dict[str, Any]],
-) -> None:
-    binding = solution.get("binding")
-    if not isinstance(binding, dict) or not binding or not root or not features:
-        solution.setdefault("aggregated_features", {})
-        return
-
-    selected_candidate_by_task = build_selected_candidate_by_task(binding, candidates_by_id)
-    solution["aggregated_features"] = compute_aggregated_qos(
-        root,
-        features,
-        selected_candidate_by_task,
-        agg_policies,
-    )
-
-
 def _objective_weights(obj: Dict[str, Any]) -> Dict[str, float]:
     objective_type = str(obj.get("type") or "").upper()
     weights = {str(fid): float(weight) for fid, weight in (obj.get("weights", {}) or {}).items()}
