@@ -13,7 +13,6 @@ import pytest
 
 from openbinding_gateway.validation.engine_plugins.reference_evaluator import (
     PlacementModel,
-    build_placement_payload,
     build_scenarios,
     canonical_objective,
     evaluate_solution,
@@ -287,7 +286,6 @@ def test_capacity_legacy_kind_still_enforced():
     assert [v["constraint_id"] for v in r_legacy["violations"]] == \
         [v["constraint_id"] for v in r_canonical["violations"]]
     assert r_legacy["feasible"] is False
-    assert build_placement_payload(legacy) == build_placement_payload(canonical)
 
 
 def test_capacity_satisfied_when_spread():
@@ -433,14 +431,3 @@ def test_budget_tightening_never_improves_optimum():
 # Placement payload
 # ---------------------------------------------------------------------------
 
-def test_placement_payload_roundtrip():
-    instance = micro_instance()
-    assert instance.get("resource_model") and instance.get("latency_model")
-    payload = build_placement_payload(instance)
-    assert payload["e2e"]["attribute_id"] == "latency"
-    assert len(payload["e2e"]["scenarios"]) == 2
-    assert payload["pool_of_candidate"]["c_t1_p1"] == "p1"
-    assert {p["id"] for p in payload["pools"]} == {"p1", "p2", "p3"}
-    cap = [rc for rc in payload["resource_constraints"] if rc["id"] == "cap_all"][0]
-    assert set(cap["pools"]) == {"p1", "p2", "p3"}
-    assert payload["event_pools"] == {"ev0": "p1"}

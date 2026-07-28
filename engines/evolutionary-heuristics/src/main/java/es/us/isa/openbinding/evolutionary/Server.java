@@ -38,7 +38,18 @@ public final class Server {
         writeJson(exchange, 413, Map.of("error", "Request body is too large"));
         return;
       }
-      SolveRequest request = GSON.fromJson(new String(body, StandardCharsets.UTF_8), SolveRequest.class);
+      String payload = new String(body, StandardCharsets.UTF_8);
+      SolveRequest request = GSON.fromJson(payload, SolveRequest.class);
+      if (request == null || request.instance == null) {
+        throw new IllegalArgumentException("Missing OpenBinding instance");
+      }
+      // Derived from the instance's optional resource_model / latency_model
+      // blocks: empty when it carries neither, so the search is the same
+      // either way.
+      @SuppressWarnings("unchecked")
+      Map<String, Object> instanceMap =
+          GSON.fromJson(GSON.toJsonTree(GSON.fromJson(payload, Map.class).get("instance")), Map.class);
+      request.placement = PlacementAdapter.from(instanceMap);
       writeJson(exchange, 200, new EvolutionarySolver().solve(request));
     } catch (IllegalArgumentException exception) {
       writeJson(exchange, 422, Map.of("error", exception.getMessage()));

@@ -16,6 +16,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>es.us.isa.openbinding</groupId>
+      <artifactId>binding-core</artifactId>
+      <version>0.1.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
       <groupId>org.uma.jmetal</groupId>
       <artifactId>jmetal-core</artifactId>
       <version>${jmetal.version}</version>

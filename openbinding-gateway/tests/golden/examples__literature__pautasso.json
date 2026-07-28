@@ -26,9 +26,9 @@
           "security": 3.5999999999999996
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 670.9749944044202
@@ -73,9 +73,31 @@
           "security": 3.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": false,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "bind_shop_mono_provider",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t_create_order', 't_add_item', 't_remove_item', 't_get_amount', 't_checkout', 't_list_confirmed', 't_ship_order', 't_update_shipment', 't_cancel_order'] must share the same provider",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "bind_catalog_mono_provider",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t_request_quote', 't_get_quote'] must share the same provider",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "bind_payment_mono_provider",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t_charge_payment', 't_refund_payment'] must share the same provider",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 758.1921454439114
@@ -142,9 +164,24 @@
           "security": 3.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": false,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "bind_shop_mono_provider",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t_create_order', 't_add_item', 't_remove_item', 't_get_amount', 't_checkout', 't_list_confirmed', 't_ship_order', 't_update_shipment', 't_cancel_order'] must share the same provider",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "bind_payment_mono_provider",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t_charge_payment', 't_refund_payment'] must share the same provider",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 679.7640669925113
@@ -204,9 +241,31 @@
           "security": 3.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": false,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "bind_shop_mono_provider",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t_create_order', 't_add_item', 't_remove_item', 't_get_amount', 't_checkout', 't_list_confirmed', 't_ship_order', 't_update_shipment', 't_cancel_order'] must share the same provider",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "bind_catalog_mono_provider",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t_request_quote', 't_get_quote'] must share the same provider",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "bind_payment_mono_provider",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t_charge_payment', 't_refund_payment'] must share the same provider",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 760.026787351149
@@ -273,9 +332,31 @@
           "security": 3.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": false,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "bind_shop_mono_provider",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t_create_order', 't_add_item', 't_remove_item', 't_get_amount', 't_checkout', 't_list_confirmed', 't_ship_order', 't_update_shipment', 't_cancel_order'] must share the same provider",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "bind_catalog_mono_provider",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t_request_quote', 't_get_quote'] must share the same provider",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "bind_payment_mono_provider",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t_charge_payment', 't_refund_payment'] must share the same provider",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 777.8823398574498

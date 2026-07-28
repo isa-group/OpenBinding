@@ -23,9 +23,9 @@
           "security": 3.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 262.0589476487197
@@ -67,9 +67,9 @@
           "security": 3.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 262.0589476487197
@@ -111,9 +111,9 @@
           "security": 3.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 262.0589476487197
@@ -155,9 +155,9 @@
           "security": 3.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 262.0589476487197
@@ -199,9 +199,9 @@
           "security": 3.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 262.0589476487197

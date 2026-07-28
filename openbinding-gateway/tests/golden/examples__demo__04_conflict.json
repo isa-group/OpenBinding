@@ -10,9 +10,17 @@
           "cost": 100.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": false,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "c_impossible",
+            "description": "Slack: -100.0",
+            "message": "Global bound on 'cost' violated (100.0 < 0)",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 100.0
@@ -45,9 +53,17 @@
           "cost": 100.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": false,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "c_impossible",
+            "description": "Slack: -100.0",
+            "message": "Global bound on 'cost' violated (100.0 < 0)",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 100.0
@@ -80,9 +96,17 @@
           "cost": 200.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": false,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "c_impossible",
+            "description": "Slack: -200.0",
+            "message": "Global bound on 'cost' violated (200.0 < 0)",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 200.0
@@ -115,9 +139,17 @@
           "cost": 200.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": false,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "c_impossible",
+            "description": "Slack: -200.0",
+            "message": "Global bound on 'cost' violated (200.0 < 0)",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 200.0
@@ -150,9 +182,17 @@
           "cost": 100.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": false,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "c_impossible",
+            "description": "Slack: -100.0",
+            "message": "Global bound on 'cost' violated (100.0 < 0)",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 100.0

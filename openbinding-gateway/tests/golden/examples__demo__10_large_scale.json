@@ -22,9 +22,9 @@
           "time": 1215.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 378.0538106339981
@@ -64,9 +64,9 @@
           "time": 1470.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 454.290360535565
@@ -106,9 +106,9 @@
           "time": 1811.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 555.5614711223989
@@ -148,9 +148,9 @@
           "time": 1170.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 364.3457520710516
@@ -190,9 +190,9 @@
           "time": 1500.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 462.6728820708601

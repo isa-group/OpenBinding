@@ -124,8 +124,8 @@ services:
 
   engine-evolutionary-heuristics:
     build:
-      context: ./engines/evolutionary-heuristics
-      dockerfile: Dockerfile
+      context: ./engines
+      dockerfile: evolutionary-heuristics/Dockerfile
       args:
         <<: *proxy-build-args
     profiles: ["dev", "prod"]

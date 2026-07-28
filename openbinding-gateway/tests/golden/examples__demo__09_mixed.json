@@ -13,9 +13,17 @@
           "rel": 0.9801
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": false,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "c1",
+            "description": "Slack: -5.0",
+            "message": "Global bound on 'cost' violated (155.0 <= 150)",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 31.78408
@@ -52,9 +60,9 @@
           "rel": 0.9355500000000001
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 26.74844
@@ -83,9 +91,17 @@
           "rel": 0.9801
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": false,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "c1",
+            "description": "Slack: -5.0",
+            "message": "Global bound on 'cost' violated (155.0 <= 150)",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 31.78408
@@ -122,9 +138,9 @@
           "rel": 0.8505
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 16.6804
@@ -153,9 +169,9 @@
           "rel": 0.891
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 21.7128

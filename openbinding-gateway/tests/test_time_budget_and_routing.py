@@ -62,7 +62,9 @@ def test_evolutionary_payload_keeps_time_budget_option():
     assert warnings == []
     assert payload["options"]["time_budget_ms"] == 300_000
     assert payload["options"]["max_evaluations"] == 1000
-    assert payload["placement"] is not None
+    # One request shape: the engine derives its own placement view.
+    assert set(payload) == {"instance", "options"}
+    assert payload["instance"]["resource_model"]
 
 
 def test_random_search_response_uses_engine_internal_objective():

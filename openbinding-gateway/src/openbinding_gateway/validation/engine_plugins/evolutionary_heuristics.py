@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Tuple
 import httpx
 
 from .base import EngineValidationPlugin
-from .reference_evaluator import build_placement_payload
 from ...models.api import ValidationViolation
 
 
@@ -124,11 +123,9 @@ class EvolutionaryHeuristicsEnginePlugin(EngineValidationPlugin):
             for name, value in options.items()
             if name in self._VALID_OPTIONS and value is not None
         }
-        payload: Dict[str, Any] = {"instance": instance, "options": filtered_options}
-        placement = build_placement_payload(instance)
-        if placement is not None:
-            payload["placement"] = placement
-        return payload, warnings
+        # The instance travels as-is: the engine derives the placement view it
+        # needs from resource_model / latency_model itself.
+        return {"instance": instance, "options": filtered_options}, warnings
 
     def transform_response(
         self, engine_response: Dict[str, Any], original_request: Dict[str, Any]

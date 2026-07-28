@@ -10,9 +10,9 @@
           "latency": 40.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 40.0
@@ -37,9 +37,9 @@
           "latency": 40.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 40.0
@@ -64,9 +64,17 @@
           "latency": 60.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "soft_constraint_violation",
+            "constraint_id": "c_soft_lat",
+            "description": "Slack: -10.0",
+            "message": "Global bound on 'latency' violated (60.0 <= 50)",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 60.0
@@ -99,9 +107,17 @@
           "latency": 60.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": [
+          {
+            "code": "soft_constraint_violation",
+            "constraint_id": "c_soft_lat",
+            "description": "Slack: -10.0",
+            "message": "Global bound on 'latency' violated (60.0 <= 50)",
+            "penalty": 0.0
+          }
+        ]
       },
       "gateway_without_engine_objective": {
         "objective_value": 60.0
@@ -134,9 +150,9 @@
           "latency": 40.0
         },
         "engine_objective_value": null,
-        "feasible": null,
+        "feasible": true,
         "objective_value": 0.5,
-        "violations": null
+        "violations": []
       },
       "gateway_without_engine_objective": {
         "objective_value": 40.0

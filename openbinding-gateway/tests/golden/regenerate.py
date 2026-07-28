@@ -28,7 +28,7 @@ import random
 from typing import Any, Dict, List
 
 from openbinding_gateway.validation.engine_plugins.aggregation import canonicalize_result_data
-from openbinding_gateway.validation.engine_plugins.bimstar import evaluate_solution, is_bimstar
+from openbinding_gateway.validation.engine_plugins.reference_evaluator import evaluate_solution
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
@@ -79,7 +79,7 @@ def snapshot(path: str) -> Dict[str, Any]:
 
     entry: Dict[str, Any] = {
         "instance": os.path.relpath(path, REPO_ROOT),
-        "placement": is_bimstar(instance),
+        "placement": bool(instance.get("resource_model") or instance.get("latency_model")),
         "objective_type": objective.get("type"),
         "objective_targets": sorted(targets),
         "normalized_targets": sorted(t for t in targets if (policies.get(t) or {}).get("normalize")),

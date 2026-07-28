@@ -1,14 +1,7 @@
 import os
 from typing import List, Dict, Any, Optional, Tuple
 import httpx
-from .aggregation import (
-    build_selected_candidate_by_task,
-    compute_aggregated_qos,
-    normalize_qos,
-    compute_objective_value,
-)
 from .base import EngineValidationPlugin
-from .reference_evaluator import declares_normalization, evaluate_solution
 from ...models.api import ValidationViolation
 
 class RandomSearchEnginePlugin(EngineValidationPlugin):
@@ -195,38 +188,10 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
 
         selection = engine_response.get("selection") or {}
 
-        # Recompute aggregated + normalized QoS in gateway to avoid information loss and
-        # align with general semantics.
-        candidates_by_id = {c["id"]: c for c in (original_request.get("candidates", []) or [])}
-        features = {f["id"]: f for f in (original_request.get("features", []) or [])}
-        agg_policies = original_request.get("aggregation_policies", {}) or {}
-
-        selected_candidate_by_task = build_selected_candidate_by_task(selection, candidates_by_id)
-
-        root = (original_request.get("composition", {}) or {}).get("root", {})
-        aggregated_qos = compute_aggregated_qos(root, features, selected_candidate_by_task, agg_policies)
-        normalized_qos = normalize_qos(aggregated_qos, features, agg_policies)
-
-        # The engine always searches on the canonical normalized loss, which is
-        # only the convention the instance asked for when it declares
-        # normalization for every objective target. Adopting it otherwise would
-        # report a loss where the instance's own convention is a weighted sum of
-        # normalized goodness - the same solution with the opposite orientation.
-        engine_objective = engine_response.get("objective_value")
-        if engine_objective is not None and declares_normalization(original_request):
-            objective_value = float(engine_objective)
-        else:
-            obj = original_request.get("objective", {}) or {}
-            objective_value = compute_objective_value(obj, normalized_qos)
-
-        # Constraint checking is the reference evaluator's job. Re-implementing
-        # it here is how this plugin ended up ignoring candidate-scoped bounds,
-        # IN_RANGE values and dependency constraints, and reporting a solution
-        # as feasible while listing a hard violation of it.
-        evaluation = evaluate_solution(original_request, selection)
-        new_violations = evaluation["violations"]
-        feasible = evaluation["feasible"]
-
+        # Metrics are not this plugin's business: canonicalize_result_data runs
+        # the reference evaluator over the binding for every engine alike. The
+        # engine's own objective is passed through so it can be recorded
+        # alongside the canonical one.
         provenance = {
              "engine_id": "random-search",
              "execution_time_ms": engine_response.get("execution_time", 0),
@@ -242,11 +207,8 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
             provenance["metadata"]["trace"] = engine_response.get("trace")
 
         new_sol = {
-            "objective_value": objective_value,
+            "objective_value": engine_response.get("objective_value"),
             "binding": selection,
-            "aggregated_features": aggregated_qos,
-            "violations": new_violations,
-            "feasible": feasible,
         }
         
         return {

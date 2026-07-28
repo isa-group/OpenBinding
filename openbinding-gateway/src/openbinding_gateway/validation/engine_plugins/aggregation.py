@@ -283,25 +283,45 @@ def canonicalize_result_data(result_data: Dict[str, Any], original_request: Dict
     if not isinstance(solutions, list):
         return result_data
 
-    # Instances that normalize every objective target are canonicalized by the
-    # reference evaluator, which is authoritative over engine-reported metrics
-    # and also covers the placement extensions (end-to-end latency, capacity
-    # and transition constraints) whenever the instance declares them.
-    from .reference_evaluator import apply_reference_evaluation, declares_normalization
+    # Every engine's answer goes through the reference evaluator: features,
+    # violations and feasibility come from one implementation rather than from
+    # whatever each engine happens to report, and placement semantics are
+    # included whenever the instance declares them.
+    #
+    # The objective is the one place the instance gets a say. Declaring
+    # normalization for every target selects the canonical convention, a
+    # weighted mean of losses that the gateway owns; otherwise the instance's
+    # own weighted sum stands, and a MONO value the engine already reported is
+    # left alone.
+    from .reference_evaluator import declares_normalization, evaluate_solution
 
-    if declares_normalization(original_request):
-        return apply_reference_evaluation(result_data, original_request)
-
-    root = (original_request.get("composition") or {}).get("root") or {}
+    canonical = declares_normalization(original_request)
     features = {feature["id"]: feature for feature in (original_request.get("features") or [])}
-    agg_policies = (original_request.get("aggregation_policies") or {})
-    candidates_by_id = {candidate["id"]: candidate for candidate in (original_request.get("candidates") or [])}
+    agg_policies = original_request.get("aggregation_policies") or {}
     objective = original_request.get("objective") or {}
+
     for solution in solutions:
         if not isinstance(solution, dict):
             continue
-        _recompute_solution_aggregated_features(solution, root, features, agg_policies, candidates_by_id)
-        _canonicalize_solution_objective_value(solution, objective, features, agg_policies)
+
+        binding = solution.get("binding")
+        if not isinstance(binding, dict) or not binding:
+            solution.setdefault("aggregated_features", {})
+            continue
+
+        evaluation = evaluate_solution(original_request, binding)
+        engine_objective = solution.get("objective_value")
+
+        solution["aggregated_features"] = evaluation["aggregated_features"]
+        solution["violations"] = evaluation["violations"]
+        solution["feasible"] = evaluation["feasible"]
+
+        if canonical:
+            solution["objective_value"] = evaluation["objective_value"]
+            if engine_objective is not None:
+                solution["engine_objective_value"] = float(engine_objective)
+        else:
+            _canonicalize_solution_objective_value(solution, objective, features, agg_policies)
 
     return result_data
 
