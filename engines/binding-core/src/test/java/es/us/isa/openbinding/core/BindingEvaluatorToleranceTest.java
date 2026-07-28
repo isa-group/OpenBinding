@@ -1,5 +1,15 @@
 package es.us.isa.openbinding.core;
 
+import es.us.isa.openbinding.core.model.AggregationFunction;
+import es.us.isa.openbinding.core.model.AggregationPolicy;
+import es.us.isa.openbinding.core.model.Candidate;
+import es.us.isa.openbinding.core.model.Composition;
+import es.us.isa.openbinding.core.model.Constraint;
+import es.us.isa.openbinding.core.model.Feature;
+import es.us.isa.openbinding.core.model.Node;
+import es.us.isa.openbinding.core.model.NumericRange;
+import es.us.isa.openbinding.core.model.Objective;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,39 +45,39 @@ class BindingEvaluatorToleranceTest {
         final BindingEvaluator evaluator;
 
         EngineModelsFixture(String op, double candidateCost, double bound) {
-            BimStarModels.Instance instance = new BimStarModels.Instance();
+            EngineModels.Instance instance = new EngineModels.Instance();
 
-            BimStarModels.Feature cost = new BimStarModels.Feature();
+            Feature cost = new Feature();
             cost.id = "cost";
             cost.direction = "MINIMIZE";
             cost.scale = "RATIO";
             cost.valid_range = range(0.0, 1000.0);
-            instance.features = new ArrayList<BimStarModels.Feature>(Collections.singletonList(cost));
+            instance.features = new ArrayList<Feature>(Collections.singletonList(cost));
 
-            BimStarModels.Candidate candidate = new BimStarModels.Candidate();
+            Candidate candidate = new Candidate();
             candidate.id = "C1";
             candidate.task_id = "T1";
             candidate.provider_id = "P1";
             candidate.features.put("cost", Double.valueOf(candidateCost));
             instance.candidates =
-                    new ArrayList<BimStarModels.Candidate>(Collections.singletonList(candidate));
+                    new ArrayList<Candidate>(Collections.singletonList(candidate));
 
-            BimStarModels.Node task = new BimStarModels.Node();
+            Node task = new Node();
             task.id = "n1";
             task.kind = "TASK";
             task.task_id = "T1";
-            instance.composition = new BimStarModels.Composition();
+            instance.composition = new Composition();
             instance.composition.type = "STRUCTURED";
             instance.composition.root = task;
 
-            BimStarModels.AggregationPolicy policy = new BimStarModels.AggregationPolicy();
+            AggregationPolicy policy = new AggregationPolicy();
             policy.neutral = Double.valueOf(0.0);
-            BimStarModels.AggregationFunction sum = new BimStarModels.AggregationFunction();
+            AggregationFunction sum = new AggregationFunction();
             sum.fn = "SUM";
             policy.compose.put("seq", sum);
             instance.aggregation_policies.put("cost", policy);
 
-            BimStarModels.Constraint constraint = new BimStarModels.Constraint();
+            Constraint constraint = new Constraint();
             constraint.id = "c";
             constraint.kind = "ATTRIBUTE_BOUND";
             constraint.scope = "GLOBAL";
@@ -76,9 +86,9 @@ class BindingEvaluatorToleranceTest {
             constraint.value = Double.valueOf(bound);
             constraint.hard = Boolean.TRUE;
             instance.constraints =
-                    new ArrayList<BimStarModels.Constraint>(Collections.singletonList(constraint));
+                    new ArrayList<Constraint>(Collections.singletonList(constraint));
 
-            BimStarModels.Objective objective = new BimStarModels.Objective();
+            Objective objective = new Objective();
             objective.type = "MONO";
             objective.targets = new ArrayList<String>(Collections.singletonList("cost"));
             objective.weights.put("cost", Double.valueOf(1.0));
@@ -93,8 +103,8 @@ class BindingEvaluatorToleranceTest {
         }
     }
 
-    private static BimStarModels.NumericRange range(double min, double max) {
-        BimStarModels.NumericRange range = new BimStarModels.NumericRange();
+    private static NumericRange range(double min, double max) {
+        NumericRange range = new NumericRange();
         range.min = min;
         range.max = max;
         return range;

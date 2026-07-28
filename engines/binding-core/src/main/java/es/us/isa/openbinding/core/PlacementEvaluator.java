@@ -1,11 +1,11 @@
 package es.us.isa.openbinding.core;
 
-import es.us.isa.openbinding.core.BimStarModels.Candidate;
-import es.us.isa.openbinding.core.BimStarModels.E2eScenario;
-import es.us.isa.openbinding.core.BimStarModels.Placement;
-import es.us.isa.openbinding.core.BimStarModels.PlacementResourceConstraint;
-import es.us.isa.openbinding.core.BimStarModels.PlacementTransition;
-import es.us.isa.openbinding.core.BimStarModels.Pool;
+import es.us.isa.openbinding.core.model.Candidate;
+import es.us.isa.openbinding.core.model.E2eScenario;
+import es.us.isa.openbinding.core.model.Placement;
+import es.us.isa.openbinding.core.model.PlacementResourceConstraint;
+import es.us.isa.openbinding.core.model.PlacementTransition;
+import es.us.isa.openbinding.core.model.Pool;
 
 import java.util.ArrayList;
 import java.util.Collections;

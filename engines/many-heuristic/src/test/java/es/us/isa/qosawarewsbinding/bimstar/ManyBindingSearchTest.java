@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import es.us.isa.openbinding.core.BimStarModels;
+import es.us.isa.openbinding.core.EngineModels;
 import es.us.isa.openbinding.core.TestInstances;
 
 import java.util.List;
@@ -29,7 +29,7 @@ class ManyBindingSearchTest {
     void archiveHoldsAFront() {
         // cost and quality pull in opposite directions, so several bindings
         // are non-dominated.
-        BimStarModels.Instance instance = TestInstances.twoTasksTwoCandidates();
+        EngineModels.Instance instance = TestInstances.twoTasksTwoCandidates();
 
         ManyBindingSearch.Result result =
                 ManyBindingSearch.run(instance, null, ITERATIONS, null, ARCHIVE, 5L);
@@ -43,7 +43,7 @@ class ManyBindingSearchTest {
     @Test
     @DisplayName("no member of the archive dominates another")
     void archiveMembersAreMutuallyNonDominated() {
-        BimStarModels.Instance instance = TestInstances.twoTasksTwoCandidates();
+        EngineModels.Instance instance = TestInstances.twoTasksTwoCandidates();
 
         ManyBindingSearch.Result result =
                 ManyBindingSearch.run(instance, null, ITERATIONS, null, ARCHIVE, 5L);
@@ -63,7 +63,7 @@ class ManyBindingSearchTest {
     @Test
     @DisplayName("the same seed gives the same front")
     void seedDecidesTheFront() {
-        BimStarModels.Instance instance = TestInstances.twoTasksTwoCandidates();
+        EngineModels.Instance instance = TestInstances.twoTasksTwoCandidates();
 
         ManyBindingSearch.Result first =
                 ManyBindingSearch.run(instance, null, ITERATIONS, null, ARCHIVE, 9L);
@@ -77,7 +77,7 @@ class ManyBindingSearchTest {
     @DisplayName("only feasible bindings enter the archive")
     void infeasibleBindingsAreKeptOut() {
         // Bound of 60 rules out A2+B2 (cost 100).
-        BimStarModels.Instance instance = TestInstances.withGlobalCostBound(60.0);
+        EngineModels.Instance instance = TestInstances.withGlobalCostBound(60.0);
 
         ManyBindingSearch.Result result =
                 ManyBindingSearch.run(instance, null, ITERATIONS, null, ARCHIVE, 4L);
@@ -93,7 +93,7 @@ class ManyBindingSearchTest {
     @DisplayName("with nothing feasible, the best infeasible binding comes back instead of an empty front")
     void emptyFrontFallsBackToTheBestInfeasible() {
         // No pair of candidates can total less than 2.
-        BimStarModels.Instance instance = TestInstances.withGlobalCostBound(1.0);
+        EngineModels.Instance instance = TestInstances.withGlobalCostBound(1.0);
 
         ManyBindingSearch.Result result =
                 ManyBindingSearch.run(instance, null, ITERATIONS, null, ARCHIVE, 6L);
@@ -106,7 +106,7 @@ class ManyBindingSearchTest {
     @Test
     @DisplayName("the evaluation budget is honoured exactly when no time budget is set")
     void evaluationBudgetIsHonoured() {
-        BimStarModels.Instance instance = TestInstances.twoTasksTwoCandidates();
+        EngineModels.Instance instance = TestInstances.twoTasksTwoCandidates();
 
         ManyBindingSearch.Result result =
                 ManyBindingSearch.run(instance, null, ITERATIONS, null, ARCHIVE, 1L);

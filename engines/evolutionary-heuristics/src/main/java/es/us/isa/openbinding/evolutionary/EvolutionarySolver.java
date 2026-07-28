@@ -1,5 +1,6 @@
 package es.us.isa.openbinding.evolutionary;
 
+import es.us.isa.openbinding.core.BindingEvaluator;
 import static es.us.isa.openbinding.evolutionary.ApiModels.*;
 
 import java.util.ArrayList;

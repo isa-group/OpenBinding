@@ -1,5 +1,10 @@
 package es.us.isa.openbinding.evolutionary;
 
+import es.us.isa.openbinding.core.BindingEvaluator;
+import es.us.isa.openbinding.core.PlacementEvaluator;
+import es.us.isa.openbinding.core.EngineModels;
+import es.us.isa.openbinding.core.model.Placement;
+
 import static es.us.isa.openbinding.evolutionary.ApiModels.*;
 
 import java.util.ArrayList;
@@ -23,7 +28,7 @@ final class EvolutionaryBindingProblem extends AbstractIntegerProblem {
   }
 
   private final BindingEvaluator evaluator;
-  private final Instance instance;
+  private final EngineModels.Instance instance;
   private final Options options;
   private final boolean hasSoftConstraints;
 
@@ -43,11 +48,11 @@ final class EvolutionaryBindingProblem extends AbstractIntegerProblem {
   private Long timeBudgetMs;
   private long minEvaluations = 0;
 
-  EvolutionaryBindingProblem(Instance instance, Options options) {
+  EvolutionaryBindingProblem(EngineModels.Instance instance, Options options) {
     this(instance, options, null);
   }
 
-  EvolutionaryBindingProblem(Instance instance, Options options, ApiModels.Placement placement) {
+  EvolutionaryBindingProblem(EngineModels.Instance instance, Options options, Placement placement) {
     this.instance = instance;
     this.options = options;
     this.evaluator = new BindingEvaluator(

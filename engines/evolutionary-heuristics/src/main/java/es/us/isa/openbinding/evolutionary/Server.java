@@ -1,5 +1,6 @@
 package es.us.isa.openbinding.evolutionary;
 
+import es.us.isa.openbinding.core.PlacementAdapter;
 import static es.us.isa.openbinding.evolutionary.ApiModels.*;
 
 import com.google.gson.Gson;

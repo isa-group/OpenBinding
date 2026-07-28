@@ -27,27 +27,11 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Test the shared placement core
-        working-directory: engines/binding-core
-        run: mvn -B test
-
-      - name: Install the shared placement core
-        # Also publishes its test-jar: the engines test their searches against
-        # the same instances this module tests its evaluator with.
-        working-directory: engines/binding-core
-        run: mvn -B -DskipTests install
-
-      - name: Test random-search
-        working-directory: engines/random-search
-        run: mvn -B test
-
-      - name: Test many-heuristic
-        working-directory: engines/many-heuristic
-        run: mvn -B test
-
-      - name: Test evolutionary-heuristics
-        working-directory: engines/evolutionary-heuristics
-        run: mvn -B test
+      - name: Build and test the JVM engines
+        # The aggregator installs binding-core before the engines that depend
+        # on it, so the order does not have to be known here.
+        working-directory: engines
+        run: mvn -B install
 
       - name: Test minizinc-csp
         working-directory: engines/minizinc-csp

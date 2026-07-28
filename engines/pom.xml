@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>es.us.isa.openbinding</groupId>
+  <artifactId>engines</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <name>OpenBinding JVM engines</name>
+  <description>
+    Aggregator for the JVM engines and the core they share. Building from here
+    installs binding-core before the engines that depend on it, which is
+    otherwise something you have to know:
+
+        mvn install        builds and tests everything, in order
+        mvn -pl random-search -am test    just that engine and what it needs
+  </description>
+
+  <modules>
+    <module>binding-core</module>
+    <module>random-search</module>
+    <module>many-heuristic</module>
+  </modules>
+
+  <profiles>
+    <!--
+      evolutionary-heuristics targets Java 21 while the other two run on a
+      JDK 8 runtime, so it joins the reactor only on a JDK that can build it.
+      Without this the aggregator fails on an older JDK with an error about
+      the release version, which says nothing about which module or why.
+    -->
+    <profile>
+      <id>jdk21-engines</id>
+      <activation>
+        <jdk>[21,)</jdk>
+      </activation>
+      <modules>
+        <module>evolutionary-heuristics</module>
+      </modules>
+    </profile>
+  </profiles>
+</project>

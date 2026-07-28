@@ -1,6 +1,23 @@
 package es.us.isa.qosawarewsbinding.bimstar;
 
-import static es.us.isa.openbinding.core.BimStarModels.*;
+import static es.us.isa.openbinding.core.EngineModels.*;
+import es.us.isa.openbinding.core.model.AggregationFunction;
+import es.us.isa.openbinding.core.model.AggregationPolicy;
+import es.us.isa.openbinding.core.model.Branch;
+import es.us.isa.openbinding.core.model.Candidate;
+import es.us.isa.openbinding.core.model.Composition;
+import es.us.isa.openbinding.core.model.Constraint;
+import es.us.isa.openbinding.core.model.E2eModel;
+import es.us.isa.openbinding.core.model.E2eScenario;
+import es.us.isa.openbinding.core.model.Feature;
+import es.us.isa.openbinding.core.model.Node;
+import es.us.isa.openbinding.core.model.Normalization;
+import es.us.isa.openbinding.core.model.NumericRange;
+import es.us.isa.openbinding.core.model.Objective;
+import es.us.isa.openbinding.core.model.Placement;
+import es.us.isa.openbinding.core.model.PlacementResourceConstraint;
+import es.us.isa.openbinding.core.model.PlacementTransition;
+import es.us.isa.openbinding.core.model.Pool;
 
 import es.us.isa.openbinding.core.BindingEvaluator;
 import es.us.isa.openbinding.core.PlacementEvaluator;

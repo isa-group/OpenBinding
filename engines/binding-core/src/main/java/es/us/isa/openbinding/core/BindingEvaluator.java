@@ -1,15 +1,15 @@
 package es.us.isa.openbinding.core;
 
-import es.us.isa.openbinding.core.BimStarModels.AggregationFunction;
-import es.us.isa.openbinding.core.BimStarModels.AggregationPolicy;
-import es.us.isa.openbinding.core.BimStarModels.Branch;
-import es.us.isa.openbinding.core.BimStarModels.Candidate;
-import es.us.isa.openbinding.core.BimStarModels.Constraint;
-import es.us.isa.openbinding.core.BimStarModels.Feature;
-import es.us.isa.openbinding.core.BimStarModels.Instance;
-import es.us.isa.openbinding.core.BimStarModels.Node;
-import es.us.isa.openbinding.core.BimStarModels.NumericRange;
-import es.us.isa.openbinding.core.BimStarModels.ViolationDto;
+import es.us.isa.openbinding.core.model.AggregationFunction;
+import es.us.isa.openbinding.core.model.AggregationPolicy;
+import es.us.isa.openbinding.core.model.Branch;
+import es.us.isa.openbinding.core.model.Candidate;
+import es.us.isa.openbinding.core.model.Constraint;
+import es.us.isa.openbinding.core.model.Feature;
+import es.us.isa.openbinding.core.EngineModels.Instance;
+import es.us.isa.openbinding.core.model.Node;
+import es.us.isa.openbinding.core.model.NumericRange;
+import es.us.isa.openbinding.core.EngineModels.ViolationDto;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -147,6 +147,25 @@ public final class BindingEvaluator {
     }
 
     return new Evaluation(binding, aggregated, losses, evaluateConstraints(selected, aggregated));
+  }
+
+  /**
+   * The complement of the objective: how good a binding is, in [0, 1].
+   *
+   * <p>Reported alongside the objective for readers who find "0.84 good"
+   * easier than "0.16 of loss"; the search itself minimizes the loss.
+   */
+  public double qualityScore(Evaluation evaluation) {
+    double score = 0.0;
+    double totalWeight = 0.0;
+    for (String target : instance.objective.targets) {
+      Double weight = instance.objective.weights.get(target);
+      double w = weight == null ? 1.0 : weight.doubleValue();
+      Double loss = evaluation.losses().get(target);
+      score += w * (1.0 - (loss == null ? 1.0 : loss.doubleValue()));
+      totalWeight += w;
+    }
+    return totalWeight > 0.0 ? score / totalWeight : 0.0;
   }
 
   /** MONO objective: weighted normalized loss (lower is better). */

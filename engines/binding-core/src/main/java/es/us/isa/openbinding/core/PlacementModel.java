@@ -1,5 +1,8 @@
 package es.us.isa.openbinding.core;
 
+import es.us.isa.openbinding.core.model.Placement;
+import es.us.isa.openbinding.core.model.Pool;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;

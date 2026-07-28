@@ -66,19 +66,19 @@ class ManyHeuristicEnginePlugin(EngineValidationPlugin):
         # The instance travels as-is: the engine derives the placement view it
         # needs and reads the composition, constraints and policies itself,
         # through the core the JVM engines share.
-        config = {
+        options_payload = {
             "max_iterations": options.get("iterations_count", 1000),
             "archive_size": options.get("archive_size", 20),
         }
         if options.get("seed") is not None:
-            config["seed"] = int(options["seed"])
+            options_payload["seed"] = int(options["seed"])
         if options.get("time_budget_ms") is not None:
-            config["time_budget_ms"] = int(options["time_budget_ms"])
+            options_payload["time_budget_ms"] = int(options["time_budget_ms"])
 
         return {
             "id": instance.get("metadata", {}).get("id", "req-1"),
             "instance": instance,
-            "config": config,
+            "options": options_payload,
         }, warnings
 
     def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:

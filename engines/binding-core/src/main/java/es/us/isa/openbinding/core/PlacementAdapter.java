@@ -1,5 +1,12 @@
 package es.us.isa.openbinding.core;
 
+import es.us.isa.openbinding.core.model.E2eModel;
+import es.us.isa.openbinding.core.model.E2eScenario;
+import es.us.isa.openbinding.core.model.Placement;
+import es.us.isa.openbinding.core.model.PlacementResourceConstraint;
+import es.us.isa.openbinding.core.model.PlacementTransition;
+import es.us.isa.openbinding.core.model.Pool;
+
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,16 +29,16 @@ public final class PlacementAdapter {
     private PlacementAdapter() {
     }
 
-    public static BimStarModels.Placement from(Map<String, Object> instance) {
+    public static Placement from(Map<String, Object> instance) {
         PlacementModel model = new PlacementModel(instance);
-        BimStarModels.Placement placement = new BimStarModels.Placement();
+        Placement placement = new Placement();
 
         placement.pool_of_candidate = new LinkedHashMap<String, String>(model.poolOfCandidate());
         placement.demand_of_candidate =
                 new LinkedHashMap<String, Map<String, Double>>(model.demandOfCandidate());
 
         for (PlacementModel.Pool pool : model.pools()) {
-            BimStarModels.Pool dto = new BimStarModels.Pool();
+            Pool dto = new Pool();
             dto.id = pool.id;
             dto.kind = pool.kind;
             dto.capacity = new LinkedHashMap<String, Double>(pool.capacity);
@@ -39,8 +46,8 @@ public final class PlacementAdapter {
         }
 
         for (PlacementModel.CapacityConstraint constraint : model.capacityConstraints()) {
-            BimStarModels.PlacementResourceConstraint dto =
-                    new BimStarModels.PlacementResourceConstraint();
+            PlacementResourceConstraint dto =
+                    new PlacementResourceConstraint();
             dto.id = constraint.id;
             dto.hard = Boolean.valueOf(constraint.hard);
             dto.resources = new ArrayList<String>(constraint.resources);
@@ -55,7 +62,7 @@ public final class PlacementAdapter {
         placement.event_pools = new LinkedHashMap<String, String>(model.eventPools());
 
         for (PlacementModel.Transition transition : model.transitions()) {
-            BimStarModels.PlacementTransition dto = new BimStarModels.PlacementTransition();
+            PlacementTransition dto = new PlacementTransition();
             dto.id = transition.id;
             dto.hard = Boolean.valueOf(transition.hard);
             dto.from_task = transition.fromTask;
@@ -68,7 +75,7 @@ public final class PlacementAdapter {
 
         PlacementModel.GlobalLatency globalLatency = model.globalLatency();
         if (globalLatency != null) {
-            BimStarModels.E2eModel e2e = new BimStarModels.E2eModel();
+            E2eModel e2e = new E2eModel();
             e2e.attribute_id = globalLatency.attributeId;
             e2e.include_execution_latency_feature = globalLatency.includeExecutionLatencyFeature;
             e2e.xor_semantics = globalLatency.xorSemantics;
@@ -81,8 +88,8 @@ public final class PlacementAdapter {
         return placement;
     }
 
-    private static BimStarModels.E2eScenario toDto(PlacementModel.Scenario scenario) {
-        BimStarModels.E2eScenario dto = new BimStarModels.E2eScenario();
+    private static E2eScenario toDto(PlacementModel.Scenario scenario) {
+        E2eScenario dto = new E2eScenario();
         dto.prob = scenario.prob;
         dto.order = new ArrayList<String>(scenario.order);
         dto.sinks = new ArrayList<String>(scenario.sinks);

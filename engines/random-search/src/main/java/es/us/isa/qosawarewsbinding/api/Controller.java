@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import es.us.isa.qosawarewsbinding.api.dto.SolveResponse;
-import es.us.isa.openbinding.core.BimStarModels;
+import es.us.isa.openbinding.core.EngineModels;
 import es.us.isa.openbinding.core.PlacementAdapter;
 import es.us.isa.qosawarewsbinding.bimstar.BimStarRandomSearch;
 
@@ -56,8 +56,8 @@ public class Controller implements HttpHandler {
                 throw new IllegalArgumentException("Missing OpenBinding instance");
             }
 
-            BimStarModels.BimStarSolveRequest req =
-                    gson.fromJson(requestBody, BimStarModels.BimStarSolveRequest.class);
+            EngineModels.SolveRequest req =
+                    gson.fromJson(requestBody, EngineModels.SolveRequest.class);
             // The placement view is derived from the instance's optional
             // resource_model / latency_model blocks; it comes back empty when
             // the instance carries neither, and the search is the same either way.
@@ -116,15 +116,15 @@ public class Controller implements HttpHandler {
         return new String(output.toByteArray(), StandardCharsets.UTF_8);
     }
 
-    private SolveResponse processBimStar(BimStarModels.BimStarSolveRequest req) {
+    private SolveResponse processBimStar(EngineModels.SolveRequest req) {
         if (req == null || req.instance == null) {
             throw new IllegalArgumentException("Missing OpenBinding instance");
         }
-        int iterations = req.config != null && req.config.max_iterations > 0
-                ? req.config.max_iterations
+        int iterations = req.options != null && req.options.max_iterations > 0
+                ? req.options.max_iterations
                 : 1000;
-        Long timeBudgetMs = req.config != null ? req.config.time_budget_ms : null;
-        long seed = req.config != null && req.config.seed != null ? req.config.seed : 1L;
+        Long timeBudgetMs = req.options != null ? req.options.time_budget_ms : null;
+        long seed = req.options != null && req.options.seed != null ? req.options.seed : 1L;
 
         long start = System.currentTimeMillis();
         BimStarRandomSearch.Result result =

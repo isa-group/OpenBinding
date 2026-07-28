@@ -16,6 +16,7 @@ COPY binding-core ./binding-core
 COPY many-heuristic/pom.xml ./many-heuristic/pom.xml
 COPY many-heuristic/src ./many-heuristic/src
 
+# Installs the test-jar too, which the engine's own tests depend on.
 RUN cd /app/binding-core && mvn -B -q -DskipTests \
   -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv6Addresses=false \
   install

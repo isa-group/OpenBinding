@@ -133,16 +133,16 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
         # iterations_count is the minimum evaluation budget; when
         # time_budget_ms is set the search runs until the wall-clock budget
         # expires (never below the minimum).
-        config: Dict[str, Any] = {"max_iterations": options.get("iterations_count", 1000)}
+        options_payload: Dict[str, Any] = {"max_iterations": options.get("iterations_count", 1000)}
         if options.get("seed") is not None:
-            config["seed"] = int(options["seed"])
+            options_payload["seed"] = int(options["seed"])
         if options.get("time_budget_ms") is not None:
-            config["time_budget_ms"] = int(options["time_budget_ms"])
+            options_payload["time_budget_ms"] = int(options["time_budget_ms"])
 
         return {
             "id": instance.get("metadata", {}).get("id", "req-1"),
             "instance": instance,
-            "config": config,
+            "options": options_payload,
         }, warnings
 
     def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:

@@ -19,7 +19,7 @@ def test_random_search_payload_carries_budget_and_seed():
         {"iterations_count": 1000, "seed": 7, "time_budget_ms": 300_000},
     )
     assert warnings == []
-    assert payload["config"] == {
+    assert payload["options"] == {
         "max_iterations": 1000,
         "seed": 7,
         "time_budget_ms": 300_000,
@@ -37,11 +37,11 @@ def test_random_search_sends_the_instance_whether_or_not_it_has_placement():
     del plain["latency_model"]
     without_placement, _ = plugin.transform_request(plain, {"iterations_count": 500})
 
-    assert set(with_placement) == set(without_placement) == {"id", "instance", "config"}
+    assert set(with_placement) == set(without_placement) == {"id", "instance", "options"}
     assert "placement" not in with_placement
     assert with_placement["instance"]["resource_model"]
     assert "resource_model" not in without_placement["instance"]
-    assert without_placement["config"]["max_iterations"] == 500
+    assert without_placement["options"]["max_iterations"] == 500
 
 
 def test_evolutionary_payload_keeps_time_budget_option():
