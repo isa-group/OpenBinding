@@ -113,7 +113,9 @@
       "items": { "$ref": "#/$defs/constraint" },
       "default": []
     },
-    "objective": { "$ref": "#/$defs/objective" }
+    "objective": { "$ref": "#/$defs/objective" },
+    "resource_model": { "$ref": "#/$defs/resource_model" },
+    "latency_model": { "$ref": "#/$defs/latency_model" }
   },
   "$defs": {
       "identifier": {
@@ -271,7 +273,19 @@
               { "required": ["xor"] },
               { "required": ["loop"] }
             ]
-          }
+          },
+          "normalize": { "$ref": "#/$defs/normalization" }
+        }
+      },
+      "normalization": {
+        "$comment": "Declaring normalization for every objective target selects the canonical objective: a weighted mean of per-feature losses, where lower is better and the gateway value is authoritative over the one an engine reports. Instances that declare none keep the plain weighted sum of normalized goodness, where higher is better. The two are complements of each other when the weights sum to one.",
+        "type": "object",
+        "required": ["type"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string", "enum": ["minmax", "identity"] },
+          "bounds": { "$ref": "#/$defs/numeric_range" },
+          "increasing_is_better": { "type": "boolean" }
         }
       },
       "compose_fn": {
@@ -290,7 +304,8 @@
               "SCALED_PRODUCT",
               "SCALED_MIN",
               "SCALED_MAX",
-              "MEAN"
+              "MEAN",
+              "WEIGHTED_SUM"
             ]
           }
         }
@@ -323,7 +338,7 @@
           "attribute_id": { "$ref": "#/$defs/identifier" },
           "op": {
             "type": "string",
-            "enum": ["<=", ">=", "==", "<", ">", "IN_RANGE"]
+            "enum": ["<=", ">=", "==", "!=", "<", ">", "IN_RANGE"]
           },
           "value": {
             "oneOf": [{ "$ref": "#/$defs/numeric_range" }, { "type": "number" }]
@@ -368,7 +383,12 @@
           "kind": { "const": "DEPENDENCY" },
           "type": {
             "type": "string",
-            "enum": ["SAME_PROVIDER", "DIFFERENT_PROVIDER"]
+            "enum": [
+              "SAME_PROVIDER",
+              "DIFFERENT_PROVIDER",
+              "SAME_POOL",
+              "DIFFERENT_POOL"
+            ]
           },
           "tasks": {
             "type": "array",
@@ -453,6 +473,189 @@
           "min": { "type": "number" },
           "max": { "type": "number" }
         }
+      },
+
+      "resource_model": {
+        "$comment": "Placement extension, optional. An instance that omits resource_model and latency_model describes a plain binding problem; one that provides them adds resource and latency constraints over the very same decisions. Nothing else in the model changes either way.",
+        "type": "object",
+        "required": ["resources", "pools", "candidate_bindings", "constraints"],
+        "additionalProperties": false,
+        "properties": {
+          "resources": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "pools": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/resource_pool" }
+          },
+          "candidate_bindings": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/candidate_resource_binding" }
+          },
+          "constraints": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/resource_constraint" }
+          }
+        }
+      },
+      "resource_pool": {
+        "type": "object",
+        "required": ["id", "name", "kind", "capacity"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "name": { "type": "string", "minLength": 1 },
+          "kind": { "$ref": "#/$defs/identifier" },
+          "capacity": {
+            "type": "object",
+            "propertyNames": { "$ref": "#/$defs/identifier" },
+            "additionalProperties": { "type": "number", "minimum": 0 }
+          },
+          "metadata": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "candidate_resource_binding": {
+        "type": "object",
+        "required": ["candidate_id", "pool_id", "demand"],
+        "additionalProperties": false,
+        "properties": {
+          "candidate_id": { "$ref": "#/$defs/identifier" },
+          "pool_id": { "$ref": "#/$defs/identifier" },
+          "demand": {
+            "type": "object",
+            "propertyNames": { "$ref": "#/$defs/identifier" },
+            "additionalProperties": { "type": "number", "minimum": 0 }
+          }
+        }
+      },
+      "resource_constraint": {
+        "type": "object",
+        "required": ["id", "kind", "scope", "resources", "hard"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "kind": {
+            "type": "string",
+            "enum": ["DEPENDENCY", "RESOURCE_CAPACITY"]
+          },
+          "type": { "const": "RESOURCE_CAPACITY" },
+          "scope": {
+            "type": "string",
+            "enum": ["ALL_POOLS", "POOL_KIND"]
+          },
+          "resources": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "pool_kinds": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/identifier" }
+          },
+          "hard": { "type": "boolean" }
+        },
+        "oneOf": [
+          {
+            "$comment": "Canonical form: resource capacity as a dependency-type constraint.",
+            "properties": { "kind": { "const": "DEPENDENCY" } },
+            "required": ["type"]
+          },
+          {
+            "$comment": "Legacy spelling kept for backward compatibility.",
+            "properties": { "kind": { "const": "RESOURCE_CAPACITY" } }
+          }
+        ]
+      },
+      "latency_model": {
+        "type": "object",
+        "required": [
+          "unit",
+          "pool_latency_matrix_ms",
+          "event_generator_pools",
+          "event_latency_matrix_ms",
+          "transition_constraints",
+          "global_latency"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "unit": { "const": "ms" },
+          "pool_latency_matrix_ms": {
+            "type": "object",
+            "propertyNames": { "$ref": "#/$defs/identifier" },
+            "additionalProperties": {
+              "type": "object",
+              "propertyNames": { "$ref": "#/$defs/identifier" },
+              "additionalProperties": { "type": "number", "minimum": 0 }
+            }
+          },
+          "event_generator_pools": {
+            "type": "object",
+            "propertyNames": { "$ref": "#/$defs/identifier" },
+            "additionalProperties": { "$ref": "#/$defs/identifier" }
+          },
+          "event_latency_matrix_ms": {
+            "type": "object",
+            "propertyNames": { "$ref": "#/$defs/identifier" },
+            "additionalProperties": {
+              "type": "object",
+              "propertyNames": { "$ref": "#/$defs/identifier" },
+              "additionalProperties": { "type": "number", "minimum": 0 }
+            }
+          },
+          "transition_constraints": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/latency_constraint" }
+          },
+          "global_latency": {
+            "type": "object",
+            "required": [
+              "attribute_id",
+              "include_execution_latency_feature",
+              "xor_semantics",
+              "and_semantics"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "attribute_id": { "$ref": "#/$defs/identifier" },
+              "include_execution_latency_feature": { "type": "boolean" },
+              "xor_semantics": {
+                "type": "string",
+                "enum": ["EXPECTED", "WORST_CASE"]
+              },
+              "and_semantics": {
+                "type": "string",
+                "enum": ["MAX", "SUM"]
+              }
+            }
+          }
+        }
+      },
+      "latency_constraint": {
+        "type": "object",
+        "required": ["id", "to_task", "op", "value", "hard"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/identifier" },
+          "from_task": { "$ref": "#/$defs/identifier" },
+          "from_event": { "$ref": "#/$defs/identifier" },
+          "to_task": { "$ref": "#/$defs/identifier" },
+          "op": {
+            "type": "string",
+            "enum": ["<=", "<", ">=", ">", "==", "IN_RANGE"]
+          },
+          "value": {
+            "oneOf": [{ "type": "number" }, { "$ref": "#/$defs/numeric_range" }]
+          },
+          "hard": { "type": "boolean" }
+        },
+        "oneOf": [
+          { "required": ["from_task"] },
+          { "required": ["from_event"] }
+        ]
       }
     }
   }

@@ -11,13 +11,12 @@ import random
 
 import pytest
 
-from openbinding_gateway.validation.engine_plugins.bimstar import (
-    BimStarModel,
+from openbinding_gateway.validation.engine_plugins.reference_evaluator import (
+    PlacementModel,
     build_placement_payload,
     build_scenarios,
     canonical_objective,
     evaluate_solution,
-    is_bimstar,
 )
 
 
@@ -436,7 +435,7 @@ def test_budget_tightening_never_improves_optimum():
 
 def test_placement_payload_roundtrip():
     instance = micro_instance()
-    assert is_bimstar(instance)
+    assert instance.get("resource_model") and instance.get("latency_model")
     payload = build_placement_payload(instance)
     assert payload["e2e"]["attribute_id"] == "latency"
     assert len(payload["e2e"]["scenarios"]) == 2

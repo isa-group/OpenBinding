@@ -20,7 +20,7 @@ from typing import Any, Dict, List
 import pytest
 
 from openbinding_gateway.validation.engine_plugins.aggregation import canonicalize_result_data
-from openbinding_gateway.validation.engine_plugins.bimstar import evaluate_solution
+from openbinding_gateway.validation.engine_plugins.reference_evaluator import evaluate_solution
 
 TOLERANCE = 1e-9
 

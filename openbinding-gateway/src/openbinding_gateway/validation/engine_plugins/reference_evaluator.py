@@ -1,6 +1,13 @@
-"""Reference evaluation semantics for BIM' (placement-aware) instances.
+"""Reference evaluation semantics for a binding.
 
-This module is the single source of truth for the placement extensions of BIM:
+Placement is an optional extension of the problem, not a variant of it: the
+resource and latency models are blocks an instance may or may not carry. This
+module evaluates any binding with the same code either way — an instance
+without those blocks simply yields empty pools, empty constraint lists and no
+end-to-end latency, so the placement-specific work below iterates over nothing
+and the plain QoS evaluation is what remains.
+
+What the placement extensions add when present:
 
 - End-to-end latency of a binding, defined as the expected makespan over the
   XOR scenarios of the composition. Each scenario fixes one branch per XOR
@@ -16,11 +23,12 @@ This module is the single source of truth for the placement extensions of BIM:
 - Transition latency constraints: pairwise bounds on the network latency
   between the pools hosting two tasks (or an event generator and a task).
 - SAME_POOL / DIFFERENT_POOL dependency constraints.
-- The canonical objective value: a weighted sum of per-feature losses
-  normalized with instance-declared bounds, identical for every engine.
 
-Every solution returned by any engine is re-evaluated with these functions so
-that reported metrics are engine-independent.
+Independently of placement, this module computes the canonical objective
+value: a weighted mean of per-feature losses normalized with instance-declared
+bounds, identical for every engine. Instances that declare those bounds for
+every objective target are re-evaluated here, so that their reported metrics
+are engine-independent; see ``declares_normalization``.
 """
 
 from __future__ import annotations
@@ -37,13 +45,26 @@ EVENT_SOURCE = "event"
 TASK_SOURCE = "task"
 
 
-class BimStarError(ValueError):
-    """Raised when a BIM' instance cannot be interpreted."""
+class PlacementError(ValueError):
+    """Raised when the placement extensions of an instance cannot be interpreted."""
 
 
-def is_bimstar(instance: Dict[str, Any]) -> bool:
-    return isinstance(instance, dict) and (
-        "resource_model" in instance or "latency_model" in instance
+def declares_normalization(instance: Dict[str, Any]) -> bool:
+    """Whether the instance normalizes every one of its objective targets.
+
+    This is what selects the canonical objective convention (a weighted mean
+    of normalized losses, computed here and authoritative over whatever an
+    engine reports). Instances that declare no normalization keep the plain
+    weighted sum of their aggregated features and the engine's own value.
+
+    The choice is a property of how the objective is declared, not of whether
+    the instance carries placement blocks.
+    """
+    objective = instance.get("objective") or {}
+    targets = objective.get("targets") or []
+    policies = instance.get("aggregation_policies") or {}
+    return bool(targets) and all(
+        (policies.get(target) or {}).get("normalize") for target in targets
     )
 
 
@@ -82,7 +103,7 @@ def _build_dag(
     if kind == "TASK":
         task_id = node.get("task_id")
         if task_id in preds:
-            raise BimStarError(
+            raise PlacementError(
                 f"Task '{task_id}' appears more than once in the composition; "
                 "the BIM' latency model requires a single occurrence per task"
             )
@@ -111,9 +132,9 @@ def _build_dag(
         return _build_dag(branches[idx].get("child", {}) or {}, entries, choice, preds, order)
 
     if kind == "LOOP":
-        raise BimStarError("LOOP nodes are not supported by the BIM' latency model")
+        raise PlacementError("LOOP nodes are not supported by the BIM' latency model")
 
-    raise BimStarError(f"Unsupported composition node kind '{kind}'")
+    raise PlacementError(f"Unsupported composition node kind '{kind}'")
 
 
 def build_scenarios(
@@ -153,11 +174,16 @@ def build_scenarios(
 
 
 # ---------------------------------------------------------------------------
-# BIM' model view
+# Placement model view
 # ---------------------------------------------------------------------------
 
-class BimStarModel:
-    """Parsed view of the placement extensions of a BIM' instance."""
+class PlacementModel:
+    """Parsed view of the optional placement extensions of an instance.
+
+    Every field degrades to an empty collection (or ``None`` for the global
+    latency) when the corresponding block is absent, so consumers never have
+    to ask whether the instance carries placement data.
+    """
 
     def __init__(self, instance: Dict[str, Any]):
         self.instance = instance
@@ -212,7 +238,7 @@ class BimStarModel:
         if value is None:
             value = (self.latency_matrix.get(pool_b) or {}).get(pool_a)
         if value is None:
-            raise BimStarError(f"Missing pool latency entry for '{pool_a}' -> '{pool_b}'")
+            raise PlacementError(f"Missing pool latency entry for '{pool_a}' -> '{pool_b}'")
         return float(value)
 
     def event_pool_latency(self, event_id: str, pool_b: str) -> float:
@@ -223,7 +249,7 @@ class BimStarModel:
             event_pool = self.event_pools.get(event_id)
             if event_pool is not None:
                 return self.pool_latency(event_pool, pool_b)
-            raise BimStarError(f"Missing event latency entry for '{event_id}' -> '{pool_b}'")
+            raise PlacementError(f"Missing event latency entry for '{event_id}' -> '{pool_b}'")
         return float(value)
 
     def source_latency(self, source: Tuple[str, str], pool_of_task: Dict[str, str], to_pool: str) -> float:
@@ -242,7 +268,7 @@ class BimStarModel:
         xor_semantics = str(gl.get("xor_semantics") or "EXPECTED").upper()
         and_semantics = str(gl.get("and_semantics") or "MAX").upper()
         if and_semantics != "MAX":
-            raise BimStarError(f"Unsupported and_semantics '{and_semantics}' (only MAX)")
+            raise PlacementError(f"Unsupported and_semantics '{and_semantics}' (only MAX)")
 
         makespans: List[Tuple[float, float]] = []
         for scenario in self.scenarios():
@@ -370,7 +396,7 @@ def _check_attribute_bounds(
 def _check_dependencies(
     instance: Dict[str, Any],
     selected: Dict[str, Dict[str, Any]],
-    model: Optional[BimStarModel],
+    model: PlacementModel,
 ) -> List[Dict[str, Any]]:
     violations: List[Dict[str, Any]] = []
     for constraint in instance.get("constraints", []) or []:
@@ -387,7 +413,9 @@ def _check_dependencies(
             ]
             label = "provider"
         elif dep_type in ("SAME_POOL", "DIFFERENT_POOL"):
-            if model is None:
+            if not model.pools:
+                # No resource model declares pools, so there is nothing to
+                # compare. Validation rejects this instance before it gets here.
                 continue
             values = [
                 model.pool_of_candidate.get((selected.get(t) or {}).get("id"))
@@ -424,7 +452,7 @@ def _is_capacity_constraint(constraint: Dict[str, Any]) -> bool:
 
 
 def _check_resource_capacity(
-    model: BimStarModel,
+    model: PlacementModel,
     selected: Dict[str, Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
     violations: List[Dict[str, Any]] = []
@@ -467,7 +495,7 @@ def _check_resource_capacity(
 
 
 def _check_transitions(
-    model: BimStarModel,
+    model: PlacementModel,
     pool_of_task: Dict[str, str],
 ) -> List[Dict[str, Any]]:
     violations: List[Dict[str, Any]] = []
@@ -594,14 +622,16 @@ def evaluate_solution(instance: Dict[str, Any], binding: Dict[str, str]) -> Dict
             )
         )
 
-    model: Optional[BimStarModel] = None
-    if is_bimstar(instance):
-        model = BimStarModel(instance)
+    # An instance without placement blocks yields an empty model: no pools to
+    # bind candidates to, no capacity or transition constraints to check, and
+    # no end-to-end latency to override. The code below is the same either way.
+    model = PlacementModel(instance)
 
-        pool_of_task: Dict[str, str] = {}
-        for task_id, cand in selected.items():
-            pool = model.pool_of_candidate.get(cand.get("id"))
-            if pool is None:
+    pool_of_task: Dict[str, str] = {}
+    for task_id, cand in selected.items():
+        pool = model.pool_of_candidate.get(cand.get("id"))
+        if pool is None:
+            if model.pools:
                 violations.append(
                     _violation(
                         "candidate_pool_binding",
@@ -610,20 +640,20 @@ def evaluate_solution(instance: Dict[str, Any], binding: Dict[str, str]) -> Dict
                         -1.0,
                     )
                 )
-            else:
-                pool_of_task[task_id] = pool
+        else:
+            pool_of_task[task_id] = pool
 
-        if model.global_latency and not missing and len(pool_of_task) == len(selected):
-            lat_attr = model.global_latency.get("attribute_id")
-            include_exec = bool(model.global_latency.get("include_execution_latency_feature"))
-            exec_of_task = {
-                t: float((c.get("features") or {}).get(lat_attr, 0.0)) if include_exec else 0.0
-                for t, c in selected.items()
-            }
-            aggregated[lat_attr] = model.compute_e2e_latency(pool_of_task, exec_of_task)
+    if model.global_latency and not missing and len(pool_of_task) == len(selected):
+        lat_attr = model.global_latency.get("attribute_id")
+        include_exec = bool(model.global_latency.get("include_execution_latency_feature"))
+        exec_of_task = {
+            t: float((c.get("features") or {}).get(lat_attr, 0.0)) if include_exec else 0.0
+            for t, c in selected.items()
+        }
+        aggregated[lat_attr] = model.compute_e2e_latency(pool_of_task, exec_of_task)
 
-        violations.extend(_check_resource_capacity(model, selected))
-        violations.extend(_check_transitions(model, pool_of_task))
+    violations.extend(_check_resource_capacity(model, selected))
+    violations.extend(_check_transitions(model, pool_of_task))
 
     violations.extend(_check_attribute_bounds(instance, aggregated, selected))
     violations.extend(_check_dependencies(instance, selected, model))
@@ -647,14 +677,16 @@ def evaluate_solution(instance: Dict[str, Any], binding: Dict[str, str]) -> Dict
 def build_placement_payload(instance: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Compact, engine-oriented view of the placement extensions.
 
-    Scenario enumeration and constraint-scope resolution happen here, once,
-    so that every engine (MiniZinc builder, Java heuristics) only has to
-    implement the critical-path scheduling loop and simple lookups.
+    Being removed: this is gateway-side preprocessing of what is already in
+    the instance (scenario enumeration, constraint-scope resolution, model
+    flattening), and every engine is being moved to deriving it itself from
+    ``resource_model``/``latency_model``. It stays only for the engines that
+    have not been migrated yet.
     """
-    if not is_bimstar(instance):
+    if not (instance.get("resource_model") or instance.get("latency_model")):
         return None
 
-    model = BimStarModel(instance)
+    model = PlacementModel(instance)
 
     resource_constraints = []
     for constraint in model.resource_constraints:
@@ -722,7 +754,7 @@ def build_placement_payload(instance: Dict[str, Any]) -> Optional[Dict[str, Any]
     }
 
 
-def apply_bimstar_evaluation(result_data: Dict[str, Any], instance: Dict[str, Any]) -> Dict[str, Any]:
+def apply_reference_evaluation(result_data: Dict[str, Any], instance: Dict[str, Any]) -> Dict[str, Any]:
     """Overwrite engine-reported metrics of every solution with the reference ones."""
     solutions = result_data.get("solutions")
     if not isinstance(solutions, list):

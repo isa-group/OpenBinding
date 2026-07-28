@@ -32,25 +32,14 @@ def _resolve_schema_path(env_var: str, filename: str) -> Path:
     return schema_path
 
 
-def is_bimstar_instance(instance: Dict[str, Any]) -> bool:
-    return isinstance(instance, dict) and (
-        "resource_model" in instance or "latency_model" in instance
-    )
-
-
 class GeneralSchemaValidator:
     def __init__(self):
         with open(_resolve_schema_path("GENERAL_SCHEMA_PATH", "schema.json"), "r") as f:
             self.schema = json.load(f)
-        with open(_resolve_schema_path("BIMSTAR_SCHEMA_PATH", "bimstar.schema.json"), "r") as f:
-            self.bimstar_schema = json.load(f)
-
-    def schema_for(self, instance: Dict[str, Any]) -> Dict[str, Any]:
-        return self.bimstar_schema if is_bimstar_instance(instance) else self.schema
 
     def validate(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
         violations = []
-        validator = jsonschema.Draft202012Validator(self.schema_for(instance))
+        validator = jsonschema.Draft202012Validator(self.schema)
 
         for error in validator.iter_errors(instance):
             path_str = ".".join([str(p) for p in error.path]) if error.path else "root"

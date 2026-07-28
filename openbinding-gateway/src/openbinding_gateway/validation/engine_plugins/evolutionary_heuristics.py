@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Tuple
 import httpx
 
 from .base import EngineValidationPlugin
-from .bimstar import build_placement_payload
+from .reference_evaluator import build_placement_payload
 from ...models.api import ValidationViolation
 
 

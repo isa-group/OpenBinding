@@ -12,11 +12,6 @@ class ValidationPipeline:
         self.specialization_validator = SpecializationSchemaValidator()
         self.semantic_validator = GeneralSemanticValidator()
         self.schema_model = SchemaModel(self.general_validator.schema)
-        self.bimstar_schema_model = SchemaModel(self.general_validator.bimstar_schema)
-
-    def _schema_model_for(self, instance: Dict[str, Any]) -> SchemaModel:
-        from .general_schema import is_bimstar_instance
-        return self.bimstar_schema_model if is_bimstar_instance(instance) else self.schema_model
 
     def validate_general_schema(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
         # Stage 1: General Structural Validation
@@ -36,7 +31,7 @@ class ValidationPipeline:
             )], "engine_lookup"), []
 
         # Apply defaults expressed in the general schema to keep semantic checks consistent.
-        default_warnings = self._schema_model_for(instance).apply_defaults(instance)
+        default_warnings = self.schema_model.apply_defaults(instance)
             
         # Stage 2: Specialization Structural Validation
         v2 = self.specialization_validator.validate(engine_id, instance)

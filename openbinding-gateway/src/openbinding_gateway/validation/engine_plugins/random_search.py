@@ -7,7 +7,7 @@ from .aggregation import (
     normalize_qos,
     compute_objective_value,
 )
-from .bimstar import build_placement_payload
+from .reference_evaluator import build_placement_payload
 from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 

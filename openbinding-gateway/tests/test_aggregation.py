@@ -232,4 +232,11 @@ def test_canonicalize_result_data_computes_many_objective_value():
 
     assert result_data["solutions"][0]["aggregated_features"]["cost"] == pytest.approx(10.0)
     assert result_data["solutions"][0]["aggregated_features"]["reliability"] == pytest.approx(90.0)
-    assert result_data["solutions"][0]["objective_value"] == pytest.approx(0.9225)
+
+    # Declaring normalize bounds for every objective target selects the
+    # canonical objective: a weighted mean of per-feature losses, where lower
+    # is better. It is the complement of the plain weighted sum of normalized
+    # goodness that undeclared normalization keeps (0.0775 = 1 - 0.9225),
+    # because the weights sum to one.
+    assert result_data["solutions"][0]["objective_value"] == pytest.approx(0.0775)
+    assert result_data["solutions"][0]["engine_objective_value"] == pytest.approx(0.0)

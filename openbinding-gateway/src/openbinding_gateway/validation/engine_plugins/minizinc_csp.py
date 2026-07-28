@@ -2,7 +2,7 @@ import os
 from typing import List, Dict, Any, Optional, Tuple
 import httpx
 from .aggregation import build_selected_candidate_by_task, compute_aggregated_qos
-from .bimstar import build_placement_payload
+from .reference_evaluator import build_placement_payload
 from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 

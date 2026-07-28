@@ -100,14 +100,17 @@ OpenBinding validates incoming requests against two schema layers:
 
 Example payloads that follow these schemas live in `examples/`.
 
-### BIM′ placement extension (OpenBinding4Placement)
+### Placement extension (OpenBinding4Placement)
 
 **OpenBinding4Placement** is the placement-aware extension of OpenBinding used to solve
 **CLASP-FaaS** — the Cost- and Latency-Aware Secure Placement of FaaS Compositions — by
 formulating it as a placement-aware QACO problem (QACO′).
-`schemas/general/bimstar.schema.json` (implementation slug: `bimstar`) defines **BIM′**, the
-placement-aware BIM: it extends the general BIM with **placement semantics** for
-FaaS-orchestration binding over the Cloud-Edge continuum:
+
+Placement is **not a separate problem or a separate schema**: `resource_model` and
+`latency_model` are optional blocks of the general schema. An instance that omits them is a
+plain binding problem; an instance that provides them adds constraints over the very same
+decisions, and engines that support them take them into account natively. The blocks add
+**placement semantics** for FaaS-orchestration binding over the Cloud-Edge continuum:
 
 - **`resource_model`** — infrastructure pools with capacities, per-candidate pool bindings and
   resource demands, and `RESOURCE_CAPACITY` constraints (cumulative bin-packing per node).
@@ -116,12 +119,16 @@ FaaS-orchestration binding over the Cloud-Edge continuum:
   XOR scenarios** of the composition (critical-path scheduling on the precedence DAG).
 - **Canonical normalization** — per-feature min–max bounds embedded in the instance
   (`aggregation_policies.<id>.normalize`), so every engine optimizes and reports the same
-  normalized weighted objective.
-- **Dependency extensions** — `SAME_POOL` / `DIFFERENT_POOL` co-location constraints.
+  normalized weighted objective. Declaring it for every objective target is what selects the
+  canonical objective — a weighted mean of per-feature losses, lower is better — independently
+  of whether the instance carries placement blocks. Instances that declare none keep the plain
+  weighted sum of normalized goodness, where higher is better.
+- **Dependency extensions** — `SAME_POOL` / `DIFFERENT_POOL` co-location constraints, which
+  require a `resource_model` declaring pools.
 
 The reference implementation of these semantics lives in the gateway
-(`openbinding_gateway/validation/engine_plugins/bimstar.py`); every engine solution is re-evaluated
-against it. All engines support shared **wall-clock time budgets** (`time_budget_ms`) with anytime
+(`openbinding_gateway/validation/engine_plugins/reference_evaluator.py`); solutions of instances
+that declare canonical normalization are re-evaluated against it. All engines support shared **wall-clock time budgets** (`time_budget_ms`) with anytime
 best-so-far traces; the exact engine additionally reports its incumbent trace and completion status
 (`OPTIMAL` / `SATISFIED` / `UNSATISFIABLE` / `UNKNOWN`).
 

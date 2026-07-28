@@ -283,12 +283,14 @@ def canonicalize_result_data(result_data: Dict[str, Any], original_request: Dict
     if not isinstance(solutions, list):
         return result_data
 
-    # BIM' instances get the full reference evaluation (end-to-end latency,
-    # capacity/transition constraints, canonical normalized objective).
-    from .bimstar import apply_bimstar_evaluation, is_bimstar
+    # Instances that normalize every objective target are canonicalized by the
+    # reference evaluator, which is authoritative over engine-reported metrics
+    # and also covers the placement extensions (end-to-end latency, capacity
+    # and transition constraints) whenever the instance declares them.
+    from .reference_evaluator import apply_reference_evaluation, declares_normalization
 
-    if is_bimstar(original_request):
-        return apply_bimstar_evaluation(result_data, original_request)
+    if declares_normalization(original_request):
+        return apply_reference_evaluation(result_data, original_request)
 
     root = (original_request.get("composition") or {}).get("root") or {}
     features = {feature["id"]: feature for feature in (original_request.get("features") or [])}

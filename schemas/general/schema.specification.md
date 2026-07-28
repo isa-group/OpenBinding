@@ -42,6 +42,8 @@ The root object MUST contain:
 Optional fields:
 
 * `constraints` (defaults to `[]` if absent in many implementations; schema allows it omitted)
+* `resource_model` (placement extension, see section 10)
+* `latency_model` (placement extension, see section 11)
 
 The root has `additionalProperties: false`, so unknown top-level keys are rejected unless listed.
 
@@ -563,7 +565,7 @@ Be explicit:
 
 ## Compose functions
 
-* `SUM`, `PRODUCT`, `MAX`, `MIN`, `SCALED_SUM`, `SCALED_PRODUCT`, `SCALED_MIN`, `SCALED_MAX`, `MEAN`
+* `SUM`, `PRODUCT`, `MAX`, `MIN`, `SCALED_SUM`, `SCALED_PRODUCT`, `SCALED_MIN`, `SCALED_MAX`, `MEAN`, `WEIGHTED_SUM`
 
 ## Constraint kinds
 
@@ -575,12 +577,112 @@ Be explicit:
 
 ## Attribute bound operators
 
-* `<=`, `>=`, `==`, `<`, `>`, `IN_RANGE`
+* `<=`, `>=`, `==`, `!=`, `<`, `>`, `IN_RANGE`
 
 ## Dependency types
 
-* `SAME_PROVIDER`, `DIFFERENT_PROVIDER`
+* `SAME_PROVIDER`, `DIFFERENT_PROVIDER`, `SAME_POOL`, `DIFFERENT_POOL`
+
+  `SAME_POOL` and `DIFFERENT_POOL` require a `resource_model` declaring pools; an instance
+  that uses them without one is rejected by semantic validation.
 
 ## Objective types
 
 * `MONO`, `MULTI`, `MANY`
+
+
+---
+
+# 10) `resource_model` (optional, placement extension)
+
+Declares the infrastructure a binding is placed on, and the capacity it must respect.
+
+```json
+"resource_model": {
+  "resources": ["cpu_millicores", "memory_mb"],
+  "pools": [
+    { "id": "edge_1", "name": "Edge node 1", "kind": "EDGE",
+      "capacity": { "cpu_millicores": 4000, "memory_mb": 8192 } }
+  ],
+  "candidate_bindings": [
+    { "candidate_id": "c_t1_edge1", "pool_id": "edge_1",
+      "demand": { "cpu_millicores": 500, "memory_mb": 512 } }
+  ],
+  "constraints": [
+    { "id": "cap_all", "kind": "DEPENDENCY", "type": "RESOURCE_CAPACITY",
+      "scope": "ALL_POOLS", "resources": ["cpu_millicores", "memory_mb"], "hard": true }
+  ]
+}
+```
+
+### Field meaning
+
+* `resources` — the resource names capacities and demands are expressed in.
+* `pools` — where candidates can run. `kind` groups pools (`EDGE`, `FOG`, `CLOUD`, …) so that a
+  constraint can target a class of pools rather than each one. A resource missing from
+  `capacity` means unbounded for that resource.
+* `candidate_bindings` — the pool each candidate runs on, and what it consumes there. Selecting
+  a candidate therefore determines its placement: the pool is a function of the choice, not an
+  independent decision.
+* `constraints` — capacity constraints. `scope: ALL_POOLS` applies to every pool;
+  `scope: POOL_KIND` applies to the pools whose `kind` is listed in `pool_kinds`.
+
+### Semantics
+
+For every pool in scope and every listed resource, the cumulative `demand` of the selected
+candidates placed on that pool must not exceed the pool `capacity`. This is a cumulative
+bin-packing constraint, evaluated over the whole binding rather than per task.
+
+The legacy spelling `kind: "RESOURCE_CAPACITY"` (without `type`) is still accepted.
+
+---
+
+# 11) `latency_model` (optional, placement extension)
+
+Declares network latency between pools, and how it turns into an end-to-end latency for the
+whole composition.
+
+```json
+"latency_model": {
+  "unit": "ms",
+  "pool_latency_matrix_ms": { "edge_1": { "edge_1": 0, "cloud_1": 40 } },
+  "event_generator_pools": { "sensor": "edge_1" },
+  "event_latency_matrix_ms": { "sensor": { "edge_1": 1, "cloud_1": 45 } },
+  "transition_constraints": [
+    { "id": "t1_to_t2", "from_task": "T1", "to_task": "T2",
+      "op": "<=", "value": 50, "hard": true }
+  ],
+  "global_latency": {
+    "attribute_id": "latency",
+    "include_execution_latency_feature": true,
+    "xor_semantics": "EXPECTED",
+    "and_semantics": "MAX"
+  }
+}
+```
+
+### Field meaning
+
+* `pool_latency_matrix_ms` — pairwise latency between pools. Lookups fall back to the
+  transposed entry when a direction is missing, so a symmetric matrix can be given once.
+* `event_generator_pools` / `event_latency_matrix_ms` — external event sources that feed the
+  composition, and their latency to each pool.
+* `transition_constraints` — bounds on the latency between the pools hosting two tasks, or an
+  event generator and a task. `from_task` and `from_event` are mutually exclusive.
+* `global_latency` — binds the computed end-to-end latency to a feature of the instance.
+
+### Semantics
+
+The composition is read as a precedence DAG. Each XOR node fixes one branch per scenario, and
+the end-to-end latency of a scenario is its makespan under critical-path scheduling: a task
+starts once every predecessor has finished and its output has crossed the network. With
+`xor_semantics: EXPECTED` the scenarios are averaged weighted by their branch probabilities;
+with `WORST_CASE` the maximum is taken. `include_execution_latency_feature` adds each selected
+candidate's own latency feature to its task duration.
+
+Because the model needs a precedence DAG, an instance carrying a `latency_model` may not use
+`LOOP` nodes and may not repeat a task in the composition. Only `and_semantics: MAX` is
+implemented.
+
+When `global_latency.attribute_id` names a feature, the computed end-to-end latency **replaces**
+the value that ordinary aggregation would produce for that feature.

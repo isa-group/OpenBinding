@@ -14,12 +14,17 @@ class CompactQoSComposition {
   +AggregationPolicies aggregation_policies
   +Constraint[*] constraints
   +Objective objective
+  +ResourceModel? resource_model
+  +LatencyModel? latency_model
 }
 
 note for CompactQoSComposition "
 Required: metadata, features, providers, tasks, candidates, composition, aggregation_policies, objective
 additionalProperties = false (en la raíz)
 constraints: default = []
+resource_model / latency_model: extensión de placement, opcionales.
+Una instancia que los omite es un problema de binding simple;
+una que los aporta añade restricciones sobre las mismas decisiones.
 "
 
 %% =========================================================
@@ -199,7 +204,20 @@ class AggregationPolicies {
 class AggregationPolicy {
   +neutral: number
   +compose: ComposeConfig
+  +normalize?: Normalization
 }
+
+class Normalization {
+  +type: minmax | identity
+  +bounds?: NumericRange
+  +increasing_is_better?: boolean
+}
+
+note for Normalization "
+Declararla para todos los targets del objetivo selecciona el objetivo canónico:
+media ponderada de pérdidas normalizadas (menor es mejor), calculada por el
+gateway y autoritativa sobre lo que reporte el motor.
+"
 
 class ComposeConfig {
   +seq?: ComposeFn
@@ -223,6 +241,7 @@ class ComposeFnType {
   SCALED_PRODUCT
   SCALED_MIN
   SCALED_MAX
+  WEIGHTED_SUM
 }
 
 note for ComposeConfig "
@@ -269,6 +288,7 @@ class BoundOp {
   <=
   >=
   ==
+  !=
   <
   >
   IN_RANGE
@@ -292,7 +312,10 @@ class DependencyType {
   <<enumeration>>
   SAME_PROVIDER
   DIFFERENT_PROVIDER
+  SAME_POOL
+  DIFFERENT_POOL
 }
+note for DependencyType "SAME_POOL / DIFFERENT_POOL requieren resource_model"
 
 Constraint <|-- AttrBoundConstraint
 Constraint <|-- DependencyConstraint
@@ -378,3 +401,82 @@ DependencyConstraint ..> Provider : (implica) relación por selección
 
 Objective ..> Feature : targets referencian Feature.id
 Weights ..> Feature : keys referencian Feature.id
+
+%% =========================================================
+%% Extensión de placement (bloques opcionales)
+%% =========================================================
+class ResourceModel {
+  +Identifier[1..*] resources
+  +ResourcePool[1..*] pools
+  +CandidateResourceBinding[*] candidate_bindings
+  +ResourceConstraint[*] constraints
+}
+
+class ResourcePool {
+  +Identifier id
+  +string name
+  +Identifier kind
+  +Map<resource, number> capacity
+  +object? metadata
+}
+
+class CandidateResourceBinding {
+  +Identifier candidate_id
+  +Identifier pool_id
+  +Map<resource, number> demand
+}
+
+class ResourceConstraint {
+  +Identifier id
+  +kind: DEPENDENCY | RESOURCE_CAPACITY
+  +type?: RESOURCE_CAPACITY
+  +scope: ALL_POOLS | POOL_KIND
+  +Identifier[1..*] resources
+  +Identifier[*] pool_kinds
+  +boolean hard
+}
+
+class LatencyModel {
+  +unit: ms
+  +Map<pool, Map<pool, number>> pool_latency_matrix_ms
+  +Map<event, pool> event_generator_pools
+  +Map<event, Map<pool, number>> event_latency_matrix_ms
+  +LatencyConstraint[*] transition_constraints
+  +GlobalLatency global_latency
+}
+
+class LatencyConstraint {
+  +Identifier id
+  +Identifier? from_task
+  +Identifier? from_event
+  +Identifier to_task
+  +op: <= | < | >= | > | == | IN_RANGE
+  +value: number | NumericRange
+  +boolean hard
+}
+
+class GlobalLatency {
+  +Identifier attribute_id
+  +boolean include_execution_latency_feature
+  +xor_semantics: EXPECTED | WORST_CASE
+  +and_semantics: MAX | SUM
+}
+
+CompactQoSComposition "1" o-- "0..1" ResourceModel : resource_model
+CompactQoSComposition "1" o-- "0..1" LatencyModel : latency_model
+AggregationPolicy "1" o-- "0..1" Normalization : normalize
+
+ResourceModel "1" o-- "1..*" ResourcePool : pools
+ResourceModel "1" o-- "*" CandidateResourceBinding : candidate_bindings
+ResourceModel "1" o-- "*" ResourceConstraint : constraints
+CandidateResourceBinding "1" --> "1" Candidate : candidate_id
+CandidateResourceBinding "1" --> "1" ResourcePool : pool_id
+ResourceConstraint ..> ResourcePool : scope ALL_POOLS | POOL_KIND
+
+LatencyModel "1" o-- "*" LatencyConstraint : transition_constraints
+LatencyModel "1" o-- "1" GlobalLatency : global_latency
+LatencyModel ..> ResourcePool : matrices indexadas por pool
+LatencyConstraint "1" --> "1" Task : to_task
+GlobalLatency "1" --> "1" Feature : attribute_id
+
+DependencyConstraint ..> ResourcePool : SAME_POOL | DIFFERENT_POOL (requiere resource_model)

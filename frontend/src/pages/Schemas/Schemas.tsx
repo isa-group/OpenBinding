@@ -9,10 +9,9 @@ import { Alert } from '../../components/ui/Alert';
 import { Tabs } from '../../components/ui/Tabs';
 import './Schemas.css';
 
-// 'bimstar' is the placement-aware BIM variant of the general schema
-// (resource model, latency model, budgets); it is served by the gateway under
-// the same schema endpoints with the pseudo-id 'bimstar'.
-type SchemaType = 'general' | 'bimstar' | 'engine';
+// The general schema covers plain binding problems and placement-aware ones
+// alike: the resource and latency models are optional blocks within it.
+type SchemaType = 'general' | 'engine';
 
 export function Schemas() {
   const [engines, setEngines] = useState<string[]>([]);
@@ -97,9 +96,6 @@ export function Schemas() {
     if (selectedType === 'engine' && selectedEngine && !engineSchemas[selectedEngine]) {
       loadEngineSchema(selectedEngine);
     }
-    if (selectedType === 'bimstar' && !engineSchemas['bimstar']) {
-      loadEngineSchema('bimstar');
-    }
   }, [selectedType, selectedEngine, engineSchemas]);
 
   useEffect(() => {
@@ -110,9 +106,6 @@ export function Schemas() {
 
     if (selectedType === 'engine' && selectedEngine && !(selectedEngine in engineModels)) {
       loadEngineModel(selectedEngine);
-    }
-    if (selectedType === 'bimstar' && !('bimstar' in engineModels)) {
-      loadEngineModel('bimstar');
     }
   }, [selectedType, selectedEngine, generalModel, engineModels]);
 
@@ -185,18 +178,12 @@ export function Schemas() {
     if (selectedType === 'general') {
       return generalSchema;
     }
-    if (selectedType === 'bimstar') {
-      return engineSchemas['bimstar'];
-    }
     return engineSchemas[selectedEngine];
   };
 
   const getCurrentModel = () => {
     if (selectedType === 'general') {
       return generalModel;
-    }
-    if (selectedType === 'bimstar') {
-      return engineModels['bimstar'];
     }
     return engineModels[selectedEngine];
   };
@@ -207,8 +194,6 @@ export function Schemas() {
 
     const filename = selectedType === 'general'
       ? 'general-schema.json'
-      : selectedType === 'bimstar'
-      ? 'bimstar-schema.json'
       : `${selectedEngine}-schema.json`;
     
     const blob = new Blob([JSON.stringify(schema, null, 2)], { type: 'application/json' });
@@ -488,13 +473,6 @@ export function Schemas() {
               onClick={() => setSelectedType('general')}
             >
               General Schema
-            </Button>
-            <Button
-              variant={selectedType === 'bimstar' ? 'primary' : 'secondary'}
-              onClick={() => setSelectedType('bimstar')}
-              title="Placement-aware BIM variant: resource model, latency model, budgets and canonical normalization"
-            >
-              BIM′ Placement
             </Button>
             <Button
               variant={selectedType === 'engine' ? 'primary' : 'secondary'}
