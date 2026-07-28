@@ -138,3 +138,51 @@ def test_objective_convention_is_predicted_by_declared_normalization() -> None:
             f"{golden['instance']}: normalization no longer coincides with placement; "
             "the merged canonicalization rule needs to be revisited"
         )
+
+
+def test_schema_modules_bundle_into_one_equivalent_document() -> None:
+    """The split into one file per tuple element must not change what validates.
+
+    schemas/general/ is one file per element of I' = (M_A, M'_C, Delta, O) so
+    that a model can be referenced and reused on its own. Everything that
+    consumes the schema is served the bundle instead, and the bundle has to
+    accept and reject exactly what a single file would.
+    """
+    import glob
+
+    import jsonschema
+
+    from openbinding_gateway.validation.schema_bundle import load_general_schema
+
+    bundle = load_general_schema()
+    jsonschema.Draft202012Validator.check_schema(bundle)
+    validator = jsonschema.Draft202012Validator(bundle)
+
+    valid = [
+        path
+        for path in sorted(glob.glob(os.path.join(REPO_ROOT, "examples", "**", "*.json"), recursive=True))
+        if f"{os.sep}parts{os.sep}" not in path
+    ]
+    assert valid, "no example instances found"
+    for path in valid:
+        with open(path) as handle:
+            instance = json.load(handle)
+        errors = list(validator.iter_errors(instance))
+        assert not errors, f"{os.path.basename(path)} should validate: {errors[0].message}"
+
+    # And rejection, which is the half a permissive bundle would silently lose.
+    with open(os.path.join(REPO_ROOT, "examples", "demo", "01_simple_seq.json")) as handle:
+        base = json.load(handle)
+
+    without_objective = {k: v for k, v in base.items() if k != "objective"}
+    assert list(validator.iter_errors(without_objective)), "a required block is missing"
+
+    unknown_key = {**base, "not_part_of_the_model": 1}
+    assert list(validator.iter_errors(unknown_key)), "the root forbids unknown keys"
+
+    bad_operator = copy.deepcopy(base)
+    bad_operator["constraints"] = [
+        {"id": "c", "kind": "ATTRIBUTE_BOUND", "scope": "GLOBAL",
+         "attribute_id": "latency", "op": "<>", "value": 1}
+    ]
+    assert list(validator.iter_errors(bad_operator)), "'<>' is not an operator"

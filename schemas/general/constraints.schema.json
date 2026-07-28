@@ -1,0 +1,338 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openbinding.score.us.es/api/v1/schemas/general/constraints.schema.json",
+  "title": "Constraints (Delta)",
+  "description": "What a binding must satisfy to be eligible.",
+  "$defs": {
+    "constraint": {
+      "oneOf": [
+        {
+          "$ref": "constraints.schema.json#/$defs/attr_bound_constraint"
+        },
+        {
+          "$ref": "constraints.schema.json#/$defs/dependency_constraint"
+        }
+      ]
+    },
+    "attr_bound_constraint": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "scope",
+        "attribute_id",
+        "op",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "kind": {
+          "const": "ATTRIBUTE_BOUND"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "GLOBAL",
+            "LOCAL"
+          ]
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          }
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          }
+        },
+        "attribute_id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "op": {
+          "type": "string",
+          "enum": [
+            "<=",
+            ">=",
+            "==",
+            "!=",
+            "<",
+            ">",
+            "IN_RANGE"
+          ]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "$ref": "common.schema.json#/$defs/numeric_range"
+            },
+            {
+              "type": "number"
+            }
+          ]
+        },
+        "hard": {
+          "type": "boolean",
+          "default": true
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "op": {
+                "const": "IN_RANGE"
+              }
+            },
+            "required": [
+              "op"
+            ]
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "$ref": "common.schema.json#/$defs/numeric_range"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "op": {
+                "not": {
+                  "const": "IN_RANGE"
+                }
+              }
+            },
+            "required": [
+              "op"
+            ]
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "scope": {
+                "const": "LOCAL"
+              }
+            },
+            "required": [
+              "scope"
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "tasks"
+                ]
+              },
+              {
+                "required": [
+                  "candidates"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "dependency_constraint": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "type",
+        "tasks"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "kind": {
+          "const": "DEPENDENCY"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "SAME_PROVIDER",
+            "DIFFERENT_PROVIDER",
+            "SAME_POOL",
+            "DIFFERENT_POOL"
+          ]
+        },
+        "tasks": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          }
+        },
+        "hard": {
+          "type": "boolean",
+          "default": true
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "resource_constraint": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "scope",
+        "resources",
+        "hard"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "DEPENDENCY",
+            "RESOURCE_CAPACITY"
+          ]
+        },
+        "type": {
+          "const": "RESOURCE_CAPACITY"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "ALL_POOLS",
+            "POOL_KIND"
+          ]
+        },
+        "resources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          }
+        },
+        "pool_kinds": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          }
+        },
+        "hard": {
+          "type": "boolean"
+        }
+      },
+      "oneOf": [
+        {
+          "$comment": "Canonical form: resource capacity as a dependency-type constraint.",
+          "properties": {
+            "kind": {
+              "const": "DEPENDENCY"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "$comment": "Legacy spelling kept for backward compatibility.",
+          "properties": {
+            "kind": {
+              "const": "RESOURCE_CAPACITY"
+            }
+          }
+        }
+      ]
+    },
+    "latency_constraint": {
+      "type": "object",
+      "required": [
+        "id",
+        "to_task",
+        "op",
+        "value",
+        "hard"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "from_task": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "from_event": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "to_task": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "op": {
+          "type": "string",
+          "enum": [
+            "<=",
+            "<",
+            ">=",
+            ">",
+            "==",
+            "IN_RANGE"
+          ]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "common.schema.json#/$defs/numeric_range"
+            }
+          ]
+        },
+        "hard": {
+          "type": "boolean"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "from_task"
+          ]
+        },
+        {
+          "required": [
+            "from_event"
+          ]
+        }
+      ]
+    }
+  },
+  "properties": {
+    "constraints": {
+      "type": "array",
+      "items": {
+        "$ref": "constraints.schema.json#/$defs/constraint"
+      },
+      "default": []
+    }
+  }
+}

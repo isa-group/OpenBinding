@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from ..registry.engine import EngineRegistry
+from ..validation.schema_bundle import load_general_schema
 
 router = APIRouter(prefix="/v1/schemas", tags=["Schemas"])
 
@@ -35,12 +36,16 @@ def _specialization_schema_path(engine_id: str, extension: str) -> str:
 
 @router.get("/general")
 async def get_general_schema():
-    schema_path = _general_schema_path("json")
+    """The general schema as one self-contained document.
 
-    if not os.path.exists(schema_path):
-        raise HTTPException(status_code=404, detail="General schema not found on server.")
-
-    return FileResponse(schema_path)
+    The files on disk are split one per element of the tuple so each model can
+    be reused on its own; consumers still want a single document, so what is
+    served is the bundle, exactly what a monolithic file would have been.
+    """
+    try:
+        return load_general_schema()
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error))
 
 
 @router.get("/general/model")

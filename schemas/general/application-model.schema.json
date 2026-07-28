@@ -1,0 +1,384 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openbinding.score.us.es/api/v1/schemas/general/application-model.schema.json",
+  "title": "Application model (M_A = (T, G, Lambda))",
+  "description": "What the application is, independently of who can run it: its abstract tasks (T), the orchestration that composes them (G), and the policies that say how a quality attribute aggregates along that composition (Lambda). Reusable across every infrastructure the application can be deployed on.",
+  "$defs": {
+    "structured_tree": {
+      "type": "object",
+      "required": [
+        "type",
+        "root"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "STRUCTURED"
+        },
+        "root": {
+          "$ref": "application-model.schema.json#/$defs/node"
+        }
+      }
+    },
+    "node": {
+      "oneOf": [
+        {
+          "$ref": "application-model.schema.json#/$defs/task_node"
+        },
+        {
+          "$ref": "application-model.schema.json#/$defs/seq_node"
+        },
+        {
+          "$ref": "application-model.schema.json#/$defs/and_node"
+        },
+        {
+          "$ref": "application-model.schema.json#/$defs/xor_node"
+        },
+        {
+          "$ref": "application-model.schema.json#/$defs/loop_node"
+        },
+        {
+          "$ref": "application-model.schema.json#/$defs/element_node"
+        }
+      ]
+    },
+    "task_node": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "task_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "kind": {
+          "const": "TASK"
+        },
+        "task_id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "element_node": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "kind": {
+          "const": "ELEMENT"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "seq_node": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "children"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "kind": {
+          "const": "SEQ"
+        },
+        "description": {
+          "type": "string"
+        },
+        "children": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "application-model.schema.json#/$defs/node"
+          }
+        }
+      }
+    },
+    "and_node": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "children"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "kind": {
+          "const": "AND"
+        },
+        "description": {
+          "type": "string"
+        },
+        "children": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "application-model.schema.json#/$defs/node"
+          }
+        }
+      }
+    },
+    "xor_node": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "branches"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "kind": {
+          "const": "XOR"
+        },
+        "description": {
+          "type": "string"
+        },
+        "branches": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": [
+              "p",
+              "child"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "p": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1
+              },
+              "child": {
+                "$ref": "application-model.schema.json#/$defs/node"
+              }
+            }
+          }
+        }
+      }
+    },
+    "loop_node": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "body"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "kind": {
+          "const": "LOOP"
+        },
+        "description": {
+          "type": "string"
+        },
+        "body": {
+          "$ref": "application-model.schema.json#/$defs/node"
+        },
+        "expected_iterations": {
+          "type": "number",
+          "minimum": 0
+        },
+        "bounds": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "min": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "anyOf": [
+            {
+              "required": [
+                "expected_iterations"
+              ]
+            },
+            {
+              "required": [
+                "bounds"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "aggregation_policy": {
+      "type": "object",
+      "required": [
+        "neutral",
+        "compose"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "neutral": {
+          "type": "number"
+        },
+        "compose": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "seq": {
+              "$ref": "application-model.schema.json#/$defs/compose_fn"
+            },
+            "and": {
+              "$ref": "application-model.schema.json#/$defs/compose_fn"
+            },
+            "xor": {
+              "$ref": "application-model.schema.json#/$defs/compose_fn"
+            },
+            "loop": {
+              "$ref": "application-model.schema.json#/$defs/compose_fn"
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "seq"
+              ]
+            },
+            {
+              "required": [
+                "and"
+              ]
+            },
+            {
+              "required": [
+                "xor"
+              ]
+            },
+            {
+              "required": [
+                "loop"
+              ]
+            }
+          ]
+        },
+        "normalize": {
+          "$ref": "application-model.schema.json#/$defs/normalization"
+        }
+      }
+    },
+    "normalization": {
+      "$comment": "Declaring normalization for every objective target selects the canonical objective: a weighted mean of per-feature losses, where lower is better and the gateway value is authoritative over the one an engine reports. Instances that declare none keep the plain weighted sum of normalized goodness, where higher is better. The two are complements of each other when the weights sum to one.",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "minmax",
+            "identity"
+          ]
+        },
+        "bounds": {
+          "$ref": "common.schema.json#/$defs/numeric_range"
+        },
+        "increasing_is_better": {
+          "type": "boolean"
+        }
+      }
+    },
+    "compose_fn": {
+      "type": "object",
+      "required": [
+        "fn"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "fn": {
+          "type": "string",
+          "enum": [
+            "SUM",
+            "PRODUCT",
+            "MAX",
+            "MIN",
+            "SCALED_SUM",
+            "SCALED_PRODUCT",
+            "SCALED_MIN",
+            "SCALED_MAX",
+            "MEAN",
+            "WEIGHTED_SUM"
+          ]
+        }
+      }
+    }
+  },
+  "properties": {
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "composition": {
+      "$ref": "application-model.schema.json#/$defs/structured_tree"
+    },
+    "aggregation_policies": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "common.schema.json#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "$ref": "application-model.schema.json#/$defs/aggregation_policy"
+      }
+    }
+  }
+}

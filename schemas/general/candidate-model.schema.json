@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openbinding.score.us.es/api/v1/schemas/general/candidate-model.schema.json",
+  "title": "Candidate model (M'_C = (P, C, F, R, L))",
+  "description": "What can actually run the application: the providers (P), their candidate implementations (C) with local quality attributes (F), and the deployment infrastructure - node resources (R) and network latency (L). Reusable across every application deployed on it.",
+  "$defs": {
+    "resource_model": {
+      "$comment": "Placement extension, optional. An instance that omits resource_model and latency_model describes a plain binding problem; one that provides them adds resource and latency constraints over the very same decisions. Nothing else in the model changes either way.",
+      "type": "object",
+      "required": [
+        "resources",
+        "pools",
+        "candidate_bindings",
+        "constraints"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "resources": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          }
+        },
+        "pools": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "candidate-model.schema.json#/$defs/resource_pool"
+          }
+        },
+        "candidate_bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "candidate-model.schema.json#/$defs/candidate_resource_binding"
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "$ref": "constraints.schema.json#/$defs/resource_constraint"
+          }
+        }
+      }
+    },
+    "resource_pool": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "capacity"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "capacity": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "candidate_resource_binding": {
+      "type": "object",
+      "required": [
+        "candidate_id",
+        "pool_id",
+        "demand"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "pool_id": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "demand": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "latency_model": {
+      "type": "object",
+      "required": [
+        "unit",
+        "pool_latency_matrix_ms",
+        "event_generator_pools",
+        "event_latency_matrix_ms",
+        "transition_constraints",
+        "global_latency"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "unit": {
+          "const": "ms"
+        },
+        "pool_latency_matrix_ms": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "propertyNames": {
+              "$ref": "common.schema.json#/$defs/identifier"
+            },
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "event_generator_pools": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          }
+        },
+        "event_latency_matrix_ms": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "propertyNames": {
+              "$ref": "common.schema.json#/$defs/identifier"
+            },
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "transition_constraints": {
+          "type": "array",
+          "items": {
+            "$ref": "constraints.schema.json#/$defs/latency_constraint"
+          }
+        },
+        "global_latency": {
+          "type": "object",
+          "required": [
+            "attribute_id",
+            "include_execution_latency_feature",
+            "xor_semantics",
+            "and_semantics"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "attribute_id": {
+              "$ref": "common.schema.json#/$defs/identifier"
+            },
+            "include_execution_latency_feature": {
+              "type": "boolean"
+            },
+            "xor_semantics": {
+              "type": "string",
+              "enum": [
+                "EXPECTED",
+                "WORST_CASE"
+              ]
+            },
+            "and_semantics": {
+              "type": "string",
+              "enum": [
+                "MAX",
+                "SUM"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "providers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "candidates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "task_id",
+          "provider_id",
+          "features"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          },
+          "task_id": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          },
+          "provider_id": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "features": {
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": {
+              "$ref": "common.schema.json#/$defs/identifier"
+            },
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "features": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "direction",
+          "unit",
+          "scale",
+          "valid_range"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "MAXIMIZE",
+              "MINIMIZE"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scale": {
+            "type": "string",
+            "enum": [
+              "RATIO",
+              "INTERVAL",
+              "ORDINAL"
+            ]
+          },
+          "valid_range": {
+            "$ref": "common.schema.json#/$defs/numeric_range"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "resource_model": {
+      "$ref": "candidate-model.schema.json#/$defs/resource_model"
+    },
+    "latency_model": {
+      "$ref": "candidate-model.schema.json#/$defs/latency_model"
+    }
+  }
+}

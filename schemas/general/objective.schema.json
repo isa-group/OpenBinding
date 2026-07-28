@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openbinding.score.us.es/api/v1/schemas/general/objective.schema.json",
+  "title": "Objective (O)",
+  "description": "How eligible bindings are ranked against each other.",
+  "$defs": {
+    "objective": {
+      "oneOf": [
+        {
+          "$ref": "objective.schema.json#/$defs/mono"
+        },
+        {
+          "$ref": "objective.schema.json#/$defs/multi"
+        },
+        {
+          "$ref": "objective.schema.json#/$defs/many"
+        }
+      ]
+    },
+    "mono": {
+      "type": "object",
+      "required": [
+        "type",
+        "targets",
+        "weights"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "MONO"
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          }
+        },
+        "weights": {
+          "$ref": "objective.schema.json#/$defs/weights"
+        },
+        "weights_sum_to_one": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "multi": {
+      "type": "object",
+      "required": [
+        "type",
+        "targets",
+        "weights"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "MULTI"
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          }
+        },
+        "weights": {
+          "$ref": "objective.schema.json#/$defs/weights"
+        },
+        "weights_sum_to_one": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "many": {
+      "type": "object",
+      "required": [
+        "type",
+        "targets",
+        "weights"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "MANY"
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          }
+        },
+        "weights": {
+          "$ref": "objective.schema.json#/$defs/weights"
+        },
+        "weights_sum_to_one": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "weights": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "common.schema.json#/$defs/identifier"
+      },
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      }
+    }
+  },
+  "properties": {
+    "objective": {
+      "$ref": "objective.schema.json#/$defs/objective"
+    }
+  }
+}
