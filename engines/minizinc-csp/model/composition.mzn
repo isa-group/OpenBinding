@@ -167,6 +167,10 @@ constraint forall(i in 1..n_nodes)(
                     node_qos[i,q] == max(child_vals)
                  elseif pol == AGG_MIN then
                     node_qos[i,q] == min(child_vals)
+                 elseif pol == AGG_PROD then
+                    % The reference evaluator and the Java engines take the
+                    % plain product over the branches here, without weighting.
+                    node_qos[i,q] == product(child_vals)
                  else
                     % Default to weighted sum for XOR
                     node_qos[i,q] == sum(j in 1..node_n_children[i])(node_xor_probs[i,j] * child_vals[j])

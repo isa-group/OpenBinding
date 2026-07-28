@@ -213,13 +213,15 @@ public final class BindingEvaluator {
 
   private double aggregateLoop(Node node, Feature feature, Map<String, Candidate> selected) {
     double value = aggregate(node.body, feature, selected);
-    double iterations;
+    // Same fallback as the reference evaluator and the MiniZinc builder:
+    // the midpoint of the declared bounds, and one iteration when there are
+    // no usable bounds. Bounds of zero are not usable, or a loop with
+    // bounds {0, 0} would contribute nothing here and one iteration there.
+    double iterations = 1.0;
     if (node.expected_iterations != null) {
       iterations = node.expected_iterations.doubleValue();
-    } else if (node.bounds != null) {
+    } else if (node.bounds != null && (node.bounds.min > 0.0 || node.bounds.max > 0.0)) {
       iterations = (node.bounds.min + node.bounds.max) / 2.0;
-    } else {
-      iterations = 1.0;
     }
     String fn = function(feature, "LOOP");
     if (fn.contains("PRODUCT")) {
