@@ -51,6 +51,36 @@ class ViolationsErrorResponse(BaseModel):
     detail: ViolationsErrorBody
 
 
+class QuotaBody(BaseModel):
+    """Which allowance refused, and where it stands.
+
+    Enough for a client to decide what to do next without asking again: the
+    limit that ran out, how much of it there was, and when it comes back.
+    """
+
+    limit_id: str = Field(..., description="Identifier of the limit in the pricing.")
+    limit: float = Field(..., description="What the plan allows.")
+    used: Optional[float] = Field(default=None, description="What has been consumed.")
+    actual: Optional[float] = Field(
+        default=None,
+        description="For a limit measured from the request rather than spent, what it measured.",
+    )
+    unit: Optional[str] = None
+    renews_at: Optional[str] = Field(
+        default=None, description="When a renewable limit next resets."
+    )
+
+
+class QuotaErrorBody(ErrorBody):
+    quota: Optional[QuotaBody] = None
+
+
+class QuotaErrorResponse(BaseModel):
+    """An allowance spent, or an instance beyond what the plan solves."""
+
+    detail: QuotaErrorBody
+
+
 def api_error(
     status_code: int,
     code: str,
@@ -91,4 +121,20 @@ CONFLICT_RESPONSE = {
 UNAVAILABLE_RESPONSE = {
     "model": ErrorResponse,
     "description": "A service the gateway depends on is not reachable.",
+}
+VIOLATIONS_RESPONSE = {
+    "model": ViolationsErrorResponse,
+    "description": "The instance is invalid: schema, semantic or logical violations.",
+}
+QUOTA_RESPONSE = {
+    "model": QuotaErrorResponse,
+    "description": (
+        "The caller's plan has no allowance left, or the instance is larger than "
+        "the plan solves. Distinct from 403: this is an allowance spent rather than "
+        "a permission missing, so retrying after it renews is worth something."
+    ),
+}
+PAYLOAD_TOO_LARGE_RESPONSE = {
+    "model": ErrorResponse,
+    "description": "The request body is larger than this caller's plan allows.",
 }

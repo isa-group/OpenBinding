@@ -1,0 +1,3641 @@
+{
+  "components": {
+    "schemas": {
+      "AdminUserPage": {
+        "description": "One page of accounts.\n\nPaged rather than complete, because an administrator screen that fetches\nevery account works until it does not.",
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "description": "How many accounts match, across every page.",
+            "title": "Total",
+            "type": "integer"
+          },
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUserView"
+            },
+            "title": "Users",
+            "type": "array"
+          }
+        },
+        "required": [
+          "users",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "AdminUserPage",
+        "type": "object"
+      },
+      "AdminUserView": {
+        "description": "A user as an administrator sees them: the profile, plus what it costs.",
+        "properties": {
+          "api_key_count": {
+            "default": 0,
+            "description": "How many keys are in use.",
+            "title": "Api Key Count",
+            "type": "integer"
+          },
+          "contract_pending": {
+            "default": false,
+            "description": "True when the account still owes a contract.",
+            "title": "Contract Pending",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/PlanName",
+            "description": "Plan last seen on the SPACE contract. The contract itself decides what a request is allowed to do; this is what the interface displays."
+          },
+          "role": {
+            "$ref": "#/components/schemas/RoleName"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email",
+          "role",
+          "is_active",
+          "plan",
+          "created_at"
+        ],
+        "title": "AdminUserView",
+        "type": "object"
+      },
+      "AnalyzeResponse": {
+        "properties": {
+          "binding_space": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BindingSpaceSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "diagnostics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diagnostics"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Provenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "default": "validated",
+            "description": "Validation status. 'validated' or 'failed'.",
+            "title": "Status",
+            "type": "string"
+          },
+          "warnings": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AnalyzeWarning"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warnings"
+          }
+        },
+        "title": "AnalyzeResponse",
+        "type": "object"
+      },
+      "AnalyzeWarning": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "AnalyzeWarning",
+        "type": "object"
+      },
+      "ApiKeyList": {
+        "properties": {
+          "api_keys": {
+            "items": {
+              "$ref": "#/components/schemas/ApiKeySummary"
+            },
+            "title": "Api Keys",
+            "type": "array"
+          }
+        },
+        "required": [
+          "api_keys"
+        ],
+        "title": "ApiKeyList",
+        "type": "object"
+      },
+      "ApiKeySummary": {
+        "description": "An API key as it can safely be shown: everything except the secret.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "prefix": {
+            "title": "Prefix",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "created_at"
+        ],
+        "title": "ApiKeySummary",
+        "type": "object"
+      },
+      "BindingSpacePage": {
+        "properties": {
+          "bindings": {
+            "description": "List of bindings, where each binding is a map of Task ID -> Candidate ID.",
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Bindings",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total_combinations": {
+            "description": "Total size of the binding space as a string.",
+            "title": "Total Combinations",
+            "type": "string"
+          }
+        },
+        "required": [
+          "total_combinations",
+          "offset",
+          "limit",
+          "bindings"
+        ],
+        "title": "BindingSpacePage",
+        "type": "object"
+      },
+      "BindingSpaceRequest": {
+        "properties": {
+          "engine_id": {
+            "description": "ID of the target engine/solver",
+            "title": "Engine Id",
+            "type": "string"
+          },
+          "instance": {
+            "$id": "https://openbinding.score.us.es/api/v1/schemas/general",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "description": "A binding problem instance, I' = (M_A, M'_C, Delta, O). Each element of the tuple is defined in its own file so that it can be reused on its own: the same application model over different infrastructures, or the same infrastructure under different objectives.",
+            "properties": {
+              "aggregation_policies": {
+                "$ref": "application-model.schema.json#/properties/aggregation_policies"
+              },
+              "candidates": {
+                "$ref": "candidate-model.schema.json#/properties/candidates"
+              },
+              "composition": {
+                "$ref": "application-model.schema.json#/properties/composition"
+              },
+              "constraints": {
+                "$ref": "constraints.schema.json#/properties/constraints"
+              },
+              "features": {
+                "$ref": "candidate-model.schema.json#/properties/features"
+              },
+              "latency_model": {
+                "$ref": "candidate-model.schema.json#/properties/latency_model"
+              },
+              "metadata": {
+                "additionalProperties": true,
+                "properties": {
+                  "created_at": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "$ref": "common.schema.json#/$defs/identifier"
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "version": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "version",
+                  "created_at"
+                ],
+                "type": "object"
+              },
+              "objective": {
+                "$ref": "objective.schema.json#/properties/objective"
+              },
+              "providers": {
+                "$ref": "candidate-model.schema.json#/properties/providers"
+              },
+              "resource_model": {
+                "$ref": "candidate-model.schema.json#/properties/resource_model"
+              },
+              "tasks": {
+                "$ref": "application-model.schema.json#/properties/tasks"
+              }
+            },
+            "required": [
+              "metadata",
+              "features",
+              "providers",
+              "tasks",
+              "candidates",
+              "composition",
+              "aggregation_policies",
+              "objective"
+            ],
+            "title": "Compact QoS-Aware Service Composition",
+            "type": "object"
+          },
+          "limit": {
+            "default": 100,
+            "description": "Number of bindings to return (max 1000).",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "description": "Offset for pagination (0-based index of the first binding to return).",
+            "minimum": 0.0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solver-specific options. E.g. {'iterations_count': 1000} for Random-Search.",
+            "title": "Options"
+          },
+          "verbose": {
+            "default": false,
+            "description": "If true, return diagnostics and warnings.",
+            "title": "Verbose",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "engine_id",
+          "instance"
+        ],
+        "title": "BindingSpaceRequest",
+        "type": "object"
+      },
+      "BindingSpaceSummary": {
+        "properties": {
+          "cardinality": {
+            "description": "Total size of the binding space as a string (product of candidate counts).",
+            "title": "Cardinality",
+            "type": "string"
+          },
+          "empty_tasks": {
+            "description": "List of Task IDs that have 0 candidates.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Empty Tasks",
+            "type": "array"
+          },
+          "log10_cardinality": {
+            "description": "Approximate log10 of the cardinality.",
+            "title": "Log10 Cardinality",
+            "type": "number"
+          },
+          "per_task_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Map of Task ID to number of available candidates.",
+            "title": "Per Task Counts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "cardinality",
+          "log10_cardinality",
+          "per_task_counts"
+        ],
+        "title": "BindingSpaceSummary",
+        "type": "object"
+      },
+      "ChangePlanRequest": {
+        "properties": {
+          "plan": {
+            "$ref": "#/components/schemas/PlanName",
+            "description": "The plan to move this account onto."
+          }
+        },
+        "required": [
+          "plan"
+        ],
+        "title": "ChangePlanRequest",
+        "type": "object"
+      },
+      "ComposeRequest": {
+        "properties": {
+          "parts": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "description": "The parts to merge, keyed by part name, as returned by split.",
+            "title": "Parts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "parts"
+        ],
+        "title": "ComposeRequest",
+        "type": "object"
+      },
+      "ComposeResponse": {
+        "properties": {
+          "instance": {
+            "additionalProperties": true,
+            "description": "The instance the parts make.",
+            "title": "Instance",
+            "type": "object"
+          }
+        },
+        "required": [
+          "instance"
+        ],
+        "title": "ComposeResponse",
+        "type": "object"
+      },
+      "CreateApiKeyRequest": {
+        "properties": {
+          "name": {
+            "description": "What this key is for.",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "CreateApiKeyRequest",
+        "type": "object"
+      },
+      "CreatedApiKey": {
+        "description": "The one and only response that carries the secret.\n\nIt is not stored in a form that could produce this again, so a caller that\nloses it has to create another key.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "prefix": {
+            "title": "Prefix",
+            "type": "string"
+          },
+          "secret": {
+            "description": "Shown once. Store it now; it cannot be retrieved later.",
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "created_at",
+          "secret"
+        ],
+        "title": "CreatedApiKey",
+        "type": "object"
+      },
+      "ErrorBody": {
+        "description": "The payload under ``detail``.",
+        "properties": {
+          "code": {
+            "description": "Stable machine-readable identifier for this failure.",
+            "title": "Code",
+            "type": "string"
+          },
+          "error": {
+            "description": "Human-readable explanation.",
+            "title": "Error",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "error"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "description": "A failure, as it appears on the wire.",
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "Feasibility": {
+        "enum": [
+          "FEASIBLE",
+          "INFEASIBLE",
+          "UNKNOWN"
+        ],
+        "title": "Feasibility",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "JobResponse": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SolveResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          }
+        },
+        "required": [
+          "job_id",
+          "status"
+        ],
+        "title": "JobResponse",
+        "type": "object"
+      },
+      "JobStatus": {
+        "enum": [
+          "queued",
+          "running",
+          "completed",
+          "failed"
+        ],
+        "title": "JobStatus",
+        "type": "string"
+      },
+      "LimitUsageView": {
+        "description": "One usage limit and what is left of it.",
+        "properties": {
+          "limit": {
+            "description": "What the plan allows.",
+            "title": "Limit",
+            "type": "number"
+          },
+          "limit_id": {
+            "description": "Identifier of the limit in the pricing.",
+            "title": "Limit Id",
+            "type": "string"
+          },
+          "remaining": {
+            "description": "What is left. Never negative.",
+            "title": "Remaining",
+            "type": "number"
+          },
+          "renews_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When a renewable limit next resets, if it renews.",
+            "title": "Renews At"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "used": {
+            "description": "What has been consumed so far.",
+            "title": "Used",
+            "type": "number"
+          }
+        },
+        "required": [
+          "limit_id",
+          "limit",
+          "used",
+          "remaining"
+        ],
+        "title": "LimitUsageView",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "username_or_email": {
+            "description": "Either identifier works.",
+            "title": "Username Or Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username_or_email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "LogoutRequest": {
+        "properties": {
+          "refresh_token": {
+            "description": "The token to revoke, ending that session.",
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "LogoutRequest",
+        "type": "object"
+      },
+      "PlanCapsView": {
+        "description": "The ceilings a single request runs into, rather than a monthly balance.",
+        "properties": {
+          "job_history_days": {
+            "description": "How long finished jobs stay queryable.",
+            "title": "Job History Days",
+            "type": "integer"
+          },
+          "max_binding_space_log10": {
+            "description": "Largest instance solvable, as log10 of its binding space.",
+            "title": "Max Binding Space Log10",
+            "type": "number"
+          },
+          "max_iterations": {
+            "description": "Ceiling for iteration-driven options.",
+            "title": "Max Iterations",
+            "type": "integer"
+          },
+          "max_payload_mb": {
+            "description": "Largest instance accepted in one request.",
+            "title": "Max Payload Mb",
+            "type": "integer"
+          },
+          "max_timeout_s": {
+            "description": "Longest solver budget one job may ask for.",
+            "title": "Max Timeout S",
+            "type": "number"
+          }
+        },
+        "required": [
+          "max_timeout_s",
+          "max_iterations",
+          "max_payload_mb",
+          "max_binding_space_log10",
+          "job_history_days"
+        ],
+        "title": "PlanCapsView",
+        "type": "object"
+      },
+      "PlanName": {
+        "enum": [
+          "FREE",
+          "PRO"
+        ],
+        "title": "PlanName",
+        "type": "string"
+      },
+      "PricingTokenView": {
+        "description": "A signed token the browser evaluates pricing features against locally.",
+        "properties": {
+          "pricing_token": {
+            "title": "Pricing Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pricing_token"
+        ],
+        "title": "PricingTokenView",
+        "type": "object"
+      },
+      "Provenance": {
+        "additionalProperties": true,
+        "properties": {
+          "engine_id": {
+            "title": "Engine Id",
+            "type": "string"
+          },
+          "execution_time_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Time Ms"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "required": [
+          "engine_id"
+        ],
+        "title": "Provenance",
+        "type": "object"
+      },
+      "QuotaBody": {
+        "description": "Which allowance refused, and where it stands.\n\nEnough for a client to decide what to do next without asking again: the\nlimit that ran out, how much of it there was, and when it comes back.",
+        "properties": {
+          "actual": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For a limit measured from the request rather than spent, what it measured.",
+            "title": "Actual"
+          },
+          "limit": {
+            "description": "What the plan allows.",
+            "title": "Limit",
+            "type": "number"
+          },
+          "limit_id": {
+            "description": "Identifier of the limit in the pricing.",
+            "title": "Limit Id",
+            "type": "string"
+          },
+          "renews_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When a renewable limit next resets.",
+            "title": "Renews At"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "used": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What has been consumed.",
+            "title": "Used"
+          }
+        },
+        "required": [
+          "limit_id",
+          "limit"
+        ],
+        "title": "QuotaBody",
+        "type": "object"
+      },
+      "QuotaErrorBody": {
+        "properties": {
+          "code": {
+            "description": "Stable machine-readable identifier for this failure.",
+            "title": "Code",
+            "type": "string"
+          },
+          "error": {
+            "description": "Human-readable explanation.",
+            "title": "Error",
+            "type": "string"
+          },
+          "quota": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QuotaBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "error"
+        ],
+        "title": "QuotaErrorBody",
+        "type": "object"
+      },
+      "QuotaErrorResponse": {
+        "description": "An allowance spent, or an instance beyond what the plan solves.",
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/QuotaErrorBody"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "QuotaErrorResponse",
+        "type": "object"
+      },
+      "RefreshRequest": {
+        "properties": {
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshRequest",
+        "type": "object"
+      },
+      "RegisterRequest": {
+        "properties": {
+          "email": {
+            "description": "Used to sign in and to reach the account's owner.",
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "description": "At least 10 characters.",
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "description": "Letters, digits, dot, underscore or hyphen; 3 to 64 characters.",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{2,63}$",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "email",
+          "password"
+        ],
+        "title": "RegisterRequest",
+        "type": "object"
+      },
+      "RoleName": {
+        "enum": [
+          "user",
+          "admin"
+        ],
+        "title": "RoleName",
+        "type": "string"
+      },
+      "Solution": {
+        "properties": {
+          "aggregated_features": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Aggregated Features",
+            "type": "object"
+          },
+          "binding": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Map of Task ID to Candidate ID",
+            "title": "Binding",
+            "type": "object"
+          },
+          "engine_objective_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objective value as reported by the engine, before canonical re-evaluation.",
+            "title": "Engine Objective Value"
+          },
+          "feasible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reference-evaluator verdict: True when no hard constraint is violated.",
+            "title": "Feasible"
+          },
+          "objective_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Objective Value"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationViolation"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "binding"
+        ],
+        "title": "Solution",
+        "type": "object"
+      },
+      "SolveRequest": {
+        "properties": {
+          "engine_id": {
+            "description": "ID of the target engine/solver",
+            "title": "Engine Id",
+            "type": "string"
+          },
+          "instance": {
+            "$id": "https://openbinding.score.us.es/api/v1/schemas/general",
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "additionalProperties": false,
+            "description": "A binding problem instance, I' = (M_A, M'_C, Delta, O). Each element of the tuple is defined in its own file so that it can be reused on its own: the same application model over different infrastructures, or the same infrastructure under different objectives.",
+            "properties": {
+              "aggregation_policies": {
+                "$ref": "application-model.schema.json#/properties/aggregation_policies"
+              },
+              "candidates": {
+                "$ref": "candidate-model.schema.json#/properties/candidates"
+              },
+              "composition": {
+                "$ref": "application-model.schema.json#/properties/composition"
+              },
+              "constraints": {
+                "$ref": "constraints.schema.json#/properties/constraints"
+              },
+              "features": {
+                "$ref": "candidate-model.schema.json#/properties/features"
+              },
+              "latency_model": {
+                "$ref": "candidate-model.schema.json#/properties/latency_model"
+              },
+              "metadata": {
+                "additionalProperties": true,
+                "properties": {
+                  "created_at": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "$ref": "common.schema.json#/$defs/identifier"
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "version": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "version",
+                  "created_at"
+                ],
+                "type": "object"
+              },
+              "objective": {
+                "$ref": "objective.schema.json#/properties/objective"
+              },
+              "providers": {
+                "$ref": "candidate-model.schema.json#/properties/providers"
+              },
+              "resource_model": {
+                "$ref": "candidate-model.schema.json#/properties/resource_model"
+              },
+              "tasks": {
+                "$ref": "application-model.schema.json#/properties/tasks"
+              }
+            },
+            "required": [
+              "metadata",
+              "features",
+              "providers",
+              "tasks",
+              "candidates",
+              "composition",
+              "aggregation_policies",
+              "objective"
+            ],
+            "title": "Compact QoS-Aware Service Composition",
+            "type": "object"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Solver-specific options. E.g. {'iterations_count': 1000} for Random-Search.",
+            "title": "Options"
+          },
+          "verbose": {
+            "default": false,
+            "description": "If true, return diagnostics and warnings.",
+            "title": "Verbose",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "engine_id",
+          "instance"
+        ],
+        "title": "SolveRequest",
+        "type": "object"
+      },
+      "SolveResponse": {
+        "properties": {
+          "diagnostics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Diagnostic information. May include 'binding_space' if verbose=True.",
+            "title": "Diagnostics"
+          },
+          "feasibility": {
+            "$ref": "#/components/schemas/Feasibility",
+            "default": "UNKNOWN"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          },
+          "solutions": {
+            "items": {
+              "$ref": "#/components/schemas/Solution"
+            },
+            "title": "Solutions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "solutions",
+          "provenance"
+        ],
+        "title": "SolveResponse",
+        "type": "object"
+      },
+      "SplitRequest": {
+        "properties": {
+          "instance": {
+            "additionalProperties": true,
+            "description": "A whole problem instance to take apart.",
+            "title": "Instance",
+            "type": "object"
+          }
+        },
+        "required": [
+          "instance"
+        ],
+        "title": "SplitRequest",
+        "type": "object"
+      },
+      "SplitResponse": {
+        "properties": {
+          "groups": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": "Which model of I' = (M_A, M'_C, Delta, O) each part belongs to. Parts that stand outside the tuple are grouped under 'other'.",
+            "title": "Groups",
+            "type": "object"
+          },
+          "parts": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "description": "One entry per component of the tuple, keyed by part name.",
+            "title": "Parts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "parts",
+          "groups"
+        ],
+        "title": "SplitResponse",
+        "type": "object"
+      },
+      "TokenPair": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "description": "Lifetime of the access token, in seconds.",
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in"
+        ],
+        "title": "TokenPair",
+        "type": "object"
+      },
+      "UpdateProfileRequest": {
+        "properties": {
+          "current_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required when changing the password.",
+            "title": "Current Password"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "new_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Password"
+          }
+        },
+        "title": "UpdateProfileRequest",
+        "type": "object"
+      },
+      "UpdateUserRequest": {
+        "description": "What an administrator may change about somebody else's account.\n\nNot their password or their email: those are the account holder's, and an\nadministrator who could change them could take the account over silently.",
+        "properties": {
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Deactivating takes effect on the account's next request.",
+            "title": "Is Active"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoleName"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "UpdateUserRequest",
+        "type": "object"
+      },
+      "UsageResyncResult": {
+        "description": "What a resync corrected.\n\nConcurrency is counted optimistically - a check and a claim are two calls,\nand a crash between them leaves a slot held. This is the escape hatch for\nan account whose count has drifted, and it reports what it found rather\nthan fixing it silently.",
+        "properties": {
+          "corrected_by": {
+            "description": "The adjustment applied. Zero means no drift.",
+            "title": "Corrected By",
+            "type": "number"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/PlanName"
+          },
+          "slots_in_flight": {
+            "description": "Jobs actually still running for this account.",
+            "title": "Slots In Flight",
+            "type": "integer"
+          },
+          "slots_recorded": {
+            "description": "What the pricing service had counted.",
+            "title": "Slots Recorded",
+            "type": "number"
+          }
+        },
+        "required": [
+          "plan",
+          "slots_in_flight",
+          "slots_recorded",
+          "corrected_by"
+        ],
+        "title": "UsageResyncResult",
+        "type": "object"
+      },
+      "UsageView": {
+        "description": "What an account is on, what it has spent, and what bounds one request.\n\nServed so that the interface can draw quota bars without talking to the\npricing service itself, and so that an API client can find out the same\nthings the interface shows.",
+        "properties": {
+          "caps": {
+            "$ref": "#/components/schemas/PlanCapsView"
+          },
+          "contract_pending": {
+            "default": false,
+            "description": "True when the account has no contract yet because the pricing service was unreachable.",
+            "title": "Contract Pending",
+            "type": "boolean"
+          },
+          "limits": {
+            "items": {
+              "$ref": "#/components/schemas/LimitUsageView"
+            },
+            "title": "Limits",
+            "type": "array"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/PlanName"
+          }
+        },
+        "required": [
+          "plan",
+          "caps"
+        ],
+        "title": "UsageView",
+        "type": "object"
+      },
+      "UserProfile": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/PlanName",
+            "description": "Plan last seen on the SPACE contract. The contract itself decides what a request is allowed to do; this is what the interface displays."
+          },
+          "role": {
+            "$ref": "#/components/schemas/RoleName"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email",
+          "role",
+          "is_active",
+          "plan",
+          "created_at"
+        ],
+        "title": "UserProfile",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "ValidationViolation": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "constraint_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Constraint Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Penalty"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          }
+        },
+        "required": [
+          "message",
+          "code"
+        ],
+        "title": "ValidationViolation",
+        "type": "object"
+      },
+      "ViolationBody": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "constraint_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Constraint Id"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ViolationBody",
+        "type": "object"
+      },
+      "ViolationsErrorBody": {
+        "properties": {
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/ViolationBody"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ViolationsErrorBody",
+        "type": "object"
+      },
+      "ViolationsErrorResponse": {
+        "description": "A rejected instance, with the reasons it was rejected.",
+        "properties": {
+          "detail": {
+            "$ref": "#/components/schemas/ViolationsErrorBody"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ViolationsErrorResponse",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "A QoS-aware service composition gateway. Validate a binding instance against\nthe general schema and a solver's specialisation of it, measure its binding\nspace, and route it to an engine.\n\n**This document is the contract.** Instance structure is described in full\nunder `SolveRequest.instance`; the shape of a solution is `Solution`, and its\nmetrics are always recomputed by the reference evaluator rather than taken from\nwhatever the engine reported. An engine only has to return a Task-to-Candidate\nmap for the rest to be derived.\n\n**Both channels are the same channel.** A browser session and an `obk_`-prefixed\nAPI key resolve to the same account, so a pricing plan applies to the caller\nrather than to how they called. Everything the web interface can do is an\noperation here.\n\n**Errors carry a machine-readable `code`.** `402` means an allowance is spent,\nwhich is worth retrying once it renews; `403` means a permission is missing,\nwhich is not; `503` with `Retry-After` means the gateway could not find out.\n",
+    "license": {
+      "name": "CC BY 4.0",
+      "url": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    "summary": "QoS-aware service composition: validate, measure and solve binding instances.",
+    "title": "OpenBinding Gateway",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "ok"
+                },
+                "schema": {}
+              }
+            },
+            "description": "OK"
+          }
+        },
+        "summary": "Whether the gateway is up",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/v1/admin/users": {
+      "get": {
+        "description": "A page of accounts, with what each one costs.\n\nThe plan shown is the cached one rather than the contract, so that\nrendering a page of fifty does not mean fifty calls to the pricing\nservice. ``GET /v1/admin/users/{id}/usage`` reads the contract itself when\nan exact answer is wanted.",
+        "operationId": "adminListUsers",
+        "parameters": [
+          {
+            "description": "Match on username or email.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Match on username or email.",
+              "title": "Search"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Accounts on this gateway",
+        "tags": [
+          "Administration"
+        ]
+      }
+    },
+    "/v1/admin/users/{user_id}": {
+      "patch": {
+        "description": "Change what an administrator is allowed to change.\n\nAn administrator cannot deactivate or demote themselves. Not because it\nwould be catastrophic, but because it is always a mistake: the intent is\ninvariably to do it to somebody else, and a gateway whose last\nadministrator locked themselves out needs database access to recover.",
+        "operationId": "adminUpdateUser",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "description": "The change is not allowed."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Deactivate an account, or change its role",
+        "tags": [
+          "Administration"
+        ]
+      }
+    },
+    "/v1/admin/users/{user_id}/api-keys/{key_id}": {
+      "delete": {
+        "description": "Take back a key, for when one has leaked and its owner is unreachable.",
+        "operationId": "adminRevokeApiKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Key Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke somebody's API key",
+        "tags": [
+          "Administration"
+        ]
+      }
+    },
+    "/v1/admin/users/{user_id}/plan": {
+      "post": {
+        "description": "Perform the novation, then update what the interface displays.\n\nIn that order, and it matters: the contract is what decides what a request\nmay do, and the column here only decides what a list looks like. If the\nnovation fails, nothing should claim it succeeded.",
+        "operationId": "adminChangePlan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePlanRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Move an account onto another plan",
+        "tags": [
+          "Administration"
+        ]
+      }
+    },
+    "/v1/admin/users/{user_id}/usage": {
+      "get": {
+        "description": "The same view the account holder sees, read from the contract.",
+        "operationId": "adminGetUserUsage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "What an account has spent",
+        "tags": [
+          "Administration"
+        ]
+      }
+    },
+    "/v1/admin/users/{user_id}/usage/resync": {
+      "post": {
+        "description": "Reconcile the recorded concurrency against the jobs actually in flight.\n\nConcurrency is counted optimistically - checking and claiming are two\ncalls - and the reconciler settles what it can see. This is the escape\nhatch for what it cannot: a slot recorded against an account that has\nnothing running. Counting the jobs is the authoritative answer, because\nthey are rows in this database rather than a number somebody incremented.",
+        "operationId": "adminResyncUsage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageResyncResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Correct a drifted concurrency count",
+        "tags": [
+          "Administration"
+        ]
+      }
+    },
+    "/v1/analyze": {
+      "post": {
+        "operationId": "analyze",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "failed": {
+                    "summary": "Failed validation",
+                    "value": {
+                      "error": "Validation failed",
+                      "provenance": {
+                        "engine_id": "random-search",
+                        "execution_time_ms": 4.8
+                      },
+                      "status": "failed",
+                      "warnings": [
+                        {
+                          "code": "missing_candidates",
+                          "details": {
+                            "path": "candidates"
+                          },
+                          "message": "Missing candidates for tasks: t2"
+                        }
+                      ]
+                    }
+                  },
+                  "validated": {
+                    "summary": "Validated instance",
+                    "value": {
+                      "binding_space": {
+                        "cardinality": "4",
+                        "empty_tasks": [],
+                        "log10_cardinality": 0.6020599913,
+                        "per_task_counts": {
+                          "t1": 2,
+                          "t2": 2
+                        }
+                      },
+                      "provenance": {
+                        "engine_id": "random-search",
+                        "execution_time_ms": 12.3
+                      },
+                      "status": "validated"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyzeResponse"
+                }
+              }
+            },
+            "description": "Validation result (either validated or failed)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate an instance and measure its binding space",
+        "tags": [
+          "Solving"
+        ]
+      }
+    },
+    "/v1/analyze/binding-space": {
+      "post": {
+        "operationId": "exploreBindingSpace",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindingSpaceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "cardinality": "4",
+                  "empty_tasks": [],
+                  "log10_cardinality": 0.6020599913,
+                  "per_task_counts": {
+                    "t1": 2,
+                    "t2": 2
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/BindingSpacePage"
+                }
+              }
+            },
+            "description": "A page of the binding space"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViolationsErrorResponse"
+                }
+              }
+            },
+            "description": "The instance is invalid: schema, semantic or logical violations."
+          }
+        },
+        "summary": "Enumerate the binding space, a page at a time",
+        "tags": [
+          "Solving"
+        ]
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Start a session",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "description": "Revoke a refresh token.\n\nAnswers the same way whatever the token turns out to be. Signing out is not\nan operation anybody should be able to use to find out whether a token was\nreal, and the caller's intent is satisfied either way.",
+        "operationId": "logout",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "End a session",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/v1/auth/refresh": {
+      "post": {
+        "operationId": "refreshSession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Exchange a refresh token for a new pair",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/v1/auth/register": {
+      "post": {
+        "operationId": "register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with something that already exists."
+          },
+          "422": {
+            "description": "The password is not acceptable."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Create an account",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/v1/engines": {
+      "get": {
+        "operationId": "listEngines",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": [
+                  {
+                    "active": true,
+                    "capabilities": {
+                      "composition_nodes_supported": [
+                        "TASK",
+                        "SEQ",
+                        "AND",
+                        "XOR",
+                        "LOOP"
+                      ],
+                      "constraints_supported": [
+                        "attribute_bound",
+                        "dependency"
+                      ],
+                      "objective_types_supported": [
+                        "weighted_sum"
+                      ],
+                      "qos_features_supported": [
+                        "*"
+                      ],
+                      "schema_version": "v1"
+                    },
+                    "id": "minizinc-csp"
+                  },
+                  {
+                    "active": true,
+                    "capabilities": {
+                      "composition_nodes_supported": [
+                        "TASK",
+                        "SEQ",
+                        "AND",
+                        "XOR",
+                        "LOOP"
+                      ],
+                      "constraints_supported": [
+                        "attribute_bound",
+                        "dependency"
+                      ],
+                      "objective_types_supported": [
+                        "weighted_sum"
+                      ],
+                      "qos_features_supported": [
+                        "*"
+                      ],
+                      "schema_version": "v1"
+                    },
+                    "id": "random-search"
+                  }
+                ],
+                "schema": {}
+              }
+            },
+            "description": "Registered engines and their capabilities"
+          }
+        },
+        "summary": "Registered engines and their capabilities",
+        "tags": [
+          "Engines"
+        ]
+      }
+    },
+    "/v1/engines/{engine_id}/options/defaults": {
+      "get": {
+        "operationId": "getEngineDefaultOptions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "iterations_count": 1000
+                },
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Getenginedefaultoptions",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Gateway-level default options for a given engine"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "An engine's default options",
+        "tags": [
+          "Engines"
+        ]
+      }
+    },
+    "/v1/instance/compose": {
+      "post": {
+        "description": "The inverse: the parts merged back into the instance they describe.\n\nA key given by two parts, or given to a part that does not own it, is an\nerror rather than a silent overwrite - which is the whole reason the split\nis safe to edit part by part.",
+        "operationId": "compose_instance_v1_instance_compose_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComposeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComposeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compose Instance",
+        "tags": [
+          "Instance parts"
+        ]
+      }
+    },
+    "/v1/instance/split": {
+      "post": {
+        "description": "One instance in, one file's worth of content per component out.",
+        "operationId": "split_instance_v1_instance_split_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SplitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SplitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Split Instance",
+        "tags": [
+          "Instance parts"
+        ]
+      }
+    },
+    "/v1/jobs/{job_id}": {
+      "get": {
+        "description": "A job's status, to whoever is entitled to it.\n\nA job that belongs to somebody else answers \"not found\" rather than\n\"forbidden\". Job identifiers used to be, in effect, bearer tokens for\nwhatever they named; refusing by existence rather than by permission is\nwhat stops the endpoint from confirming which identifiers are real.",
+        "operationId": "getJob",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "completed": {
+                    "summary": "Completed job",
+                    "value": {
+                      "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                      "result": {
+                        "diagnostics": {
+                          "binding_space": {
+                            "cardinality": "4",
+                            "empty_tasks": [],
+                            "log10_cardinality": 0.6020599913,
+                            "per_task_counts": {
+                              "t1": 2,
+                              "t2": 2
+                            }
+                          },
+                          "warnings": [
+                            "Option 'foo' ignored by engine"
+                          ]
+                        },
+                        "feasibility": "FEASIBLE",
+                        "provenance": {
+                          "engine_id": "random-search",
+                          "execution_time_ms": 123.4,
+                          "metadata": {
+                            "iterations_count": 1000,
+                            "solver": "Random-Search",
+                            "version": "0.0.1-SNAPSHOT"
+                          }
+                        },
+                        "solutions": [
+                          {
+                            "aggregated_features": {
+                              "cost": 20.0,
+                              "time": 60.0
+                            },
+                            "binding": {
+                              "t1": "s2",
+                              "t2": "s4"
+                            },
+                            "objective_value": 0.0,
+                            "violations": []
+                          }
+                        ]
+                      },
+                      "status": "completed"
+                    }
+                  },
+                  "failed": {
+                    "summary": "Failed job",
+                    "value": {
+                      "error": "Job not found on engine",
+                      "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                      "status": "failed"
+                    }
+                  },
+                  "queued": {
+                    "summary": "Queued job",
+                    "value": {
+                      "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                      "status": "queued"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Job status (queued/running/completed/failed)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such job, or one belonging to somebody else. Deliberately not 403: a caller who may not read a job should not learn that it exists."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "A job's status, and its result once it has one",
+        "tags": [
+          "Solving"
+        ]
+      }
+    },
+    "/v1/schemas/engine-contract": {
+      "get": {
+        "description": "The engine-side contract, as an OpenAPI document.\n\nThe other half of the gateway's own description: that one says what a client\nmay ask OpenBinding, this says what OpenBinding asks an engine. It existed\nonly as prose and as three response shapes implicit in the router until now,\nwhich is not something a third party can implement against.\n\nPublic, and served rather than only committed, so that whoever is building\nan engine reads the version this gateway actually speaks.",
+        "operationId": "getEngineContract",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "This deployment ships no engine contract."
+          }
+        },
+        "summary": "What a solver engine must implement",
+        "tags": [
+          "Schemas"
+        ]
+      }
+    },
+    "/v1/schemas/general": {
+      "get": {
+        "description": "The general schema as one self-contained document.\n\nThe files on disk are split one per element of the tuple so each model can\nbe reused on its own; consumers still want a single document, so what is\nserved is the bundle, exactly what a monolithic file would have been.",
+        "operationId": "get_general_schema_v1_schemas_general_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get General Schema",
+        "tags": [
+          "Schemas"
+        ]
+      }
+    },
+    "/v1/schemas/general/model": {
+      "get": {
+        "operationId": "get_general_schema_model_v1_schemas_general_model_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get General Schema Model",
+        "tags": [
+          "Schemas"
+        ]
+      }
+    },
+    "/v1/schemas/pricing": {
+      "get": {
+        "description": "The Pricing2Yaml document, as a document.\n\nServed rather than bundled into the interface because the plans are part of\nthe API's description: a script deciding whether to ask for an upgrade\nshould be able to read what the plans are, not screen-scrape a page. It is\nalso what the interface renders, so the two cannot disagree.\n\nPublic, because a pricing nobody can read before signing up is not much of\na pricing.",
+        "operationId": "getPricing",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "This deployment ships no pricing document."
+          }
+        },
+        "summary": "The pricing this gateway is sold under",
+        "tags": [
+          "Schemas"
+        ]
+      }
+    },
+    "/v1/schemas/{engine_id}": {
+      "get": {
+        "operationId": "get_engine_schema_v1_schemas__engine_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Engine Schema",
+        "tags": [
+          "Schemas"
+        ]
+      }
+    },
+    "/v1/schemas/{engine_id}/model": {
+      "get": {
+        "operationId": "get_engine_schema_model_v1_schemas__engine_id__model_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Engine Schema Model",
+        "tags": [
+          "Schemas"
+        ]
+      }
+    },
+    "/v1/solve": {
+      "post": {
+        "operationId": "solve",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                  "result": {
+                    "diagnostics": {
+                      "binding_space": {
+                        "cardinality": "4",
+                        "empty_tasks": [],
+                        "log10_cardinality": 0.6020599913,
+                        "per_task_counts": {
+                          "t1": 2,
+                          "t2": 2
+                        }
+                      },
+                      "warnings": [
+                        "Option 'foo' ignored by engine"
+                      ]
+                    },
+                    "feasibility": "FEASIBLE",
+                    "provenance": {
+                      "engine_id": "random-search",
+                      "execution_time_ms": 123.4,
+                      "metadata": {
+                        "iterations_count": 1000,
+                        "solver": "Random-Search",
+                        "version": "0.0.1-SNAPSHOT"
+                      }
+                    },
+                    "solutions": [
+                      {
+                        "aggregated_features": {
+                          "cost": 20.0,
+                          "time": 60.0
+                        },
+                        "binding": {
+                          "t1": "s2",
+                          "t2": "s4"
+                        },
+                        "objective_value": 0.0,
+                        "violations": []
+                      }
+                    ]
+                  },
+                  "status": "completed"
+                }
+              }
+            },
+            "description": "Solve request completed synchronously"
+          },
+          "202": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "job_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                  "status": "queued"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/JobResponse"
+                }
+              }
+            },
+            "description": "Solve request accepted (job created)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotaErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's plan has no allowance left, or the instance is larger than the plan solves. Distinct from 403: this is an allowance spent rather than a permission missing, so retrying after it renews is worth something."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request body is larger than this caller's plan allows."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViolationsErrorResponse"
+                }
+              }
+            },
+            "description": "The instance is invalid: schema, semantic or logical violations."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Solve an instance on one of the engines",
+        "tags": [
+          "Solving"
+        ]
+      }
+    },
+    "/v1/users/me": {
+      "get": {
+        "operationId": "getOwnProfile",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "The signed-in account",
+        "tags": [
+          "Users"
+        ]
+      },
+      "patch": {
+        "description": "Change what the account holder is allowed to change.\n\nBoth changes need the current password. Email is included in that because\nthe email address is one of the two ways to sign in, so changing it is a\nchange of credential, not of contact details.",
+        "operationId": "updateOwnProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with something that already exists."
+          },
+          "422": {
+            "description": "The new password is not acceptable."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Change your email or password",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/v1/users/me/api-keys": {
+      "get": {
+        "description": "List the keys that still work. Revoked ones are gone, not shown greyed out.",
+        "operationId": "listOwnApiKeys",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Your API keys",
+        "tags": [
+          "Users"
+        ]
+      },
+      "post": {
+        "description": "Mint a key and return it once.\n\nThis is the only response that ever contains the secret. What is stored is\na hash, so there is no way to produce it again - a caller who loses it has\nto revoke the key and mint another.",
+        "operationId": "createApiKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedApiKey"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Mint an API key",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/v1/users/me/api-keys/{key_id}": {
+      "delete": {
+        "description": "Revoke a key of your own.\n\nSomebody else's key answers 404 rather than 403: a caller who may not\ntouch it should not be able to learn that it exists.",
+        "operationId": "revokeApiKey",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Key Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Revoke an API key",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/v1/users/me/pricing-token": {
+      "get": {
+        "description": "Mint the token the interface gates features with.\n\nThe browser never talks to the pricing service directly - it is not\npublished, and it holds every account's contract. It gets this instead: a\nsigned statement of what this one account may do, which the frontend\nevaluates locally.",
+        "operationId": "getOwnPricingToken",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricingTokenView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The pricing service is not reachable."
+          }
+        },
+        "summary": "A signed token for evaluating features in the browser",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/v1/users/me/usage": {
+      "get": {
+        "description": "Everything the account page needs about entitlements, in one call.",
+        "operationId": "getOwnUsage",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The pricing service is not reachable."
+          }
+        },
+        "summary": "Your plan, quotas and what is left of them",
+        "tags": [
+          "Users"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Whether the gateway is answering.",
+      "name": "Health"
+    },
+    {
+      "description": "Validate an instance, measure it, and solve it.",
+      "name": "Solving"
+    },
+    {
+      "description": "Which solvers are registered, and what they accept.",
+      "name": "Engines"
+    },
+    {
+      "description": "The instance schemas, and the pricing, as documents.",
+      "name": "Schemas"
+    },
+    {
+      "description": "Take an instance apart along the tuple, and put it back.",
+      "name": "Instance parts"
+    },
+    {
+      "description": "Accounts and sessions.",
+      "name": "Authentication"
+    },
+    {
+      "description": "Your own account: profile, API keys, quotas.",
+      "name": "Users"
+    },
+    {
+      "description": "Other people's accounts. Administrators only.",
+      "name": "Administration"
+    }
+  ]
+}

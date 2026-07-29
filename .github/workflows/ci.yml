@@ -72,6 +72,12 @@ jobs:
       - name: Run unit tests
         run: docker compose exec -T gateway-dev test
 
+      # The document is generated, so it is never stale - which also means a
+      # contract change is invisible in review, buried in a change to a model.
+      # The committed snapshot puts it in the diff.
+      - name: Check the OpenAPI snapshot is current
+        run: docker compose exec -T gateway-dev python tools/dump_openapi.py --check
+
       - name: Run integration tests
         run: docker compose exec -T gateway-dev test tests/integration -m integration
       

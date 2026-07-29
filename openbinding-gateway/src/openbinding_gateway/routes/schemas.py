@@ -74,6 +74,30 @@ async def get_pricing():
     return FileResponse(path, media_type="application/yaml")
 
 
+@router.get(
+    "/engine-contract",
+    operation_id="getEngineContract",
+    summary="What a solver engine must implement",
+    responses={404: {"description": "This deployment ships no engine contract."}},
+)
+async def get_engine_contract():
+    """The engine-side contract, as an OpenAPI document.
+
+    The other half of the gateway's own description: that one says what a client
+    may ask OpenBinding, this says what OpenBinding asks an engine. It existed
+    only as prose and as three response shapes implicit in the router until now,
+    which is not something a third party can implement against.
+
+    Public, and served rather than only committed, so that whoever is building
+    an engine reads the version this gateway actually speaks.
+    """
+    path = os.path.join(_schemas_dir(), "engine-contract.openapi.yaml")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="No engine contract on this server.")
+
+    return FileResponse(path, media_type="application/yaml")
+
+
 @router.get("/general")
 async def get_general_schema():
     """The general schema as one self-contained document.

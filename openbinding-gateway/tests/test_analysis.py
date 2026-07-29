@@ -165,7 +165,12 @@ def test_solve_rejects_oversized_content_length_header(mock_registry, mock_pipel
         response = client.post("/v1/solve", json=payload)
 
     assert response.status_code == 413
-    assert "Request body is too large" in response.json().get("detail", "")
+    # The body is a structured error now rather than a bare string: every
+    # failure carries a machine-readable code, so a client can tell this from a
+    # spent quota without matching on prose.
+    detail = response.json()["detail"]
+    assert detail["code"] == "payload_too_large"
+    assert "Request body is too large" in detail["error"]
 
 
 def test_solve_rejects_oversized_transformed_payload(mock_pipeline):
@@ -195,4 +200,9 @@ def test_solve_rejects_oversized_transformed_payload(mock_pipeline):
         response = client.post("/v1/solve", json=payload)
 
     assert response.status_code == 413
-    assert "Request body is too large" in response.json().get("detail", "")
+    # The body is a structured error now rather than a bare string: every
+    # failure carries a machine-readable code, so a client can tell this from a
+    # spent quota without matching on prose.
+    detail = response.json()["detail"]
+    assert detail["code"] == "payload_too_large"
+    assert "Request body is too large" in detail["error"]

@@ -1,16 +1,26 @@
-from fastapi import Depends, FastAPI, HTTPException, status, Request
-from contextlib import asynccontextmanager, suppress
-from typing import Dict, Any, Optional
-import json
-import asyncio
-import uuid
+"""The gateway's HTTP surface.
 
-from dotenv import load_dotenv
+Nothing here reads configuration while being imported, which is why the imports
+are ordinary imports at the top of the file. They used to sit below a
+``load_dotenv()`` call because the engine registry read its URLs at import time;
+that is resolved lazily now, and ``.env`` is loaded by the settings object
+itself.
+"""
+
+import asyncio
+import json
+import time
+import uuid
+from contextlib import asynccontextmanager, suppress
+from typing import Any, Dict, Optional
+
 import httpx
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
-load_dotenv()
-
+from . import space_client
 from .access import metering, policy
 from .access.dependencies import optional_session, solve_caller
 from .core.settings import get_settings
@@ -18,15 +28,51 @@ from .db import base as db_base
 from .db.bootstrap import ensure_administrator
 from .db.models import User
 from .jobs import JobManager
-from . import space_client
-from .space_client import PlanCaps, PricingUnavailable
-from .models.errors import api_error
-from .models.api import SolveRequest, JobResponse, JobStatus, AnalyzeResponse, AnalyzeWarning, Provenance, BindingSpaceRequest, BindingSpacePage
-from .validation.pipeline import ValidationPipeline
-from .validation.analysis import compute_binding_space_summary, generate_warnings, generate_binding_space_subset
-from .routing.router import Router, PayloadTooLargeError, PAYLOAD_TOO_LARGE_MESSAGE
+from .models.api import (
+    AnalyzeResponse,
+    AnalyzeWarning,
+    BindingSpacePage,
+    BindingSpaceRequest,
+    JobResponse,
+    JobStatus,
+    Provenance,
+    SolveRequest,
+)
+from .models.errors import (
+    NOT_FOUND_RESPONSE,
+    PAYLOAD_TOO_LARGE_RESPONSE,
+    QUOTA_RESPONSE,
+    UNAUTHORIZED_RESPONSE,
+    UNAVAILABLE_RESPONSE,
+    VIOLATIONS_RESPONSE,
+    api_error,
+)
+from .openapi_examples import (
+    _ANALYZE_FAILED_EXAMPLE,
+    _ANALYZE_VALIDATED_EXAMPLE,
+    _BINDING_SPACE_EXAMPLE,
+    _ENGINES_EXAMPLE,
+    _HEALTH_EXAMPLE,
+    _JOB_COMPLETED_EXAMPLE,
+    _JOB_FAILED_EXAMPLE,
+    _JOB_QUEUED_EXAMPLE,
+)
 from .registry.engine import EngineRegistry
-import time
+from .routes.admin import router as admin_router
+from .routes.auth import router as auth_router
+from .routes.instance_parts import router as instance_parts_router
+from .routes.schemas import router as schemas_router
+from .routes.users import router as users_router
+from .routing.router import PAYLOAD_TOO_LARGE_MESSAGE, PayloadTooLargeError, Router
+from .space_client import PlanCaps, PricingUnavailable
+from .validation.analysis import (
+    compute_binding_space_summary,
+    generate_binding_space_subset,
+    generate_warnings,
+)
+from .validation.pipeline import ValidationPipeline
+
+load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -67,27 +113,52 @@ async def lifespan(app: FastAPI):
         space_client.set_gate(None)
         await db_base.dispose_engine()
 
-app = FastAPI(title="OpenBinding Gateway", lifespan=lifespan, root_path="/api")
+#: Groups the operations, so a generated client and the interactive docs both
+#: organise themselves the way the system is actually divided.
+TAGS_METADATA = [
+    {"name": "Health", "description": "Whether the gateway is answering."},
+    {"name": "Solving", "description": "Validate an instance, measure it, and solve it."},
+    {"name": "Engines", "description": "Which solvers are registered, and what they accept."},
+    {"name": "Schemas", "description": "The instance schemas, and the pricing, as documents."},
+    {"name": "Instance parts", "description": "Take an instance apart along the tuple, and put it back."},
+    {"name": "Authentication", "description": "Accounts and sessions."},
+    {"name": "Users", "description": "Your own account: profile, API keys, quotas."},
+    {"name": "Administration", "description": "Other people's accounts. Administrators only."},
+]
 
-MAX_SOLVE_BODY_BYTES = 512 * 1024 * 1024
+DESCRIPTION = """\
+A QoS-aware service composition gateway. Validate a binding instance against
+the general schema and a solver's specialisation of it, measure its binding
+space, and route it to an engine.
 
-from .routes.admin import router as admin_router
-from .routes.auth import router as auth_router
-from .routes.instance_parts import router as instance_parts_router
-from .routes.schemas import router as schemas_router
-from .routes.users import router as users_router
-from .openapi_examples import (  # noqa: F401
-    _ANALYZE_FAILED_EXAMPLE,
-    _ANALYZE_VALIDATED_EXAMPLE,
-    _BINDING_SPACE_EXAMPLE,
-    _ENGINES_EXAMPLE,
-    _HEALTH_EXAMPLE,
-    _JOB_COMPLETED_EXAMPLE,
-    _JOB_FAILED_EXAMPLE,
-    _JOB_QUEUED_EXAMPLE,
+**This document is the contract.** Instance structure is described in full
+under `SolveRequest.instance`; the shape of a solution is `Solution`, and its
+metrics are always recomputed by the reference evaluator rather than taken from
+whatever the engine reported. An engine only has to return a Task-to-Candidate
+map for the rest to be derived.
+
+**Both channels are the same channel.** A browser session and an `obk_`-prefixed
+API key resolve to the same account, so a pricing plan applies to the caller
+rather than to how they called. Everything the web interface can do is an
+operation here.
+
+**Errors carry a machine-readable `code`.** `402` means an allowance is spent,
+which is worth retrying once it renews; `403` means a permission is missing,
+which is not; `503` with `Retry-After` means the gateway could not find out.
+"""
+
+app = FastAPI(
+    title="OpenBinding Gateway",
+    version="1.0.0",
+    summary="QoS-aware service composition: validate, measure and solve binding instances.",
+    description=DESCRIPTION,
+    openapi_tags=TAGS_METADATA,
+    license_info={"name": "CC BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/"},
+    lifespan=lifespan,
+    root_path="/api",
 )
 
-from fastapi.middleware.cors import CORSMiddleware
+MAX_SOLVE_BODY_BYTES = 512 * 1024 * 1024
 
 settings = get_settings()
 
@@ -159,6 +230,9 @@ def _quota_exceeded(verdict) -> HTTPException:
 
 @app.get(
     "/health",
+    tags=["Health"],
+    operation_id="health",
+    summary="Whether the gateway is up",
     responses={
         200: {
             "description": "OK",
@@ -171,6 +245,9 @@ async def health():
 
 @app.get(
     "/v1/engines",
+    tags=["Engines"],
+    operation_id="listEngines",
+    summary="Registered engines and their capabilities",
     responses={
         200: {
             "description": "Registered engines and their capabilities",
@@ -196,7 +273,7 @@ async def list_engines():
             return_exceptions=True,
         )
 
-    for engine, result in zip(engines, results):
+    for engine, result in zip(engines, results, strict=True):
         engine["active"] = bool(result) and not isinstance(result, Exception)
 
     return engines
@@ -204,19 +281,24 @@ async def list_engines():
 
 @app.get(
     "/v1/engines/{engine_id}/options/defaults",
+    tags=["Engines"],
+    operation_id="getEngineDefaultOptions",
+    summary="An engine's default options",
     responses={
         200: {
             "description": "Gateway-level default options for a given engine",
             "content": {"application/json": {"example": {"iterations_count": 1000}}},
         },
-        404: {"description": "Engine not found"},
+        404: NOT_FOUND_RESPONSE,
     },
 )
 async def get_engine_default_options(engine_id: str) -> Dict[str, Any]:
     try:
         plugin = EngineRegistry.get_plugin(engine_id)
-    except ValueError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Engine '{engine_id}' not found")
+    except ValueError as error:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, "engine_not_found", f"No engine called '{engine_id}'."
+        ) from error
 
     defaults = plugin.get_default_options() or {}
     if not isinstance(defaults, dict):
@@ -292,6 +374,9 @@ def _content_length_too_large(header_value: str | None, max_bytes: int) -> bool:
 
 @app.post(
     "/v1/analyze",
+    tags=["Solving"],
+    operation_id="analyze",
+    summary="Validate an instance and measure its binding space",
     response_model=AnalyzeResponse,
     status_code=status.HTTP_200_OK,
     response_model_exclude_none=True,
@@ -389,18 +474,18 @@ async def analyze(request: SolveRequest):
 
 @app.post(
     "/v1/analyze/binding-space",
+    tags=["Solving"],
+    operation_id="exploreBindingSpace",
+    summary="Enumerate the binding space, a page at a time",
     response_model=BindingSpacePage,
     status_code=status.HTTP_200_OK,
     responses={
-        422: {
-            "description": "Validation failed",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Validation failed"}
-                }
-            }
-        }
-    }
+        200: {
+            "description": "A page of the binding space",
+            "content": {"application/json": {"example": _BINDING_SPACE_EXAMPLE}},
+        },
+        422: VIOLATIONS_RESPONSE,
+    },
 )
 async def analyze_binding_space(request: BindingSpaceRequest):
     # Reuse the same validation logic.
@@ -437,11 +522,11 @@ async def analyze_binding_space(request: BindingSpaceRequest):
         bindings=subset["bindings"]
     )
 
-from fastapi import Response
-from fastapi.responses import FileResponse
-
 @app.post(
     "/v1/solve",
+    tags=["Solving"],
+    operation_id="solve",
+    summary="Solve an instance on one of the engines",
     response_model=JobResponse,
     status_code=status.HTTP_202_ACCEPTED,
     response_model_exclude_none=True,
@@ -454,27 +539,11 @@ from fastapi.responses import FileResponse
              "description": "Solve request completed synchronously",
              "content": {"application/json": {"example": _JOB_COMPLETED_EXAMPLE}},
         },
-        422: {
-            "description": "Instance is invalid (semantic/logical/schema violations)",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": {
-                            "error": "The problem has semantic or logical errors: [...]",
-                            "violations": [
-                                {
-                                    "code": "missing_candidates",
-                                    "message": "Missing candidates for tasks: t2",
-                                    "path": "candidates",
-                                    "constraint_id": None,
-                                    "stage": None,
-                                }
-                            ],
-                        }
-                    }
-                }
-            },
-        },
+        401: UNAUTHORIZED_RESPONSE,
+        402: QUOTA_RESPONSE,
+        413: PAYLOAD_TOO_LARGE_RESPONSE,
+        422: VIOLATIONS_RESPONSE,
+        503: UNAVAILABLE_RESPONSE,
     },
 )
 async def solve(
@@ -487,9 +556,10 @@ async def solve(
     caps = await plan_caps_for(user)
     body_ceiling = policy.payload_ceiling_bytes(caps, MAX_SOLVE_BODY_BYTES)
     if _content_length_too_large(http_request.headers.get("content-length"), body_ceiling):
-        raise HTTPException(
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=f"Request body is too large. Maximum allowed size is {body_ceiling} bytes.",
+        raise api_error(
+            status.HTTP_413_CONTENT_TOO_LARGE,
+            "payload_too_large",
+            f"Request body is too large. Maximum allowed size is {body_ceiling} bytes.",
         )
 
     result = validate_and_prepare(request)
@@ -565,7 +635,7 @@ async def solve(
             # would rather keep working than keep accounts set the other mode,
             # and this solve simply goes uncounted.
             if get_settings().space_fail_mode != "open":
-                raise _pricing_unavailable(error)
+                raise _pricing_unavailable(error) from error
 
     warning_payload = [w.model_dump() if hasattr(w, "model_dump") else w for w in warnings]
 
@@ -583,10 +653,9 @@ async def solve(
     except PayloadTooLargeError:
         # Nothing was solved, so nothing is owed.
         await metering.release(space_client.get_gate(), reservation)
-        raise HTTPException(
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=PAYLOAD_TOO_LARGE_MESSAGE,
-        )
+        raise api_error(
+            status.HTTP_413_CONTENT_TOO_LARGE, "payload_too_large", PAYLOAD_TOO_LARGE_MESSAGE
+        ) from None
     except Exception:
         await metering.release(space_client.get_gate(), reservation)
         raise
@@ -629,6 +698,9 @@ def _engine_seconds(job_resp: JobResponse, wall_clock_s: float) -> float:
 
 @app.get(
     "/v1/jobs/{job_id}",
+    tags=["Solving"],
+    operation_id="getJob",
+    summary="A job's status, and its result once it has one",
     response_model=JobResponse,
     response_model_exclude_none=True,
     responses={
@@ -644,10 +716,15 @@ def _engine_seconds(job_resp: JobResponse, wall_clock_s: float) -> float:
                 }
             },
         },
+        401: UNAUTHORIZED_RESPONSE,
         404: {
-            "description": "Job not found",
-            "content": {"application/json": {"example": {"detail": "Job not found"}}},
+            **NOT_FOUND_RESPONSE,
+            "description": (
+                "No such job, or one belonging to somebody else. Deliberately not 403: "
+                "a caller who may not read a job should not learn that it exists."
+            ),
         },
+        503: UNAVAILABLE_RESPONSE,
     },
 )
 async def get_job(
@@ -664,11 +741,11 @@ async def get_job(
     """
     stored = await JobManager.get_job(job_id, session=session)
     if stored is not None and not stored.readable_by(user):
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "No such job.")
 
     job = await router.get_job_status(job_id, session=session)
     if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "No such job.")
     return job
 
 
