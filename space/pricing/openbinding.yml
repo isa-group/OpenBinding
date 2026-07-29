@@ -13,6 +13,12 @@
 # nobody can reach is still a limit worth having, because it is what stops a
 # runaway script from consuming a cluster. PRO's values are therefore very high
 # and finite.
+# The current Pricing2Yaml specification is 3.1 - the "supported value: 3.0"
+# in the published specification page is a documentation bug. This file says
+# 3.0 anyway, because the toolchain has not caught up: pricing4ts 0.10.3, which
+# SPACE 1.0.0 bundles, lists PRICING2YAML_VERSIONS as ["1.0","1.1","2.0","2.1",
+# "3.0"] and refuses anything newer outright. Nothing here uses 3.1 syntax, so
+# the declaration is the only thing to change once that version list grows.
 syntaxVersion: '3.0'
 saasName: openbinding
 version: 1.0.0

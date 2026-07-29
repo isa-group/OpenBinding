@@ -148,7 +148,44 @@ our request rates, not what you would choose at higher ones.
 
 ---
 
-## 5. Smaller things, worth mentioning if a PR is opened anyway
+## 5. The parser is a specification version behind
+
+**Where** `pricing4ts` 0.10.3 (bundled by SPACE 1.0.0) —
+`dist/server/utils/version-manager.js`
+
+```js
+exports.PRICING2YAML_VERSIONS = ["1.0", "1.1", "2.0", "2.1", "3.0"];
+```
+
+**What happens** The current Pricing2Yaml specification is **3.1**. Declaring it
+is refused outright:
+
+```
+Pricing parsing error: Unsupported version: 3.1.
+Please, visit the changelogs of Pricing2Yaml to check the supported versions.
+```
+
+**Why it matters** A pricing cannot declare the version of the specification it
+was actually written against. Anyone following the current specification writes
+a document their SPACE instance rejects, and the error points at the changelog
+rather than at the parser being behind.
+
+There is a second, separate confusion nearby: the published specification page
+for 3.1 states "Supported value: `3.0`" for `syntaxVersion`, which is a
+documentation bug. So a reader gets told 3.0 by the docs, and a writer following
+the version number gets refused by the parser.
+
+**Suggested fix** Add `"3.1"` to `PRICING2YAML_VERSIONS`, with an updater entry
+if 3.1 changes anything structural. Separately, correct the `syntaxVersion`
+value on the 3.1 specification page.
+
+**What OpenBinding does meanwhile** Declares `3.0`, with a comment in
+`pricing/openbinding.yml` saying why. Nothing in the document uses 3.1 syntax,
+so the declaration is the only thing that changes when the version list grows.
+
+---
+
+## 6. Smaller things, worth mentioning if a PR is opened anyway
 
 - **Deleting a service leaves its pricings behind.** `DELETE /services/{name}`
   and even `DELETE /services` (prune) return success, but re-registering the same
