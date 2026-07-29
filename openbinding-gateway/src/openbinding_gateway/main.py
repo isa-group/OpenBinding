@@ -1,15 +1,15 @@
 from fastapi import FastAPI, HTTPException, status, Request
 from contextlib import asynccontextmanager
-from typing import List, Dict, Any
+from typing import Dict, Any
 import json
 import asyncio
-import os
 
 from dotenv import load_dotenv
 import httpx
 
 load_dotenv()
 
+from .core.settings import get_settings
 from .models.api import SolveRequest, JobResponse, JobStatus, AnalyzeResponse, AnalyzeWarning, Provenance, BindingSpaceRequest, BindingSpacePage
 from .validation.pipeline import ValidationPipeline
 from .validation.analysis import compute_binding_space_summary, generate_warnings, generate_binding_space_subset
@@ -40,21 +40,12 @@ from .openapi_examples import (  # noqa: F401
 
 from fastapi.middleware.cors import CORSMiddleware
 
-
-def _parse_csv_env(value: str) -> List[str]:
-    return [item.strip() for item in value.split(",") if item.strip()]
-
-
-cors_origins = _parse_csv_env(os.getenv("CORS_ALLOW_ORIGINS", "*"))
-cors_allow_credentials = os.getenv("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
-
-if "*" in cors_origins:
-    cors_allow_credentials = False
+settings = get_settings()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=cors_allow_credentials,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=settings.cors_credentials_allowed,
     allow_methods=["*"],
     allow_headers=["*"],
 )

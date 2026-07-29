@@ -1,5 +1,5 @@
-import os
 from typing import Dict, List, Any
+from ..core.settings import get_settings
 from ..validation.engine_plugins.base import EngineValidationPlugin
 from ..validation.engine_plugins.minizinc_csp import MiniZincCSPEnginePlugin
 from ..validation.engine_plugins.random_search import RandomSearchEnginePlugin
@@ -9,15 +9,7 @@ from ..validation.engine_plugins.evolutionary_heuristics import EvolutionaryHeur
 class EngineRegistry:
     # Keeps track of all solver engines and where to find them.
     _plugins: Dict[str, EngineValidationPlugin] = {}
-    _engine_urls: Dict[str, str] = {
-        "minizinc-csp": os.getenv("ENGINE_MINIZINC_URL", "http://engine-minizinc:3000"),
-        "random-search": os.getenv("ENGINE_RANDOM_SEARCH_URL", "http://engine-random-search:8080"),
-        "many-heuristic": os.getenv("ENGINE_MANY_HEURISTIC_URL", "http://engine-many-heuristic:8080"),
-        "evolutionary-heuristics": os.getenv(
-            "ENGINE_EVOLUTIONARY_HEURISTICS_URL",
-            "http://engine-evolutionary-heuristics:8080",
-        ),
-    }
+    _engine_urls: Dict[str, str] = get_settings().engine_urls
 
     @classmethod
     def register(cls, engine_id: str, plugin: EngineValidationPlugin):

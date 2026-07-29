@@ -1,8 +1,8 @@
 import asyncio
 import httpx
 import json
-import os
 from typing import Optional, Any
+from ..core.settings import get_settings
 from ..registry.engine import EngineRegistry
 from ..models.api import SolveRequest, SolveResponse
 from ..models.api import JobResponse, JobStatus, Feasibility
@@ -94,7 +94,7 @@ class Router:
                         response = await client.post(
                             f"{service_url.rstrip('/')}/solve",
                             json=payload,
-                            timeout=float(os.getenv("ENGINE_SOLVE_TIMEOUT_S", "1800"))
+                            timeout=get_settings().engine_solve_timeout_s,
                         )
 
                         if response.status_code in (502, 503, 504):
@@ -155,7 +155,7 @@ class Router:
                 job.metadata["original_request"] = request.instance
                 if binding_space:
                     job.metadata["binding_space"] = binding_space
-                
+
                 return JobResponse(
                     job_id=job.id,
                     status=JobStatus.QUEUED
@@ -186,7 +186,7 @@ class Router:
                              )
                              
                              job.result = result
-
+        
                              return JobResponse(
                                  job_id=job.id,
                                  status=JobStatus.COMPLETED,

@@ -1,18 +1,19 @@
 import json
-import os
 from pathlib import Path
 from functools import lru_cache
 from typing import Dict, Any, Optional, List
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
 
+from ..core.settings import get_settings
+
 def _general_schema_path() -> Path:
     """Where the general schema lives, in order of preference.
 
-    The environment variable is what deployments set; the repository-relative
+    The configured path is what deployments set; the repository-relative
     path is what local development uses; /app is the Docker image layout.
     """
-    env_path = os.getenv("GENERAL_SCHEMA_PATH")
+    env_path = get_settings().general_schema_path
     candidates = [Path(env_path)] if env_path else []
     candidates.append(Path(__file__).parents[4] / "schemas/general/schema.json")
     candidates.append(Path("/app/schemas/general/schema.json"))

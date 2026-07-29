@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Set, Tuple
 
 import httpx
 
+from ...core.settings import get_settings
 from ...models.api import ValidationViolation
 
 
@@ -14,7 +15,7 @@ def specialization_schema_path(engine_id: str) -> str:
     is what local development uses. Resolving it here keeps the walk up five
     directories in one place instead of one copy per plugin.
     """
-    base_path = os.getenv("SCHEMAS_DIR", "/app/schemas")
+    base_path = get_settings().schemas_dir
     if not os.path.exists(base_path):
         base_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "../../../../../schemas")

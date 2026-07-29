@@ -9,6 +9,7 @@ import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
+from ..core.settings import get_settings
 from ..registry.engine import EngineRegistry
 from ..validation.schema_bundle import load_general_schema
 
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/v1/schemas", tags=["Schemas"])
 
 
 def _schemas_dir() -> str:
-    return os.getenv("SCHEMAS_DIR", "/app/schemas")
+    return get_settings().schemas_dir
 
 
 def _assert_engine_exists(engine_id: str) -> None:
