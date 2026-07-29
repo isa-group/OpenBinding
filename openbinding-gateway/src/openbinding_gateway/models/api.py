@@ -41,6 +41,15 @@ class SolveRequest(BaseModel):
     instance: Dict[str, Any] = Field(..., description="The general problem instance", json_schema_extra=lambda schema: schema.update(general_schema()))
     options: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Solver-specific options. E.g. {'iterations_count': 1000} for Random-Search.")
     verbose: bool = Field(default=False, description="If true, return diagnostics and warnings.")
+    include_engine_report: bool = Field(
+        default=False,
+        description=(
+            "If true, also return what the engine said before the gateway recomputed it, "
+            "with a summary of where the two disagree. Separate from `verbose`, which "
+            "controls diagnostics: this has a different purpose and a different size, and "
+            "either is useful without the other."
+        ),
+    )
 
 class SplitRequest(BaseModel):
     instance: Dict[str, Any] = Field(..., description="A whole problem instance to take apart.")
@@ -135,11 +144,84 @@ class AnalyzeResponse(BaseModel):
     provenance: Optional[Provenance] = None
     error: Optional[str] = None
 
+class EngineDivergence(BaseModel):
+    """Where the engine and the reference evaluator disagree.
+
+    The interesting part of keeping an engine's own numbers. An engine that
+    reports a solution feasible which the reference evaluator rejects has a bug
+    in its semantics, and that is worth surfacing as a signal rather than
+    leaving somebody to compare two lists by eye.
+    """
+
+    solutions_compared: int = Field(..., description="How many solutions were checked.")
+    feasibility_mismatches: int = Field(
+        default=0,
+        description="Solutions the engine and the reference evaluator disagree about.",
+    )
+    max_objective_delta: Optional[float] = Field(
+        default=None,
+        description="Largest absolute difference between the engine's objective and the canonical one.",
+    )
+    notes: List[str] = Field(
+        default_factory=list,
+        description="One line per disagreement, naming the solution and what differs.",
+    )
+
+    @property
+    def agrees(self) -> bool:
+        return self.feasibility_mismatches == 0 and not self.notes
+
+
+class EngineReport(BaseModel):
+    """What the engine said, before the gateway recomputed it.
+
+    The canonical result is the official one: metrics come from one reference
+    evaluator rather than from four engines' arithmetic. That is deliberate, but
+    it used to mean an engine's own account of its answer was discarded without
+    trace. Asked for with ``include_engine_report``, this preserves it.
+
+    Useful for two things. Comparing engines on a benchmark, where what each one
+    *claims* is data. And finding the bug when a new engine's numbers drift from
+    the reference - which is the divergence below.
+    """
+
+    solutions: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "Solutions as the engine reported them, in the general shape but before "
+            "canonicalization - so directly comparable, field by field, with the "
+            "canonical ones."
+        ),
+    )
+    provenance: Optional[Dict[str, Any]] = Field(
+        default=None, description="The engine's own provenance, before the gateway's is layered on."
+    )
+    raw: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "The untransformed engine body. What matters for an engine using its own "
+            "field names. Size-capped; see `raw_truncated`."
+        ),
+    )
+    raw_truncated: bool = Field(
+        default=False,
+        description="True when `raw` was dropped for being too large to be worth returning.",
+    )
+    divergence: Optional[EngineDivergence] = None
+
+
 class SolveResponse(BaseModel):
     feasibility: Feasibility = Feasibility.UNKNOWN
     solutions: List[Solution]
     provenance: Provenance
     diagnostics: Optional[Dict[str, Any]] = Field(default=None, description="Diagnostic information. May include 'binding_space' if verbose=True.")
+    engine_report: Optional[EngineReport] = Field(
+        default=None,
+        description=(
+            "What the engine said before the gateway recomputed it. Present only when "
+            "the request asked for it with `include_engine_report`."
+        ),
+    )
 
 class JobStatus(str, Enum):
     QUEUED = "queued"

@@ -293,6 +293,12 @@
             "title": "Engine Id",
             "type": "string"
           },
+          "include_engine_report": {
+            "default": false,
+            "description": "If true, also return what the engine said before the gateway recomputed it, with a summary of where the two disagree. Separate from `verbose`, which controls diagnostics: this has a different purpose and a different size, and either is useful without the other.",
+            "title": "Include Engine Report",
+            "type": "boolean"
+          },
           "instance": {
             "$id": "https://openbinding.score.us.es/api/v1/schemas/general",
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -561,6 +567,105 @@
           "secret"
         ],
         "title": "CreatedApiKey",
+        "type": "object"
+      },
+      "EngineDivergence": {
+        "description": "Where the engine and the reference evaluator disagree.\n\nThe interesting part of keeping an engine's own numbers. An engine that\nreports a solution feasible which the reference evaluator rejects has a bug\nin its semantics, and that is worth surfacing as a signal rather than\nleaving somebody to compare two lists by eye.",
+        "properties": {
+          "feasibility_mismatches": {
+            "default": 0,
+            "description": "Solutions the engine and the reference evaluator disagree about.",
+            "title": "Feasibility Mismatches",
+            "type": "integer"
+          },
+          "max_objective_delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Largest absolute difference between the engine's objective and the canonical one.",
+            "title": "Max Objective Delta"
+          },
+          "notes": {
+            "description": "One line per disagreement, naming the solution and what differs.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "solutions_compared": {
+            "description": "How many solutions were checked.",
+            "title": "Solutions Compared",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "solutions_compared"
+        ],
+        "title": "EngineDivergence",
+        "type": "object"
+      },
+      "EngineReport": {
+        "description": "What the engine said, before the gateway recomputed it.\n\nThe canonical result is the official one: metrics come from one reference\nevaluator rather than from four engines' arithmetic. That is deliberate, but\nit used to mean an engine's own account of its answer was discarded without\ntrace. Asked for with ``include_engine_report``, this preserves it.\n\nUseful for two things. Comparing engines on a benchmark, where what each one\n*claims* is data. And finding the bug when a new engine's numbers drift from\nthe reference - which is the divergence below.",
+        "properties": {
+          "divergence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineDivergence"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The engine's own provenance, before the gateway's is layered on.",
+            "title": "Provenance"
+          },
+          "raw": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The untransformed engine body. What matters for an engine using its own field names. Size-capped; see `raw_truncated`.",
+            "title": "Raw"
+          },
+          "raw_truncated": {
+            "default": false,
+            "description": "True when `raw` was dropped for being too large to be worth returning.",
+            "title": "Raw Truncated",
+            "type": "boolean"
+          },
+          "solutions": {
+            "description": "Solutions as the engine reported them, in the general shape but before canonicalization - so directly comparable, field by field, with the canonical ones.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Solutions",
+            "type": "array"
+          }
+        },
+        "title": "EngineReport",
         "type": "object"
       },
       "ErrorBody": {
@@ -1087,6 +1192,12 @@
             "title": "Engine Id",
             "type": "string"
           },
+          "include_engine_report": {
+            "default": false,
+            "description": "If true, also return what the engine said before the gateway recomputed it, with a summary of where the two disagree. Separate from `verbose`, which controls diagnostics: this has a different purpose and a different size, and either is useful without the other.",
+            "title": "Include Engine Report",
+            "type": "boolean"
+          },
           "instance": {
             "$id": "https://openbinding.score.us.es/api/v1/schemas/general",
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1208,6 +1319,17 @@
             ],
             "description": "Diagnostic information. May include 'binding_space' if verbose=True.",
             "title": "Diagnostics"
+          },
+          "engine_report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EngineReport"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the engine said before the gateway recomputed it. Present only when the request asked for it with `include_engine_report`."
           },
           "feasibility": {
             "$ref": "#/components/schemas/Feasibility",

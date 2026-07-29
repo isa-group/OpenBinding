@@ -11,7 +11,7 @@ from ..registry.engine import EngineRegistry
 from ..models.api import SolveRequest, SolveResponse
 from ..models.api import JobResponse, JobStatus, Feasibility
 from ..jobs import JobManager
-from ..semantics import canonicalize_result_data
+from ..semantics import canonicalize_result_data, engine_report
 
 MAX_ENGINE_PAYLOAD_BYTES = 512 * 1024 * 1024
 PAYLOAD_TOO_LARGE_MESSAGE = (
@@ -131,6 +131,14 @@ class Router:
                 if self._is_sync_response(data):
                      # It's a synchronous result
                      result_data = plugin.transform_response(data, request.instance)
+                     # Taken before canonicalization rewrites the metrics in
+                     # place, which is the only moment the engine's own account
+                     # of its answer still exists.
+                     before = (
+                         engine_report.snapshot(result_data)
+                         if request.include_engine_report
+                         else None
+                     )
                      result_data = canonicalize_result_data(result_data, request.instance)
                      feasibility = self._compute_feasibility(request.engine_id, result_data)
                      
@@ -154,7 +162,12 @@ class Router:
                                      feasibility=feasibility,
                             solutions=result_data.get("solutions", []),
                             provenance=result_data.get("provenance"),
-                            diagnostics=diagnostics if diagnostics else None
+                            diagnostics=diagnostics if diagnostics else None,
+                            engine_report=(
+                                engine_report.build(before, result_data, raw=data)
+                                if before is not None
+                                else None
+                            ),
                          )
                      )
                      
@@ -171,6 +184,7 @@ class Router:
                 job.metadata["budget_s"] = budget_s
                 job.metadata["warnings"] = all_warnings
                 job.metadata["verbose"] = request.verbose
+                job.metadata["include_engine_report"] = request.include_engine_report
                 job.metadata["original_request"] = request.instance
                 if binding_space:
                     job.metadata["binding_space"] = binding_space
@@ -266,6 +280,8 @@ class Router:
                     plugin = EngineRegistry.get_plugin(job.engine_id)
                     original_request = job.metadata.get("original_request") or {}
                     result_data = plugin.transform_response(data, original_request)
+                    wants_report = job.metadata.get("include_engine_report", False)
+                    before = engine_report.snapshot(result_data) if wants_report else None
                     result_data = canonicalize_result_data(result_data, original_request)
                     feasibility = self._compute_feasibility(job.engine_id, result_data)
                     
@@ -285,7 +301,12 @@ class Router:
                         feasibility=feasibility,
                         solutions=result_data.get("solutions", []),
                         provenance=result_data.get("provenance"),
-                        diagnostics=diagnostics if diagnostics else None
+                        diagnostics=diagnostics if diagnostics else None,
+                        engine_report=(
+                            engine_report.build(before, result_data, raw=data)
+                            if before is not None
+                            else None
+                        ),
                     )
 
                 return JobResponse(

@@ -48,13 +48,25 @@ its placement view with `PlacementAdapter.from(instance)`; an instance without
 them yields an empty view, so the same code path serves both. There is no
 placement mode to branch on.
 
-**Your reported metrics are overwritten.** Every solution goes through
-`semantics.canonicalization`, which re-derives `aggregated_features`,
-`violations` and `feasible` with the reference evaluator. Do not compute them
-in your plugin - four separate copies of that arithmetic is exactly what this
-architecture exists to avoid. Return the binding and, if you have one, your own
-objective value: it is kept as `engine_objective_value` and compared against
-the reference, which is how a divergence in your semantics gets caught.
+**Your reported metrics are overwritten - but kept, and compared.** Every
+solution goes through `semantics.canonicalization`, which re-derives
+`aggregated_features`, `violations` and `feasible` with the reference evaluator.
+Do not compute them in your plugin: four separate copies of that arithmetic is
+exactly what this architecture exists to avoid. Return the binding and, if you
+have one, your own objective value.
+
+Nothing you report is discarded. A caller who sends
+`"include_engine_report": true` gets an `engine_report` beside the canonical
+result, carrying your solutions exactly as you reported them, your provenance,
+your untransformed response body, and a **divergence summary**: which solutions
+you and the reference evaluator disagree about, how far apart the objectives
+are, and which aggregated features differ.
+
+That summary is the fastest way to find a bug while building an engine. If it
+says your feasibility disagrees with the reference, your constraint handling is
+wrong; if the objective drifts, check whether the instance declares
+normalization. It is also how the same divergence gets noticed later, in a
+benchmark, without anybody having to compare two lists by eye.
 
 **Declare only what you enforce, and enforce what you declare.** Capabilities
 and the specialization schema are a contract in both directions: a capability

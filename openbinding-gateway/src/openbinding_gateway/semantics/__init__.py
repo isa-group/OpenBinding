@@ -23,6 +23,7 @@ from .aggregation import (
     share_counts,
 )
 from .application import build_scenarios, composition_task_ids
+from . import engine_report
 from .canonicalization import canonicalize_result_data
 from .constraints import check_bound
 from .desugar import desugar_instance, sharing_of
@@ -47,6 +48,7 @@ __all__ = [
     "canonical_loss",
     "canonical_objective",
     "canonicalize_result_data",
+    "engine_report",
     "check_bound",
     "composition_task_ids",
     "compute_aggregated_qos",
