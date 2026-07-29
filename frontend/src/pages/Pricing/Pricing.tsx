@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PricingRenderer } from 'pricing-renderer/react';
 import 'pricing-renderer/styles.css';
 import { apiClient } from '../../api/client';
@@ -9,16 +9,19 @@ import { Alert } from '../../components/ui/Alert';
 import './Pricing.css';
 
 /**
- * The plans, rendered from the same document the gateway enforces.
+ * The plans, rendered from the same document the gateway serves and SPACE
+ * enforces.
  *
  * The YAML is fetched from `GET /api/v1/schemas/pricing` rather than bundled,
- * so the page cannot drift from what SPACE was given: one document decides
- * what a solve is allowed to do and what this page says it is allowed to do.
+ * so this page cannot drift from what is actually being charged: one document
+ * decides what a solve may do and what this page says it may do.
  *
  * Rendering is `pricing-renderer`, which understands Pricing2Yaml properly -
- * billing periods, add-ons, plan comparison, formulas. Hand-rolling a
+ * billing periods, add-ons, plan comparison, formulas, tags. Hand-rolling a
  * comparison table would mean re-deciding all of that, badly, and then
- * maintaining it every time the pricing gains a field.
+ * maintaining it every time the pricing gains a field. What this page adds
+ * around it is the part a table of numbers cannot say: what actually happens
+ * when you reach one of these limits.
  */
 export function Pricing() {
   const { user } = useAuth();
@@ -35,7 +38,7 @@ export function Pricing() {
         if (!cancelled) setYaml(document);
       })
       .catch(() => {
-        if (!cancelled) setError('The pricing could not be loaded.');
+        if (!cancelled) setError('The plans could not be loaded.');
       });
     return () => {
       cancelled = true;
@@ -45,39 +48,106 @@ export function Pricing() {
   return (
     <div className="pricing-page">
       <div className="container">
-        <div className="page-header">
-          <h1>Plans</h1>
-          <p className="page-description">
-            Every account starts on Basic. Moving to Pro is done by an administrator: there is no
-            payment gateway here.
+        <header className="pricing-hero">
+          <span className="pricing-eyebrow">Pricing</span>
+          <h1>Solve as much as you need to</h1>
+          <p>
+            Every account starts free, with an allowance that renews each month. Pro raises
+            every ceiling for research workloads. There is no payment gateway here: an
+            administrator moves an account between plans.
           </p>
-        </div>
+
+          {user ? (
+            <div className="pricing-standing">
+              <span className="pricing-eyebrow">{user.plan}</span>
+              <span>
+                You are on this plan. <Link to="/account">See what is left of it</Link>.
+              </span>
+            </div>
+          ) : (
+            <div className="pricing-standing">
+              <span>
+                <Link to="/register">Create an account</Link> to start on Free, or{' '}
+                <Link to="/playground">try the playground</Link> without one.
+              </span>
+            </div>
+          )}
+        </header>
 
         {error && <Alert type="error">{error}</Alert>}
 
-        {yaml && (
-          <PricingRenderer
-            yaml={yaml}
-            theme={theme}
-            pricingPath="/pricing"
-            onAction={(event: CustomEvent) => {
-              // Nothing to check out. Whoever is interested either needs an
-              // account first, or needs to ask an administrator.
-              event.preventDefault();
-              navigate(user ? '/account' : '/register');
-            }}
-          />
-        )}
+        <div className="pricing-renderer-shell">
+          {yaml ? (
+            <PricingRenderer
+              yaml={yaml}
+              theme={theme}
+              pricingPath="/pricing"
+              onAction={(event: CustomEvent) => {
+                // Nothing to check out. Whoever is interested either needs an
+                // account first, or needs to ask an administrator.
+                event.preventDefault();
+                navigate(user ? '/account' : '/register');
+              }}
+            />
+          ) : (
+            !error && <div className="pricing-loading">Loading the plans…</div>
+          )}
+        </div>
 
-        <Alert type="info" title="What the limits mean">
+        <section className="pricing-behaviour">
+          <h2>What happens when you reach a limit</h2>
           <p>
-            An allowance that runs out refuses the request until it renews. A ceiling - the
-            longest solver budget, the largest instance - reduces the request to what the plan
-            allows instead, and says so alongside the result. The one exception is the size of an
-            instance's binding space: there is no smaller version of an instance to solve, so
-            that one is refused.
+            Three things, and which one depends on whether the limit is something you asked
+            for or something about the work itself.
           </p>
-        </Alert>
+
+          <div className="pricing-outcomes">
+            <article className="pricing-outcome pricing-outcome-reduce">
+              <span className="pricing-outcome-mark" aria-hidden="true">
+                ≤
+              </span>
+              <h3>A budget is reduced</h3>
+              <p>
+                Ask for a longer solve or more search effort than your plan allows and you get
+                the allowed amount, not a refusal. The reduction comes back with the result as
+                an <code>OPTION_CLAMPED</code> warning, so a shorter answer is never a silent
+                one.
+              </p>
+            </article>
+
+            <article className="pricing-outcome pricing-outcome-wait">
+              <span className="pricing-outcome-mark" aria-hidden="true">
+                ↻
+              </span>
+              <h3>An allowance runs out</h3>
+              <p>
+                Monthly solver time and job counts refuse further work until they renew, with
+                the date they renew on. Concurrency is the same idea over a shorter horizon: a
+                slot frees the moment a job finishes.
+              </p>
+            </article>
+
+            <article className="pricing-outcome pricing-outcome-refuse">
+              <span className="pricing-outcome-mark" aria-hidden="true">
+                ×
+              </span>
+              <h3>An instance is too large</h3>
+              <p>
+                The size of a binding space is a fact about the instance, and there is no
+                smaller version of it to solve instead. That one is refused outright rather
+                than trimmed, and tells you the size it measured.
+              </p>
+            </article>
+          </div>
+
+          <p className="pricing-footnote">
+            These plans are enforced by{' '}
+            <a href="https://github.com/isa-group/space" target="_blank" rel="noopener noreferrer">
+              SPACE
+            </a>{' '}
+            rather than by the gateway itself, from the same pricing this page renders.
+          </p>
+        </section>
       </div>
     </div>
   );

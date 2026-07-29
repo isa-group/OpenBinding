@@ -52,7 +52,7 @@ export function Register() {
         <div className="auth-header">
           <h1>Create an account</h1>
           <p>
-            Free, and immediate. New accounts start on the Basic plan, with a monthly
+            Free, and immediate. New accounts start on the Free plan, with a monthly
             allowance of solver time you can see on your account page.
           </p>
         </div>

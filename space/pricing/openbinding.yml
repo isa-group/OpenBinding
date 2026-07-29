@@ -4,7 +4,7 @@
 # AWS/Azure/GCloud iPricings that experiments read as candidate cost data. This
 # one describes OpenBinding as a service, and a SPACE instance enforces it.
 #
-# Two plans. BASIC is free and every account starts on it, because registration
+# Two plans. FREE is free and every account starts on it, because registration
 # is open - an open door needs a meter behind it rather than a lock. PRO is
 # priced symbolically: there is no payment gateway, and an administrator
 # performs the upgrade as a contract novation in SPACE.
@@ -251,7 +251,7 @@ usageLimits:
 # `features` map is rejected outright - and it reads better anyway: what a plan
 # grants is visible in the plan rather than inferred from defaults elsewhere.
 plans:
-  BASIC:
+  FREE:
     description: >-
       Free, and what every account starts on. Enough to evaluate OpenBinding and
       to run small experiments end to end.

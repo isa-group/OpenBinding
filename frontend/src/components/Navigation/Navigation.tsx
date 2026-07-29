@@ -52,7 +52,7 @@ export function Navigation() {
             to="/pricing"
             className={`nav-link ${isActive('/pricing') ? 'nav-link-active' : ''}`}
           >
-            Plans
+            Pricing
           </Link>
           <a 
             href={`${config.apiBaseUrl}/docs`}

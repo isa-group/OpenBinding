@@ -108,14 +108,28 @@
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.5);
 }
 
-/* Global Resets */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
+/*
+ * Global Resets
+ *
+ * In a cascade layer, and the order is declared in styles/layers.css, which
+ * loads first. That is not decoration: unlayered rules beat *every* layered
+ * rule regardless of specificity, so a universal `padding: 0` outside a layer
+ * silently strips the box model from any dependency that ships its own inside
+ * one. pricing-renderer does, and its plan cards rendered with their content
+ * flush against their borders until this moved.
+ *
+ * Ordinary app styles stay unlayered and so still win over the reset, exactly
+ * as before.
+ */
+@layer reset {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
 
-* {
-  margin: 0;
-  padding: 0;
+  * {
+    margin: 0;
+    padding: 0;
+  }
 }
 
 body {

@@ -1,0 +1,16 @@
+/*
+ * Cascade layer order, declared before anything else has a chance to.
+ *
+ * This file exists only for the line below, and it has to be the first
+ * stylesheet the application loads. Layer precedence is fixed by where a layer
+ * name is *first seen*, so if a dependency's stylesheet is parsed before this
+ * statement, its layer lands ahead of `reset` and the reset wins - which is
+ * the opposite of what is wanted.
+ *
+ * The reason any of it matters: unlayered rules beat every layered rule
+ * regardless of specificity. Our `* { padding: 0 }` reset lives in a layer so
+ * that dependencies shipping their own box model inside one - pricing-renderer
+ * does - are not silently flattened by it. Add a layer name here when adopting
+ * another dependency that uses layers.
+ */
+@layer reset, pricing-renderer;
