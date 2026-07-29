@@ -48,7 +48,7 @@ class PlanCaps:
     from the usage levels below.
     """
 
-    plan: str = "BASIC"
+    plan: str = "FREE"
     max_timeout_s: float = 300.0
     max_iterations: int = 10_000
     max_payload_mb: int = 16

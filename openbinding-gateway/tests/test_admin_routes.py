@@ -242,7 +242,7 @@ async def test_the_novation_happens_before_the_cache_is_updated(
     listing = await api_client.get(f"/v1/admin/users?search={profile['username']}", headers=admin)
 
     assert response.status_code == 503
-    assert listing.json()["users"][0]["plan"] == "BASIC"
+    assert listing.json()["users"][0]["plan"] == "FREE"
 
 
 async def test_an_account_can_be_moved_back(api_client, registration, gate, db_session):
@@ -253,10 +253,10 @@ async def test_an_account_can_be_moved_back(api_client, registration, gate, db_s
         f"/v1/admin/users/{profile['id']}/plan", headers=admin, json={"plan": "PRO"}
     )
     back = await api_client.post(
-        f"/v1/admin/users/{profile['id']}/plan", headers=admin, json={"plan": "BASIC"}
+        f"/v1/admin/users/{profile['id']}/plan", headers=admin, json={"plan": "FREE"}
     )
 
-    assert back.json()["plan"] == "BASIC"
+    assert back.json()["plan"] == "FREE"
 
 
 # -- Usage ------------------------------------------------------------------

@@ -135,7 +135,7 @@ async def test_changing_plan_raises_the_ceilings(gate, user_id):
     assert before.max_binding_space_log10 < after.max_binding_space_log10
 
 
-@pytest.mark.parametrize("plan", ["BASIC", "PRO"])
+@pytest.mark.parametrize("plan", ["FREE", "PRO"])
 def test_every_plan_bounds_a_single_request(plan):
     # A ceiling of zero or infinity would either refuse everything or protect
     # nothing; both have to be finite and positive on every plan.
@@ -173,9 +173,9 @@ async def test_an_outage_is_not_a_refusal(gate, user_id):
 
 
 async def test_a_contract_records_the_plan(gate, user_id):
-    await gate.create_contract(user_id, "BASIC", "someone@example.org")
+    await gate.create_contract(user_id, "FREE", "someone@example.org")
 
-    assert gate.plan_of(user_id) == "BASIC"
+    assert gate.plan_of(user_id) == "FREE"
 
 
 async def test_a_pricing_token_is_issued_per_account(gate, user_id):

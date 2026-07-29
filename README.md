@@ -340,6 +340,24 @@ See `examples/` directory for sample payloads.
 
 If you are adding a new engine, see [docs/ENGINE_INTEGRATION_GUIDE.md](docs/ENGINE_INTEGRATION_GUIDE.md).
 
+## 👤 Accounts, plans and quotas
+
+Solving requires an account; analysing, browsing the schemas and reading the
+plans do not. A browser session and an API key resolve to the same account, so a
+plan applies to a person rather than to the way they called, and every operation
+the interface performs is a documented gateway endpoint.
+
+Entitlements are not decided by the gateway: a [SPACE](https://github.com/isa-group/space)
+instance holds a contract per user and the gateway enforces its answer. A
+deployment with no `DATABASE_URL` keeps serving anonymously, exactly as before.
+
+- [docs/ACCOUNTS_AND_PLANS.md](docs/ACCOUNTS_AND_PLANS.md) — how accounts, plans,
+  quotas and the first administrator work.
+- [space/README.md](space/README.md) — running the SPACE instance and registering
+  the pricing.
+- [space/UPSTREAM.md](space/UPSTREAM.md) — defects found in SPACE and its Python
+  client while integrating, with reproductions. Both run here unmodified.
+
 ## 🤝 Contributing
 
 See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for branch and PR rules.

@@ -32,7 +32,7 @@ async def test_a_new_account_starts_active_on_the_free_plan(api_client, registra
     assert profile["username"] == details["username"]
     assert profile["role"] == "user"
     assert profile["is_active"] is True
-    assert profile["plan"] == "BASIC"
+    assert profile["plan"] == "FREE"
 
 
 async def test_registration_never_echoes_the_password(api_client, registration):

@@ -18,7 +18,7 @@ from .gate import LimitUsage, PlanCaps, UsageSnapshot, Verdict
 
 #: What each plan allows. Kept in step with space/pricing/openbinding.yml.
 PLAN_LIMITS: Dict[str, Dict[str, float]] = {
-    "BASIC": {
+    "FREE": {
         "tasksLimit": 100,
         "solverTimeLimit": 3600,
         "federatedTasksLimit": 200,
@@ -37,8 +37,8 @@ PLAN_LIMITS: Dict[str, Dict[str, float]] = {
 }
 
 PLAN_CAPS: Dict[str, PlanCaps] = {
-    "BASIC": PlanCaps(
-        plan="BASIC",
+    "FREE": PlanCaps(
+        plan="FREE",
         max_timeout_s=300.0,
         max_iterations=10_000,
         max_payload_mb=16,
@@ -59,7 +59,7 @@ PLAN_CAPS: Dict[str, PlanCaps] = {
 class FakePricingGate:
     """An in-memory pricing service, with balances that really run out."""
 
-    def __init__(self, plan: str = "BASIC"):
+    def __init__(self, plan: str = "FREE"):
         self.default_plan = plan
         self.plans: Dict[uuid.UUID, str] = {}
         self.consumed: Dict[uuid.UUID, Dict[str, float]] = {}

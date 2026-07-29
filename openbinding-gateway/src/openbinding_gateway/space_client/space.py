@@ -317,7 +317,7 @@ def _refused_limit(result: Any) -> Optional[LimitUsage]:
 
 def _plan_name(contract: Any) -> str:
     plans = _attribute(contract, "subscription_plans", "subscriptionPlans") or {}
-    return str(plans.get(SERVICE_NAME) or "BASIC")
+    return str(plans.get(SERVICE_NAME) or "FREE")
 
 
 def _renewal_dates(contract: Any) -> Dict[str, str]:

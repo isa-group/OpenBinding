@@ -92,7 +92,7 @@ def _administrator(username: str, email: str, password: str) -> User:
         email=email,
         password_hash=hash_password(password),
         role=UserRole.ADMIN,
-        plan_cache=Plan.BASIC,
+        plan_cache=Plan.FREE,
         # No contract yet; the same reconciliation an ordinary registration
         # relies on will settle it.
         contract_pending=True,

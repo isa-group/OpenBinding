@@ -40,7 +40,7 @@ class UserRole(str, enum.Enum):
 
 
 class Plan(str, enum.Enum):
-    BASIC = "BASIC"
+    FREE = "FREE"
     PRO = "PRO"
 
 
@@ -76,7 +76,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     #: Display cache of the SPACE contract; see the module docstring.
-    plan_cache: Mapped[Plan] = _enum_column(Plan, Plan.BASIC)
+    plan_cache: Mapped[Plan] = _enum_column(Plan, Plan.FREE)
     contract_pending: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     created_at: Mapped[datetime] = mapped_column(

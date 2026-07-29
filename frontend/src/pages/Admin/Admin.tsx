@@ -120,7 +120,7 @@ export function Admin() {
                           )
                         }
                       >
-                        <option value="BASIC">BASIC</option>
+                        <option value="FREE">FREE</option>
                         <option value="PRO">PRO</option>
                       </select>
                       {account.contract_pending && <Badge variant="warning">no contract</Badge>}

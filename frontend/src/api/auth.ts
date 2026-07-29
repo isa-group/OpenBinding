@@ -7,7 +7,7 @@
  */
 
 export type RoleName = 'user' | 'admin';
-export type PlanName = 'BASIC' | 'PRO';
+export type PlanName = 'FREE' | 'PRO';
 
 export interface UserProfile {
   id: string;

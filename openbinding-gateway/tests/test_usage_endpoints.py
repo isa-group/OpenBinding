@@ -49,7 +49,7 @@ async def test_a_new_account_starts_on_the_free_plan(api_client, registration, g
     usage = await api_client.get("/v1/users/me/usage", headers=headers)
 
     assert usage.status_code == 200
-    assert usage.json()["plan"] == "BASIC"
+    assert usage.json()["plan"] == "FREE"
 
 
 async def test_usage_reports_every_limit_with_what_is_left(api_client, registration, gate):
@@ -97,7 +97,7 @@ async def test_moving_to_pro_raises_what_usage_reports(api_client, registration,
     await gate.change_plan(uuid.UUID(profile["id"]), "PRO")
     after = (await api_client.get("/v1/users/me/usage", headers=headers)).json()
 
-    assert before["plan"] == "BASIC"
+    assert before["plan"] == "FREE"
     assert after["plan"] == "PRO"
     assert after["caps"]["max_timeout_s"] > before["caps"]["max_timeout_s"]
 

@@ -23,7 +23,7 @@ class RoleName(str, Enum):
 
 
 class PlanName(str, Enum):
-    BASIC = "BASIC"
+    FREE = "FREE"
     PRO = "PRO"
 
 

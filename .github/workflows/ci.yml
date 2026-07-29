@@ -54,6 +54,14 @@ jobs:
           if [ ! -f .env ]; then
             cp .env.example .env
           fi
+          # The prod service declares GATEWAY_JWT_SECRET as ${VAR:?...}, which
+          # compose treats as an error when the variable is empty as well as
+          # when it is unset - and .env.example leaves it empty deliberately,
+          # because a shipped default signing key is worse than a missing one.
+          # `docker compose config` parses the whole file including services no
+          # profile selected, so it needs a value here even though only the dev
+          # profile runs. A throwaway one, generated per run.
+          echo "GATEWAY_JWT_SECRET=$(openssl rand -hex 32)" >> .env
 
       - name: Validate Docker Compose configuration
         run: docker compose config

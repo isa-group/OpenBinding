@@ -135,7 +135,7 @@ async def register(
         email=email,
         password_hash=hash_password(request.password),
         role=UserRole.USER,
-        plan_cache=Plan.BASIC,
+        plan_cache=Plan.FREE,
         # The SPACE contract is created next, by the caller of this module.
         # Until it exists the account is usable but unmetered, and this flag
         # is what later reconciles it.
@@ -150,7 +150,7 @@ async def register(
     # time this user turns up. Losing the sign-up because a pricing service was
     # restarting would be a worse failure than a delayed contract.
     try:
-        await space_client.get_gate().create_contract(user.id, Plan.BASIC.value, user.email)
+        await space_client.get_gate().create_contract(user.id, Plan.FREE.value, user.email)
         user.contract_pending = False
     except PricingUnavailable:
         user.contract_pending = True

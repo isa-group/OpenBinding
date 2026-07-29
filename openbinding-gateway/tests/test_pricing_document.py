@@ -43,11 +43,11 @@ def test_it_names_the_service_the_gateway_uses(pricing):
 
 
 def test_it_declares_both_plans(pricing):
-    assert set(pricing["plans"]) == {"BASIC", "PRO"}
+    assert set(pricing["plans"]) == {"FREE", "PRO"}
 
 
 def test_the_free_plan_is_free(pricing):
-    assert pricing["plans"]["BASIC"]["price"] == 0.0
+    assert pricing["plans"]["FREE"]["price"] == 0.0
 
 
 def test_every_usage_limit_is_linked_to_a_feature(pricing):
@@ -89,10 +89,10 @@ def test_no_limit_claims_to_be_unlimited(pricing):
         assert override["value"] != float("inf")
 
 
-def test_pro_is_never_meaner_than_basic(pricing):
+def test_pro_is_never_meaner_than_the_free_plan(pricing):
     defaults = {name: limit["defaultValue"] for name, limit in pricing["usageLimits"].items()}
     for name, override in pricing["plans"]["PRO"].get("usageLimits", {}).items():
-        assert override["value"] >= defaults[name], f"PRO gets less {name} than BASIC"
+        assert override["value"] >= defaults[name], f"PRO gets less {name} than FREE"
 
 
 def test_the_fake_gate_agrees_with_the_document(pricing):
@@ -101,8 +101,8 @@ def test_the_fake_gate_agrees_with_the_document(pricing):
     defaults = {name: limit["defaultValue"] for name, limit in pricing["usageLimits"].items()}
     pro = {name: value["value"] for name, value in pricing["plans"]["PRO"]["usageLimits"].items()}
 
-    for name, expected in PLAN_LIMITS["BASIC"].items():
-        assert defaults[name] == expected, f"BASIC {name} disagrees with the pricing document"
+    for name, expected in PLAN_LIMITS["FREE"].items():
+        assert defaults[name] == expected, f"FREE {name} disagrees with the pricing document"
     for name, expected in PLAN_LIMITS["PRO"].items():
         assert pro[name] == expected, f"PRO {name} disagrees with the pricing document"
 
@@ -123,7 +123,7 @@ def test_the_pro_payload_ceiling_matches_the_gateway_limit(pricing):
     assert ceiling_mb * 1024 * 1024 <= MAX_SOLVE_BODY_BYTES
 
 
-def test_the_basic_binding_space_ceiling_matches_the_advisory_threshold(pricing):
+def test_the_free_binding_space_ceiling_matches_the_advisory_threshold(pricing):
     # The gateway already warns above 10^9 combinations. The free plan refusing
     # exactly where the warning starts keeps one number in the system.
     from openbinding_gateway.validation.analysis import LARGE_SPACE_LOG10_THRESHOLD

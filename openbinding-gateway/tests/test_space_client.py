@@ -283,10 +283,10 @@ async def test_the_plan_comes_from_the_contract(user_id):
 async def test_a_contract_is_created_for_the_service_and_plan(user_id):
     recorder = Recorder()
 
-    await gate_over(recorder).create_contract(user_id, "BASIC", "someone@example.org")
+    await gate_over(recorder).create_contract(user_id, "FREE", "someone@example.org")
 
     contract = recorder.calls[0][1]
-    assert contract.subscription_plans == {"openbinding": "BASIC"}
+    assert contract.subscription_plans == {"openbinding": "FREE"}
     assert contract.user_contact.email == "someone@example.org"
 
 
@@ -295,7 +295,7 @@ async def test_a_new_contract_spells_out_an_empty_phone(user_id):
     # "phone must be a string". An empty string satisfies both.
     recorder = Recorder()
 
-    await gate_over(recorder).create_contract(user_id, "BASIC", "someone@example.org")
+    await gate_over(recorder).create_contract(user_id, "FREE", "someone@example.org")
 
     assert recorder.calls[0][1].user_contact.phone == ""
 
