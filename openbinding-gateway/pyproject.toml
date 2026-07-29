@@ -14,12 +14,27 @@ dependencies = [
     "httpx>=0.27,<1.0",
     "jsonschema>=4.21,<5.0",
     "pyyaml>=6.0,<7.0",
-    "python-dotenv>=1.0,<2.0"
+    "python-dotenv>=1.0,<2.0",
+    # Accounts, sessions and API keys. SQLAlchemy talks to Postgres through
+    # asyncpg in a deployment and to SQLite through aiosqlite in the tests,
+    # which is why both drivers are here rather than only the one prod uses.
+    "sqlalchemy[asyncio]>=2.0,<3.0",
+    "alembic>=1.13,<2.0",
+    "asyncpg>=0.29,<1.0",
+    "aiosqlite>=0.20,<1.0",
+    "pyjwt>=2.8,<3.0",
+    "argon2-cffi>=23.1,<26.0",
+    # Pydantic's EmailStr needs this; an account's email is one of the two
+    # ways to sign in, so validating it is not cosmetic.
+    "email-validator>=2.0,<3.0",
+    # Fernet, for the credentials users register alongside their own solvers.
+    "cryptography>=42.0"
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest>=8.0,<9.0",
+    "pytest-asyncio>=0.23,<2.0",
     "httpx>=0.27,<1.0",
     "requests>=2.31,<3.0",
     "ruff>=0.4,<1.0"
@@ -34,9 +49,18 @@ src = ["src", "tests"]
 select = ["E", "F", "B"]
 ignore = ["E501"]
 
+[tool.ruff.lint.flake8-bugbear]
+# B008 exists because a call in a default argument runs once at import. That is
+# precisely how FastAPI's dependency markers are meant to be written, so these
+# are declarations rather than the mistake the rule is looking for.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Header", "fastapi.Body"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+# The accounts tests are async because the database layer is; the older suite
+# is synchronous and unaffected by this.
+asyncio_mode = "auto"
 # Integration tests need the whole compose stack on localhost:8000, so a bare
 # `pytest` runs only the unit suite. Use `-m integration` to opt in.
 addopts = "-m 'not integration'"

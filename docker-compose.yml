@@ -4,6 +4,23 @@ x-proxy-build-args: &proxy-build-args
   NO_PROXY: ${NO_PROXY_ARG:-localhost,127.0.0.1,gateway,gateway-dev,engine-minizinc,engine-random-search,engine-many-heuristic,engine-evolutionary-heuristics,frontend-dev,frontend-prod,nginx,nginx-dev}
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["dev", "prod"]
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-openbinding}
+      - POSTGRES_USER=${POSTGRES_USER:-openbinding}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-openbinding}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # The user has to be named, or pg_isready checks for a role called root.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openbinding} -d ${POSTGRES_DB:-openbinding}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
   gateway:
     build:
       context: ./openbinding-gateway
@@ -21,6 +38,9 @@ services:
       - SCHEMAS_DIR=/app/schemas
       - PYTHONPATH=/app/src
       - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_PROD:-https://openbinding.score.us.es,https://openbinding.us.es}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
+      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET before starting the prod profile}
+      - AUTH_REQUIRED_FOR_SOLVE=${AUTH_REQUIRED_FOR_SOLVE:-true}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
@@ -32,6 +52,8 @@ services:
       retries: 5
       start_period: 10s
     depends_on:
+      postgres:
+        condition: service_healthy
       engine-minizinc:
         condition: service_healthy
       engine-random-search:
@@ -60,6 +82,10 @@ services:
       - SCHEMAS_DIR=/app/schemas
       - PYTHONPATH=/app/src
       - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_DEV:-http://localhost,http://localhost:80,http://localhost:5173,http://127.0.0.1,http://127.0.0.1:80,http://127.0.0.1:5173}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
+      # Development only. Production refuses to start without a real one.
+      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:-development-secret-do-not-use-in-production}
+      - AUTH_REQUIRED_FOR_SOLVE=${AUTH_REQUIRED_FOR_SOLVE:-true}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
@@ -71,6 +97,8 @@ services:
       retries: 5
       start_period: 10s
     depends_on:
+      postgres:
+        condition: service_healthy
       engine-minizinc:
         condition: service_healthy
       engine-random-search:
@@ -231,3 +259,4 @@ services:
 
 volumes:
   frontend_dist:
+  pgdata:

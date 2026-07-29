@@ -10,6 +10,7 @@ import httpx
 load_dotenv()
 
 from .core.settings import get_settings
+from .db import base as db_base
 from .models.api import SolveRequest, JobResponse, JobStatus, AnalyzeResponse, AnalyzeWarning, Provenance, BindingSpaceRequest, BindingSpacePage
 from .validation.pipeline import ValidationPipeline
 from .validation.analysis import compute_binding_space_summary, generate_warnings, generate_binding_space_subset
@@ -19,14 +20,28 @@ import time
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    yield
+    """Open what the process needs, and close it on the way out.
+
+    The accounts module is optional: a gateway with no ``DATABASE_URL`` runs
+    exactly as it always did, anonymously, and the endpoints that need a
+    database say so rather than failing obscurely.
+    """
+    settings = get_settings()
+    if settings.database_url:
+        db_base.init_engine(settings.database_url)
+    try:
+        yield
+    finally:
+        await db_base.dispose_engine()
 
 app = FastAPI(title="OpenBinding Gateway", lifespan=lifespan, root_path="/api")
 
 MAX_SOLVE_BODY_BYTES = 512 * 1024 * 1024
 
+from .routes.auth import router as auth_router
 from .routes.instance_parts import router as instance_parts_router
 from .routes.schemas import router as schemas_router
+from .routes.users import router as users_router
 from .openapi_examples import (  # noqa: F401
     _ANALYZE_FAILED_EXAMPLE,
     _ANALYZE_VALIDATED_EXAMPLE,
@@ -467,3 +482,9 @@ async def get_job(job_id: str):
 # lives in its own module.
 app.include_router(schemas_router)
 app.include_router(instance_parts_router)
+
+# Accounts. These are registered whether or not this deployment configured a
+# database, because the OpenAPI document describes the API rather than one
+# installation of it; without a database they answer 503 and say why.
+app.include_router(auth_router)
+app.include_router(users_router)
