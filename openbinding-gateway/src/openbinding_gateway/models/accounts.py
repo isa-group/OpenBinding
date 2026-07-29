@@ -159,3 +159,57 @@ class PricingTokenView(BaseModel):
     """A signed token the browser evaluates pricing features against locally."""
 
     pricing_token: str
+
+
+class AdminUserView(UserProfile):
+    """A user as an administrator sees them: the profile, plus what it costs."""
+
+    contract_pending: bool = Field(
+        default=False, description="True when the account still owes a contract."
+    )
+    api_key_count: int = Field(default=0, description="How many keys are in use.")
+
+
+class AdminUserPage(BaseModel):
+    """One page of accounts.
+
+    Paged rather than complete, because an administrator screen that fetches
+    every account works until it does not.
+    """
+
+    users: List[AdminUserView]
+    total: int = Field(..., description="How many accounts match, across every page.")
+    offset: int
+    limit: int
+
+
+class UpdateUserRequest(BaseModel):
+    """What an administrator may change about somebody else's account.
+
+    Not their password or their email: those are the account holder's, and an
+    administrator who could change them could take the account over silently.
+    """
+
+    is_active: Optional[bool] = Field(
+        default=None, description="Deactivating takes effect on the account's next request."
+    )
+    role: Optional[RoleName] = None
+
+
+class ChangePlanRequest(BaseModel):
+    plan: PlanName = Field(..., description="The plan to move this account onto.")
+
+
+class UsageResyncResult(BaseModel):
+    """What a resync corrected.
+
+    Concurrency is counted optimistically - a check and a claim are two calls,
+    and a crash between them leaves a slot held. This is the escape hatch for
+    an account whose count has drifted, and it reports what it found rather
+    than fixing it silently.
+    """
+
+    plan: PlanName
+    slots_in_flight: int = Field(..., description="Jobs actually still running for this account.")
+    slots_recorded: float = Field(..., description="What the pricing service had counted.")
+    corrected_by: float = Field(..., description="The adjustment applied. Zero means no drift.")

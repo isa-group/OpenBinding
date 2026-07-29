@@ -63,6 +63,7 @@ app = FastAPI(title="OpenBinding Gateway", lifespan=lifespan, root_path="/api")
 
 MAX_SOLVE_BODY_BYTES = 512 * 1024 * 1024
 
+from .routes.admin import router as admin_router
 from .routes.auth import router as auth_router
 from .routes.instance_parts import router as instance_parts_router
 from .routes.schemas import router as schemas_router
@@ -673,3 +674,4 @@ app.include_router(instance_parts_router)
 # installation of it; without a database they answer 503 and say why.
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(admin_router)

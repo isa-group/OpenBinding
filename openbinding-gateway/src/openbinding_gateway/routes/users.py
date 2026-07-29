@@ -217,11 +217,18 @@ async def revoke_api_key(
     },
 )
 async def read_own_usage(user: User = Depends(get_current_user)) -> UsageView:
-    """Everything the account page needs about entitlements, in one call.
+    """Everything the account page needs about entitlements, in one call."""
+    return await usage_view_for(user)
+
+
+async def usage_view_for(user: User) -> UsageView:
+    """An account's entitlements, read from the contract.
 
     The plan on the ``User`` row is a display cache; the contract in the
     pricing service is what actually decides. This reads the contract, so what
-    a caller sees here is what a solve will be judged against.
+    a caller sees is what a solve will be judged against. Shared with the
+    administration routes, so that an administrator and an account holder are
+    never shown different numbers.
     """
     gate = get_gate()
     try:
