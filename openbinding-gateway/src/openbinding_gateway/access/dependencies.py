@@ -14,6 +14,7 @@ credential turns into a user.
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import Depends, Request, status
@@ -22,12 +23,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.settings import Settings, get_settings
 from ..db import base as db_base
-from ..db.models import User
+from ..db.models import ApiKey, User, utcnow
 from ..models.errors import api_error
+from ..security.apikeys import looks_like_api_key, matches, prefix_of
 from ..security.tokens import TokenError, bearer_token, read_access_token
 
 #: What an unauthenticated caller is told to send.
 _AUTHENTICATE_CHALLENGE = {"WWW-Authenticate": 'Bearer realm="openbinding"'}
+
+#: How stale ``last_used_at`` is allowed to get before it is worth a write.
+LAST_USED_RESOLUTION = timedelta(minutes=1)
+
+
+def _as_utc(moment: datetime) -> datetime:
+    """SQLite hands back naive datetimes; the stored value is UTC either way."""
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=timezone.utc)
 
 
 def accounts_enabled() -> bool:
@@ -84,10 +94,45 @@ def _credential(request: Request) -> Optional[str]:
     return bearer_token(request.headers.get("authorization"))
 
 
+async def _user_for_api_key(credential: str, session: AsyncSession) -> Optional[User]:
+    """The owner of an API key, or ``None``.
+
+    Looked up by prefix and then compared in constant time, so an attacker
+    learns nothing from how long a wrong key takes to be refused. Touching
+    ``last_used_at`` is throttled: it is an audit hint, and writing a row on
+    every API call would turn a read path into a write one.
+    """
+    prefix = prefix_of(credential)
+    if prefix is None:
+        return None
+
+    result = await session.execute(select(ApiKey).where(ApiKey.prefix == prefix))
+    api_key = result.scalars().first()
+    if api_key is None or not api_key.is_active:
+        return None
+    if not matches(credential, api_key.secret_hash):
+        return None
+
+    now = utcnow()
+    if api_key.last_used_at is None or (now - _as_utc(api_key.last_used_at)) > LAST_USED_RESOLUTION:
+        api_key.last_used_at = now
+
+    return await session.get(User, api_key.user_id)
+
+
 async def _user_for_credential(
     credential: str, session: AsyncSession, settings: Settings
 ) -> Optional[User]:
-    """The user a credential names, or ``None`` if it names nobody."""
+    """The user a credential names, or ``None`` if it names nobody.
+
+    This is the point where the two channels stop being different. A browser
+    arrives with a session token and a script with an API key, and both leave
+    here as the same ``User`` - which is what makes one pricing plan apply to
+    someone however they chose to call.
+    """
+    if looks_like_api_key(credential):
+        return await _user_for_api_key(credential, session)
+
     try:
         claims = read_access_token(_signing_secret(settings), credential)
     except TokenError:
@@ -131,6 +176,60 @@ async def get_current_user(
         )
 
     user = await _user_for_credential(credential, session, get_settings())
+    if user is None or not user.is_active:
+        raise api_error(
+            status.HTTP_401_UNAUTHORIZED,
+            "unauthorized",
+            "That credential is not valid.",
+            headers=_AUTHENTICATE_CHALLENGE,
+        )
+    return user
+
+
+async def optional_session():
+    """A session when there is a database, and ``None`` when there is not.
+
+    The solving endpoints work either way: with a database a job gets an owner
+    and a row, without one it behaves as the anonymous gateway always did.
+    """
+    if not accounts_enabled():
+        yield None
+        return
+    async for session in db_base.get_session():
+        yield session
+
+
+async def solve_caller(
+    request: Request,
+    session: Optional[AsyncSession] = Depends(optional_session),
+) -> Optional[User]:
+    """Who is solving, under this deployment's rules.
+
+    Three cases, and they are all deliberate. A gateway with no accounts
+    database keeps serving anonymously. A gateway with accounts and
+    ``AUTH_REQUIRED_FOR_SOLVE`` insists on knowing who is asking, because a
+    solve is the expensive thing and an unattributed one cannot be metered.
+    With that switched off, a caller is identified when they offer a
+    credential and tolerated when they do not.
+    """
+    if session is None:
+        return None
+
+    settings = get_settings()
+    credential = _credential(request)
+
+    if not settings.auth_required_for_solve and not credential:
+        return None
+
+    if not credential:
+        raise api_error(
+            status.HTTP_401_UNAUTHORIZED,
+            "unauthorized",
+            "Solving needs an account. Send a session token or an API key.",
+            headers=_AUTHENTICATE_CHALLENGE,
+        )
+
+    user = await _user_for_credential(credential, session, settings)
     if user is None or not user.is_active:
         raise api_error(
             status.HTTP_401_UNAUTHORIZED,

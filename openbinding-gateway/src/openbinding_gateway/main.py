@@ -1,16 +1,20 @@
-from fastapi import FastAPI, HTTPException, status, Request
+from fastapi import Depends, FastAPI, HTTPException, status, Request
 from contextlib import asynccontextmanager
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import json
 import asyncio
 
 from dotenv import load_dotenv
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
 load_dotenv()
 
+from .access.dependencies import optional_session, solve_caller
 from .core.settings import get_settings
 from .db import base as db_base
+from .db.models import User
+from .jobs import JobManager
 from .models.api import SolveRequest, JobResponse, JobStatus, AnalyzeResponse, AnalyzeWarning, Provenance, BindingSpaceRequest, BindingSpacePage
 from .validation.pipeline import ValidationPipeline
 from .validation.analysis import compute_binding_space_summary, generate_warnings, generate_binding_space_subset
@@ -388,7 +392,13 @@ from fastapi.responses import FileResponse
         },
     },
 )
-async def solve(http_request: Request, request: SolveRequest, response: Response):
+async def solve(
+    http_request: Request,
+    request: SolveRequest,
+    response: Response,
+    user: Optional[User] = Depends(solve_caller),
+    session: Optional[AsyncSession] = Depends(optional_session),
+):
     if _content_length_too_large(http_request.headers.get("content-length"), MAX_SOLVE_BODY_BYTES):
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
@@ -436,7 +446,13 @@ async def solve(http_request: Request, request: SolveRequest, response: Response
     
     # Hand the validated request over to the router to find a solution.
     try:
-        job_resp = await router.route_solve(request, binding_space=binding_space, warnings=warning_payload)
+        job_resp = await router.route_solve(
+            request,
+            binding_space=binding_space,
+            warnings=warning_payload,
+            owner_id=user.id if user else None,
+            session=session,
+        )
     except PayloadTooLargeError:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
@@ -471,8 +487,23 @@ async def solve(http_request: Request, request: SolveRequest, response: Response
         },
     },
 )
-async def get_job(job_id: str):
-    job = await router.get_job_status(job_id)
+async def get_job(
+    job_id: str,
+    user: Optional[User] = Depends(solve_caller),
+    session: Optional[AsyncSession] = Depends(optional_session),
+):
+    """A job's status, to whoever is entitled to it.
+
+    A job that belongs to somebody else answers "not found" rather than
+    "forbidden". Job identifiers used to be, in effect, bearer tokens for
+    whatever they named; refusing by existence rather than by permission is
+    what stops the endpoint from confirming which identifiers are real.
+    """
+    stored = await JobManager.get_job(job_id, session=session)
+    if stored is not None and not stored.readable_by(user):
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job = await router.get_job_status(job_id, session=session)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job

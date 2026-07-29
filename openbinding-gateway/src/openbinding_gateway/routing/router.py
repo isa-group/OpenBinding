@@ -1,7 +1,11 @@
 import asyncio
 import httpx
 import json
+import uuid
 from typing import Optional, Any
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from ..core.settings import get_settings
 from ..registry.engine import EngineRegistry
 from ..models.api import SolveRequest, SolveResponse
@@ -68,7 +72,15 @@ class Router:
             return Feasibility.INFEASIBLE
         return Feasibility.UNKNOWN
 
-    async def route_solve(self, request: SolveRequest, binding_space: Optional[Any] = None, warnings: Optional[list] = None) -> JobResponse:
+    async def route_solve(
+        self,
+        request: SolveRequest,
+        binding_space: Optional[Any] = None,
+        warnings: Optional[list] = None,
+        *,
+        owner_id: Optional[uuid.UUID] = None,
+        session: Optional[AsyncSession] = None,
+    ) -> JobResponse:
         plugin = EngineRegistry.get_plugin(request.engine_id)
         if not plugin:
             raise ValueError(f"Engine {request.engine_id} not found")
@@ -121,7 +133,9 @@ class Router:
                      result_data = canonicalize_result_data(result_data, request.instance)
                      feasibility = self._compute_feasibility(request.engine_id, result_data)
                      
-                     job = JobManager.create_job(request.engine_id, "sync", service_url)
+                     job = await JobManager.create_job(
+                         request.engine_id, "sync", service_url, owner_id=owner_id, session=session
+                     )
                      job.status = JobStatus.COMPLETED
                      
                      diagnostics = {}
@@ -144,17 +158,21 @@ class Router:
                      )
                      
                      job.result = response_model.result
+                     await JobManager.save_job(job, session=session)
                      return response_model
 
                 engine_job_id = data.get("job_id")
                 
                 # Create Gateway Job
-                job = JobManager.create_job(request.engine_id, engine_job_id, service_url)
+                job = await JobManager.create_job(
+                    request.engine_id, engine_job_id, service_url, owner_id=owner_id, session=session
+                )
                 job.metadata["warnings"] = all_warnings
                 job.metadata["verbose"] = request.verbose
                 job.metadata["original_request"] = request.instance
                 if binding_space:
                     job.metadata["binding_space"] = binding_space
+                await JobManager.save_job(job, session=session)
 
                 return JobResponse(
                     job_id=job.id,
@@ -171,7 +189,13 @@ class Router:
                          err_data = e.response.json()
                          if "No feasible solution" in err_data.get("error", ""):
                              # Engine found no feasible solution: return sync completion with empty solutions
-                             job = JobManager.create_job(request.engine_id, "sync-no-solution", service_url)
+                             job = await JobManager.create_job(
+                                 request.engine_id,
+                                 "sync-no-solution",
+                                 service_url,
+                                 owner_id=owner_id,
+                                 session=session,
+                             )
                              job.status = JobStatus.COMPLETED
                              
                              result = SolveResponse(
@@ -186,7 +210,8 @@ class Router:
                              )
                              
                              job.result = result
-        
+                             await JobManager.save_job(job, session=session)
+
                              return JobResponse(
                                  job_id=job.id,
                                  status=JobStatus.COMPLETED,
@@ -206,8 +231,10 @@ class Router:
             except httpx.RequestError as e:
                 raise RuntimeError(f"Failed to contact engine: {str(e)}")
 
-    async def get_job_status(self, job_id: str) -> Optional[JobResponse]:
-        job = JobManager.get_job(job_id)
+    async def get_job_status(
+        self, job_id: str, *, session: Optional[AsyncSession] = None
+    ) -> Optional[JobResponse]:
+        job = await JobManager.get_job(job_id, session=session)
         if not job:
             return None
         

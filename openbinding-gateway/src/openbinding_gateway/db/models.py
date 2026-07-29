@@ -23,7 +23,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Uuid, func
+from sqlalchemy import JSON, Boolean, DateTime, Enum, Float, ForeignKey, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -129,6 +129,61 @@ class ApiKey(Base):
     @property
     def is_active(self) -> bool:
         return self.revoked_at is None
+
+
+class JobState(str, enum.Enum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class Job(Base):
+    """One solve, and who asked for it.
+
+    Jobs used to live in a dictionary on the process, which meant a restart
+    lost every result and no replica could answer for a job another had
+    started. Giving them a row fixes both, and adds the thing the accounts
+    module actually needs: an owner, so that a job identifier stops being a
+    bearer token for whatever it names.
+
+    ``metered`` and ``concurrency_released`` are written with a compare-and-set,
+    because a client polling twice at once must not be able to bill the same
+    solve twice or release the same slot twice.
+    """
+
+    __tablename__ = "jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    #: Null for jobs created before accounts existed, or while running without
+    #: a database. A job with no owner is nobody's to read.
+    owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+
+    engine_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    engine_job_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    service_url: Mapped[str] = mapped_column(String(512), nullable=False)
+    state: Mapped[JobState] = _enum_column(JobState, JobState.QUEUED)
+
+    verbose: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: What the engine was asked, and what it answered. Kept whole so a job can
+    #: be re-canonicalized later without asking the engine again.
+    original_request: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    warnings: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    binding_space: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    #: What the caller was allowed to spend, so an abandoned job can be
+    #: reconciled against something rather than guessed at.
+    requested_budget_s: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    metered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    concurrency_released: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now(), index=True
+    )
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class RefreshToken(Base):
