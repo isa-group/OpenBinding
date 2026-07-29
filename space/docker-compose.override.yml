@@ -1,0 +1,43 @@
+# Puts SPACE on a network the OpenBinding gateway can reach.
+#
+# SPACE's compose lives at space-src/docker/local/docker-compose.yml, and its
+# paths are relative to that directory, so run it from there with this file
+# named explicitly:
+#
+#     cd space/space-src/docker/local
+#     docker compose -f docker-compose.yml -f ../../../docker-compose.override.yml up -d
+#
+# Two things it changes, and both are deliberate.
+#
+# `space-server` and `nginx` join `openbinding-space`, an external network
+# created by hand (`docker network create openbinding-space`) so that neither
+# project owns it. The gateway joins the same one and reaches SPACE at
+# http://space-nginx:5403 - no host ports involved.
+#
+# And the signing material stops being the shipped default. Every pricing token
+# SPACE issues is signed with JWT_SECRET and JWT_SALT; left as they ship, anyone
+# who has read SPACE's repository can mint a token claiming any entitlement.
+# These are required rather than defaulted, so a deployment cannot skip them by
+# accident.
+services:
+  space-server:
+    networks:
+      - space-network
+      - openbinding-space
+    environment:
+      JWT_SECRET: ${SPACE_JWT_SECRET:?set SPACE_JWT_SECRET to something of your own}
+      JWT_SALT: ${SPACE_JWT_SALT:?set SPACE_JWT_SALT to something of your own}
+      ADMIN_PASSWORD: ${SPACE_ADMIN_PASSWORD:?set SPACE_ADMIN_PASSWORD; space4all is in the manual}
+
+  nginx:
+    networks:
+      - space-network
+      - openbinding-space
+    # In production, publish nothing: the gateway reaches SPACE over the shared
+    # network, and SPACE holds every account's contract. Administrators get to
+    # the interface through an SSH tunnel. Locally the published 5403 from
+    # SPACE's own compose is convenient and harmless.
+
+networks:
+  openbinding-space:
+    external: true

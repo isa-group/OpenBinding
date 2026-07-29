@@ -2,6 +2,12 @@ from typing import Dict, Any, List
 import math
 from ..models.api import BindingSpaceSummary, AnalyzeWarning
 
+#: Where a binding space stops being merely large (10^9 combinations).
+#: Advisory here - the instance is still solved - but the free plan's ceiling
+#: is set to the same number, so that "we warn about this" and "we decline to
+#: do this for free" are one figure rather than two that can drift apart.
+LARGE_SPACE_LOG10_THRESHOLD = 9.0
+
 def compute_binding_space_summary(instance: Dict[str, Any]) -> BindingSpaceSummary:
     """
     Computes the binding space summary from the problem instance.
@@ -60,8 +66,7 @@ def generate_warnings(summary: BindingSpaceSummary) -> List[AnalyzeWarning]:
         ))
         
     # 2. Combinatorial Explosion
-    # Threshold: e.g. 10^8 or 10^10. Let's say log10 >= 9 (1 billion)
-    if summary.log10_cardinality >= 9.0:
+    if summary.log10_cardinality >= LARGE_SPACE_LOG10_THRESHOLD:
         warnings.append(AnalyzeWarning(
             code="COMBINATORIAL_EXPLOSION",
             message="The binding space is very large. Solvers may time out or run out of memory.",

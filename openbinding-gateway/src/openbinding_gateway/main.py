@@ -15,6 +15,7 @@ from .core.settings import get_settings
 from .db import base as db_base
 from .db.models import User
 from .jobs import JobManager
+from . import space_client
 from .models.api import SolveRequest, JobResponse, JobStatus, AnalyzeResponse, AnalyzeWarning, Provenance, BindingSpaceRequest, BindingSpacePage
 from .validation.pipeline import ValidationPipeline
 from .validation.analysis import compute_binding_space_summary, generate_warnings, generate_binding_space_subset
@@ -33,9 +34,14 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     if settings.database_url:
         db_base.init_engine(settings.database_url)
+    space_client.set_gate(space_client.build_gate(settings))
     try:
         yield
     finally:
+        gate = space_client.get_gate()
+        if hasattr(gate, "aclose"):
+            await gate.aclose()
+        space_client.set_gate(None)
         await db_base.dispose_engine()
 
 app = FastAPI(title="OpenBinding Gateway", lifespan=lifespan, root_path="/api")

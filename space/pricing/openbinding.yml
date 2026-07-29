@@ -1,0 +1,330 @@
+# OpenBinding's own pricing, in Pricing2Yaml.
+#
+# Not to be confused with `pricings/` at the repository root: those are the
+# AWS/Azure/GCloud iPricings that experiments read as candidate cost data. This
+# one describes OpenBinding as a service, and a SPACE instance enforces it.
+#
+# Two plans. BASIC is free and every account starts on it, because registration
+# is open - an open door needs a meter behind it rather than a lock. PRO is
+# priced symbolically: there is no payment gateway, and an administrator
+# performs the upgrade as a contract novation in SPACE.
+#
+# Pricing2Yaml has no way to say "unlimited", and that is just as well: a limit
+# nobody can reach is still a limit worth having, because it is what stops a
+# runaway script from consuming a cluster. PRO's values are therefore very high
+# and finite.
+syntaxVersion: '3.0'
+saasName: openbinding
+version: 1.0.0
+createdAt: '2026-07-29'
+currency: EUR
+
+billing:
+  monthly: 1
+
+tags:
+  - Solving
+  - Analysis
+  - Access
+
+features:
+  analyze:
+    description: Validate instances and measure the binding space before solving.
+    tag: Analysis
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: >-
+      pricingContext['features']['analyze']
+
+  solve:
+    description: Submit an instance to a solver engine.
+    tag: Solving
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    # Deliberately does not mention solverTimeLimit, even though solving spends
+    # it. SPACE requires a consumption figure for every limit an expression
+    # reads, and treats zero as "none given" - so a limit you want checked but
+    # not charged cannot be expressed here. Solver time is only knowable after
+    # the solve anyway: the gateway checks the headroom itself before
+    # dispatching and reports the real cost afterwards.
+    expression: >-
+      pricingContext['features']['solve'] && subscriptionContext['tasksLimit'] < pricingContext['usageLimits']['tasksLimit'] && subscriptionContext['concurrentTasksLimit'] < pricingContext['usageLimits']['concurrentTasksLimit']
+
+  bindingSpaceExploration:
+    description: Enumerate the binding space page by page.
+    tag: Analysis
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: >-
+      pricingContext['features']['bindingSpaceExploration']
+
+  apiAccess:
+    description: Call the gateway programmatically with a personal API key.
+    tag: Access
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: >-
+      pricingContext['features']['apiAccess'] && subscriptionContext['apiKeysLimit'] < pricingContext['usageLimits']['apiKeysLimit']
+
+  evolutionaryEngine:
+    description: Use the evolutionary (NSGA-II/III) engine.
+    tag: Solving
+    type: DOMAIN
+    valueType: BOOLEAN
+    # Available on every plan. The quotas below already bound what any engine
+    # can cost, so gating the most expensive one as well would restrict
+    # research without protecting anything. The machinery to gate it stays
+    # generic, so this is a one-line change if that ever stops being true.
+    defaultValue: true
+    expression: >-
+      pricingContext['features']['evolutionaryEngine']
+
+  federatedEngines:
+    description: Register and solve on your own solver, described by its OpenAPI document.
+    tag: Access
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: >-
+      pricingContext['features']['federatedEngines'] && subscriptionContext['federatedTasksLimit'] < pricingContext['usageLimits']['federatedTasksLimit'] && subscriptionContext['concurrentTasksLimit'] < pricingContext['usageLimits']['concurrentTasksLimit']
+
+  jobHistory:
+    description: Keep finished jobs and their results queryable.
+    tag: Solving
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: >-
+      pricingContext['features']['jobHistory']
+
+usageLimits:
+  tasksLimit:
+    description: Solve jobs started per month on OpenBinding's own engines.
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    valueType: NUMERIC
+    defaultValue: 100
+    unit: task/month
+    linkedFeatures:
+      - solve
+
+  solverTimeLimit:
+    description: Solver wall-clock seconds consumed per month.
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    valueType: NUMERIC
+    defaultValue: 3600
+    unit: second/month
+    linkedFeatures:
+      - solve
+
+  federatedTasksLimit:
+    description: >-
+      Solve jobs started per month on a user's own federated engine. Counted
+      apart from tasksLimit because the computation happens on somebody else's
+      machine; what OpenBinding spends is a connection, not a CPU.
+    type: RENEWABLE
+    period:
+      value: 1
+      unit: MONTH
+    valueType: NUMERIC
+    defaultValue: 200
+    unit: task/month
+    linkedFeatures:
+      - federatedEngines
+
+  concurrentTasksLimit:
+    description: Solve jobs running at the same time. Released when a job finishes.
+    type: NON_RENEWABLE
+    trackable: true
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: task
+    linkedFeatures:
+      - solve
+      - federatedEngines
+
+  federatedEnginesLimit:
+    description: Federated engines registered at once.
+    type: NON_RENEWABLE
+    trackable: true
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: engine
+    linkedFeatures:
+      - federatedEngines
+
+  apiKeysLimit:
+    description: API keys in use at once.
+    type: NON_RENEWABLE
+    trackable: true
+    valueType: NUMERIC
+    defaultValue: 2
+    unit: key
+    linkedFeatures:
+      - apiAccess
+
+  maxTimeoutPerTaskLimit:
+    description: >-
+      Longest solver budget a single job may ask for. A static ceiling rather
+      than a balance: asking for more is clamped down to this, not refused.
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 300
+    unit: second
+    linkedFeatures:
+      - solve
+
+  maxIterationsLimit:
+    description: Ceiling for iteration-driven options (iterations_count, max_evaluations).
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 10000
+    unit: iteration
+    linkedFeatures:
+      - solve
+
+  maxBindingSpaceLimit:
+    description: >-
+      Largest instance that may be solved, as log10 of its binding space. Derived
+      from the instance itself rather than consumed, and the one limit that
+      refuses instead of clamping - an instance cannot be made smaller.
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 9
+    unit: log10(combinations)
+    linkedFeatures:
+      - solve
+
+  maxPayloadSizeLimit:
+    description: Largest instance payload accepted in one request.
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 16
+    unit: MB
+    linkedFeatures:
+      - solve
+      - analyze
+
+  jobHistoryRetentionLimit:
+    description: How long a finished job stays queryable.
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 7
+    unit: day
+    linkedFeatures:
+      - jobHistory
+
+# Every plan spells its features out. The parser requires it - a plan without a
+# `features` map is rejected outright - and it reads better anyway: what a plan
+# grants is visible in the plan rather than inferred from defaults elsewhere.
+plans:
+  BASIC:
+    description: >-
+      Free, and what every account starts on. Enough to evaluate OpenBinding and
+      to run small experiments end to end.
+    price: 0.0
+    unit: user/month
+    features:
+      analyze:
+        value: true
+      solve:
+        value: true
+      bindingSpaceExploration:
+        value: true
+      apiAccess:
+        value: true
+      evolutionaryEngine:
+        value: true
+      federatedEngines:
+        value: true
+      jobHistory:
+        value: true
+    usageLimits:
+      tasksLimit:
+        value: 100
+      solverTimeLimit:
+        value: 3600
+      federatedTasksLimit:
+        value: 200
+      concurrentTasksLimit:
+        value: 1
+      federatedEnginesLimit:
+        value: 1
+      apiKeysLimit:
+        value: 2
+      maxTimeoutPerTaskLimit:
+        value: 300
+      maxIterationsLimit:
+        value: 10000
+      maxBindingSpaceLimit:
+        value: 9
+      maxPayloadSizeLimit:
+        value: 16
+      jobHistoryRetentionLimit:
+        value: 7
+
+  PRO:
+    description: >-
+      For research workloads. Priced symbolically: there is no payment gateway,
+      and an administrator performs the upgrade.
+    price: 9.99
+    unit: user/month
+    features:
+      analyze:
+        value: true
+      solve:
+        value: true
+      bindingSpaceExploration:
+        value: true
+      apiAccess:
+        value: true
+      evolutionaryEngine:
+        value: true
+      federatedEngines:
+        value: true
+      jobHistory:
+        value: true
+    usageLimits:
+      tasksLimit:
+        value: 100000
+      solverTimeLimit:
+        # ~277 hours a month. High enough never to be met in practice, finite
+        # so that a runaway script still stops.
+        value: 1000000
+      federatedTasksLimit:
+        value: 100000
+      concurrentTasksLimit:
+        value: 5
+      federatedEnginesLimit:
+        value: 10
+      apiKeysLimit:
+        value: 10
+      maxTimeoutPerTaskLimit:
+        # Matches ENGINE_SOLVE_TIMEOUT_S: asking for longer than the gateway
+        # itself will wait would be a promise it cannot keep.
+        value: 1800
+      maxIterationsLimit:
+        value: 10000000
+      maxBindingSpaceLimit:
+        value: 30
+      maxPayloadSizeLimit:
+        # Matches MAX_SOLVE_BODY_BYTES.
+        value: 512
+      jobHistoryRetentionLimit:
+        value: 90

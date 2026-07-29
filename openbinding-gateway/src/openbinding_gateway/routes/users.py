@@ -15,7 +15,11 @@ from ..models.accounts import (
     ApiKeySummary,
     CreateApiKeyRequest,
     CreatedApiKey,
+    LimitUsageView,
+    PlanCapsView,
+    PricingTokenView,
     UpdateProfileRequest,
+    UsageView,
     UserProfile,
 )
 from ..models.errors import (
@@ -27,6 +31,7 @@ from ..models.errors import (
 )
 from ..security.apikeys import mint
 from ..security.passwords import hash_password, password_complaint, verify_password
+from ..space_client import PricingUnavailable, get_gate
 
 router = APIRouter(prefix="/v1/users", tags=["Users"])
 
@@ -199,3 +204,85 @@ async def revoke_api_key(
     api_key.revoked_at = utcnow()
     await session.flush()
     return None
+
+
+@router.get(
+    "/me/usage",
+    response_model=UsageView,
+    operation_id="getOwnUsage",
+    summary="Your plan, quotas and what is left of them",
+    responses={
+        401: UNAUTHORIZED_RESPONSE,
+        503: {**UNAVAILABLE_RESPONSE, "description": "The pricing service is not reachable."},
+    },
+)
+async def read_own_usage(user: User = Depends(get_current_user)) -> UsageView:
+    """Everything the account page needs about entitlements, in one call.
+
+    The plan on the ``User`` row is a display cache; the contract in the
+    pricing service is what actually decides. This reads the contract, so what
+    a caller sees here is what a solve will be judged against.
+    """
+    gate = get_gate()
+    try:
+        snapshot = await gate.usage(user.id)
+        caps = await gate.caps(user.id)
+    except PricingUnavailable as error:
+        raise api_error(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "pricing_unavailable",
+            f"Quotas cannot be read right now: {error}",
+        ) from error
+
+    return UsageView(
+        plan=snapshot.plan,
+        contract_pending=user.contract_pending,
+        caps=PlanCapsView(
+            max_timeout_s=caps.max_timeout_s,
+            max_iterations=caps.max_iterations,
+            max_payload_mb=caps.max_payload_mb,
+            max_binding_space_log10=caps.max_binding_space_log10,
+            job_history_days=caps.job_history_days,
+        ),
+        limits=[
+            LimitUsageView(
+                limit_id=limit.limit_id,
+                limit=limit.limit,
+                used=limit.used,
+                remaining=limit.remaining,
+                unit=limit.unit,
+                renews_at=limit.renews_at,
+            )
+            for limit in snapshot.limits.values()
+        ],
+    )
+
+
+@router.get(
+    "/me/pricing-token",
+    response_model=PricingTokenView,
+    operation_id="getOwnPricingToken",
+    summary="A signed token for evaluating features in the browser",
+    responses={
+        401: UNAUTHORIZED_RESPONSE,
+        503: {**UNAVAILABLE_RESPONSE, "description": "The pricing service is not reachable."},
+    },
+)
+async def read_own_pricing_token(user: User = Depends(get_current_user)) -> PricingTokenView:
+    """Mint the token the interface gates features with.
+
+    The browser never talks to the pricing service directly - it is not
+    published, and it holds every account's contract. It gets this instead: a
+    signed statement of what this one account may do, which the frontend
+    evaluates locally.
+    """
+    try:
+        token = await get_gate().pricing_token(user.id)
+    except PricingUnavailable as error:
+        raise api_error(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "pricing_unavailable",
+            f"A pricing token cannot be issued right now: {error}",
+        ) from error
+
+    return PricingTokenView(pricing_token=token)

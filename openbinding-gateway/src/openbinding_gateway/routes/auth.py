@@ -42,6 +42,8 @@ from ..security.tokens import (
     issue_refresh_token,
     read_refresh_token,
 )
+from .. import space_client
+from ..space_client import PricingUnavailable
 
 router = APIRouter(prefix="/v1/auth", tags=["Authentication"])
 
@@ -141,6 +143,17 @@ async def register(
     )
     session.add(user)
     await session.flush()
+
+    # A contract is what entitles the account to anything, but registration
+    # does not depend on SPACE being up: the account is created either way and
+    # `contract_pending` records that it still owes one, to be settled the next
+    # time this user turns up. Losing the sign-up because a pricing service was
+    # restarting would be a worse failure than a delayed contract.
+    try:
+        await space_client.get_gate().create_contract(user.id, Plan.BASIC.value, user.email)
+        user.contract_pending = False
+    except PricingUnavailable:
+        user.contract_pending = True
 
     return _profile(user)
 

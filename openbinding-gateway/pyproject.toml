@@ -28,7 +28,10 @@ dependencies = [
     # ways to sign in, so validating it is not cosmetic.
     "email-validator>=2.0,<3.0",
     # Fernet, for the credentials users register alongside their own solvers.
-    "cryptography>=42.0"
+    "cryptography>=42.0",
+    # SPACE's own client. Synchronous, so every call through it goes to a
+    # worker thread; see space_client/space.py.
+    "space-python-client>=0.1.0,<1.0"
 ]
 
 [project.optional-dependencies]
