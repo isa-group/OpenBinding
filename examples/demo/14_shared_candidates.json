@@ -1,0 +1,80 @@
+{
+  "metadata": {
+    "id": "demo_14_shared_candidates",
+    "name": "14. Shared candidates",
+    "version": "1.0.0",
+    "created_at": "2026-07-29T00:00:00Z",
+    "description": "One candidate can implement several tasks. When it is chosen for more than one, a feature declared DIVIDE is split between them, because they are paying for one thing rather than for one each. Here 'shared' can serve all three tasks and costs 12; picking it for the first two costs 6 each, which beats the 7 a dedicated candidate would cost. SAME_CANDIDATE puts those two on one candidate and DIFFERENT_CANDIDATE keeps the third off it, so the best binding is shared, shared, only_t3 at a cost of 16.",
+    "level": "intermediate"
+  },
+  "features": [
+    {
+      "id": "cost",
+      "name": "Cost",
+      "direction": "MINIMIZE",
+      "unit": "eur",
+      "scale": "RATIO",
+      "valid_range": {"min": 0, "max": 100},
+      "sharing": "DIVIDE",
+      "description": "Paid once for the candidate, split between the tasks that share it."
+    },
+    {
+      "id": "latency",
+      "name": "Latency",
+      "direction": "MINIMIZE",
+      "unit": "ms",
+      "scale": "RATIO",
+      "valid_range": {"min": 0, "max": 1000},
+      "description": "Spent on every invocation, so sharing does not make it cheaper."
+    }
+  ],
+  "providers": [
+    {"id": "pA", "name": "Provider A"},
+    {"id": "pB", "name": "Provider B"}
+  ],
+  "tasks": [
+    {"id": "t1", "name": "Task 1"},
+    {"id": "t2", "name": "Task 2"},
+    {"id": "t3", "name": "Task 3"}
+  ],
+  "candidates": [
+    {"id": "shared", "task_ids": ["t1", "t2", "t3"], "provider_id": "pA", "name": "One deployment for any of the three", "features": {"cost": 12, "latency": 20}},
+    {"id": "only_t1", "task_ids": ["t1"], "provider_id": "pB", "name": "Dedicated to Task 1", "features": {"cost": 7, "latency": 10}},
+    {"id": "only_t2", "task_ids": ["t2"], "provider_id": "pB", "name": "Dedicated to Task 2", "features": {"cost": 7, "latency": 10}},
+    {"id": "only_t3", "task_ids": ["t3"], "provider_id": "pB", "name": "Dedicated to Task 3", "features": {"cost": 4, "latency": 10}}
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "seq",
+      "kind": "SEQ",
+      "children": ["t1", "t2", "t3"]
+    }
+  },
+  "aggregation_policies": {
+    "cost": {"neutral": 0, "fn": "SUM", "normalize": {"type": "minmax", "bounds": {"min": 0, "max": 30}}},
+    "latency": {"neutral": 0, "fn": "SUM", "normalize": {"type": "minmax", "bounds": {"min": 0, "max": 90}}}
+  },
+  "constraints": [
+    {
+      "id": "first_two_on_one_thing",
+      "kind": "DEPENDENCY",
+      "type": "SAME_CANDIDATE",
+      "tasks": ["t1", "t2"],
+      "hard": true,
+      "description": "Tasks 1 and 2 must be served by the very same candidate."
+    },
+    {
+      "id": "keep_the_third_apart",
+      "kind": "DEPENDENCY",
+      "type": "DIFFERENT_CANDIDATE",
+      "tasks": ["t2", "t3"],
+      "hard": true,
+      "description": "Task 3 must not sit on the same candidate as Task 2."
+    }
+  ],
+  "objective": {
+    "type": "MONO",
+    "targets": ["cost", "latency"]
+  }
+}

@@ -104,6 +104,7 @@ Providers represent organizations/platforms hosting candidate services.
 ### Semantics
 
 Tasks are abstract steps in the workflow. A solver selects **one candidate per task**.
+The same candidate may be selected for several tasks; what that costs is in §4.
 
 * `id` SHOULD be unique across tasks.
 * `name` is a human-readable label.
@@ -116,7 +117,7 @@ Tasks are abstract steps in the workflow. A solver selects **one candidate per t
 "candidates": [
   {
     "id": "svc_auth_1",
-    "task_id": "t_auth",
+    "task_ids": ["t_auth"],
     "provider_id": "aws-usw2",
     "name": "AuthService",
     "features": {
@@ -132,10 +133,39 @@ Tasks are abstract steps in the workflow. A solver selects **one candidate per t
 
 A candidate is a concrete service option to implement a task.
 
-* `task_id` MUST reference a task (not enforced by JSON Schema; enforce separately).
+* `task_ids` lists **every task this candidate can implement**, and MUST reference declared
+  tasks (not enforced by JSON Schema; enforce separately). A binding still selects one
+  candidate per task; listing several tasks means the same candidate is an option for each
+  of them, and may end up serving more than one.
 * `provider_id` MUST reference a provider (not enforced by JSON Schema).
 * `features` is a map from **attribute IDs** to numeric values. Keys SHOULD correspond to `features[*].id` (not fully enforceable in JSON Schema). The `features` object MUST have at least one key-value pair.
 * QoS keys are constrained to a conservative identifier pattern: `^[A-Za-z0-9_.-]+$` (same for several other maps).
+* `placement` optionally states where this candidate runs, instead of a
+  `resource_model.candidate_bindings` entry (§12).
+
+### One candidate, several tasks
+
+Writing one candidate per (task, deployment) pair repeats the deployment once per task.
+Listing the tasks on the candidate says it once. Five functions over three pools is three
+candidates rather than fifteen, and choosing a candidate for a function is choosing where
+that function runs.
+
+Let **k** be the number of tasks that, *in the binding being evaluated*, selected this very
+candidate. k counts every bound task, including tasks under a branch that does not run: the
+choice was made for all of them. k = 1 is the ordinary case and behaves exactly as a
+candidate belonging to one task always did.
+
+Two things follow from a candidate being one thing rather than k things:
+
+* **Features**: a feature declared `"sharing": "DIVIDE"` is paid once for the candidate, so
+  each of the k tasks accounts for `v/k` of it. Every other feature is spent per task and
+  each of them accounts for `v` in full. See §5.
+* **Resources**: the candidate's `demand` is taken up **once** on its pool, however many
+  tasks it serves. See §10.
+
+Effective values - `v/k` where it applies, `v` elsewhere - are what the aggregation tree,
+the LOCAL attribute bounds and therefore the objective all read. There is no second
+convention anywhere.
 
 ### Guidance on missing QoS values
 
@@ -179,6 +209,35 @@ Schema does not specify whether every candidate must provide every feature. Comm
   * `INTERVAL`: differences meaningful, zero arbitrary (temperature-like)
   * `ORDINAL`: ordering matters but spacing not meaningful (e.g., “bronze/silver/gold” encoded numerically)
 * `valid_range`: acceptable raw bounds for candidate QoS values
+* `sharing`: what this feature does when one candidate is selected for k tasks at once
+  (see §4). Optional, `REPLICATE` when omitted.
+
+### `sharing`
+
+```json
+{ "id": "cost", "direction": "MINIMIZE", "sharing": "DIVIDE", "...": "..." }
+```
+
+* `REPLICATE` (the default): every task accounts for the full value. This is what an
+  attribute spent on each invocation does - a latency of 4 ms is 4 ms for each of the
+  tasks running there, not 2 ms each.
+* `DIVIDE`: the k tasks split the value, `v/k` each, so the binding as a whole is charged
+  `v` exactly once. This is what an attribute paid for the candidate itself does - one
+  deployment costing 10 is 10 whether two tasks use it or five.
+
+Both agree when k = 1, so declaring `sharing` changes nothing for an instance whose
+candidates each serve one task.
+
+`DIVIDE` is rejected where dividing would not mean anything, rather than being silently
+reinterpreted:
+
+* on the feature the latency model computes end to end (`latency_model.global_latency
+  .attribute_id`): that latency comes from the placement and the schedule, and each task
+  waits all of it;
+* on a feature that composes multiplicatively (`PRODUCT` or `SCALED_PRODUCT` in any
+  operator): a share of a factor is not a share of the product;
+* on a feature whose `valid_range.min` is negative: dividing would move the value away
+  from zero for some inputs and towards it for others.
 
 ---
 
@@ -390,8 +449,23 @@ Examples:
 
 ### Dependency types
 
-* `SAME_PROVIDER`: selected candidates for all listed tasks share a provider
-* `DIFFERENT_PROVIDER`: selected candidates for all listed tasks must be on different providers
+What the listed tasks must agree on, or differ in:
+
+* `SAME_PROVIDER`: their selected candidates share a provider
+* `DIFFERENT_PROVIDER`: their selected candidates are on providers that are all different
+* `SAME_POOL`: their selected candidates are placed on one pool
+* `DIFFERENT_POOL`: their selected candidates are placed on pools that are all different
+* `SAME_CANDIDATE`: they are served by the very same candidate - one thing doing the work
+  of all of them, with the sharing that implies (§4)
+* `DIFFERENT_CANDIDATE`: they are served by candidates that are all different
+
+`SAME_POOL` and `DIFFERENT_POOL` require a `resource_model` declaring pools; without one
+there is nothing to compare and the instance is rejected.
+
+A hard `SAME_CANDIDATE` whose tasks have no candidate in common is rejected as well: no
+binding could satisfy it, and that is a property of the instance rather than something a
+search should discover. The same constraint declared soft is accepted - every binding
+remains solvable, it simply always pays the penalty.
 
 ---
 
@@ -437,14 +511,15 @@ Important semantic invariants (not enforced):
 * LOOP requires either `expected_iterations` or `bounds`
 * `ATTRIBUTE_BOUND.value` shape depends on `op`
 * `ATTRIBUTE_BOUND` with `scope == "LOCAL"` requires `tasks` or `candidates`
-* Aggregation policy `compose` must define at least one operator (`seq`, `and`, `xor`, `loop`)
+* Aggregation policy gives either `compose` (with at least one of `seq`, `and`, `xor`, `loop`) or the compact `fn`, never both
 * Objective `targets` uniqueness and size constraints depend on objective type
 
 ## NOT enforceable (or not enforced) in pure JSON Schema (validate separately)
 
 ### Referential integrity (“foreign keys”)
 
-* All `task_id` references exist in `tasks[*].id`
+* All `candidates[*].task_ids` entries exist in `tasks[*].id`
+* All composition `task_id` references exist in `tasks[*].id`
 * All `provider_id` references exist in `providers[*].id`
 * All `composition` `TASK` nodes reference valid `task_id`
 * All `constraints[*].tasks` reference valid task IDs
@@ -519,7 +594,7 @@ Be explicit:
     {
       "id": "c1",
       "name": "CandidateOne",
-      "task_id": "t1",
+      "task_ids": ["t1"],
       "provider_id": "p1",
       "features": { "latency_ms": 120 }
     }
@@ -581,10 +656,16 @@ Be explicit:
 
 ## Dependency types
 
-* `SAME_PROVIDER`, `DIFFERENT_PROVIDER`, `SAME_POOL`, `DIFFERENT_POOL`
+* `SAME_PROVIDER`, `DIFFERENT_PROVIDER`, `SAME_POOL`, `DIFFERENT_POOL`,
+  `SAME_CANDIDATE`, `DIFFERENT_CANDIDATE`
 
   `SAME_POOL` and `DIFFERENT_POOL` require a `resource_model` declaring pools; an instance
-  that uses them without one is rejected by semantic validation.
+  that uses them without one is rejected by semantic validation. A hard `SAME_CANDIDATE`
+  over tasks with no candidate in common is rejected too.
+
+## Feature sharing
+
+* `REPLICATE` (default), `DIVIDE`
 
 ## Objective types
 
@@ -617,21 +698,28 @@ Declares the infrastructure a binding is placed on, and the capacity it must res
 
 ### Field meaning
 
-* `resources` — the resource names capacities and demands are expressed in.
+* `resources` — the resource names capacities and demands are expressed in. Optional; when
+  omitted, the names actually used are taken as the declaration (§12).
 * `pools` — where candidates can run. `kind` groups pools (`EDGE`, `FOG`, `CLOUD`, …) so that a
   constraint can target a class of pools rather than each one. A resource missing from
   `capacity` means unbounded for that resource.
 * `candidate_bindings` — the pool each candidate runs on, and what it consumes there. Selecting
   a candidate therefore determines its placement: the pool is a function of the choice, not an
-  independent decision.
+  independent decision. A candidate may state this on itself instead (§12).
 * `constraints` — capacity constraints. `scope: ALL_POOLS` applies to every pool;
-  `scope: POOL_KIND` applies to the pools whose `kind` is listed in `pool_kinds`.
+  `scope: POOL_KIND` applies to the pools whose `kind` is listed in `pool_kinds`. Omitting
+  the key means the default check; an explicit `[]` means none (§12).
 
 ### Semantics
 
-For every pool in scope and every listed resource, the cumulative `demand` of the selected
-candidates placed on that pool must not exceed the pool `capacity`. This is a cumulative
-bin-packing constraint, evaluated over the whole binding rather than per task.
+For every pool in scope and every listed resource, the cumulative `demand` of the
+**distinct candidates selected** on that pool must not exceed the pool `capacity`. This is
+a cumulative bin-packing constraint, evaluated over the whole binding rather than per task.
+
+Distinct is what makes a candidate one deployment: a candidate selected for five tasks is
+one thing running on its pool and takes up its demand once, not five times. This matches
+what its `DIVIDE` features say about cost - the same single thing is being paid for and
+taking up the same single amount of room.
 
 The legacy spelling `kind: "RESOURCE_CAPACITY"` (without `type`) is still accepted.
 
@@ -686,3 +774,98 @@ implemented.
 
 When `global_latency.attribute_id` names a feature, the computed end-to-end latency **replaces**
 the value that ordinary aggregation would produce for that feature.
+
+---
+
+# 12) Authoring shorthands and the canonical form
+
+Several things an instance always says the same way can be left out and written once. Each
+shorthand has exactly **one** expansion, the gateway performs it on the way in, and
+everything downstream - the engine profiles, the semantic checks, every engine - reads the
+expansion only. An instance written either way solves identically; expanding an already
+expanded instance changes nothing.
+
+Where a shorthand would be ambiguous, the instance is **rejected** rather than guessed at.
+
+Offline, `python openbinding-gateway/tools/bim_desugar.py <instance.json>` prints the
+canonical form of any instance, which is what the engines' own fixtures are made of.
+
+## Bare task ids as composition leaves
+
+```json
+"children": ["t_login", "t_render"]
+```
+
+stands for
+
+```json
+"children": [
+  { "id": "n_t_login",  "kind": "TASK", "task_id": "t_login" },
+  { "id": "n_t_render", "kind": "TASK", "task_id": "t_render" }
+]
+```
+
+Node ids are derived from the task id (`n_<task_id>`), and a second use of the same task
+gets `n_<task_id>_2`, and so on. An id written by hand always wins: a generated one that
+would collide takes the next suffix instead.
+
+Allowed wherever a node is: `children`, an XOR branch's `child`, a LOOP `body`, and `root`.
+
+## Equally likely exclusive branches
+
+Omitting `p` from **every** branch of an XOR makes them equally likely (`1/n` each).
+Declaring it for some branches and not others is an error: there is no reading of that
+which is obviously right.
+
+## One aggregation function for every operator
+
+```json
+"cost": { "neutral": 0, "fn": "SUM" }
+```
+
+stands for
+
+```json
+"cost": { "neutral": 0, "compose": {
+  "seq": { "fn": "SUM" }, "and": { "fn": "SUM" },
+  "xor": { "fn": "SCALED_SUM" }, "loop": { "fn": "SCALED_SUM" }
+}}
+```
+
+`SEQ` and `AND` take the function as written. `XOR` and `LOOP` take its scaled counterpart
+where it has one - `SUM` becomes `SCALED_SUM`, `PRODUCT` becomes `SCALED_PRODUCT` - because
+a choice is weighted by its probability and a loop repeats its body. `MAX` and `MIN` have no
+scaled counterpart and are copied: the worst of several branches is the worst however likely
+each of them is.
+
+Giving both `fn` and `compose` is an error. Spell out `compose` whenever the operators
+genuinely differ, as an end-to-end latency does (`SUM` down a sequence, `MAX` across a fork).
+
+## Targets that weigh the same
+
+Omitting `objective.weights` gives every target `1/|targets|`. Engines always receive the
+weights written out.
+
+## A candidate that says where it runs
+
+```json
+{ "id": "c_edge", "task_ids": ["t1"], "provider_id": "p",
+  "features": { "cost": 3 },
+  "placement": { "pool": "p_edge", "demand": { "memory": 2.0 } } }
+```
+
+stands for the matching `resource_model.candidate_bindings` entry. Saying it in both places
+for the same candidate is an error.
+
+## The resources that are actually used
+
+Omitting `resource_model.resources` takes the union of every pool `capacity` key and every
+`demand` key as the declaration. Declaring the list explicitly keeps the strict checks that
+catch a typo in a capacity or a demand, so an instance that wants that protection should
+keep writing it.
+
+## The capacity check that is almost always meant
+
+Omitting `resource_model.constraints` injects one hard `RESOURCE_CAPACITY` over every pool
+and every resource. An explicit `[]` means the opposite - nothing is checked - and has to be
+written on purpose. `hard` defaults to `true`, as it does for every other constraint.

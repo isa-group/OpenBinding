@@ -38,14 +38,14 @@ def base_instance():
         "candidates": [
             {
                 "id": "c1",
-                "task_id": "t1",
+                "task_ids": ["t1"],
                 "provider_id": "p1",
                 "name": "C1",
                 "features": {"cost": 10, "latency": 50},
             },
             {
                 "id": "c2",
-                "task_id": "t2",
+                "task_ids": ["t2"],
                 "provider_id": "p1",
                 "name": "C2",
                 "features": {"cost": 20, "latency": 80},

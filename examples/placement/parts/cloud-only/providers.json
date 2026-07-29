@@ -1,0 +1,16 @@
+{
+  "providers": [
+    {
+      "id": "prov_edge",
+      "name": "Edge owner"
+    },
+    {
+      "id": "prov_fog",
+      "name": "Fog operator"
+    },
+    {
+      "id": "prov_cloud",
+      "name": "Cloud provider"
+    }
+  ]
+}

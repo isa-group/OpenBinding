@@ -27,7 +27,11 @@ import os
 import random
 from typing import Any, Dict, List
 
-from openbinding_gateway.semantics import canonicalize_result_data, evaluate_solution
+from openbinding_gateway.semantics import (
+    canonicalize_result_data,
+    desugar_instance,
+    evaluate_solution,
+)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -54,7 +58,8 @@ def instance_files() -> List[str]:
 def bindings_for(instance: Dict[str, Any]) -> List[Dict[str, str]]:
     by_task: Dict[str, List[str]] = {}
     for candidate in instance.get("candidates") or []:
-        by_task.setdefault(candidate["task_id"], []).append(candidate["id"])
+        for task_id in candidate.get("task_ids") or []:
+            by_task.setdefault(task_id, []).append(candidate["id"])
     for candidate_ids in by_task.values():
         candidate_ids.sort()
 
@@ -71,7 +76,10 @@ def bindings_for(instance: Dict[str, Any]) -> List[Dict[str, str]]:
 
 def snapshot(path: str) -> Dict[str, Any]:
     with open(path) as handle:
-        instance = json.load(handle)
+        # An example may be written with the authoring shorthands; the numbers
+        # pinned here are the ones the gateway produces, which is after they
+        # have been expanded.
+        instance = desugar_instance(json.load(handle))
 
     objective = instance.get("objective") or {}
     policies = instance.get("aggregation_policies") or {}

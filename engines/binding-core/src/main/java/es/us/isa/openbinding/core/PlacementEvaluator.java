@@ -164,7 +164,13 @@ public final class PlacementEvaluator {
     List<Violation> violations = new ArrayList<Violation>();
 
     Map<String, Map<String, Double>> usage = new LinkedHashMap<String, Map<String, Double>>();
+    // A candidate selected for several tasks is one deployment on its pool, so
+    // it takes up its demand once however many tasks it ends up serving.
+    Map<String, Candidate> distinct = new LinkedHashMap<String, Candidate>();
     for (Candidate candidate : selected.values()) {
+      distinct.put(candidate.id, candidate);
+    }
+    for (Candidate candidate : distinct.values()) {
       String pool = poolOf(candidate);
       if (pool == null) {
         continue;

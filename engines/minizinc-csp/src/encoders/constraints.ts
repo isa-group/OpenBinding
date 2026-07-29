@@ -27,6 +27,16 @@ export interface ConstraintEncoding {
   /** Candidates a candidate-scoped bound rules out, as (task, candidate). */
   excludedTask: number[];
   excludedCand: number[];
+  /**
+   * Candidate-scoped bounds on a feature whose value depends on how many tasks
+   * share the candidate, which cannot be decided here. Kept as constraints for
+   * the model to enforce once it knows: (task, candidate, feature, op, bound).
+   */
+  candBoundTask: number[];
+  candBoundCand: number[];
+  candBoundAttr: number[];
+  candBoundOp: number[];
+  candBoundValue: number[];
   /** Dependencies as pairs of tasks, by type code. */
   depType: number[];
   depFirst: number[];
@@ -82,6 +92,7 @@ export function encodeConstraints(
     globalAttr: [], globalOp: [], globalValue: [],
     localTask: [], localAttr: [], localOp: [], localValue: [],
     excludedTask: [], excludedCand: [],
+    candBoundTask: [], candBoundCand: [], candBoundAttr: [], candBoundOp: [], candBoundValue: [],
     depType: [], depFirst: [], depSecond: [],
   };
 
@@ -127,19 +138,33 @@ export function encodeConstraints(
         }
       }
 
-      // Scoping by candidate id constrains those candidates only. Their
-      // feature values are data, so the ones that break the bound are simply
-      // not selectable.
+      // Scoping by candidate id constrains those candidates only, in every
+      // task they can serve. For a feature whose value is fixed data, the
+      // candidates that break the bound are simply not selectable and the
+      // builder can say so outright. For a feature that is divided between the
+      // tasks sharing a candidate, the value is not known until the model has
+      // decided how many that is, so the bound goes to the model instead.
+      const isDivided = featureEncoding.divided.has(featId);
       for (const candidateId of c.candidates || []) {
         const cIdx = candidateIdx[candidateId];
         if (!cIdx) continue;
         const candidate = candidates[cIdx - 1];
-        const tIdx = taskIdx[candidate.task_id];
-        if (!tIdx) continue;
         const raw = Number((candidate.qos || candidate.features || {})[featId] ?? 0);
-        if (!satisfiesBound(raw, opRaw, c.value)) {
-          encoding.excludedTask.push(tIdx);
-          encoding.excludedCand.push(cIdx);
+        for (const taskId of candidate.task_ids || []) {
+          const tIdx = taskIdx[taskId];
+          if (!tIdx) continue;
+          if (isDivided) {
+            for (const bound of bounds) {
+              encoding.candBoundTask.push(tIdx);
+              encoding.candBoundCand.push(cIdx);
+              encoding.candBoundAttr.push(attrIdx);
+              encoding.candBoundOp.push(bound.op);
+              encoding.candBoundValue.push(toModel(bound.value, featId));
+            }
+          } else if (!satisfiesBound(raw, opRaw, c.value)) {
+            encoding.excludedTask.push(tIdx);
+            encoding.excludedCand.push(cIdx);
+          }
         }
       }
       continue;
@@ -175,6 +200,8 @@ export function encodeConstraints(
     // instance before it reaches the engine otherwise.
     else if (type === 'same_pool' && hasPools) chain(3);
     else if (type === 'different_pool' && hasPools) allPairs(4);
+    else if (type === 'same_candidate') chain(5);
+    else if (type === 'different_candidate') allPairs(6);
   }
 
   return encoding;

@@ -119,14 +119,19 @@ public final class BindingEvaluator {
   }
 
   public Evaluation evaluate(List<Integer> chromosome) {
-    Map<String, Candidate> selected = new LinkedHashMap<String, Candidate>();
+    Map<String, Candidate> chosen = new LinkedHashMap<String, Candidate>();
     Map<String, String> binding = new LinkedHashMap<String, String>();
     for (int i = 0; i < taskIds.size(); i++) {
       String taskId = taskIds.get(i);
       Candidate candidate = candidatesByTask.get(taskId).get(chromosome.get(i));
-      selected.put(taskId, candidate);
+      chosen.put(taskId, candidate);
       binding.put(taskId, candidate.id);
     }
+
+    // What each task actually accounts for once a candidate serving several of
+    // them has had its shared features divided. Placement keeps reading the
+    // chosen candidates: a pool hosts the thing itself, not a share of it.
+    Map<String, Candidate> selected = applySharing(chosen);
 
     Map<String, Double> aggregated = new LinkedHashMap<String, Double>();
     Map<String, Double> losses = new LinkedHashMap<String, Double>();
@@ -140,13 +145,65 @@ public final class BindingEvaluator {
       String latAttr = placement.e2eAttribute();
       Feature latFeature = latAttr != null ? features.get(latAttr) : null;
       if (latFeature != null) {
-        double e2e = placement.e2eLatency(selected);
+        // Execution latency is spent per task and never split, which is why a
+        // DIVIDE declaration on this feature is rejected upstream.
+        double e2e = placement.e2eLatency(chosen);
         aggregated.put(latAttr, e2e);
         losses.put(latAttr, objectiveLoss(latFeature, e2e));
       }
     }
 
-    return new Evaluation(binding, aggregated, losses, evaluateConstraints(selected, aggregated));
+    return new Evaluation(binding, aggregated, losses, evaluateConstraints(selected, chosen, aggregated));
+  }
+
+  /**
+   * What each task accounts for, once sharing is taken into account.
+   *
+   * <p>A candidate selected for k tasks is one thing serving k of them. A
+   * feature spent per execution still costs every task its full value; a
+   * feature declared DIVIDE is paid once for the thing itself, so each of the
+   * k tasks carries v/k of it and the binding as a whole is charged v exactly
+   * once. Returns the very same map when nothing divides.
+   */
+  private Map<String, Candidate> applySharing(Map<String, Candidate> chosen) {
+    List<String> divided = new ArrayList<String>();
+    for (Feature feature : instance.features) {
+      if ("DIVIDE".equals(upper(feature.sharing))) {
+        divided.add(feature.id);
+      }
+    }
+    if (divided.isEmpty()) {
+      return chosen;
+    }
+
+    Map<String, Integer> shareCount = new LinkedHashMap<String, Integer>();
+    for (Candidate candidate : chosen.values()) {
+      Integer seen = shareCount.get(candidate.id);
+      shareCount.put(candidate.id, seen == null ? 1 : seen.intValue() + 1);
+    }
+
+    Map<String, Candidate> effective = new LinkedHashMap<String, Candidate>();
+    for (Map.Entry<String, Candidate> entry : chosen.entrySet()) {
+      Candidate candidate = entry.getValue();
+      int k = shareCount.get(candidate.id).intValue();
+      if (k <= 1) {
+        effective.put(entry.getKey(), candidate);
+        continue;
+      }
+      Candidate copy = new Candidate();
+      copy.id = candidate.id;
+      copy.task_ids = candidate.task_ids;
+      copy.provider_id = candidate.provider_id;
+      copy.features = new LinkedHashMap<String, Double>(candidate.features);
+      for (String featureId : divided) {
+        Double value = copy.features.get(featureId);
+        if (value != null) {
+          copy.features.put(featureId, Double.valueOf(value.doubleValue() / k));
+        }
+      }
+      effective.put(entry.getKey(), copy);
+    }
+    return effective;
   }
 
   /**
@@ -352,7 +409,9 @@ public final class BindingEvaluator {
   }
 
   private ConstraintEvaluation evaluateConstraints(
-      Map<String, Candidate> selected, Map<String, Double> aggregated) {
+      Map<String, Candidate> selected,
+      Map<String, Candidate> chosen,
+      Map<String, Double> aggregated) {
     double hard = 0.0;
     double soft = 0.0;
     List<ViolationDto> violations = new ArrayList<ViolationDto>();
@@ -376,7 +435,9 @@ public final class BindingEvaluator {
     }
 
     if (placement != null) {
-      for (PlacementEvaluator.Violation violation : placement.check(selected)) {
+      // Capacity is about the things deployed, not about the shares each task
+      // is charged, so it reads the candidates as chosen.
+      for (PlacementEvaluator.Violation violation : placement.check(chosen)) {
         if (violation.hard()) {
           hard += violation.magnitude();
         } else {
@@ -427,13 +488,18 @@ public final class BindingEvaluator {
   }
 
   private double dependencyViolation(Constraint constraint, Map<String, Candidate> selected) {
-    // SAME_POOL / DIFFERENT_POOL group by placement pool; provider otherwise.
-    boolean poolBased = upper(constraint.type).endsWith("_POOL");
+    // What the listed tasks have to agree on: the pool hosting them, the
+    // candidate itself, or the provider behind it.
+    String type = upper(constraint.type);
+    boolean poolBased = type.endsWith("_POOL");
+    boolean candidateBased = type.endsWith("_CANDIDATE");
     Set<String> groups = new LinkedHashSet<String>();
     for (String task : constraint.tasks) {
       Candidate candidate = selected.get(task);
       if (candidate != null) {
-        if (poolBased && placement != null) {
+        if (candidateBased) {
+          groups.add(candidate.id);
+        } else if (poolBased && placement != null) {
           String pool = placement.poolOf(candidate);
           groups.add(pool != null ? pool : candidate.id);
         } else {
@@ -556,15 +622,29 @@ public final class BindingEvaluator {
     return upper(fn.fn);
   }
 
+  /**
+   * The market of each task: every candidate that can implement it.
+   *
+   * <p>A candidate serving several tasks appears in each of their buckets, so
+   * a chromosome allele still indexes one task's own options and two tasks can
+   * now land on the same candidate.
+   */
   private static Map<String, List<Candidate>> groupCandidates(List<Candidate> candidates) {
     Map<String, List<Candidate>> result = new LinkedHashMap<String, List<Candidate>>();
     for (Candidate candidate : candidates) {
-      List<Candidate> bucket = result.get(candidate.task_id);
-      if (bucket == null) {
-        bucket = new ArrayList<Candidate>();
-        result.put(candidate.task_id, bucket);
+      if (candidate.task_ids == null || candidate.task_ids.isEmpty()) {
+        throw new IllegalArgumentException(
+            "Candidate '" + candidate.id + "' serves no task; a candidate lists the tasks it "
+                + "implements under 'task_ids'");
       }
-      bucket.add(candidate);
+      for (String taskId : candidate.task_ids) {
+        List<Candidate> bucket = result.get(taskId);
+        if (bucket == null) {
+          bucket = new ArrayList<Candidate>();
+          result.put(taskId, bucket);
+        }
+        bucket.add(candidate);
+      }
     }
     return result;
   }

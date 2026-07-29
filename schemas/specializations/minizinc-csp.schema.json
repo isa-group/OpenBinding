@@ -129,7 +129,9 @@
                   "SAME_PROVIDER",
                   "DIFFERENT_PROVIDER",
                   "SAME_POOL",
-                  "DIFFERENT_POOL"
+                  "DIFFERENT_POOL",
+                  "SAME_CANDIDATE",
+                  "DIFFERENT_CANDIDATE"
                 ]
               },
               "tasks": {

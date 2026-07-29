@@ -108,7 +108,7 @@
   "candidates": [
     {
       "id": "c_get_country_from_location",
-      "task_id": "t_get_country_from_location",
+      "task_ids": ["t_get_country_from_location"],
       "provider_id": "p_transport_agency",
       "name": "getCountryFromLocation",
       "features": {
@@ -121,7 +121,7 @@
     },
     {
       "id": "c_get_transport_company",
-      "task_id": "t_get_transport_company",
+      "task_ids": ["t_get_transport_company"],
       "provider_id": "p_transport_agency",
       "name": "getTransportCompany",
       "features": {
@@ -134,7 +134,7 @@
     },
     {
       "id": "c_get_closest_city",
-      "task_id": "t_get_closest_city",
+      "task_ids": ["t_get_closest_city"],
       "provider_id": "p_transport_agency",
       "name": "getClosestCity",
       "features": {
@@ -147,7 +147,7 @@
     },
     {
       "id": "c_get_local_subsidiary",
-      "task_id": "t_get_local_subsidiary",
+      "task_ids": ["t_get_local_subsidiary"],
       "provider_id": "p_transport_agency",
       "name": "getLocalSubsidiary",
       "features": {
@@ -160,7 +160,7 @@
     },
     {
       "id": "c_get_vehicle",
-      "task_id": "t_get_vehicle",
+      "task_ids": ["t_get_vehicle"],
       "provider_id": "p_transport_agency",
       "name": "getVehicle",
       "features": {
@@ -173,7 +173,7 @@
     },
     {
       "id": "c_make_arrangements",
-      "task_id": "t_make_arrangements",
+      "task_ids": ["t_make_arrangements"],
       "provider_id": "p_transport_agency",
       "name": "makeArrangements",
       "features": {

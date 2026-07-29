@@ -105,7 +105,7 @@ public final class TestInstances {
     private static Candidate candidate(String id, String taskId, double cost, double quality) {
         Candidate candidate = new Candidate();
         candidate.id = id;
-        candidate.task_id = taskId;
+        candidate.task_ids = new ArrayList<String>(Collections.singletonList(taskId));
         candidate.provider_id = "P1";
         candidate.features.put("cost", Double.valueOf(cost));
         candidate.features.put("quality", Double.valueOf(quality));

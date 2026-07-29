@@ -15,8 +15,8 @@ def create_loop_instance(constraint):
             {"id": "P2", "name": "Provider P2"}
         ],
         "candidates": [
-            {"id": "C1_1", "task_id": "T1", "provider_id": "P1", "name": "C1_1", "features": {"energy": 2.5}},
-            {"id": "C1_2", "task_id": "T1", "provider_id": "P2", "name": "C1_2", "features": {"energy": 1}}
+            {"id": "C1_1", "task_ids": ["T1"], "provider_id": "P1", "name": "C1_1", "features": {"energy": 2.5}},
+            {"id": "C1_2", "task_ids": ["T1"], "provider_id": "P2", "name": "C1_2", "features": {"energy": 1}}
         ],
         "composition": {
             "type": "STRUCTURED",

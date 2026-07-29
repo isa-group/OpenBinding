@@ -44,7 +44,11 @@ def missing_candidate_violations(instance: Dict[str, Any]) -> List[ValidationVio
     unbindable task is unbindable whoever is asked to solve it.
     """
     task_ids = composition_task_ids(instance["composition"]["root"])
-    covered = {candidate["task_id"] for candidate in instance.get("candidates", [])}
+    covered = {
+        task
+        for candidate in instance.get("candidates", [])
+        for task in candidate.get("task_ids") or []
+    }
     missing = task_ids - covered
     if not missing:
         return []

@@ -1,0 +1,16 @@
+{
+  "objective": {
+    "targets": [
+      "latency",
+      "cost",
+      "security"
+    ],
+    "type": "MONO",
+    "weights": {
+      "cost": 0.4,
+      "latency": 0.4,
+      "security": 0.2
+    },
+    "weights_sum_to_one": true
+  }
+}

@@ -28,6 +28,8 @@ export interface FeatureEncoding {
   direction: Record<string, string>;
   range: Record<string, { min: number; max: number }>;
   usesProductSpace: Record<string, boolean>;
+  /** Features a candidate serving k tasks splits between them, by id. */
+  divided: Set<string>;
   /** Per feature, the aggregation function code for [task, seq, and, xor, loop]. */
   aggPolicy: number[][];
   /** Raw value to the space the model computes in. */
@@ -54,6 +56,14 @@ export function encodeFeatures(instance: any, features: string[]): FeatureEncodi
 
   const index: Record<string, number> = {};
   features.forEach((feature, i) => (index[feature] = i + 1));
+
+  // A DIVIDE feature is paid once for the candidate itself, so the k tasks
+  // sharing it carry v/k each instead of v.
+  const divided = new Set<string>(
+    definitions
+      .filter((definition: any) => String(definition.sharing || 'REPLICATE').toUpperCase() === 'DIVIDE')
+      .map((definition: any) => definition.id)
+  );
 
   const productSpace: Record<string, boolean> = {};
   for (const feature of features) {
@@ -87,5 +97,5 @@ export function encodeFeatures(instance: any, features: string[]): FeatureEncodi
     ];
   });
 
-  return { index, direction, range, usesProductSpace: productSpace, aggPolicy, toModelValue };
+  return { index, direction, range, usesProductSpace: productSpace, divided, aggPolicy, toModelValue };
 }

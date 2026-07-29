@@ -47,10 +47,10 @@ class EvolutionarySolverTest {
               {"id":"reliability","direction":"MAXIMIZE","valid_range":{"min":0,"max":1}}
             ],
             "candidates": [
-              {"id":"a1","task_id":"a","features":{"cost":10,"latency":30,"reliability":0.9}},
-              {"id":"a2","task_id":"a","features":{"cost":30,"latency":10,"reliability":0.99}},
-              {"id":"b1","task_id":"b","features":{"cost":20,"latency":20,"reliability":0.95}},
-              {"id":"b2","task_id":"b","features":{"cost":5,"latency":50,"reliability":0.8}}
+              {"id":"a1","task_ids":["a"],"features":{"cost":10,"latency":30,"reliability":0.9}},
+              {"id":"a2","task_ids":["a"],"features":{"cost":30,"latency":10,"reliability":0.99}},
+              {"id":"b1","task_ids":["b"],"features":{"cost":20,"latency":20,"reliability":0.95}},
+              {"id":"b2","task_ids":["b"],"features":{"cost":5,"latency":50,"reliability":0.8}}
             ],
             "composition": {
               "type":"STRUCTURED",

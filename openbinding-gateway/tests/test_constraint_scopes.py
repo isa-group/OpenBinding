@@ -21,10 +21,10 @@ def instance_with(constraints: List[Dict[str, Any]]) -> Dict[str, Any]:
         "tasks": [{"id": "T1", "name": "T1"}, {"id": "T2", "name": "T2"}],
         "providers": [{"id": "P1", "name": "P1"}],
         "candidates": [
-            {"id": "A1", "task_id": "T1", "provider_id": "P1", "name": "A1", "features": {"cost": 1.0}},
-            {"id": "A2", "task_id": "T1", "provider_id": "P1", "name": "A2", "features": {"cost": 50.0}},
-            {"id": "B1", "task_id": "T2", "provider_id": "P1", "name": "B1", "features": {"cost": 1.0}},
-            {"id": "B2", "task_id": "T2", "provider_id": "P1", "name": "B2", "features": {"cost": 50.0}},
+            {"id": "A1", "task_ids": ["T1"], "provider_id": "P1", "name": "A1", "features": {"cost": 1.0}},
+            {"id": "A2", "task_ids": ["T1"], "provider_id": "P1", "name": "A2", "features": {"cost": 50.0}},
+            {"id": "B1", "task_ids": ["T2"], "provider_id": "P1", "name": "B1", "features": {"cost": 1.0}},
+            {"id": "B2", "task_ids": ["T2"], "provider_id": "P1", "name": "B2", "features": {"cost": 50.0}},
         ],
         "composition": {
             "type": "STRUCTURED",

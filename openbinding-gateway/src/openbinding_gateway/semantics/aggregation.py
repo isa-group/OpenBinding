@@ -7,7 +7,10 @@ Pure functions of the composition and the selected candidates.
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any, Dict, List, Optional
+
+from .desugar import sharing_of
 
 
 def build_selected_candidate_by_task(
@@ -20,6 +23,48 @@ def build_selected_candidate_by_task(
         if cand is not None:
             selected[task_id] = cand
     return selected
+
+
+def share_counts(selected_candidate_by_task: Dict[str, Dict[str, Any]]) -> Dict[str, int]:
+    """How many tasks each selected candidate serves in this binding."""
+    return Counter(
+        cand.get("id") for cand in selected_candidate_by_task.values() if cand is not None
+    )
+
+
+def apply_sharing(
+    selected_candidate_by_task: Dict[str, Dict[str, Any]],
+    features: Dict[str, Any],
+) -> Dict[str, Dict[str, Any]]:
+    """What each task actually accounts for, once sharing is taken into account.
+
+    A candidate selected for k tasks is one thing serving k of them. A feature
+    that is spent per execution - latency - still costs every task its full
+    value, and is left alone. A feature that is paid once for the thing itself
+    is declared DIVIDE, and each of the k tasks carries v/k of it, so the
+    binding as a whole is charged v exactly once.
+
+    The result is the same objects when nothing divides, which is every
+    instance that declares no DIVIDE feature and every binding where no
+    candidate is selected twice.
+    """
+    divided = [fid for fid, feature in features.items() if sharing_of(feature) == "DIVIDE"]
+    if not divided:
+        return selected_candidate_by_task
+
+    counts = share_counts(selected_candidate_by_task)
+    effective: Dict[str, Dict[str, Any]] = {}
+    for task_id, cand in selected_candidate_by_task.items():
+        k = counts.get(cand.get("id"), 1)
+        if k <= 1:
+            effective[task_id] = cand
+            continue
+        cand_features = dict(cand.get("features") or {})
+        for fid in divided:
+            if fid in cand_features:
+                cand_features[fid] = float(cand_features[fid]) / k
+        effective[task_id] = {**cand, "features": cand_features}
+    return effective
 
 
 def _uses_product_space(feature_id: str, agg_policies: Dict[str, Any]) -> bool:

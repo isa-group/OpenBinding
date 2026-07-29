@@ -11,7 +11,12 @@ Each example is a JSON file that defines a service composition problem. The key 
     *   Defines `direction` (minimize/maximize), `unit`, `scale`, and `valid_range`.
 *   **`providers`**: The entities offering services.
 *   **`tasks`**: The abstract steps in the workflow that need to be performed.
-*   **`candidates`**: Concrete service implementations available for each task. Each candidate has specific `features` values.
+*   **`candidates`**: Concrete service implementations. Each candidate has specific `features`
+    values and lists under `task_ids` every task it can implement - one candidate can serve
+    several tasks, and may end up selected for more than one of them at once.
+    *   **`sharing`** (declared on a feature): what happens when it does. `DIVIDE` splits the
+        value between the tasks sharing the candidate, because they are paying for one thing;
+        anything else charges each of them in full.
 *   **`composition`**: The structural definition of the workflow.
     *   **`SEQ`**: Sequential execution.
     *   **`AND`**: Parallel execution.
@@ -20,7 +25,9 @@ Each example is a JSON file that defines a service composition problem. The key 
 *   **`aggregation_policies`**: Rules for how feature values are aggregated across the composition structure (e.g., Sum of costs, Max of latencies).
 *   **`constraints`**: Restrictions on valid solutions.
     *   **`ATTRIBUTE_BOUND`**: Limits on QoS values (Global or Local).
-    *   **`DEPENDENCY`**: Constraints between providers (e.g., `SAME_PROVIDER` for two tasks).
+    *   **`DEPENDENCY`**: What two or more tasks must agree on, or differ in: their provider
+        (`SAME_PROVIDER` / `DIFFERENT_PROVIDER`), the pool hosting them (`SAME_POOL` /
+        `DIFFERENT_POOL`), or the candidate itself (`SAME_CANDIDATE` / `DIFFERENT_CANDIDATE`).
 *   **`objective`**: The goal of the optimization.
     *   **`MONO`**: Optimize one feature (or a weighted sum of multiple features).
     *   **`MULTI`**: Optimize multiple features (Negative test for now).
@@ -44,6 +51,8 @@ Here is a guide to the included examples and their specific intent:
 | **`10_large_scale.json`** | **Scale/Performance** | A larger composition (10 sequential tasks) with more candidates, used to test solver performance. |
 | **`11_multi_obj_negative.json`** | **Multi-Objective (Negative)** | A problem with 2 objectives. Used to verify that engines correctly reject "Multi" objectives (at the moment there are no engines that support this type of objective). |
 | **`12_many_obj_pareto.json`** | **Many-Objective (Pareto)** | A problem with 3 objectives. The **Many-Heuristic** engine should return a set of Pareto-optimal solutions for this input. |
+| **`13_fms.json`** | **Feature Model** | A composition derived from a feature model. |
+| **`14_shared_candidates.json`** | **Shared Candidates** | One candidate able to serve three tasks. Shows a `DIVIDE` cost being split when it is selected for two of them, a hard `SAME_CANDIDATE` and a soft `DIFFERENT_CANDIDATE`. |
 
 ## Usage
 

@@ -130,7 +130,8 @@ def corpus_summary_row(instance: dict[str, Any], path: Path) -> dict[str, Any]:
     meta = instance_meta(instance, path)
     per_task: dict[str, int] = {}
     for cand in instance["candidates"]:
-        per_task[cand["task_id"]] = per_task.get(cand["task_id"], 0) + 1
+        for task_id in cand["task_ids"]:
+            per_task[task_id] = per_task.get(task_id, 0) + 1
     log10_space = sum(math.log10(max(1, n)) for n in per_task.values())
 
     counts = {"LOCAL": 0, "GLOBAL": 0, "DEPENDENCY": 0, "BUDGET": 0}

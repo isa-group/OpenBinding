@@ -72,7 +72,7 @@ def test_random_search_response_uses_engine_internal_objective():
     cand = instance["candidates"][0]
     engine_response = {
         "status": "optimized",
-        "selection": {cand["task_id"]: cand["id"]},
+        "selection": {cand["task_ids"][0]: cand["id"]},
         "aggregated_features": {},
         "objective_value": 0.4242,
         "feasible": True,

@@ -8,7 +8,7 @@ def test_evolutionary_plugin_passes_general_instance_and_filters_options():
     instance = {
         "composition": {"root": {"kind": "TASK", "task_id": "t1"}},
         "features": [{"id": "cost"}],
-        "candidates": [{"id": "c1", "task_id": "t1"}],
+        "candidates": [{"id": "c1", "task_ids": ["t1"]}],
         "objective": {"type": "MONO", "targets": ["cost"]},
     }
 

@@ -154,7 +154,7 @@
   "candidates": [
     {
       "id": "c_shopA_create_order",
-      "task_id": "t_create_order",
+      "task_ids": ["t_create_order"],
       "provider_id": "p_shop_a",
       "name": "ShopA POST /order",
       "features": {
@@ -167,7 +167,7 @@
     },
     {
       "id": "c_shopB_create_order",
-      "task_id": "t_create_order",
+      "task_ids": ["t_create_order"],
       "provider_id": "p_shop_b",
       "name": "ShopB POST /order",
       "features": {
@@ -180,7 +180,7 @@
     },
     {
       "id": "c_shopA_add_item",
-      "task_id": "t_add_item",
+      "task_ids": ["t_add_item"],
       "provider_id": "p_shop_a",
       "name": "ShopA POST /order/item",
       "features": {
@@ -193,7 +193,7 @@
     },
     {
       "id": "c_shopB_add_item",
-      "task_id": "t_add_item",
+      "task_ids": ["t_add_item"],
       "provider_id": "p_shop_b",
       "name": "ShopB POST /order/item",
       "features": {
@@ -206,7 +206,7 @@
     },
     {
       "id": "c_shopA_remove_item",
-      "task_id": "t_remove_item",
+      "task_ids": ["t_remove_item"],
       "provider_id": "p_shop_a",
       "name": "ShopA DELETE /order/item",
       "features": {
@@ -219,7 +219,7 @@
     },
     {
       "id": "c_shopB_remove_item",
-      "task_id": "t_remove_item",
+      "task_ids": ["t_remove_item"],
       "provider_id": "p_shop_b",
       "name": "ShopB DELETE /order/item",
       "features": {
@@ -232,7 +232,7 @@
     },
     {
       "id": "c_shopA_get_amount",
-      "task_id": "t_get_amount",
+      "task_ids": ["t_get_amount"],
       "provider_id": "p_shop_a",
       "name": "ShopA GET /order/amount",
       "features": {
@@ -245,7 +245,7 @@
     },
     {
       "id": "c_shopB_get_amount",
-      "task_id": "t_get_amount",
+      "task_ids": ["t_get_amount"],
       "provider_id": "p_shop_b",
       "name": "ShopB GET /order/amount",
       "features": {
@@ -258,7 +258,7 @@
     },
     {
       "id": "c_shopA_checkout",
-      "task_id": "t_checkout",
+      "task_ids": ["t_checkout"],
       "provider_id": "p_shop_a",
       "name": "ShopA POST /order/payment",
       "features": {
@@ -271,7 +271,7 @@
     },
     {
       "id": "c_shopB_checkout",
-      "task_id": "t_checkout",
+      "task_ids": ["t_checkout"],
       "provider_id": "p_shop_b",
       "name": "ShopB POST /order/payment",
       "features": {
@@ -284,7 +284,7 @@
     },
     {
       "id": "c_shopA_list_confirmed",
-      "task_id": "t_list_confirmed",
+      "task_ids": ["t_list_confirmed"],
       "provider_id": "p_shop_a",
       "name": "ShopA GET /order/confirmed",
       "features": {
@@ -297,7 +297,7 @@
     },
     {
       "id": "c_shopB_list_confirmed",
-      "task_id": "t_list_confirmed",
+      "task_ids": ["t_list_confirmed"],
       "provider_id": "p_shop_b",
       "name": "ShopB GET /order/confirmed",
       "features": {
@@ -310,7 +310,7 @@
     },
     {
       "id": "c_shopA_ship_order",
-      "task_id": "t_ship_order",
+      "task_ids": ["t_ship_order"],
       "provider_id": "p_shop_a",
       "name": "ShopA fulfillment",
       "features": {
@@ -323,7 +323,7 @@
     },
     {
       "id": "c_shopB_ship_order",
-      "task_id": "t_ship_order",
+      "task_ids": ["t_ship_order"],
       "provider_id": "p_shop_b",
       "name": "ShopB fulfillment",
       "features": {
@@ -336,7 +336,7 @@
     },
     {
       "id": "c_shopA_update_shipment",
-      "task_id": "t_update_shipment",
+      "task_ids": ["t_update_shipment"],
       "provider_id": "p_shop_a",
       "name": "ShopA PUT /order/shipment",
       "features": {
@@ -349,7 +349,7 @@
     },
     {
       "id": "c_shopB_update_shipment",
-      "task_id": "t_update_shipment",
+      "task_ids": ["t_update_shipment"],
       "provider_id": "p_shop_b",
       "name": "ShopB PUT /order/shipment",
       "features": {
@@ -362,7 +362,7 @@
     },
     {
       "id": "c_shopA_cancel_order",
-      "task_id": "t_cancel_order",
+      "task_ids": ["t_cancel_order"],
       "provider_id": "p_shop_a",
       "name": "ShopA DELETE /order",
       "features": {
@@ -375,7 +375,7 @@
     },
     {
       "id": "c_shopB_cancel_order",
-      "task_id": "t_cancel_order",
+      "task_ids": ["t_cancel_order"],
       "provider_id": "p_shop_b",
       "name": "ShopB DELETE /order",
       "features": {
@@ -388,7 +388,7 @@
     },
     {
       "id": "c_catalogA_request_quote",
-      "task_id": "t_request_quote",
+      "task_ids": ["t_request_quote"],
       "provider_id": "p_catalog_a",
       "name": "CatalogA POST /product/quote",
       "features": {
@@ -401,7 +401,7 @@
     },
     {
       "id": "c_catalogB_request_quote",
-      "task_id": "t_request_quote",
+      "task_ids": ["t_request_quote"],
       "provider_id": "p_catalog_b",
       "name": "CatalogB POST /product/quote",
       "features": {
@@ -414,7 +414,7 @@
     },
     {
       "id": "c_catalogA_get_quote",
-      "task_id": "t_get_quote",
+      "task_ids": ["t_get_quote"],
       "provider_id": "p_catalog_a",
       "name": "CatalogA GET /quote",
       "features": {
@@ -427,7 +427,7 @@
     },
     {
       "id": "c_catalogB_get_quote",
-      "task_id": "t_get_quote",
+      "task_ids": ["t_get_quote"],
       "provider_id": "p_catalog_b",
       "name": "CatalogB GET /quote",
       "features": {
@@ -440,7 +440,7 @@
     },
     {
       "id": "c_paymentA_charge",
-      "task_id": "t_charge_payment",
+      "task_ids": ["t_charge_payment"],
       "provider_id": "p_payment_a",
       "name": "PaymentA POST /payment",
       "features": {
@@ -453,7 +453,7 @@
     },
     {
       "id": "c_paymentB_charge",
-      "task_id": "t_charge_payment",
+      "task_ids": ["t_charge_payment"],
       "provider_id": "p_payment_b",
       "name": "PaymentB POST /payment",
       "features": {
@@ -466,7 +466,7 @@
     },
     {
       "id": "c_paymentA_refund",
-      "task_id": "t_refund_payment",
+      "task_ids": ["t_refund_payment"],
       "provider_id": "p_payment_a",
       "name": "PaymentA DELETE /payment",
       "features": {
@@ -479,7 +479,7 @@
     },
     {
       "id": "c_paymentB_refund",
-      "task_id": "t_refund_payment",
+      "task_ids": ["t_refund_payment"],
       "provider_id": "p_payment_b",
       "name": "PaymentB DELETE /payment",
       "features": {

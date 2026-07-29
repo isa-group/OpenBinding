@@ -1,0 +1,23 @@
+{
+  "cost": {
+    "bounds": {
+      "max": 50.0,
+      "min": 0.0
+    },
+    "type": "minmax"
+  },
+  "latency": {
+    "bounds": {
+      "max": 100.0,
+      "min": 0.0
+    },
+    "type": "minmax"
+  },
+  "security": {
+    "bounds": {
+      "max": 1.0,
+      "min": 0.0
+    },
+    "type": "minmax"
+  }
+}

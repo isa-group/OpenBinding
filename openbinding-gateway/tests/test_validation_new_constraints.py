@@ -15,8 +15,8 @@ def get_base_instance():
         "providers": [{"id": "p1", "name": "Provider1"}],
         "tasks": [{"id": "t1", "name": "Task1"}, {"id": "t2", "name": "Task2"}],
         "candidates": [
-            {"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "C1", "features": {"cost": 10}},
-            {"id": "c2", "task_id": "t2", "provider_id": "p1", "name": "C2", "features": {"cost": 20}}
+            {"id": "c1", "task_ids": ["t1"], "provider_id": "p1", "name": "C1", "features": {"cost": 10}},
+            {"id": "c2", "task_ids": ["t2"], "provider_id": "p1", "name": "C2", "features": {"cost": 20}}
         ],
         "composition": {
             "type": "STRUCTURED",

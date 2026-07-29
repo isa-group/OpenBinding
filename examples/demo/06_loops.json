@@ -20,7 +20,7 @@
   "providers": [{"id": "p1", "name": "P1"}],
   "tasks": [{"id": "t1", "name": "Repeated Task"}],
   "candidates": [
-    {"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "Service", "features": {"cost": 5}}
+    {"id": "c1", "task_ids": ["t1"], "provider_id": "p1", "name": "Service", "features": {"cost": 5}}
   ],
   "composition": {
     "type": "STRUCTURED",

@@ -187,7 +187,7 @@
   "candidates": [
     {
       "id": "c_shopA_create_order",
-      "task_id": "t_create_order",
+      "task_ids": ["t_create_order"],
       "provider_id": "p_shop_a",
       "name": "ShopA POST /order",
       "features": {
@@ -200,7 +200,7 @@
     },
     {
       "id": "c_shopB_create_order",
-      "task_id": "t_create_order",
+      "task_ids": ["t_create_order"],
       "provider_id": "p_shop_b",
       "name": "ShopB POST /order",
       "features": {
@@ -213,7 +213,7 @@
     },
     {
       "id": "c_shopA_add_item",
-      "task_id": "t_add_item",
+      "task_ids": ["t_add_item"],
       "provider_id": "p_shop_a",
       "name": "ShopA POST /order/item",
       "features": {
@@ -226,7 +226,7 @@
     },
     {
       "id": "c_shopB_add_item",
-      "task_id": "t_add_item",
+      "task_ids": ["t_add_item"],
       "provider_id": "p_shop_b",
       "name": "ShopB POST /order/item",
       "features": {
@@ -239,7 +239,7 @@
     },
     {
       "id": "c_shopA_remove_item",
-      "task_id": "t_remove_item",
+      "task_ids": ["t_remove_item"],
       "provider_id": "p_shop_a",
       "name": "ShopA DELETE /order/item",
       "features": {
@@ -252,7 +252,7 @@
     },
     {
       "id": "c_shopB_remove_item",
-      "task_id": "t_remove_item",
+      "task_ids": ["t_remove_item"],
       "provider_id": "p_shop_b",
       "name": "ShopB DELETE /order/item",
       "features": {
@@ -265,7 +265,7 @@
     },
     {
       "id": "c_shopA_get_amount",
-      "task_id": "t_get_amount",
+      "task_ids": ["t_get_amount"],
       "provider_id": "p_shop_a",
       "name": "ShopA GET /order/amount",
       "features": {
@@ -278,7 +278,7 @@
     },
     {
       "id": "c_shopB_get_amount",
-      "task_id": "t_get_amount",
+      "task_ids": ["t_get_amount"],
       "provider_id": "p_shop_b",
       "name": "ShopB GET /order/amount",
       "features": {
@@ -291,7 +291,7 @@
     },
     {
       "id": "c_shopA_checkout",
-      "task_id": "t_checkout",
+      "task_ids": ["t_checkout"],
       "provider_id": "p_shop_a",
       "name": "ShopA POST /order/payment",
       "features": {
@@ -304,7 +304,7 @@
     },
     {
       "id": "c_shopB_checkout",
-      "task_id": "t_checkout",
+      "task_ids": ["t_checkout"],
       "provider_id": "p_shop_b",
       "name": "ShopB POST /order/payment",
       "features": {
@@ -317,7 +317,7 @@
     },
     {
       "id": "c_shopA_list_confirmed",
-      "task_id": "t_list_confirmed",
+      "task_ids": ["t_list_confirmed"],
       "provider_id": "p_shop_a",
       "name": "ShopA GET /order/confirmed",
       "features": {
@@ -330,7 +330,7 @@
     },
     {
       "id": "c_shopB_list_confirmed",
-      "task_id": "t_list_confirmed",
+      "task_ids": ["t_list_confirmed"],
       "provider_id": "p_shop_b",
       "name": "ShopB GET /order/confirmed",
       "features": {
@@ -343,7 +343,7 @@
     },
     {
       "id": "c_shopA_ship_order",
-      "task_id": "t_ship_order",
+      "task_ids": ["t_ship_order"],
       "provider_id": "p_shop_a",
       "name": "ShopA fulfillment",
       "features": {
@@ -356,7 +356,7 @@
     },
     {
       "id": "c_shopB_ship_order",
-      "task_id": "t_ship_order",
+      "task_ids": ["t_ship_order"],
       "provider_id": "p_shop_b",
       "name": "ShopB fulfillment",
       "features": {
@@ -369,7 +369,7 @@
     },
     {
       "id": "c_shopA_update_shipment",
-      "task_id": "t_update_shipment",
+      "task_ids": ["t_update_shipment"],
       "provider_id": "p_shop_a",
       "name": "ShopA PUT /order/shipment",
       "features": {
@@ -382,7 +382,7 @@
     },
     {
       "id": "c_shopB_update_shipment",
-      "task_id": "t_update_shipment",
+      "task_ids": ["t_update_shipment"],
       "provider_id": "p_shop_b",
       "name": "ShopB PUT /order/shipment",
       "features": {
@@ -395,7 +395,7 @@
     },
     {
       "id": "c_shopA_cancel_order",
-      "task_id": "t_cancel_order",
+      "task_ids": ["t_cancel_order"],
       "provider_id": "p_shop_a",
       "name": "ShopA DELETE /order",
       "features": {
@@ -408,7 +408,7 @@
     },
     {
       "id": "c_shopB_cancel_order",
-      "task_id": "t_cancel_order",
+      "task_ids": ["t_cancel_order"],
       "provider_id": "p_shop_b",
       "name": "ShopB DELETE /order",
       "features": {
@@ -421,7 +421,7 @@
     },
     {
       "id": "c_catalogA_request_quote",
-      "task_id": "t_request_quote",
+      "task_ids": ["t_request_quote"],
       "provider_id": "p_catalog_a",
       "name": "CatalogA POST /product/quote",
       "features": {
@@ -434,7 +434,7 @@
     },
     {
       "id": "c_catalogB_request_quote",
-      "task_id": "t_request_quote",
+      "task_ids": ["t_request_quote"],
       "provider_id": "p_catalog_b",
       "name": "CatalogB POST /product/quote",
       "features": {
@@ -447,7 +447,7 @@
     },
     {
       "id": "c_catalogA_get_quote",
-      "task_id": "t_get_quote",
+      "task_ids": ["t_get_quote"],
       "provider_id": "p_catalog_a",
       "name": "CatalogA GET /quote",
       "features": {
@@ -460,7 +460,7 @@
     },
     {
       "id": "c_catalogB_get_quote",
-      "task_id": "t_get_quote",
+      "task_ids": ["t_get_quote"],
       "provider_id": "p_catalog_b",
       "name": "CatalogB GET /quote",
       "features": {
@@ -473,7 +473,7 @@
     },
     {
       "id": "c_paymentA_charge",
-      "task_id": "t_charge_payment",
+      "task_ids": ["t_charge_payment"],
       "provider_id": "p_payment_a",
       "name": "PaymentA POST /payment",
       "features": {
@@ -486,7 +486,7 @@
     },
     {
       "id": "c_paymentB_charge",
-      "task_id": "t_charge_payment",
+      "task_ids": ["t_charge_payment"],
       "provider_id": "p_payment_b",
       "name": "PaymentB POST /payment",
       "features": {
@@ -499,7 +499,7 @@
     },
     {
       "id": "c_paymentA_refund",
-      "task_id": "t_refund_payment",
+      "task_ids": ["t_refund_payment"],
       "provider_id": "p_payment_a",
       "name": "PaymentA DELETE /payment",
       "features": {
@@ -512,7 +512,7 @@
     },
     {
       "id": "c_paymentB_refund",
-      "task_id": "t_refund_payment",
+      "task_ids": ["t_refund_payment"],
       "provider_id": "p_payment_b",
       "name": "PaymentB DELETE /payment",
       "features": {
@@ -525,7 +525,7 @@
     },
     {
       "id": "t_create_order_gen_1",
-      "task_id": "t_create_order",
+      "task_ids": ["t_create_order"],
       "provider_id": "p_gen_shared",
       "name": "ShopA POST /order (Gen Shared)",
       "features": {
@@ -538,7 +538,7 @@
     },
     {
       "id": "t_request_quote_gen_1",
-      "task_id": "t_request_quote",
+      "task_ids": ["t_request_quote"],
       "provider_id": "p_gen_shared",
       "name": "CatalogA POST /product/quote (Gen Shared)",
       "features": {
@@ -551,7 +551,7 @@
     },
     {
       "id": "t_get_quote_gen_1",
-      "task_id": "t_get_quote",
+      "task_ids": ["t_get_quote"],
       "provider_id": "p_gen_shared",
       "name": "CatalogA GET /quote (Gen Shared)",
       "features": {
@@ -564,7 +564,7 @@
     },
     {
       "id": "t_add_item_gen_1",
-      "task_id": "t_add_item",
+      "task_ids": ["t_add_item"],
       "provider_id": "p_gen_shared",
       "name": "ShopA POST /order/item (Gen Shared)",
       "features": {
@@ -577,7 +577,7 @@
     },
     {
       "id": "t_remove_item_gen_1",
-      "task_id": "t_remove_item",
+      "task_ids": ["t_remove_item"],
       "provider_id": "p_gen_shared",
       "name": "ShopA DELETE /order/item (Gen Shared)",
       "features": {
@@ -590,7 +590,7 @@
     },
     {
       "id": "t_get_amount_gen_1",
-      "task_id": "t_get_amount",
+      "task_ids": ["t_get_amount"],
       "provider_id": "p_gen_shared",
       "name": "ShopA GET /order/amount (Gen Shared)",
       "features": {
@@ -603,7 +603,7 @@
     },
     {
       "id": "t_checkout_gen_1",
-      "task_id": "t_checkout",
+      "task_ids": ["t_checkout"],
       "provider_id": "p_gen_shared",
       "name": "ShopA POST /order/payment (Gen Shared)",
       "features": {
@@ -616,7 +616,7 @@
     },
     {
       "id": "t_charge_payment_gen_1",
-      "task_id": "t_charge_payment",
+      "task_ids": ["t_charge_payment"],
       "provider_id": "p_gen_shared",
       "name": "PaymentA POST /payment (Gen Shared)",
       "features": {
@@ -629,7 +629,7 @@
     },
     {
       "id": "t_list_confirmed_gen_1",
-      "task_id": "t_list_confirmed",
+      "task_ids": ["t_list_confirmed"],
       "provider_id": "p_gen_shared",
       "name": "ShopA GET /order/confirmed (Gen Shared)",
       "features": {
@@ -642,7 +642,7 @@
     },
     {
       "id": "t_ship_order_gen_1",
-      "task_id": "t_ship_order",
+      "task_ids": ["t_ship_order"],
       "provider_id": "p_gen_shared",
       "name": "ShopA fulfillment (Gen Shared)",
       "features": {
@@ -655,7 +655,7 @@
     },
     {
       "id": "t_update_shipment_gen_1",
-      "task_id": "t_update_shipment",
+      "task_ids": ["t_update_shipment"],
       "provider_id": "p_gen_shared",
       "name": "ShopA PUT /order/shipment (Gen Shared)",
       "features": {
@@ -668,7 +668,7 @@
     },
     {
       "id": "t_cancel_order_gen_1",
-      "task_id": "t_cancel_order",
+      "task_ids": ["t_cancel_order"],
       "provider_id": "p_gen_shared",
       "name": "ShopA DELETE /order (Gen Shared)",
       "features": {
@@ -681,7 +681,7 @@
     },
     {
       "id": "t_refund_payment_gen_1",
-      "task_id": "t_refund_payment",
+      "task_ids": ["t_refund_payment"],
       "provider_id": "p_gen_shared",
       "name": "PaymentA DELETE /payment (Gen Shared)",
       "features": {
@@ -694,7 +694,7 @@
     },
     {
       "id": "t_add_item_gen_2",
-      "task_id": "t_add_item",
+      "task_ids": ["t_add_item"],
       "provider_id": "p_gen_1",
       "name": "ShopA POST /order/item (Gen p_gen_1)",
       "features": {
@@ -707,7 +707,7 @@
     },
     {
       "id": "t_cancel_order_gen_2",
-      "task_id": "t_cancel_order",
+      "task_ids": ["t_cancel_order"],
       "provider_id": "p_gen_2",
       "name": "ShopA DELETE /order (Gen p_gen_2)",
       "features": {
@@ -720,7 +720,7 @@
     },
     {
       "id": "t_charge_payment_gen_2",
-      "task_id": "t_charge_payment",
+      "task_ids": ["t_charge_payment"],
       "provider_id": "p_gen_3",
       "name": "PaymentA POST /payment (Gen p_gen_3)",
       "features": {
@@ -733,7 +733,7 @@
     },
     {
       "id": "t_checkout_gen_2",
-      "task_id": "t_checkout",
+      "task_ids": ["t_checkout"],
       "provider_id": "p_gen_4",
       "name": "ShopA POST /order/payment (Gen p_gen_4)",
       "features": {
@@ -746,7 +746,7 @@
     },
     {
       "id": "t_create_order_gen_2",
-      "task_id": "t_create_order",
+      "task_ids": ["t_create_order"],
       "provider_id": "p_gen_5",
       "name": "ShopA POST /order (Gen p_gen_5)",
       "features": {
@@ -759,7 +759,7 @@
     },
     {
       "id": "t_get_amount_gen_2",
-      "task_id": "t_get_amount",
+      "task_ids": ["t_get_amount"],
       "provider_id": "p_shop_a",
       "name": "ShopA GET /order/amount (Gen p_shop_a)",
       "features": {
@@ -772,7 +772,7 @@
     },
     {
       "id": "t_get_quote_gen_2",
-      "task_id": "t_get_quote",
+      "task_ids": ["t_get_quote"],
       "provider_id": "p_shop_b",
       "name": "CatalogA GET /quote (Gen p_shop_b)",
       "features": {
@@ -785,7 +785,7 @@
     },
     {
       "id": "t_list_confirmed_gen_2",
-      "task_id": "t_list_confirmed",
+      "task_ids": ["t_list_confirmed"],
       "provider_id": "p_catalog_a",
       "name": "ShopA GET /order/confirmed (Gen p_catalog_a)",
       "features": {
@@ -798,7 +798,7 @@
     },
     {
       "id": "t_refund_payment_gen_2",
-      "task_id": "t_refund_payment",
+      "task_ids": ["t_refund_payment"],
       "provider_id": "p_catalog_b",
       "name": "PaymentA DELETE /payment (Gen p_catalog_b)",
       "features": {
@@ -811,7 +811,7 @@
     },
     {
       "id": "t_remove_item_gen_2",
-      "task_id": "t_remove_item",
+      "task_ids": ["t_remove_item"],
       "provider_id": "p_payment_a",
       "name": "ShopA DELETE /order/item (Gen p_payment_a)",
       "features": {
@@ -824,7 +824,7 @@
     },
     {
       "id": "t_request_quote_gen_2",
-      "task_id": "t_request_quote",
+      "task_ids": ["t_request_quote"],
       "provider_id": "p_payment_b",
       "name": "CatalogA POST /product/quote (Gen p_payment_b)",
       "features": {
@@ -837,7 +837,7 @@
     },
     {
       "id": "t_ship_order_gen_2",
-      "task_id": "t_ship_order",
+      "task_ids": ["t_ship_order"],
       "provider_id": "p_gen_1",
       "name": "ShopA fulfillment (Gen p_gen_1)",
       "features": {
@@ -850,7 +850,7 @@
     },
     {
       "id": "t_update_shipment_gen_2",
-      "task_id": "t_update_shipment",
+      "task_ids": ["t_update_shipment"],
       "provider_id": "p_gen_2",
       "name": "ShopA PUT /order/shipment (Gen p_gen_2)",
       "features": {
@@ -863,7 +863,7 @@
     },
     {
       "id": "t_add_item_gen_3",
-      "task_id": "t_add_item",
+      "task_ids": ["t_add_item"],
       "provider_id": "p_gen_3",
       "name": "ShopA POST /order/item (Gen p_gen_3)",
       "features": {
@@ -876,7 +876,7 @@
     },
     {
       "id": "t_cancel_order_gen_3",
-      "task_id": "t_cancel_order",
+      "task_ids": ["t_cancel_order"],
       "provider_id": "p_gen_4",
       "name": "ShopA DELETE /order (Gen p_gen_4)",
       "features": {

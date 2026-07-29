@@ -19,10 +19,10 @@
     {"id": "t2", "name": "Task 2"}
   ],
   "candidates": [
-    {"id": "c1_A", "task_id": "t1", "provider_id": "pA", "name": "T1 by A", "features": {"cost": 10}},
-    {"id": "c1_B", "task_id": "t1", "provider_id": "pB", "name": "T1 by B", "features": {"cost": 20}},
-    {"id": "c2_A", "task_id": "t2", "provider_id": "pA", "name": "T2 by A", "features": {"cost": 10}},
-    {"id": "c2_B", "task_id": "t2", "provider_id": "pB", "name": "T2 by B", "features": {"cost": 5}}
+    {"id": "c1_A", "task_ids": ["t1"], "provider_id": "pA", "name": "T1 by A", "features": {"cost": 10}},
+    {"id": "c1_B", "task_ids": ["t1"], "provider_id": "pB", "name": "T1 by B", "features": {"cost": 20}},
+    {"id": "c2_A", "task_ids": ["t2"], "provider_id": "pA", "name": "T2 by A", "features": {"cost": 10}},
+    {"id": "c2_B", "task_ids": ["t2"], "provider_id": "pB", "name": "T2 by B", "features": {"cost": 5}}
   ],
   "composition": {
     "type": "STRUCTURED",

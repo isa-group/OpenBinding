@@ -183,7 +183,7 @@
   "candidates": [
     {
       "id": "svc_ass_1",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_attractions_a",
       "name": "ASS.getAttractions",
       "features": {
@@ -196,7 +196,7 @@
     },
     {
       "id": "svc_ass_2",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_attractions_b",
       "name": "ASS.getAttractions",
       "features": {
@@ -209,7 +209,7 @@
     },
     {
       "id": "svc_dfbs_1",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_dom_air_a",
       "name": "DFBS.booking",
       "features": {
@@ -222,7 +222,7 @@
     },
     {
       "id": "svc_dfbs_2",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_dom_air_b",
       "name": "DFBS.booking",
       "features": {
@@ -235,7 +235,7 @@
     },
     {
       "id": "svc_ifbs_1",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_int_air_a",
       "name": "IFBS.booking",
       "features": {
@@ -248,7 +248,7 @@
     },
     {
       "id": "svc_ifbs_2",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_int_air_b",
       "name": "IFBS.booking",
       "features": {
@@ -261,7 +261,7 @@
     },
     {
       "id": "svc_tis_1",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_ins_a",
       "name": "TIS.getInsurance",
       "features": {
@@ -274,7 +274,7 @@
     },
     {
       "id": "svc_tis_2",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_ins_b",
       "name": "TIS.getInsurance",
       "features": {
@@ -287,7 +287,7 @@
     },
     {
       "id": "svc_abs_1",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_hotel_a",
       "name": "ABS.booking",
       "features": {
@@ -300,7 +300,7 @@
     },
     {
       "id": "svc_abs_2",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_hotel_b",
       "name": "ABS.booking",
       "features": {
@@ -313,7 +313,7 @@
     },
     {
       "id": "svc_crs_1",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_car_a",
       "name": "CRS.booking",
       "features": {
@@ -326,7 +326,7 @@
     },
     {
       "id": "svc_crs_2",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_car_b",
       "name": "CRS.booking",
       "features": {
@@ -339,7 +339,7 @@
     },
     {
       "id": "t_attractions_search_gen_1",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_gen_shared",
       "name": "ASS.getAttractions (Gen Shared)",
       "features": {
@@ -352,7 +352,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_1",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_gen_shared",
       "name": "DFBS.booking (Gen Shared)",
       "features": {
@@ -365,7 +365,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_1",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_gen_shared",
       "name": "IFBS.booking (Gen Shared)",
       "features": {
@@ -378,7 +378,7 @@
     },
     {
       "id": "t_travel_insurance_gen_1",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_gen_shared",
       "name": "TIS.getInsurance (Gen Shared)",
       "features": {
@@ -391,7 +391,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_1",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_gen_shared",
       "name": "ABS.booking (Gen Shared)",
       "features": {
@@ -404,7 +404,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_1",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_gen_shared",
       "name": "CRS.booking (Gen Shared)",
       "features": {
@@ -417,7 +417,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_2",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_attractions_b",
       "name": "ABS.booking (Gen p_attractions_b)",
       "features": {
@@ -430,7 +430,7 @@
     },
     {
       "id": "t_attractions_search_gen_2",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_dom_air_a",
       "name": "ASS.getAttractions (Gen p_dom_air_a)",
       "features": {
@@ -443,7 +443,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_2",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_dom_air_b",
       "name": "CRS.booking (Gen p_dom_air_b)",
       "features": {
@@ -456,7 +456,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_2",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_int_air_a",
       "name": "DFBS.booking (Gen p_int_air_a)",
       "features": {
@@ -469,7 +469,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_2",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_int_air_b",
       "name": "IFBS.booking (Gen p_int_air_b)",
       "features": {
@@ -482,7 +482,7 @@
     },
     {
       "id": "t_travel_insurance_gen_2",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_ins_a",
       "name": "TIS.getInsurance (Gen p_ins_a)",
       "features": {
@@ -495,7 +495,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_3",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_ins_b",
       "name": "ABS.booking (Gen p_ins_b)",
       "features": {
@@ -508,7 +508,7 @@
     },
     {
       "id": "t_attractions_search_gen_3",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_hotel_a",
       "name": "ASS.getAttractions (Gen p_hotel_a)",
       "features": {
@@ -521,7 +521,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_3",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_hotel_b",
       "name": "CRS.booking (Gen p_hotel_b)",
       "features": {
@@ -534,7 +534,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_3",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_car_a",
       "name": "DFBS.booking (Gen p_car_a)",
       "features": {
@@ -547,7 +547,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_3",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_car_b",
       "name": "IFBS.booking (Gen p_car_b)",
       "features": {
@@ -560,7 +560,7 @@
     },
     {
       "id": "t_travel_insurance_gen_3",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_gen_1",
       "name": "TIS.getInsurance (Gen p_gen_1)",
       "features": {
@@ -573,7 +573,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_4",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_gen_2",
       "name": "ABS.booking (Gen p_gen_2)",
       "features": {
@@ -586,7 +586,7 @@
     },
     {
       "id": "t_attractions_search_gen_4",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_gen_3",
       "name": "ASS.getAttractions (Gen p_gen_3)",
       "features": {
@@ -599,7 +599,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_4",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_gen_4",
       "name": "CRS.booking (Gen p_gen_4)",
       "features": {
@@ -612,7 +612,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_4",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_gen_5",
       "name": "DFBS.booking (Gen p_gen_5)",
       "features": {
@@ -625,7 +625,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_4",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_attractions_a",
       "name": "IFBS.booking (Gen p_attractions_a)",
       "features": {
@@ -638,7 +638,7 @@
     },
     {
       "id": "t_travel_insurance_gen_4",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_attractions_b",
       "name": "TIS.getInsurance (Gen p_attractions_b)",
       "features": {
@@ -651,7 +651,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_5",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_dom_air_a",
       "name": "ABS.booking (Gen p_dom_air_a)",
       "features": {
@@ -664,7 +664,7 @@
     },
     {
       "id": "t_attractions_search_gen_5",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_dom_air_b",
       "name": "ASS.getAttractions (Gen p_dom_air_b)",
       "features": {
@@ -677,7 +677,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_5",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_int_air_a",
       "name": "CRS.booking (Gen p_int_air_a)",
       "features": {
@@ -690,7 +690,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_5",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_int_air_b",
       "name": "DFBS.booking (Gen p_int_air_b)",
       "features": {
@@ -703,7 +703,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_5",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_ins_a",
       "name": "IFBS.booking (Gen p_ins_a)",
       "features": {
@@ -716,7 +716,7 @@
     },
     {
       "id": "t_travel_insurance_gen_5",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_ins_b",
       "name": "TIS.getInsurance (Gen p_ins_b)",
       "features": {
@@ -729,7 +729,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_6",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_hotel_a",
       "name": "ABS.booking (Gen p_hotel_a)",
       "features": {
@@ -742,7 +742,7 @@
     },
     {
       "id": "t_attractions_search_gen_6",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_hotel_b",
       "name": "ASS.getAttractions (Gen p_hotel_b)",
       "features": {
@@ -755,7 +755,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_6",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_car_a",
       "name": "CRS.booking (Gen p_car_a)",
       "features": {
@@ -768,7 +768,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_6",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_car_b",
       "name": "DFBS.booking (Gen p_car_b)",
       "features": {
@@ -781,7 +781,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_6",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_gen_1",
       "name": "IFBS.booking (Gen p_gen_1)",
       "features": {
@@ -794,7 +794,7 @@
     },
     {
       "id": "t_travel_insurance_gen_6",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_gen_2",
       "name": "TIS.getInsurance (Gen p_gen_2)",
       "features": {
@@ -807,7 +807,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_7",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_gen_3",
       "name": "ABS.booking (Gen p_gen_3)",
       "features": {
@@ -820,7 +820,7 @@
     },
     {
       "id": "t_attractions_search_gen_7",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_gen_4",
       "name": "ASS.getAttractions (Gen p_gen_4)",
       "features": {
@@ -833,7 +833,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_7",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_gen_5",
       "name": "CRS.booking (Gen p_gen_5)",
       "features": {
@@ -846,7 +846,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_7",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_attractions_a",
       "name": "DFBS.booking (Gen p_attractions_a)",
       "features": {
@@ -859,7 +859,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_7",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_attractions_b",
       "name": "IFBS.booking (Gen p_attractions_b)",
       "features": {
@@ -872,7 +872,7 @@
     },
     {
       "id": "t_travel_insurance_gen_7",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_dom_air_a",
       "name": "TIS.getInsurance (Gen p_dom_air_a)",
       "features": {
@@ -885,7 +885,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_8",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_dom_air_b",
       "name": "ABS.booking (Gen p_dom_air_b)",
       "features": {
@@ -898,7 +898,7 @@
     },
     {
       "id": "t_attractions_search_gen_8",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_int_air_a",
       "name": "ASS.getAttractions (Gen p_int_air_a)",
       "features": {
@@ -911,7 +911,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_8",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_int_air_b",
       "name": "CRS.booking (Gen p_int_air_b)",
       "features": {
@@ -924,7 +924,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_8",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_ins_a",
       "name": "DFBS.booking (Gen p_ins_a)",
       "features": {
@@ -937,7 +937,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_8",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_ins_b",
       "name": "IFBS.booking (Gen p_ins_b)",
       "features": {
@@ -950,7 +950,7 @@
     },
     {
       "id": "t_travel_insurance_gen_8",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_hotel_a",
       "name": "TIS.getInsurance (Gen p_hotel_a)",
       "features": {
@@ -963,7 +963,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_9",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_hotel_b",
       "name": "ABS.booking (Gen p_hotel_b)",
       "features": {
@@ -976,7 +976,7 @@
     },
     {
       "id": "t_attractions_search_gen_9",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_car_a",
       "name": "ASS.getAttractions (Gen p_car_a)",
       "features": {
@@ -989,7 +989,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_9",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_car_b",
       "name": "CRS.booking (Gen p_car_b)",
       "features": {
@@ -1002,7 +1002,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_9",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_gen_1",
       "name": "DFBS.booking (Gen p_gen_1)",
       "features": {
@@ -1015,7 +1015,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_9",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_gen_2",
       "name": "IFBS.booking (Gen p_gen_2)",
       "features": {
@@ -1028,7 +1028,7 @@
     },
     {
       "id": "t_travel_insurance_gen_9",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_gen_3",
       "name": "TIS.getInsurance (Gen p_gen_3)",
       "features": {
@@ -1041,7 +1041,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_10",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_gen_4",
       "name": "ABS.booking (Gen p_gen_4)",
       "features": {
@@ -1054,7 +1054,7 @@
     },
     {
       "id": "t_attractions_search_gen_10",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_gen_5",
       "name": "ASS.getAttractions (Gen p_gen_5)",
       "features": {
@@ -1067,7 +1067,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_10",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_attractions_a",
       "name": "CRS.booking (Gen p_attractions_a)",
       "features": {
@@ -1080,7 +1080,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_10",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_attractions_b",
       "name": "DFBS.booking (Gen p_attractions_b)",
       "features": {
@@ -1093,7 +1093,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_10",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_dom_air_a",
       "name": "IFBS.booking (Gen p_dom_air_a)",
       "features": {
@@ -1106,7 +1106,7 @@
     },
     {
       "id": "t_travel_insurance_gen_10",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_dom_air_b",
       "name": "TIS.getInsurance (Gen p_dom_air_b)",
       "features": {
@@ -1119,7 +1119,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_11",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_int_air_a",
       "name": "ABS.booking (Gen p_int_air_a)",
       "features": {
@@ -1132,7 +1132,7 @@
     },
     {
       "id": "t_attractions_search_gen_11",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_int_air_b",
       "name": "ASS.getAttractions (Gen p_int_air_b)",
       "features": {
@@ -1145,7 +1145,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_11",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_ins_a",
       "name": "CRS.booking (Gen p_ins_a)",
       "features": {
@@ -1158,7 +1158,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_11",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_ins_b",
       "name": "DFBS.booking (Gen p_ins_b)",
       "features": {
@@ -1171,7 +1171,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_11",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_hotel_a",
       "name": "IFBS.booking (Gen p_hotel_a)",
       "features": {
@@ -1184,7 +1184,7 @@
     },
     {
       "id": "t_travel_insurance_gen_11",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_hotel_b",
       "name": "TIS.getInsurance (Gen p_hotel_b)",
       "features": {
@@ -1197,7 +1197,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_12",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_car_a",
       "name": "ABS.booking (Gen p_car_a)",
       "features": {
@@ -1210,7 +1210,7 @@
     },
     {
       "id": "t_attractions_search_gen_12",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_car_b",
       "name": "ASS.getAttractions (Gen p_car_b)",
       "features": {
@@ -1223,7 +1223,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_12",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_gen_1",
       "name": "CRS.booking (Gen p_gen_1)",
       "features": {
@@ -1236,7 +1236,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_12",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_gen_2",
       "name": "DFBS.booking (Gen p_gen_2)",
       "features": {
@@ -1249,7 +1249,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_12",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_gen_3",
       "name": "IFBS.booking (Gen p_gen_3)",
       "features": {
@@ -1262,7 +1262,7 @@
     },
     {
       "id": "t_travel_insurance_gen_12",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_gen_4",
       "name": "TIS.getInsurance (Gen p_gen_4)",
       "features": {
@@ -1275,7 +1275,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_13",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_gen_5",
       "name": "ABS.booking (Gen p_gen_5)",
       "features": {
@@ -1288,7 +1288,7 @@
     },
     {
       "id": "t_attractions_search_gen_13",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_attractions_a",
       "name": "ASS.getAttractions (Gen p_attractions_a)",
       "features": {
@@ -1301,7 +1301,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_13",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_attractions_b",
       "name": "CRS.booking (Gen p_attractions_b)",
       "features": {
@@ -1314,7 +1314,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_13",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_dom_air_a",
       "name": "DFBS.booking (Gen p_dom_air_a)",
       "features": {
@@ -1327,7 +1327,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_13",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_dom_air_b",
       "name": "IFBS.booking (Gen p_dom_air_b)",
       "features": {
@@ -1340,7 +1340,7 @@
     },
     {
       "id": "t_travel_insurance_gen_13",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_int_air_a",
       "name": "TIS.getInsurance (Gen p_int_air_a)",
       "features": {
@@ -1353,7 +1353,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_14",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_int_air_b",
       "name": "ABS.booking (Gen p_int_air_b)",
       "features": {
@@ -1366,7 +1366,7 @@
     },
     {
       "id": "t_attractions_search_gen_14",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_ins_a",
       "name": "ASS.getAttractions (Gen p_ins_a)",
       "features": {
@@ -1379,7 +1379,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_14",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_ins_b",
       "name": "CRS.booking (Gen p_ins_b)",
       "features": {
@@ -1392,7 +1392,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_14",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_hotel_a",
       "name": "DFBS.booking (Gen p_hotel_a)",
       "features": {
@@ -1405,7 +1405,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_14",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_hotel_b",
       "name": "IFBS.booking (Gen p_hotel_b)",
       "features": {
@@ -1418,7 +1418,7 @@
     },
     {
       "id": "t_travel_insurance_gen_14",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_car_a",
       "name": "TIS.getInsurance (Gen p_car_a)",
       "features": {
@@ -1431,7 +1431,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_15",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_car_b",
       "name": "ABS.booking (Gen p_car_b)",
       "features": {
@@ -1444,7 +1444,7 @@
     },
     {
       "id": "t_attractions_search_gen_15",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_gen_1",
       "name": "ASS.getAttractions (Gen p_gen_1)",
       "features": {
@@ -1457,7 +1457,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_15",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_gen_2",
       "name": "CRS.booking (Gen p_gen_2)",
       "features": {
@@ -1470,7 +1470,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_15",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_gen_3",
       "name": "DFBS.booking (Gen p_gen_3)",
       "features": {
@@ -1483,7 +1483,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_15",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_gen_4",
       "name": "IFBS.booking (Gen p_gen_4)",
       "features": {
@@ -1496,7 +1496,7 @@
     },
     {
       "id": "t_travel_insurance_gen_15",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_gen_5",
       "name": "TIS.getInsurance (Gen p_gen_5)",
       "features": {
@@ -1509,7 +1509,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_16",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_attractions_a",
       "name": "ABS.booking (Gen p_attractions_a)",
       "features": {
@@ -1522,7 +1522,7 @@
     },
     {
       "id": "t_attractions_search_gen_16",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_attractions_b",
       "name": "ASS.getAttractions (Gen p_attractions_b)",
       "features": {
@@ -1535,7 +1535,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_16",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_dom_air_a",
       "name": "CRS.booking (Gen p_dom_air_a)",
       "features": {
@@ -1548,7 +1548,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_16",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_dom_air_b",
       "name": "DFBS.booking (Gen p_dom_air_b)",
       "features": {
@@ -1561,7 +1561,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_16",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_int_air_a",
       "name": "IFBS.booking (Gen p_int_air_a)",
       "features": {
@@ -1574,7 +1574,7 @@
     },
     {
       "id": "t_travel_insurance_gen_16",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_int_air_b",
       "name": "TIS.getInsurance (Gen p_int_air_b)",
       "features": {
@@ -1587,7 +1587,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_17",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_ins_a",
       "name": "ABS.booking (Gen p_ins_a)",
       "features": {
@@ -1600,7 +1600,7 @@
     },
     {
       "id": "t_attractions_search_gen_17",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_ins_b",
       "name": "ASS.getAttractions (Gen p_ins_b)",
       "features": {
@@ -1613,7 +1613,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_17",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_hotel_a",
       "name": "CRS.booking (Gen p_hotel_a)",
       "features": {
@@ -1626,7 +1626,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_17",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_hotel_b",
       "name": "DFBS.booking (Gen p_hotel_b)",
       "features": {
@@ -1639,7 +1639,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_17",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_car_a",
       "name": "IFBS.booking (Gen p_car_a)",
       "features": {
@@ -1652,7 +1652,7 @@
     },
     {
       "id": "t_travel_insurance_gen_17",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_car_b",
       "name": "TIS.getInsurance (Gen p_car_b)",
       "features": {
@@ -1665,7 +1665,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_18",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_gen_1",
       "name": "ABS.booking (Gen p_gen_1)",
       "features": {
@@ -1678,7 +1678,7 @@
     },
     {
       "id": "t_attractions_search_gen_18",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_gen_2",
       "name": "ASS.getAttractions (Gen p_gen_2)",
       "features": {
@@ -1691,7 +1691,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_18",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_gen_3",
       "name": "CRS.booking (Gen p_gen_3)",
       "features": {
@@ -1704,7 +1704,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_18",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_gen_4",
       "name": "DFBS.booking (Gen p_gen_4)",
       "features": {
@@ -1717,7 +1717,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_18",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_gen_5",
       "name": "IFBS.booking (Gen p_gen_5)",
       "features": {
@@ -1730,7 +1730,7 @@
     },
     {
       "id": "t_travel_insurance_gen_18",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_attractions_a",
       "name": "TIS.getInsurance (Gen p_attractions_a)",
       "features": {
@@ -1743,7 +1743,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_19",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_attractions_b",
       "name": "ABS.booking (Gen p_attractions_b)",
       "features": {
@@ -1756,7 +1756,7 @@
     },
     {
       "id": "t_attractions_search_gen_19",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_dom_air_a",
       "name": "ASS.getAttractions (Gen p_dom_air_a)",
       "features": {
@@ -1769,7 +1769,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_19",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_dom_air_b",
       "name": "CRS.booking (Gen p_dom_air_b)",
       "features": {
@@ -1782,7 +1782,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_19",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_int_air_a",
       "name": "DFBS.booking (Gen p_int_air_a)",
       "features": {
@@ -1795,7 +1795,7 @@
     },
     {
       "id": "t_flight_booking_international_gen_19",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_int_air_b",
       "name": "IFBS.booking (Gen p_int_air_b)",
       "features": {
@@ -1808,7 +1808,7 @@
     },
     {
       "id": "t_travel_insurance_gen_19",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_ins_a",
       "name": "TIS.getInsurance (Gen p_ins_a)",
       "features": {
@@ -1821,7 +1821,7 @@
     },
     {
       "id": "t_accommodation_booking_gen_20",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_ins_b",
       "name": "ABS.booking (Gen p_ins_b)",
       "features": {
@@ -1834,7 +1834,7 @@
     },
     {
       "id": "t_attractions_search_gen_20",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_hotel_a",
       "name": "ASS.getAttractions (Gen p_hotel_a)",
       "features": {
@@ -1847,7 +1847,7 @@
     },
     {
       "id": "t_car_rental_booking_gen_20",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_hotel_b",
       "name": "CRS.booking (Gen p_hotel_b)",
       "features": {
@@ -1860,7 +1860,7 @@
     },
     {
       "id": "t_flight_booking_domestic_gen_20",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_car_a",
       "name": "DFBS.booking (Gen p_car_a)",
       "features": {

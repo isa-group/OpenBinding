@@ -1,0 +1,26 @@
+{
+  "aggregation_policies": {
+    "cost": {
+      "fn": "SUM",
+      "neutral": 0
+    },
+    "latency": {
+      "compose": {
+        "and": {
+          "fn": "MAX"
+        },
+        "seq": {
+          "fn": "SUM"
+        },
+        "xor": {
+          "fn": "SCALED_SUM"
+        }
+      },
+      "neutral": 0
+    },
+    "security": {
+      "fn": "MIN",
+      "neutral": 1
+    }
+  }
+}

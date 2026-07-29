@@ -153,7 +153,7 @@
   "candidates": [
     {
       "id": "c_google_books_api",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_google",
       "name": "Google Books API",
       "features": {
@@ -166,7 +166,7 @@
     },
     {
       "id": "c_amazon_market_api",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_amazon",
       "name": "Amazon Market API",
       "features": {
@@ -179,7 +179,7 @@
     },
     {
       "id": "c_opac_library_api",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_unimib",
       "name": "OPAC Library API",
       "features": {
@@ -192,7 +192,7 @@
     },
     {
       "id": "c_google_geocoding_api",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_google",
       "name": "Google Maps Geocoding API",
       "features": {
@@ -205,7 +205,7 @@
     },
     {
       "id": "c_google_transit_api",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_google",
       "name": "Google Transit API",
       "features": {
@@ -218,7 +218,7 @@
     },
     {
       "id": "c_archive_api",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_archive",
       "name": "Archive.org API",
       "features": {
@@ -231,7 +231,7 @@
     },
     {
       "id": "t_books_gen_1",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_shared",
       "name": "Google Books API (Gen Shared)",
       "features": {
@@ -244,7 +244,7 @@
     },
     {
       "id": "t_market_gen_1",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_gen_shared",
       "name": "Amazon Market API (Gen Shared)",
       "features": {
@@ -257,7 +257,7 @@
     },
     {
       "id": "t_library_gen_1",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_shared",
       "name": "OPAC Library API (Gen Shared)",
       "features": {
@@ -270,7 +270,7 @@
     },
     {
       "id": "t_geocoding_gen_1",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_gen_shared",
       "name": "Google Maps Geocoding API (Gen Shared)",
       "features": {
@@ -283,7 +283,7 @@
     },
     {
       "id": "t_transit_gen_1",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_shared",
       "name": "Google Transit API (Gen Shared)",
       "features": {
@@ -296,7 +296,7 @@
     },
     {
       "id": "t_archive_gen_1",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_gen_shared",
       "name": "Archive.org API (Gen Shared)",
       "features": {
@@ -309,7 +309,7 @@
     },
     {
       "id": "t_archive_gen_2",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_unimib",
       "name": "Archive.org API (Gen p_unimib)",
       "features": {
@@ -322,7 +322,7 @@
     },
     {
       "id": "t_books_gen_2",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_archive",
       "name": "Google Books API (Gen p_archive)",
       "features": {
@@ -335,7 +335,7 @@
     },
     {
       "id": "t_geocoding_gen_2",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_local",
       "name": "Google Maps Geocoding API (Gen p_local)",
       "features": {
@@ -348,7 +348,7 @@
     },
     {
       "id": "t_library_gen_2",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_1",
       "name": "OPAC Library API (Gen p_gen_1)",
       "features": {
@@ -361,7 +361,7 @@
     },
     {
       "id": "t_market_gen_2",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_gen_2",
       "name": "Amazon Market API (Gen p_gen_2)",
       "features": {
@@ -374,7 +374,7 @@
     },
     {
       "id": "t_transit_gen_2",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_3",
       "name": "Google Transit API (Gen p_gen_3)",
       "features": {
@@ -387,7 +387,7 @@
     },
     {
       "id": "t_archive_gen_3",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_gen_4",
       "name": "Archive.org API (Gen p_gen_4)",
       "features": {
@@ -400,7 +400,7 @@
     },
     {
       "id": "t_books_gen_3",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_5",
       "name": "Google Books API (Gen p_gen_5)",
       "features": {
@@ -413,7 +413,7 @@
     },
     {
       "id": "t_geocoding_gen_3",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_google",
       "name": "Google Maps Geocoding API (Gen p_google)",
       "features": {
@@ -426,7 +426,7 @@
     },
     {
       "id": "t_library_gen_3",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_amazon",
       "name": "OPAC Library API (Gen p_amazon)",
       "features": {
@@ -439,7 +439,7 @@
     },
     {
       "id": "t_market_gen_3",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_unimib",
       "name": "Amazon Market API (Gen p_unimib)",
       "features": {
@@ -452,7 +452,7 @@
     },
     {
       "id": "t_transit_gen_3",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_archive",
       "name": "Google Transit API (Gen p_archive)",
       "features": {
@@ -465,7 +465,7 @@
     },
     {
       "id": "t_archive_gen_4",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_local",
       "name": "Archive.org API (Gen p_local)",
       "features": {
@@ -478,7 +478,7 @@
     },
     {
       "id": "t_books_gen_4",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_1",
       "name": "Google Books API (Gen p_gen_1)",
       "features": {
@@ -491,7 +491,7 @@
     },
     {
       "id": "t_geocoding_gen_4",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_gen_2",
       "name": "Google Maps Geocoding API (Gen p_gen_2)",
       "features": {
@@ -504,7 +504,7 @@
     },
     {
       "id": "t_library_gen_4",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_3",
       "name": "OPAC Library API (Gen p_gen_3)",
       "features": {
@@ -517,7 +517,7 @@
     },
     {
       "id": "t_market_gen_4",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_gen_4",
       "name": "Amazon Market API (Gen p_gen_4)",
       "features": {
@@ -530,7 +530,7 @@
     },
     {
       "id": "t_transit_gen_4",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_5",
       "name": "Google Transit API (Gen p_gen_5)",
       "features": {
@@ -543,7 +543,7 @@
     },
     {
       "id": "t_archive_gen_5",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_google",
       "name": "Archive.org API (Gen p_google)",
       "features": {
@@ -556,7 +556,7 @@
     },
     {
       "id": "t_books_gen_5",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_amazon",
       "name": "Google Books API (Gen p_amazon)",
       "features": {
@@ -569,7 +569,7 @@
     },
     {
       "id": "t_geocoding_gen_5",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_unimib",
       "name": "Google Maps Geocoding API (Gen p_unimib)",
       "features": {
@@ -582,7 +582,7 @@
     },
     {
       "id": "t_library_gen_5",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_archive",
       "name": "OPAC Library API (Gen p_archive)",
       "features": {
@@ -595,7 +595,7 @@
     },
     {
       "id": "t_market_gen_5",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_local",
       "name": "Amazon Market API (Gen p_local)",
       "features": {
@@ -608,7 +608,7 @@
     },
     {
       "id": "t_transit_gen_5",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_1",
       "name": "Google Transit API (Gen p_gen_1)",
       "features": {
@@ -621,7 +621,7 @@
     },
     {
       "id": "t_archive_gen_6",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_gen_2",
       "name": "Archive.org API (Gen p_gen_2)",
       "features": {
@@ -634,7 +634,7 @@
     },
     {
       "id": "t_books_gen_6",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_3",
       "name": "Google Books API (Gen p_gen_3)",
       "features": {
@@ -647,7 +647,7 @@
     },
     {
       "id": "t_geocoding_gen_6",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_gen_4",
       "name": "Google Maps Geocoding API (Gen p_gen_4)",
       "features": {
@@ -660,7 +660,7 @@
     },
     {
       "id": "t_library_gen_6",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_5",
       "name": "OPAC Library API (Gen p_gen_5)",
       "features": {
@@ -673,7 +673,7 @@
     },
     {
       "id": "t_market_gen_6",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_google",
       "name": "Amazon Market API (Gen p_google)",
       "features": {
@@ -686,7 +686,7 @@
     },
     {
       "id": "t_transit_gen_6",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_amazon",
       "name": "Google Transit API (Gen p_amazon)",
       "features": {
@@ -699,7 +699,7 @@
     },
     {
       "id": "t_archive_gen_7",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_unimib",
       "name": "Archive.org API (Gen p_unimib)",
       "features": {
@@ -712,7 +712,7 @@
     },
     {
       "id": "t_books_gen_7",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_archive",
       "name": "Google Books API (Gen p_archive)",
       "features": {
@@ -725,7 +725,7 @@
     },
     {
       "id": "t_geocoding_gen_7",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_local",
       "name": "Google Maps Geocoding API (Gen p_local)",
       "features": {
@@ -738,7 +738,7 @@
     },
     {
       "id": "t_library_gen_7",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_1",
       "name": "OPAC Library API (Gen p_gen_1)",
       "features": {
@@ -751,7 +751,7 @@
     },
     {
       "id": "t_market_gen_7",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_gen_2",
       "name": "Amazon Market API (Gen p_gen_2)",
       "features": {
@@ -764,7 +764,7 @@
     },
     {
       "id": "t_transit_gen_7",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_3",
       "name": "Google Transit API (Gen p_gen_3)",
       "features": {
@@ -777,7 +777,7 @@
     },
     {
       "id": "t_archive_gen_8",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_gen_4",
       "name": "Archive.org API (Gen p_gen_4)",
       "features": {
@@ -790,7 +790,7 @@
     },
     {
       "id": "t_books_gen_8",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_5",
       "name": "Google Books API (Gen p_gen_5)",
       "features": {
@@ -803,7 +803,7 @@
     },
     {
       "id": "t_geocoding_gen_8",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_google",
       "name": "Google Maps Geocoding API (Gen p_google)",
       "features": {
@@ -816,7 +816,7 @@
     },
     {
       "id": "t_library_gen_8",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_amazon",
       "name": "OPAC Library API (Gen p_amazon)",
       "features": {
@@ -829,7 +829,7 @@
     },
     {
       "id": "t_market_gen_8",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_unimib",
       "name": "Amazon Market API (Gen p_unimib)",
       "features": {
@@ -842,7 +842,7 @@
     },
     {
       "id": "t_transit_gen_8",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_archive",
       "name": "Google Transit API (Gen p_archive)",
       "features": {
@@ -855,7 +855,7 @@
     },
     {
       "id": "t_archive_gen_9",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_local",
       "name": "Archive.org API (Gen p_local)",
       "features": {
@@ -868,7 +868,7 @@
     },
     {
       "id": "t_books_gen_9",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_1",
       "name": "Google Books API (Gen p_gen_1)",
       "features": {
@@ -881,7 +881,7 @@
     },
     {
       "id": "t_geocoding_gen_9",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_gen_2",
       "name": "Google Maps Geocoding API (Gen p_gen_2)",
       "features": {
@@ -894,7 +894,7 @@
     },
     {
       "id": "t_library_gen_9",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_3",
       "name": "OPAC Library API (Gen p_gen_3)",
       "features": {
@@ -907,7 +907,7 @@
     },
     {
       "id": "t_market_gen_9",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_gen_4",
       "name": "Amazon Market API (Gen p_gen_4)",
       "features": {
@@ -920,7 +920,7 @@
     },
     {
       "id": "t_transit_gen_9",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_5",
       "name": "Google Transit API (Gen p_gen_5)",
       "features": {
@@ -933,7 +933,7 @@
     },
     {
       "id": "t_archive_gen_10",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_google",
       "name": "Archive.org API (Gen p_google)",
       "features": {
@@ -946,7 +946,7 @@
     },
     {
       "id": "t_books_gen_10",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_amazon",
       "name": "Google Books API (Gen p_amazon)",
       "features": {
@@ -959,7 +959,7 @@
     },
     {
       "id": "t_geocoding_gen_10",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_unimib",
       "name": "Google Maps Geocoding API (Gen p_unimib)",
       "features": {
@@ -972,7 +972,7 @@
     },
     {
       "id": "t_library_gen_10",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_archive",
       "name": "OPAC Library API (Gen p_archive)",
       "features": {
@@ -985,7 +985,7 @@
     },
     {
       "id": "t_market_gen_10",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_local",
       "name": "Amazon Market API (Gen p_local)",
       "features": {
@@ -998,7 +998,7 @@
     },
     {
       "id": "t_transit_gen_10",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_1",
       "name": "Google Transit API (Gen p_gen_1)",
       "features": {
@@ -1011,7 +1011,7 @@
     },
     {
       "id": "t_archive_gen_11",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_gen_2",
       "name": "Archive.org API (Gen p_gen_2)",
       "features": {
@@ -1024,7 +1024,7 @@
     },
     {
       "id": "t_books_gen_11",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_3",
       "name": "Google Books API (Gen p_gen_3)",
       "features": {
@@ -1037,7 +1037,7 @@
     },
     {
       "id": "t_geocoding_gen_11",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_gen_4",
       "name": "Google Maps Geocoding API (Gen p_gen_4)",
       "features": {
@@ -1050,7 +1050,7 @@
     },
     {
       "id": "t_library_gen_11",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_5",
       "name": "OPAC Library API (Gen p_gen_5)",
       "features": {
@@ -1063,7 +1063,7 @@
     },
     {
       "id": "t_market_gen_11",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_google",
       "name": "Amazon Market API (Gen p_google)",
       "features": {
@@ -1076,7 +1076,7 @@
     },
     {
       "id": "t_transit_gen_11",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_amazon",
       "name": "Google Transit API (Gen p_amazon)",
       "features": {
@@ -1089,7 +1089,7 @@
     },
     {
       "id": "t_archive_gen_12",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_unimib",
       "name": "Archive.org API (Gen p_unimib)",
       "features": {
@@ -1102,7 +1102,7 @@
     },
     {
       "id": "t_books_gen_12",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_archive",
       "name": "Google Books API (Gen p_archive)",
       "features": {
@@ -1115,7 +1115,7 @@
     },
     {
       "id": "t_geocoding_gen_12",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_local",
       "name": "Google Maps Geocoding API (Gen p_local)",
       "features": {
@@ -1128,7 +1128,7 @@
     },
     {
       "id": "t_library_gen_12",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_1",
       "name": "OPAC Library API (Gen p_gen_1)",
       "features": {
@@ -1141,7 +1141,7 @@
     },
     {
       "id": "t_market_gen_12",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_gen_2",
       "name": "Amazon Market API (Gen p_gen_2)",
       "features": {
@@ -1154,7 +1154,7 @@
     },
     {
       "id": "t_transit_gen_12",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_3",
       "name": "Google Transit API (Gen p_gen_3)",
       "features": {
@@ -1167,7 +1167,7 @@
     },
     {
       "id": "t_archive_gen_13",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_gen_4",
       "name": "Archive.org API (Gen p_gen_4)",
       "features": {
@@ -1180,7 +1180,7 @@
     },
     {
       "id": "t_books_gen_13",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_5",
       "name": "Google Books API (Gen p_gen_5)",
       "features": {
@@ -1193,7 +1193,7 @@
     },
     {
       "id": "t_geocoding_gen_13",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_google",
       "name": "Google Maps Geocoding API (Gen p_google)",
       "features": {
@@ -1206,7 +1206,7 @@
     },
     {
       "id": "t_library_gen_13",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_amazon",
       "name": "OPAC Library API (Gen p_amazon)",
       "features": {
@@ -1219,7 +1219,7 @@
     },
     {
       "id": "t_market_gen_13",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_unimib",
       "name": "Amazon Market API (Gen p_unimib)",
       "features": {
@@ -1232,7 +1232,7 @@
     },
     {
       "id": "t_transit_gen_13",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_archive",
       "name": "Google Transit API (Gen p_archive)",
       "features": {
@@ -1245,7 +1245,7 @@
     },
     {
       "id": "t_archive_gen_14",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_local",
       "name": "Archive.org API (Gen p_local)",
       "features": {
@@ -1258,7 +1258,7 @@
     },
     {
       "id": "t_books_gen_14",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_1",
       "name": "Google Books API (Gen p_gen_1)",
       "features": {
@@ -1271,7 +1271,7 @@
     },
     {
       "id": "t_geocoding_gen_14",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_gen_2",
       "name": "Google Maps Geocoding API (Gen p_gen_2)",
       "features": {
@@ -1284,7 +1284,7 @@
     },
     {
       "id": "t_library_gen_14",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_3",
       "name": "OPAC Library API (Gen p_gen_3)",
       "features": {
@@ -1297,7 +1297,7 @@
     },
     {
       "id": "t_market_gen_14",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_gen_4",
       "name": "Amazon Market API (Gen p_gen_4)",
       "features": {
@@ -1310,7 +1310,7 @@
     },
     {
       "id": "t_transit_gen_14",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_5",
       "name": "Google Transit API (Gen p_gen_5)",
       "features": {
@@ -1323,7 +1323,7 @@
     },
     {
       "id": "t_archive_gen_15",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_google",
       "name": "Archive.org API (Gen p_google)",
       "features": {
@@ -1336,7 +1336,7 @@
     },
     {
       "id": "t_books_gen_15",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_amazon",
       "name": "Google Books API (Gen p_amazon)",
       "features": {
@@ -1349,7 +1349,7 @@
     },
     {
       "id": "t_geocoding_gen_15",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_unimib",
       "name": "Google Maps Geocoding API (Gen p_unimib)",
       "features": {
@@ -1362,7 +1362,7 @@
     },
     {
       "id": "t_library_gen_15",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_archive",
       "name": "OPAC Library API (Gen p_archive)",
       "features": {
@@ -1375,7 +1375,7 @@
     },
     {
       "id": "t_market_gen_15",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_local",
       "name": "Amazon Market API (Gen p_local)",
       "features": {
@@ -1388,7 +1388,7 @@
     },
     {
       "id": "t_transit_gen_15",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_1",
       "name": "Google Transit API (Gen p_gen_1)",
       "features": {
@@ -1401,7 +1401,7 @@
     },
     {
       "id": "t_archive_gen_16",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_gen_2",
       "name": "Archive.org API (Gen p_gen_2)",
       "features": {
@@ -1414,7 +1414,7 @@
     },
     {
       "id": "t_books_gen_16",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_3",
       "name": "Google Books API (Gen p_gen_3)",
       "features": {
@@ -1427,7 +1427,7 @@
     },
     {
       "id": "t_geocoding_gen_16",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_gen_4",
       "name": "Google Maps Geocoding API (Gen p_gen_4)",
       "features": {
@@ -1440,7 +1440,7 @@
     },
     {
       "id": "t_library_gen_16",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_5",
       "name": "OPAC Library API (Gen p_gen_5)",
       "features": {
@@ -1453,7 +1453,7 @@
     },
     {
       "id": "t_market_gen_16",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_google",
       "name": "Amazon Market API (Gen p_google)",
       "features": {
@@ -1466,7 +1466,7 @@
     },
     {
       "id": "t_transit_gen_16",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_amazon",
       "name": "Google Transit API (Gen p_amazon)",
       "features": {
@@ -1479,7 +1479,7 @@
     },
     {
       "id": "t_archive_gen_17",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_unimib",
       "name": "Archive.org API (Gen p_unimib)",
       "features": {
@@ -1492,7 +1492,7 @@
     },
     {
       "id": "t_books_gen_17",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_archive",
       "name": "Google Books API (Gen p_archive)",
       "features": {
@@ -1505,7 +1505,7 @@
     },
     {
       "id": "t_geocoding_gen_17",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_local",
       "name": "Google Maps Geocoding API (Gen p_local)",
       "features": {
@@ -1518,7 +1518,7 @@
     },
     {
       "id": "t_library_gen_17",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_1",
       "name": "OPAC Library API (Gen p_gen_1)",
       "features": {
@@ -1531,7 +1531,7 @@
     },
     {
       "id": "t_market_gen_17",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_gen_2",
       "name": "Amazon Market API (Gen p_gen_2)",
       "features": {
@@ -1544,7 +1544,7 @@
     },
     {
       "id": "t_transit_gen_17",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_3",
       "name": "Google Transit API (Gen p_gen_3)",
       "features": {
@@ -1557,7 +1557,7 @@
     },
     {
       "id": "t_archive_gen_18",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_gen_4",
       "name": "Archive.org API (Gen p_gen_4)",
       "features": {
@@ -1570,7 +1570,7 @@
     },
     {
       "id": "t_books_gen_18",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_5",
       "name": "Google Books API (Gen p_gen_5)",
       "features": {
@@ -1583,7 +1583,7 @@
     },
     {
       "id": "t_geocoding_gen_18",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_google",
       "name": "Google Maps Geocoding API (Gen p_google)",
       "features": {
@@ -1596,7 +1596,7 @@
     },
     {
       "id": "t_library_gen_18",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_amazon",
       "name": "OPAC Library API (Gen p_amazon)",
       "features": {
@@ -1609,7 +1609,7 @@
     },
     {
       "id": "t_market_gen_18",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_unimib",
       "name": "Amazon Market API (Gen p_unimib)",
       "features": {
@@ -1622,7 +1622,7 @@
     },
     {
       "id": "t_transit_gen_18",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_archive",
       "name": "Google Transit API (Gen p_archive)",
       "features": {
@@ -1635,7 +1635,7 @@
     },
     {
       "id": "t_archive_gen_19",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_local",
       "name": "Archive.org API (Gen p_local)",
       "features": {
@@ -1648,7 +1648,7 @@
     },
     {
       "id": "t_books_gen_19",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_1",
       "name": "Google Books API (Gen p_gen_1)",
       "features": {
@@ -1661,7 +1661,7 @@
     },
     {
       "id": "t_geocoding_gen_19",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_gen_2",
       "name": "Google Maps Geocoding API (Gen p_gen_2)",
       "features": {
@@ -1674,7 +1674,7 @@
     },
     {
       "id": "t_library_gen_19",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_3",
       "name": "OPAC Library API (Gen p_gen_3)",
       "features": {
@@ -1687,7 +1687,7 @@
     },
     {
       "id": "t_market_gen_19",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_gen_4",
       "name": "Amazon Market API (Gen p_gen_4)",
       "features": {
@@ -1700,7 +1700,7 @@
     },
     {
       "id": "t_transit_gen_19",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_5",
       "name": "Google Transit API (Gen p_gen_5)",
       "features": {
@@ -1713,7 +1713,7 @@
     },
     {
       "id": "t_archive_gen_20",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_google",
       "name": "Archive.org API (Gen p_google)",
       "features": {
@@ -1726,7 +1726,7 @@
     },
     {
       "id": "t_books_gen_20",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_amazon",
       "name": "Google Books API (Gen p_amazon)",
       "features": {
@@ -1739,7 +1739,7 @@
     },
     {
       "id": "t_geocoding_gen_20",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_unimib",
       "name": "Google Maps Geocoding API (Gen p_unimib)",
       "features": {
@@ -1752,7 +1752,7 @@
     },
     {
       "id": "t_library_gen_20",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_archive",
       "name": "OPAC Library API (Gen p_archive)",
       "features": {
@@ -1765,7 +1765,7 @@
     },
     {
       "id": "t_market_gen_20",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_local",
       "name": "Amazon Market API (Gen p_local)",
       "features": {
@@ -1778,7 +1778,7 @@
     },
     {
       "id": "t_transit_gen_20",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_gen_1",
       "name": "Google Transit API (Gen p_gen_1)",
       "features": {
@@ -1791,7 +1791,7 @@
     },
     {
       "id": "t_archive_gen_21",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_gen_2",
       "name": "Archive.org API (Gen p_gen_2)",
       "features": {
@@ -1804,7 +1804,7 @@
     },
     {
       "id": "t_books_gen_21",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_gen_3",
       "name": "Google Books API (Gen p_gen_3)",
       "features": {
@@ -1817,7 +1817,7 @@
     },
     {
       "id": "t_geocoding_gen_21",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_gen_4",
       "name": "Google Maps Geocoding API (Gen p_gen_4)",
       "features": {
@@ -1830,7 +1830,7 @@
     },
     {
       "id": "t_library_gen_21",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_gen_5",
       "name": "OPAC Library API (Gen p_gen_5)",
       "features": {

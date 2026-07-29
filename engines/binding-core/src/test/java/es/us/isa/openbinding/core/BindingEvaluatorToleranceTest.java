@@ -56,7 +56,7 @@ class BindingEvaluatorToleranceTest {
 
             Candidate candidate = new Candidate();
             candidate.id = "C1";
-            candidate.task_id = "T1";
+            candidate.task_ids = new ArrayList<String>(Collections.singletonList("T1"));
             candidate.provider_id = "P1";
             candidate.features.put("cost", Double.valueOf(candidateCost));
             instance.candidates =

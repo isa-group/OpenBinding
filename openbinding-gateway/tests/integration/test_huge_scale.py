@@ -29,7 +29,7 @@ def create_huge_instance(constraint_mode="common"):
             candidates.append({
                 "id": f"C{cid}",
                 "name": f"Candidate {cid}",
-                "task_id": t["id"],
+                "task_ids": [t["id"]],
                 "provider_id": p["id"],
                 "features": {
                     "cost": cid * 10,

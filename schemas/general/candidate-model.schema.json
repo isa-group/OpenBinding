@@ -8,14 +8,12 @@
       "$comment": "Placement extension, optional. An instance that omits resource_model and latency_model describes a plain binding problem; one that provides them adds resource and latency constraints over the very same decisions. Nothing else in the model changes either way.",
       "type": "object",
       "required": [
-        "resources",
-        "pools",
-        "candidate_bindings",
-        "constraints"
+        "pools"
       ],
       "additionalProperties": false,
       "properties": {
         "resources": {
+          "$comment": "Optional. When omitted, the resource names are inferred as the union of every pool capacity key and every demand key. Declaring them explicitly keeps the strict subset checks that catch typos.",
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
@@ -31,12 +29,14 @@
           }
         },
         "candidate_bindings": {
+          "$comment": "Optional. A candidate may declare its pool and demand inline instead; the two spellings are exclusive per candidate.",
           "type": "array",
           "items": {
             "$ref": "candidate-model.schema.json#/$defs/candidate_resource_binding"
           }
         },
         "constraints": {
+          "$comment": "Omitting this key means the default: one hard RESOURCE_CAPACITY check over every pool and every declared resource. An explicit empty array means the opposite - no capacity is checked at all.",
           "type": "array",
           "items": {
             "$ref": "constraints.schema.json#/$defs/resource_constraint"
@@ -77,6 +77,28 @@
         "metadata": {
           "type": "object",
           "additionalProperties": true
+        }
+      }
+    },
+    "inline_placement": {
+      "type": "object",
+      "required": [
+        "pool"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pool": {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        "demand": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
         }
       }
     },
@@ -237,7 +259,7 @@
         "required": [
           "id",
           "name",
-          "task_id",
+          "task_ids",
           "provider_id",
           "features"
         ],
@@ -246,8 +268,14 @@
           "id": {
             "$ref": "common.schema.json#/$defs/identifier"
           },
-          "task_id": {
-            "$ref": "common.schema.json#/$defs/identifier"
+          "task_ids": {
+            "$comment": "Every task this candidate can implement. A binding still selects one candidate per task, but the same candidate may be selected for several of the tasks listed here; features declared DIVIDE are then split among them and its resource demand is counted once.",
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "common.schema.json#/$defs/identifier"
+            }
           },
           "provider_id": {
             "$ref": "common.schema.json#/$defs/identifier"
@@ -265,6 +293,10 @@
             "additionalProperties": {
               "type": "number"
             }
+          },
+          "placement": {
+            "$comment": "Where this candidate runs, written on the candidate itself. Equivalent to a resource_model.candidate_bindings entry; declaring both for the same candidate is an error.",
+            "$ref": "candidate-model.schema.json#/$defs/inline_placement"
           },
           "description": {
             "type": "string"
@@ -315,6 +347,15 @@
           },
           "valid_range": {
             "$ref": "common.schema.json#/$defs/numeric_range"
+          },
+          "sharing": {
+            "$comment": "What happens to this feature's value when one candidate is selected for k tasks at once. REPLICATE keeps the full value in every task, which is what an execution-time attribute like latency does: each task pays it whole. DIVIDE splits it evenly (v/k), which is what an attribute paid once for the shared thing does, like cost. Both agree when k = 1.",
+            "type": "string",
+            "enum": [
+              "REPLICATE",
+              "DIVIDE"
+            ],
+            "default": "REPLICATE"
           },
           "description": {
             "type": "string"

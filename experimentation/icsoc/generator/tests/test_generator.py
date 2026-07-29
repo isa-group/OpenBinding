@@ -208,7 +208,8 @@ def _assert_budget_artifacts(instance, reports) -> None:
     }
     by_task: dict[str, list[dict]] = {}
     for cand in instance["candidates"]:
-        by_task.setdefault(cand["task_id"], []).append(cand)
+        for cand_task_id in cand["task_ids"]:
+            by_task.setdefault(cand_task_id, []).append(cand)
     for task_id in task_ids:
         budget = float(local_budgets[task_id]["value"])
         threshold = thresholds.get(task_id, 0.0)

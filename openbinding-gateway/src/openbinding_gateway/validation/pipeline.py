@@ -1,6 +1,8 @@
 from typing import Dict, Any, List, Tuple
 from ..models.api import ValidationViolation
 from ..registry.engine import EngineRegistry
+from ..semantics.desugar import desugar_instance
+from ..semantics.errors import DesugarError
 from .general_schema import GeneralSchemaValidator
 from .specialization_schema import SpecializationSchemaValidator
 from .semantic_general import GeneralSemanticValidator
@@ -30,9 +32,20 @@ class ValidationPipeline:
                 code="engine_not_found"
             )], "engine_lookup"), []
 
+        # Stage 1b: Expand the authoring shorthands. Everything after this point -
+        # the engine profiles, the semantic checks, the engines themselves - reads
+        # one form only, so it is done in place on the instance the caller holds.
+        try:
+            self.desugar_in_place(instance)
+        except DesugarError as exc:
+            return self._tag_stage([ValidationViolation(
+                message=str(exc),
+                code="ambiguous_shorthand"
+            )], "desugar"), []
+
         # Apply defaults expressed in the general schema to keep semantic checks consistent.
         default_warnings = self.schema_model.apply_defaults(instance)
-            
+
         # Stage 2: Specialization Structural Validation
         v2 = self.specialization_validator.validate(engine_id, instance)
         if v2:
@@ -49,6 +62,20 @@ class ValidationPipeline:
         violations.extend(self._tag_stage(v4, "engine_semantic"))
         
         return violations, default_warnings
+
+    @staticmethod
+    def desugar_in_place(instance: Dict[str, Any]) -> Dict[str, Any]:
+        """Replace ``instance`` with its canonical form, keeping the same object.
+
+        Callers hold on to the dict they passed in and hand it to the engine
+        afterwards, so expanding into a copy would leave them with the sugared
+        version.
+        """
+        canonical = desugar_instance(instance)
+        if canonical is not instance:
+            instance.clear()
+            instance.update(canonical)
+        return instance
 
     def validate(self, engine_id: str, instance: Dict[str, Any]) -> Tuple[List[ValidationViolation], List[Tuple[str, Any]]]:
         # Backward compatibility / Full validation

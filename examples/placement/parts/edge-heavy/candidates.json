@@ -1,0 +1,73 @@
+{
+  "candidates": [
+    {
+      "features": {
+        "cost": 3.0,
+        "latency": 2.0,
+        "security": 0.33
+      },
+      "id": "c_edge",
+      "name": "Run on the edge node",
+      "placement": {
+        "demand": {
+          "memory": 2.0
+        },
+        "pool": "p_edge"
+      },
+      "provider_id": "prov_edge",
+      "task_ids": [
+        "t_login",
+        "t_process",
+        "t_check",
+        "t_rules",
+        "t_render"
+      ]
+    },
+    {
+      "features": {
+        "cost": 10.0,
+        "latency": 2.0,
+        "security": 0.66
+      },
+      "id": "c_fog",
+      "name": "Run on the fog node",
+      "placement": {
+        "demand": {
+          "memory": 2.0
+        },
+        "pool": "p_fog"
+      },
+      "provider_id": "prov_fog",
+      "task_ids": [
+        "t_login",
+        "t_process",
+        "t_check",
+        "t_rules",
+        "t_render"
+      ]
+    },
+    {
+      "features": {
+        "cost": 18.0,
+        "latency": 2.0,
+        "security": 1.0
+      },
+      "id": "c_cloud",
+      "name": "Run on the cloud region",
+      "placement": {
+        "demand": {
+          "memory": 2.0
+        },
+        "pool": "p_cloud"
+      },
+      "provider_id": "prov_cloud",
+      "task_ids": [
+        "t_login",
+        "t_process",
+        "t_check",
+        "t_rules",
+        "t_render"
+      ]
+    }
+  ]
+}

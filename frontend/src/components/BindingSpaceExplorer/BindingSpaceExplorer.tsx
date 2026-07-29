@@ -11,6 +11,7 @@ interface Task {
 
 interface Candidate {
   id: string;
+  task_ids?: string[];
   task?: string;
   task_id?: string;
   [key: string]: any;
@@ -33,8 +34,12 @@ const getCSSColor = (varName: string): string => {
   return getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || '#6b7280';
 };
 
-const getCandidateTaskId = (candidate: Candidate): string | undefined => {
-  return candidate.task ?? candidate.task_id;
+// Every task a candidate can implement. Older payloads named the single one
+// they served, so those are read as a list of one.
+const getCandidateTaskIds = (candidate: Candidate): string[] => {
+  if (candidate.task_ids?.length) return candidate.task_ids;
+  const single = candidate.task ?? candidate.task_id;
+  return single ? [single] : [];
 };
 
 export const BindingSpaceExplorer: React.FC<BindingSpaceExplorerProps> = ({
@@ -56,7 +61,7 @@ export const BindingSpaceExplorer: React.FC<BindingSpaceExplorerProps> = ({
     const cardinalityMap = new Map<string, number>();
     
     tasks.forEach((task) => {
-      const count = candidates.filter((c) => getCandidateTaskId(c) === task.id).length;
+      const count = candidates.filter((c) => getCandidateTaskIds(c).includes(task.id)).length;
       cardinalityMap.set(task.id, count);
     });
 
@@ -402,7 +407,9 @@ export const BindingSpaceExplorer: React.FC<BindingSpaceExplorerProps> = ({
           <div className="binding-detail-grid">
             {Object.entries(selectedBinding).map(([taskId, candidateId]) => {
               const task = tasks.find((t) => t.id === taskId);
-              const candidate = candidates.find((c) => c.id === candidateId && getCandidateTaskId(c) === taskId);
+              const candidate = candidates.find(
+                (c) => c.id === candidateId && getCandidateTaskIds(c).includes(taskId)
+              );
               
               return (
                 <div key={taskId} className="binding-detail-item">
@@ -417,7 +424,10 @@ export const BindingSpaceExplorer: React.FC<BindingSpaceExplorerProps> = ({
                     {candidate && Object.keys(candidate).length > 2 && (
                       <div className="candidate-attributes">
                         {Object.entries(candidate)
-                          .filter(([key]) => key !== 'id' && key !== 'task' && key !== 'task_id')
+                          .filter(
+                            ([key]) =>
+                              key !== 'id' && key !== 'task' && key !== 'task_id' && key !== 'task_ids'
+                          )
                           .slice(0, 3)
                           .map(([key, value]) => (
                             <span key={key} className="attribute">

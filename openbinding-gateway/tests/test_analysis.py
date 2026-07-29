@@ -12,9 +12,9 @@ def test_compute_binding_space_simple():
     instance = {
         "tasks": [{"id": "t1"}, {"id": "t2"}],
         "candidates": [
-            {"id": "c1", "task_id": "t1"},
-            {"id": "c2", "task_id": "t1"},
-            {"id": "c3", "task_id": "t2"}
+            {"id": "c1", "task_ids": ["t1"]},
+            {"id": "c2", "task_ids": ["t1"]},
+            {"id": "c3", "task_ids": ["t2"]}
         ]
     }
     summary = compute_binding_space_summary(instance)
@@ -27,7 +27,7 @@ def test_compute_binding_space_empty_task():
     instance = {
         "tasks": [{"id": "t1"}, {"id": "t2"}],
         "candidates": [
-            {"id": "c1", "task_id": "t1"}
+            {"id": "c1", "task_ids": ["t1"]}
         ]
     }
     summary = compute_binding_space_summary(instance)
@@ -97,7 +97,7 @@ def test_analyze_endpoint(mock_registry, mock_pipeline):
         "engine_id": "mock_engine",
         "instance": {
             "tasks": [{"id": "t1"}],
-            "candidates": [{"id": "c1", "task_id": "t1"}]
+            "candidates": [{"id": "c1", "task_ids": ["t1"]}]
         }
     }
     response = client.post("/v1/analyze", json=payload)
@@ -112,7 +112,7 @@ def test_solve_endpoint_verbose(mock_registry, mock_pipeline, mock_router):
         "engine_id": "mock_engine",
         "instance": {
             "tasks": [{"id": "t1"}],
-            "candidates": [{"id": "c1", "task_id": "t1"}]
+            "candidates": [{"id": "c1", "task_ids": ["t1"]}]
         },
         "verbose": True
     }
@@ -130,7 +130,7 @@ def test_solve_endpoint_not_verbose(mock_registry, mock_pipeline, mock_router):
         "engine_id": "mock_engine",
         "instance": {
             "tasks": [{"id": "t1"}],
-            "candidates": [{"id": "c1", "task_id": "t1"}]
+            "candidates": [{"id": "c1", "task_ids": ["t1"]}]
         },
         "verbose": False
     }
@@ -156,7 +156,7 @@ def test_solve_rejects_oversized_content_length_header(mock_registry, mock_pipel
         "engine_id": "mock_engine",
         "instance": {
             "tasks": [{"id": "t1"}],
-            "candidates": [{"id": "c1", "task_id": "t1"}]
+            "candidates": [{"id": "c1", "task_ids": ["t1"]}]
         },
         "verbose": False
     }
@@ -187,7 +187,7 @@ def test_solve_rejects_oversized_transformed_payload(mock_pipeline):
             "engine_id": "mock_engine",
             "instance": {
                 "tasks": [{"id": "t1"}],
-                "candidates": [{"id": "c1", "task_id": "t1"}]
+                "candidates": [{"id": "c1", "task_ids": ["t1"]}]
             },
             "verbose": False
         }

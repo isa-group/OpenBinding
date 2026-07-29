@@ -150,7 +150,7 @@
   "candidates": [
     {
       "id": "svc_ass_1",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_attractions_a",
       "name": "ASS.getAttractions",
       "features": {
@@ -163,7 +163,7 @@
     },
     {
       "id": "svc_ass_2",
-      "task_id": "t_attractions_search",
+      "task_ids": ["t_attractions_search"],
       "provider_id": "p_attractions_b",
       "name": "ASS.getAttractions",
       "features": {
@@ -176,7 +176,7 @@
     },
     {
       "id": "svc_dfbs_1",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_dom_air_a",
       "name": "DFBS.booking",
       "features": {
@@ -189,7 +189,7 @@
     },
     {
       "id": "svc_dfbs_2",
-      "task_id": "t_flight_booking_domestic",
+      "task_ids": ["t_flight_booking_domestic"],
       "provider_id": "p_dom_air_b",
       "name": "DFBS.booking",
       "features": {
@@ -202,7 +202,7 @@
     },
     {
       "id": "svc_ifbs_1",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_int_air_a",
       "name": "IFBS.booking",
       "features": {
@@ -215,7 +215,7 @@
     },
     {
       "id": "svc_ifbs_2",
-      "task_id": "t_flight_booking_international",
+      "task_ids": ["t_flight_booking_international"],
       "provider_id": "p_int_air_b",
       "name": "IFBS.booking",
       "features": {
@@ -228,7 +228,7 @@
     },
     {
       "id": "svc_tis_1",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_ins_a",
       "name": "TIS.getInsurance",
       "features": {
@@ -241,7 +241,7 @@
     },
     {
       "id": "svc_tis_2",
-      "task_id": "t_travel_insurance",
+      "task_ids": ["t_travel_insurance"],
       "provider_id": "p_ins_b",
       "name": "TIS.getInsurance",
       "features": {
@@ -254,7 +254,7 @@
     },
     {
       "id": "svc_abs_1",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_hotel_a",
       "name": "ABS.booking",
       "features": {
@@ -267,7 +267,7 @@
     },
     {
       "id": "svc_abs_2",
-      "task_id": "t_accommodation_booking",
+      "task_ids": ["t_accommodation_booking"],
       "provider_id": "p_hotel_b",
       "name": "ABS.booking",
       "features": {
@@ -280,7 +280,7 @@
     },
     {
       "id": "svc_crs_1",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_car_a",
       "name": "CRS.booking",
       "features": {
@@ -293,7 +293,7 @@
     },
     {
       "id": "svc_crs_2",
-      "task_id": "t_car_rental_booking",
+      "task_ids": ["t_car_rental_booking"],
       "provider_id": "p_car_b",
       "name": "CRS.booking",
       "features": {

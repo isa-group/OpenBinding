@@ -75,8 +75,12 @@ export class DznBuilder {
 
     candidates.forEach((c: any, i: number) => {
       const global_idx = i + 1;
-      const t_id = taskIdx[c.task_id];
-      if (t_id) task_candidates_map[t_id].push(global_idx);
+      // A candidate that serves several tasks belongs to each of their markets,
+      // which is what lets two tasks land on the same candidate.
+      for (const taskId of c.task_ids || []) {
+        const t_id = taskIdx[taskId];
+        if (t_id) task_candidates_map[t_id].push(global_idx);
+      }
 
       const qosData = c.qos || c.features || {};
 
@@ -113,6 +117,34 @@ export class DznBuilder {
       const row = [...cands];
       while (row.length < max_cands_per_task) row.push(1);
       task_cands.push(row);
+    }
+
+    // Sharing: a feature declared DIVIDE is worth v/k to each of the k tasks
+    // that pick the same candidate. k is a decision, so rather than divide by a
+    // variable the builder tabulates every value the quotient can take and the
+    // model looks it up. The table collapses to nothing when no feature
+    // divides, which is every instance that does not use sharing.
+    const dividedFeatures = features.filter((feat) => featureEncoding.divided.has(feat));
+    const n_shared_feats = dividedFeatures.length;
+    const qos_share_slot: number[] = features.map((feat) => {
+      const slot = dividedFeatures.indexOf(feat);
+      return slot < 0 ? 0 : slot + 1;
+    });
+    const n_share_levels = n_shared_feats > 0 ? Math.max(1, n_tasks) : 1;
+    const shared_qos: number[][] = [];
+    for (let c = 0; c < Math.max(1, n_candidates); c++) {
+      const row: number[] = [];
+      for (let s = 0; s < Math.max(1, n_shared_feats); s++) {
+        for (let k = 1; k <= n_share_levels; k++) {
+          if (n_shared_feats === 0 || c >= n_candidates) {
+            row.push(0.0);
+            continue;
+          }
+          const featIdx = featureMap[dividedFeatures[s]] - 1;
+          row.push(cand_qos[c][featIdx] / k);
+        }
+      }
+      shared_qos.push(row);
     }
 
     const constraints = instance.constraints || [];
@@ -293,6 +325,11 @@ export class DznBuilder {
     const lc_val = constraintEncoding.localValue;
     const excluded_task = constraintEncoding.excludedTask;
     const excluded_cand = constraintEncoding.excludedCand;
+    const cb_task = constraintEncoding.candBoundTask;
+    const cb_cand = constraintEncoding.candBoundCand;
+    const cb_attr = constraintEncoding.candBoundAttr;
+    const cb_op = constraintEncoding.candBoundOp;
+    const cb_val = constraintEncoding.candBoundValue;
     const dc_type = constraintEncoding.depType;
     const dc_t1 = constraintEncoding.depFirst;
     const dc_t2 = constraintEncoding.depSecond;
@@ -364,6 +401,11 @@ export class DznBuilder {
         cand_qos = ${fmt2d(cand_qos)};
         candidate_provider = ${fmt(cand_provider)};
 
+        n_shared_feats = ${n_shared_feats};
+        n_share_levels = ${n_share_levels};
+        qos_share_slot = ${fmt(qos_share_slot)};
+        shared_qos = ${fmtA2d(Math.max(1, n_candidates), Math.max(1, n_shared_feats) * n_share_levels, shared_qos)};
+
         node_kind = ${fmt(node_kind)};
         node_task_id = ${fmt(node_task_id)};
         node_n_children = ${fmt(node_n_children)};
@@ -392,6 +434,13 @@ export class DznBuilder {
         n_excluded_candidates = ${excluded_cand.length};
         excluded_task = ${fmt(excluded_task)};
         excluded_cand = ${fmt(excluded_cand)};
+
+        n_cand_bounds = ${cb_cand.length};
+        cb_task = ${fmt(cb_task)};
+        cb_cand = ${fmt(cb_cand)};
+        cb_attr = ${fmt(cb_attr)};
+        cb_op = ${fmt(cb_op)};
+        cb_val = ${fmt(cb_val)};
 
         n_dep_constraints = ${dc_type.length};
         dc_type = ${fmt(dc_type)};

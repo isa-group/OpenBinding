@@ -25,6 +25,7 @@ app = FastAPI(title="OpenBinding Gateway", lifespan=lifespan, root_path="/api")
 
 MAX_SOLVE_BODY_BYTES = 512 * 1024 * 1024
 
+from .routes.instance_parts import router as instance_parts_router
 from .routes.schemas import router as schemas_router
 from .openapi_examples import (  # noqa: F401
     _ANALYZE_FAILED_EXAMPLE,
@@ -474,3 +475,4 @@ async def get_job(job_id: str):
 # Serving the schema files themselves has nothing to do with solving, so it
 # lives in its own module.
 app.include_router(schemas_router)
+app.include_router(instance_parts_router)

@@ -31,7 +31,7 @@ def _minimal_valid_mono_instance(*, weight: float, include_flag: bool, flag_valu
         "candidates": [
             {
                 "id": "c1",
-                "task_id": "t1",
+                "task_ids": ["t1"],
                 "provider_id": "p1",
                 "name": "Cand",
                 "features": {"cost": 10.0},

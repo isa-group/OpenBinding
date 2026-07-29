@@ -14,4 +14,11 @@ public final class Feature {
   public String direction;
   public String scale;
   public NumericRange valid_range;
+
+  /**
+   * What happens to this feature when one candidate serves k tasks at once:
+   * REPLICATE (the default) charges every task the full value, DIVIDE splits
+   * it evenly between them. The two agree when k is 1.
+   */
+  public String sharing;
 }

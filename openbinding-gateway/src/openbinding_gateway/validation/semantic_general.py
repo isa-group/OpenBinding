@@ -57,12 +57,29 @@ class GeneralSemanticValidator:
         
         # Candidates refer to tasks and providers
         for idx, cand in enumerate(instance.get('candidates', [])):
-            if cand.get('task_id') not in task_ids:
+            if 'task_ids' not in cand and 'task_id' in cand:
                 violations.append(ValidationViolation(
-                    message=f"Candidate '{cand.get('id')}' refers to unknown task '{cand.get('task_id')}'",
+                    message=(
+                        f"Candidate '{cand.get('id')}' declares 'task_id'; a candidate now "
+                        "lists every task it serves under 'task_ids'"
+                    ),
                     path=f"candidates[{idx}].task_id",
                     code="referential_integrity_error"
                 ))
+            served = cand.get('task_ids') or []
+            if not served:
+                violations.append(ValidationViolation(
+                    message=f"Candidate '{cand.get('id')}' serves no task",
+                    path=f"candidates[{idx}].task_ids",
+                    code="referential_integrity_error"
+                ))
+            for j, tid in enumerate(served):
+                if tid not in task_ids:
+                    violations.append(ValidationViolation(
+                        message=f"Candidate '{cand.get('id')}' refers to unknown task '{tid}'",
+                        path=f"candidates[{idx}].task_ids[{j}]",
+                        code="referential_integrity_error"
+                    ))
             if cand.get('provider_id') not in provider_ids:
                 violations.append(ValidationViolation(
                     message=f"Candidate '{cand.get('id')}' refers to unknown provider '{cand.get('provider_id')}'",
@@ -218,6 +235,121 @@ class GeneralSemanticValidator:
         violations.extend(self._validate_resource_model(instance, candidate_ids))
         violations.extend(self._validate_latency_model(instance, task_ids, feature_ids, pool_ids))
         violations.extend(self._validate_pool_dependencies(instance, pool_ids))
+        violations.extend(self._validate_candidate_dependencies(instance))
+        violations.extend(self._validate_sharing(instance, feature_map))
+
+        return violations
+
+    def _validate_candidate_dependencies(
+        self,
+        instance: Dict[str, Any],
+    ) -> List[ValidationViolation]:
+        """A hard SAME_CANDIDATE needs a candidate that serves all of its tasks.
+
+        Whether one exists is a property of the instance, not of the search, so
+        an instance that asks for the impossible says so here rather than after
+        an engine has exhausted the space looking for it.
+        """
+        violations: List[ValidationViolation] = []
+        candidates = instance.get('candidates', []) or []
+
+        for idx, constraint in enumerate(instance.get('constraints', []) or []):
+            if str(constraint.get('type') or '').upper() != 'SAME_CANDIDATE':
+                continue
+            tasks = [t for t in (constraint.get('tasks') or [])]
+            if len(tasks) < 2:
+                continue
+            shared = {
+                cand.get('id')
+                for cand in candidates
+                if set(tasks).issubset(set(cand.get('task_ids') or []))
+            }
+            if shared:
+                continue
+            # A soft constraint that can never hold still leaves the instance
+            # solvable - every binding simply pays its penalty - so only a hard
+            # one is an error here.
+            if not bool(constraint.get('hard', True)):
+                continue
+            violations.append(ValidationViolation(
+                message=(
+                    f"Constraint '{constraint.get('id')}' requires tasks "
+                    f"{', '.join(tasks)} to share one candidate, but no candidate serves "
+                    "all of them"
+                ),
+                path=f"constraints[{idx}].tasks",
+                code="unsatisfiable_constraint"
+            ))
+        return violations
+
+    def _validate_sharing(
+        self,
+        instance: Dict[str, Any],
+        feature_map: Dict[str, Any],
+    ) -> List[ValidationViolation]:
+        """Where dividing a feature between tasks would not mean anything.
+
+        DIVIDE says k tasks split one value between them. That only reads as
+        arithmetic when the value is non-negative and composes additively, and
+        it says nothing at all about a latency the scheduling model computes
+        from the placement rather than from the candidate.
+        """
+        violations: List[ValidationViolation] = []
+        divided = [
+            fid for fid, feature in feature_map.items()
+            if str((feature or {}).get('sharing') or 'REPLICATE').upper() == 'DIVIDE'
+        ]
+        if not divided:
+            return violations
+
+        policies = instance.get('aggregation_policies') or {}
+        latency_attr = (
+            ((instance.get('latency_model') or {}).get('global_latency') or {}).get('attribute_id')
+        )
+
+        for fid in divided:
+            index = next(
+                (i for i, f in enumerate(instance.get('features', []) or []) if f.get('id') == fid),
+                0,
+            )
+            path = f"features[{index}].sharing"
+
+            if fid == latency_attr:
+                violations.append(ValidationViolation(
+                    message=(
+                        f"Feature '{fid}' is the end-to-end latency the latency model "
+                        "computes, which every task pays in full; it cannot be DIVIDE"
+                    ),
+                    path=path,
+                    code="semantic_invariant_error"
+                ))
+
+            valid_range = (feature_map[fid] or {}).get('valid_range') or {}
+            minimum = valid_range.get('min')
+            if isinstance(minimum, (int, float)) and minimum < 0:
+                violations.append(ValidationViolation(
+                    message=(
+                        f"Feature '{fid}' admits negative values, so splitting it between "
+                        "tasks does not shrink it; it cannot be DIVIDE"
+                    ),
+                    path=path,
+                    code="semantic_invariant_error"
+                ))
+
+            compose = ((policies.get(fid) or {}).get('compose') or {})
+            product_slots = [
+                slot for slot, spec in compose.items()
+                if str((spec or {}).get('fn') or '').upper() in ('PRODUCT', 'SCALED_PRODUCT')
+            ]
+            if product_slots:
+                violations.append(ValidationViolation(
+                    message=(
+                        f"Feature '{fid}' composes multiplicatively ({', '.join(sorted(product_slots))}), "
+                        "where a share of the value is not a share of the result; it cannot be DIVIDE"
+                    ),
+                    path=path,
+                    code="semantic_invariant_error"
+                ))
 
         return violations
 

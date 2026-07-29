@@ -1,0 +1,9 @@
+{
+  "metadata": {
+    "created_at": "2026-07-07T00:00:00Z",
+    "description": "Hand-crafted placement-aware instance: 5 functions (SEQ + AND + XOR) placed over 3 infrastructure pools with resource capacities, transition latency bounds, an event generator, security thresholds and pricing budgets. Small enough for the exact engine to prove optimality instantly.",
+    "id": "small_placement_edge_heavy",
+    "name": "Small placement over the edge-heavy infrastructure",
+    "version": "1.0.0"
+  }
+}

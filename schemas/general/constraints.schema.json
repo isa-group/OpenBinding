@@ -170,12 +170,15 @@
           "const": "DEPENDENCY"
         },
         "type": {
+          "$comment": "What the listed tasks must agree on, or differ in: the provider behind their candidates, the pool hosting them, or the candidate itself. SAME_CANDIDATE only has solutions when the listed tasks share at least one candidate that serves all of them.",
           "type": "string",
           "enum": [
             "SAME_PROVIDER",
             "DIFFERENT_PROVIDER",
             "SAME_POOL",
-            "DIFFERENT_POOL"
+            "DIFFERENT_POOL",
+            "SAME_CANDIDATE",
+            "DIFFERENT_CANDIDATE"
           ]
         },
         "tasks": {
@@ -199,9 +202,7 @@
       "required": [
         "id",
         "kind",
-        "scope",
-        "resources",
-        "hard"
+        "scope"
       ],
       "additionalProperties": false,
       "properties": {
@@ -226,6 +227,7 @@
           ]
         },
         "resources": {
+          "$comment": "Optional. When omitted the check covers every resource the model declares or infers.",
           "type": "array",
           "minItems": 1,
           "items": {
@@ -239,7 +241,8 @@
           }
         },
         "hard": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": true
         }
       },
       "oneOf": [

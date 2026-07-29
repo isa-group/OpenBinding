@@ -14,14 +14,33 @@ Validation stages:
 
 Engines integrate through the gateway plugin interface and a specialization schema.
 
-## Four things to know before you start
+## Five things to know before you start
 
-**The instance travels whole and untouched.** The gateway sends
+**The instance travels whole, and in its canonical form.** The gateway sends
 `{"instance": ..., "options": ...}` and nothing else. It does not pre-digest the
 problem: an engine reads the composition, the constraints and the optional
-`resource_model` / `latency_model` blocks itself. If your engine runs on the
-JVM, `engines/binding-core` already does that reading, and using it is how your
+`resource_model` / `latency_model` blocks itself. The one thing it does do is
+expand the authoring shorthands (specification §12) before anything else sees
+the instance, so an engine never has to handle a bare task id where a node
+belongs, a missing XOR probability or a candidate that states its own placement.
+Write your fixtures with `python openbinding-gateway/tools/bim_desugar.py`
+rather than copying an example verbatim. If your engine runs on the JVM,
+`engines/binding-core` already does the reading, and using it is how your
 results stay comparable with the others'.
+
+**A candidate may serve several tasks.** `candidates[*].task_ids` lists every
+task a candidate can implement, so it belongs to the market of each of them and
+two tasks can end up on the very same candidate. When k tasks do, three things
+follow, and an engine that gets any of them wrong reports a solution the gateway
+then scores differently:
+
+* a feature declared `"sharing": "DIVIDE"` is worth `v/k` to each of those tasks,
+  and every other feature is still worth `v` to each;
+* the candidate's resource `demand` is taken up **once** on its pool, not k times;
+* `SAME_CANDIDATE` / `DIFFERENT_CANDIDATE` compare the selected candidate ids.
+
+k is counted over the binding as a whole, including tasks under a branch that
+does not run.
 
 **Placement is not a separate problem.** `resource_model` and `latency_model`
 are optional blocks of the same instance. An engine that supports them derives

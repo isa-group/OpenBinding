@@ -68,6 +68,11 @@ This representation guarantees that every generated individual is a complete
 binding and that every gene refers to an existing candidate. Task order is
 derived deterministically from the composition tree.
 
+An allele indexes that task's own market, which is every candidate listing the
+task under `task_ids`. A candidate able to serve several tasks appears in each
+of their markets, so two genes may well decode to the same candidate - one thing
+serving both, with the sharing that implies (see the specification, §4).
+
 ## Global quality evaluation
 
 Each individual is decoded into a task-to-candidate binding. QoS is then

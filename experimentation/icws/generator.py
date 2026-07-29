@@ -48,9 +48,9 @@ def calculate_binding_space(instance: Dict[str, Any]) -> int:
 
     counts: Dict[str, int] = {tid: 0 for tid in tasks}
     for candidate in instance.get("candidates", []):
-        tid = candidate.get("task_id")
-        if tid in counts:
-            counts[tid] += 1
+        for tid in candidate.get("task_ids") or []:
+            if tid in counts:
+                counts[tid] += 1
 
     if any(v <= 0 for v in counts.values()):
         return 0
@@ -229,7 +229,7 @@ def expand_providers(instance: Dict[str, Any], count: int) -> None:
 
 def _candidate_template_for_task(instance: Dict[str, Any], task_id: str) -> Dict[str, Any]:
     for c in instance.get("candidates", []):
-        if c.get("task_id") == task_id:
+        if task_id in (c.get("task_ids") or []):
             return c
     # Fallback minimal candidate (should be rare; schema expects candidates)
     providers = [p["id"] for p in instance.get("providers", [])]
@@ -240,7 +240,7 @@ def _candidate_template_for_task(instance: Dict[str, Any], task_id: str) -> Dict
         placeholder_features[fid] = round((mn + mx) / 2.0, 6)
     return {
         "id": f"tmpl_{task_id}",
-        "task_id": task_id,
+        "task_ids": [task_id],
         "provider_id": provider_id,
         "name": task_id,
         "features": placeholder_features,
@@ -286,7 +286,7 @@ def ensure_min_candidates_per_task(
     shared_provider_id = "p_gen_shared"
     for task_id in tasks:
         has_shared = any(
-            c.get("task_id") == task_id and c.get("provider_id") == shared_provider_id
+            task_id in (c.get("task_ids") or []) and c.get("provider_id") == shared_provider_id
             for c in candidates
         )
         if not has_shared:
@@ -295,7 +295,7 @@ def ensure_min_candidates_per_task(
             candidates.append(
                 {
                     "id": cid,
-                    "task_id": task_id,
+                    "task_ids": [task_id],
                     "provider_id": shared_provider_id,
                     "name": f"{base.get('name', task_id)} (Gen Shared)",
                     "features": _generate_feature_values_from_base(base.get("features", {}), fmap, rng),
@@ -308,18 +308,18 @@ def ensure_min_candidates_per_task(
         providers_cycle = [shared_provider_id]
 
     for task_id in tasks:
-        existing = [c for c in candidates if c.get("task_id") == task_id]
+        existing = [c for c in candidates if task_id in (c.get("task_ids") or [])]
         if not existing:
             existing = [_candidate_template_for_task(instance, task_id)]
         base = existing[0]
 
-        while len([c for c in candidates if c.get("task_id") == task_id]) < min_per_task:
+        while len([c for c in candidates if task_id in (c.get("task_ids") or [])]) < min_per_task:
             provider_id = providers_cycle[len(used_candidate_ids) % len(providers_cycle)]
             cid = _unique_id(f"{task_id}_gen_", used_candidate_ids)
             candidates.append(
                 {
                     "id": cid,
-                    "task_id": task_id,
+                    "task_ids": [task_id],
                     "provider_id": provider_id,
                     "name": f"{base.get('name', task_id)} (Gen {provider_id})",
                     "features": _generate_feature_values_from_base(base.get("features", {}), fmap, rng),
@@ -330,9 +330,9 @@ def ensure_min_candidates_per_task(
 def _counts_by_task(instance: Dict[str, Any], tasks: Sequence[str]) -> Dict[str, int]:
     counts: Dict[str, int] = {tid: 0 for tid in tasks}
     for candidate in instance.get("candidates", []) or []:
-        tid = candidate.get("task_id")
-        if tid in counts:
-            counts[tid] += 1
+        for tid in candidate.get("task_ids") or []:
+            if tid in counts:
+                counts[tid] += 1
     return counts
 
 
@@ -355,7 +355,7 @@ def _candidate_removal_rank(candidate: Dict[str, Any], task_id: str) -> Tuple[in
 def _remove_one_candidate_from_task(instance: Dict[str, Any], task_id: str) -> bool:
     candidates = instance.get("candidates", []) or []
     task_positions = [
-        idx for idx, candidate in enumerate(candidates) if candidate.get("task_id") == task_id
+        idx for idx, candidate in enumerate(candidates) if task_id in (candidate.get("task_ids") or [])
     ]
     if len(task_positions) <= 1:
         return False
@@ -395,7 +395,7 @@ def _add_one_candidate_to_task(
     candidates.append(
         {
             "id": cid,
-            "task_id": task_id,
+            "task_ids": [task_id],
             "provider_id": provider_id,
             "name": f"{base.get('name', task_id)} (Gen {provider_id})",
             "features": _generate_feature_values_from_base(base.get("features", {}), fmap, rng),
@@ -516,10 +516,10 @@ def _quantile(values: Sequence[float], q: float) -> float:
 def _candidates_by_task(instance: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
     by_task: Dict[str, List[Dict[str, Any]]] = {}
     for c in instance.get("candidates", []) or []:
-        tid = c.get("task_id")
-        if not isinstance(tid, str):
-            continue
-        by_task.setdefault(tid, []).append(c)
+        for tid in c.get("task_ids") or []:
+            if not isinstance(tid, str):
+                continue
+            by_task.setdefault(tid, []).append(c)
     for task_id in by_task:
         by_task[task_id].sort(key=lambda cand: str(cand.get("id", "")))
     return by_task

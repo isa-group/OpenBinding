@@ -73,7 +73,9 @@ class EvolutionaryHeuristicsEnginePlugin(EngineValidationPlugin):
 
         visit(instance["composition"]["root"])
         candidate_tasks = {
-            candidate.get("task_id") for candidate in instance.get("candidates", [])
+            task
+            for candidate in instance.get("candidates", [])
+            for task in candidate.get("task_ids") or []
         }
         for task_id in sorted(task_ids - candidate_tasks):
             violations.append(

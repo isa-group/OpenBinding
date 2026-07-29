@@ -650,7 +650,7 @@ def generate_task_candidates(
                 {
                     "id": cid,
                     "name": f"{function['id']} on {node['name']}",
-                    "task_id": task_id,
+                    "task_ids": [task_id],
                     "provider_id": safe_id(node.get("provider", "unknown")),
                     "features": features,
                     "description": f"Original {node.get('type')} node, security={score_label}",
@@ -690,7 +690,7 @@ def generate_task_candidates(
                         {
                             "id": cid,
                             "name": f"{function['id']} on {provider.upper()} {region} ({memory_mb} MB)",
-                            "task_id": task_id,
+                            "task_ids": [task_id],
                             "provider_id": safe_id(provider),
                             "features": features,
                             "description": "Generated regional FaaS candidate",
@@ -1121,7 +1121,8 @@ def build_pricing_artifacts(
 
     by_task: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for candidate in candidates:
-        by_task[candidate["task_id"]].append(candidate)
+        for task_id in candidate["task_ids"]:
+            by_task[task_id].append(candidate)
     candidate_pools = {cb["candidate_id"]: cb["pool_id"] for cb in candidate_bindings}
 
     ac_domains = _latency_arc_consistent_pools(

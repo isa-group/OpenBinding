@@ -118,7 +118,7 @@
   "candidates": [
     {
       "id": "c_dining_autre_saison",
-      "task_id": "t_dining",
+      "task_ids": ["t_dining"],
       "provider_id": "p_rest_autre_saison",
       "name": "Dinner at Restaurant L’Autre Saison",
       "features": {
@@ -132,7 +132,7 @@
     },
     {
       "id": "c_dining_seven_night_club",
-      "task_id": "t_dining",
+      "task_ids": ["t_dining"],
       "provider_id": "p_seven_night_club",
       "name": "Dinner at Seven Night Club",
       "features": {
@@ -146,7 +146,7 @@
     },
     {
       "id": "c_shopping_local",
-      "task_id": "t_shopping",
+      "task_ids": ["t_shopping"],
       "provider_id": "p_local_shopping",
       "name": "Shopping at a nearby venue",
       "features": {
@@ -160,7 +160,7 @@
     },
     {
       "id": "c_movie_the_help_banque_scotia",
-      "task_id": "t_movie",
+      "task_ids": ["t_movie"],
       "provider_id": "p_cinema_banque_scotia",
       "name": "Watch movie 'The Help' at Cinema Banque Scotia Montreal",
       "features": {

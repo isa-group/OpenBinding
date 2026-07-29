@@ -25,8 +25,8 @@
     {"id": "t2", "name": "Task 2 (Fast)"}
   ],
   "candidates": [
-    {"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "SVC 1", "features": {"latency": 100}},
-    {"id": "c2", "task_id": "t2", "provider_id": "p1", "name": "SVC 2", "features": {"latency": 20}}
+    {"id": "c1", "task_ids": ["t1"], "provider_id": "p1", "name": "SVC 1", "features": {"latency": 100}},
+    {"id": "c2", "task_ids": ["t2"], "provider_id": "p1", "name": "SVC 2", "features": {"latency": 20}}
   ],
   "composition": {
     "type": "STRUCTURED",

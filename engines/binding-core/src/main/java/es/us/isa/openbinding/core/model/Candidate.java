@@ -11,7 +11,14 @@ import java.util.Map;
  */
 public final class Candidate {
   public String id;
-  public String task_id;
+
+  /**
+   * Every task this candidate can implement. A binding still picks one
+   * candidate per task; the same candidate may be picked for several of the
+   * tasks listed here, which is what makes it one thing serving all of them.
+   */
+  public List<String> task_ids = new ArrayList<>();
+
   public String provider_id;
   public Map<String, Double> features = new LinkedHashMap<>();
 }

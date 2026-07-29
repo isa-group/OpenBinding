@@ -167,7 +167,7 @@
   "candidates": [
     {
       "id": "c_authorize_store_v1",
-      "task_id": "t_authorize",
+      "task_ids": ["t_authorize"],
       "provider_id": "p_store",
       "name": "authorize",
       "features": {
@@ -180,7 +180,7 @@
     },
     {
       "id": "c_ok_bank_v1",
-      "task_id": "t_ok",
+      "task_ids": ["t_ok"],
       "provider_id": "p_bank",
       "name": "ok",
       "features": {
@@ -193,7 +193,7 @@
     },
     {
       "id": "c_order1_store_v1",
-      "task_id": "t_order1",
+      "task_ids": ["t_order1"],
       "provider_id": "p_store",
       "name": "order1",
       "features": {
@@ -206,7 +206,7 @@
     },
     {
       "id": "c_receipt1_wh1_v1",
-      "task_id": "t_receipt1",
+      "task_ids": ["t_receipt1"],
       "provider_id": "p_wh1",
       "name": "receipt1",
       "features": {
@@ -219,7 +219,7 @@
     },
     {
       "id": "c_bill1_wh1_v1",
-      "task_id": "t_bill1",
+      "task_ids": ["t_bill1"],
       "provider_id": "p_wh1",
       "name": "bill1",
       "features": {
@@ -232,7 +232,7 @@
     },
     {
       "id": "c_payment1_bank_v1",
-      "task_id": "t_payment1",
+      "task_ids": ["t_payment1"],
       "provider_id": "p_bank",
       "name": "payment1",
       "features": {
@@ -245,7 +245,7 @@
     },
     {
       "id": "c_order2_store_v1",
-      "task_id": "t_order2",
+      "task_ids": ["t_order2"],
       "provider_id": "p_store",
       "name": "order2",
       "features": {
@@ -258,7 +258,7 @@
     },
     {
       "id": "c_receipt2_wh2_v1",
-      "task_id": "t_receipt2",
+      "task_ids": ["t_receipt2"],
       "provider_id": "p_wh2",
       "name": "receipt2",
       "features": {
@@ -271,7 +271,7 @@
     },
     {
       "id": "c_bill2_wh2_v1",
-      "task_id": "t_bill2",
+      "task_ids": ["t_bill2"],
       "provider_id": "p_wh2",
       "name": "bill2",
       "features": {
@@ -284,7 +284,7 @@
     },
     {
       "id": "c_payment2_bank_v1",
-      "task_id": "t_payment2",
+      "task_ids": ["t_payment2"],
       "provider_id": "p_bank",
       "name": "payment2",
       "features": {
@@ -297,7 +297,7 @@
     },
     {
       "id": "t_authorize_gen_1",
-      "task_id": "t_authorize",
+      "task_ids": ["t_authorize"],
       "provider_id": "p_gen_shared",
       "name": "authorize (Gen Shared)",
       "features": {
@@ -310,7 +310,7 @@
     },
     {
       "id": "t_ok_gen_1",
-      "task_id": "t_ok",
+      "task_ids": ["t_ok"],
       "provider_id": "p_gen_shared",
       "name": "ok (Gen Shared)",
       "features": {
@@ -323,7 +323,7 @@
     },
     {
       "id": "t_order1_gen_1",
-      "task_id": "t_order1",
+      "task_ids": ["t_order1"],
       "provider_id": "p_gen_shared",
       "name": "order1 (Gen Shared)",
       "features": {
@@ -336,7 +336,7 @@
     },
     {
       "id": "t_receipt1_gen_1",
-      "task_id": "t_receipt1",
+      "task_ids": ["t_receipt1"],
       "provider_id": "p_gen_shared",
       "name": "receipt1 (Gen Shared)",
       "features": {
@@ -349,7 +349,7 @@
     },
     {
       "id": "t_bill1_gen_1",
-      "task_id": "t_bill1",
+      "task_ids": ["t_bill1"],
       "provider_id": "p_gen_shared",
       "name": "bill1 (Gen Shared)",
       "features": {
@@ -362,7 +362,7 @@
     },
     {
       "id": "t_payment1_gen_1",
-      "task_id": "t_payment1",
+      "task_ids": ["t_payment1"],
       "provider_id": "p_gen_shared",
       "name": "payment1 (Gen Shared)",
       "features": {
@@ -375,7 +375,7 @@
     },
     {
       "id": "t_order2_gen_1",
-      "task_id": "t_order2",
+      "task_ids": ["t_order2"],
       "provider_id": "p_gen_shared",
       "name": "order2 (Gen Shared)",
       "features": {
@@ -388,7 +388,7 @@
     },
     {
       "id": "t_receipt2_gen_1",
-      "task_id": "t_receipt2",
+      "task_ids": ["t_receipt2"],
       "provider_id": "p_gen_shared",
       "name": "receipt2 (Gen Shared)",
       "features": {
@@ -401,7 +401,7 @@
     },
     {
       "id": "t_bill2_gen_1",
-      "task_id": "t_bill2",
+      "task_ids": ["t_bill2"],
       "provider_id": "p_gen_shared",
       "name": "bill2 (Gen Shared)",
       "features": {
@@ -414,7 +414,7 @@
     },
     {
       "id": "t_payment2_gen_1",
-      "task_id": "t_payment2",
+      "task_ids": ["t_payment2"],
       "provider_id": "p_gen_shared",
       "name": "payment2 (Gen Shared)",
       "features": {
@@ -427,7 +427,7 @@
     },
     {
       "id": "t_authorize_gen_2",
-      "task_id": "t_authorize",
+      "task_ids": ["t_authorize"],
       "provider_id": "p_wh1",
       "name": "authorize (Gen p_wh1)",
       "features": {
@@ -440,7 +440,7 @@
     },
     {
       "id": "t_bill1_gen_2",
-      "task_id": "t_bill1",
+      "task_ids": ["t_bill1"],
       "provider_id": "p_wh2",
       "name": "bill1 (Gen p_wh2)",
       "features": {
@@ -453,7 +453,7 @@
     },
     {
       "id": "t_bill2_gen_2",
-      "task_id": "t_bill2",
+      "task_ids": ["t_bill2"],
       "provider_id": "p_gen_1",
       "name": "bill2 (Gen p_gen_1)",
       "features": {
@@ -466,7 +466,7 @@
     },
     {
       "id": "t_ok_gen_2",
-      "task_id": "t_ok",
+      "task_ids": ["t_ok"],
       "provider_id": "p_gen_2",
       "name": "ok (Gen p_gen_2)",
       "features": {
@@ -479,7 +479,7 @@
     },
     {
       "id": "t_order1_gen_2",
-      "task_id": "t_order1",
+      "task_ids": ["t_order1"],
       "provider_id": "p_gen_3",
       "name": "order1 (Gen p_gen_3)",
       "features": {
@@ -492,7 +492,7 @@
     },
     {
       "id": "t_order2_gen_2",
-      "task_id": "t_order2",
+      "task_ids": ["t_order2"],
       "provider_id": "p_gen_4",
       "name": "order2 (Gen p_gen_4)",
       "features": {
@@ -505,7 +505,7 @@
     },
     {
       "id": "t_payment1_gen_2",
-      "task_id": "t_payment1",
+      "task_ids": ["t_payment1"],
       "provider_id": "p_gen_5",
       "name": "payment1 (Gen p_gen_5)",
       "features": {
@@ -518,7 +518,7 @@
     },
     {
       "id": "t_payment2_gen_2",
-      "task_id": "t_payment2",
+      "task_ids": ["t_payment2"],
       "provider_id": "p_store",
       "name": "payment2 (Gen p_store)",
       "features": {
@@ -531,7 +531,7 @@
     },
     {
       "id": "t_receipt1_gen_2",
-      "task_id": "t_receipt1",
+      "task_ids": ["t_receipt1"],
       "provider_id": "p_bank",
       "name": "receipt1 (Gen p_bank)",
       "features": {
@@ -544,7 +544,7 @@
     },
     {
       "id": "t_receipt2_gen_2",
-      "task_id": "t_receipt2",
+      "task_ids": ["t_receipt2"],
       "provider_id": "p_wh1",
       "name": "receipt2 (Gen p_wh1)",
       "features": {
@@ -557,7 +557,7 @@
     },
     {
       "id": "t_authorize_gen_3",
-      "task_id": "t_authorize",
+      "task_ids": ["t_authorize"],
       "provider_id": "p_wh2",
       "name": "authorize (Gen p_wh2)",
       "features": {
@@ -570,7 +570,7 @@
     },
     {
       "id": "t_bill1_gen_3",
-      "task_id": "t_bill1",
+      "task_ids": ["t_bill1"],
       "provider_id": "p_gen_1",
       "name": "bill1 (Gen p_gen_1)",
       "features": {
@@ -583,7 +583,7 @@
     },
     {
       "id": "t_bill2_gen_3",
-      "task_id": "t_bill2",
+      "task_ids": ["t_bill2"],
       "provider_id": "p_gen_2",
       "name": "bill2 (Gen p_gen_2)",
       "features": {
@@ -596,7 +596,7 @@
     },
     {
       "id": "t_ok_gen_3",
-      "task_id": "t_ok",
+      "task_ids": ["t_ok"],
       "provider_id": "p_gen_3",
       "name": "ok (Gen p_gen_3)",
       "features": {
@@ -609,7 +609,7 @@
     },
     {
       "id": "t_order1_gen_3",
-      "task_id": "t_order1",
+      "task_ids": ["t_order1"],
       "provider_id": "p_gen_4",
       "name": "order1 (Gen p_gen_4)",
       "features": {
@@ -622,7 +622,7 @@
     },
     {
       "id": "t_order2_gen_3",
-      "task_id": "t_order2",
+      "task_ids": ["t_order2"],
       "provider_id": "p_gen_5",
       "name": "order2 (Gen p_gen_5)",
       "features": {
@@ -635,7 +635,7 @@
     },
     {
       "id": "t_payment1_gen_3",
-      "task_id": "t_payment1",
+      "task_ids": ["t_payment1"],
       "provider_id": "p_store",
       "name": "payment1 (Gen p_store)",
       "features": {
@@ -648,7 +648,7 @@
     },
     {
       "id": "t_payment2_gen_3",
-      "task_id": "t_payment2",
+      "task_ids": ["t_payment2"],
       "provider_id": "p_bank",
       "name": "payment2 (Gen p_bank)",
       "features": {
@@ -661,7 +661,7 @@
     },
     {
       "id": "t_receipt1_gen_3",
-      "task_id": "t_receipt1",
+      "task_ids": ["t_receipt1"],
       "provider_id": "p_wh1",
       "name": "receipt1 (Gen p_wh1)",
       "features": {
@@ -674,7 +674,7 @@
     },
     {
       "id": "t_receipt2_gen_3",
-      "task_id": "t_receipt2",
+      "task_ids": ["t_receipt2"],
       "provider_id": "p_wh2",
       "name": "receipt2 (Gen p_wh2)",
       "features": {
@@ -687,7 +687,7 @@
     },
     {
       "id": "t_authorize_gen_4",
-      "task_id": "t_authorize",
+      "task_ids": ["t_authorize"],
       "provider_id": "p_gen_1",
       "name": "authorize (Gen p_gen_1)",
       "features": {
@@ -700,7 +700,7 @@
     },
     {
       "id": "t_bill1_gen_4",
-      "task_id": "t_bill1",
+      "task_ids": ["t_bill1"],
       "provider_id": "p_gen_2",
       "name": "bill1 (Gen p_gen_2)",
       "features": {
@@ -713,7 +713,7 @@
     },
     {
       "id": "t_bill2_gen_4",
-      "task_id": "t_bill2",
+      "task_ids": ["t_bill2"],
       "provider_id": "p_gen_3",
       "name": "bill2 (Gen p_gen_3)",
       "features": {
@@ -726,7 +726,7 @@
     },
     {
       "id": "t_ok_gen_4",
-      "task_id": "t_ok",
+      "task_ids": ["t_ok"],
       "provider_id": "p_gen_4",
       "name": "ok (Gen p_gen_4)",
       "features": {
@@ -739,7 +739,7 @@
     },
     {
       "id": "t_order1_gen_4",
-      "task_id": "t_order1",
+      "task_ids": ["t_order1"],
       "provider_id": "p_gen_5",
       "name": "order1 (Gen p_gen_5)",
       "features": {
@@ -752,7 +752,7 @@
     },
     {
       "id": "t_order2_gen_4",
-      "task_id": "t_order2",
+      "task_ids": ["t_order2"],
       "provider_id": "p_store",
       "name": "order2 (Gen p_store)",
       "features": {
@@ -765,7 +765,7 @@
     },
     {
       "id": "t_payment1_gen_4",
-      "task_id": "t_payment1",
+      "task_ids": ["t_payment1"],
       "provider_id": "p_bank",
       "name": "payment1 (Gen p_bank)",
       "features": {
@@ -778,7 +778,7 @@
     },
     {
       "id": "t_payment2_gen_4",
-      "task_id": "t_payment2",
+      "task_ids": ["t_payment2"],
       "provider_id": "p_wh1",
       "name": "payment2 (Gen p_wh1)",
       "features": {
@@ -791,7 +791,7 @@
     },
     {
       "id": "t_receipt1_gen_4",
-      "task_id": "t_receipt1",
+      "task_ids": ["t_receipt1"],
       "provider_id": "p_wh2",
       "name": "receipt1 (Gen p_wh2)",
       "features": {
@@ -804,7 +804,7 @@
     },
     {
       "id": "t_receipt2_gen_4",
-      "task_id": "t_receipt2",
+      "task_ids": ["t_receipt2"],
       "provider_id": "p_gen_1",
       "name": "receipt2 (Gen p_gen_1)",
       "features": {
@@ -817,7 +817,7 @@
     },
     {
       "id": "t_authorize_gen_5",
-      "task_id": "t_authorize",
+      "task_ids": ["t_authorize"],
       "provider_id": "p_gen_2",
       "name": "authorize (Gen p_gen_2)",
       "features": {
@@ -830,7 +830,7 @@
     },
     {
       "id": "t_bill1_gen_5",
-      "task_id": "t_bill1",
+      "task_ids": ["t_bill1"],
       "provider_id": "p_gen_3",
       "name": "bill1 (Gen p_gen_3)",
       "features": {
@@ -843,7 +843,7 @@
     },
     {
       "id": "t_bill2_gen_5",
-      "task_id": "t_bill2",
+      "task_ids": ["t_bill2"],
       "provider_id": "p_gen_4",
       "name": "bill2 (Gen p_gen_4)",
       "features": {
@@ -856,7 +856,7 @@
     },
     {
       "id": "t_ok_gen_5",
-      "task_id": "t_ok",
+      "task_ids": ["t_ok"],
       "provider_id": "p_gen_5",
       "name": "ok (Gen p_gen_5)",
       "features": {
@@ -869,7 +869,7 @@
     },
     {
       "id": "t_order1_gen_5",
-      "task_id": "t_order1",
+      "task_ids": ["t_order1"],
       "provider_id": "p_store",
       "name": "order1 (Gen p_store)",
       "features": {
@@ -882,7 +882,7 @@
     },
     {
       "id": "t_order2_gen_5",
-      "task_id": "t_order2",
+      "task_ids": ["t_order2"],
       "provider_id": "p_bank",
       "name": "order2 (Gen p_bank)",
       "features": {
@@ -895,7 +895,7 @@
     },
     {
       "id": "t_payment1_gen_5",
-      "task_id": "t_payment1",
+      "task_ids": ["t_payment1"],
       "provider_id": "p_wh1",
       "name": "payment1 (Gen p_wh1)",
       "features": {
@@ -908,7 +908,7 @@
     },
     {
       "id": "t_payment2_gen_5",
-      "task_id": "t_payment2",
+      "task_ids": ["t_payment2"],
       "provider_id": "p_wh2",
       "name": "payment2 (Gen p_wh2)",
       "features": {
@@ -921,7 +921,7 @@
     },
     {
       "id": "t_receipt1_gen_5",
-      "task_id": "t_receipt1",
+      "task_ids": ["t_receipt1"],
       "provider_id": "p_gen_1",
       "name": "receipt1 (Gen p_gen_1)",
       "features": {
@@ -934,7 +934,7 @@
     },
     {
       "id": "t_receipt2_gen_5",
-      "task_id": "t_receipt2",
+      "task_ids": ["t_receipt2"],
       "provider_id": "p_gen_2",
       "name": "receipt2 (Gen p_gen_2)",
       "features": {
@@ -947,7 +947,7 @@
     },
     {
       "id": "t_authorize_gen_6",
-      "task_id": "t_authorize",
+      "task_ids": ["t_authorize"],
       "provider_id": "p_gen_3",
       "name": "authorize (Gen p_gen_3)",
       "features": {
@@ -960,7 +960,7 @@
     },
     {
       "id": "t_bill1_gen_6",
-      "task_id": "t_bill1",
+      "task_ids": ["t_bill1"],
       "provider_id": "p_gen_4",
       "name": "bill1 (Gen p_gen_4)",
       "features": {
@@ -973,7 +973,7 @@
     },
     {
       "id": "t_bill2_gen_6",
-      "task_id": "t_bill2",
+      "task_ids": ["t_bill2"],
       "provider_id": "p_gen_5",
       "name": "bill2 (Gen p_gen_5)",
       "features": {
@@ -986,7 +986,7 @@
     },
     {
       "id": "t_ok_gen_6",
-      "task_id": "t_ok",
+      "task_ids": ["t_ok"],
       "provider_id": "p_store",
       "name": "ok (Gen p_store)",
       "features": {

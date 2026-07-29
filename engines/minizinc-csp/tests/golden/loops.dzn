@@ -15,6 +15,11 @@
         cand_qos = [| 5 |];
         candidate_provider = [1];
 
+        n_shared_feats = 0;
+        n_share_levels = 1;
+        qos_share_slot = [0];
+        shared_qos = array2d(1..1, 1..1, [0]);
+
         node_kind = [5, 1];
         node_task_id = [0, 1];
         node_n_children = [1, 0];
@@ -43,6 +48,13 @@
         n_excluded_candidates = 0;
         excluded_task = [];
         excluded_cand = [];
+
+        n_cand_bounds = 0;
+        cb_task = [];
+        cb_cand = [];
+        cb_attr = [];
+        cb_op = [];
+        cb_val = [];
 
         n_dep_constraints = 0;
         dc_type = [];

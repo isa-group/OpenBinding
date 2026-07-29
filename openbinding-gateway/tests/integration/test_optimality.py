@@ -11,10 +11,10 @@ BASE_INSTANCE = {
     "tasks": [{"id": "T1", "name": "Task 1"}, {"id": "T2", "name": "Task 2"}],
     "providers": [{"id": "ProvA", "name": "Provider A"}, {"id": "ProvB", "name": "Provider B"}],
     "candidates": [
-        {"id": "C1", "task_id": "T1", "provider_id": "ProvA", "name": "C1", "features": {"cost": 10}},
-        {"id": "C2", "task_id": "T1", "provider_id": "ProvB", "name": "C2", "features": {"cost": 50}},
-        {"id": "C3", "task_id": "T2", "provider_id": "ProvA", "name": "C3", "features": {"cost": 10}},
-        {"id": "C4", "task_id": "T2", "provider_id": "ProvB", "name": "C4", "features": {"cost": 50}}
+        {"id": "C1", "task_ids": ["T1"], "provider_id": "ProvA", "name": "C1", "features": {"cost": 10}},
+        {"id": "C2", "task_ids": ["T1"], "provider_id": "ProvB", "name": "C2", "features": {"cost": 50}},
+        {"id": "C3", "task_ids": ["T2"], "provider_id": "ProvA", "name": "C3", "features": {"cost": 10}},
+        {"id": "C4", "task_ids": ["T2"], "provider_id": "ProvB", "name": "C4", "features": {"cost": 50}}
     ],
     "composition": {"type": "STRUCTURED", "root": {
         "id": "seq1", "kind": "SEQ",
@@ -214,10 +214,10 @@ def test_product_maximize_direction(gateway_url, wait_for_job, engine):
     }
     instance["constraints"] = []
     instance["candidates"] = [
-        {"id": "C1", "task_id": "T1", "provider_id": "ProvA", "name": "C1", "features": {"reliability": 0.9}},
-        {"id": "C2", "task_id": "T1", "provider_id": "ProvB", "name": "C2", "features": {"reliability": 0.3}},
-        {"id": "C3", "task_id": "T2", "provider_id": "ProvA", "name": "C3", "features": {"reliability": 0.8}},
-        {"id": "C4", "task_id": "T2", "provider_id": "ProvB", "name": "C4", "features": {"reliability": 0.4}},
+        {"id": "C1", "task_ids": ["T1"], "provider_id": "ProvA", "name": "C1", "features": {"reliability": 0.9}},
+        {"id": "C2", "task_ids": ["T1"], "provider_id": "ProvB", "name": "C2", "features": {"reliability": 0.3}},
+        {"id": "C3", "task_ids": ["T2"], "provider_id": "ProvA", "name": "C3", "features": {"reliability": 0.8}},
+        {"id": "C4", "task_ids": ["T2"], "provider_id": "ProvB", "name": "C4", "features": {"reliability": 0.4}},
     ]
 
     run_test(gateway_url, wait_for_job, engine, instance, {"T1": "C1", "T2": "C3"}, None)

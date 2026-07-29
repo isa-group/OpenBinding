@@ -1,0 +1,427 @@
+{
+  "metadata": {
+    "id": "small-placement-demo",
+    "name": "Small FaaS placement (BIM\u2032)",
+    "version": "2.0.0",
+    "created_at": "2026-07-29T00:00:00Z",
+    "description": "Five functions (SEQ + AND + XOR) placed over three infrastructure pools, with resource capacities, transition latency bounds, an event generator, a security threshold and a pricing budget. One candidate per pool, each able to implement any of the five functions, so choosing a candidate for a function is choosing where it runs. Cost is declared DIVIDE: the functions sharing a pool split what that pool costs instead of each paying it whole, and its memory is taken up once for the same reason. Small enough for the exact engine to prove optimality instantly."
+  },
+  "features": [
+    {
+      "id": "latency",
+      "name": "End-to-end latency",
+      "direction": "MINIMIZE",
+      "unit": "ms",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 100000
+      }
+    },
+    {
+      "id": "cost",
+      "name": "Monthly cost",
+      "direction": "MINIMIZE",
+      "unit": "USD/month",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 100000
+      },
+      "sharing": "DIVIDE"
+    },
+    {
+      "id": "security",
+      "name": "Security score",
+      "direction": "MAXIMIZE",
+      "unit": "score",
+      "scale": "RATIO",
+      "valid_range": {
+        "min": 0,
+        "max": 1
+      }
+    }
+  ],
+  "providers": [
+    {
+      "id": "prov_edge",
+      "name": "Edge owner"
+    },
+    {
+      "id": "prov_fog",
+      "name": "Fog operator"
+    },
+    {
+      "id": "prov_cloud",
+      "name": "Cloud provider"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t_login",
+      "name": "Login"
+    },
+    {
+      "id": "t_process",
+      "name": "Process"
+    },
+    {
+      "id": "t_check",
+      "name": "Check certificate"
+    },
+    {
+      "id": "t_rules",
+      "name": "Fetch rules"
+    },
+    {
+      "id": "t_render",
+      "name": "Render"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "c_edge",
+      "name": "Run on the edge node",
+      "task_ids": [
+        "t_login",
+        "t_process",
+        "t_check",
+        "t_rules",
+        "t_render"
+      ],
+      "provider_id": "prov_edge",
+      "features": {
+        "latency": 2.0,
+        "cost": 3.0,
+        "security": 0.33
+      }
+    },
+    {
+      "id": "c_fog",
+      "name": "Run on the fog node",
+      "task_ids": [
+        "t_login",
+        "t_process",
+        "t_check",
+        "t_rules",
+        "t_render"
+      ],
+      "provider_id": "prov_fog",
+      "features": {
+        "latency": 2.0,
+        "cost": 10.0,
+        "security": 0.66
+      }
+    },
+    {
+      "id": "c_cloud",
+      "name": "Run on the cloud region",
+      "task_ids": [
+        "t_login",
+        "t_process",
+        "t_check",
+        "t_rules",
+        "t_render"
+      ],
+      "provider_id": "prov_cloud",
+      "features": {
+        "latency": 2.0,
+        "cost": 18.0,
+        "security": 1.0
+      }
+    }
+  ],
+  "composition": {
+    "type": "STRUCTURED",
+    "root": {
+      "id": "n_root",
+      "kind": "SEQ",
+      "children": [
+        {
+          "id": "n_t_login",
+          "kind": "TASK",
+          "task_id": "t_login"
+        },
+        {
+          "id": "n_and",
+          "kind": "AND",
+          "children": [
+            {
+              "id": "n_branch",
+              "kind": "SEQ",
+              "children": [
+                {
+                  "id": "n_t_process",
+                  "kind": "TASK",
+                  "task_id": "t_process"
+                },
+                {
+                  "id": "n_xor",
+                  "kind": "XOR",
+                  "branches": [
+                    {
+                      "child": {
+                        "id": "n_t_check",
+                        "kind": "TASK",
+                        "task_id": "t_check"
+                      },
+                      "p": 0.5
+                    },
+                    {
+                      "child": {
+                        "id": "n_t_rules",
+                        "kind": "TASK",
+                        "task_id": "t_rules"
+                      },
+                      "p": 0.5
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "n_t_render",
+              "kind": "TASK",
+              "task_id": "t_render"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "aggregation_policies": {
+    "cost": {
+      "neutral": 0,
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0.0,
+          "max": 50.0
+        }
+      },
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "SUM"
+        },
+        "xor": {
+          "fn": "SCALED_SUM"
+        },
+        "loop": {
+          "fn": "SCALED_SUM"
+        }
+      }
+    },
+    "latency": {
+      "neutral": 0,
+      "compose": {
+        "seq": {
+          "fn": "SUM"
+        },
+        "and": {
+          "fn": "MAX"
+        },
+        "xor": {
+          "fn": "SCALED_SUM"
+        }
+      },
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0.0,
+          "max": 100.0
+        }
+      }
+    },
+    "security": {
+      "neutral": 1,
+      "normalize": {
+        "type": "minmax",
+        "bounds": {
+          "min": 0.0,
+          "max": 1.0
+        }
+      },
+      "compose": {
+        "seq": {
+          "fn": "MIN"
+        },
+        "and": {
+          "fn": "MIN"
+        },
+        "xor": {
+          "fn": "MIN"
+        },
+        "loop": {
+          "fn": "MIN"
+        }
+      }
+    }
+  },
+  "constraints": [
+    {
+      "id": "security_min_login",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_login"
+      ],
+      "attribute_id": "security",
+      "op": ">=",
+      "value": 0.66,
+      "hard": true
+    },
+    {
+      "id": "budget_global",
+      "kind": "ATTRIBUTE_BOUND",
+      "scope": "GLOBAL",
+      "attribute_id": "cost",
+      "op": "<=",
+      "value": 30.0,
+      "hard": true
+    },
+    {
+      "id": "check_and_rules_together",
+      "kind": "DEPENDENCY",
+      "type": "SAME_CANDIDATE",
+      "tasks": [
+        "t_check",
+        "t_rules"
+      ],
+      "hard": true
+    }
+  ],
+  "objective": {
+    "type": "MONO",
+    "targets": [
+      "latency",
+      "cost",
+      "security"
+    ],
+    "weights": {
+      "latency": 0.4,
+      "cost": 0.4,
+      "security": 0.2
+    },
+    "weights_sum_to_one": true
+  },
+  "resource_model": {
+    "pools": [
+      {
+        "id": "p_edge",
+        "name": "Edge node",
+        "kind": "EDGE",
+        "capacity": {
+          "memory": 4.0
+        }
+      },
+      {
+        "id": "p_fog",
+        "name": "Fog node",
+        "kind": "FOG",
+        "capacity": {
+          "memory": 4.0
+        }
+      },
+      {
+        "id": "p_cloud",
+        "name": "Cloud region",
+        "kind": "CLOUD_FAAS",
+        "capacity": {
+          "memory": 100.0
+        }
+      }
+    ],
+    "candidate_bindings": [
+      {
+        "candidate_id": "c_edge",
+        "pool_id": "p_edge",
+        "demand": {
+          "memory": 2.0
+        }
+      },
+      {
+        "candidate_id": "c_fog",
+        "pool_id": "p_fog",
+        "demand": {
+          "memory": 2.0
+        }
+      },
+      {
+        "candidate_id": "c_cloud",
+        "pool_id": "p_cloud",
+        "demand": {
+          "memory": 2.0
+        }
+      }
+    ],
+    "resources": [
+      "memory"
+    ],
+    "constraints": [
+      {
+        "id": "resource_capacity",
+        "kind": "DEPENDENCY",
+        "type": "RESOURCE_CAPACITY",
+        "scope": "ALL_POOLS",
+        "resources": [
+          "memory"
+        ],
+        "hard": true
+      }
+    ]
+  },
+  "latency_model": {
+    "unit": "ms",
+    "pool_latency_matrix_ms": {
+      "p_edge": {
+        "p_edge": 0.0,
+        "p_fog": 10.0,
+        "p_cloud": 20.0
+      },
+      "p_fog": {
+        "p_fog": 0.0,
+        "p_cloud": 4.0
+      },
+      "p_cloud": {
+        "p_cloud": 0.0
+      }
+    },
+    "event_generator_pools": {
+      "user_device": "p_edge"
+    },
+    "event_latency_matrix_ms": {
+      "user_device": {
+        "p_edge": 1.0,
+        "p_fog": 5.0,
+        "p_cloud": 9.0
+      }
+    },
+    "transition_constraints": [
+      {
+        "id": "tr_login_process",
+        "from_task": "t_login",
+        "to_task": "t_process",
+        "op": "<=",
+        "value": 15.0,
+        "hard": true
+      },
+      {
+        "id": "tr_event_login",
+        "from_event": "user_device",
+        "to_task": "t_login",
+        "op": "<=",
+        "value": 6.0,
+        "hard": true
+      }
+    ],
+    "global_latency": {
+      "attribute_id": "latency",
+      "include_execution_latency_feature": true,
+      "xor_semantics": "EXPECTED",
+      "and_semantics": "MAX"
+    }
+  }
+}

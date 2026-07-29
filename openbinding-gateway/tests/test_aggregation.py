@@ -51,8 +51,8 @@ def test_compute_aggregated_qos_uses_neutral_for_element_branch():
         }
     }
     candidates_by_id = {
-        "cand_t1": {"id": "cand_t1", "task_id": "T1", "features": {"security": 4}},
-        "cand_t5": {"id": "cand_t5", "task_id": "T5", "features": {"security": 5}},
+        "cand_t1": {"id": "cand_t1", "task_ids": ["T1"], "features": {"security": 4}},
+        "cand_t5": {"id": "cand_t5", "task_ids": ["T5"], "features": {"security": 5}},
     }
     selection = {"T1": "cand_t1", "T5": "cand_t5"}
     selected = build_selected_candidate_by_task(selection, candidates_by_id)
@@ -117,27 +117,27 @@ def test_compute_aggregated_qos_normalizes_percentage_product_features():
     candidates_by_id = {
         "cand_t1_aws": {
             "id": "cand_t1_aws",
-            "task_id": "T1",
+            "task_ids": ["T1"],
             "features": {"availability": 99.95, "reliability": 99.75},
         },
         "cand_t2_radius": {
             "id": "cand_t2_radius",
-            "task_id": "T2",
+            "task_ids": ["T2"],
             "features": {"availability": 99.8, "reliability": 99.3},
         },
         "cand_t3_here": {
             "id": "cand_t3_here",
-            "task_id": "T3",
+            "task_ids": ["T3"],
             "features": {"availability": 99.9, "reliability": 99.5},
         },
         "cand_t5_braket": {
             "id": "cand_t5_braket",
-            "task_id": "T5",
+            "task_ids": ["T5"],
             "features": {"availability": 99.9, "reliability": 99.0},
         },
         "cand_t6_stripe": {
             "id": "cand_t6_stripe",
-            "task_id": "T6",
+            "task_ids": ["T6"],
             "features": {"availability": 99.99, "reliability": 99.5},
         },
     }
@@ -164,8 +164,8 @@ def test_canonicalize_result_data_recomputes_aggregated_features():
             {"id": "cost", "direction": "MINIMIZE", "scale": "RATIO", "valid_range": {"min": 0, "max": 1000}},
         ],
         "candidates": [
-            {"id": "cand_t1", "task_id": "T1", "features": {"cost": 10}},
-            {"id": "cand_t2", "task_id": "T2", "features": {"cost": 20}},
+            {"id": "cand_t1", "task_ids": ["T1"], "features": {"cost": 10}},
+            {"id": "cand_t2", "task_ids": ["T2"], "features": {"cost": 20}},
         ],
         "aggregation_policies": {
             "cost": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}}},
@@ -206,7 +206,7 @@ def test_canonicalize_result_data_computes_many_objective_value():
             {"id": "reliability", "direction": "MAXIMIZE", "scale": "RATIO", "valid_range": {"min": 0, "max": 100}},
         ],
         "candidates": [
-            {"id": "cand_t1", "task_id": "T1", "features": {"cost": 10, "reliability": 90}},
+            {"id": "cand_t1", "task_ids": ["T1"], "features": {"cost": 10, "reliability": 90}},
         ],
         "aggregation_policies": {
             "cost": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}}, "normalize": {"type": "minmax", "bounds": {"min": 0, "max": 1000}}},

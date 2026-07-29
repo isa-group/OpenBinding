@@ -17,6 +17,10 @@ eggs/
 lib/
 lib64/
 parts/
+# ...except the example instance written as one file per component of the
+# tuple, which is documentation rather than a build artifact and which the
+# Playground loads by name.
+!examples/placement/parts/
 sdist/
 var/
 wheels/

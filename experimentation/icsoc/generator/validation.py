@@ -77,8 +77,9 @@ def validate_semantics(instance: dict[str, Any]) -> list[Violation]:
 
     for idx, candidate in enumerate(instance.get("candidates", [])):
         cid = candidate.get("id")
-        if candidate.get("task_id") not in tasks:
-            violations.append(Violation("unknown_task", f"candidates[{idx}].task_id", f"Candidate {cid} references unknown task {candidate.get('task_id')}"))
+        for j, task_id in enumerate(candidate.get("task_ids") or []):
+            if task_id not in tasks:
+                violations.append(Violation("unknown_task", f"candidates[{idx}].task_ids[{j}]", f"Candidate {cid} references unknown task {task_id}"))
         if candidate.get("provider_id") not in providers:
             violations.append(Violation("unknown_provider", f"candidates[{idx}].provider_id", f"Candidate {cid} references unknown provider {candidate.get('provider_id')}"))
         cand_features = set((candidate.get("features") or {}).keys())
@@ -91,8 +92,7 @@ def validate_semantics(instance: dict[str, Any]) -> list[Violation]:
 
     candidates_by_task: dict[str, int] = {}
     for candidate in instance.get("candidates", []):
-        task_id = candidate.get("task_id")
-        if task_id:
+        for task_id in candidate.get("task_ids") or []:
             candidates_by_task[task_id] = candidates_by_task.get(task_id, 0) + 1
     for task_id in sorted(tasks):
         if candidates_by_task.get(task_id, 0) == 0:

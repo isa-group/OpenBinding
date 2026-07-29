@@ -122,7 +122,7 @@
   "candidates": [
     {
       "id": "c_google_books_api",
-      "task_id": "t_books",
+      "task_ids": ["t_books"],
       "provider_id": "p_google",
       "name": "Google Books API",
       "features": {
@@ -135,7 +135,7 @@
     },
     {
       "id": "c_amazon_market_api",
-      "task_id": "t_market",
+      "task_ids": ["t_market"],
       "provider_id": "p_amazon",
       "name": "Amazon Market API",
       "features": {
@@ -148,7 +148,7 @@
     },
     {
       "id": "c_opac_library_api",
-      "task_id": "t_library",
+      "task_ids": ["t_library"],
       "provider_id": "p_unimib",
       "name": "OPAC Library API",
       "features": {
@@ -161,7 +161,7 @@
     },
     {
       "id": "c_google_geocoding_api",
-      "task_id": "t_geocoding",
+      "task_ids": ["t_geocoding"],
       "provider_id": "p_google",
       "name": "Google Maps Geocoding API",
       "features": {
@@ -174,7 +174,7 @@
     },
     {
       "id": "c_google_transit_api",
-      "task_id": "t_transit",
+      "task_ids": ["t_transit"],
       "provider_id": "p_google",
       "name": "Google Transit API",
       "features": {
@@ -187,7 +187,7 @@
     },
     {
       "id": "c_archive_api",
-      "task_id": "t_archive",
+      "task_ids": ["t_archive"],
       "provider_id": "p_archive",
       "name": "Archive.org API",
       "features": {

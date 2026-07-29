@@ -35,7 +35,7 @@ def micro_instance():
         for pool in ("p1", "p2", "p3"):
             cid = f"c_{task}_{pool}"
             candidates.append({
-                "id": cid, "name": cid, "task_id": task, "provider_id": f"prov_{pool}",
+                "id": cid, "name": cid, "task_ids": [task], "provider_id": f"prov_{pool}",
                 "features": {"latency": 2.0, "cost": pool_cost[pool], "security": pool_sec[pool]},
             })
             bindings.append({"candidate_id": cid, "pool_id": pool,

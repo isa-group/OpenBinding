@@ -133,7 +133,7 @@
   "candidates": [
     {
       "id": "cand_t1_google_cloud",
-      "task_id": "T1",
+      "task_ids": ["T1"],
       "provider_id": "google",
       "name": "Google Cloud",
       "features": {
@@ -146,7 +146,7 @@
     },
     {
       "id": "cand_t1_aws",
-      "task_id": "T1",
+      "task_ids": ["T1"],
       "provider_id": "amazon",
       "name": "AWS",
       "features": {
@@ -159,7 +159,7 @@
     },
     {
       "id": "cand_t2_radius_iot_network",
-      "task_id": "T2",
+      "task_ids": ["T2"],
       "provider_id": "radius",
       "name": "Radius IoT/Network",
       "features": {
@@ -172,7 +172,7 @@
     },
     {
       "id": "cand_t2_samsara_fleet_api",
-      "task_id": "T2",
+      "task_ids": ["T2"],
       "provider_id": "samsara",
       "name": "Samsara Fleet API",
       "features": {
@@ -185,7 +185,7 @@
     },
     {
       "id": "cand_t3_here_routing_api",
-      "task_id": "T3",
+      "task_ids": ["T3"],
       "provider_id": "here",
       "name": "HERE Routing API",
       "features": {
@@ -198,7 +198,7 @@
     },
     {
       "id": "cand_t3_distance_matrix_api",
-      "task_id": "T3",
+      "task_ids": ["T3"],
       "provider_id": "google",
       "name": "Distance Matrix API",
       "features": {
@@ -211,7 +211,7 @@
     },
     {
       "id": "cand_t5_amazon_braket",
-      "task_id": "T5",
+      "task_ids": ["T5"],
       "provider_id": "amazon",
       "name": "Amazon Braket",
       "features": {
@@ -224,7 +224,7 @@
     },
     {
       "id": "cand_t5_ibm_quantum",
-      "task_id": "T5",
+      "task_ids": ["T5"],
       "provider_id": "ibm",
       "name": "IBM Quantum",
       "features": {
@@ -237,7 +237,7 @@
     },
     {
       "id": "cand_t6_paypal",
-      "task_id": "T6",
+      "task_ids": ["T6"],
       "provider_id": "paypal",
       "name": "PayPal",
       "features": {
@@ -250,7 +250,7 @@
     },
     {
       "id": "cand_t6_stripe",
-      "task_id": "T6",
+      "task_ids": ["T6"],
       "provider_id": "stripe",
       "name": "Stripe",
       "features": {

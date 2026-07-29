@@ -41,6 +41,33 @@ class SolveRequest(BaseModel):
     options: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Solver-specific options. E.g. {'iterations_count': 1000} for Random-Search.")
     verbose: bool = Field(default=False, description="If true, return diagnostics and warnings.")
 
+class SplitRequest(BaseModel):
+    instance: Dict[str, Any] = Field(..., description="A whole problem instance to take apart.")
+
+
+class SplitResponse(BaseModel):
+    parts: Dict[str, Dict[str, Any]] = Field(
+        ..., description="One entry per component of the tuple, keyed by part name."
+    )
+    groups: Dict[str, List[str]] = Field(
+        ...,
+        description=(
+            "Which model of I' = (M_A, M'_C, Delta, O) each part belongs to. "
+            "Parts that stand outside the tuple are grouped under 'other'."
+        ),
+    )
+
+
+class ComposeRequest(BaseModel):
+    parts: Dict[str, Dict[str, Any]] = Field(
+        ..., description="The parts to merge, keyed by part name, as returned by split."
+    )
+
+
+class ComposeResponse(BaseModel):
+    instance: Dict[str, Any] = Field(..., description="The instance the parts make.")
+
+
 class BindingSpaceRequest(SolveRequest):
     offset: int = Field(default=0, ge=0, description="Offset for pagination (0-based index of the first binding to return).")
     limit: int = Field(default=100, ge=1, le=1000, description="Number of bindings to return (max 1000).")

@@ -11,8 +11,13 @@ from __future__ import annotations
 import math
 from typing import Any, Dict, List
 
-from .aggregation import build_selected_candidate_by_task, compute_aggregated_qos
+from .aggregation import (
+    apply_sharing,
+    build_selected_candidate_by_task,
+    compute_aggregated_qos,
+)
 from .application import composition_task_ids
+from .desugar import desugar_instance
 from .constraints import (
     _check_attribute_bounds,
     _check_dependencies,
@@ -36,12 +41,21 @@ def evaluate_solution(
     building it enumerates the XOR scenarios - work that does not depend on
     the binding and was being repeated for every solution in an archive.
     """
+    # An instance written with the authoring shorthands means the same thing as
+    # the canonical one; expanding it here is what makes that true of a bare
+    # call to the reference evaluator too, not only of a call through the API.
+    instance = desugar_instance(instance)
+
     candidates_by_id = {c["id"]: c for c in instance.get("candidates", []) or []}
     features = {f["id"]: f for f in instance.get("features", []) or []}
     agg_policies = instance.get("aggregation_policies") or {}
     root = (instance.get("composition") or {}).get("root") or {}
 
-    selected = build_selected_candidate_by_task(binding or {}, candidates_by_id)
+    chosen = build_selected_candidate_by_task(binding or {}, candidates_by_id)
+    # What each task accounts for once a candidate serving several of them has
+    # had its shared features divided. Everything downstream reads this view,
+    # so a bound, an aggregate and the objective all see the same numbers.
+    selected = apply_sharing(chosen, features)
     aggregated = compute_aggregated_qos(root, features, selected, agg_policies)
 
     violations: List[Dict[str, Any]] = []
@@ -86,6 +100,8 @@ def evaluate_solution(
     if model.global_latency and not missing and len(pool_of_task) == len(selected):
         lat_attr = model.global_latency.get("attribute_id")
         include_exec = bool(model.global_latency.get("include_execution_latency_feature"))
+        # Execution latency is spent per task, never split between them, which
+        # is why validation refuses to let this feature be declared DIVIDE.
         exec_of_task = {
             t: float((c.get("features") or {}).get(lat_attr, 0.0)) if include_exec else 0.0
             for t, c in selected.items()

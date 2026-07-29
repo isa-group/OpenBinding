@@ -126,18 +126,39 @@ def test_every_example_instance_has_a_golden() -> None:
 def test_objective_convention_is_predicted_by_declared_normalization() -> None:
     """Placement is not what selects the canonical objective: normalization is.
 
-    Every instance that declares normalize bounds for all of its objective
-    targets is canonicalized by the reference evaluator, and every instance
-    that declares none keeps the engine-reported value. This is what allows
-    the two historical code paths to be merged without moving any number.
+    An instance that declares normalize bounds for all of its objective targets
+    is canonicalized by the reference evaluator, so the value an engine reported
+    is replaced and kept alongside as engine_objective_value. An instance that
+    declares none keeps what the engine said. Placement has nothing to do with
+    it, which is what the shared-candidates example makes visible: it declares
+    normalization and carries no placement blocks at all.
     """
+    normalized_without_placement = []
+
     for golden_name in golden_files():
         golden = load_golden(golden_name)
         fully_normalized = golden["normalized_targets"] == golden["objective_targets"]
-        assert fully_normalized == golden["placement"], (
-            f"{golden['instance']}: normalization no longer coincides with placement; "
-            "the merged canonicalization rule needs to be revisited"
-        )
+        if fully_normalized and not golden["placement"]:
+            normalized_without_placement.append(golden["instance"])
+
+        for case in golden["cases"]:
+            gateway = case["gateway"]
+            where = f"{golden['instance']}#{case['index']}"
+            if fully_normalized:
+                assert gateway["engine_objective_value"] == case["engine_reported_objective"], (
+                    f"{where}: a fully normalized instance must keep what the engine reported "
+                    "alongside the canonical value"
+                )
+            else:
+                assert gateway["engine_objective_value"] is None, (
+                    f"{where}: without full normalization the instance's own convention is the "
+                    "answer, so there is no canonical value to keep the engine's beside"
+                )
+
+    assert normalized_without_placement, (
+        "no example declares normalization without placement any more; the rule that "
+        "normalization alone selects the convention is no longer covered"
+    )
 
 
 def test_schema_modules_bundle_into_one_equivalent_document() -> None:

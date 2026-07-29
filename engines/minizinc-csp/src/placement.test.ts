@@ -42,8 +42,8 @@ function placementInstance() {
   return {
     tasks: [{ id: 'T1' }, { id: 'T2' }, { id: 'T3' }, { id: 'T4' }],
     candidates: [
-      { id: 'c1', task_id: 'T1' },
-      { id: 'c2', task_id: 'T2' },
+      { id: 'c1', task_ids: ['T1'] },
+      { id: 'c2', task_ids: ['T2'] },
     ],
     composition: branchingComposition(),
     objective: { type: 'MONO', targets: ['latency'], weights: { latency: 1 } },

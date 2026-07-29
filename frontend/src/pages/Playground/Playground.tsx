@@ -11,6 +11,7 @@ import { Tabs } from '../../components/ui/Tabs';
 import { CodeEditor } from '../../components/CodeEditor/CodeEditor';
 import { BindingSpaceExplorer } from '../../components/BindingSpaceExplorer/BindingSpaceExplorer';
 import { TraceChart } from '../../components/TraceChart/TraceChart';
+import { PartsEditor } from './PartsEditor';
 import './Playground.css';
 
 const ajv = new Ajv({ allErrors: true });
@@ -49,7 +50,8 @@ const AVAILABLE_EXAMPLES = {
     'demo/10_large_scale.json',
     'demo/11_multi_obj_negative.json',
     'demo/12_many_obj_pareto.json',
-    'demo/13_fms.json'
+    'demo/13_fms.json',
+    'demo/14_shared_candidates.json'
   ],
   'Literature Examples': [
     'literature/benatallah.json',
@@ -65,6 +67,38 @@ const AVAILABLE_EXAMPLES = {
   ]
 };
 
+/**
+ * Instances that are not stored as one document at all, but as one file per
+ * component of the tuple. Loading one opens the parts view directly, which is
+ * the point: the same application model, shared by both, with only the
+ * infrastructure-dependent parts differing.
+ */
+const PARTS_EXAMPLES: Record<string, { shared: string; specific: string; parts: string[] }> = {
+  'Placement — edge-heavy (parts)': {
+    shared: 'placement/parts/shared',
+    specific: 'placement/parts/edge-heavy',
+    parts: ['tasks', 'composition', 'aggregation-policies', 'constraints', 'objective'],
+  },
+  'Placement — cloud-only (parts)': {
+    shared: 'placement/parts/shared',
+    specific: 'placement/parts/cloud-only',
+    parts: ['tasks', 'composition', 'aggregation-policies', 'constraints', 'objective'],
+  },
+};
+
+/** The files each infrastructure-specific directory contributes. */
+const PARTS_SPECIFIC_FILES = [
+  'metadata',
+  'providers',
+  'candidates',
+  'features',
+  'resource-model',
+  'latency-model',
+  'normalization',
+];
+
+type InputMode = 'whole' | 'parts';
+
 export function Playground() {
   // State
   const [engines, setEngines] = useState<Engine[]>([]);
@@ -74,7 +108,15 @@ export function Playground() {
   const [sendOptions, setSendOptions] = useState(true);
   const [verbose, setVerbose] = useState(true);
   const [selectedExample, setSelectedExample] = useState<string>('');
-  
+
+  // The instance can be edited whole, or as the parts it is made of. Only one
+  // of the two is authoritative at a time; switching converts through the
+  // gateway, which owns the mapping between keys and parts.
+  const [inputMode, setInputMode] = useState<InputMode>('whole');
+  const [parts, setParts] = useState<Record<string, string>>({});
+  const [partGroups, setPartGroups] = useState<Record<string, string[]>>({});
+  const [partsInError, setPartsInError] = useState<Record<string, string>>({});
+
   const [jobState, setJobState] = useState<JobState>('idle');
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +125,7 @@ export function Playground() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const validateRef = useRef<any>(null);
   const generalSchemaRef = useRef<any>(null);
+  const engineSchemaRef = useRef<any>(null);
 
   // Load engines and schemas
   useEffect(() => {
@@ -138,20 +181,28 @@ export function Playground() {
     }
   };
 
+  /**
+   * Keep the engine's profile around for display, but never validate the
+   * editor against it.
+   *
+   * A specialization schema describes the instance in its canonical form, which
+   * is what the gateway hands the engine after expanding the authoring
+   * shorthands. What the editor holds is what the author wrote, and the general
+   * schema is the one that describes that. Checking the written form against
+   * the canonical profile reports shorthands as errors, which they are not; the
+   * engine-specific check still happens on the server, where the instance has
+   * been expanded.
+   */
   const loadEngineSchema = async (engineId: string) => {
     try {
       const schema = await apiClient.getEngineSchema(engineId);
-      
       if (schema.$id && ajv.getSchema(schema.$id)) {
         ajv.removeSchema(schema.$id);
       }
-      
-      validateRef.current = ajv.compile(schema);
+      engineSchemaRef.current = schema;
     } catch (err) {
-      console.warn(`No specialized schema for ${engineId}, using general schema`);
-      if (generalSchemaRef.current) {
-        validateRef.current = ajv.compile(generalSchemaRef.current);
-      }
+      console.warn(`No specialized schema for ${engineId}`);
+      engineSchemaRef.current = null;
     }
   };
 
@@ -176,12 +227,69 @@ export function Playground() {
     event.target.value = '';
   };
 
+  /**
+   * Load an instance that is stored as parts, straight into the parts view.
+   *
+   * Two directories contribute: one shared by every instance built on this
+   * application, and one per infrastructure. Which is which is the whole point
+   * of writing an instance this way, so they stay visible as separate files
+   * rather than being merged before they are shown.
+   */
+  const handlePartsExampleLoad = async (name: string) => {
+    const example = PARTS_EXAMPLES[name];
+    if (!example) return;
+
+    try {
+      const cacheBuster = Date.now();
+      const read = async (directory: string, partName: string): Promise<string | null> => {
+        const response = await fetch(`/examples/${directory}/${partName}.json?v=${cacheBuster}`, {
+          cache: 'no-store',
+        });
+        return response.ok ? response.text() : null;
+      };
+
+      const loaded: Record<string, string> = {};
+      for (const partName of example.parts) {
+        const text = await read(example.shared, partName);
+        if (text !== null) loaded[partName] = text;
+      }
+      for (const partName of PARTS_SPECIFIC_FILES) {
+        const text = await read(example.specific, partName);
+        if (text !== null) loaded[partName] = text;
+      }
+      if (Object.keys(loaded).length === 0) {
+        throw new Error('no part files could be read');
+      }
+
+      // The grouping is the gateway's to define; ask it with what we have.
+      const parsed: Record<string, any> = {};
+      for (const [partName, text] of Object.entries(loaded)) parsed[partName] = JSON.parse(text);
+      const { instance } = await apiClient.composeInstance(parsed);
+      const { groups } = await apiClient.splitInstance(instance);
+
+      setParts(loaded);
+      setPartGroups(groups);
+      setPartsInError({});
+      setInputMode('parts');
+      setSelectedExample(name);
+      setError(null);
+    } catch (err: any) {
+      console.error('Failed to load parts example:', err);
+      setError(`Failed to load parts example: ${err.message || err}`);
+    }
+  };
+
   const handleExampleLoad = async (exampleFile: string) => {
     if (!exampleFile) {
       setSelectedExample('');
       return;
     }
-    
+
+    if (PARTS_EXAMPLES[exampleFile]) {
+      await handlePartsExampleLoad(exampleFile);
+      return;
+    }
+
     try {
       // In production, examples should be served via the gateway or a static path
       const cacheBuster = Date.now();
@@ -193,11 +301,82 @@ export function Playground() {
       }
       const content = await response.text();
       setInputJson(content);
+      setInputMode('whole');
       setSelectedExample(exampleFile);
       setError(null);
     } catch (err: any) {
       console.error('Failed to load example:', err);
       setError(`Failed to load example: ${err.message}`);
+    }
+  };
+
+  /**
+   * The instance as it currently stands, whichever way it is being edited.
+   * In parts mode this is the merge the gateway performs, so what is solved is
+   * exactly what the parts describe.
+   */
+  const currentInstanceJson = async (): Promise<any> => {
+    if (inputMode !== 'parts') {
+      return JSON.parse(inputJson);
+    }
+
+    const parsed: Record<string, any> = {};
+    const problems: Record<string, string> = {};
+    for (const [partName, text] of Object.entries(parts)) {
+      try {
+        parsed[partName] = JSON.parse(text);
+      } catch (err: any) {
+        problems[partName] = err.message || 'not valid JSON';
+      }
+    }
+    if (Object.keys(problems).length > 0) {
+      setPartsInError(problems);
+      throw new Error(`These parts are not valid JSON: ${Object.keys(problems).join(', ')}`);
+    }
+
+    try {
+      const { instance } = await apiClient.composeInstance(parsed);
+      setPartsInError({});
+      return instance;
+    } catch (err: any) {
+      // The gateway names the offending part in its message, so the parts it
+      // mentions are the ones to flag.
+      const message = String(err.message || err);
+      const blamed: Record<string, string> = {};
+      for (const partName of Object.keys(parsed)) {
+        if (message.includes(partName)) blamed[partName] = message;
+      }
+      setPartsInError(blamed);
+      throw new Error(`These parts do not make one instance: ${message}`);
+    }
+  };
+
+  const enterPartsMode = async () => {
+    try {
+      const instance = JSON.parse(inputJson);
+      const { parts: split, groups } = await apiClient.splitInstance(instance);
+      const asText: Record<string, string> = {};
+      for (const [partName, content] of Object.entries(split)) {
+        asText[partName] = `${JSON.stringify(content, null, 2)}\n`;
+      }
+      setParts(asText);
+      setPartGroups(groups);
+      setPartsInError({});
+      setInputMode('parts');
+      setError(null);
+    } catch (err: any) {
+      setError(`Cannot show this instance as parts: ${err.message || err}`);
+    }
+  };
+
+  const enterWholeMode = async () => {
+    try {
+      const instance = await currentInstanceJson();
+      setInputJson(`${JSON.stringify(instance, null, 2)}\n`);
+      setInputMode('whole');
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Cannot merge the parts into one instance');
     }
   };
 
@@ -207,7 +386,7 @@ export function Playground() {
     setResult(null);
 
     try {
-      const instance = JSON.parse(inputJson);
+      const instance = await currentInstanceJson();
       setCurrentInstance(instance);
       const options = sendOptions ? JSON.parse(solverOptions) : {};
 
@@ -264,9 +443,9 @@ export function Playground() {
     setResult(null);
 
     try {
-      const instance = JSON.parse(inputJson);
+      const instance = await currentInstanceJson();
       setCurrentInstance(instance);
-      
+
       // Client-side validation
       if (validateRef.current) {
         const valid = validateRef.current(instance);
@@ -346,6 +525,9 @@ export function Playground() {
         setError('The solver engine is temporarily unavailable. Please check that the engine is running and try again.');
       } else if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
         setError('Could not connect to the API gateway. Please check your network connection and ensure the server is running.');
+      } else if (message.startsWith('These parts')) {
+        // Already names the parts at fault, which the editors highlight too.
+        setError(message);
       } else if (message.includes('JSON')) {
         setError('Invalid JSON in the instance or options editor. Please check the syntax and try again.');
       } else {
@@ -374,7 +556,7 @@ export function Playground() {
                 {Object.entries(AVAILABLE_EXAMPLES).map(([category, examples]) => (
                   <optgroup key={category} label={category}>
                     {examples.map(ex => {
-                      const fileName = ex.split('/')[1].replace('.json', '');
+                      const fileName = (ex.split('/').pop() || ex).replace('.json', '');
                       // Format: "01_simple_seq" -> "01 - Simple Seq"
                       const displayName = fileName
                         .replace(/_/g, ' ')
@@ -390,6 +572,13 @@ export function Playground() {
                     })}
                   </optgroup>
                 ))}
+                <optgroup label="Written as parts (one file per component)">
+                  {Object.keys(PARTS_EXAMPLES).map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
               <input
                 ref={fileInputRef}
@@ -455,15 +644,49 @@ export function Playground() {
               )}
             </Card>
 
-            {/* Instance Editor */}
+            {/* Instance Editor: as one document, or as the parts it is made of */}
             <div className="editor-section">
-              <label className="editor-label">Instance (JSON)</label>
-              <CodeEditor
-                value={inputJson}
-                onChange={setInputJson}
-                minHeight="300px"
-                maxHeight="500px"
-              />
+              <div className="options-header">
+                <label className="editor-label">
+                  {inputMode === 'whole' ? 'Instance (JSON)' : "Instance by component of I' = (M_A, M'_C, Δ, O)"}
+                </label>
+                <div className="parts-mode-toggle">
+                  <button
+                    type="button"
+                    className={inputMode === 'whole' ? 'is-active' : ''}
+                    onClick={enterWholeMode}
+                    title="Edit the instance as one document"
+                  >
+                    Whole
+                  </button>
+                  <button
+                    type="button"
+                    className={inputMode === 'parts' ? 'is-active' : ''}
+                    onClick={enterPartsMode}
+                    title="Edit each component of the tuple on its own, the way a reusable instance is written"
+                  >
+                    Parts
+                  </button>
+                </div>
+              </div>
+
+              {inputMode === 'whole' ? (
+                <CodeEditor
+                  value={inputJson}
+                  onChange={setInputJson}
+                  minHeight="300px"
+                  maxHeight="500px"
+                />
+              ) : (
+                <PartsEditor
+                  parts={parts}
+                  groups={partGroups}
+                  partsInError={partsInError}
+                  onChange={(partName, value) =>
+                    setParts((current) => ({ ...current, [partName]: value }))
+                  }
+                />
+              )}
             </div>
 
             {/* Engine Options */}

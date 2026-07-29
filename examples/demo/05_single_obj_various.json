@@ -28,10 +28,10 @@
   "providers": [{"id": "p1", "name": "P1"}],
   "tasks": [{"id": "t1", "name": "Task 1"}],
   "candidates": [
-    {"id": "c_fast_expensive", "task_id": "t1", "provider_id": "p1", "name": "Fast & Expensive", "features": {"cost": 90, "latency": 10}},
-    {"id": "c_slow_cheap", "task_id": "t1", "provider_id": "p1", "name": "Slow & Cheap", "features": {"cost": 10, "latency": 90}},
-    {"id": "c_balanced", "task_id": "t1", "provider_id": "p1", "name": "Balanced", "features": {"cost": 50, "latency": 50}},
-    {"id": "c_bad", "task_id": "t1", "provider_id": "p1", "name": "Dominated (Bad)", "features": {"cost": 100, "latency": 100}}
+    {"id": "c_fast_expensive", "task_ids": ["t1"], "provider_id": "p1", "name": "Fast & Expensive", "features": {"cost": 90, "latency": 10}},
+    {"id": "c_slow_cheap", "task_ids": ["t1"], "provider_id": "p1", "name": "Slow & Cheap", "features": {"cost": 10, "latency": 90}},
+    {"id": "c_balanced", "task_ids": ["t1"], "provider_id": "p1", "name": "Balanced", "features": {"cost": 50, "latency": 50}},
+    {"id": "c_bad", "task_ids": ["t1"], "provider_id": "p1", "name": "Dominated (Bad)", "features": {"cost": 100, "latency": 100}}
   ],
   "composition": {
     "type": "STRUCTURED",

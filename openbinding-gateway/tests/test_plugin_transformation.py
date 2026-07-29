@@ -125,11 +125,11 @@ def test_minizinc_response_recomputes_aggregated_features_in_gateway(minizinc_pl
             {"id": "execution_time", "direction": "MINIMIZE", "scale": "RATIO", "valid_range": {"min": 0, "max": 20000}},
         ],
         "candidates": [
-            {"id": "cand_t1_aws", "task_id": "T1", "features": {"availability": 99.95, "reliability": 99.75, "security": 5, "cost": 220, "execution_time": 210}},
-            {"id": "cand_t2_radius_iot_network", "task_id": "T2", "features": {"availability": 99.8, "reliability": 99.3, "security": 4, "cost": 500, "execution_time": 420}},
-            {"id": "cand_t3_here_routing_api", "task_id": "T3", "features": {"availability": 99.9, "reliability": 99.5, "security": 4, "cost": 300, "execution_time": 380}},
-            {"id": "cand_t5_amazon_braket", "task_id": "T5", "features": {"availability": 99.9, "reliability": 99.0, "security": 5, "cost": 1200, "execution_time": 9000}},
-            {"id": "cand_t6_stripe", "task_id": "T6", "features": {"availability": 99.99, "reliability": 99.5, "security": 5, "cost": 950, "execution_time": 520}},
+            {"id": "cand_t1_aws", "task_ids": ["T1"], "features": {"availability": 99.95, "reliability": 99.75, "security": 5, "cost": 220, "execution_time": 210}},
+            {"id": "cand_t2_radius_iot_network", "task_ids": ["T2"], "features": {"availability": 99.8, "reliability": 99.3, "security": 4, "cost": 500, "execution_time": 420}},
+            {"id": "cand_t3_here_routing_api", "task_ids": ["T3"], "features": {"availability": 99.9, "reliability": 99.5, "security": 4, "cost": 300, "execution_time": 380}},
+            {"id": "cand_t5_amazon_braket", "task_ids": ["T5"], "features": {"availability": 99.9, "reliability": 99.0, "security": 5, "cost": 1200, "execution_time": 9000}},
+            {"id": "cand_t6_stripe", "task_ids": ["T6"], "features": {"availability": 99.99, "reliability": 99.5, "security": 5, "cost": 950, "execution_time": 520}},
         ],
         "aggregation_policies": {
             "availability": {"neutral": 1, "compose": {"seq": {"fn": "PRODUCT"}, "and": {"fn": "PRODUCT"}, "xor": {"fn": "SCALED_SUM"}}},
@@ -265,8 +265,8 @@ def test_many_heuristic_request_dependency(many_heuristic_plugin):
         "aggregation_policies": {"latency": {"compose": {"seq": {"fn": "SUM"}}}},
         "tasks": [{"id": "t1"}, {"id": "t2"}],
         "candidates": [
-            {"id": "c1", "task_id": "t1", "provider_id": "p1", "features": {"latency": 1}},
-            {"id": "c2", "task_id": "t2", "provider_id": "p2", "features": {"latency": 2}}
+            {"id": "c1", "task_ids": ["t1"], "provider_id": "p1", "features": {"latency": 1}},
+            {"id": "c2", "task_ids": ["t2"], "provider_id": "p2", "features": {"latency": 2}}
         ],
         "providers": [{"id": "p1"}, {"id": "p2"}]
     }
@@ -304,7 +304,7 @@ def test_many_heuristic_request_uses_objective_weights(many_heuristic_plugin):
         },
         "tasks": [{"id": "t1"}],
         "candidates": [
-            {"id": "c1", "task_id": "t1", "provider_id": "p1", "features": {"latency": 1, "availability": 0.9, "cost": 5}}
+            {"id": "c1", "task_ids": ["t1"], "provider_id": "p1", "features": {"latency": 1, "availability": 0.9, "cost": 5}}
         ],
         "providers": [{"id": "p1"}],
     }
@@ -337,7 +337,7 @@ def test_many_heuristic_response_recomputes_missing_objective_value(many_heurist
             {"id": "reliability", "direction": "MAXIMIZE", "scale": "RATIO", "valid_range": {"min": 0, "max": 100}},
         ],
         "candidates": [
-            {"id": "cand_t1", "task_id": "T1", "features": {"cost": 10, "reliability": 90}},
+            {"id": "cand_t1", "task_ids": ["T1"], "features": {"cost": 10, "reliability": 90}},
         ],
         "aggregation_policies": {
             "cost": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}}, "normalize": {"type": "minmax", "bounds": {"min": 0, "max": 1000}}},

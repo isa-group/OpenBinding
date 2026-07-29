@@ -1,0 +1,35 @@
+{
+  "constraints": [
+    {
+      "attribute_id": "security",
+      "hard": true,
+      "id": "security_min_login",
+      "kind": "ATTRIBUTE_BOUND",
+      "op": ">=",
+      "scope": "LOCAL",
+      "tasks": [
+        "t_login"
+      ],
+      "value": 0.66
+    },
+    {
+      "attribute_id": "cost",
+      "hard": true,
+      "id": "budget_global",
+      "kind": "ATTRIBUTE_BOUND",
+      "op": "<=",
+      "scope": "GLOBAL",
+      "value": 30.0
+    },
+    {
+      "hard": true,
+      "id": "check_and_rules_together",
+      "kind": "DEPENDENCY",
+      "tasks": [
+        "t_check",
+        "t_rules"
+      ],
+      "type": "SAME_CANDIDATE"
+    }
+  ]
+}

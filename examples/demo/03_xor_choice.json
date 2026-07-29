@@ -26,9 +26,9 @@
     {"id": "t_path_b", "name": "Path B Task"}
   ],
   "candidates": [
-    {"id": "c_common", "task_id": "t_common", "provider_id": "p1", "name": "SVC Common", "features": {"availability": 0.99}},
-    {"id": "c_a", "task_id": "t_path_a", "provider_id": "p1", "name": "SVC A", "features": {"availability": 0.95}},
-    {"id": "c_b", "task_id": "t_path_b", "provider_id": "p1", "name": "SVC B", "features": {"availability": 0.999}}
+    {"id": "c_common", "task_ids": ["t_common"], "provider_id": "p1", "name": "SVC Common", "features": {"availability": 0.99}},
+    {"id": "c_a", "task_ids": ["t_path_a"], "provider_id": "p1", "name": "SVC A", "features": {"availability": 0.95}},
+    {"id": "c_b", "task_ids": ["t_path_b"], "provider_id": "p1", "name": "SVC B", "features": {"availability": 0.999}}
   ],
   "composition": {
     "type": "STRUCTURED",

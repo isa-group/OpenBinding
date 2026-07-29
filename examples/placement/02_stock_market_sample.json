@@ -463,7 +463,7 @@
     {
       "id": "cand_fCheck_fog5_orig_3a70e90c",
       "name": "fCheck on fog5",
-      "task_id": "fCheck",
+      "task_ids": ["fCheck"],
       "provider_id": "telco",
       "features": {
         "latency": 0.0,
@@ -507,7 +507,7 @@
     {
       "id": "cand_fCheck_fog2_orig_1c007edb",
       "name": "fCheck on fog2",
-      "task_id": "fCheck",
+      "task_ids": ["fCheck"],
       "provider_id": "university",
       "features": {
         "latency": 0.0,
@@ -551,7 +551,7 @@
     {
       "id": "cand_fCheck_fog2_orig_1db3dbdc",
       "name": "fCheck on fog2",
-      "task_id": "fCheck",
+      "task_ids": ["fCheck"],
       "provider_id": "university",
       "features": {
         "latency": 0.0,
@@ -595,7 +595,7 @@
     {
       "id": "cand_fCheck_fog2_orig_da6e8f74",
       "name": "fCheck on fog2",
-      "task_id": "fCheck",
+      "task_ids": ["fCheck"],
       "provider_id": "university",
       "features": {
         "latency": 0.0,
@@ -639,7 +639,7 @@
     {
       "id": "cand_fCheck_fog2_orig_1555d474",
       "name": "fCheck on fog2",
-      "task_id": "fCheck",
+      "task_ids": ["fCheck"],
       "provider_id": "university",
       "features": {
         "latency": 0.0,
@@ -683,7 +683,7 @@
     {
       "id": "cand_fCheck_fog5_orig_7e21be4d",
       "name": "fCheck on fog5",
-      "task_id": "fCheck",
+      "task_ids": ["fCheck"],
       "provider_id": "telco",
       "features": {
         "latency": 0.0,
@@ -727,7 +727,7 @@
     {
       "id": "cand_fCheck_fog5_orig_47218c21",
       "name": "fCheck on fog5",
-      "task_id": "fCheck",
+      "task_ids": ["fCheck"],
       "provider_id": "telco",
       "features": {
         "latency": 0.0,
@@ -771,7 +771,7 @@
     {
       "id": "cand_fBuyOrSell_fog2_orig_7bda1723",
       "name": "fBuyOrSell on fog2",
-      "task_id": "fBuyOrSell",
+      "task_ids": ["fBuyOrSell"],
       "provider_id": "university",
       "features": {
         "latency": 0.0,
@@ -815,7 +815,7 @@
     {
       "id": "cand_fBuyOrSell_cloud3_orig_1622d05e",
       "name": "fBuyOrSell on cloud3",
-      "task_id": "fBuyOrSell",
+      "task_ids": ["fBuyOrSell"],
       "provider_id": "cloudProvider",
       "features": {
         "latency": 0.0,
@@ -859,7 +859,7 @@
     {
       "id": "cand_fBuyOrSell_cloud1_orig_4d017223",
       "name": "fBuyOrSell on cloud1",
-      "task_id": "fBuyOrSell",
+      "task_ids": ["fBuyOrSell"],
       "provider_id": "cloudProvider",
       "features": {
         "latency": 0.0,
@@ -903,7 +903,7 @@
     {
       "id": "cand_fBuyOrSell_cloud2_orig_72d85ab4",
       "name": "fBuyOrSell on cloud2",
-      "task_id": "fBuyOrSell",
+      "task_ids": ["fBuyOrSell"],
       "provider_id": "cloudProvider",
       "features": {
         "latency": 0.0,
@@ -947,7 +947,7 @@
     {
       "id": "cand_fBuyOrSell_aws.faas.eu-west-1_mem2048_937190b0",
       "name": "fBuyOrSell on AWS eu-west-1 (2048 MB)",
-      "task_id": "fBuyOrSell",
+      "task_ids": ["fBuyOrSell"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -991,7 +991,7 @@
     {
       "id": "cand_fBuyOrSell_aws.faas.us-east-1_mem2048_fca4c019",
       "name": "fBuyOrSell on AWS us-east-1 (2048 MB)",
-      "task_id": "fBuyOrSell",
+      "task_ids": ["fBuyOrSell"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -1035,7 +1035,7 @@
     {
       "id": "cand_fBuyOrSell_azure.faas.westeurope_mem2048_d3da1020",
       "name": "fBuyOrSell on AZURE westeurope (2048 MB)",
-      "task_id": "fBuyOrSell",
+      "task_ids": ["fBuyOrSell"],
       "provider_id": "azure",
       "features": {
         "latency": 0.0,
@@ -1079,7 +1079,7 @@
     {
       "id": "cand_fBuyOrSell_azure.faas.eastus_mem2048_95892990",
       "name": "fBuyOrSell on AZURE eastus (2048 MB)",
-      "task_id": "fBuyOrSell",
+      "task_ids": ["fBuyOrSell"],
       "provider_id": "azure",
       "features": {
         "latency": 0.0,
@@ -1123,7 +1123,7 @@
     {
       "id": "cand_fBuyOrSell_aws.faas.eu-west-1_mem4096_bfb5ff15",
       "name": "fBuyOrSell on AWS eu-west-1 (4096 MB)",
-      "task_id": "fBuyOrSell",
+      "task_ids": ["fBuyOrSell"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -1167,7 +1167,7 @@
     {
       "id": "cand_fBuyOrSell_aws.faas.us-east-1_mem4096_2d423c8f",
       "name": "fBuyOrSell on AWS us-east-1 (4096 MB)",
-      "task_id": "fBuyOrSell",
+      "task_ids": ["fBuyOrSell"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -1211,7 +1211,7 @@
     {
       "id": "cand_fSell_fog9_orig_b04d55e5",
       "name": "fSell on fog9",
-      "task_id": "fSell",
+      "task_ids": ["fSell"],
       "provider_id": "telco",
       "features": {
         "latency": 0.0,
@@ -1255,7 +1255,7 @@
     {
       "id": "cand_fSell_cloud3_orig_9815e1b8",
       "name": "fSell on cloud3",
-      "task_id": "fSell",
+      "task_ids": ["fSell"],
       "provider_id": "cloudProvider",
       "features": {
         "latency": 0.0,
@@ -1299,7 +1299,7 @@
     {
       "id": "cand_fSell_aws.faas.eu-west-1_mem256_7ac79ad3",
       "name": "fSell on AWS eu-west-1 (256 MB)",
-      "task_id": "fSell",
+      "task_ids": ["fSell"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -1343,7 +1343,7 @@
     {
       "id": "cand_fSell_cloud1_orig_6284fade",
       "name": "fSell on cloud1",
-      "task_id": "fSell",
+      "task_ids": ["fSell"],
       "provider_id": "cloudProvider",
       "features": {
         "latency": 0.0,
@@ -1387,7 +1387,7 @@
     {
       "id": "cand_fSell_aws.faas.eu-west-1_mem512_3b0e404b",
       "name": "fSell on AWS eu-west-1 (512 MB)",
-      "task_id": "fSell",
+      "task_ids": ["fSell"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -1431,7 +1431,7 @@
     {
       "id": "cand_fSell_aws.faas.us-east-1_mem256_20de2790",
       "name": "fSell on AWS us-east-1 (256 MB)",
-      "task_id": "fSell",
+      "task_ids": ["fSell"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -1475,7 +1475,7 @@
     {
       "id": "cand_fSell_cloud2_orig_523a0778",
       "name": "fSell on cloud2",
-      "task_id": "fSell",
+      "task_ids": ["fSell"],
       "provider_id": "cloudProvider",
       "features": {
         "latency": 0.0,
@@ -1519,7 +1519,7 @@
     {
       "id": "cand_fSell_aws.faas.us-east-1_mem512_23d26335",
       "name": "fSell on AWS us-east-1 (512 MB)",
-      "task_id": "fSell",
+      "task_ids": ["fSell"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -1563,7 +1563,7 @@
     {
       "id": "cand_fSell_aws.faas.eu-west-1_mem1024_97e4d6a3",
       "name": "fSell on AWS eu-west-1 (1024 MB)",
-      "task_id": "fSell",
+      "task_ids": ["fSell"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -1607,7 +1607,7 @@
     {
       "id": "cand_fSell_azure.faas.westeurope_mem256_f096d601",
       "name": "fSell on AZURE westeurope (256 MB)",
-      "task_id": "fSell",
+      "task_ids": ["fSell"],
       "provider_id": "azure",
       "features": {
         "latency": 0.0,
@@ -1651,7 +1651,7 @@
     {
       "id": "cand_fBuy_fog9_orig_0e17942b",
       "name": "fBuy on fog9",
-      "task_id": "fBuy",
+      "task_ids": ["fBuy"],
       "provider_id": "telco",
       "features": {
         "latency": 0.0,
@@ -1695,7 +1695,7 @@
     {
       "id": "cand_fBuy_cloud3_orig_8d287ecd",
       "name": "fBuy on cloud3",
-      "task_id": "fBuy",
+      "task_ids": ["fBuy"],
       "provider_id": "cloudProvider",
       "features": {
         "latency": 0.0,
@@ -1739,7 +1739,7 @@
     {
       "id": "cand_fBuy_aws.faas.eu-west-1_mem256_986184bb",
       "name": "fBuy on AWS eu-west-1 (256 MB)",
-      "task_id": "fBuy",
+      "task_ids": ["fBuy"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -1783,7 +1783,7 @@
     {
       "id": "cand_fBuy_cloud1_orig_f86fc30f",
       "name": "fBuy on cloud1",
-      "task_id": "fBuy",
+      "task_ids": ["fBuy"],
       "provider_id": "cloudProvider",
       "features": {
         "latency": 0.0,
@@ -1827,7 +1827,7 @@
     {
       "id": "cand_fBuy_aws.faas.eu-west-1_mem512_2fde36d8",
       "name": "fBuy on AWS eu-west-1 (512 MB)",
-      "task_id": "fBuy",
+      "task_ids": ["fBuy"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -1871,7 +1871,7 @@
     {
       "id": "cand_fBuy_aws.faas.us-east-1_mem256_e9bbee65",
       "name": "fBuy on AWS us-east-1 (256 MB)",
-      "task_id": "fBuy",
+      "task_ids": ["fBuy"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -1915,7 +1915,7 @@
     {
       "id": "cand_fBuy_cloud2_orig_6f68d5e9",
       "name": "fBuy on cloud2",
-      "task_id": "fBuy",
+      "task_ids": ["fBuy"],
       "provider_id": "cloudProvider",
       "features": {
         "latency": 0.0,
@@ -1959,7 +1959,7 @@
     {
       "id": "cand_fBuy_aws.faas.us-east-1_mem512_2b561a88",
       "name": "fBuy on AWS us-east-1 (512 MB)",
-      "task_id": "fBuy",
+      "task_ids": ["fBuy"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -2003,7 +2003,7 @@
     {
       "id": "cand_fBuy_aws.faas.eu-west-1_mem1024_35db5f23",
       "name": "fBuy on AWS eu-west-1 (1024 MB)",
-      "task_id": "fBuy",
+      "task_ids": ["fBuy"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -2047,7 +2047,7 @@
     {
       "id": "cand_fBuy_azure.faas.westeurope_mem256_55ccaeea",
       "name": "fBuy on AZURE westeurope (256 MB)",
-      "task_id": "fBuy",
+      "task_ids": ["fBuy"],
       "provider_id": "azure",
       "features": {
         "latency": 0.0,
@@ -2091,7 +2091,7 @@
     {
       "id": "cand_fRecord_aws.faas.eu-west-1_mem2048_934e82be",
       "name": "fRecord on AWS eu-west-1 (2048 MB)",
-      "task_id": "fRecord",
+      "task_ids": ["fRecord"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -2135,7 +2135,7 @@
     {
       "id": "cand_fRecord_gcp.faas.europe-west1_mem2048_7e198e3b",
       "name": "fRecord on GCP europe-west1 (2048 MB)",
-      "task_id": "fRecord",
+      "task_ids": ["fRecord"],
       "provider_id": "gcp",
       "features": {
         "latency": 0.0,
@@ -2179,7 +2179,7 @@
     {
       "id": "cand_fRecord_gcp.faas.europe-west1_mem4096_61ce5a71",
       "name": "fRecord on GCP europe-west1 (4096 MB)",
-      "task_id": "fRecord",
+      "task_ids": ["fRecord"],
       "provider_id": "gcp",
       "features": {
         "latency": 0.0,
@@ -2223,7 +2223,7 @@
     {
       "id": "cand_fRecord_aws.faas.eu-west-1_mem4096_57ea71a5",
       "name": "fRecord on AWS eu-west-1 (4096 MB)",
-      "task_id": "fRecord",
+      "task_ids": ["fRecord"],
       "provider_id": "aws",
       "features": {
         "latency": 0.0,
@@ -2267,7 +2267,7 @@
     {
       "id": "cand_fRecord_fog2_orig_e596d480",
       "name": "fRecord on fog2",
-      "task_id": "fRecord",
+      "task_ids": ["fRecord"],
       "provider_id": "university",
       "features": {
         "latency": 0.0,
@@ -2311,7 +2311,7 @@
     {
       "id": "cand_fRecord_fog2_orig_862e2a3b",
       "name": "fRecord on fog2",
-      "task_id": "fRecord",
+      "task_ids": ["fRecord"],
       "provider_id": "university",
       "features": {
         "latency": 0.0,
@@ -2355,7 +2355,7 @@
     {
       "id": "cand_fRecord_fog2_orig_9409211d",
       "name": "fRecord on fog2",
-      "task_id": "fRecord",
+      "task_ids": ["fRecord"],
       "provider_id": "university",
       "features": {
         "latency": 0.0,

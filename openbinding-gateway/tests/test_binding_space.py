@@ -11,12 +11,12 @@ def test_generate_subset_logic():
     instance = {
         "tasks": [{"id": "t1"}, {"id": "t2"}],
         "candidates": [
-            {"id": "c1_1", "task_id": "t1"},
-            {"id": "c1_2", "task_id": "t1"},
-            {"id": "c1_3", "task_id": "t1"},
-            {"id": "c2_1", "task_id": "t2"},
-            {"id": "c2_2", "task_id": "t2"},
-            {"id": "c2_3", "task_id": "t2"}
+            {"id": "c1_1", "task_ids": ["t1"]},
+            {"id": "c1_2", "task_ids": ["t1"]},
+            {"id": "c1_3", "task_ids": ["t1"]},
+            {"id": "c2_1", "task_ids": ["t2"]},
+            {"id": "c2_2", "task_ids": ["t2"]},
+            {"id": "c2_3", "task_ids": ["t2"]}
         ]
     }
     
@@ -43,10 +43,10 @@ def test_generate_subset_pagination():
     instance = {
         "tasks": [{"id": "t1"}, {"id": "t2"}],
         "candidates": [
-            {"id": "c1_1", "task_id": "t1"},
-            {"id": "c1_2", "task_id": "t1"},
-            {"id": "c2_1", "task_id": "t2"},
-            {"id": "c2_2", "task_id": "t2"}
+            {"id": "c1_1", "task_ids": ["t1"]},
+            {"id": "c1_2", "task_ids": ["t1"]},
+            {"id": "c2_1", "task_ids": ["t2"]},
+            {"id": "c2_2", "task_ids": ["t2"]}
         ]
     }
     # Total 4: (0,0), (0,1), (1,0), (1,1)
@@ -92,8 +92,8 @@ def test_binding_space_endpoint(mock_registry, mock_pipeline):
         "instance": {
             "tasks": [{"id": "t1"}, {"id": "t2"}],
             "candidates": [
-                {"id": "c1", "task_id": "t1"},
-                {"id": "c2", "task_id": "t2"}
+                {"id": "c1", "task_ids": ["t1"]},
+                {"id": "c2", "task_ids": ["t2"]}
             ]
         },
         "offset": 0,

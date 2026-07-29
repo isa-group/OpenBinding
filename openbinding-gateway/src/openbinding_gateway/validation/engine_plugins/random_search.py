@@ -45,7 +45,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
                 violations.append(ValidationViolation(
                     code="missing_features",
                     path=f"candidates[{i}].features",
-                    message=f"Candidate {c['id']} for task {c['task_id']} missing features: {', '.join(missing_qos)}"
+                    message=f"Candidate {c['id']} for task(s) {', '.join(c.get('task_ids') or [])} missing features: {', '.join(missing_qos)}"
                 ))
 
         # 4. Check Aggregation Policies

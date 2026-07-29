@@ -66,7 +66,12 @@ flowchart TD
     *   Multi-page SPA with professional design inspired by modern developer tools.
     *   **Features**:
         - **Home**: Landing page showcasing OpenBinding features and engines
-        - **Playground**: Interactive workspace with JSON editor, engine selector, and result visualization
+        - **Playground**: Interactive workspace with JSON editor, engine selector, and result
+          visualization. The instance can be edited as one document or **by component of the
+          tuple** — one editor per part, grouped into `M_A`, `M'_C`, `Δ` and `O` — which is how a
+          reusable instance is written and stored (`examples/placement/parts/`). Switching
+          between the two views goes through `POST /v1/instance/split` and `/compose`, so the
+          gateway stays the only place that knows which key belongs to which part.
         - **Engines Explorer**: Browse and compare solver engines with capabilities
         - **Schema Explorer**: Interactive JSON schema viewer with search and navigation
         - **Light/Dark Theme**: System-aware theme with persistence
@@ -93,6 +98,9 @@ OpenBinding validates incoming requests against two schema layers:
     - Workflow modeling (`composition` as structured tree or DAG)
     - QoS aggregation and normalization (`aggregation_policies`)
     - Constraints and objectives, plus invariants that require a second validation pass
+    - Sharing: what one candidate serving several tasks costs (`candidates[*].task_ids`,
+      `features[*].sharing`)
+    - The authoring shorthands and the canonical form every engine sees (§12)
 
 2. **Specialization schemas** (engine-specific constraints):
     - `schemas/specializations/minizinc-csp.schema.json`
@@ -122,7 +130,8 @@ decisions, and engines that support them take them into account natively. The bl
 **placement semantics** for FaaS-orchestration binding over the Cloud-Edge continuum:
 
 - **`resource_model`** — infrastructure pools with capacities, per-candidate pool bindings and
-  resource demands, and `RESOURCE_CAPACITY` constraints (cumulative bin-packing per node).
+  resource demands, and `RESOURCE_CAPACITY` constraints (cumulative bin-packing per node,
+  counting each distinct selected candidate once).
 - **`latency_model`** — a pool-to-pool latency matrix, event generators, pairwise transition
   latency bounds, and an end-to-end latency attribute defined as the **expected makespan over the
   XOR scenarios** of the composition (critical-path scheduling on the precedence DAG).
@@ -133,7 +142,13 @@ decisions, and engines that support them take them into account natively. The bl
   of whether the instance carries placement blocks. Instances that declare none keep the plain
   weighted sum of normalized goodness, where higher is better.
 - **Dependency extensions** — `SAME_POOL` / `DIFFERENT_POOL` co-location constraints, which
-  require a `resource_model` declaring pools.
+  require a `resource_model` declaring pools, and `SAME_CANDIDATE` / `DIFFERENT_CANDIDATE`,
+  which say whether two tasks must be served by the very same thing.
+- **Sharing** — a candidate lists every task it can implement (`task_ids`), so one deployment
+  over three pools is three candidates rather than one per (task, pool) pair. When the same
+  candidate is selected for k tasks, a feature declared `"sharing": "DIVIDE"` is split between
+  them (`v/k` each, so the binding pays `v` once) while every other feature is charged in full
+  to each, and its resource demand is taken up once on its pool.
 
 The reference implementation of these semantics lives in the gateway
 (`openbinding_gateway/semantics/`, one module per element of the tuple); solutions of instances
@@ -241,9 +256,12 @@ If you have the necessary runtimes installed (Python 3.11+, Node.js 20.19+, Mave
 
 OpenBinding implements a rigorous multi-stage validation process:
 1.  **General Schema**: Ensures the input adheres to the simplified QoS specification structure.
-2.  **Specialization Schema**: Enforces engine-specific constraints (e.g., supported composition types, constraints).
-3.  **Semantic/Logic**: Checks for consistency (e.g., undefined tasks, valid IDs).
-4.  **Analysis**: Computes binding space cardinality and generates warnings for potential issues.
+2.  **Canonical form**: Expands the authoring shorthands (specification §12) once, in place, so
+    every stage below and every engine reads one form only. An ambiguous shorthand is rejected
+    here rather than guessed at.
+3.  **Specialization Schema**: Enforces engine-specific constraints (e.g., supported composition types, constraints).
+4.  **Semantic/Logic**: Checks for consistency (e.g., undefined tasks, valid IDs).
+5.  **Analysis**: Computes binding space cardinality and generates warnings for potential issues.
 
 ### Enhanced Validation Responses
 
@@ -251,6 +269,16 @@ The gateway now returns structured validation errors and warnings:
 
 - **`/v1/analyze`**: Returns detailed warnings with `code`, `message`, and `details` (including `path`, `constraint_id`, `stage`)
 - **`/v1/solve`**: Returns HTTP 422 on validation failure with structured violations in the same format
+
+### Instances by component of the tuple
+
+- **`/v1/instance/split`**: Takes a whole instance apart, returning one document per component
+  of `I' = (M_A, M'_C, Δ, O)` and which model each belongs to — the same split the authoring
+  tool (`openbinding-gateway/tools/bim_parts.py`) and `examples/placement/parts/` use.
+- **`/v1/instance/compose`**: The inverse. A key given by two parts, or given to a part that
+  does not own it, is a 422 rather than a silent overwrite.
+
+Solving is unchanged: `/v1/solve` takes a whole instance, and composing is what produces one.
 
 ### Running Tests (Docker)
 

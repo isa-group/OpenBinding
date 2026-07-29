@@ -21,7 +21,7 @@ def test_general_schema_valid(pipeline):
         "features": [{"id": "cost", "name": "Cost", "direction": "MINIMIZE", "unit": "USD", "scale": "INVALID_SCALE", "valid_range": {"min": 0, "max": 1000}}], # scale enum invalid
         "providers": [{"id": "p1", "name": "Provider1"}],
         "tasks": [{"id": "t1", "name": "Task1"}],
-        "candidates": [{"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "C1", "features": {"cost": 10}}],
+        "candidates": [{"id": "c1", "task_ids": ["t1"], "provider_id": "p1", "name": "C1", "features": {"cost": 10}}],
         "composition": {
             "type": "STRUCTURED",
             "root": {"kind": "TASK", "id": "n1", "task_id": "t1"}
@@ -62,7 +62,7 @@ def test_minizinc_valid_instance(pipeline, minizinc_plugin):
         "features": [{"id": "f1", "name": "F1", "direction": "MINIMIZE", "unit": "u", "scale": "RATIO", "valid_range": {"min": 0, "max": 100}}],
         "providers": [{"id": "p1", "name": "P1"}],
         "tasks": [{"id": "t1", "name": "T1"}],
-        "candidates": [{"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "C1", "features": {"f1": 5}}],
+        "candidates": [{"id": "c1", "task_ids": ["t1"], "provider_id": "p1", "name": "C1", "features": {"f1": 5}}],
         "composition": {
             "type": "STRUCTURED",
             "root": {"kind": "TASK", "id": "n1", "task_id": "t1"}
@@ -92,7 +92,7 @@ def test_minizinc_invalid_objective(pipeline):
         "features": [{"id": "f1", "name": "F1", "direction": "MINIMIZE", "unit": "u", "scale": "RATIO", "valid_range": {"min": 0, "max": 100}}],
         "providers": [{"id": "p1", "name": "P1"}],
         "tasks": [{"id": "t1", "name": "T1"}],
-        "candidates": [{"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "C1", "features": {"f1": 5}}],
+        "candidates": [{"id": "c1", "task_ids": ["t1"], "provider_id": "p1", "name": "C1", "features": {"f1": 5}}],
         "composition": {"type": "STRUCTURED", "root": {"kind": "TASK", "id": "n1", "task_id": "t1"}},
         "aggregation_policies": {"f1": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}, "and": {"fn":"MAX"}, "xor": {"fn":"SCALED_SUM"}, "loop": {"fn":"SCALED_SUM"}}}},
         "objective": {"type": "MULTI", "targets": ["f1", "f2"], "weights": {"f1": 0.5, "f2": 0.5}}, # INVALID type for minizinc (MONO required)
@@ -110,7 +110,7 @@ def test_minizinc_local_constraint_missing_task_id(pipeline):
         "features": [{"id": "f1", "name": "F1", "direction": "MINIMIZE", "unit": "u", "scale": "RATIO", "valid_range": {"min": 0, "max": 100}}],
         "providers": [{"id": "p1", "name": "P1"}],
         "tasks": [{"id": "t1", "name": "T1"}],
-        "candidates": [{"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "C1", "features": {"f1": 5}}],
+        "candidates": [{"id": "c1", "task_ids": ["t1"], "provider_id": "p1", "name": "C1", "features": {"f1": 5}}],
         "composition": {"type": "STRUCTURED", "root": {"kind": "TASK", "id": "n1", "task_id": "t1"}},
         "aggregation_policies": {"f1": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}, "and": {"fn":"MAX"}, "xor": {"fn":"SCALED_SUM"}, "loop": {"fn":"SCALED_SUM"}}}},
         "objective": {"type": "MONO", "targets": ["f1"], "weights": {"f1": 1}},
@@ -145,7 +145,7 @@ def test_random_search_invalid_constraint_type(pipeline):
         "features": [{"id": "f1", "name": "F1", "direction": "MINIMIZE", "unit": "u", "scale": "RATIO", "valid_range": {"min": 0, "max": 100}}],
         "providers": [{"id": "p1", "name": "P1"}],
         "tasks": [{"id": "t1", "name": "T1"}],
-        "candidates": [{"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "C1", "features": {"f1": 5}}],
+        "candidates": [{"id": "c1", "task_ids": ["t1"], "provider_id": "p1", "name": "C1", "features": {"f1": 5}}],
         "composition": {"type": "STRUCTURED", "root": {"kind": "TASK", "id": "n1", "task_id": "t1"}},
         "aggregation_policies": {"f1": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}, "and": {"fn":"MAX"}, "xor": {"fn":"SCALED_SUM"}, "loop": {"fn":"SCALED_SUM"}}}},
         "objective": {"type": "MONO", "targets": ["f1"], "weights": {"f1": 1}},
@@ -172,7 +172,7 @@ def test_boundary_values(pipeline):
         "features": [{"id": "f1", "name": "F1", "direction": "MINIMIZE", "unit": "u", "scale": "RATIO", "valid_range": {"min": 0, "max": 1000000000}}],
         "providers": [{"id": "p1", "name": "P1"}],
         "tasks": [{"id": "t1", "name": "T1"}],
-        "candidates": [{"id": "c1", "task_id": "t1", "provider_id": "p1", "name": "C1", "features": {"f1": 1e10}}], # Huge value
+        "candidates": [{"id": "c1", "task_ids": ["t1"], "provider_id": "p1", "name": "C1", "features": {"f1": 1e10}}], # Huge value
         "composition": {"type": "STRUCTURED", "root": {"kind": "TASK", "id": "n1", "task_id": "t1"}},
         "aggregation_policies": {"f1": {"neutral": 0, "compose": {"seq": {"fn": "SUM"}}}}, 
         "objective": {"type": "MONO", "targets": ["f1"], "weights": {"f1": 1e-9}} # Tiny weight

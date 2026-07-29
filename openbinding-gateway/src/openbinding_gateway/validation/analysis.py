@@ -12,11 +12,12 @@ def compute_binding_space_summary(instance: Dict[str, Any]) -> BindingSpaceSumma
     # Map task_id to count. Initialize with 0 for all tasks.
     task_counts: Dict[str, int] = {t.get("id"): 0 for t in tasks if t.get("id")}
     
-    # Count candidates per task
+    # Count candidates per task. A candidate that serves several tasks is an
+    # option for each of them, so it counts once in every one of their markets.
     for cand in candidates:
-        t_id = cand.get("task_id")
-        if t_id in task_counts:
-            task_counts[t_id] += 1
+        for t_id in cand.get("task_ids") or []:
+            if t_id in task_counts:
+                task_counts[t_id] += 1
             
     per_task_counts = task_counts
     empty_tasks = [tid for tid, count in per_task_counts.items() if count == 0]
@@ -95,10 +96,10 @@ def generate_binding_space_subset(instance: Dict[str, Any], offset: int, limit: 
             task_map[t_id] = []
             
     for cand in candidates:
-        t_id = cand.get("task_id")
         c_id = cand.get("id")
-        if t_id in task_map and c_id:
-            task_map[t_id].append(c_id)
+        for t_id in cand.get("task_ids") or []:
+            if t_id in task_map and c_id:
+                task_map[t_id].append(c_id)
             
     # Filter out tasks that have 0 candidates? 
     # If any task has 0 candidates, the cartesian product is empty.

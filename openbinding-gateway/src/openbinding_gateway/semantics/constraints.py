@@ -145,6 +145,9 @@ def _check_dependencies(
                 (selected.get(t) or {}).get("provider_id") for t in tasks if selected.get(t)
             ]
             label = "provider"
+        elif dep_type in ("SAME_CANDIDATE", "DIFFERENT_CANDIDATE"):
+            values = [(selected.get(t) or {}).get("id") for t in tasks if selected.get(t)]
+            label = "candidate"
         elif dep_type in ("SAME_POOL", "DIFFERENT_POOL"):
             if not model.pools:
                 # No resource model declares pools, so there is nothing to
@@ -191,7 +194,9 @@ def _check_resource_capacity(
     violations: List[Dict[str, Any]] = []
 
     usage: Dict[str, Dict[str, float]] = {}
-    for cand in selected.values():
+    # A candidate selected for several tasks is one deployment on its pool, so
+    # it takes up its demand once however many tasks it ends up serving.
+    for cand in {c.get("id"): c for c in selected.values()}.values():
         cand_id = cand.get("id")
         pool_id = model.pool_of_candidate.get(cand_id)
         if pool_id is None:

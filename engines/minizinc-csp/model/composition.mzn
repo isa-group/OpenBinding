@@ -20,6 +20,20 @@ array[1..n_tasks, 1..max_cands_per_task] of int: task_cands;
 % Generic QoS values [candidate, feature_idx]
 array[1..n_candidates, 1..n_qos] of float: cand_qos;
 
+% Sharing: a candidate selected for k tasks is one thing serving all of them.
+% A feature declared DIVIDE is paid once for that thing, so each of the k tasks
+% carries v/k of it; every other feature is spent per task and stays whole.
+%
+% k is a decision, and dividing by a variable is neither linear nor kind to a
+% finite-domain solver, so the builder tabulates every quotient the division
+% can produce and the model looks the right one up. When no feature divides,
+% n_shared_feats is 0, the table is a single dummy column and the share counts
+% are fixed to 1, which leaves the model exactly as it was before sharing.
+int: n_shared_feats;
+int: n_share_levels;
+array[1..n_qos] of int: qos_share_slot;   % 0 = whole value, else column in shared_qos
+array[1..n_candidates, 1..(max(1, n_shared_feats) * n_share_levels)] of float: shared_qos;
+
 % 3. Composition Structure (Flattened Tree)
 int: KIND_TASK = 1;
 int: KIND_SEQ = 2;
@@ -62,6 +76,26 @@ constraint forall(t in 1..n_tasks)(
     pick_idx[t] <= n_task_cands[t] /\
     selected_cand[t] = task_cands[t, pick_idx[t]]
 );
+
+% How many tasks share the candidate this one is bound to, itself included.
+array[1..n_tasks] of var 1..max(1, n_tasks): task_share;
+constraint
+    if n_shared_feats > 0 then
+        forall(t in 1..n_tasks)(
+            task_share[t] = sum(t2 in 1..n_tasks)(bool2int(selected_cand[t2] == selected_cand[t]))
+        )
+    else
+        forall(t in 1..n_tasks)(task_share[t] == 1)
+    endif;
+
+% What task t actually accounts for of feature q: the whole value, or the share
+% of it left once the tasks sharing the candidate have split it.
+function var float: eff_qos(int: t, int: q) =
+    if qos_share_slot[q] == 0 then
+        cand_qos[selected_cand[t], q]
+    else
+        shared_qos[selected_cand[t], (qos_share_slot[q] - 1) * n_share_levels + task_share[t]]
+    endif;
 
 % --- PROVIDERS ---
 array[1..n_candidates] of int: candidate_provider;
@@ -118,9 +152,8 @@ constraint forall(i in 1..n_nodes, q in 1..n_qos)(
 
 constraint forall(i in 1..n_nodes)(
     if node_kind[i] == KIND_TASK then
-        let { var int: c = selected_cand[node_task_id[i]] } in 
         forall(q in 1..n_qos)(
-            node_qos[i,q] == cand_qos[c, q]
+            node_qos[i,q] == eff_qos(node_task_id[i], q)
         )
     elseif node_kind[i] == KIND_ELEMENT then
         forall(q in 1..n_qos)(
@@ -205,10 +238,7 @@ constraint forall(i in 1..n_global_constraints)(
 % Local, scoped to tasks: every task listed by the constraint is bound, not
 % just the first one.
 constraint forall(i in 1..n_local_constraints)(
-    let {
-        var int: c = selected_cand[lc_task[i]];
-        var float: val = cand_qos[c, lc_attr[i]];
-    } in check_op(val, lc_op[i], lc_val[i])
+    check_op(eff_qos(lc_task[i], lc_attr[i]), lc_op[i], lc_val[i])
 );
 
 % Local, scoped to candidates. A candidate's feature values are data, so the
@@ -216,6 +246,21 @@ constraint forall(i in 1..n_local_constraints)(
 % their selection is the whole constraint.
 constraint forall(i in 1..n_excluded_candidates)(
     selected_cand[excluded_task[i]] != excluded_cand[i]
+);
+
+% Except when the feature is divided between the tasks sharing the candidate:
+% its value is then a consequence of the binding, not data, so the bound has to
+% be decided here rather than compiled away.
+int: n_cand_bounds;
+array[1..n_cand_bounds] of int: cb_task;
+array[1..n_cand_bounds] of int: cb_cand;
+array[1..n_cand_bounds] of int: cb_attr;
+array[1..n_cand_bounds] of int: cb_op;
+array[1..n_cand_bounds] of float: cb_val;
+
+constraint forall(i in 1..n_cand_bounds)(
+    (selected_cand[cb_task[i]] == cb_cand[i]) ->
+        check_op(eff_qos(cb_task[i], cb_attr[i]), cb_op[i], cb_val[i])
 );
 
 % Dependency
@@ -230,6 +275,8 @@ constraint forall(i in 1..n_dep_constraints)(
         elseif dc_type[i] == 2 then p1 != p2     % Diff Provider
         elseif dc_type[i] == 3 then task_pool[dc_t1[i]] == task_pool[dc_t2[i]]  % Same Pool
         elseif dc_type[i] == 4 then task_pool[dc_t1[i]] != task_pool[dc_t2[i]]  % Diff Pool
+        elseif dc_type[i] == 5 then c1 == c2     % Same Candidate
+        elseif dc_type[i] == 6 then c1 != c2     % Diff Candidate
         else true endif
 );
 
@@ -263,17 +310,21 @@ predicate check_op_int(var int: val, int: op, int: target) =
     elseif op == 5 then val > target
     else true endif;
 
-% 1. RESOURCE_CAPACITY dependency constraint: cumulative demand of the tasks
-%    placed on a pool must fit its capacity. One check per (pool, resource)
+% 1. RESOURCE_CAPACITY dependency constraint: cumulative demand of what is
+%    deployed on a pool must fit its capacity. One check per (pool, resource)
 %    pair in scope.
+%
+%    The sum runs over candidates, not tasks: a candidate selected for several
+%    tasks is one deployment on its pool and takes up its demand once, however
+%    many tasks it ends up serving.
 int: n_cap_checks;
 array[1..n_cap_checks] of int: cap_pool;
 array[1..n_cap_checks] of int: cap_res;
 array[1..n_cap_checks] of int: cap_limit;
 
 constraint forall(k in 1..n_cap_checks)(
-    sum(t in 1..n_tasks)(
-        bool2int(task_pool[t] == cap_pool[k]) * cand_demand[selected_cand[t], cap_res[k]]
+    sum(c in 1..n_candidates where cand_pool[c] == cap_pool[k])(
+        bool2int(exists(t in 1..n_tasks)(selected_cand[t] == c)) * cand_demand[c, cap_res[k]]
     ) <= cap_limit[k]
 );
 

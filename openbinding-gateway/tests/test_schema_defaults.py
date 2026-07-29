@@ -30,7 +30,7 @@ def base_instance():
         "candidates": [
             {
                 "id": "c1",
-                "task_id": "t1",
+                "task_ids": ["t1"],
                 "provider_id": "p1",
                 "name": "C1",
                 "features": {"cost": 10},

@@ -55,6 +55,15 @@ export interface AnalyzeRequest {
   verbose?: boolean;
 }
 
+/**
+ * An instance taken apart, one entry per component of I' = (M_A, M'_C, Delta, O),
+ * plus which model each part belongs to.
+ */
+export interface InstanceParts {
+  parts: Record<string, any>;
+  groups: Record<string, string[]>;
+}
+
 export interface BindingSpaceRequest {
   engine_id: string;
   instance: any;
@@ -313,6 +322,22 @@ class ApiClient {
     return this.request<BindingSpacePage>('/v1/analyze/binding-space', {
       method: 'POST',
       body: JSON.stringify(request),
+    });
+  }
+
+  /** Take an instance apart, one document per component of the tuple. */
+  async splitInstance(instance: any): Promise<InstanceParts> {
+    return this.request<InstanceParts>('/v1/instance/split', {
+      method: 'POST',
+      body: JSON.stringify({ instance }),
+    });
+  }
+
+  /** Merge parts back into the instance they describe. */
+  async composeInstance(parts: Record<string, any>): Promise<{ instance: any }> {
+    return this.request<{ instance: any }>('/v1/instance/compose', {
+      method: 'POST',
+      body: JSON.stringify({ parts }),
     });
   }
 }

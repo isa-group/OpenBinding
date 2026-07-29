@@ -86,14 +86,14 @@ class Scale {
 
 class Candidate {
   +id: Identifier
-  +task_id: Identifier
+  +task_ids: Identifier[1..*]
   +provider_id: Identifier
   +name: string
   +features: Map<Feature.id, number>
   +description?: string
 }
 
-Candidate "1" --> "1" Task : task_id
+Candidate "1" --> "1..*" Task : task_ids
 Candidate "1" --> "1" Provider : provider_id
 Candidate "1" ..> "1..*" Feature : features[feature.id]=number
 
@@ -298,6 +298,10 @@ class DependencyType {
   <<enumeration>>
   SAME_PROVIDER
   DIFFERENT_PROVIDER
+  SAME_POOL
+  DIFFERENT_POOL
+  SAME_CANDIDATE
+  DIFFERENT_CANDIDATE
 }
 
 Constraint <|-- AttrBoundConstraintRS

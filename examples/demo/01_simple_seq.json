@@ -26,10 +26,10 @@
     {"id": "t3", "name": "Task 3"}
   ],
   "candidates": [
-    {"id": "c1a", "task_id": "t1", "provider_id": "p1", "name": "Service 1A", "features": {"latency": 10}},
-    {"id": "c1b", "task_id": "t1", "provider_id": "p1", "name": "Service 1B", "features": {"latency": 20}},
-    {"id": "c2a", "task_id": "t2", "provider_id": "p1", "name": "Service 2A", "features": {"latency": 15}},
-    {"id": "c3a", "task_id": "t3", "provider_id": "p1", "name": "Service 3A", "features": {"latency": 5}}
+    {"id": "c1a", "task_ids": ["t1"], "provider_id": "p1", "name": "Service 1A", "features": {"latency": 10}},
+    {"id": "c1b", "task_ids": ["t1"], "provider_id": "p1", "name": "Service 1B", "features": {"latency": 20}},
+    {"id": "c2a", "task_ids": ["t2"], "provider_id": "p1", "name": "Service 2A", "features": {"latency": 15}},
+    {"id": "c3a", "task_ids": ["t3"], "provider_id": "p1", "name": "Service 3A", "features": {"latency": 5}}
   ],
   "composition": {
     "type": "STRUCTURED",

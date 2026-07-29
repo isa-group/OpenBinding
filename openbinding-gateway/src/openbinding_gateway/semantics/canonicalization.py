@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from .aggregation import compute_objective_value, normalize_qos
+from .desugar import desugar_instance
 from .evaluator import evaluate_solution
 from .placement import PlacementModel
 from .objective import declares_normalization
@@ -56,13 +57,18 @@ def canonicalize_result_data(result_data: Dict[str, Any], original_request: Dict
     # weighted mean of losses that the gateway owns; otherwise the instance's
     # own weighted sum stands, and a MONO value the engine already reported is
     # left alone.
-    canonical = declares_normalization(original_request)
+    # A request may be written with the authoring shorthands; everything below
+    # reads the placement blocks and the policies directly, so it reads them
+    # expanded.
+    instance = desugar_instance(original_request)
+
+    canonical = declares_normalization(instance)
     # Built once: it depends on the instance, not on the binding, and building
     # it enumerates the XOR scenarios.
-    placement = PlacementModel(original_request)
-    features = {feature["id"]: feature for feature in (original_request.get("features") or [])}
-    agg_policies = original_request.get("aggregation_policies") or {}
-    objective = original_request.get("objective") or {}
+    placement = PlacementModel(instance)
+    features = {feature["id"]: feature for feature in (instance.get("features") or [])}
+    agg_policies = instance.get("aggregation_policies") or {}
+    objective = instance.get("objective") or {}
 
     for solution in solutions:
         if not isinstance(solution, dict):
@@ -73,7 +79,7 @@ def canonicalize_result_data(result_data: Dict[str, Any], original_request: Dict
             solution.setdefault("aggregated_features", {})
             continue
 
-        evaluation = evaluate_solution(original_request, binding, model=placement)
+        evaluation = evaluate_solution(instance, binding, model=placement)
         engine_objective = solution.get("objective_value")
 
         solution["aggregated_features"] = evaluation["aggregated_features"]

@@ -28,14 +28,14 @@
     }
   },
   "candidates": [
-    { "id": "S1_1", "task_id": "T1", "provider_id": "P1", "name": "T1 Service 1", "features": { "cost": 10, "time": 5, "reliability": 0.99 } },
-    { "id": "S1_2", "task_id": "T1", "provider_id": "P1", "name": "T1 Service 2", "features": { "cost": 50, "time": 1, "reliability": 0.999 } },
+    { "id": "S1_1", "task_ids": ["T1"], "provider_id": "P1", "name": "T1 Service 1", "features": { "cost": 10, "time": 5, "reliability": 0.99 } },
+    { "id": "S1_2", "task_ids": ["T1"], "provider_id": "P1", "name": "T1 Service 2", "features": { "cost": 50, "time": 1, "reliability": 0.999 } },
     
-    { "id": "S2_1", "task_id": "T2", "provider_id": "P1", "name": "T2 Service 1", "features": { "cost": 20, "time": 4, "reliability": 0.95 } },
-    { "id": "S2_2", "task_id": "T2", "provider_id": "P1", "name": "T2 Service 2", "features": { "cost": 5, "time": 10, "reliability": 0.80 } },
+    { "id": "S2_1", "task_ids": ["T2"], "provider_id": "P1", "name": "T2 Service 1", "features": { "cost": 20, "time": 4, "reliability": 0.95 } },
+    { "id": "S2_2", "task_ids": ["T2"], "provider_id": "P1", "name": "T2 Service 2", "features": { "cost": 5, "time": 10, "reliability": 0.80 } },
     
-    { "id": "S3_1", "task_id": "T3", "provider_id": "P1", "name": "T3 Service 1", "features": { "cost": 15, "time": 3, "reliability": 0.90 } },
-    { "id": "S3_2", "task_id": "T3", "provider_id": "P1", "name": "T3 Service 2", "features": { "cost": 30, "time": 2, "reliability": 0.95 } }
+    { "id": "S3_1", "task_ids": ["T3"], "provider_id": "P1", "name": "T3 Service 1", "features": { "cost": 15, "time": 3, "reliability": 0.90 } },
+    { "id": "S3_2", "task_ids": ["T3"], "provider_id": "P1", "name": "T3 Service 2", "features": { "cost": 30, "time": 2, "reliability": 0.95 } }
   ],
   "features": [
     { "id": "cost", "name": "Cost", "direction": "MINIMIZE", "unit": "eur", "scale": "RATIO", "valid_range": { "min": 0, "max": 100 } },

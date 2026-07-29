@@ -1,0 +1,248 @@
+{
+  "cases": [
+    {
+      "binding": {
+        "t1": "only_t1",
+        "t2": "only_t2",
+        "t3": "only_t3"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 18.0,
+          "latency": 30.0
+        },
+        "engine_objective_value": 0.5,
+        "feasible": false,
+        "objective_value": 0.4666666666666667,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "first_two_on_one_thing",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t1', 't2'] must share the same candidate",
+            "penalty": 0.0
+          }
+        ]
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.4666666666666667
+      },
+      "index": 0,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 18.0,
+          "latency": 30.0
+        },
+        "feasible": false,
+        "objective_value": 0.4666666666666667,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "first_two_on_one_thing",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t1', 't2'] must share the same candidate",
+            "penalty": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "binding": {
+        "t1": "only_t1",
+        "t2": "shared",
+        "t3": "shared"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 19.0,
+          "latency": 50.0
+        },
+        "engine_objective_value": 0.5,
+        "feasible": false,
+        "objective_value": 0.5944444444444444,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "first_two_on_one_thing",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t1', 't2'] must share the same candidate",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "keep_the_third_apart",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t2', 't3'] must use different candidates",
+            "penalty": 0.0
+          }
+        ]
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.5944444444444444
+      },
+      "index": 1,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 19.0,
+          "latency": 50.0
+        },
+        "feasible": false,
+        "objective_value": 0.5944444444444444,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "first_two_on_one_thing",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t1', 't2'] must share the same candidate",
+            "penalty": 0.0
+          },
+          {
+            "code": "constraint_violation",
+            "constraint_id": "keep_the_third_apart",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t2', 't3'] must use different candidates",
+            "penalty": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "binding": {
+        "t1": "only_t1",
+        "t2": "only_t2",
+        "t3": "shared"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 26.0,
+          "latency": 40.0
+        },
+        "engine_objective_value": 0.5,
+        "feasible": false,
+        "objective_value": 0.6555555555555556,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "first_two_on_one_thing",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t1', 't2'] must share the same candidate",
+            "penalty": 0.0
+          }
+        ]
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.6555555555555556
+      },
+      "index": 2,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 26.0,
+          "latency": 40.0
+        },
+        "feasible": false,
+        "objective_value": 0.6555555555555556,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "first_two_on_one_thing",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t1', 't2'] must share the same candidate",
+            "penalty": 0.0
+          }
+        ]
+      }
+    },
+    {
+      "binding": {
+        "t1": "shared",
+        "t2": "shared",
+        "t3": "only_t3"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 16.0,
+          "latency": 50.0
+        },
+        "engine_objective_value": 0.5,
+        "feasible": true,
+        "objective_value": 0.5444444444444445,
+        "violations": []
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.5444444444444445
+      },
+      "index": 3,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 16.0,
+          "latency": 50.0
+        },
+        "feasible": true,
+        "objective_value": 0.5444444444444445,
+        "violations": []
+      }
+    },
+    {
+      "binding": {
+        "t1": "shared",
+        "t2": "only_t2",
+        "t3": "only_t3"
+      },
+      "engine_reported_objective": 0.5,
+      "gateway": {
+        "aggregated_features": {
+          "cost": 23.0,
+          "latency": 40.0
+        },
+        "engine_objective_value": 0.5,
+        "feasible": false,
+        "objective_value": 0.6055555555555556,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "first_two_on_one_thing",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t1', 't2'] must share the same candidate",
+            "penalty": 0.0
+          }
+        ]
+      },
+      "gateway_without_engine_objective": {
+        "objective_value": 0.6055555555555556
+      },
+      "index": 4,
+      "reference_evaluator": {
+        "aggregated_features": {
+          "cost": 23.0,
+          "latency": 40.0
+        },
+        "feasible": false,
+        "objective_value": 0.6055555555555556,
+        "violations": [
+          {
+            "code": "constraint_violation",
+            "constraint_id": "first_two_on_one_thing",
+            "description": "Slack: -1.0",
+            "message": "Tasks ['t1', 't2'] must share the same candidate",
+            "penalty": 0.0
+          }
+        ]
+      }
+    }
+  ],
+  "instance": "examples/demo/14_shared_candidates.json",
+  "normalized_targets": [
+    "cost",
+    "latency"
+  ],
+  "objective_targets": [
+    "cost",
+    "latency"
+  ],
+  "objective_type": "MONO",
+  "placement": false
+}

@@ -104,7 +104,7 @@
   "candidates": [
     {
       "id": "c1_1",
-      "task_id": "t1",
+      "task_ids": ["t1"],
       "provider_id": "p1",
       "name": "Auth Service A",
       "features": {
@@ -116,7 +116,7 @@
     },
     {
       "id": "c1_2",
-      "task_id": "t1",
+      "task_ids": ["t1"],
       "provider_id": "p1",
       "name": "Auth Service B",
       "features": {
@@ -128,7 +128,7 @@
     },
     {
       "id": "c1_3",
-      "task_id": "t1",
+      "task_ids": ["t1"],
       "provider_id": "p1",
       "name": "Auth Service C",
       "features": {
@@ -140,7 +140,7 @@
     },
     {
       "id": "c2_1",
-      "task_id": "t2",
+      "task_ids": ["t2"],
       "provider_id": "p1",
       "name": "Credit A",
       "features": {
@@ -152,7 +152,7 @@
     },
     {
       "id": "c2_2",
-      "task_id": "t2",
+      "task_ids": ["t2"],
       "provider_id": "p1",
       "name": "Credit B",
       "features": {
@@ -164,7 +164,7 @@
     },
     {
       "id": "c2_3",
-      "task_id": "t2",
+      "task_ids": ["t2"],
       "provider_id": "p1",
       "name": "Credit C",
       "features": {
@@ -176,7 +176,7 @@
     },
     {
       "id": "c3_1",
-      "task_id": "t3",
+      "task_ids": ["t3"],
       "provider_id": "p1",
       "name": "Inventory A",
       "features": {
@@ -188,7 +188,7 @@
     },
     {
       "id": "c3_2",
-      "task_id": "t3",
+      "task_ids": ["t3"],
       "provider_id": "p1",
       "name": "Inventory B",
       "features": {
@@ -200,7 +200,7 @@
     },
     {
       "id": "c3_3",
-      "task_id": "t3",
+      "task_ids": ["t3"],
       "provider_id": "p1",
       "name": "Inventory C",
       "features": {
@@ -212,7 +212,7 @@
     },
     {
       "id": "c4_1",
-      "task_id": "t4",
+      "task_ids": ["t4"],
       "provider_id": "p1",
       "name": "Std Ship A",
       "features": {
@@ -224,7 +224,7 @@
     },
     {
       "id": "c4_2",
-      "task_id": "t4",
+      "task_ids": ["t4"],
       "provider_id": "p1",
       "name": "Std Ship B",
       "features": {
@@ -236,7 +236,7 @@
     },
     {
       "id": "c4_3",
-      "task_id": "t4",
+      "task_ids": ["t4"],
       "provider_id": "p1",
       "name": "Std Ship C",
       "features": {
@@ -248,7 +248,7 @@
     },
     {
       "id": "c5_1",
-      "task_id": "t5",
+      "task_ids": ["t5"],
       "provider_id": "p1",
       "name": "Exp Ship A",
       "features": {
@@ -260,7 +260,7 @@
     },
     {
       "id": "c5_2",
-      "task_id": "t5",
+      "task_ids": ["t5"],
       "provider_id": "p1",
       "name": "Exp Ship B",
       "features": {
@@ -272,7 +272,7 @@
     },
     {
       "id": "c5_3",
-      "task_id": "t5",
+      "task_ids": ["t5"],
       "provider_id": "p1",
       "name": "Exp Ship C",
       "features": {
@@ -284,7 +284,7 @@
     },
     {
       "id": "c6_1",
-      "task_id": "t6",
+      "task_ids": ["t6"],
       "provider_id": "p1",
       "name": "Payment A",
       "features": {
@@ -296,7 +296,7 @@
     },
     {
       "id": "c6_2",
-      "task_id": "t6",
+      "task_ids": ["t6"],
       "provider_id": "p1",
       "name": "Payment B",
       "features": {
@@ -308,7 +308,7 @@
     },
     {
       "id": "c6_3",
-      "task_id": "t6",
+      "task_ids": ["t6"],
       "provider_id": "p1",
       "name": "Payment C",
       "features": {
@@ -320,7 +320,7 @@
     },
     {
       "id": "c7_1",
-      "task_id": "t7",
+      "task_ids": ["t7"],
       "provider_id": "p1",
       "name": "Email A",
       "features": {
@@ -332,7 +332,7 @@
     },
     {
       "id": "c7_2",
-      "task_id": "t7",
+      "task_ids": ["t7"],
       "provider_id": "p1",
       "name": "Email B",
       "features": {
@@ -344,7 +344,7 @@
     },
     {
       "id": "c7_3",
-      "task_id": "t7",
+      "task_ids": ["t7"],
       "provider_id": "p1",
       "name": "Email C",
       "features": {
@@ -356,7 +356,7 @@
     },
     {
       "id": "c8_1",
-      "task_id": "t8",
+      "task_ids": ["t8"],
       "provider_id": "p1",
       "name": "SMS A",
       "features": {
@@ -368,7 +368,7 @@
     },
     {
       "id": "c8_2",
-      "task_id": "t8",
+      "task_ids": ["t8"],
       "provider_id": "p1",
       "name": "SMS B",
       "features": {
@@ -380,7 +380,7 @@
     },
     {
       "id": "c8_3",
-      "task_id": "t8",
+      "task_ids": ["t8"],
       "provider_id": "p1",
       "name": "SMS C",
       "features": {
@@ -392,7 +392,7 @@
     },
     {
       "id": "c9_1",
-      "task_id": "t9",
+      "task_ids": ["t9"],
       "provider_id": "p1",
       "name": "CRM A",
       "features": {
@@ -404,7 +404,7 @@
     },
     {
       "id": "c9_2",
-      "task_id": "t9",
+      "task_ids": ["t9"],
       "provider_id": "p1",
       "name": "CRM B",
       "features": {
@@ -416,7 +416,7 @@
     },
     {
       "id": "c9_3",
-      "task_id": "t9",
+      "task_ids": ["t9"],
       "provider_id": "p1",
       "name": "CRM C",
       "features": {
@@ -428,7 +428,7 @@
     },
     {
       "id": "c10_1",
-      "task_id": "t10",
+      "task_ids": ["t10"],
       "provider_id": "p1",
       "name": "Logs A",
       "features": {
@@ -440,7 +440,7 @@
     },
     {
       "id": "c10_2",
-      "task_id": "t10",
+      "task_ids": ["t10"],
       "provider_id": "p1",
       "name": "Logs B",
       "features": {
@@ -452,7 +452,7 @@
     },
     {
       "id": "c10_3",
-      "task_id": "t10",
+      "task_ids": ["t10"],
       "provider_id": "p1",
       "name": "Logs C",
       "features": {

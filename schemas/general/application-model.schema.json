@@ -16,9 +16,20 @@
           "const": "STRUCTURED"
         },
         "root": {
-          "$ref": "application-model.schema.json#/$defs/node"
+          "$ref": "application-model.schema.json#/$defs/node_ref"
         }
       }
+    },
+    "node_ref": {
+      "$comment": "Anywhere a node is expected, a bare task identifier stands for the TASK node running that task. The node id is then derived from the task id, which is what writing it out by hand would have produced anyway.",
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/identifier"
+        },
+        {
+          "$ref": "application-model.schema.json#/$defs/node"
+        }
+      ]
     },
     "node": {
       "oneOf": [
@@ -106,7 +117,7 @@
           "type": "array",
           "minItems": 2,
           "items": {
-            "$ref": "application-model.schema.json#/$defs/node"
+            "$ref": "application-model.schema.json#/$defs/node_ref"
           }
         }
       }
@@ -133,7 +144,7 @@
           "type": "array",
           "minItems": 2,
           "items": {
-            "$ref": "application-model.schema.json#/$defs/node"
+            "$ref": "application-model.schema.json#/$defs/node_ref"
           }
         }
       }
@@ -162,18 +173,18 @@
           "items": {
             "type": "object",
             "required": [
-              "p",
               "child"
             ],
             "additionalProperties": false,
             "properties": {
               "p": {
+                "$comment": "Optional only when no branch of this choice declares it, in which case the branches are equally likely. Declaring some and not others is an error rather than a guess.",
                 "type": "number",
                 "exclusiveMinimum": 0,
                 "maximum": 1
               },
               "child": {
-                "$ref": "application-model.schema.json#/$defs/node"
+                "$ref": "application-model.schema.json#/$defs/node_ref"
               }
             }
           }
@@ -199,7 +210,7 @@
           "type": "string"
         },
         "body": {
-          "$ref": "application-model.schema.json#/$defs/node"
+          "$ref": "application-model.schema.json#/$defs/node_ref"
         },
         "expected_iterations": {
           "type": "number",
@@ -238,15 +249,30 @@
       ]
     },
     "aggregation_policy": {
+      "$comment": "Either spell out one function per operator under compose, or give a single fn that stands for all four: seq and and take it as written, while xor and loop take its scaled variant (SUM becomes SCALED_SUM, PRODUCT becomes SCALED_PRODUCT, MAX and MIN are copied). Declaring both is an error.",
       "type": "object",
       "required": [
-        "neutral",
-        "compose"
+        "neutral"
       ],
       "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "compose"
+          ]
+        },
+        {
+          "required": [
+            "fn"
+          ]
+        }
+      ],
       "properties": {
         "neutral": {
           "type": "number"
+        },
+        "fn": {
+          "$ref": "application-model.schema.json#/$defs/compose_fn_name"
         },
         "compose": {
           "type": "object",
@@ -325,21 +351,24 @@
       "additionalProperties": false,
       "properties": {
         "fn": {
-          "type": "string",
-          "enum": [
-            "SUM",
-            "PRODUCT",
-            "MAX",
-            "MIN",
-            "SCALED_SUM",
-            "SCALED_PRODUCT",
-            "SCALED_MIN",
-            "SCALED_MAX",
-            "MEAN",
-            "WEIGHTED_SUM"
-          ]
+          "$ref": "application-model.schema.json#/$defs/compose_fn_name"
         }
       }
+    },
+    "compose_fn_name": {
+      "type": "string",
+      "enum": [
+        "SUM",
+        "PRODUCT",
+        "MAX",
+        "MIN",
+        "SCALED_SUM",
+        "SCALED_PRODUCT",
+        "SCALED_MIN",
+        "SCALED_MAX",
+        "MEAN",
+        "WEIGHTED_SUM"
+      ]
     }
   },
   "properties": {
