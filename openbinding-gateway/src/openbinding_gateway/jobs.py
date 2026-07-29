@@ -157,6 +157,11 @@ class DatabaseJobStore:
 
         row.state = JobState(job.status.value)
         row.verbose = bool(job.metadata.get("verbose", False))
+        # What the caller was allowed to spend. The reconciler settles an
+        # abandoned job against this rather than guessing at it.
+        budget = job.metadata.get("budget_s")
+        if budget is not None:
+            row.requested_budget_s = float(budget)
         row.warnings = job.metadata.get("warnings") or None
         row.original_request = job.metadata.get("original_request") or None
         row.binding_space = job.metadata.get("binding_space") or None

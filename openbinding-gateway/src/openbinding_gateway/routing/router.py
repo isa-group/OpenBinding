@@ -80,6 +80,7 @@ class Router:
         *,
         owner_id: Optional[uuid.UUID] = None,
         session: Optional[AsyncSession] = None,
+        budget_s: Optional[float] = None,
     ) -> JobResponse:
         plugin = EngineRegistry.get_plugin(request.engine_id)
         if not plugin:
@@ -106,7 +107,7 @@ class Router:
                         response = await client.post(
                             f"{service_url.rstrip('/')}/solve",
                             json=payload,
-                            timeout=get_settings().engine_solve_timeout_s,
+                            timeout=budget_s or get_settings().engine_solve_timeout_s,
                         )
 
                         if response.status_code in (502, 503, 504):
@@ -167,6 +168,7 @@ class Router:
                 job = await JobManager.create_job(
                     request.engine_id, engine_job_id, service_url, owner_id=owner_id, session=session
                 )
+                job.metadata["budget_s"] = budget_s
                 job.metadata["warnings"] = all_warnings
                 job.metadata["verbose"] = request.verbose
                 job.metadata["original_request"] = request.instance

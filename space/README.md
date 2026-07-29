@@ -115,7 +115,7 @@ atomic update. A related quirk: `expectedConsumption` treats `0` as "not
 provided", so a limit that should be checked but not charged cannot be
 expressed that way at all.
 
-Two upstream defects are worth reporting rather than working around forever:
-that lost update, and `space-python-client` serialising an unset `phone` as
-JSON `null` where SPACE will only accept a string or a missing key. Neither
-needs a local patch — the client is used unmodified.
+Several of these are defects rather than design, and are written up with
+reproductions and suggested fixes in [UPSTREAM.md](UPSTREAM.md) so they can be
+reported. None of them is worked around by patching a dependency: both SPACE and
+its Python client run here unmodified.

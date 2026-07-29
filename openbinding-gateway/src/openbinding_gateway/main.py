@@ -1,8 +1,9 @@
 from fastapi import Depends, FastAPI, HTTPException, status, Request
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Dict, Any, Optional
 import json
 import asyncio
+import uuid
 
 from dotenv import load_dotenv
 import httpx
@@ -10,12 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 load_dotenv()
 
+from .access import metering, policy
 from .access.dependencies import optional_session, solve_caller
 from .core.settings import get_settings
 from .db import base as db_base
 from .db.models import User
 from .jobs import JobManager
 from . import space_client
+from .space_client import PlanCaps, PricingUnavailable
+from .models.errors import api_error
 from .models.api import SolveRequest, JobResponse, JobStatus, AnalyzeResponse, AnalyzeWarning, Provenance, BindingSpaceRequest, BindingSpacePage
 from .validation.pipeline import ValidationPipeline
 from .validation.analysis import compute_binding_space_summary, generate_warnings, generate_binding_space_subset
@@ -35,9 +39,20 @@ async def lifespan(app: FastAPI):
     if settings.database_url:
         db_base.init_engine(settings.database_url)
     space_client.set_gate(space_client.build_gate(settings))
+
+    # A solve that nobody polls for would otherwise hold a concurrency slot
+    # forever, and for an account allowed one that means never solving again.
+    reconciler = None
+    if settings.database_url:
+        reconciler = asyncio.create_task(metering.run_reconciler(space_client.get_gate()))
+
     try:
         yield
     finally:
+        if reconciler is not None:
+            reconciler.cancel()
+            with suppress(asyncio.CancelledError):
+                await reconciler
         gate = space_client.get_gate()
         if hasattr(gate, "aclose"):
             await gate.aclose()
@@ -77,6 +92,61 @@ app.add_middleware(
 
 pipeline = ValidationPipeline()
 router = Router()
+
+
+async def plan_caps_for(user: Optional[User]) -> PlanCaps:
+    """The ceilings that bound this caller's request.
+
+    A visitor with no account gets the cautious defaults - the same ones the
+    free plan carries. That matters where solving is left open: an anonymous
+    request is bounded by something rather than by nothing.
+    """
+    if user is None:
+        return PlanCaps()
+    try:
+        return await space_client.get_gate().caps(user.id)
+    except PricingUnavailable as error:
+        if get_settings().space_fail_mode == "open":
+            # Development, and deployments that would rather work than meter.
+            return PlanCaps()
+        raise _pricing_unavailable(error) from error
+
+
+def _pricing_unavailable(error: Exception) -> HTTPException:
+    """What a caller is told when the pricing service cannot be reached.
+
+    Not a 402: their quota may be perfectly healthy, and saying otherwise
+    would be a lie about the reason. 503 with Retry-After says what it is.
+    """
+    return api_error(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "pricing_unavailable",
+        f"Quotas cannot be checked right now, so solving is on hold: {error}",
+        headers={"Retry-After": "30"},
+    )
+
+
+def _quota_exceeded(verdict) -> HTTPException:
+    """What a caller is told when their plan has nothing left.
+
+    402 rather than 403: this is not a permission the account lacks, it is an
+    allowance it has spent, and the distinction is what tells a client whether
+    retrying later is worth anything.
+    """
+    quota = None
+    if verdict.limit is not None:
+        quota = {
+            "limit_id": verdict.limit.limit_id,
+            "limit": verdict.limit.limit,
+            "used": verdict.limit.used,
+            "renews_at": verdict.limit.renews_at,
+        }
+    return api_error(
+        status.HTTP_402_PAYMENT_REQUIRED,
+        "quota_exceeded",
+        verdict.reason or "Your plan has no allowance left for this.",
+        quota=quota,
+    )
 
 @app.get(
     "/health",
@@ -405,10 +475,12 @@ async def solve(
     user: Optional[User] = Depends(solve_caller),
     session: Optional[AsyncSession] = Depends(optional_session),
 ):
-    if _content_length_too_large(http_request.headers.get("content-length"), MAX_SOLVE_BODY_BYTES):
+    caps = await plan_caps_for(user)
+    body_ceiling = policy.payload_ceiling_bytes(caps, MAX_SOLVE_BODY_BYTES)
+    if _content_length_too_large(http_request.headers.get("content-length"), body_ceiling):
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=f"Request body is too large. Maximum allowed size is {MAX_SOLVE_BODY_BYTES} bytes.",
+            detail=f"Request body is too large. Maximum allowed size is {body_ceiling} bytes.",
         )
 
     result = validate_and_prepare(request)
@@ -447,10 +519,49 @@ async def solve(
         )
     
     binding_space = result.get("binding_space")
-    warnings = result.get("warnings")
-    warning_payload = [w.model_dump() if hasattr(w, "model_dump") else w for w in (warnings or [])]
-    
+    warnings = result.get("warnings") or []
+
+    # An instance too large for the plan is refused rather than reduced: there
+    # is no smaller version of it to solve instead.
+    log10_size = getattr(binding_space, "log10_cardinality", None)
+    if policy.binding_space_too_large(log10_size, caps):
+        raise api_error(
+            status.HTTP_402_PAYMENT_REQUIRED,
+            "binding_space_too_large",
+            "This instance's binding space is larger than your plan solves.",
+            quota={
+                "limit_id": "maxBindingSpaceLimit",
+                "limit": caps.max_binding_space_log10,
+                "actual": log10_size,
+                "unit": "log10(combinations)",
+            },
+        )
+
+    # Budgets the caller merely asked for are brought within the plan, and the
+    # reduction is reported rather than applied silently.
+    clamped = policy.clamp_options(request.options, caps)
+    request = request.model_copy(update={"options": clamped.options})
+    warnings = warnings + clamped.warnings
+
+    reservation = None
+    if user is not None:
+        gate = space_client.get_gate()
+        try:
+            verdict, reservation = await metering.reserve(gate, user.id)
+            if not verdict.allowed:
+                raise _quota_exceeded(verdict)
+        except PricingUnavailable as error:
+            # Fail closed by default: handing out an unmetered half-hour of
+            # solver time is worse than a temporary outage. Deployments that
+            # would rather keep working than keep accounts set the other mode,
+            # and this solve simply goes uncounted.
+            if get_settings().space_fail_mode != "open":
+                raise _pricing_unavailable(error)
+
+    warning_payload = [w.model_dump() if hasattr(w, "model_dump") else w for w in warnings]
+
     # Hand the validated request over to the router to find a solution.
+    started_at = time.time()
     try:
         job_resp = await router.route_solve(
             request,
@@ -458,17 +569,54 @@ async def solve(
             warnings=warning_payload,
             owner_id=user.id if user else None,
             session=session,
+            budget_s=policy.solve_timeout_s(caps, get_settings().engine_solve_timeout_s),
         )
     except PayloadTooLargeError:
+        # Nothing was solved, so nothing is owed.
+        await metering.release(space_client.get_gate(), reservation)
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail=PAYLOAD_TOO_LARGE_MESSAGE,
         )
-    
+    except Exception:
+        await metering.release(space_client.get_gate(), reservation)
+        raise
+
     if job_resp.status == JobStatus.COMPLETED or job_resp.status == JobStatus.FAILED:
         response.status_code = status.HTTP_200_OK
-        
+        # A synchronous engine has already spent whatever it was going to
+        # spend, so the bill is settled here rather than left to a poll that
+        # will never come.
+        if user is not None and session is not None:
+            await metering.settle(
+                space_client.get_gate(),
+                session,
+                uuid.UUID(job_resp.job_id),
+                solver_seconds=_engine_seconds(job_resp, time.time() - started_at),
+            )
+
     return job_resp
+
+
+def _engine_seconds(job_resp: JobResponse, wall_clock_s: float) -> float:
+    """How long the engine spent, preferring its own account of it.
+
+    An engine that reports its execution time is more accurate than the clock
+    around the call, which also counts transferring the instance. Falling back
+    to the wall clock matters more than the precision does: an engine that
+    reports nothing must not solve for free.
+    """
+    provenance = getattr(job_resp.result, "provenance", None) if job_resp.result else None
+    reported_ms = None
+    if provenance is not None:
+        reported_ms = (
+            provenance.get("execution_time_ms")
+            if isinstance(provenance, dict)
+            else getattr(provenance, "execution_time_ms", None)
+        )
+    if isinstance(reported_ms, (int, float)) and reported_ms > 0:
+        return float(reported_ms) / 1000.0
+    return max(0.0, wall_clock_s)
 
 @app.get(
     "/v1/jobs/{job_id}",

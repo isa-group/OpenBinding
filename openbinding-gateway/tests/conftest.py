@@ -78,13 +78,18 @@ async def api_client(db_session):
     """
     from httpx import ASGITransport, AsyncClient
 
-    from openbinding_gateway.access.dependencies import session_dependency
+    from openbinding_gateway.access.dependencies import optional_session, session_dependency
     from openbinding_gateway.main import app
 
     async def _session_override():
         yield db_session
 
+    # Both, and for a reason worth remembering: `optional_session` decides
+    # whether this deployment has accounts at all, and answers by asking the
+    # real engine registry. Left un-overridden it reports "no database", every
+    # request arrives anonymous, and the tests quietly stop testing anything.
     app.dependency_overrides[session_dependency] = _session_override
+    app.dependency_overrides[optional_session] = _session_override
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://gateway") as client:
         yield client
