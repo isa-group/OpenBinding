@@ -1,4 +1,17 @@
 import { config } from '../config';
+import { PricingUnavailableError, QuotaError } from './auth';
+import type {
+  AdminUserPage,
+  AdminUserView,
+  ApiKeySummary,
+  CreatedApiKey,
+  PlanName,
+  RoleName,
+  TokenPair,
+  UsageResyncResult,
+  UsageView,
+  UserProfile,
+} from './auth';
 
 export interface Engine {
   id: string;
@@ -78,7 +91,7 @@ export interface BindingSpacePage {
   bindings: Array<Record<string, string>>;
 }
 
-class HttpError extends Error {
+export class HttpError extends Error {
   status: number;
 
   constructor(status: number, statusText: string) {
@@ -87,17 +100,120 @@ class HttpError extends Error {
   }
 }
 
+/** Where the session lives. Header-based rather than cookies: see AuthContext. */
+const ACCESS_TOKEN_KEY = 'openbinding-access-token';
+const REFRESH_TOKEN_KEY = 'openbinding-refresh-token';
+
+/**
+ * Fired when a session ends without the user asking - a refresh token that was
+ * spent, revoked or expired. AuthContext listens and clears the user, so that
+ * every tab notices rather than only the one that made the request.
+ */
+export const SESSION_ENDED_EVENT = 'openbinding:session-ended';
+
 class ApiClient {
   private baseUrl: string;
+  /** In flight refresh, so that ten simultaneous 401s cause one refresh. */
+  private refreshing: Promise<boolean> | null = null;
 
   constructor(baseUrl: string = config.apiBaseUrl) {
     this.baseUrl = baseUrl;
   }
 
+  // -- Session ---------------------------------------------------------
+
+  getAccessToken(): string | null {
+    return localStorage.getItem(ACCESS_TOKEN_KEY);
+  }
+
+  setTokens(tokens: { access_token: string; refresh_token: string }): void {
+    localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access_token);
+    localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token);
+  }
+
+  clearTokens(): void {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  }
+
+  private authHeaders(): Record<string, string> {
+    const token = this.getAccessToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  /**
+   * Exchange the refresh token for a new pair, once however many callers ask.
+   *
+   * The gateway rotates refresh tokens: presenting one spends it. Two
+   * concurrent refreshes would therefore race, and the loser would be holding
+   * a token that has just been invalidated - so they share one attempt.
+   */
+  private async refreshSession(): Promise<boolean> {
+    if (this.refreshing) return this.refreshing;
+
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (!refreshToken) return false;
+
+    this.refreshing = (async () => {
+      try {
+        const response = await fetch(`${this.baseUrl}/v1/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+        if (!response.ok) return false;
+        this.setTokens(await response.json());
+        return true;
+      } catch {
+        return false;
+      } finally {
+        this.refreshing = null;
+      }
+    })();
+
+    return this.refreshing;
+  }
+
+  private endSession(): void {
+    this.clearTokens();
+    window.dispatchEvent(new CustomEvent(SESSION_ENDED_EVENT));
+  }
+
+  /**
+   * Turn a failed response into the most specific error available.
+   *
+   * A caller needs to tell "your instance is invalid" from "your allowance is
+   * spent" from "we could not find out", because only one of those is worth
+   * offering an upgrade for and only one is worth retrying.
+   */
+  private async errorFor(response: Response): Promise<Error> {
+    let detail: any = null;
+    try {
+      detail = (await response.json())?.detail;
+    } catch {
+      /* not JSON; fall through to the status-only error */
+    }
+
+    const code = typeof detail === 'object' ? detail?.code : undefined;
+    const message =
+      (typeof detail === 'object' ? detail?.error : undefined) ??
+      (typeof detail === 'string' ? detail : undefined) ??
+      response.statusText;
+
+    if (response.status === 402) {
+      return new QuotaError(code ?? 'quota_exceeded', message, detail?.quota);
+    }
+    if (response.status === 503 && code === 'pricing_unavailable') {
+      return new PricingUnavailableError(message);
+    }
+    return new HttpError(response.status, message);
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    timeoutMs?: number
+    timeoutMs?: number,
+    retryOnUnauthorized = true
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
@@ -108,10 +224,20 @@ class ApiClient {
         ...options,
         headers: {
           'Content-Type': 'application/json',
+          ...this.authHeaders(),
           ...options.headers,
         },
         signal: controller.signal,
       });
+
+      // An expired access token is ordinary rather than exceptional: refresh
+      // once and try again. A second 401 means the session is genuinely over.
+      if (response.status === 401 && retryOnUnauthorized && this.getAccessToken()) {
+        if (await this.refreshSession()) {
+          return this.request<T>(endpoint, options, timeoutMs, false);
+        }
+        this.endSession();
+      }
 
       // Handle validation errors (422) specially
       if (response.status === 422) {
@@ -121,7 +247,11 @@ class ApiClient {
       }
 
       if (!response.ok) {
-        throw new HttpError(response.status, response.statusText);
+        throw await this.errorFor(response);
+      }
+
+      if (response.status === 204) {
+        return undefined as T;
       }
 
       return response.json();
@@ -338,6 +468,149 @@ class ApiClient {
     return this.request<{ instance: any }>('/v1/instance/compose', {
       method: 'POST',
       body: JSON.stringify({ parts }),
+    });
+  }
+
+  // -- Accounts --------------------------------------------------------
+  //
+  // Every one of these is a documented gateway endpoint. The interface is a
+  // client of the API rather than a privileged path into it, so anything the
+  // account page can do, a script with an API key can do too.
+
+  async register(details: {
+    username: string;
+    email: string;
+    password: string;
+  }): Promise<UserProfile> {
+    return this.request<UserProfile>('/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(details),
+    });
+  }
+
+  async login(usernameOrEmail: string, password: string): Promise<TokenPair> {
+    const tokens = await this.request<TokenPair>('/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username_or_email: usernameOrEmail, password }),
+    });
+    this.setTokens(tokens);
+    return tokens;
+  }
+
+  /** End this session on the server, then locally whatever the server said. */
+  async logout(): Promise<void> {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    try {
+      if (refreshToken) {
+        await this.request<void>('/v1/auth/logout', {
+          method: 'POST',
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+      }
+    } finally {
+      this.clearTokens();
+    }
+  }
+
+  async getOwnProfile(): Promise<UserProfile> {
+    return this.request<UserProfile>('/v1/users/me');
+  }
+
+  async updateOwnProfile(changes: {
+    email?: string;
+    current_password?: string;
+    new_password?: string;
+  }): Promise<UserProfile> {
+    return this.request<UserProfile>('/v1/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify(changes),
+    });
+  }
+
+  async listApiKeys(): Promise<ApiKeySummary[]> {
+    const body = await this.request<{ api_keys: ApiKeySummary[] }>('/v1/users/me/api-keys');
+    return body.api_keys;
+  }
+
+  /** The response carries the secret. It is the only one that ever will. */
+  async createApiKey(name: string): Promise<CreatedApiKey> {
+    return this.request<CreatedApiKey>('/v1/users/me/api-keys', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  async revokeApiKey(keyId: string): Promise<void> {
+    await this.request<void>(`/v1/users/me/api-keys/${keyId}`, { method: 'DELETE' });
+  }
+
+  async getOwnUsage(): Promise<UsageView> {
+    return this.request<UsageView>('/v1/users/me/usage');
+  }
+
+  /**
+   * The Pricing2Yaml document this gateway is sold under.
+   *
+   * Fetched rather than bundled, so the plans page cannot drift from the
+   * document SPACE was actually given. Public: a pricing nobody can read
+   * before signing up is not much of a pricing.
+   */
+  async getPricingDocument(): Promise<string> {
+    return this.requestText('/v1/schemas/pricing');
+  }
+
+  /** What the interface gates features with; the browser never sees SPACE. */
+  async getPricingToken(): Promise<string> {
+    const body = await this.request<{ pricing_token: string }>('/v1/users/me/pricing-token');
+    return body.pricing_token;
+  }
+
+  // -- Administration --------------------------------------------------
+
+  async adminListUsers(params: {
+    search?: string;
+    offset?: number;
+    limit?: number;
+  } = {}): Promise<AdminUserPage> {
+    const query = new URLSearchParams();
+    if (params.search) query.set('search', params.search);
+    if (params.offset != null) query.set('offset', String(params.offset));
+    if (params.limit != null) query.set('limit', String(params.limit));
+    const suffix = query.toString() ? `?${query}` : '';
+    return this.request<AdminUserPage>(`/v1/admin/users${suffix}`);
+  }
+
+  async adminUpdateUser(
+    userId: string,
+    changes: { is_active?: boolean; role?: RoleName }
+  ): Promise<AdminUserView> {
+    return this.request<AdminUserView>(`/v1/admin/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(changes),
+    });
+  }
+
+  /** The novation. With no payment gateway, this is how anybody reaches PRO. */
+  async adminChangePlan(userId: string, plan: PlanName): Promise<AdminUserView> {
+    return this.request<AdminUserView>(`/v1/admin/users/${userId}/plan`, {
+      method: 'POST',
+      body: JSON.stringify({ plan }),
+    });
+  }
+
+  async adminGetUserUsage(userId: string): Promise<UsageView> {
+    return this.request<UsageView>(`/v1/admin/users/${userId}/usage`);
+  }
+
+  async adminRevokeApiKey(userId: string, keyId: string): Promise<void> {
+    await this.request<void>(`/v1/admin/users/${userId}/api-keys/${keyId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async adminResyncUsage(userId: string): Promise<UsageResyncResult> {
+    return this.request<UsageResyncResult>(`/v1/admin/users/${userId}/usage/resync`, {
+      method: 'POST',
     });
   }
 }

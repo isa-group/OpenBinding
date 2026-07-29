@@ -1,0 +1,31 @@
+.pricing-page {
+  padding: var(--space-8, 2rem) 0;
+}
+
+/*
+ * The renderer sizes itself to its container, and with only two plans a full
+ * page-width container leaves a pair of 320px cards adrift in the middle of
+ * it, with the section headings pinned to an edge a long way away. Giving it a
+ * narrower column keeps the headings and the cards in the same composition.
+ * It stays fluid below that, so the renderer's own responsive behaviour is
+ * untouched.
+ */
+.pricing-page pricing-renderer,
+.pricing-page .pricing-renderer {
+  display: block;
+  max-width: 56rem;
+  margin: 0 auto var(--space-8, 2rem);
+}
+
+/*
+ * The renderer reports a diagnostic for our pricing: it declares Pricing2Yaml
+ * 3.0, and the renderer supports 3.1, so it says it is rendering the
+ * compatible subset. That is accurate and harmless - see the comment on
+ * syntaxVersion in space/pricing/openbinding.yml for why 3.0 is declared - but
+ * it is a note for whoever maintains the document, not for somebody choosing a
+ * plan. Hidden here rather than suppressed at the source, so it still shows up
+ * anywhere else the renderer is used.
+ */
+.pricing-page [data-pr-part='diagnostics'] {
+  display: none;
+}

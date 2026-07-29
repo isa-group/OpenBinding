@@ -112,6 +112,7 @@ features:
 usageLimits:
   tasksLimit:
     description: Solve jobs started per month on OpenBinding's own engines.
+    tag: Solving
     type: RENEWABLE
     period:
       value: 1
@@ -124,6 +125,7 @@ usageLimits:
 
   solverTimeLimit:
     description: Solver wall-clock seconds consumed per month.
+    tag: Solving
     type: RENEWABLE
     period:
       value: 1
@@ -139,6 +141,7 @@ usageLimits:
       Solve jobs started per month on a user's own federated engine. Counted
       apart from tasksLimit because the computation happens on somebody else's
       machine; what OpenBinding spends is a connection, not a CPU.
+    tag: Access
     type: RENEWABLE
     period:
       value: 1
@@ -151,6 +154,7 @@ usageLimits:
 
   concurrentTasksLimit:
     description: Solve jobs running at the same time. Released when a job finishes.
+    tag: Solving
     type: NON_RENEWABLE
     trackable: true
     valueType: NUMERIC
@@ -162,6 +166,7 @@ usageLimits:
 
   federatedEnginesLimit:
     description: Federated engines registered at once.
+    tag: Access
     type: NON_RENEWABLE
     trackable: true
     valueType: NUMERIC
@@ -172,6 +177,7 @@ usageLimits:
 
   apiKeysLimit:
     description: API keys in use at once.
+    tag: Access
     type: NON_RENEWABLE
     trackable: true
     valueType: NUMERIC
@@ -184,6 +190,7 @@ usageLimits:
     description: >-
       Longest solver budget a single job may ask for. A static ceiling rather
       than a balance: asking for more is clamped down to this, not refused.
+    tag: Solving
     type: NON_RENEWABLE
     trackable: false
     valueType: NUMERIC
@@ -194,6 +201,7 @@ usageLimits:
 
   maxIterationsLimit:
     description: Ceiling for iteration-driven options (iterations_count, max_evaluations).
+    tag: Solving
     type: NON_RENEWABLE
     trackable: false
     valueType: NUMERIC
@@ -207,6 +215,7 @@ usageLimits:
       Largest instance that may be solved, as log10 of its binding space. Derived
       from the instance itself rather than consumed, and the one limit that
       refuses instead of clamping - an instance cannot be made smaller.
+    tag: Solving
     type: NON_RENEWABLE
     trackable: false
     valueType: NUMERIC
@@ -217,6 +226,7 @@ usageLimits:
 
   maxPayloadSizeLimit:
     description: Largest instance payload accepted in one request.
+    tag: Solving
     type: NON_RENEWABLE
     trackable: false
     valueType: NUMERIC
@@ -228,6 +238,7 @@ usageLimits:
 
   jobHistoryRetentionLimit:
     description: How long a finished job stays queryable.
+    tag: Solving
     type: NON_RENEWABLE
     trackable: false
     valueType: NUMERIC

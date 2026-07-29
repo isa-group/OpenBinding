@@ -1,0 +1,124 @@
+.admin-page {
+  padding: var(--space-8, 2rem) 0;
+}
+
+.admin-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4, 1rem);
+  margin-bottom: var(--space-4, 1rem);
+}
+
+.admin-search {
+  flex: 1;
+  max-width: 24rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border, #d0d0d0);
+  border-radius: var(--radius-md, 6px);
+  background: var(--color-bg, #fff);
+  color: var(--color-text, #111);
+  font-size: 0.9rem;
+}
+
+.admin-count {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666);
+}
+
+/* The table is the one thing here that cannot reflow into a narrow column. */
+.admin-table-card {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border, #e4e4e7);
+  vertical-align: middle;
+}
+
+.admin-table th {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #666);
+}
+
+.admin-table select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-border, #d0d0d0);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--color-bg, #fff);
+  color: var(--color-text, #111);
+  font-size: 0.8125rem;
+}
+
+.admin-table select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-identity {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-identity span {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, #666);
+}
+
+.admin-row-inactive {
+  opacity: 0.55;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.admin-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4, 1rem);
+  margin-top: var(--space-4, 1rem);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666);
+}
+
+.admin-usage {
+  margin-top: var(--space-6, 1.5rem);
+}
+
+.admin-usage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4, 1rem);
+}
+
+.admin-usage-head h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.admin-quotas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 1rem);
+}
+
+.admin-note {
+  margin: var(--space-4, 1rem) 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, #666);
+  max-width: 46rem;
+}

@@ -1,10 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { config } from '../../config';
 import './Navigation.css';
 
 export function Navigation() {
   const { theme, toggleTheme } = useTheme();
+  const { user, isAdmin, signOut } = useAuth();
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
@@ -46,6 +48,12 @@ export function Navigation() {
           >
             Schemas
           </Link>
+          <Link
+            to="/pricing"
+            className={`nav-link ${isActive('/pricing') ? 'nav-link-active' : ''}`}
+          >
+            Plans
+          </Link>
           <a 
             href={`${config.apiBaseUrl}/docs`}
             target="_blank"
@@ -57,6 +65,38 @@ export function Navigation() {
         </div>
 
         <div className="nav-actions">
+          {user ? (
+            <div className="nav-account">
+              <Link
+                to="/account"
+                className={`nav-link ${isActive('/account') ? 'nav-link-active' : ''}`}
+                title={`Signed in as ${user.username}`}
+              >
+                {user.username}
+                {user.plan === 'PRO' && <span className="nav-plan">PRO</span>}
+              </Link>
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className={`nav-link ${isActive('/admin') ? 'nav-link-active' : ''}`}
+                >
+                  Admin
+                </Link>
+              )}
+              <button className="nav-signout" onClick={() => void signOut()}>
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <div className="nav-account">
+              <Link to="/login" className="nav-link">
+                Sign in
+              </Link>
+              <Link to="/register" className="nav-link nav-link-cta">
+                Create account
+              </Link>
+            </div>
+          )}
           <button
             className="theme-toggle"
             onClick={toggleTheme}

@@ -35,6 +35,45 @@ def _specialization_schema_path(engine_id: str, extension: str) -> str:
     return os.path.join(_schemas_dir(), "specializations", f"{engine_id}.schema.{extension}")
 
 
+def _pricing_path() -> str:
+    """Where the Pricing2Yaml document lives, across the layouts this runs in.
+
+    The same fallback chain the schemas use: the configured directory is what a
+    deployment sets, and the repository-relative path is what local development
+    finds.
+    """
+    configured = os.path.join(os.path.dirname(_schemas_dir()), "space", "pricing", "openbinding.yml")
+    if os.path.exists(configured):
+        return configured
+    return os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../../../space/pricing/openbinding.yml")
+    )
+
+
+@router.get(
+    "/pricing",
+    operation_id="getPricing",
+    summary="The pricing this gateway is sold under",
+    responses={404: {"description": "This deployment ships no pricing document."}},
+)
+async def get_pricing():
+    """The Pricing2Yaml document, as a document.
+
+    Served rather than bundled into the interface because the plans are part of
+    the API's description: a script deciding whether to ask for an upgrade
+    should be able to read what the plans are, not screen-scrape a page. It is
+    also what the interface renders, so the two cannot disagree.
+
+    Public, because a pricing nobody can read before signing up is not much of
+    a pricing.
+    """
+    path = _pricing_path()
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="No pricing document on this server.")
+
+    return FileResponse(path, media_type="application/yaml")
+
+
 @router.get("/general")
 async def get_general_schema():
     """The general schema as one self-contained document.

@@ -75,6 +75,15 @@ class Settings(BaseSettings):
     #: Whether solving requires an account. Analysis stays public either way.
     auth_required_for_solve: bool = True
 
+    # -- The first administrator -----------------------------------------
+    #: Registration is open and produces ordinary users, so a fresh deployment
+    #: has no administrator and no way to acquire one - promoting an account is
+    #: itself an administrator's privilege. These seed or promote the first.
+    #: Ignored once any administrator exists.
+    bootstrap_admin_username: Optional[str] = None
+    bootstrap_admin_email: Optional[str] = None
+    bootstrap_admin_password: Optional[str] = None
+
     # -- SPACE (pricing-driven access control) ---------------------------
     space_enabled: bool = False
     space_url: Optional[str] = None

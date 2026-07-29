@@ -15,6 +15,7 @@ from .access import metering, policy
 from .access.dependencies import optional_session, solve_caller
 from .core.settings import get_settings
 from .db import base as db_base
+from .db.bootstrap import ensure_administrator
 from .db.models import User
 from .jobs import JobManager
 from . import space_client
@@ -39,6 +40,13 @@ async def lifespan(app: FastAPI):
     if settings.database_url:
         db_base.init_engine(settings.database_url)
     space_client.set_gate(space_client.build_gate(settings))
+
+    if settings.database_url:
+        # Without this a fresh deployment has no administrator and no way to
+        # acquire one, since promoting an account is an administrator's job.
+        async with db_base.session_factory()() as session:
+            await ensure_administrator(session, settings)
+            await session.commit()
 
     # A solve that nobody polls for would otherwise hold a concurrency slot
     # forever, and for an account allowed one that means never solving again.
