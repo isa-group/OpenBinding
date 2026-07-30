@@ -424,6 +424,21 @@ async def get_engine_options_schema(engine_id: str) -> Dict[str, Any]:
         return {"type": "object", "additionalProperties": True}
     return schema
 
+def assert_engine_available(engine_id: str, user: Optional[User]) -> None:
+    """Refuse an engine this caller may not use, before anything else happens.
+
+    Before this, naming a registered engine was enough to have an instance
+    validated against its manifest - so a stranger could learn that
+    ``alice~tabu`` exists and what it accepts, and solve on it. Hiding an engine
+    from the catalogue is not the same as refusing to use it, and only the
+    second one is a permission.
+    """
+    refusal = EngineRegistry.refusal_for(engine_id, user)
+    if refusal is not None:
+        code, slug, message = refusal
+        raise api_error(code, slug, message)
+
+
 def validate_and_prepare(request: SolveRequest):
     """
     Standard check-and-prep for both solving and analyzing.
@@ -512,8 +527,11 @@ def _content_length_too_large(header_value: str | None, max_bytes: int) -> bool:
         }
     },
 )
-async def analyze(request: SolveRequest):
+async def analyze(
+    request: SolveRequest, user: Optional[User] = Depends(get_optional_user)
+):
     start_time = time.time()
+    assert_engine_available(request.engine_id, user)
     result = validate_and_prepare(request)
     duration = (time.time() - start_time) * 1000
 
@@ -605,9 +623,12 @@ async def analyze(request: SolveRequest):
         422: VIOLATIONS_RESPONSE,
     },
 )
-async def analyze_binding_space(request: BindingSpaceRequest):
+async def analyze_binding_space(
+    request: BindingSpaceRequest, user: Optional[User] = Depends(get_optional_user)
+):
     # Reuse the same validation logic.
     # We treat BindingSpaceRequest as a SolveRequest for validation since it inherits from it.
+    assert_engine_available(request.engine_id, user)
     result = validate_and_prepare(request)
     
     if not result["valid"]:
@@ -680,6 +701,7 @@ async def solve(
             f"Request body is too large. Maximum allowed size is {body_ceiling} bytes.",
         )
 
+    assert_engine_available(request.engine_id, user)
     result = validate_and_prepare(request)
     
     if not result["valid"]:

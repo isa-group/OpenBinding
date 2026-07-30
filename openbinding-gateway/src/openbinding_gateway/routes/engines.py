@@ -295,6 +295,20 @@ async def store_credential(row: FederatedEngine, credential: Optional[str]) -> N
         ) from error
 
 
+async def refund(gate, user: User, spent: bool) -> None:
+    """Give back an engine allowance taken for a registration that did not happen.
+
+    Quietly, because a refund failing must not replace the error the caller
+    actually needs to see; the usage resync endpoint exists for the drift.
+    """
+    if not spent:
+        return
+    try:
+        await gate.adjust_usage(user.id, {"federatedEnginesLimit": -1})
+    except PricingUnavailable:
+        pass
+
+
 async def verify_row(row: FederatedEngine, manifest: EngineManifest) -> None:
     """Run the checks and write the outcome onto the row."""
     settings = get_settings()
@@ -414,6 +428,7 @@ async def register_engine(
         )
 
     gate = get_gate()
+    spent = False
     try:
         verdict = await gate.evaluate(
             user.id, "federatedEngines", {"federatedEnginesLimit": 1}
@@ -425,6 +440,13 @@ async def register_engine(
                 verdict.reason or "Your plan does not allow another engine.",
                 quota=verdict.limit.__dict__ if verdict.limit else None,
             )
+        # Asking and taking are two calls: ``evaluate`` answers whether this is
+        # allowed and spends nothing. Without the second one the allowance is
+        # checked against a number that never grows, so the limit is never
+        # reached - and deleting an engine would hand back an allowance nobody
+        # took, driving the usage level negative.
+        await gate.adjust_usage(user.id, {"federatedEnginesLimit": 1})
+        spent = True
     except PricingUnavailable as error:
         if get_settings().space_fail_mode == "closed":
             raise api_error(
@@ -443,16 +465,23 @@ async def register_engine(
             EngineVisibility.PENDING_REVIEW if request.publish else EngineVisibility.PRIVATE
         ),
     )
-    await store_credential(row, request.credential)
 
     try:
+        await store_credential(row, request.credential)
         row.openapi_document = await document_for(manifest)
     except (ssrf.UnsafeUrl, ValueError, TransportError, httpx.HTTPError) as error:
+        await refund(gate, user, spent)
         raise api_error(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             "document_unreadable",
             f"The engine's OpenAPI document could not be read: {error}",
         ) from error
+    except Exception:
+        # Including the 503 raised when a credential cannot be encrypted: an
+        # allowance taken for an engine that was never stored is an allowance
+        # its owner can never get back, since there is no row to delete.
+        await refund(gate, user, spent)
+        raise
 
     session.add(row)
     await session.flush()

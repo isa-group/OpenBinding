@@ -298,9 +298,9 @@ plans:
 
   PRO:
     description: >-
-      For research workloads. Priced symbolically: there is no payment gateway,
-      and an administrator performs the upgrade.
-    price: 9.99
+      For research workloads. There is no payment gateway: an administrator
+      performs the upgrade, so the price is a conversation rather than a number.
+    price: "Contact sales"
     unit: user/month
     features:
       analyze:

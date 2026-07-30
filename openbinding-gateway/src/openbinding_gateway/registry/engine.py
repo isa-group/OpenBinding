@@ -87,6 +87,38 @@ class EngineRegistry:
         raise ValueError(f"Engine '{engine_id}' not configured")
 
     @classmethod
+    def refusal_for(cls, engine_id: str, user=None) -> Optional[tuple[int, str, str]]:
+        """Why this caller may not use this engine, as ``(status, code, message)``.
+
+        Two things are being enforced, and neither was until a registered engine
+        could exist. A private engine must be *absent* rather than refused - a
+        404, like a foreign job, because whether ``alice~tabu`` exists is
+        Alice's business and a 403 answers that question. And an engine that has
+        not passed its conformance checks, or that an administrator has turned
+        off, must not be solved on at all; ``is_usable`` said so and nothing
+        asked it.
+
+        Built-in engines are always usable: their liveness is a health check,
+        not a registration state.
+        """
+        entry = cls._federated.get(engine_id)
+        if entry is None or engine_id in cls._plugins:
+            return None
+
+        if not entry.is_visible_to(user):
+            return (404, "engine_not_found", f"No engine called '{engine_id}'.")
+
+        if not entry.is_usable:
+            return (
+                409,
+                "engine_not_usable",
+                f"'{engine_id}' is {entry.status.value}: it has not passed its "
+                f"conformance checks, or has been disabled. Its owner can see why.",
+            )
+
+        return None
+
+    @classmethod
     def get_transport(cls, engine_id: str) -> EngineTransport:
         """How to make requests to this engine.
 

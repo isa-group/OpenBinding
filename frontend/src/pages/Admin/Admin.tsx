@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '../../api/client';
 import type { AdminUserView, PlanName, UsageView } from '../../api/auth';
+import type { RegisteredEngine } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { QuotaBar, isBalance } from '../../components/QuotaBar';
 import { Card } from '../../components/ui/Card';
@@ -21,6 +22,11 @@ export function Admin() {
   const [usage, setUsage] = useState<UsageView | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Publication is a request somebody has to answer. Without this the owner
+  // asks and nothing ever happens, which is a worse outcome than not offering
+  // to publish at all.
+  const [engines, setEngines] = useState<RegisteredEngine[]>([]);
+  const [showAllEngines, setShowAllEngines] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -33,9 +39,21 @@ export function Admin() {
     }
   }, [search, offset]);
 
+  const loadEngines = useCallback(async () => {
+    try {
+      setEngines(await apiClient.adminListEngines(!showAllEngines));
+    } catch {
+      setError('The registered engines could not be loaded.');
+    }
+  }, [showAllEngines]);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void loadEngines();
+  }, [loadEngines]);
 
   const act = async (what: () => Promise<unknown>, done: string) => {
     setError(null);
@@ -44,6 +62,7 @@ export function Admin() {
       await what();
       setNotice(done);
       await load();
+      await loadEngines();
     } catch {
       setError('That change could not be applied. The pricing service may be unreachable.');
     }
@@ -201,6 +220,128 @@ export function Admin() {
                 Next
               </Button>
             </div>
+          )}
+        </Card>
+
+        <Card padding="lg" className="admin-engines">
+          <div className="admin-usage-head">
+            <h2>Registered engines</h2>
+            <label className="admin-toggle">
+              <input
+                type="checkbox"
+                checked={showAllEngines}
+                onChange={(e) => setShowAllEngines(e.target.checked)}
+              />
+              <span>Show every registration, not only those awaiting review</span>
+            </label>
+          </div>
+
+          {engines.length === 0 ? (
+            <p className="admin-empty">
+              {showAllEngines
+                ? 'Nobody has registered an engine yet.'
+                : 'Nothing is waiting for review.'}
+            </p>
+          ) : (
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Engine</th>
+                  <th>Owner</th>
+                  <th>Status</th>
+                  <th>Visibility</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {engines.map((engine) => (
+                  <tr key={engine.id}>
+                    <td>
+                      <div className="admin-identity">
+                        <strong>{engine.display_name}</strong>
+                        <span>{engine.engine_id}</span>
+                      </div>
+                    </td>
+                    <td>{engine.owner}</td>
+                    <td>
+                      <Badge variant={engine.status === 'active' ? 'success' : 'error'}>
+                        {engine.status}
+                      </Badge>
+                      {engine.conformance_report && !engine.conformance_report.passed && (
+                        <div
+                          className="admin-finding"
+                          title={engine.conformance_report.findings
+                            .map((f) => f.message)
+                            .join('\n')}
+                        >
+                          {engine.conformance_report.findings[0]?.code}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <Badge
+                        variant={engine.visibility === 'public' ? 'accent' : 'default'}
+                      >
+                        {engine.visibility.replace('_', ' ')}
+                      </Badge>
+                    </td>
+                    <td className="admin-actions">
+                      {engine.visibility === 'pending_review' && (
+                        <>
+                          <Button
+                            size="sm"
+                            // Only a verified engine can be approved; the
+                            // gateway refuses otherwise, and offering the
+                            // button anyway would be offering a 409.
+                            disabled={engine.status !== 'active'}
+                            title={
+                              engine.status === 'active'
+                                ? 'List this engine for everybody'
+                                : 'This engine does not pass its own conformance checks'
+                            }
+                            onClick={() =>
+                              act(
+                                () => apiClient.adminApproveEngine(engine.engine_id),
+                                `${engine.engine_id} is now public.`
+                              )
+                            }
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              act(
+                                () => apiClient.adminRejectEngine(engine.engine_id),
+                                `${engine.engine_id} stays private.`
+                              )
+                            }
+                          >
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {engine.status !== 'disabled' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          title="Stop it being solved on, without deleting it"
+                          onClick={() =>
+                            act(
+                              () => apiClient.adminDisableEngine(engine.engine_id),
+                              `${engine.engine_id} is disabled.`
+                            )
+                          }
+                        >
+                          Disable
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </Card>
 

@@ -13,6 +13,7 @@ invisible rather than forbidden.
 from __future__ import annotations
 
 import json
+import uuid
 from typing import Any, Dict
 from unittest.mock import patch
 
@@ -294,6 +295,79 @@ async def test_an_invalid_manifest_is_refused_field_by_field(api_client, registr
     assert any("type" in violation["path"] for violation in detail["violations"])
 
 
+# -- The allowance ----------------------------------------------------------
+
+
+@pytest.fixture
+def pricing():
+    """A pricing service with balances that really run out."""
+    from openbinding_gateway import space_client
+    from openbinding_gateway.space_client import FakePricingGate
+
+    installed = FakePricingGate()
+    space_client.set_gate(installed)
+    yield installed
+    space_client.set_gate(None)
+
+
+async def test_registering_an_engine_spends_the_allowance(api_client, registration, pricing):
+    """Asking and taking are two calls, and only the second one counts.
+
+    ``evaluate`` answers whether this is allowed and spends nothing. Checking
+    without taking means the allowance is measured against a number that never
+    grows, so the limit is never reached however many engines are registered -
+    and deleting one hands back an allowance nobody took.
+    """
+    profile, token = await account(api_client, registration)
+
+    await register(api_client, token)
+
+    used = pricing.consumed[uuid.UUID(profile["id"])]
+    assert used["federatedEnginesLimit"] == 1
+
+
+async def test_the_free_plan_runs_out_after_its_one_engine(api_client, registration, pricing):
+    _, token = await account(api_client, registration)
+    manifest = a_manifest()
+    await register(api_client, token, manifest)
+
+    second = a_manifest("annealing")
+    response = await register(api_client, token, second)
+
+    assert response.status_code == 402
+    assert response.json()["detail"]["code"] == "quota_exceeded"
+
+
+async def test_deleting_gives_the_allowance_back(api_client, registration, pricing):
+    profile, token = await account(api_client, registration)
+    await register(api_client, token)
+
+    await api_client.delete(
+        f"/v1/engines/registered/{profile['username']}~tabu", headers=auth(token)
+    )
+
+    assert pricing.consumed[uuid.UUID(profile["id"])]["federatedEnginesLimit"] == 0
+    # And the freed allowance is usable rather than merely recorded.
+    assert (await register(api_client, token)).status_code == 201
+
+
+async def test_a_registration_that_never_happened_costs_nothing(
+    api_client, registration, pricing
+):
+    # Otherwise the allowance is spent on an engine with no row, which its
+    # owner can never delete to get back.
+    profile, token = await account(api_client, registration)
+    manifest = a_manifest()
+    manifest["transport"]["openapi"] = {"url": "not-a-url"}
+
+    response = await register(api_client, token, manifest)
+
+    assert response.status_code == 422
+    assert pricing.consumed.get(uuid.UUID(profile["id"]), {}).get(
+        "federatedEnginesLimit", 0
+    ) == 0
+
+
 # -- Verification, and failing usefully -------------------------------------
 
 
@@ -502,6 +576,117 @@ async def test_deleting_removes_it_from_the_registry(api_client, registration):
 
     assert response.status_code == 204
     assert EngineRegistry.federated_entry(engine_id) is None
+
+
+# -- Hiding an engine is not the same as refusing to use it -----------------
+
+
+async def test_a_stranger_cannot_solve_on_a_private_engine(
+    api_client, registration, micro_placement_instance
+):
+    """Absent from the catalogue was not enough: naming it still worked.
+
+    Before the check, a stranger who guessed the id had their instance
+    validated against Alice's manifest - so they learned the engine exists and
+    what it accepts, and a compatible instance would have been solved on it.
+    """
+    alice, alice_token = await account(api_client, registration)
+    await register(api_client, alice_token)
+    _, bob_token = await account(api_client, registration)
+
+    response = await api_client.post(
+        "/v1/solve",
+        headers=auth(bob_token),
+        json={
+            "engine_id": f"{alice['username']}~tabu",
+            "instance": micro_placement_instance,
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "engine_not_found"
+
+
+async def test_analysing_against_a_private_engine_leaks_nothing_either(
+    api_client, registration, micro_placement_instance
+):
+    # /v1/analyze names an engine and validates against its manifest, so
+    # guarding only /v1/solve would leave the same question answerable.
+    alice, alice_token = await account(api_client, registration)
+    await register(api_client, alice_token)
+
+    response = await api_client.post(
+        "/v1/analyze",
+        json={
+            "engine_id": f"{alice['username']}~tabu",
+            "instance": micro_placement_instance,
+        },
+    )
+
+    assert response.status_code == 404
+
+
+async def test_an_engine_that_failed_verification_cannot_be_solved_on(
+    api_client, registration, micro_placement_instance
+):
+    # "Registered but unusable" was a status nothing consulted.
+    profile, token = await account(api_client, registration)
+    with patch("socket.getaddrinfo", side_effect=OSError("no route")):
+        await api_client.post("/v1/engines", headers=auth(token), json={"manifest": a_manifest()})
+
+    response = await api_client.post(
+        "/v1/solve",
+        headers=auth(token),
+        json={
+            "engine_id": f"{profile['username']}~tabu",
+            "instance": micro_placement_instance,
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "engine_not_usable"
+
+
+async def test_a_disabled_engine_cannot_be_solved_on(
+    api_client, registration, db_session, micro_placement_instance
+):
+    # Otherwise an administrator's off switch only changes a label.
+    from sqlalchemy import select
+
+    from openbinding_gateway.db.models import User, UserRole
+
+    profile, token = await account(api_client, registration)
+    await register(api_client, token)
+
+    admin_details, admin_token = await account(api_client, registration)
+    admin = (
+        await db_session.execute(select(User).where(User.username == admin_details["username"]))
+    ).scalar_one()
+    admin.role = UserRole.ADMIN
+    await db_session.flush()
+    await api_client.post(
+        f"/v1/admin/engines/{profile['username']}~tabu/disable", headers=auth(admin_token)
+    )
+
+    response = await api_client.post(
+        "/v1/solve",
+        headers=auth(token),
+        json={
+            "engine_id": f"{profile['username']}~tabu",
+            "instance": micro_placement_instance,
+        },
+    )
+
+    assert response.status_code == 409
+
+
+async def test_a_built_in_engine_is_never_refused_by_this_check(
+    api_client, registration, micro_placement_instance
+):
+    # Its liveness is a health check, not a registration state.
+    from openbinding_gateway.registry.engine import EngineRegistry
+
+    assert EngineRegistry.refusal_for("random-search", None) is None
 
 
 # -- Publication and review -------------------------------------------------

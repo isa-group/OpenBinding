@@ -122,3 +122,40 @@
   color: var(--color-text-secondary, #666);
   max-width: 46rem;
 }
+
+/* -- Engines awaiting a decision ----------------------------------------- */
+
+.admin-engines {
+  margin-top: var(--space-6);
+}
+
+.admin-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.admin-empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+/* The failing check, shown next to the status rather than behind a click:
+   it is the reason an approve button is disabled. */
+.admin-finding {
+  margin-top: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-error, #d33);
+  cursor: help;
+}
+
+.admin-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
