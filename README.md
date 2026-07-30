@@ -348,9 +348,43 @@ curl -X POST "http://localhost:8000/v1/solve" \
 
 See `examples/` directory for sample payloads.
 
-## 🧭 Engine Integration Guide
+Two request flags are worth knowing:
 
-If you are adding a new engine, see [docs/ENGINE_INTEGRATION_GUIDE.md](docs/ENGINE_INTEGRATION_GUIDE.md).
+- `"verbose": true` returns diagnostics and warnings, including the binding-space
+  analysis.
+- `"include_engine_report": true` returns, beside the canonical result, what the
+  engine itself reported **before** the reference evaluator recomputed it: its
+  solutions, its provenance, its untransformed body, and a divergence summary
+  naming every solution where the two disagree. The official answer is always
+  the canonical one; this is how a disagreement stops being invisible.
+
+## 📜 The API as a contract
+
+The gateway's own OpenAPI document is generated from the code, committed as
+[docs/openapi.json](docs/openapi.json) and checked in CI, so a change to the
+contract shows up in review. Browse it live at `/docs`.
+
+There is a second, engine-side contract: `schemas/engine-contract.openapi.yaml`,
+served at `/v1/schemas/engine-contract`, says what OpenBinding asks of an
+engine — what it POSTs to `/solve`, the response shapes it accepts, and how it
+polls a job. That is the document to implement against when writing a solver.
+
+## 🧭 Engines
+
+Every engine — the four in this repository and any registered later — declares
+itself in one manifest: its type, its capabilities, the options it accepts and
+the instances it will solve. Nothing is restated in code, so an engine cannot
+advertise one thing and enforce another. Read one with
+`GET /v1/engines/{engine_id}/manifest`.
+
+An engine can arrive two ways. **In-tree**, as a manifest plus a plugin in this
+repository. Or **federated**: somebody else's running solver, registered through
+the API with a manifest that also describes their HTTP surface, validated and
+routed to by the gateway while all scoring stays here — which is why a
+third-party engine only has to return which candidate serves which task.
+
+See [docs/ENGINE_INTEGRATION_GUIDE.md](docs/ENGINE_INTEGRATION_GUIDE.md) for
+both.
 
 ## 👤 Accounts, plans and quotas
 
