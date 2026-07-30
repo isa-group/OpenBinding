@@ -69,6 +69,101 @@ def missing_candidate_violations(instance: Dict[str, Any]) -> List[ValidationVio
     ]
 
 
+#: How a constraint's ``kind`` in an instance maps onto the capability family
+#: an engine declares. The two vocabularies differ because one describes a
+#: document and the other describes an engine; this is the one place that
+#: knows both.
+CONSTRAINT_FAMILY_BY_KIND = {
+    "ATTRIBUTE_BOUND": "attribute_bound",
+    "DEPENDENCY": "dependency",
+    "RESOURCE_CAPACITY": "resource_capacity",
+    "LATENCY_TRANSITION": "latency_transition",
+}
+
+
+def composition_node_kinds(node: Dict[str, Any]) -> Set[str]:
+    """Every node kind the composition uses, across every branch."""
+    if not isinstance(node, dict):
+        return set()
+
+    found = {node["kind"]} if isinstance(node.get("kind"), str) else set()
+    for child in node.get("children", []) or []:
+        found |= composition_node_kinds(child)
+    for branch in node.get("branches", []) or []:
+        found |= composition_node_kinds((branch or {}).get("child", {}))
+    if node.get("body"):
+        found |= composition_node_kinds(node["body"])
+    return found
+
+
+def capability_violations(
+    instance: Dict[str, Any], capabilities: Dict[str, Any]
+) -> List[ValidationViolation]:
+    """What an engine's declared capabilities alone say about this instance.
+
+    Three checks - node kinds, objective type, constraint families - derived
+    from the declaration rather than written per engine. That is most of what
+    the four built-in plugins hand-roll, and it is all a registered engine can
+    have, since its author cannot ship code here.
+
+    Silence is not consent: an engine that declares no constraint families is
+    read as placing no restriction, rather than as refusing every constrained
+    instance. The alternative would turn an omitted optional field into a
+    blanket rejection.
+    """
+    violations: List[ValidationViolation] = []
+
+    composition = instance.get("composition") or {}
+    supported_nodes = set(capabilities.get("composition_nodes_supported") or [])
+    if supported_nodes:
+        used = composition_node_kinds(composition.get("root") or {})
+        for node in composition.get("nodes", []) or []:
+            if isinstance(node, dict) and isinstance(node.get("kind"), str):
+                used.add(node["kind"])
+        for kind in sorted(used - supported_nodes):
+            violations.append(
+                ValidationViolation(
+                    code="engine_unsupported_feature",
+                    path="composition",
+                    message=f"Engine does not support node kind '{kind}'",
+                )
+            )
+
+    supported_objectives = set(capabilities.get("objective_types_supported") or [])
+    objective_type = (instance.get("objective") or {}).get("type")
+    if supported_objectives and objective_type and objective_type not in supported_objectives:
+        violations.append(
+            ValidationViolation(
+                code="unsupported_objective_type",
+                path="objective.type",
+                message=(
+                    f"Engine does not support '{objective_type}' objectives; it declares "
+                    f"{', '.join(sorted(supported_objectives))}"
+                ),
+            )
+        )
+
+    supported_families = set(capabilities.get("constraints_supported") or [])
+    if supported_families:
+        for index, constraint in enumerate(instance.get("constraints", []) or []):
+            if not isinstance(constraint, dict):
+                continue
+            kind = str(constraint.get("kind") or "").upper()
+            family = CONSTRAINT_FAMILY_BY_KIND.get(kind)
+            # An unrecognised kind is the general schema's problem, caught in
+            # stage 1, so it is not second-guessed here.
+            if family and family not in supported_families:
+                violations.append(
+                    ValidationViolation(
+                        code="unsupported_constraint",
+                        path=f"constraints[{index}].kind",
+                        message=f"Engine does not support '{family}' constraints",
+                    )
+                )
+
+    return violations
+
+
 class EngineValidationPlugin(ABC):
     """What the gateway needs from an engine.
 
@@ -175,6 +270,38 @@ class EngineValidationPlugin(ABC):
             for name in (options or {})
             if name not in accepted
         ]
+
+    # -- Reading an engine's answer at the envelope level -------------------
+    #
+    # These three used to live in the router as literal field lookups, which
+    # was fine while every engine implemented the same contract. A federated
+    # engine does not, so the questions move to the thing that knows the
+    # answer. The defaults are what the router did.
+
+    def is_synchronous_response(self, data: Dict[str, Any]) -> bool:
+        """Whether this answer is a finished result rather than a job receipt.
+
+        Engines answer either with a job envelope (``{"job_id": ...}``) or with
+        a finished result: a selection at the top level, a selection wrapped
+        under ``result.solution``, or an already-general ``solutions`` list.
+        """
+        if not isinstance(data, dict):
+            return False
+        if "job_id" in data:
+            return False
+        if data.get("selection") is not None:
+            return True
+        if ((data.get("result") or {}).get("solution") or {}).get("selection") is not None:
+            return True
+        return isinstance(data.get("solutions"), list)
+
+    def job_id(self, data: Dict[str, Any]) -> Any:
+        """This engine's identifier for a job it has accepted."""
+        return data.get("job_id") if isinstance(data, dict) else None
+
+    def job_status(self, data: Dict[str, Any]) -> Any:
+        """This engine's word for how a job is going."""
+        return data.get("status") if isinstance(data, dict) else None
 
     async def check_engine_health(self, base_url: str, client: httpx.AsyncClient) -> bool:
         """Whether the engine answers its health endpoint.

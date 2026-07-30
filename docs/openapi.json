@@ -1803,7 +1803,7 @@
     }
   },
   "info": {
-    "description": "A QoS-aware service composition gateway. Validate a binding instance against\nthe general schema and a solver's specialisation of it, measure its binding\nspace, and route it to an engine.\n\n**This document is the contract.** Instance structure is described in full\nunder `SolveRequest.instance`; the shape of a solution is `Solution`, and its\nmetrics are always recomputed by the reference evaluator rather than taken from\nwhatever the engine reported. An engine only has to return a Task-to-Candidate\nmap for the rest to be derived.\n\n**Both channels are the same channel.** A browser session and an `obk_`-prefixed\nAPI key resolve to the same account, so a pricing plan applies to the caller\nrather than to how they called. Everything the web interface can do is an\noperation here.\n\n**Errors carry a machine-readable `code`.** `402` means an allowance is spent,\nwhich is worth retrying once it renews; `403` means a permission is missing,\nwhich is not; `503` with `Retry-After` means the gateway could not find out.\n",
+    "description": "A QoS-aware service composition gateway. Validate a binding instance against\nthe general schema and against the manifest of the engine you asked for,\nmeasure its binding space, and route it to that engine.\n\n**This document is the contract.** Instance structure is described in full\nunder `SolveRequest.instance`; the shape of a solution is `Solution`, and its\nmetrics are always recomputed by the reference evaluator rather than taken from\nwhatever the engine reported. An engine only has to return a Task-to-Candidate\nmap for the rest to be derived.\n\n**Both channels are the same channel.** A browser session and an `obk_`-prefixed\nAPI key resolve to the same account, so a pricing plan applies to the caller\nrather than to how they called. Everything the web interface can do is an\noperation here.\n\n**Errors carry a machine-readable `code`.** `402` means an allowance is spent,\nwhich is worth retrying once it renews; `403` means a permission is missing,\nwhich is not; `503` with `Retry-After` means the gateway could not find out.\n",
     "license": {
       "name": "CC BY 4.0",
       "url": "https://creativecommons.org/licenses/by/4.0/"
@@ -2722,6 +2722,7 @@
     },
     "/v1/engines": {
       "get": {
+        "description": "Every engine the caller may use.\n\nPublic, and the answer depends on who is asking: the four built-in engines\nfor everybody, plus the registered ones that are public and the ones this\ncaller owns. An engine somebody may not see is absent rather than listed as\nforbidden, for the same reason a foreign job answers 404 - whether\n``alice~tabu`` exists is Alice's business.",
         "operationId": "listEngines",
         "responses": {
           "200": {
@@ -2736,20 +2737,25 @@
                         "SEQ",
                         "AND",
                         "XOR",
-                        "LOOP"
+                        "LOOP",
+                        "ELEMENT"
                       ],
                       "constraints_supported": [
                         "attribute_bound",
-                        "dependency"
+                        "dependency",
+                        "resource_capacity",
+                        "latency_transition"
                       ],
                       "objective_types_supported": [
-                        "weighted_sum"
+                        "MONO"
                       ],
                       "qos_features_supported": [
                         "*"
                       ],
-                      "schema_version": "v1"
+                      "schema_version": "v1",
+                      "type": "EXACT"
                     },
+                    "federated": false,
                     "id": "minizinc-csp"
                   },
                   {
@@ -2764,17 +2770,47 @@
                       ],
                       "constraints_supported": [
                         "attribute_bound",
-                        "dependency"
+                        "dependency",
+                        "resource_capacity",
+                        "latency_transition"
                       ],
                       "objective_types_supported": [
-                        "weighted_sum"
+                        "MONO"
                       ],
                       "qos_features_supported": [
                         "*"
                       ],
-                      "schema_version": "v1"
+                      "schema_version": "v1",
+                      "type": "HEURISTIC"
                     },
+                    "federated": false,
                     "id": "random-search"
+                  },
+                  {
+                    "active": true,
+                    "capabilities": {
+                      "composition_nodes_supported": [
+                        "TASK",
+                        "SEQ"
+                      ],
+                      "constraints_supported": [
+                        "attribute_bound"
+                      ],
+                      "objective_types_supported": [
+                        "MONO"
+                      ],
+                      "qos_features_supported": [
+                        "*"
+                      ],
+                      "schema_version": "v1",
+                      "type": "HEURISTIC"
+                    },
+                    "federated": true,
+                    "id": "alice~tabu",
+                    "owner": "alice",
+                    "status": "active",
+                    "verified_at": "2026-07-30T09:14:11Z",
+                    "visibility": "public"
                   }
                 ],
                 "schema": {}

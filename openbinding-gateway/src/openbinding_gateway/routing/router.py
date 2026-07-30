@@ -12,6 +12,7 @@ from ..models.api import SolveRequest, SolveResponse
 from ..models.api import JobResponse, JobStatus, Feasibility
 from ..jobs import JobManager
 from ..semantics import canonicalize_result_data, engine_report
+from ..validation.engine_plugins.base import EngineValidationPlugin
 
 MAX_ENGINE_PAYLOAD_BYTES = 512 * 1024 * 1024
 PAYLOAD_TOO_LARGE_MESSAGE = (
@@ -36,20 +37,18 @@ class Router:
             return False
 
     @staticmethod
-    def _is_sync_response(data: dict) -> bool:
+    def _is_sync_response(data: dict, plugin: Optional[Any] = None) -> bool:
         """True when an engine answered synchronously.
 
-        Engines answer either with a job envelope ({"job_id": ...}) or with a
-        finished result: a selection at the top level, a selection wrapped
-        under result.solution, or an already-general "solutions" list.
+        Asked of the plugin, because the answer depends on the engine: the ones
+        that ship here reply with a job envelope or a finished result, and a
+        federated engine replies in whatever shape its own API uses. The
+        default implementation on the plugin base is what this method used to
+        contain.
         """
-        if "job_id" in data:
-            return False
-        if data.get("selection") is not None:
-            return True
-        if ((data.get("result") or {}).get("solution") or {}).get("selection") is not None:
-            return True
-        return isinstance(data.get("solutions"), list)
+        if plugin is not None:
+            return plugin.is_synchronous_response(data)
+        return EngineValidationPlugin.is_synchronous_response(None, data)  # type: ignore[arg-type]
 
     def _has_non_empty_binding_solution(self, result_data: dict) -> bool:
         solutions = result_data.get("solutions", []) or []
@@ -86,7 +85,10 @@ class Router:
         if not plugin:
             raise ValueError(f"Engine {request.engine_id} not found")
             
+        # The URL is still recorded on the job so a poll can find its way back;
+        # how a request is actually made is the transport's business now.
         service_url = EngineRegistry.get_url(request.engine_id)
+        transport = EngineRegistry.get_transport(request.engine_id)
         all_warnings = (warnings or [])
         
         async with httpx.AsyncClient() as client:
@@ -104,9 +106,9 @@ class Router:
                 data = None
                 for attempt in range(2 + 1):
                     try:
-                        response = await client.post(
-                            f"{service_url.rstrip('/')}/solve",
-                            json=payload,
+                        response = await transport.solve(
+                            client,
+                            payload,
                             timeout=budget_s or get_settings().engine_solve_timeout_s,
                         )
 
@@ -128,7 +130,7 @@ class Router:
                     raise RuntimeError("Failed to contact engine")
                 
                 # Check for sync response
-                if self._is_sync_response(data):
+                if self._is_sync_response(data, plugin):
                      # It's a synchronous result
                      result_data = plugin.transform_response(data, request.instance)
                      # Taken before canonicalization rewrites the metrics in
@@ -175,7 +177,7 @@ class Router:
                      await JobManager.save_job(job, session=session)
                      return response_model
 
-                engine_job_id = data.get("job_id")
+                engine_job_id = plugin.job_id(data)
                 
                 # Create Gateway Job
                 job = await JobManager.create_job(
@@ -263,21 +265,21 @@ class Router:
             
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.get(
-                    f"{job.service_url.rstrip('/')}/jobs/{job.engine_job_id}",
-                    timeout=30
-                )
+                plugin = EngineRegistry.get_plugin(job.engine_id)
+                transport = EngineRegistry.get_transport(job.engine_id)
+                response = await transport.poll(client, job.engine_job_id, timeout=30)
                 if response.status_code == 404:
                    return JobResponse(job_id=job.id, status=JobStatus.FAILED, error="Job not found on engine")
-                   
+
                 response.raise_for_status()
                 data = response.json()
-                
-                engine_status = data["status"]
-                
+
+                # Asked of the plugin: a federated engine calls a finished job
+                # whatever it likes, and its manifest says what that maps to.
+                engine_status = plugin.job_status(data)
+
                 result = None
                 if engine_status == "completed" or engine_status == "optimized":
-                    plugin = EngineRegistry.get_plugin(job.engine_id)
                     original_request = job.metadata.get("original_request") or {}
                     result_data = plugin.transform_response(data, original_request)
                     wants_report = job.metadata.get("include_engine_report", False)

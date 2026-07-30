@@ -6,16 +6,26 @@ hundred lines of literals.
 
 _HEALTH_EXAMPLE = {"status": "ok"}
 
+#: Two built-in engines and one registered by a user, because the shapes differ
+#: and a caller has to be able to tell them apart: a federated entry says who
+#: owns it, whether it has been published, and when it last passed conformance.
 _ENGINES_EXAMPLE = [
     {
         "id": "minizinc-csp",
         "capabilities": {
             "qos_features_supported": ["*"],
-            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
-            "objective_types_supported": ["weighted_sum"],
-            "constraints_supported": ["attribute_bound", "dependency"],
+            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP", "ELEMENT"],
+            "objective_types_supported": ["MONO"],
+            "constraints_supported": [
+                "attribute_bound",
+                "dependency",
+                "resource_capacity",
+                "latency_transition",
+            ],
+            "type": "EXACT",
             "schema_version": "v1",
         },
+        "federated": False,
         "active": True,
     },
     {
@@ -23,10 +33,34 @@ _ENGINES_EXAMPLE = [
         "capabilities": {
             "qos_features_supported": ["*"],
             "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
-            "objective_types_supported": ["weighted_sum"],
-            "constraints_supported": ["attribute_bound", "dependency"],
+            "objective_types_supported": ["MONO"],
+            "constraints_supported": [
+                "attribute_bound",
+                "dependency",
+                "resource_capacity",
+                "latency_transition",
+            ],
+            "type": "HEURISTIC",
             "schema_version": "v1",
         },
+        "federated": False,
+        "active": True,
+    },
+    {
+        "id": "alice~tabu",
+        "capabilities": {
+            "qos_features_supported": ["*"],
+            "composition_nodes_supported": ["TASK", "SEQ"],
+            "objective_types_supported": ["MONO"],
+            "constraints_supported": ["attribute_bound"],
+            "type": "HEURISTIC",
+            "schema_version": "v1",
+        },
+        "federated": True,
+        "owner": "alice",
+        "visibility": "public",
+        "status": "active",
+        "verified_at": "2026-07-30T09:14:11Z",
         "active": True,
     },
 ]

@@ -9,6 +9,7 @@ itself.
 
 import asyncio
 import json
+import logging
 import time
 import uuid
 from contextlib import asynccontextmanager, suppress
@@ -22,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import space_client
 from .access import metering, policy
-from .access.dependencies import optional_session, solve_caller
+from .access.dependencies import get_optional_user, optional_session, solve_caller
 from .core.settings import get_settings
 from .db import base as db_base
 from .db.bootstrap import ensure_administrator
@@ -58,6 +59,7 @@ from .openapi_examples import (
     _JOB_QUEUED_EXAMPLE,
 )
 from .registry.engine import EngineRegistry
+from .registry.federated import load_entries
 from .routes.admin import router as admin_router
 from .routes.auth import router as auth_router
 from .routes.instance_parts import router as instance_parts_router
@@ -94,6 +96,16 @@ async def lifespan(app: FastAPI):
             await ensure_administrator(session, settings)
             await session.commit()
 
+            # Registered engines live in the database but are looked up from
+            # synchronous code, so the registry holds a snapshot. Loading it
+            # here means the first request after a restart already knows about
+            # them; a row that will not load is skipped and logged rather than
+            # taking the others with it.
+            entries, problems = await load_entries(session)
+            EngineRegistry.refresh_federated(entries)
+            for problem in problems:
+                logging.getLogger(__name__).warning("Federated engine unavailable: %s", problem)
+
     # A solve that nobody polls for would otherwise hold a concurrency slot
     # forever, and for an account allowed one that means never solving again.
     reconciler = None
@@ -128,8 +140,8 @@ TAGS_METADATA = [
 
 DESCRIPTION = """\
 A QoS-aware service composition gateway. Validate a binding instance against
-the general schema and a solver's specialisation of it, measure its binding
-space, and route it to an engine.
+the general schema and against the manifest of the engine you asked for,
+measure its binding space, and route it to that engine.
 
 **This document is the contract.** Instance structure is described in full
 under `SolveRequest.instance`; the shape of a solution is `Solution`, and its
@@ -255,11 +267,26 @@ async def health():
         }
     },
 )
-async def list_engines():
-    engines = EngineRegistry.list_engines()
+async def list_engines(user: Optional[User] = Depends(get_optional_user)):
+    """Every engine the caller may use.
+
+    Public, and the answer depends on who is asking: the four built-in engines
+    for everybody, plus the registered ones that are public and the ones this
+    caller owns. An engine somebody may not see is absent rather than listed as
+    forbidden, for the same reason a foreign job answers 404 - whether
+    ``alice~tabu`` exists is Alice's business.
+    """
+    engines = EngineRegistry.list_engines(user)
 
     async def check_engine_health(engine_id: str, client: httpx.AsyncClient) -> bool:
         try:
+            transport = EngineRegistry.get_transport(engine_id)
+            if hasattr(transport, "healthy"):
+                # A federated engine is probed through its own declared health
+                # operation, if it declared one. Asking it for /health would be
+                # asking it to implement our contract, which is the thing
+                # federation exists to avoid.
+                return await transport.healthy(client)
             plugin = EngineRegistry.get_plugin(engine_id)
             base_url = EngineRegistry.get_url(engine_id)
             return await plugin.check_engine_health(base_url, client)

@@ -99,6 +99,11 @@ class Settings(BaseSettings):
     #: own solvers. Without it, federated engines that need authentication
     #: cannot be stored at all.
     federation_secret_key: Optional[str] = None
+    #: Whether a federated engine must be reached over TLS. The instance and
+    #: the credential both travel to it, so a deployment serving real users
+    #: leaves this on; a developer testing against a local stub turns it off
+    #: rather than running a certificate authority to do it.
+    federation_require_https: bool = True
 
     # -- Derived values --------------------------------------------------
 
