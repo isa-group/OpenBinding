@@ -90,7 +90,6 @@ OpenBinding validates incoming requests against two schema layers:
 
     `GET /v1/schemas/general` serves them bundled into one self-contained document, so
     consumers see exactly what a monolithic file would have been.
-    - Visual model (Mermaid): `schemas/general/schema.mermaid`
     - Specification / semantics (human-readable): `schemas/general/schema.specification.md`
 
     The specification document explains the intent and semantics behind the JSON Schema, including:
@@ -119,13 +118,6 @@ OpenBinding validates incoming requests against two schema layers:
    The same document describes a **federated engine** — somebody else's solver,
    registered at runtime — which additionally carries a `transport` block saying
    where it lives and how to speak to it.
-
-   A manifest can also come with a visual model in Mermaid format (recommended):
-    - `schemas/manifests/minizinc-csp.manifest.mermaid`
-    - `schemas/manifests/random-search.manifest.mermaid`
-    - `schemas/manifests/many-heuristic.manifest.mermaid`
-
-   Mermaid models are used by the frontend **Schema Explorer** in the **Model** tab. If an engine ships no `.manifest.mermaid`, the JSON schema workflow remains fully functional.
 
 Example payloads that follow these schemas live in `examples/`.
 
@@ -383,8 +375,10 @@ the API with a manifest that also describes their HTTP surface, validated and
 routed to by the gateway while all scoring stays here — which is why a
 third-party engine only has to return which candidate serves which task.
 
-See [docs/ENGINE_INTEGRATION_GUIDE.md](docs/ENGINE_INTEGRATION_GUIDE.md) for
-both.
+- [docs/ENGINE_INTEGRATION_GUIDE.md](docs/ENGINE_INTEGRATION_GUIDE.md) — adding
+  an engine, end to end.
+- [docs/ENGINE_MANIFEST.md](docs/ENGINE_MANIFEST.md) — the manifest reference:
+  every field, its default, what is checked, and how to initialize one.
 
 ## 👤 Accounts, plans and quotas
 

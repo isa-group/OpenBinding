@@ -18,12 +18,10 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "lucide-react": "^0.468.0",
-    "mermaid": "^11.12.0",
     "pricing-renderer": "^0.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.0",
-    "react-zoom-pan-pinch": "^3.7.0",
     "recharts": "^2.15.4"
   },
   "devDependencies": {

@@ -344,28 +344,6 @@ class ApiClient {
     return this.request<any>(`/v1/schemas/${engineId}`);
   }
 
-  async getGeneralSchemaModel(): Promise<string | null> {
-    try {
-      return await this.requestText('/v1/schemas/general/model');
-    } catch (error) {
-      if (error instanceof HttpError && error.status === 404) {
-        return null;
-      }
-      throw error;
-    }
-  }
-
-  async getEngineSchemaModel(engineId: string): Promise<string | null> {
-    try {
-      return await this.requestText(`/v1/schemas/${engineId}/model`);
-    } catch (error) {
-      if (error instanceof HttpError && error.status === 404) {
-        return null;
-      }
-      throw error;
-    }
-  }
-
   async solve(request: SolveRequest): Promise<JobStatus> {
     return this.requestWithRetry<JobStatus>(
       '/v1/solve',

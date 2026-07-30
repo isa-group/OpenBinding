@@ -484,6 +484,58 @@ def test_an_escaped_token_is_unescaped_before_lookup():
     assert resolve_pointer({"a~b": 2}, "/a~0b") == 2
 
 
+# -- The reference documentation --------------------------------------------
+
+
+def documented_manifests():
+    """Every complete manifest in ``docs/ENGINE_MANIFEST.md``.
+
+    A reference document whose examples do not parse is worse than no reference
+    document, and it is exactly the kind of thing that rots quietly: the model
+    changes, the prose is updated, and the JSON block three screens down is not.
+    """
+    import json
+    import pathlib
+    import re
+
+    doc = pathlib.Path(__file__).resolve().parents[2] / "docs" / "ENGINE_MANIFEST.md"
+    blocks = re.findall(r"```json\n(.*?)```", doc.read_text(encoding="utf-8"), re.DOTALL)
+
+    found = []
+    for block in blocks:
+        # Most blocks illustrate one field and begin with its name, so they are
+        # fragments rather than documents. A block that opens a brace is
+        # claiming to be a whole manifest, and is held to that.
+        if not block.lstrip().startswith("{"):
+            continue
+        parsed = json.loads(block)
+        if isinstance(parsed, dict) and "manifest_version" in parsed:
+            found.append(parsed)
+    return found
+
+
+def test_the_reference_document_contains_examples_to_check():
+    # Guards the guard: a regex that silently matches nothing would make every
+    # test below pass by doing nothing.
+    assert len(documented_manifests()) >= 2
+
+
+@pytest.mark.parametrize("documented", documented_manifests())
+def test_every_documented_manifest_is_valid(documented):
+    EngineManifest.model_validate(documented)
+
+
+def test_the_documented_minimum_really_is_minimal():
+    # The reference claims binding is the only required mapping. If a federated
+    # example there ever grows a second one, the claim has quietly stopped
+    # being true.
+    federated = [m for m in documented_manifests() if "transport" in m]
+
+    assert federated, "the reference should show a federated manifest"
+    smallest = min(federated, key=lambda m: len(m["transport"]["response_mapping"]))
+    assert list(smallest["transport"]["response_mapping"]) == ["binding"]
+
+
 def test_a_pointer_that_misses_yields_nothing_rather_than_raising():
     # An engine may legitimately omit an optional field on some answers, so a
     # miss is a fact about one response, not a programming error.

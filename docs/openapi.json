@@ -3232,25 +3232,6 @@
         ]
       }
     },
-    "/v1/schemas/general/model": {
-      "get": {
-        "operationId": "get_general_schema_model_v1_schemas_general_model_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get General Schema Model",
-        "tags": [
-          "Schemas"
-        ]
-      }
-    },
     "/v1/schemas/pricing": {
       "get": {
         "description": "The Pricing2Yaml document, as a document.\n\nServed rather than bundled into the interface because the plans are part of\nthe API's description: a script deciding whether to ask for an upgrade\nshould be able to read what the plans are, not screen-scrape a page. It is\nalso what the interface renders, so the two cannot disagree.\n\nPublic, because a pricing nobody can read before signing up is not much of\na pricing.",
@@ -3310,47 +3291,6 @@
           }
         },
         "summary": "Get Engine Schema",
-        "tags": [
-          "Schemas"
-        ]
-      }
-    },
-    "/v1/schemas/{engine_id}/model": {
-      "get": {
-        "description": "The Mermaid rendering of an engine's instance schema, when there is one.\n\nOnly in-tree engines ship one, so this stays a file lookup. A registered\nengine has no drawing and the interface says so, which is the same thing it\nalready does for a built-in engine whose author has not written one.",
-        "operationId": "get_engine_schema_model_v1_schemas__engine_id__model_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "engine_id",
-            "required": true,
-            "schema": {
-              "title": "Engine Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Engine Schema Model",
         "tags": [
           "Schemas"
         ]

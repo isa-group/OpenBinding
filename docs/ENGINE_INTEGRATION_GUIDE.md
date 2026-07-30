@@ -33,6 +33,10 @@ Everything the gateway believes about an engine comes from one document:
 schemas/manifests/<engine-id>.manifest.json
 ```
 
+**[ENGINE_MANIFEST.md](ENGINE_MANIFEST.md) is the field-by-field reference** —
+what every key means, what it defaults to, what is checked and when, and how to
+initialize one for either kind of engine. What follows here is the short version.
+
 ```jsonc
 {
   "manifest_version": "1",
@@ -93,11 +97,10 @@ test suite, so a bound you declare is a bound you have to live within.
 ## Required artifacts
 
 1. **Manifest**: `schemas/manifests/<engine-id>.manifest.json`.
-2. **Manifest model** (recommended): `schemas/manifests/<engine-id>.manifest.mermaid`.
-3. **Plugin**: implement `EngineValidationPlugin`, setting `engine_id`. The base
+2. **Plugin**: implement `EngineValidationPlugin`, setting `engine_id`. The base
    class finds the manifest and derives everything above from it.
-4. Engine URL in the registry + env wiring.
-5. **Tests**: unit tests for your search, and your engine id in the integration
+3. Engine URL in the registry + env wiring.
+4. **Tests**: unit tests for your search, and your engine id in the integration
    suite's engine list (`tests/integration/conftest.py`), where tests skip
    themselves for objective types you do not claim to support.
 
@@ -171,27 +174,6 @@ quickest start is to fetch a comparable engine's and edit it:
 curl -s localhost:8000/v1/engines/random-search/manifest > my-engine.manifest.json
 ```
 
-### 1.1) Add a manifest model (recommended)
-
-To enable visual exploration in the frontend **Schema Explorer** (`JSON | Model`
-tabs), add a Mermaid model beside the manifest:
-
-- Path: `schemas/manifests/<engine-id>.manifest.mermaid`
-- Naming must match your engine id exactly (`<engine-id>`)
-
-The Mermaid model is optional, but strongly recommended for maintainability and
-onboarding. If the file is missing, the frontend shows **Model not available**
-while keeping JSON schema validation and all engine workflows fully operational.
-
-Good practices:
-
-- Keep the JSON and the Mermaid aligned conceptually (same constraints and
-  capabilities).
-- Keep node and edge labels stable and meaningful across versions.
-- Prefer modular Mermaid subgraphs for large models.
-- Update both in the same PR when constraints change.
-- Avoid changing `<engine-id>` once released, to prevent manifest/model mismatch.
-
 ### 2) Implement the engine plugin
 
 Create a plugin in
@@ -254,9 +236,8 @@ The gateway exposes:
 - `/v1/engines` — capabilities and liveness
 - `/v1/engines/<engine-id>/manifest`
 - `/v1/engines/<engine-id>/options/schema` and `/options/defaults`
-- `/v1/schemas/general` and `/v1/schemas/general/model`
+- `/v1/schemas/general` — the general schema, bundled into one document
 - `/v1/schemas/<engine-id>` — your instance schema
-- `/v1/schemas/<engine-id>/model` — your Mermaid model
 - `/v1/schemas/engine-contract` — what the gateway asks of an engine
 
 Your manifest must be discoverable via `SCHEMAS_DIR`.
@@ -301,6 +282,10 @@ HTTP surface rather than requiring them to implement ours: their OpenAPI
 document, which of their operations means "solve" and which means "poll a job",
 and JSON Pointers saying where in their payloads our fields sit.
 
+> The manifest format below is implemented and validated. The endpoints that
+> *register* one are the next piece of work, so a `transport` block is currently
+> a document the gateway checks rather than one it can route through.
+
 ```yaml
 transport:
   openapi: { url: https://acme.example/openapi.json }   # or an inline document
@@ -342,5 +327,3 @@ into a benchmark with in-tree results.
 - Ensure `SCHEMAS_DIR` resolves to the folder containing `manifests/`.
 - A capability that "does not work" is usually declared in the manifest and not
   enforced by the engine, or enforced and rejected by `instance_schema`.
-- If the Model tab shows unavailable, confirm `<engine-id>.manifest.mermaid`
-  exists under `schemas/manifests/` and matches the engine id exactly.

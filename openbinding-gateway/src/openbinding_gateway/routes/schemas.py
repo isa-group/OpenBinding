@@ -11,7 +11,6 @@ from fastapi.responses import FileResponse
 
 from ..core.settings import get_settings
 from ..registry.engine import EngineRegistry
-from ..validation.engine_plugins.base import manifests_dir
 from ..validation.schema_bundle import load_general_schema
 
 router = APIRouter(prefix="/v1/schemas", tags=["Schemas"])
@@ -19,29 +18,6 @@ router = APIRouter(prefix="/v1/schemas", tags=["Schemas"])
 
 def _schemas_dir() -> str:
     return get_settings().schemas_dir
-
-
-def _assert_engine_exists(engine_id: str) -> None:
-    try:
-        EngineRegistry.get_plugin(engine_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail=f"Engine '{engine_id}' isn't here.")
-
-
-def _general_schema_path(extension: str) -> str:
-    return os.path.join(_schemas_dir(), "general", f"schema.{extension}")
-
-
-def _manifest_path(engine_id: str, extension: str) -> str:
-    """A file sitting beside an engine's manifest, such as its Mermaid model.
-
-    Resolved through the plugins' own helper rather than from ``schemas_dir``
-    directly, so that the drawing is found wherever the manifest is found. Doing
-    it separately meant the schema endpoint worked in a checkout and the model
-    endpoint next to it returned 404, because only one of the two knew about the
-    repository-relative fallback.
-    """
-    return os.path.join(manifests_dir(), f"{engine_id}.manifest.{extension}")
 
 
 def _pricing_path() -> str:
@@ -121,16 +97,6 @@ async def get_general_schema():
         raise HTTPException(status_code=404, detail=str(error))
 
 
-@router.get("/general/model")
-async def get_general_schema_model():
-    model_path = _general_schema_path("mermaid")
-
-    if not os.path.exists(model_path):
-        raise HTTPException(status_code=404, detail="General model not found on server.")
-
-    return FileResponse(model_path, media_type="text/plain; charset=utf-8")
-
-
 @router.get("/{engine_id}")
 async def get_engine_schema(engine_id: str):
     """The instance schema one engine accepts, from its manifest.
@@ -153,20 +119,3 @@ async def get_engine_schema(engine_id: str):
         raise HTTPException(
             status_code=404, detail=f"No instance schema for {engine_id}."
         ) from error
-
-
-@router.get("/{engine_id}/model")
-async def get_engine_schema_model(engine_id: str):
-    """The Mermaid rendering of an engine's instance schema, when there is one.
-
-    Only in-tree engines ship one, so this stays a file lookup. A registered
-    engine has no drawing and the interface says so, which is the same thing it
-    already does for a built-in engine whose author has not written one.
-    """
-    _assert_engine_exists(engine_id)
-    model_path = _manifest_path(engine_id, "mermaid")
-
-    if not os.path.exists(model_path):
-        raise HTTPException(status_code=404, detail=f"No schema model for {engine_id}.")
-
-    return FileResponse(model_path, media_type="text/plain; charset=utf-8")
