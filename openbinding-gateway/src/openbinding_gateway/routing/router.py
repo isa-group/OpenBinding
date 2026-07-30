@@ -148,6 +148,12 @@ class Router:
                          request.engine_id, "sync", service_url, owner_id=owner_id, session=session
                      )
                      job.status = JobStatus.COMPLETED
+                     # What was asked, kept beside what came back. The
+                     # asynchronous path has always recorded this; without it
+                     # here, a synchronous solve could be read back but never
+                     # reproduced - which is most of what a job history is for.
+                     job.metadata["original_request"] = request.instance
+                     job.metadata["options"] = request.options
                      
                      diagnostics = {}
                      if request.verbose:

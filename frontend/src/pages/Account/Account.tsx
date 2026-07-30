@@ -33,6 +33,29 @@ export function Account() {
     }
   }, []);
 
+  const downloadRequest = async (jobId: string, engineId: string) => {
+    // What a retention window is *for*: being able to run a past solve again,
+    // or compare another engine against it. Downloaded rather than shown,
+    // because an instance is a document you feed back in, not one you read.
+    try {
+      const kept = await apiClient.getJobRequest(jobId);
+      const blob = new Blob([JSON.stringify(kept.instance, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${engineId}-${jobId.slice(0, 8)}.instance.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError(
+        'That solve did not record what it was asked. Jobs from before the gateway ' +
+          'started keeping instances cannot be reproduced.'
+      );
+    }
+  };
+
   const loadUsage = useCallback(async () => {
     try {
       setUsage(await apiClient.getOwnUsage());
@@ -268,6 +291,7 @@ export function Account() {
                   <th>Status</th>
                   <th>Result</th>
                   <th>When</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -300,6 +324,16 @@ export function Account() {
                       )}
                     </td>
                     <td>{new Date(job.created_at).toLocaleString('en-GB')}</td>
+                    <td>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        title="Download the instance and options this solve was given"
+                        onClick={() => void downloadRequest(job.id, job.engine_id)}
+                      >
+                        Request
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

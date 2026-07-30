@@ -912,6 +912,56 @@ async def get_job(
     return job
 
 
+@app.get(
+    "/v1/jobs/{job_id}/request",
+    tags=["Solving"],
+    operation_id="getJobRequest",
+    summary="What a job was asked to solve",
+    responses={
+        200: {"description": "The instance and options as they were submitted"},
+        401: UNAUTHORIZED_RESPONSE,
+        404: NOT_FOUND_RESPONSE,
+        503: UNAVAILABLE_RESPONSE,
+    },
+)
+async def get_job_request(
+    job_id: str,
+    user: Optional[User] = Depends(solve_caller),
+    session: Optional[AsyncSession] = Depends(optional_session),
+) -> Dict[str, Any]:
+    """The instance and options a job was given, exactly as submitted.
+
+    A history that records only what came back is a list of outcomes nobody can
+    reproduce - you can see that a solve was feasible three weeks ago and have
+    no way to run it again, compare an engine against it, or find out what
+    changed. The plan sells a retention window; this is what is being retained.
+
+    Kept apart from ``GET /v1/jobs/{id}`` because that one is also the polling
+    endpoint, and returning a megabyte of instance on every poll of a running
+    job would be a poor trade for something wanted once.
+    """
+    stored = await JobManager.get_job(job_id, session=session)
+    if stored is None or not stored.readable_by(user):
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "No such job.")
+
+    instance = (stored.metadata or {}).get("original_request")
+    if not instance:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            "request_not_kept",
+            "This job did not record what it was asked. Jobs solved before the "
+            "gateway started keeping instances cannot be reproduced.",
+        )
+
+    return {
+        "job_id": stored.id,
+        "engine_id": stored.engine_id,
+        "instance": instance,
+        "options": (stored.metadata or {}).get("options") or {},
+        "submitted_at": getattr(stored, "created_at", None),
+    }
+
+
 # Serving the schema files themselves has nothing to do with solving, so it
 # lives in its own module.
 app.include_router(schemas_router)

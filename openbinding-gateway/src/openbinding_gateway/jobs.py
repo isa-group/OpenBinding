@@ -108,6 +108,7 @@ def _to_gateway_job(row: Job) -> GatewayJob:
         "verbose": row.verbose,
         "warnings": row.warnings or [],
         "original_request": row.original_request or {},
+        "options": row.options or {},
     }
     if row.binding_space:
         job.metadata["binding_space"] = row.binding_space
@@ -164,6 +165,7 @@ class DatabaseJobStore:
             row.requested_budget_s = float(budget)
         row.warnings = job.metadata.get("warnings") or None
         row.original_request = job.metadata.get("original_request") or None
+        row.options = job.metadata.get("options") or None
         row.binding_space = job.metadata.get("binding_space") or None
         if job.result is not None:
             row.result = (

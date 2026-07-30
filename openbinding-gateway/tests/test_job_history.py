@@ -198,3 +198,115 @@ async def test_the_history_is_paged(api_client, registration, db_session):
 
 async def test_the_history_needs_an_account(api_client):
     assert (await api_client.get("/v1/users/me/jobs")).status_code == 401
+
+
+# -- Getting back what you asked --------------------------------------------
+
+
+async def test_a_job_can_be_read_back_as_the_request_that_made_it(
+    api_client, registration, db_session
+):
+    """A retention window over outcomes alone is not worth having.
+
+    Being told that a solve was feasible three weeks ago, with no way to run it
+    again or compare an engine against it, is a record of something rather than
+    a record you can use.
+    """
+    profile, token = await account(api_client, registration)
+    instance = {"metadata": {"id": "kept"}, "tasks": [{"id": "t1"}]}
+    job = a_job(uuid.UUID(profile["id"]))
+    job.original_request = instance
+    db_session.add(job)
+    await db_session.flush()
+
+    body = (
+        await api_client.get(f"/v1/jobs/{job.id}/request", headers=auth(token))
+    ).json()
+
+    assert body["instance"] == instance
+    assert body["engine_id"] == "random-search"
+
+
+async def test_the_request_of_somebody_elses_job_is_not_yours(
+    api_client, registration, db_session
+):
+    alice, _ = await account(api_client, registration)
+    _, bob_token = await account(api_client, registration)
+    job = a_job(uuid.UUID(alice["id"]))
+    job.original_request = {"tasks": []}
+    db_session.add(job)
+    await db_session.flush()
+
+    response = await api_client.get(f"/v1/jobs/{job.id}/request", headers=auth(bob_token))
+
+    assert response.status_code == 404
+
+
+async def test_a_job_that_recorded_nothing_says_so_rather_than_lying(
+    api_client, registration, db_session
+):
+    # Jobs solved before the gateway kept instances cannot be reproduced, and
+    # an empty instance would be a worse answer than admitting it.
+    profile, token = await account(api_client, registration)
+    job = a_job(uuid.UUID(profile["id"]))
+    db_session.add(job)
+    await db_session.flush()
+
+    response = await api_client.get(f"/v1/jobs/{job.id}/request", headers=auth(token))
+
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "request_not_kept"
+
+
+async def test_a_synchronous_solve_records_what_it_was_asked(micro_placement_instance):
+    """The synchronous path never did, so most solves were unreproducible.
+
+    Only the asynchronous branch stored the instance; a solve that came back in
+    one response stored the answer and nothing else - so the history could tell
+    you an engine had said "feasible" and never what it had been asked.
+
+    Driven through the router rather than the endpoint, because this is a fact
+    about what route_solve records, and the endpoint would only obscure it.
+    """
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from openbinding_gateway.models.api import SolveRequest
+    from openbinding_gateway.routing.router import Router
+
+    binding = {task["id"]: f"c_{task['id']}_p1" for task in micro_placement_instance["tasks"]}
+    engine_body = {"solutions": [{"binding": binding}], "provenance": {"engine_id": "stub"}}
+
+    plugin = MagicMock()
+    plugin.transform_request.return_value = ({"instance": micro_placement_instance}, [])
+    plugin.transform_response.side_effect = lambda *_, **__: dict(engine_body)
+    plugin.get_capabilities.return_value = {"type": "HEURISTIC"}
+    plugin.is_synchronous_response.return_value = True
+
+    answer = MagicMock()
+    answer.status_code = 200
+    answer.json.return_value = engine_body
+    answer.raise_for_status.return_value = None
+
+    transport = MagicMock()
+    transport.solve = AsyncMock(return_value=answer)
+
+    with patch(
+        "openbinding_gateway.registry.engine.EngineRegistry.get_plugin", return_value=plugin
+    ), patch(
+        "openbinding_gateway.registry.engine.EngineRegistry.get_url", return_value="http://stub"
+    ), patch(
+        "openbinding_gateway.registry.engine.EngineRegistry.get_transport", return_value=transport
+    ):
+        response = await Router().route_solve(
+            SolveRequest(
+                engine_id="stub",
+                instance=micro_placement_instance,
+                options={"seed": 7},
+            )
+        )
+
+    from openbinding_gateway.jobs import JobManager
+
+    stored = await JobManager.get_job(str(response.job_id))
+    assert stored.metadata["original_request"]["tasks"] == micro_placement_instance["tasks"]
+    assert stored.metadata["options"] == {"seed": 7}

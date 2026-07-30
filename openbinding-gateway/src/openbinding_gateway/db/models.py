@@ -188,6 +188,10 @@ class Job(Base):
     #: What the engine was asked, and what it answered. Kept whole so a job can
     #: be re-canonicalized later without asking the engine again.
     original_request: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    #: The solver options as submitted. Part of the request, and the difference
+    #: between a job that can be run again and one that only looks like it can:
+    #: a seed is what makes a heuristic's answer reproducible.
+    options: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     warnings: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     binding_space: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)

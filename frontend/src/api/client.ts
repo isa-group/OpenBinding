@@ -31,6 +31,15 @@ export interface JobHistory {
   retention_days: number;
 }
 
+/** What a job was asked to solve, so a past solve can be run again. */
+export interface JobRequest {
+  job_id: string;
+  engine_id: string;
+  instance: any;
+  options: Record<string, unknown>;
+  submitted_at?: string | null;
+}
+
 export interface Engine {
   id: string;
   capabilities: any;
@@ -625,6 +634,17 @@ class ApiClient {
    * Summaries only - a result can be hundreds of megabytes, and this is for
    * finding the one you want. `getJobStatus` returns the answer itself.
    */
+  /**
+   * The instance and options a job was given.
+   *
+   * Separate from `getJobStatus` because that one also polls a running job,
+   * and an instance can be large enough that returning it on every poll would
+   * be a poor trade for something wanted once.
+   */
+  async getJobRequest(jobId: string): Promise<JobRequest> {
+    return this.request<JobRequest>(`/v1/jobs/${jobId}/request`);
+  }
+
   async listOwnJobs(params: { limit?: number; offset?: number } = {}): Promise<JobHistory> {
     const query = new URLSearchParams();
     if (params.limit != null) query.set('limit', String(params.limit));

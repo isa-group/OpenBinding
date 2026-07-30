@@ -4398,6 +4398,81 @@
         ]
       }
     },
+    "/v1/jobs/{job_id}/request": {
+      "get": {
+        "description": "The instance and options a job was given, exactly as submitted.\n\nA history that records only what came back is a list of outcomes nobody can\nreproduce - you can see that a solve was feasible three weeks ago and have\nno way to run it again, compare an engine against it, or find out what\nchanged. The plan sells a retention window; this is what is being retained.\n\nKept apart from ``GET /v1/jobs/{id}`` because that one is also the polling\nendpoint, and returning a megabyte of instance on every poll of a running\njob would be a poor trade for something wanted once.",
+        "operationId": "getJobRequest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Getjobrequest",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The instance and options as they were submitted"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "What a job was asked to solve",
+        "tags": [
+          "Solving"
+        ]
+      }
+    },
     "/v1/schemas/engine-contract": {
       "get": {
         "description": "The engine-side contract, as an OpenAPI document.\n\nThe other half of the gateway's own description: that one says what a client\nmay ask OpenBinding, this says what OpenBinding asks an engine. It existed\nonly as prose and as three response shapes implicit in the router until now,\nwhich is not something a third party can implement against.\n\nPublic, and served rather than only committed, so that whoever is building\nan engine reads the version this gateway actually speaks.",
