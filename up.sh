@@ -42,7 +42,6 @@ if [ ! -f .env ]; then
     echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
     echo "GATEWAY_JWT_SECRET=$(openssl rand -hex 32)"
     echo "FEDERATION_SECRET_KEY=$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' 2>/dev/null || openssl rand -base64 32)"
-    echo "AUTH_REQUIRED_FOR_SOLVE=true"
   } > .env
   note "wrote .env with fresh secrets."
 else

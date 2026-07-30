@@ -50,17 +50,23 @@ class GatewayJob:
         self.metadata: Dict[str, Any] = {}
 
     def readable_by(self, user) -> bool:
-        """Whether this user may see this job.
+        """Whether this user may see this job. Only its owner may.
 
-        An unowned job - one from a gateway running without accounts - is
-        readable by anyone, because there is nobody it could belong to. An
-        owned one is its owner's, and an administrator's.
+        Not administrators. A job carries the instance somebody submitted, and
+        an instance is their data - a provider list, a cost model, a topology.
+        Administering accounts means plans, keys and activation; it does not
+        mean reading what people solve. An administrator who needs a job for
+        support can be given its identifier by the person who owns it.
+
+        Not anonymous callers either, even for a job with no owner. An unowned
+        row is one from before accounts existed or from a gateway configured
+        without them; treating "belongs to nobody" as "belongs to everybody"
+        makes a job identifier a bearer token again, which is the thing
+        ownership was added to stop.
         """
-        if self.owner_id is None:
-            return True
-        if user is None:
+        if user is None or self.owner_id is None:
             return False
-        return self.owner_id == user.id or getattr(user, "is_admin", False)
+        return self.owner_id == user.id
 
 
 class InMemoryJobStore:

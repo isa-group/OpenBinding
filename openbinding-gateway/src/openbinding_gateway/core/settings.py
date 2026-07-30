@@ -73,8 +73,6 @@ class Settings(BaseSettings):
     gateway_jwt_secret: Optional[str] = None
     access_token_ttl_s: int = 15 * 60
     refresh_token_ttl_s: int = 30 * 24 * 60 * 60
-    #: Whether solving requires an account. Analysis stays public either way.
-    auth_required_for_solve: bool = True
 
     # -- The first administrator -----------------------------------------
     #: Registration is open and produces ordinary users, so a fresh deployment

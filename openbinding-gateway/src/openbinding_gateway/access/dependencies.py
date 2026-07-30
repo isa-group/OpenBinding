@@ -217,23 +217,23 @@ async def solve_caller(
     request: Request,
     session: Optional[AsyncSession] = Depends(optional_session),
 ) -> Optional[User]:
-    """Who is solving, under this deployment's rules.
+    """Who is solving. On a gateway with accounts, always somebody.
 
-    Three cases, and they are all deliberate. A gateway with no accounts
-    database keeps serving anonymously. A gateway with accounts and
-    ``AUTH_REQUIRED_FOR_SOLVE`` insists on knowing who is asking, because a
-    solve is the expensive thing and an unattributed one cannot be metered.
-    With that switched off, a caller is identified when they offer a
-    credential and tolerated when they do not.
+    Solving is the expensive operation and the one a plan is sold by, and an
+    unattributed solve cannot be metered, cannot be attributed to a job
+    somebody can read back, and cannot be refused when an allowance runs out.
+    There used to be a switch to permit it; there is not, because a deployment
+    that turns metering off by accident finds out from its bill.
+
+    A gateway configured with no accounts database at all still serves
+    anonymously - that is the standalone mode, where there are no plans to
+    enforce and no owners to attribute to.
     """
     if session is None:
         return None
 
     settings = get_settings()
     credential = _credential(request)
-
-    if not settings.auth_required_for_solve and not credential:
-        return None
 
     if not credential:
         raise api_error(
