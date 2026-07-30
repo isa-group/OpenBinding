@@ -272,3 +272,24 @@ def test_the_generic_plugin_warns_about_options_it_does_not_declare():
     _, warnings = plugin.transform_request({}, {"nonsense": 1})
 
     assert warnings == ["Option 'nonsense' is not supported by drop-in"]
+
+
+# -- The catalogue stays public --------------------------------------------
+
+
+def test_the_catalogue_answers_without_an_accounts_database():
+    """A gateway with no DATABASE_URL still lists its engines.
+
+    ``GET /v1/engines`` learned to vary its answer by caller, which meant it
+    acquired a dependency on knowing who the caller is. On a deployment where
+    nobody can sign in, "nobody is signed in" has to be an answer rather than a
+    503 - that is the promise the whole accounts module was added under.
+    """
+    from fastapi.testclient import TestClient
+
+    from openbinding_gateway.main import app
+
+    response = TestClient(app).get("/v1/engines")
+
+    assert response.status_code == 200
+    assert BUILT_INS <= {entry["id"] for entry in response.json()}

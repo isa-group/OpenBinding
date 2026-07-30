@@ -68,6 +68,19 @@ async def session_dependency():
         yield session
 
 
+async def optional_session():
+    """A session when there is a database, and ``None`` when there is not.
+
+    The solving endpoints work either way: with a database a job gets an owner
+    and a row, without one it behaves as the anonymous gateway always did.
+    """
+    if not accounts_enabled():
+        yield None
+        return
+    async for session in db_base.get_session():
+        yield session
+
+
 def _signing_secret(settings: Settings) -> str:
     secret = settings.gateway_jwt_secret
     if not secret:
@@ -143,9 +156,18 @@ async def _user_for_credential(
 
 async def get_optional_user(
     request: Request,
-    session: AsyncSession = Depends(session_dependency),
+    session: Optional[AsyncSession] = Depends(optional_session),
 ) -> Optional[User]:
-    """The caller, when there is one. Visitors get ``None``, not an error."""
+    """The caller, when there is one. Visitors get ``None``, not an error.
+
+    ``optional_session`` rather than ``session_dependency``, because this is the
+    dependency public endpoints use and a gateway configured without a database
+    still has to serve them. Insisting on a session would turn "nobody is signed
+    in" into a 503 on a deployment where nobody can sign in at all.
+    """
+    if session is None:
+        return None
+
     credential = _credential(request)
     if not credential:
         return None
@@ -184,19 +206,6 @@ async def get_current_user(
             headers=_AUTHENTICATE_CHALLENGE,
         )
     return user
-
-
-async def optional_session():
-    """A session when there is a database, and ``None`` when there is not.
-
-    The solving endpoints work either way: with a database a job gets an owner
-    and a row, without one it behaves as the anonymous gateway always did.
-    """
-    if not accounts_enabled():
-        yield None
-        return
-    async for session in db_base.get_session():
-        yield session
 
 
 async def solve_caller(
