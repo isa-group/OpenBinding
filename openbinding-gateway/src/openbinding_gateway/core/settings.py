@@ -17,6 +17,7 @@ promise that the file exists.
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from typing import List, Literal, Optional
 
@@ -128,13 +129,35 @@ class Settings(BaseSettings):
 
     @property
     def engine_urls(self) -> dict:
-        """Engine id to base URL, for the registry's built-in engines."""
-        return {
+        """Engine id to base URL, for the engines that ship with the gateway.
+
+        The four named fields stay because they are what the compose files and
+        ``.env.example`` already set, and one of them - ``ENGINE_MINIZINC_URL``
+        for ``minizinc-csp`` - predates the convention and does not follow it.
+
+        Everything else is found rather than listed: an engine with a manifest
+        on disk reads ``ENGINE_<ID>_URL``. That is what lets a new in-tree
+        engine be a manifest and an environment variable instead of a manifest
+        and four edits to this file.
+        """
+        from ..registry.discovery import manifest_ids, url_env_var
+        from ..validation.engine_plugins.base import manifests_dir_for
+
+        urls = {
             "minizinc-csp": self.engine_minizinc_url,
             "random-search": self.engine_random_search_url,
             "many-heuristic": self.engine_many_heuristic_url,
             "evolutionary-heuristics": self.engine_evolutionary_heuristics_url,
         }
+
+        for engine_id in manifest_ids(manifests_dir_for(self.schemas_dir)):
+            if engine_id in urls:
+                continue
+            configured = os.environ.get(url_env_var(engine_id))
+            if configured:
+                urls[engine_id] = configured
+
+        return urls
 
 
 @lru_cache(maxsize=1)

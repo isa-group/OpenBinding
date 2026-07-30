@@ -5,12 +5,10 @@ registered later — describes itself in one document. This is the reference for
 that document: what each field means, whether you have to write it, and how to
 choose a value.
 
-> **Status.** The manifest format described here is implemented and enforced:
-> the built-in engines are loaded from it and it is validated on parse. The
-> HTTP endpoints for *registering* a federated engine are the next piece of
-> work, so today a federated `transport` block is a document the gateway
-> validates rather than one it can yet route through. Everything in the
-> "Federated engines" half is the format those endpoints will accept.
+You should rarely write one from scratch. For an in-tree engine there is a
+scaffolding command; for a federated one the gateway reads your OpenAPI
+document and proposes the whole manifest. Both are described under
+[Initializing a manifest](#initializing-a-manifest).
 
 ## Where a manifest lives
 
@@ -521,17 +519,36 @@ known-good micro-instances. Plus the SSRF guard on the declared host.
 
 ### For an in-tree engine
 
-1. `curl -s localhost:8000/v1/engines/random-search/manifest > schemas/manifests/my-engine.manifest.json`
-2. Set `engine_id` (must match the filename), `display_name`, `description`.
-3. Set `type` honestly — see the warning above.
-4. Cut `capabilities` down to what you implement.
-5. Replace `instance_schema` with your restriction, or `{"type": "object"}` while
-   you get started.
-6. Replace `options_schema` with your options; give a `default` to each one the
-   gateway should send unprompted.
-7. Write the plugin (`engine_id` and `validate_semantics` are the whole of the
-   minimum) and register it. See
-   [ENGINE_INTEGRATION_GUIDE.md](ENGINE_INTEGRATION_GUIDE.md).
+**A manifest on disk is the whole registration.** There is no settings field to
+add, no dictionary to extend, and no `register()` line to write. The gateway
+finds `schemas/manifests/*.manifest.json` at startup and reads
+`ENGINE_<ID>_URL` for the address — so `my-engine` reads `ENGINE_MY_ENGINE_URL`.
+
+```bash
+python openbinding-gateway/tools/new_engine.py my-engine \
+    --display-name "My Engine" \
+    --type HEURISTIC \
+    --nodes TASK SEQ XOR \
+    --objectives MONO \
+    --constraints attribute_bound dependency \
+    --option "iterations_count:integer:1000" \
+    --option "seed:integer" \
+    --option "time_budget_ms:integer:null"
+```
+
+That writes `schemas/manifests/my-engine.manifest.json`, validated before it is
+written — a mistyped capability is a message now rather than a missing engine
+later. Add `--print` to see it without writing, and `--plugin` to get a Python
+stub as well.
+
+Then:
+
+1. Set `ENGINE_MY_ENGINE_URL` to where the engine listens.
+2. Narrow `instance_schema` from `{"type": "object"}` to the instances you
+   actually accept.
+3. Write a plugin **only** if your engine does not speak the contract in
+   `schemas/engine-contract.openapi.yaml`, or enforces something a JSON Schema
+   cannot express. Otherwise there is nothing else to do.
 
 Check it loaded:
 
@@ -542,20 +559,59 @@ curl -s localhost:8000/v1/engines/my-engine/options/defaults
 
 ### For a federated engine
 
-1. Start from the same fetched manifest, and add a `transport` block.
-2. Point `openapi.url` at your document, or paste it into `openapi.document`.
-3. Find the `operationId` of your solve operation and map it. If your API is
-   asynchronous, map the polling operation too **and** say where the job id and
-   status are.
-4. Set `request_mapping` to wherever your solve operation expects the problem.
-5. Set `response_mapping.binding` to where your Task → Candidate map sits inside
-   one solution, and `solutions` to where the list of them sits.
-6. If your engine authenticates, declare the scheme — and keep the secret out of
-   the manifest; it is supplied separately.
+**Let the gateway read your spec first.** `POST /v1/engines/draft` works out
+which operation solves, where the instance goes in your request body, which
+field of a solution is the binding, and whether you are asynchronous — and says
+what each guess was based on:
 
-Then sanity-check the mapping by hand before submitting: take a real response
-from your engine, and walk `solutions` → element → `binding`. If that lands on
-an object of `{"task_id": "candidate_id"}`, the mapping is right.
+```bash
+curl -s -X POST localhost:8000/v1/engines/draft \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"openapi_url": "https://acme.example/openapi.json", "engine_id": "tabu"}'
+```
+
+```jsonc
+{
+  "manifest": { /* ...a complete manifest... */ },
+  "notes": [
+    "the only POST operation is /optimize",
+    "the instance goes in the request's 'problem' property",
+    "'assignment' looks like the task-to-candidate map - the one mapping that is required"
+  ],
+  "unresolved": [
+    "Capabilities are guessed narrowly on purpose. Widen them to what the engine really supports."
+  ],
+  "ready": true
+}
+```
+
+Correct the guesses — `notes` tells you what to check, `unresolved` what the
+document could not answer — then submit:
+
+```bash
+curl -s -X POST localhost:8000/v1/engines \
+     -H "Authorization: Bearer $TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"manifest": {...}, "credential": "sk-live-...", "publish": false}'
+```
+
+Registration runs the checks immediately and answers with a **conformance
+report**: the operations are looked up in your document, and a two-task problem
+with four possible bindings is sent to your engine and read back through your
+mapping. An engine that fails is still registered, with the report attached and
+each finding naming the field to change — so the loop is correct-and-retry
+(`POST /v1/engines/registered/{id}/verify`) rather than resubmit-and-hope.
+
+The engine is private until you ask for it to be published and an administrator
+approves. Only an engine that passes its checks can ask.
+
+Two things to be aware of before pointing the gateway at your service:
+
+* solving on a federated engine **sends the instance to your endpoint**, and the
+  interface says so to whoever selects it;
+* federated results carry `provenance.federated = true`, so that they are never
+  quietly mixed into a benchmark with in-tree results.
 
 Two things to be aware of before pointing the gateway at your service:
 

@@ -10,19 +10,24 @@ from ...models.api import ValidationViolation
 from ...models.manifest import EngineManifest
 
 
-def manifests_dir() -> str:
-    """Where the manifests of the engines shipping with the gateway are.
+def manifests_dir_for(schemas_dir: str) -> str:
+    """Where manifests live under a given schemas directory.
 
-    SCHEMAS_DIR is what the Docker image sets; the repository-relative fallback
-    is what local development uses. Resolving it here keeps the walk up five
-    directories in one place instead of one copy per plugin.
+    Takes the directory rather than reading it, so that a ``Settings`` instance
+    can answer for itself. Reading the global settings here meant an object
+    constructed with its own ``schemas_dir`` still consulted somebody else's.
     """
-    base_path = get_settings().schemas_dir
-    if not os.path.exists(base_path):
-        base_path = os.path.abspath(
+    if not os.path.exists(schemas_dir):
+        # SCHEMAS_DIR is what the Docker image sets; this is what a checkout has.
+        schemas_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "../../../../../schemas")
         )
-    return os.path.join(base_path, "manifests")
+    return os.path.join(schemas_dir, "manifests")
+
+
+def manifests_dir() -> str:
+    """Where the manifests of the engines shipping with the gateway are."""
+    return manifests_dir_for(get_settings().schemas_dir)
 
 
 def manifest_path(engine_id: str) -> str:

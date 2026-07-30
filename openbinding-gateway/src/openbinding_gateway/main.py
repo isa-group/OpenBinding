@@ -62,6 +62,8 @@ from .registry.engine import EngineRegistry
 from .registry.federated import load_entries
 from .routes.admin import router as admin_router
 from .routes.auth import router as auth_router
+from .routes.engines import admin_router as engines_admin_router
+from .routes.engines import router as engines_router
 from .routes.instance_parts import router as instance_parts_router
 from .routes.schemas import router as schemas_router
 from .routes.users import router as users_router
@@ -876,3 +878,7 @@ app.include_router(instance_parts_router)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(admin_router)
+# Registering an engine is a documented operation like any other, which is the
+# whole point of the API-first rule: nothing the interface can do is missing here.
+app.include_router(engines_router)
+app.include_router(engines_admin_router)

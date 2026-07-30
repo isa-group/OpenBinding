@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 
 from ..core.settings import get_settings
 from ..federation.transport import BuiltinTransport, EngineTransport
+from .discovery import discover
 from ..validation.engine_plugins.base import EngineValidationPlugin
 from ..validation.engine_plugins.evolutionary_heuristics import EvolutionaryHeuristicsEnginePlugin
 from ..validation.engine_plugins.many_heuristic import ManyHeuristicEnginePlugin
@@ -145,8 +146,15 @@ class EngineRegistry:
         return engines
 
 
-# Initialization
+# Initialization. The handwritten plugins go first: each exists because its
+# engine needs something a manifest cannot express - a request shape of its
+# own, or a semantic check beyond a JSON Schema.
 EngineRegistry.register("minizinc-csp", MiniZincCSPEnginePlugin())
 EngineRegistry.register("random-search", RandomSearchEnginePlugin())
 EngineRegistry.register("many-heuristic", ManyHeuristicEnginePlugin())
 EngineRegistry.register("evolutionary-heuristics", EvolutionaryHeuristicsEnginePlugin())
+
+# Then every other manifest on disk becomes an engine on its own. An engine
+# that implements the contract in schemas/engine-contract.openapi.yaml needs no
+# Python here at all - only its manifest and an ENGINE_<ID>_URL.
+discover(EngineRegistry)

@@ -5,12 +5,17 @@ the engine manifest, the plugin interface, routing, and tests.
 
 There are two ways to add an engine, and they share a document:
 
-* **In-tree** — the engine ships with the gateway. You write a manifest and a
-  plugin, and the gateway is redeployed. This is what the four engines in
-  `engines/` are, and it is what most of this guide is about.
+* **In-tree** — the engine ships with the gateway. A manifest in
+  `schemas/manifests/` and an `ENGINE_<ID>_URL` are the whole registration; a
+  plugin is needed only for what a manifest cannot express. This is what the
+  four engines in `engines/` are, and it is what most of this guide is about.
 * **Federated** — somebody else's solver, registered at runtime through the API
   with a manifest that also describes their HTTP surface. No deployment, and no
   code in this repository. See "Federated engines" at the end.
+
+Neither is meant to be written by hand. `tools/new_engine.py` scaffolds the
+first; `POST /v1/engines/draft` reads a third party's OpenAPI document and
+proposes the second.
 
 ## Overview
 
@@ -165,14 +170,22 @@ rejects is unreachable. Both have happened here.
 
 ## Step-by-step
 
-### 1) Write the manifest
-
-Create `schemas/manifests/<engine-id>.manifest.json` as described above. The
-quickest start is to fetch a comparable engine's and edit it:
+### 1) Scaffold the manifest
 
 ```bash
-curl -s localhost:8000/v1/engines/random-search/manifest > my-engine.manifest.json
+python openbinding-gateway/tools/new_engine.py my-engine \
+    --display-name "My Engine" --type HEURISTIC \
+    --nodes TASK SEQ --objectives MONO \
+    --option "iterations_count:integer:1000"
 ```
+
+It writes `schemas/manifests/my-engine.manifest.json`, validated before it is
+written, so a mistyped capability is a message now rather than a missing engine
+later. `--print` shows it without writing; `--plugin` adds a Python stub.
+
+Then narrow `instance_schema` to the instances you accept, and set
+`ENGINE_MY_ENGINE_URL`. **That is the registration** - the gateway finds the
+manifest at startup and reads the URL from the environment by convention.
 
 ### 2) Implement the engine plugin
 
@@ -216,18 +229,22 @@ engine that already speaks the contract in
 `schemas/engine-contract.openapi.yaml` needs neither. Override
 `check_engine_health` only if your engine does not expose `GET /health`.
 
-### 3) Register the plugin and URL
+### 3) Register the plugin, if you wrote one
+
+Only if you wrote one. A manifest with no plugin beside it is already an engine.
 
 - File: `openbinding-gateway/src/openbinding_gateway/registry/engine.py`
-- Add an env var for the engine URL (e.g. `ENGINE_MY_ENGINE_URL`) in
-  `core/settings.py`.
-- Register the plugin in the initialization block:
+- Register it in the initialization block, above the `discover()` call - a
+  handwritten plugin always wins over the generic one:
 
 ```python
 from ..validation.engine_plugins.my_engine import MyEnginePlugin
 
 EngineRegistry.register("my-engine", MyEnginePlugin())
 ```
+
+The URL needs no code either way: `ENGINE_MY_ENGINE_URL` is read by convention
+from the manifest's id.
 
 ### 4) Check the endpoints
 
@@ -282,9 +299,16 @@ HTTP surface rather than requiring them to implement ours: their OpenAPI
 document, which of their operations means "solve" and which means "poll a job",
 and JSON Pointers saying where in their payloads our fields sit.
 
-> The manifest format below is implemented and validated. The endpoints that
-> *register* one are the next piece of work, so a `transport` block is currently
-> a document the gateway checks rather than one it can route through.
+Do not write one by hand. `POST /v1/engines/draft` takes your OpenAPI URL or
+document and proposes the whole manifest - which operation solves, where the
+instance goes, which field is the binding - with a note per guess saying what it
+was based on. Correct those, then `POST /v1/engines`.
+
+Registration answers with a **conformance report**: the mapped operations are
+looked up in your document, and a two-task problem with four possible bindings is
+sent to your engine and read back through your mapping. Each finding names the
+manifest field to change. An engine that fails keeps its registration and its
+report, so the loop is correct-and-retry rather than resubmit-and-hope.
 
 ```yaml
 transport:

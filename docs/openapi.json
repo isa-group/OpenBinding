@@ -569,6 +569,105 @@
         "title": "CreatedApiKey",
         "type": "object"
       },
+      "CredentialRequest": {
+        "properties": {
+          "credential": {
+            "title": "Credential",
+            "type": "string"
+          }
+        },
+        "required": [
+          "credential"
+        ],
+        "title": "CredentialRequest",
+        "type": "object"
+      },
+      "DraftRequest": {
+        "description": "Ask the gateway to read a spec and propose a manifest.",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "engine_id": {
+            "default": "my-engine",
+            "description": "Your name for the engine.",
+            "title": "Engine Id",
+            "type": "string"
+          },
+          "openapi_document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The document itself, if it is not served publicly.",
+            "title": "Openapi Document"
+          },
+          "openapi_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where to fetch the engine's OpenAPI document.",
+            "title": "Openapi Url"
+          }
+        },
+        "title": "DraftRequest",
+        "type": "object"
+      },
+      "DraftResponse": {
+        "description": "A manifest to correct, and what to correct in it.",
+        "properties": {
+          "manifest": {
+            "additionalProperties": true,
+            "title": "Manifest",
+            "type": "object"
+          },
+          "notes": {
+            "description": "What each guess was based on.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "ready": {
+            "description": "Whether the draft already carries the one required mapping.",
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "unresolved": {
+            "description": "What the document does not answer.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Unresolved",
+            "type": "array"
+          }
+        },
+        "required": [
+          "manifest",
+          "ready"
+        ],
+        "title": "DraftResponse",
+        "type": "object"
+      },
       "EngineDivergence": {
         "description": "Where the engine and the reference evaluator disagree.\n\nThe interesting part of keeping an engine's own numbers. An engine that\nreports a solution feasible which the reference evaluator rejects has a bug\nin its semantics, and that is worth surfacing as a signal rather than\nleaving somebody to compare two lists by eye.",
         "properties": {
@@ -666,6 +765,91 @@
           }
         },
         "title": "EngineReport",
+        "type": "object"
+      },
+      "EngineView": {
+        "description": "A registered engine, as its owner or an administrator sees it.\n\nThere is deliberately no credential field of any kind. It can be replaced\nbut never read back, which is what lets this be shown in a review queue.",
+        "properties": {
+          "conformance_report": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conformance Report"
+          },
+          "created_at": {
+            "title": "Created At"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "engine_id": {
+            "title": "Engine Id",
+            "type": "string"
+          },
+          "has_credential": {
+            "default": false,
+            "title": "Has Credential",
+            "type": "boolean"
+          },
+          "health_failures": {
+            "default": 0,
+            "title": "Health Failures",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "manifest": {
+            "additionalProperties": true,
+            "title": "Manifest",
+            "type": "object"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "title": "Updated At"
+          },
+          "verified_at": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          },
+          "visibility": {
+            "title": "Visibility",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "engine_id",
+          "display_name",
+          "owner",
+          "visibility",
+          "status",
+          "manifest",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "EngineView",
         "type": "object"
       },
       "ErrorBody": {
@@ -1083,6 +1267,39 @@
         "title": "RefreshRequest",
         "type": "object"
       },
+      "RegisterEngineRequest": {
+        "properties": {
+          "credential": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The secret for the engine's own authentication. Stored encrypted and never returned; replaceable only.",
+            "title": "Credential"
+          },
+          "manifest": {
+            "additionalProperties": true,
+            "description": "The engine manifest.",
+            "title": "Manifest",
+            "type": "object"
+          },
+          "publish": {
+            "default": false,
+            "description": "Ask for the engine to be listed publicly. An administrator decides.",
+            "title": "Publish",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "manifest"
+        ],
+        "title": "RegisterEngineRequest",
+        "type": "object"
+      },
       "RegisterRequest": {
         "properties": {
           "email": {
@@ -1425,6 +1642,31 @@
           "expires_in"
         ],
         "title": "TokenPair",
+        "type": "object"
+      },
+      "UpdateEngineRequest": {
+        "properties": {
+          "credential": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credential"
+          },
+          "manifest": {
+            "additionalProperties": true,
+            "title": "Manifest",
+            "type": "object"
+          }
+        },
+        "required": [
+          "manifest"
+        ],
+        "title": "UpdateEngineRequest",
         "type": "object"
       },
       "UpdateProfileRequest": {
@@ -1833,6 +2075,262 @@
         "summary": "Whether the gateway is up",
         "tags": [
           "Health"
+        ]
+      }
+    },
+    "/v1/admin/engines": {
+      "get": {
+        "description": "Every registration, or only those asking to be published.",
+        "operationId": "listEnginesForReview",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pending",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Pending",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EngineView"
+                  },
+                  "title": "Response Listenginesforreview",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Registered engines, for review",
+        "tags": [
+          "Administration"
+        ]
+      }
+    },
+    "/v1/admin/engines/{engine_id}/approve": {
+      "post": {
+        "operationId": "approveEngine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with something that already exists."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List an engine publicly",
+        "tags": [
+          "Administration"
+        ]
+      }
+    },
+    "/v1/admin/engines/{engine_id}/disable": {
+      "post": {
+        "description": "Turn it off without deleting it, so the owner can see what happened.",
+        "operationId": "disableEngine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stop an engine being solved on",
+        "tags": [
+          "Administration"
+        ]
+      }
+    },
+    "/v1/admin/engines/{engine_id}/reject": {
+      "post": {
+        "description": "Send it back to private. The engine keeps working for its owner.",
+        "operationId": "rejectEngine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refuse a publication request",
+        "tags": [
+          "Administration"
         ]
       }
     },
@@ -2820,6 +3318,572 @@
           }
         },
         "summary": "Registered engines and their capabilities",
+        "tags": [
+          "Engines"
+        ]
+      },
+      "post": {
+        "description": "Submit a manifest, and find out straight away whether it works.\n\nThe engine is registered either way. One that fails verification is stored\nwith its conformance report and cannot be solved on until it passes - which\nis more useful than a rejection, because the report says what to change.",
+        "operationId": "registerEngine",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterEngineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotaErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's plan has no allowance left, or the instance is larger than the plan solves. Distinct from 403: this is an allowance spent rather than a permission missing, so retrying after it renews is worth something."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with something that already exists."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Register your own solver",
+        "tags": [
+          "Engines"
+        ]
+      }
+    },
+    "/v1/engines/draft": {
+      "post": {
+        "description": "Read an engine's own spec and propose the manifest for it.\n\nThis is the difference between registering an engine and authoring a\ndocument. The gateway works out which operation solves, where the instance\nbelongs in the request, and which field of a solution is the binding - and\nsays what each guess was based on, so the answer can be checked rather than\ntrusted.\n\nWhat the document does not answer is listed rather than invented. An\nengine's own words for its job states, for instance, are not in its schema.",
+        "operationId": "draftEngineManifest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "422": {
+            "description": "The document could not be read"
+          }
+        },
+        "summary": "Propose a manifest from an OpenAPI document",
+        "tags": [
+          "Engines"
+        ]
+      }
+    },
+    "/v1/engines/registered": {
+      "get": {
+        "description": "Your own registrations, whatever state they are in.\n\nUnder ``/registered`` rather than at the collection root because\n``GET /v1/engines`` is the public catalogue and answers for everybody; this\none is about administering what you own, including the drafts and the\nfailures that the catalogue does not show.",
+        "operationId": "listOwnEngines",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EngineView"
+                  },
+                  "title": "Response Listownengines",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          }
+        },
+        "summary": "Engines you have registered",
+        "tags": [
+          "Engines"
+        ]
+      }
+    },
+    "/v1/engines/registered/{engine_id}": {
+      "delete": {
+        "operationId": "deleteRegisteredEngine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove a registration",
+        "tags": [
+          "Engines"
+        ]
+      },
+      "get": {
+        "operationId": "getRegisteredEngine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "One registration, with its conformance report",
+        "tags": [
+          "Engines"
+        ]
+      },
+      "put": {
+        "description": "Replace the manifest and check it again.\n\nAlways re-verified: a manifest that changed is a set of claims that has\nnot been checked, and letting an edit inherit the previous report would\nmake ``verified_at`` a lie.",
+        "operationId": "updateRegisteredEngine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEngineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change a registration, and re-verify it",
+        "tags": [
+          "Engines"
+        ]
+      }
+    },
+    "/v1/engines/registered/{engine_id}/credential": {
+      "post": {
+        "description": "Set a new secret. There is no endpoint that returns the old one.",
+        "operationId": "replaceEngineCredential",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Replace the stored credential",
+        "tags": [
+          "Engines"
+        ]
+      }
+    },
+    "/v1/engines/registered/{engine_id}/publish": {
+      "post": {
+        "description": "Enter the review queue. Asking is not being published.\n\nOnly a verified engine may ask: publishing one that does not pass its own\nconformance checks would put a broken engine in everybody's catalogue.",
+        "operationId": "publishRegisteredEngine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with something that already exists."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ask for the engine to be listed publicly",
+        "tags": [
+          "Engines"
+        ]
+      }
+    },
+    "/v1/engines/registered/{engine_id}/verify": {
+      "post": {
+        "description": "Ask again, unchanged.\n\nFor the ordinary case where a registration failed because the engine was\nnot running yet.",
+        "operationId": "verifyRegisteredEngine",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run the conformance checks again",
         "tags": [
           "Engines"
         ]
