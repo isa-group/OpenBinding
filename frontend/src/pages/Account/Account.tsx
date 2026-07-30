@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { apiClient } from '../../api/client';
 import type { ApiKeySummary, CreatedApiKey, UsageView } from '../../api/auth';
-import type { JobHistory } from '../../api/client';
+import type { JobHistory, JobStatus } from '../../api/client';
 import { PricingUnavailableError } from '../../api/auth';
 import { useAuth } from '../../contexts/AuthContext';
 import { QuotaBar, isBalance } from '../../components/QuotaBar';
@@ -22,6 +22,9 @@ export function Account() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<JobHistory | null>(null);
+  const [openJob, setOpenJob] = useState<string | null>(null);
+  const [solutions, setSolutions] = useState<Record<string, JobStatus>>({});
+  const [loadingSolution, setLoadingSolution] = useState<string | null>(null);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -33,26 +36,58 @@ export function Account() {
     }
   }, []);
 
+  const download = (contents: unknown, filename: string) => {
+    const blob = new Blob([JSON.stringify(contents, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const downloadRequest = async (jobId: string, engineId: string) => {
     // What a retention window is *for*: being able to run a past solve again,
     // or compare another engine against it. Downloaded rather than shown,
     // because an instance is a document you feed back in, not one you read.
     try {
       const kept = await apiClient.getJobRequest(jobId);
-      const blob = new Blob([JSON.stringify(kept.instance, null, 2)], {
-        type: 'application/json',
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${engineId}-${jobId.slice(0, 8)}.instance.json`;
-      link.click();
-      URL.revokeObjectURL(url);
+      download(kept.instance, `${engineId}-${jobId.slice(0, 8)}.instance.json`);
     } catch {
       setError(
         'That solve did not record what it was asked. Jobs from before the gateway ' +
           'started keeping instances cannot be reproduced.'
       );
+    }
+  };
+
+  const toggleSolution = async (jobId: string) => {
+    // The other half of a retention window. Keeping the question and throwing
+    // away the answer makes a history that records that something was solved
+    // without recording what it decided - so the binding is shown here rather
+    // than only downloaded, because unlike an instance it is meant to be read.
+    if (openJob === jobId) {
+      setOpenJob(null);
+      return;
+    }
+
+    setOpenJob(jobId);
+    if (solutions[jobId]) return;
+
+    setLoadingSolution(jobId);
+    try {
+      const job = await apiClient.getJobStatus(jobId);
+      setSolutions((current) => ({ ...current, [jobId]: job }));
+    } catch {
+      setOpenJob(null);
+      setError(
+        'That solve could not be retrieved. It may have aged out of the window ' +
+          'your plan keeps, or the gateway is not reachable.'
+      );
+    } finally {
+      setLoadingSolution(null);
     }
   };
 
@@ -296,7 +331,8 @@ export function Account() {
               </thead>
               <tbody>
                 {history.jobs.map((job) => (
-                  <tr key={job.id}>
+                  <Fragment key={job.id}>
+                  <tr>
                     <td>
                       <code>{job.engine_id}</code>
                     </td>
@@ -324,7 +360,7 @@ export function Account() {
                       )}
                     </td>
                     <td>{new Date(job.created_at).toLocaleString('en-GB')}</td>
-                    <td>
+                    <td className="account-actions">
                       <Button
                         size="sm"
                         variant="ghost"
@@ -333,14 +369,138 @@ export function Account() {
                       >
                         Request
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={job.status !== 'completed' || loadingSolution === job.id}
+                        title={
+                          job.status === 'completed'
+                            ? 'Show the binding this solve produced'
+                            : `This solve ${job.status === 'failed' ? 'failed' : 'has not finished'}, so there is no solution to show`
+                        }
+                        onClick={() => void toggleSolution(job.id)}
+                      >
+                        {loadingSolution === job.id
+                          ? 'Loading…'
+                          : openJob === job.id
+                          ? 'Hide'
+                          : 'Solution'}
+                      </Button>
                     </td>
                   </tr>
+                  {openJob === job.id && solutions[job.id] && (
+                    <tr className="account-solution-row">
+                      <td colSpan={5}>
+                        <SolutionPanel
+                          job={solutions[job.id]}
+                          onDownload={() =>
+                            download(
+                              solutions[job.id].result,
+                              `${job.engine_id}-${job.id.slice(0, 8)}.solution.json`
+                            )
+                          }
+                        />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
           )}
         </Card>
       </div>
+    </div>
+  );
+}
+
+/**
+ * A finished solve, as the reference evaluator scored it.
+ *
+ * The history row says a solve happened and whether it was feasible; this says
+ * what it actually decided. Only the canonical numbers are shown - the binding,
+ * the objective and the aggregated features - because those are the ones the
+ * gateway computed itself and stands behind. Anything else a caller wants is in
+ * the downloaded document.
+ */
+function SolutionPanel({ job, onDownload }: { job: JobStatus; onDownload: () => void }) {
+  const solution = job.result?.solutions?.[0];
+  const binding = (solution?.binding ?? null) as Record<string, string> | null;
+  const objective = solution?.objective_value;
+  const features = solution?.aggregated_features as Record<string, number> | undefined;
+
+  if (!solution) {
+    return (
+      <p className="account-empty">
+        This solve finished without producing a binding
+        {job.result?.feasibility === 'INFEASIBLE'
+          ? ': no assignment satisfies every constraint.'
+          : '.'}
+      </p>
+    );
+  }
+
+  return (
+    <div className="account-solution">
+      <div className="account-solution-head">
+        <span>
+          {job.result?.feasibility && (
+            <Badge variant={job.result.feasibility === 'FEASIBLE' ? 'success' : 'error'}>
+              {job.result.feasibility.toLowerCase()}
+            </Badge>
+          )}
+          {typeof objective === 'number' && (
+            <span className="account-solution-objective">
+              objective <strong>{objective.toLocaleString('en-GB', { maximumFractionDigits: 4 })}</strong>
+            </span>
+          )}
+        </span>
+        <Button size="sm" variant="ghost" onClick={onDownload}>
+          Download JSON
+        </Button>
+      </div>
+
+      {features && Object.keys(features).length > 0 && (
+        <p className="account-solution-features">
+          {Object.entries(features).map(([name, value]) => (
+            <span key={name}>
+              {name} <strong>{typeof value === 'number' ? value.toLocaleString('en-GB', { maximumFractionDigits: 4 }) : String(value)}</strong>
+            </span>
+          ))}
+        </p>
+      )}
+
+      {binding && Object.keys(binding).length > 0 ? (
+        <table className="account-binding">
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>Candidate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(binding).map(([task, candidate]) => (
+              <tr key={task}>
+                <td>
+                  <code>{task}</code>
+                </td>
+                <td>
+                  <code>{String(candidate)}</code>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="account-empty">The solution carries no binding.</p>
+      )}
+
+      {(job.result?.solutions?.length ?? 0) > 1 && (
+        <p className="account-note">
+          Showing the first of {job.result!.solutions!.length} solutions; the rest are in the
+          downloaded document.
+        </p>
+      )}
     </div>
   );
 }

@@ -134,3 +134,63 @@
   margin: 0 0 var(--space-2);
   font-size: 1.25rem;
 }
+
+/* A finished solve, opened in place under its history row. */
+.account-actions {
+  display: flex;
+  gap: var(--space-2, 0.5rem);
+  justify-content: flex-end;
+}
+
+.account-solution-row td {
+  background: var(--color-surface-subtle, #fafafa);
+}
+
+.account-solution-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 0.75rem);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2, 0.5rem);
+}
+
+.account-solution-objective {
+  margin-left: var(--space-2, 0.5rem);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #666);
+}
+
+.account-solution-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3, 0.75rem);
+  margin: 0 0 var(--space-3, 0.75rem);
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, #666);
+}
+
+/* A binding can be long, so it scrolls rather than stretching the page. */
+.account-binding {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  display: block;
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.account-binding th,
+.account-binding td {
+  padding: 0.375rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border, #e4e4e7);
+}
+
+.account-binding th {
+  font-weight: 600;
+  color: var(--color-text-secondary, #666);
+  position: sticky;
+  top: 0;
+  background: var(--color-surface-subtle, #fafafa);
+}
