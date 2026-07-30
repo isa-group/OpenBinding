@@ -23,7 +23,19 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, Enum, Float, ForeignKey, String, Uuid, func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Uuid,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -91,6 +103,12 @@ class User(Base):
     )
     refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+    #: Engines this user has registered. Deleting the account takes them with
+    #: it: an engine is reachable only through its owner's credential, so an
+    #: ownerless one could not be solved on anyway.
+    engines: Mapped[List["FederatedEngine"]] = relationship(
+        back_populates="owner", cascade="all, delete-orphan"
     )
 
     @property
@@ -184,6 +202,125 @@ class Job(Base):
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now(), index=True
     )
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class EngineVisibility(str, enum.Enum):
+    """Who may see and use a registered engine.
+
+    Private is the default and stays the default: an engine is somebody's
+    endpoint, possibly costing them money per call, and publishing it is a
+    decision its owner makes rather than one made for them.
+    """
+
+    PRIVATE = "private"
+    #: Asked to be public, waiting on a human. Still private in the meantime.
+    PENDING_REVIEW = "pending_review"
+    PUBLIC = "public"
+
+
+class EngineStatus(str, enum.Enum):
+    """Whether the engine may be solved on.
+
+    Only ACTIVE may. The rest exist so that a failing engine keeps its
+    registration and its conformance report instead of vanishing, which is the
+    difference between "here is what went wrong" and "it did not work".
+    """
+
+    DRAFT = "draft"
+    VERIFYING = "verifying"
+    ACTIVE = "active"
+    FAILED = "failed"
+    #: Turned off after repeated health failures, or by an administrator.
+    DISABLED = "disabled"
+
+
+class FederatedEngine(Base):
+    """Somebody else's solver, registered as an engine.
+
+    The row is the runtime equivalent of what a built-in engine ships as a
+    Python plugin plus a manifest file plus an environment variable: the
+    manifest holds the first two, ``transport`` inside it holds the third.
+
+    Three columns deserve a note.
+
+    ``manifest`` is stored whole, as given, rather than exploded into columns.
+    It is a document with a version, its shape will change, and the thing that
+    reads it is a Pydantic model that already knows how - so a schema migration
+    per manifest field would buy nothing. The columns that exist alongside it
+    are exactly those the database needs to *find* rows: the id, the owner, the
+    visibility and the status.
+
+    ``credential_encrypted`` is Fernet ciphertext and is never returned by any
+    endpoint. A credential can be replaced but not read back, which is the same
+    contract the API keys table offers in the other direction.
+
+    ``openapi_document`` caches what was fetched at registration. Verifying
+    against a document and then solving against whatever the URL serves later
+    would make the conformance report a statement about the past; pinning it
+    means a third party who changes their API gets re-verified rather than
+    silently mis-routed.
+    """
+
+    __tablename__ = "federated_engines"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    #: The qualified id, ``<owner>~<name>``, as used everywhere an engine id is
+    #: used. Unique across the installation and, by construction, incapable of
+    #: colliding with a built-in id.
+    engine_id: Mapped[str] = mapped_column(String(160), unique=True, index=True, nullable=False)
+    owner_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    display_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    manifest: Mapped[dict] = mapped_column(JSON, nullable=False)
+    openapi_document: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+    visibility: Mapped[EngineVisibility] = _enum_column(
+        EngineVisibility, EngineVisibility.PRIVATE, length=32
+    )
+    status: Mapped[EngineStatus] = _enum_column(EngineStatus, EngineStatus.DRAFT, length=32)
+
+    #: Never returned; replaceable only. See the class docstring.
+    credential_encrypted: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+
+    #: What the conformance probe found, and when it last passed.
+    conformance_report: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: Consecutive health failures, so one blip does not disable an engine.
+    health_failures: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        onupdate=utcnow,
+        server_default=func.now(),
+    )
+
+    owner: Mapped[User] = relationship(back_populates="engines")
+
+    @property
+    def is_usable(self) -> bool:
+        return self.status is EngineStatus.ACTIVE
+
+    def is_visible_to(self, user: Optional[User]) -> bool:
+        """Whether this engine exists, as far as ``user`` is concerned.
+
+        Callers turn a false into a 404 rather than a 403: telling a stranger
+        that ``alice~tabu`` exists but is not theirs is telling them something
+        about Alice.
+        """
+        if self.visibility is EngineVisibility.PUBLIC:
+            return True
+        if user is None:
+            return False
+        return user.id == self.owner_id or user.is_admin
 
 
 class RefreshToken(Base):

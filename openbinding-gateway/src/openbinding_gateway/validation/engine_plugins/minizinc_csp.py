@@ -20,35 +20,12 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
     }
 
 
-    def get_capabilities(self) -> Dict[str, Any]:
-        return {
-            "qos_features_supported": ["*"],
-            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP", "ELEMENT"],
-            "objective_types_supported": ["MONO"],
-            "constraints_supported": [
-                "attribute_bound",
-                "dependency",
-                "resource_capacity",
-                "latency_transition",
-            ],
-            "type": "EXACT",
-            "schema_version": "v1"
-        }
-
-    def get_default_options(self) -> Dict[str, Any]:
-        return {
-            "solver": "gecode",
-            "time_limit_ms": 900000,
-            "intermediate_solutions": True,
-        }
-
-
     def validate_semantics(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
         violations = []
         
         # 1. Validate supported Composition Operators (Stage 4 check)
         # We traverse the composition to find any unsupported nodes (like LOOP)
-        # Note: Specialization schema structural check (Stage 2) might catch this, 
+        # Note: the manifest's instance schema (Stage 2) might catch this,
         # but requirements ask to enforce explicitly via capabilities in Stage 4.
         
         comp = instance.get("composition", {})
@@ -88,7 +65,7 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         # For each QoS used in objective/constraints, check if the aggregation policy uses supported operators
         # MVP: We support what the schema supports for those QoS. 
         # This is complex to implement fully without traversing generic policies.
-        # For MVP, we'll trust the specialization schema which restricts kinds, 
+        # For MVP, we'll trust the manifest's instance schema, which restricts kinds,
         # but we can scan `aggregation_policies` to see if they define 'loop' or other unsupported ops if they were present.
         
         agg_policies = instance.get("aggregation_policies", {})
@@ -154,12 +131,7 @@ class MiniZincCSPEnginePlugin(EngineValidationPlugin):
         return violations
             
     def transform_request(self, instance: Dict[str, Any], options: Dict[str, Any] = {}) -> Tuple[Dict[str, Any], List[str]]:
-        warnings = []
-        supported_options = {"debug", "solver", "time_limit_ms", "intermediate_solutions"}
-        if options:
-            for k in options.keys():
-                if k not in supported_options:
-                    warnings.append(f"Option '{k}' is not supported by MiniZinc engine")
+        warnings = self.unsupported_option_warnings(options)
 
         # The instance is sent as-is: the engine derives the placement view it
         # needs from resource_model / latency_model itself.

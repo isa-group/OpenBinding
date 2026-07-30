@@ -280,6 +280,46 @@ async def list_engines():
 
 
 @app.get(
+    "/v1/engines/{engine_id}/manifest",
+    tags=["Engines"],
+    operation_id="getEngineManifest",
+    summary="An engine's manifest",
+    responses={
+        200: {"description": "The manifest this engine declares itself with"},
+        404: NOT_FOUND_RESPONSE,
+    },
+)
+async def get_engine_manifest(engine_id: str) -> Dict[str, Any]:
+    """Everything an engine declares about itself, in one document.
+
+    The same document for every engine: the four that ship with the gateway
+    keep it in ``schemas/manifests/``, and a registered one keeps it in a
+    database row. Capabilities, the instance schema and the options schema are
+    all read from here rather than restated in code, so this is the whole of
+    what the gateway believes about an engine.
+
+    It is also the template a third party works from. Fetching the manifest of
+    an engine whose behaviour you want to match, and changing the parts that
+    differ, is a better starting point than an empty file.
+    """
+    try:
+        plugin = EngineRegistry.get_plugin(engine_id)
+    except ValueError as error:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, "engine_not_found", f"No engine called '{engine_id}'."
+        ) from error
+
+    try:
+        return plugin.get_manifest().model_dump(mode="json", exclude_none=True)
+    except Exception as error:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            "manifest_unavailable",
+            f"No readable manifest for '{engine_id}'.",
+        ) from error
+
+
+@app.get(
     "/v1/engines/{engine_id}/options/defaults",
     tags=["Engines"],
     operation_id="getEngineDefaultOptions",
@@ -305,6 +345,55 @@ async def get_engine_default_options(engine_id: str) -> Dict[str, Any]:
         # Defensive: ensure API always returns an object
         defaults = {}
     return defaults
+
+
+@app.get(
+    "/v1/engines/{engine_id}/options/schema",
+    tags=["Engines"],
+    operation_id="getEngineOptionsSchema",
+    summary="What options an engine accepts",
+    responses={
+        200: {
+            "description": "A JSON Schema for this engine's options object",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "title": "random-search options",
+                        "type": "object",
+                        "additionalProperties": True,
+                        "properties": {"iterations_count": {"type": "integer", "default": 1000}},
+                    }
+                }
+            },
+        },
+        404: NOT_FOUND_RESPONSE,
+    },
+)
+async def get_engine_options_schema(engine_id: str) -> Dict[str, Any]:
+    """The shape of the ``options`` object, per engine.
+
+    ``SolveRequest.options`` is an open dictionary in the contract, because what
+    belongs in it depends entirely on which engine is being asked. That left a
+    client with the defaults endpoint and guesswork: it could see that
+    ``iterations_count`` defaults to 1000 without learning that it is an integer
+    or that a plan caps it. This says so.
+
+    It is also the counterpart of a registered engine's ``options_schema``: a
+    federated manifest declares one, so a built-in engine had better be able to
+    answer the same question.
+    """
+    try:
+        plugin = EngineRegistry.get_plugin(engine_id)
+    except ValueError as error:
+        raise api_error(
+            status.HTTP_404_NOT_FOUND, "engine_not_found", f"No engine called '{engine_id}'."
+        ) from error
+
+    schema = plugin.get_options_schema()
+    if not isinstance(schema, dict):
+        return {"type": "object", "additionalProperties": True}
+    return schema
 
 def validate_and_prepare(request: SolveRequest):
     """

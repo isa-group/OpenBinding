@@ -185,7 +185,7 @@ export function Playground() {
    * Keep the engine's profile around for display, but never validate the
    * editor against it.
    *
-   * A specialization schema describes the instance in its canonical form, which
+   * An engine's instance schema describes the instance in its canonical form, which
    * is what the gateway hands the engine after expanding the authoring
    * shorthands. What the editor holds is what the author wrote, and the general
    * schema is the one that describes that. Checking the written form against
@@ -201,7 +201,7 @@ export function Playground() {
       }
       engineSchemaRef.current = schema;
     } catch (err) {
-      console.warn(`No specialized schema for ${engineId}`);
+      console.warn(`No instance schema for ${engineId}`);
       engineSchemaRef.current = null;
     }
   };

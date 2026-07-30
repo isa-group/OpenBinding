@@ -118,7 +118,7 @@ export function Home() {
               <h3 className="feature-title">Multi-Stage Validation</h3>
               <p className="feature-description">
                 Four validation stages ensure your instances are correct: schema,
-                specialization, semantic, and engine-specific validation.
+                manifest, semantic, and engine-specific validation.
               </p>
             </Card>
 

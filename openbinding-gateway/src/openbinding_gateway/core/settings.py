@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     #: Preferred location of the general schema's root document. Unset means
     #: "work it out from the repository layout"; see ``models.api``.
     general_schema_path: Optional[str] = None
-    #: Directory holding ``general/`` and ``specializations/``.
+    #: Directory holding ``general/`` and ``manifests/``.
     schemas_dir: str = "/app/schemas"
 
     # -- CORS ------------------------------------------------------------

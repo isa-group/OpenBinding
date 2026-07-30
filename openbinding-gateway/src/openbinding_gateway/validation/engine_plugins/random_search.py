@@ -8,29 +8,6 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
     engine_id = "random-search"
 
 
-    def get_capabilities(self) -> Dict[str, Any]:
-        return {
-            "qos_features_supported": ["*"],
-            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
-            "objective_types_supported": ["MONO"],
-            "constraints_supported": [
-                "attribute_bound",
-                "dependency",
-                "resource_capacity",
-                "latency_transition",
-            ],
-            "type": "HEURISTIC",
-            "schema_version": "v1"
-        }
-
-    def get_default_options(self) -> Dict[str, Any]:
-        return {
-            "iterations_count": 1000,
-            "seed": 1,
-            "time_budget_ms": None,
-        }
-
-
     def validate_semantics(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
         violations = []
         
@@ -119,12 +96,7 @@ class RandomSearchEnginePlugin(EngineValidationPlugin):
     def transform_request(self, instance: Dict[str, Any], options: Dict[str, Any] = {}) -> Tuple[Dict[str, Any], List[str]]:
         """Map General JSON to Random-Search API DTO structure."""
 
-        warnings = []
-        supported_options = {"iterations_count", "seed", "time_budget_ms"}
-        if options:
-            for k in options.keys():
-                if k not in supported_options:
-                    warnings.append(f"Option '{k}' is not supported by Random-Search engine")
+        warnings = self.unsupported_option_warnings(options)
 
         # The instance travels as-is. The engine derives from it whatever
         # placement view it needs, so there is one request shape and one

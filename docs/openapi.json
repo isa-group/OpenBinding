@@ -2789,6 +2789,61 @@
         ]
       }
     },
+    "/v1/engines/{engine_id}/manifest": {
+      "get": {
+        "description": "Everything an engine declares about itself, in one document.\n\nThe same document for every engine: the four that ship with the gateway\nkeep it in ``schemas/manifests/``, and a registered one keeps it in a\ndatabase row. Capabilities, the instance schema and the options schema are\nall read from here rather than restated in code, so this is the whole of\nwhat the gateway believes about an engine.\n\nIt is also the template a third party works from. Fetching the manifest of\nan engine whose behaviour you want to match, and changing the parts that\ndiffer, is a better starting point than an empty file.",
+        "operationId": "getEngineManifest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Getenginemanifest",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The manifest this engine declares itself with"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "An engine's manifest",
+        "tags": [
+          "Engines"
+        ]
+      }
+    },
     "/v1/engines/{engine_id}/options/defaults": {
       "get": {
         "operationId": "getEngineDefaultOptions",
@@ -2841,6 +2896,73 @@
           }
         },
         "summary": "An engine's default options",
+        "tags": [
+          "Engines"
+        ]
+      }
+    },
+    "/v1/engines/{engine_id}/options/schema": {
+      "get": {
+        "description": "The shape of the ``options`` object, per engine.\n\n``SolveRequest.options`` is an open dictionary in the contract, because what\nbelongs in it depends entirely on which engine is being asked. That left a\nclient with the defaults endpoint and guesswork: it could see that\n``iterations_count`` defaults to 1000 without learning that it is an integer\nor that a plan caps it. This says so.\n\nIt is also the counterpart of a registered engine's ``options_schema``: a\nfederated manifest declares one, so a built-in engine had better be able to\nanswer the same question.",
+        "operationId": "getEngineOptionsSchema",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "engine_id",
+            "required": true,
+            "schema": {
+              "title": "Engine Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "additionalProperties": true,
+                  "properties": {
+                    "iterations_count": {
+                      "default": 1000,
+                      "type": "integer"
+                    }
+                  },
+                  "title": "random-search options",
+                  "type": "object"
+                },
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Getengineoptionsschema",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "A JSON Schema for this engine's options object"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "What options an engine accepts",
         "tags": [
           "Engines"
         ]
@@ -3154,6 +3276,7 @@
     },
     "/v1/schemas/{engine_id}": {
       "get": {
+        "description": "The instance schema one engine accepts, from its manifest.\n\nAsked of the engine rather than read off the disk, because the two kinds of\nengine keep their manifest in different places: an engine that ships with\nthe gateway has a file, and one registered at runtime has a database row.\nBoth answer the same question, so this endpoint asks the question.",
         "operationId": "get_engine_schema_v1_schemas__engine_id__get",
         "parameters": [
           {
@@ -3194,6 +3317,7 @@
     },
     "/v1/schemas/{engine_id}/model": {
       "get": {
+        "description": "The Mermaid rendering of an engine's instance schema, when there is one.\n\nOnly in-tree engines ship one, so this stays a file lookup. A registered\nengine has no drawing and the interface says so, which is the same thing it\nalready does for a built-in engine whose author has not written one.",
         "operationId": "get_engine_schema_model_v1_schemas__engine_id__model_get",
         "parameters": [
           {

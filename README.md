@@ -16,9 +16,9 @@ flowchart TD
     V0 --> V1[Validate basic composition schema]:::schema
     V1 --> R{Root router: route by engine_id}:::router
 
-    R -->|minizinc-csp| SZ_MZ[Validate specialization schema: MiniZinc]:::schema
-    R -->|random-search| SZ_RS[Validate specialization schema: Random Search]:::schema
-    R -->|many-heuristic| SZ_MH[Validate specialization schema: Many-Heuristic]:::schema
+    R -->|minizinc-csp| SZ_MZ[Validate against manifest: MiniZinc]:::schema
+    R -->|random-search| SZ_RS[Validate against manifest: Random Search]:::schema
+    R -->|many-heuristic| SZ_MH[Validate against manifest: Many-Heuristic]:::schema
 
     SZ_MZ --> MZ[MiniZinc CSP engine]:::engine
     SZ_RS --> RS[Random Search engine]:::engine
@@ -36,7 +36,7 @@ flowchart TD
 
 1.  **OpenBinding Gateway** (`openbinding-gateway`):
     *   Python FastAPI service acting as the central entry point.
-    *   Handles schema validation (General & Specialization).
+    *   Handles schema validation (general schema, then the engine's manifest).
     *   Routes requests to appropriate engines.
     *   Provides analysis and diagnostics tools.
 
@@ -102,18 +102,30 @@ OpenBinding validates incoming requests against two schema layers:
       `features[*].sharing`)
     - The authoring shorthands and the canonical form every engine sees (§12)
 
-2. **Specialization schemas** (engine-specific constraints):
-    - `schemas/specializations/minizinc-csp.schema.json`
-    - `schemas/specializations/random-search.schema.json`
-    - `schemas/specializations/many-heuristic.schema.json`
-    - `schemas/specializations/evolutionary-heuristics.schema.json`
+2. **Engine manifests** (what each engine declares about itself):
+    - `schemas/manifests/minizinc-csp.manifest.json`
+    - `schemas/manifests/random-search.manifest.json`
+    - `schemas/manifests/many-heuristic.manifest.json`
+    - `schemas/manifests/evolutionary-heuristics.manifest.json`
 
-   Specializations can also include a visual model in Mermaid format (recommended):
-    - `schemas/specializations/minizinc-csp.schema.mermaid`
-    - `schemas/specializations/random-search.schema.mermaid`
-    - `schemas/specializations/many-heuristic.schema.mermaid`
+   A manifest is the single place an engine describes itself: its `type`
+   (EXACT or HEURISTIC), its `capabilities`, an `options_schema` saying what it
+   accepts in `options`, and an `instance_schema` restricting the general schema
+   to the instances it will solve. `GET /v1/engines`, `GET /v1/schemas/{engine}`
+   and `GET /v1/engines/{engine}/options/*` are all read from it, so an engine
+   cannot advertise one thing and enforce another. Fetch a whole one with
+   `GET /v1/engines/{engine_id}/manifest`.
 
-   Mermaid models are used by the frontend **Schema Explorer** in the **Model** tab. If a specialization does not provide `.schema.mermaid`, the JSON schema workflow remains fully functional.
+   The same document describes a **federated engine** — somebody else's solver,
+   registered at runtime — which additionally carries a `transport` block saying
+   where it lives and how to speak to it.
+
+   A manifest can also come with a visual model in Mermaid format (recommended):
+    - `schemas/manifests/minizinc-csp.manifest.mermaid`
+    - `schemas/manifests/random-search.manifest.mermaid`
+    - `schemas/manifests/many-heuristic.manifest.mermaid`
+
+   Mermaid models are used by the frontend **Schema Explorer** in the **Model** tab. If an engine ships no `.manifest.mermaid`, the JSON schema workflow remains fully functional.
 
 Example payloads that follow these schemas live in `examples/`.
 
@@ -259,7 +271,7 @@ OpenBinding implements a rigorous multi-stage validation process:
 2.  **Canonical form**: Expands the authoring shorthands (specification §12) once, in place, so
     every stage below and every engine reads one form only. An ambiguous shorthand is rejected
     here rather than guessed at.
-3.  **Specialization Schema**: Enforces engine-specific constraints (e.g., supported composition types, constraints).
+3.  **Engine manifest**: Enforces engine-specific constraints (e.g., supported composition types, constraints), from the instance schema the engine declares.
 4.  **Semantic/Logic**: Checks for consistency (e.g., undefined tasks, valid IDs).
 5.  **Analysis**: Computes binding space cardinality and generates warnings for potential issues.
 

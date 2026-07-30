@@ -4,14 +4,14 @@ from ..registry.engine import EngineRegistry
 from ..semantics.desugar import desugar_instance
 from ..semantics.errors import DesugarError
 from .general_schema import GeneralSchemaValidator
-from .specialization_schema import SpecializationSchemaValidator
+from .manifest_schema import ManifestSchemaValidator
 from .semantic_general import GeneralSemanticValidator
 from .schema_model import SchemaModel
 
 class ValidationPipeline:
     def __init__(self):
         self.general_validator = GeneralSchemaValidator()
-        self.specialization_validator = SpecializationSchemaValidator()
+        self.manifest_validator = ManifestSchemaValidator()
         self.semantic_validator = GeneralSemanticValidator()
         self.schema_model = SchemaModel(self.general_validator.schema)
 
@@ -46,10 +46,10 @@ class ValidationPipeline:
         # Apply defaults expressed in the general schema to keep semantic checks consistent.
         default_warnings = self.schema_model.apply_defaults(instance)
 
-        # Stage 2: Specialization Structural Validation
-        v2 = self.specialization_validator.validate(engine_id, instance)
+        # Stage 2: Engine Manifest Structural Validation
+        v2 = self.manifest_validator.validate(engine_id, instance)
         if v2:
-            return self._tag_stage(v2, "specialization_schema"), default_warnings
+            return self._tag_stage(v2, "manifest_schema"), default_warnings
             
         # Stage 3: General Semantic Validation
         v3 = self.semantic_validator.validate(instance)

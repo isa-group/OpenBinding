@@ -45,8 +45,8 @@ def test_minizinc_mono_objective_valid(pipeline):
     violations = pipeline.validate_general_schema(instance)
     assert len(violations) == 0, f"General schema violations: {violations}"
     # Check MiniZinc
-    violations = pipeline.specialization_validator.validate("minizinc-csp", instance)
-    assert len(violations) == 0, f"Specialization violations: {violations}"
+    violations = pipeline.manifest_validator.validate("minizinc-csp", instance)
+    assert len(violations) == 0, f"Manifest violations: {violations}"
 
 def test_minizinc_multi_objective_invalid(pipeline):
     instance = get_base_instance()
@@ -55,10 +55,10 @@ def test_minizinc_multi_objective_invalid(pipeline):
         "targets": ["cost"],
         "weights": {"cost": 1.0}
     }
-    # Specialization validator should catch that MULTI is not supported by MZN (if defined so)
+    # The manifest validator should catch that MULTI is not supported by MZN (if defined so)
     # The original test assumed this.
     
-    violations = pipeline.specialization_validator.validate("minizinc-csp", instance)
+    violations = pipeline.manifest_validator.validate("minizinc-csp", instance)
     assert len(violations) > 0
 
 def test_minizinc_soft_constraint_invalid(pipeline):
@@ -73,7 +73,7 @@ def test_minizinc_soft_constraint_invalid(pipeline):
         "hard": False # INVALID for MiniZinc
     }]
     
-    violations = pipeline.specialization_validator.validate("minizinc-csp", instance)
+    violations = pipeline.manifest_validator.validate("minizinc-csp", instance)
     assert len(violations) > 0, f"Expected violations but got none"
     assert any("hard" in v.path or "true" in v.message.lower() or "const" in v.message.lower() or "100" in v.message for v in violations), f"Unexpected violations: {violations}"
 
@@ -86,7 +86,7 @@ def test_minizinc_dependency_valid(pipeline):
         "tasks": ["t1", "t2"],
         "hard": True
     }]
-    violations = pipeline.specialization_validator.validate("minizinc-csp", instance)
+    violations = pipeline.manifest_validator.validate("minizinc-csp", instance)
     assert len(violations) == 0
 
 # --- Random Search Tests ---
@@ -103,7 +103,7 @@ def test_random_search_soft_constraint_valid(pipeline):
         "hard": False # VALID for Random Search
     }]
     
-    violations = pipeline.specialization_validator.validate("random-search", instance)
+    violations = pipeline.manifest_validator.validate("random-search", instance)
     assert len(violations) == 0
 
 def test_random_search_dependency_valid(pipeline):
@@ -115,7 +115,7 @@ def test_random_search_dependency_valid(pipeline):
         "tasks": ["t1", "t2"],
         "hard": True
     }]
-    violations = pipeline.specialization_validator.validate("random-search", instance)
+    violations = pipeline.manifest_validator.validate("random-search", instance)
     assert len(violations) == 0
 
 def test_random_search_capabilities_include_dependency():
@@ -123,7 +123,7 @@ def test_random_search_capabilities_include_dependency():
     constraints = plugin.get_capabilities().get("constraints_supported", [])
     assert "dependency" in constraints
 
-def test_random_search_dependency_requires_tasks_in_specialization(pipeline):
+def test_random_search_dependency_requires_tasks_in_manifest(pipeline):
     instance = get_base_instance()
     instance["constraints"] = [{
         "id": "c1",
@@ -131,7 +131,7 @@ def test_random_search_dependency_requires_tasks_in_specialization(pipeline):
         "type": "SAME_PROVIDER",
         "hard": True
     }]
-    violations = pipeline.specialization_validator.validate("random-search", instance)
+    violations = pipeline.manifest_validator.validate("random-search", instance)
     assert len(violations) > 0
 
 def test_random_search_multi_objective_invalid(pipeline):

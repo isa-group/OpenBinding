@@ -1,0 +1,180 @@
+{
+  "manifest_version": "1",
+  "engine_id": "evolutionary-heuristics",
+  "display_name": "Evolutionary Heuristics",
+  "description": "NSGA-II and NSGA-III over the shared JVM core, for mono, multi and many-objective instances.",
+  "type": "HEURISTIC",
+  "capabilities": {
+    "qos_features_supported": [
+      "*"
+    ],
+    "composition_nodes_supported": [
+      "TASK",
+      "SEQ",
+      "AND",
+      "XOR",
+      "LOOP"
+    ],
+    "objective_types_supported": [
+      "MONO",
+      "MULTI",
+      "MANY"
+    ],
+    "constraints_supported": [
+      "attribute_bound",
+      "dependency",
+      "resource_capacity",
+      "latency_transition"
+    ],
+    "algorithms_supported": [
+      "NSGAII",
+      "NSGAIII"
+    ],
+    "schema_version": "v1"
+  },
+  "options_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "evolutionary-heuristics options",
+    "type": "object",
+    "additionalProperties": true,
+    "properties": {
+      "algorithm": {
+        "type": "string",
+        "enum": [
+          "AUTO",
+          "NSGAII",
+          "NSGAIII"
+        ],
+        "default": "AUTO",
+        "description": "AUTO picks by objective count: NSGA-II up to three, NSGA-III beyond."
+      },
+      "operators": {
+        "type": "object",
+        "description": "Crossover and mutation operator overrides."
+      },
+      "population_size": {
+        "type": "integer",
+        "minimum": 2,
+        "default": 100
+      },
+      "max_evaluations": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 10000,
+        "description": "Evaluation budget. A plan may clamp this, which is reported as an OPTION_CLAMPED warning."
+      },
+      "crossover_probability": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "default": 0.9
+      },
+      "mutation_probability": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "default": null,
+        "description": "Unset means one over the number of tasks."
+      },
+      "distribution_index": {
+        "type": "number",
+        "minimum": 0.0,
+        "default": 20.0
+      },
+      "archive_size": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 100
+      },
+      "soft_penalty": {
+        "type": "number",
+        "minimum": 0.0,
+        "default": 10.0,
+        "description": "Weight applied to a violated soft constraint."
+      },
+      "seed": {
+        "type": "integer",
+        "default": 1
+      },
+      "reference_divisions": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 12,
+        "description": "NSGA-III reference-point divisions per objective."
+      },
+      "time_budget_ms": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 1,
+        "description": "Wall-clock budget in milliseconds."
+      }
+    }
+  },
+  "instance_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://openbinding.score.us.es/api/v1/schemas/evolutionary-heuristics",
+    "title": "Evolutionary Heuristics Instance Schema",
+    "description": "Profile for the Java 21/jMetal evolutionary engine.",
+    "type": "object",
+    "properties": {
+      "composition": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "STRUCTURED"
+          }
+        },
+        "required": [
+          "type",
+          "root"
+        ]
+      },
+      "objective": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "MONO",
+              "MULTI",
+              "MANY"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "targets",
+          "weights"
+        ]
+      },
+      "constraints": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "ATTRIBUTE_BOUND",
+                "DEPENDENCY"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        }
+      }
+    },
+    "required": [
+      "composition",
+      "features",
+      "candidates",
+      "aggregation_policies",
+      "objective"
+    ]
+  }
+}

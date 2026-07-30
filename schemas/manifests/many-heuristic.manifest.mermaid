@@ -173,7 +173,7 @@ Node <|-- LoopNode
 TaskNode "1" --> "1" Task : task_id
 
 note for LoopNode "
-Many-Heuristic specialization notes:
+Many-Heuristic manifest notes:
 - expected_iterations has minimum 0
 - bounds (if present) requires both min & max, numbers
 (General fields like id/task_id/description still allowed unless forbidden)
@@ -232,7 +232,7 @@ class Weights {
 }
 
 note for ManyObjective "
-Many-Heuristic specialization:
+Many-Heuristic manifest:
 objective.type is const MANY.
 (So MONO/MULTI removed from this profile)
 "
@@ -309,16 +309,16 @@ Constraint <|-- AttrBoundConstraintMH
 Constraint <|-- DependencyConstraintMH
 
 note for AttrBoundConstraintMH "
-Many-Heuristic specialization requires:
+Many-Heuristic manifest requires:
 kind, scope, op, value
 - op includes !=
 - tasks optional (used for LOCAL scoping)
-- attribute_id not required by specialization (may exist by inheritance/usage)
+- attribute_id not required by manifest (may exist by inheritance/usage)
 hard is optional (default true)
 "
 
 note for DependencyConstraintMH "
-Many-Heuristic specialization requires:
+Many-Heuristic manifest requires:
 kind, type
 tasks optional, hard optional (default true)
 "

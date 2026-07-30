@@ -2,7 +2,7 @@ classDiagram
 direction LR
 
 %% =========================================================
-%% Root aggregate (General model + Random-Search restrictions)
+%% Root aggregate (General model + CSP restrictions)
 %% =========================================================
 class CompactQoSComposition {
   +Metadata metadata
@@ -17,19 +17,19 @@ class CompactQoSComposition {
 }
 
 note for CompactQoSComposition "
-Random-Search profile explicitly requires:
-composition, features, aggregation_policies, objective.
-Other General parts (metadata/providers/tasks/candidates) remain as previously (not necessarily required).
-Objective MUST be MONO.
+CSP manifest changes only what it states.
+Key restriction: objective MUST be MONO.
+Other parts stay as in the General schema unless overridden.
 "
 
 %% =========================================================
-%% Value objects
+%% Value objects / primitives
 %% =========================================================
 class Identifier {
   <<valueObject>>
   +value: string
 }
+note for Identifier "General: pattern=^[A-Za-z0-9_.-]+$ (Identifier)."
 
 class NumericRange {
   <<valueObject>>
@@ -38,7 +38,7 @@ class NumericRange {
 }
 
 %% =========================================================
-%% Metadata / Provider / Task / Candidate (as previously)
+%% Metadata
 %% =========================================================
 class Metadata {
   +id: Identifier
@@ -48,7 +48,11 @@ class Metadata {
   +description?: string
   +... (extensible)
 }
+note for Metadata "General: additionalProperties=true."
 
+%% =========================================================
+%% Providers / Tasks
+%% =========================================================
 class Provider {
   +id: Identifier
   +name: string
@@ -61,6 +65,9 @@ class Task {
   +description?: string
 }
 
+%% =========================================================
+%% Features (kept as general; CSP may only rely on id)
+%% =========================================================
 class Feature {
   +id: Identifier
   +name: string
@@ -84,6 +91,14 @@ class Scale {
   ORDINAL
 }
 
+note for Feature "
+CSP manifest explicitly mentions only Feature.id,
+but does NOT forbid the rest => kept as in General model.
+"
+
+%% =========================================================
+%% Candidates
+%% =========================================================
 class Candidate {
   +id: Identifier
   +task_ids: Identifier[1..*]
@@ -98,7 +113,7 @@ Candidate "1" --> "1" Provider : provider_id
 Candidate "1" ..> "1..*" Feature : features[feature.id]=number
 
 %% =========================================================
-%% Composition tree (as previously + Random-Search notes)
+%% Composition tree (General structure + CSP minimum requirements)
 %% =========================================================
 class StructuredTree {
   +type: \"STRUCTURED\"
@@ -147,7 +162,7 @@ class XorNode {
 }
 
 class XorBranch {
-  +p: number (0..1)
+  +p: number (0,1]
   +child: Node
 }
 
@@ -155,12 +170,12 @@ class LoopNode {
   +kind = LOOP
   +body: Node
   +expected_iterations?: number (>=0)
-  +bounds?: LoopBoundsRS
+  +bounds?: LoopBounds
 }
 
-class LoopBoundsRS {
-  +min: number
-  +max: number
+class LoopBounds {
+  +min?: int (>=0)
+  +max?: int (>=0)
 }
 
 Node <|-- TaskNode
@@ -172,18 +187,24 @@ Node <|-- LoopNode
 
 TaskNode "1" --> "1" Task : task_id
 
+note for TaskNode "
+CSP $defs/task_node only REQUIRES kind=TASK,
+but since it does not set additionalProperties=false,
+the General fields (id, task_id, description) can still exist.
+"
+note for SeqNode "CSP requires kind+children; General keeps minItems=2 and ids."
+note for AndNode "CSP requires kind+children; General keeps minItems=2 and ids."
+note for XorNode "CSP requires kind+branches; General keeps minItems=2 and ids."
 note for LoopNode "
-Random-Search specialization notes:
-- expected_iterations has minimum 0
-- bounds (if present) requires both min & max, and they are numbers
-(General fields like id/description still allowed unless explicitly forbidden)
+CSP requires kind+body; expected_iterations optional.
+General also allows bounds and the 'expected_iterations OR bounds' rule.
 "
 
 %% =========================================================
-%% Aggregation policies (as previously; profile doesn't override)
+%% Aggregation policies (key restriction relaxed to string)
 %% =========================================================
 class AggregationPolicies {
-  +policies: Map<Feature.id, AggregationPolicy>
+  +policies: Map<string, AggregationPolicy>
 }
 
 class AggregationPolicy {
@@ -215,10 +236,15 @@ class ComposeFnType {
   MEAN
 }
 
-AggregationPolicies ..> Feature : key=Feature.id
+AggregationPolicies ..> Feature : typically key=Feature.id (but CSP allows any string)
+
+note for AggregationPolicies "
+CSP manifest: propertyNames is just string (no Identifier pattern).
+Domain-wise it is still intended to be keyed by Feature.id.
+"
 
 %% =========================================================
-%% Objective (ONLY MONO)
+%% Objective (ONLY MONO in CSP)
 %% =========================================================
 class MonoObjective {
   +type = MONO
@@ -231,21 +257,19 @@ class Weights {
   +w: Map<Identifier, number[0..1]>
 }
 
-note for MonoObjective "
-Random-Search specialization:
-objective.type is const MONO (weighted-sum objective).
-"
+note for MonoObjective "CSP manifest: objective.type is const MONO (MULTI/MANY removed)."
 
 MonoObjective ..> Feature : targets referencian Feature.id
 Weights ..> Feature : keys normalmente Feature.id
 
 %% =========================================================
-%% Constraints (Random-Search restrictions)
+%% Constraints (General + CSP overrides)
 %% =========================================================
 class Constraint {
   <<abstract>>
   +id?: Identifier
   +kind: ConstraintKind
+  +hard?: boolean
   +description?: string
 }
 
@@ -255,14 +279,21 @@ class ConstraintKind {
   DEPENDENCY
 }
 
-class AttrBoundConstraintRS {
+class AttrBoundConstraint {
   +kind = ATTRIBUTE_BOUND
-  +scope: Scope
-  +tasks?: Identifier[*]
-  +op: BoundOpRS
+  +scope?: Scope
+  +task_id?: Identifier
+  +attribute_id: Identifier
+  +op: BoundOp
   +value: number | NumericRange
-  +attribute_id?: Identifier
-  +hard?: boolean = true
+  +hard = true
+}
+
+class DependencyConstraint {
+  +kind = DEPENDENCY
+  +type: DependencyType
+  +tasks?: Identifier[*]
+  +hard = true
 }
 
 class Scope {
@@ -271,28 +302,20 @@ class Scope {
   LOCAL
 }
 
-class BoundOpRS {
+class BoundOp {
   <<enumeration>>
   LE
-  LT
   GE
-  GT
   EQ
-  NE
+  LT
+  GT
   IN_RANGE
 }
 
-note for BoundOpRS "
+note for BoundOp "
 Mapping:
-LE<=  LT<  GE>=  GT>  EQ==  NE!=  IN_RANGE=IN_RANGE
+LE<=  GE>=  EQ==  LT<  GT>  IN_RANGE=IN_RANGE
 "
-
-class DependencyConstraintRS {
-  +kind = DEPENDENCY
-  +type: DependencyType
-  +tasks: Identifier[2..*] (unique)
-  +hard?: boolean = true
-}
 
 class DependencyType {
   <<enumeration>>
@@ -304,27 +327,27 @@ class DependencyType {
   DIFFERENT_CANDIDATE
 }
 
-Constraint <|-- AttrBoundConstraintRS
-Constraint <|-- DependencyConstraintRS
+Constraint <|-- AttrBoundConstraint
+Constraint <|-- DependencyConstraint
 
-note for AttrBoundConstraintRS "
-Random-Search specialization requires:
-kind, scope, op, value
-- op includes !=
-- tasks optional (used for LOCAL scoping)
-- attribute_id is not required by the specialization (but may exist by inheritance/usage)
-hard optional (defaults to true)
+AttrBoundConstraint --> Feature : attribute_id
+AttrBoundConstraint --> Task : task_id (when used)
+DependencyConstraint --> Task : tasks (when provided)
+
+note for AttrBoundConstraint "
+CSP manifest:
+- hard is const true
+- supports task_id (singular)
+- requires kind, attribute_id, op, value
+(others remain as in General unless explicitly restricted)
 "
 
-note for DependencyConstraintRS "
-Random-Search specialization requires:
-kind, type, tasks (minItems=2, unique)
-hard optional (defaults to true)
+note for DependencyConstraint "
+CSP manifest:
+- requires kind + type
+- tasks is not required (but may exist)
+- hard is const true
 "
-
-AttrBoundConstraintRS --> Task : tasks (when scope=LOCAL)
-AttrBoundConstraintRS ..> Feature : attribute_id (if used)
-DependencyConstraintRS --> Task : tasks
 
 %% =========================================================
 %% Aggregate containment

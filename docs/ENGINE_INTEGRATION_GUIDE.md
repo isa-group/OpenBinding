@@ -1,18 +1,105 @@
 # Engine integration guide
 
-This guide explains how to add a new engine to the OpenBinding gateway. It covers schema specialization, validation hooks, routing, and tests.
+This guide explains how to add an engine to the OpenBinding gateway. It covers
+the engine manifest, the plugin interface, routing, and tests.
+
+There are two ways to add an engine, and they share a document:
+
+* **In-tree** — the engine ships with the gateway. You write a manifest and a
+  plugin, and the gateway is redeployed. This is what the four engines in
+  `engines/` are, and it is what most of this guide is about.
+* **Federated** — somebody else's solver, registered at runtime through the API
+  with a manifest that also describes their HTTP surface. No deployment, and no
+  code in this repository. See "Federated engines" at the end.
 
 ## Overview
 
-The gateway validates incoming instances in stages and then routes them to the selected engine.
+The gateway validates an incoming instance in stages and then routes it to the
+selected engine.
 
-Validation stages:
 1. General schema
-2. Specialization schema
+2. **Engine manifest** — the instance schema the chosen engine declares
 3. General semantic rules
 4. Engine semantic rules
 
-Engines integrate through the gateway plugin interface and a specialization schema.
+Stage 2 is why a caller is told "this engine does not take many-objective
+instances" rather than watching a solver fail.
+
+## The manifest
+
+Everything the gateway believes about an engine comes from one document:
+
+```
+schemas/manifests/<engine-id>.manifest.json
+```
+
+```jsonc
+{
+  "manifest_version": "1",
+  "engine_id": "my-engine",
+  "display_name": "My Engine",
+  "description": "One sentence a person reads in the catalogue.",
+  "type": "HEURISTIC",              // or EXACT — this one is not cosmetic
+  "capabilities": {
+    "qos_features_supported": ["*"],
+    "composition_nodes_supported": ["TASK", "SEQ"],
+    "objective_types_supported": ["MONO"],
+    "constraints_supported": ["attribute_bound", "dependency"],
+    "schema_version": "v1"
+  },
+  "options_schema": {               // what may go in `options`
+    "type": "object",
+    "additionalProperties": true,
+    "properties": {
+      "iterations_count": { "type": "integer", "minimum": 1, "default": 1000 }
+    }
+  },
+  "instance_schema": { /* a JSON Schema restricting the general schema */ }
+}
+```
+
+The manifest is the **only** declaration. The plugin restates none of it:
+
+| The gateway needs                       | Comes from                            |
+| --------------------------------------- | ------------------------------------- |
+| `GET /v1/engines` capabilities          | `capabilities` + `type`               |
+| `GET /v1/schemas/{engine-id}`           | `instance_schema`                     |
+| `GET /v1/engines/{id}/options/schema`   | `options_schema`                      |
+| `GET /v1/engines/{id}/options/defaults` | the `default` of each declared option |
+| `GET /v1/engines/{id}/manifest`         | all of it                             |
+
+Three things about writing one:
+
+**`type` is not cosmetic.** The router reports `INFEASIBLE` rather than
+`UNKNOWN` when an `EXACT` engine returns no solution. A heuristic that claims
+`EXACT` turns "I did not find one" into "there is none".
+
+**Vocabularies are checked.** `composition_nodes_supported` must be drawn from
+`TASK, ELEMENT, SEQ, AND, XOR, LOOP`; objectives from `MONO, MULTI, MANY`;
+constraint families from `attribute_bound, dependency, resource_capacity,
+latency_transition` (the schema's upper-case spelling is accepted too). `"*"`
+means all of them and is expanded on load. A manifest that invents a capability
+fails to parse, rather than advertising something that does not exist.
+
+**Defaults live in `options_schema`.** A property with a `default` is one the
+gateway sends when the client sends nothing. A property with `"default": null`
+is one that exists and is unset — not the same as absent, since several engines
+filter their options on "is not None". A property with no `default` is accepted
+but never sent unprompted.
+
+An engine's own defaults are validated against its own `options_schema` in the
+test suite, so a bound you declare is a bound you have to live within.
+
+## Required artifacts
+
+1. **Manifest**: `schemas/manifests/<engine-id>.manifest.json`.
+2. **Manifest model** (recommended): `schemas/manifests/<engine-id>.manifest.mermaid`.
+3. **Plugin**: implement `EngineValidationPlugin`, setting `engine_id`. The base
+   class finds the manifest and derives everything above from it.
+4. Engine URL in the registry + env wiring.
+5. **Tests**: unit tests for your search, and your engine id in the integration
+   suite's engine list (`tests/integration/conftest.py`), where tests skip
+   themselves for objective types you do not claim to support.
 
 ## Five things to know before you start
 
@@ -68,153 +155,125 @@ wrong; if the objective drifts, check whether the instance declares
 normalization. It is also how the same divergence gets noticed later, in a
 benchmark, without anybody having to compare two lists by eye.
 
-**Declare only what you enforce, and enforce what you declare.** Capabilities
-and the specialization schema are a contract in both directions: a capability
-you advertise but do not enforce returns wrong answers marked feasible, and one
-you enforce but the schema rejects is unreachable. Both have happened here.
-
-## Required artifacts
-
-1. Engine plugin (gateway): implement `EngineValidationPlugin`. Set `engine_id`;
-   the base class then resolves your specialization schema path and provides the
-   `/health` check.
-2. Specialization schema: `schemas/specializations/<engine-id>.schema.json`.
-3. Specialization model (recommended): `schemas/specializations/<engine-id>.schema.mermaid`.
-4. Engine URL in registry + env wiring.
-5. Tests: unit tests for your search, and your engine id in the integration
-   suite's engine list (`tests/integration/conftest.py`), where tests skip
-   themselves for objective types you do not claim to support.
+**Declare only what you enforce, and enforce what you declare.** The manifest is
+a contract in both directions: a capability you advertise but do not enforce
+returns wrong answers marked feasible, and one you enforce but `instance_schema`
+rejects is unreachable. Both have happened here.
 
 ## Step-by-step
 
-### 1) Add a specialization schema
+### 1) Write the manifest
 
-Create a specialization schema under `schemas/specializations/`.
+Create `schemas/manifests/<engine-id>.manifest.json` as described above. The
+quickest start is to fetch a comparable engine's and edit it:
 
-### 1.1) Add a specialization model (recommended)
+```bash
+curl -s localhost:8000/v1/engines/random-search/manifest > my-engine.manifest.json
+```
 
-To enable visual exploration in the frontend **Schema Explorer** (`JSON | Model` tabs), add a Mermaid model next to your specialization schema:
+### 1.1) Add a manifest model (recommended)
 
-- Path: `schemas/specializations/<engine-id>.schema.mermaid`
+To enable visual exploration in the frontend **Schema Explorer** (`JSON | Model`
+tabs), add a Mermaid model beside the manifest:
+
+- Path: `schemas/manifests/<engine-id>.manifest.mermaid`
 - Naming must match your engine id exactly (`<engine-id>`)
 
-The Mermaid model is optional, but strongly recommended for maintainability and onboarding.
+The Mermaid model is optional, but strongly recommended for maintainability and
+onboarding. If the file is missing, the frontend shows **Model not available**
+while keeping JSON schema validation and all engine workflows fully operational.
 
-If the file is missing, the frontend will show **Model not available** while keeping JSON schema validation and all engine workflows fully operational.
+Good practices:
 
-#### Good practices
-
-- Keep JSON and Mermaid aligned conceptually (same constraints/capabilities).
-- Keep node/edge labels stable and meaningful across versions.
+- Keep the JSON and the Mermaid aligned conceptually (same constraints and
+  capabilities).
+- Keep node and edge labels stable and meaningful across versions.
 - Prefer modular Mermaid subgraphs for large models.
-- Update both files in the same PR when constraints change.
-- Avoid changing `<engine-id>` naming once released, to prevent schema/model mismatch.
-
-
-## Engine options defaults (Playground)
-
-The frontend Playground can prefill the `options` object depending on the selected engine.
-To support this, the gateway exposes engine-level defaults at:
-
-- `GET /v1/engines/{engine_id}/options/defaults`
-
-If the engine has no options, the endpoint returns an empty JSON object: `{}`.
-
-### How to define defaults
-
-Defaults are defined in the gateway engine plugin by implementing `get_default_options()`.
-Example:
-
-- Return `{}` if your engine does not accept any options.
-- Return a JSON object with the gateway defaults (e.g. `{ "iterations_count": 1000 }`) if your engine supports options.
+- Update both in the same PR when constraints change.
+- Avoid changing `<engine-id>` once released, to prevent manifest/model mismatch.
 
 ### 2) Implement the engine plugin
 
-Create a new plugin in `openbinding-gateway/src/openbinding_gateway/validation/engine_plugins/`:
+Create a plugin in
+`openbinding-gateway/src/openbinding_gateway/validation/engine_plugins/`. Note
+what is **not** in it: capabilities, defaults, schema paths and the list of
+accepted option names all come from the manifest.
 
 ```python
 from typing import Any, Dict, List, Tuple
-import httpx
+
 from .base import EngineValidationPlugin
 from ...models.api import ValidationViolation
 
+
 class MyEnginePlugin(EngineValidationPlugin):
-    async def check_engine_health(self, base_url: str, client: httpx.AsyncClient) -> bool:
-        resp = await client.get(f"{base_url.rstrip('/')}/health")
-        return resp.status_code == 200
-
-    def get_capabilities(self) -> Dict[str, Any]:
-        return {
-            "qos_features_supported": ["*"],
-            "composition_nodes_supported": ["TASK", "SEQ"],
-            "objective_types_supported": ["MONO"],
-            "constraints_supported": ["attribute_bound"],
-            "type": "HEURISTIC", # or "EXACT" depending on your engine's nature
-            "schema_version": "v1",
-        }
-
-    def get_specialization_schema_path(self) -> str:
-        # Uses SCHEMAS_DIR if available
-        # e.g. /app/schemas/specializations/my-engine.schema.json
-        ...
+    engine_id = "my-engine"
 
     def validate_semantics(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
-        violations: List[ValidationViolation] = []
-        # Add engine-specific invariants here
-        return violations
+        # Stage 4: the invariants a JSON Schema cannot express.
+        # Anything a schema *can* express belongs in the manifest instead.
+        return []
 
-    def transform_request(self, instance: Dict[str, Any], options: Dict[str, Any] = {}) -> Tuple[Dict[str, Any], List[str]]:
-        # Map general instance to engine request payload
-        return {"instance": instance, "options": options}, []
+    def transform_request(
+        self, instance: Dict[str, Any], options: Dict[str, Any] = {}
+    ) -> Tuple[Dict[str, Any], List[str]]:
+        # unsupported_option_warnings() reads the option names the manifest
+        # declares, so there is no second list to keep in step with it.
+        return {"instance": instance, "options": options}, self.unsupported_option_warnings(options)
 
-    def transform_response(self, engine_response: Dict[str, Any], original_request: Dict[str, Any]) -> Dict[str, Any]:
-        # Map engine response to gateway solution format
+    def transform_response(
+        self, engine_response: Dict[str, Any], original_request: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        # Map your engine's response to the general shape. `binding` is the only
+        # field required of a solution; the reference evaluator derives the rest.
         return engine_response
 ```
 
+Both `transform_request` and `transform_response` default to the identity, so an
+engine that already speaks the contract in
+`schemas/engine-contract.openapi.yaml` needs neither. Override
+`check_engine_health` only if your engine does not expose `GET /health`.
+
 ### 3) Register the plugin and URL
 
-Add the plugin to `EngineRegistry`:
-
 - File: `openbinding-gateway/src/openbinding_gateway/registry/engine.py`
-- Add env var for the engine URL (e.g. `ENGINE_MY_ENGINE_URL`).
-- Register the plugin in the initialization block.
-
-Example:
+- Add an env var for the engine URL (e.g. `ENGINE_MY_ENGINE_URL`) in
+  `core/settings.py`.
+- Register the plugin in the initialization block:
 
 ```python
 from ..validation.engine_plugins.my_engine import MyEnginePlugin
 
-_engine_urls = {
-    "my-engine": os.getenv("ENGINE_MY_ENGINE_URL", "http://engine-my:1234"),
-}
-
 EngineRegistry.register("my-engine", MyEnginePlugin())
 ```
 
-### 4) Ensure schema endpoints work
+### 4) Check the endpoints
 
 The gateway exposes:
 
-- `/v1/schemas/general`
-- `/v1/schemas/general/model`
-- `/v1/schemas/<engine-id>`
-- `/v1/schemas/<engine-id>/model`
+- `/v1/engines` — capabilities and liveness
+- `/v1/engines/<engine-id>/manifest`
+- `/v1/engines/<engine-id>/options/schema` and `/options/defaults`
+- `/v1/schemas/general` and `/v1/schemas/general/model`
+- `/v1/schemas/<engine-id>` — your instance schema
+- `/v1/schemas/<engine-id>/model` — your Mermaid model
+- `/v1/schemas/engine-contract` — what the gateway asks of an engine
 
-Your specialization schema must exist and be discoverable via `SCHEMAS_DIR`.
-Your specialization model should follow the same directory and naming convention to be discoverable by the `/model` endpoint.
+Your manifest must be discoverable via `SCHEMAS_DIR`.
 
 ### 5) Add tests
 
-Recommended tests:
-
 - Schema and semantic validation: `openbinding-gateway/tests/test_validation_comprehensive.py`
 - Plugin request/response transformation: `openbinding-gateway/tests/test_plugin_transformation.py`
+- Manifest sanity is already generic: `tests/test_plugin_schema_interface.py`
+  parametrises over every built-in engine, so a new one is covered by adding its
+  id to that list.
 - Integration tests via docker compose (if the engine is available)
 
 ### 6) Wire docker compose (if needed)
 
-Add the engine service to `docker-compose.yml` and expose the engine URL to the gateway:
+Add the engine service to `docker-compose.yml` and expose the engine URL to the
+gateway:
 
 ```yaml
 environment:
@@ -223,7 +282,9 @@ environment:
 
 ## Validation expectations
 
-The gateway uses schema defaults and semantic checks before engine-specific validation. If your engine depends on implicit rules, enforce them in `validate_semantics`.
+The gateway applies schema defaults and general semantic checks before
+engine-specific validation. If your engine depends on implicit rules, enforce
+them in `validate_semantics`.
 
 Common checks:
 
@@ -232,9 +293,54 @@ Common checks:
 - Missing candidates or missing QoS values
 - Attribute bounds on missing features
 
+## Federated engines
+
+A federated engine is the same manifest with a `transport` block, submitted
+through the API instead of committed here. It describes the third party's own
+HTTP surface rather than requiring them to implement ours: their OpenAPI
+document, which of their operations means "solve" and which means "poll a job",
+and JSON Pointers saying where in their payloads our fields sit.
+
+```yaml
+transport:
+  openapi: { url: https://acme.example/openapi.json }   # or an inline document
+  base_url: https://acme.example                        # overrides servers[]
+  auth: { type: api_key, header: X-API-Key }            # the secret travels separately
+  operations:
+    solve:  { operationId: postOptimize }
+    job:    { operationId: getOptimizeJob }             # asynchronous engines only
+    health: { operationId: getHealth }                  # optional
+  request_mapping:
+    instance: /problem
+    options:  /params
+  response_mapping:
+    solutions: /results          # "" when the body itself is the array
+    binding:   /assignment       # within one solution — the only required mapping
+    objective: /score            # optional, kept for the divergence report
+```
+
+`binding` is the only required mapping, and that is the point: the reference
+evaluator recomputes every metric, so a Task → Candidate map is a complete
+answer. An engine that returns nothing else still comes back with full
+`aggregated_features`, `violations` and `feasible`.
+
+Two rules are enforced when the manifest is parsed. Asynchrony is all or
+nothing: declaring `operations.job` without `response_mapping.job_id`, or the
+reverse, is refused rather than failing later on a real instance. And a
+credential is never part of the manifest — it is supplied separately and stored
+encrypted, so a manifest can be shown to its owner or reviewed without leaking
+one.
+
+Solving on a federated engine **sends the instance to a third-party endpoint**,
+and results carry `provenance.federated = true` so they are never quietly mixed
+into a benchmark with in-tree results.
+
 ## Troubleshooting
 
 - Check `/v1/engines` to confirm the engine is registered and reachable.
 - Use `/v1/analyze` for validation errors and warnings.
-- Ensure `SCHEMAS_DIR` resolves to the folder containing your specialization schema.
-- If the Model tab shows unavailable, confirm `<engine-id>.schema.mermaid` exists under `schemas/specializations/` and matches engine id naming exactly.
+- Ensure `SCHEMAS_DIR` resolves to the folder containing `manifests/`.
+- A capability that "does not work" is usually declared in the manifest and not
+  enforced by the engine, or enforced and rejected by `instance_schema`.
+- If the Model tab shows unavailable, confirm `<engine-id>.manifest.mermaid`
+  exists under `schemas/manifests/` and matches the engine id exactly.

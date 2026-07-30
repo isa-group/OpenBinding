@@ -49,7 +49,7 @@ def test_general_schema_invalid_missing_required(pipeline):
     assert len(violations) > 0
     # Should flag missing 'features', 'providers', etc.
 
-# --- MiniZinc Specialization Tests ---
+# --- MiniZinc manifest tests ---
 
 @pytest.fixture
 def minizinc_plugin():
@@ -78,11 +78,11 @@ def test_minizinc_valid_instance(pipeline, minizinc_plugin):
     v1 = pipeline.validate_general_schema(instance)
     assert len(v1) == 0, f"General violations: {v1}"
     
-    # 2. Specialization Check
+    # 2. Manifest instance-schema check
     # We need to ensure the schema allows this structure. 
-    # Currently specialization validation is loaded via file path by ID.
+    # The schema comes from the engine's manifest, whatever holds it.
     # 'minizinc-csp'
-    v2 = pipeline.specialization_validator.validate("minizinc-csp", instance)
+    v2 = pipeline.manifest_validator.validate("minizinc-csp", instance)
     assert len(v2) == 0
 
 def test_minizinc_invalid_objective(pipeline):
@@ -99,7 +99,7 @@ def test_minizinc_invalid_objective(pipeline):
         "constraints": []
     }
     
-    v = pipeline.specialization_validator.validate("minizinc-csp", instance)
+    v = pipeline.manifest_validator.validate("minizinc-csp", instance)
     assert len(v) > 0
     # assert "MONO" in str(v) or "objective" in str(v)
 
@@ -128,13 +128,13 @@ def test_minizinc_local_constraint_missing_task_id(pipeline):
         ]
     }
     
-    v = pipeline.specialization_validator.validate("minizinc-csp", base)
+    v = pipeline.manifest_validator.validate("minizinc-csp", base)
     # The schema should require task_id if scope is LOCAL, but JSON schema 'if/then' is complex. 
     # If not enforced, this might pass.
     # Previous run didn't show failure here specifically, so assume it passes or I need to check requirement.
     pass
 
-# --- Random Search Specialization Tests ---
+# --- Random Search manifest tests ---
 
 def test_random_search_invalid_constraint_type(pipeline):
     # Random search only accepts attribute_bound global ?? 
@@ -160,7 +160,7 @@ def test_random_search_invalid_constraint_type(pipeline):
     }
     
     
-    v = pipeline.specialization_validator.validate("random-search", base)
+    v = pipeline.manifest_validator.validate("random-search", base)
     assert len(v) > 0
     # The message says "'attribute_bound' was expected" or similar validation error
     

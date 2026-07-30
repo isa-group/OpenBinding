@@ -147,19 +147,17 @@ def test_soft_constraints_do_not_make_a_solution_infeasible() -> None:
     assert len(evaluation["violations"]) == 2
 
 
-def test_specialization_schemas_accept_what_their_engine_implements() -> None:
+def test_manifest_schemas_accept_what_their_engine_implements() -> None:
     """A capability implemented in three places is useless if the schema rejects it.
 
     Pool dependencies are enforced by the MiniZinc model, every JVM engine
     through the shared core, and the reference evaluator, and were rejected by
-    every engine's specialization schema, so no instance could ever use them.
+    every engine's instance schema, so no instance could ever use them.
     """
-    import json
-    import os
-
     import jsonschema
 
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    from openbinding_gateway.registry.engine import EngineRegistry
+
     pool_constraint = {
         "constraints": [
             {"id": "c", "kind": "DEPENDENCY", "type": "SAME_POOL", "tasks": ["T1", "T2"], "hard": True}
@@ -167,9 +165,7 @@ def test_specialization_schemas_accept_what_their_engine_implements() -> None:
     }
 
     for engine in ("minizinc-csp", "random-search", "evolutionary-heuristics", "many-heuristic"):
-        path = os.path.join(repo_root, "schemas", "specializations", f"{engine}.schema.json")
-        with open(path) as handle:
-            schema = json.load(handle)
+        schema = EngineRegistry.get_plugin(engine).get_instance_schema()
         validator = jsonschema.Draft202012Validator(schema)
         offending = [e for e in validator.iter_errors(pool_constraint) if "constraints" in str(e.path)]
         assert not offending, f"{engine} rejects a pool dependency it implements: {offending[:1]}"

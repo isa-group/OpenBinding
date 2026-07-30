@@ -8,28 +8,6 @@ class ManyHeuristicEnginePlugin(EngineValidationPlugin):
     engine_id = "many-heuristic"
 
 
-    def get_capabilities(self) -> Dict[str, Any]:
-        return {
-            "qos_features_supported": ["*"],
-            "composition_nodes_supported": ["TASK", "SEQ", "AND", "XOR", "LOOP"],
-            "objective_types_supported": ["MANY"],
-            "constraints_supported": [
-                "attribute_bound",
-                "dependency",
-                "resource_capacity",
-                "latency_transition",
-            ],
-            "type": "HEURISTIC",
-            "schema_version": "v1"
-        }
-
-    def get_default_options(self) -> Dict[str, Any]:
-        return {
-            "iterations_count": 1000,
-            "archive_size": 20
-        }
-
-
     def validate_semantics(self, instance: Dict[str, Any]) -> List[ValidationViolation]:
         violations = []
         
@@ -58,10 +36,7 @@ class ManyHeuristicEnginePlugin(EngineValidationPlugin):
         return violations
 
     def transform_request(self, instance: Dict[str, Any], options: Dict[str, Any] = {}) -> Tuple[Dict[str, Any], List[str]]:
-        warnings = []
-        valid_options = {"iterations_count", "archive_size", "seed", "time_budget_ms"}
-        for k in options:
-            if k not in valid_options: warnings.append(f"Option '{k}' not supported. Valid: {valid_options}")
+        warnings = self.unsupported_option_warnings(options)
 
         # The instance travels as-is: the engine derives the placement view it
         # needs and reads the composition, constraints and policies itself,

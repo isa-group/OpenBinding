@@ -15,7 +15,7 @@ export class Solver {
         const intermediateSolutions = options?.intermediate_solutions !== false;
 
         // Semantic validation is the gateway's: by the time a request gets
-        // here it has already passed general, specialization and engine
+        // here it has already passed general, manifest and engine
         // validation, so re-deriving warnings only duplicated them.
         // 1. Identify Features + build data
         let dznContent: string;

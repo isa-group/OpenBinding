@@ -1,0 +1,348 @@
+{
+  "manifest_version": "1",
+  "engine_id": "random-search",
+  "display_name": "Random Search",
+  "description": "Uniform sampling of the binding space. The baseline every other engine is measured against.",
+  "type": "HEURISTIC",
+  "capabilities": {
+    "qos_features_supported": [
+      "*"
+    ],
+    "composition_nodes_supported": [
+      "TASK",
+      "SEQ",
+      "AND",
+      "XOR",
+      "LOOP"
+    ],
+    "objective_types_supported": [
+      "MONO"
+    ],
+    "constraints_supported": [
+      "attribute_bound",
+      "dependency",
+      "resource_capacity",
+      "latency_transition"
+    ],
+    "schema_version": "v1"
+  },
+  "options_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "random-search options",
+    "type": "object",
+    "additionalProperties": true,
+    "properties": {
+      "iterations_count": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 1000,
+        "description": "Minimum number of bindings to evaluate."
+      },
+      "seed": {
+        "type": "integer",
+        "default": 1,
+        "description": "Fixed so that a run can be reproduced."
+      },
+      "time_budget_ms": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 1,
+        "default": null,
+        "description": "Wall-clock budget in milliseconds. When set, the search runs until it expires, never stopping below iterations_count."
+      }
+    }
+  },
+  "instance_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://openbinding.score.us.es/api/v1/schemas/random-search",
+    "title": "Random-Search Instance Schema",
+    "description": "Profile for the Random-Search Java Engine (structured workflows + weighted-sum objective + optional global attribute bounds).",
+    "type": "object",
+    "properties": {
+      "composition": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "const": "STRUCTURED"
+          },
+          "root": {
+            "$ref": "#/$defs/random_search_node"
+          }
+        },
+        "required": [
+          "type",
+          "root"
+        ]
+      },
+      "objective": {
+        "properties": {
+          "type": {
+            "const": "MONO"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "constraints": {
+        "type": "array",
+        "items": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "ATTRIBUTE_BOUND"
+                },
+                "scope": {
+                  "enum": [
+                    "GLOBAL",
+                    "LOCAL"
+                  ]
+                },
+                "hard": {
+                  "type": "boolean"
+                },
+                "tasks": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "op": {
+                  "type": "string",
+                  "enum": [
+                    "<=",
+                    "<",
+                    ">=",
+                    ">",
+                    "==",
+                    "!=",
+                    "IN_RANGE"
+                  ]
+                },
+                "value": {
+                  "oneOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "min": {
+                          "type": "number"
+                        },
+                        "max": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "min",
+                        "max"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "kind",
+                "scope",
+                "op",
+                "value"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "DEPENDENCY"
+                },
+                "type": {
+                  "enum": [
+                    "SAME_PROVIDER",
+                    "DIFFERENT_PROVIDER",
+                    "SAME_POOL",
+                    "DIFFERENT_POOL",
+                    "SAME_CANDIDATE",
+                    "DIFFERENT_CANDIDATE"
+                  ]
+                },
+                "hard": {
+                  "type": "boolean"
+                },
+                "tasks": {
+                  "type": "array",
+                  "minItems": 2,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "kind",
+                "type",
+                "tasks"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "required": [
+      "composition",
+      "features",
+      "aggregation_policies",
+      "objective"
+    ],
+    "$defs": {
+      "random_search_node": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/task_node"
+          },
+          {
+            "$ref": "#/$defs/seq_node"
+          },
+          {
+            "$ref": "#/$defs/and_node"
+          },
+          {
+            "$ref": "#/$defs/xor_node"
+          },
+          {
+            "$ref": "#/$defs/loop_node"
+          },
+          {
+            "$ref": "#/$defs/element_node"
+          }
+        ]
+      },
+      "task_node": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "TASK"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "seq_node": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "SEQ"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/random_search_node"
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "children"
+        ]
+      },
+      "and_node": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "AND"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/random_search_node"
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "children"
+        ]
+      },
+      "xor_node": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "XOR"
+          },
+          "branches": {
+            "type": "array",
+            "items": {
+              "properties": {
+                "child": {
+                  "$ref": "#/$defs/random_search_node"
+                },
+                "p": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "required": [
+                "child",
+                "p"
+              ]
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "branches"
+        ]
+      },
+      "loop_node": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "LOOP"
+          },
+          "body": {
+            "$ref": "#/$defs/random_search_node"
+          },
+          "expected_iterations": {
+            "type": "number",
+            "minimum": 0
+          },
+          "bounds": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "min",
+              "max"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "body"
+        ]
+      },
+      "element_node": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "ELEMENT"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      }
+    }
+  }
+}
