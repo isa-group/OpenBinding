@@ -43,11 +43,20 @@ services:
       - AUTH_REQUIRED_FOR_SOLVE=${AUTH_REQUIRED_FOR_SOLVE:-true}
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
-      - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
+      - SPACE_ENABLED=${SPACE_ENABLED:-false}
+      - SPACE_URL=${SPACE_URL:-http://space-server:3000}
+      - SPACE_API_KEY=${SPACE_API_KEY:-}
+      - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
+      - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-closed}
+      - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
+      - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-true}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
       - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
+    networks:
+      - default
+      - space
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 10s
@@ -92,10 +101,20 @@ services:
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
       - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
+      - SPACE_ENABLED=${SPACE_ENABLED:-false}
+      - SPACE_URL=${SPACE_URL:-http://space-server:3000}
+      - SPACE_API_KEY=${SPACE_API_KEY:-}
+      - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
+      - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-open}
+      - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
+      - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-false}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
       - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
+    networks:
+      - default
+      - space
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 10s
@@ -266,3 +285,19 @@ services:
 volumes:
   frontend_dist:
   pgdata:
+
+networks:
+  default:
+  # Where the SPACE instance lives. External because neither project owns it:
+  # SPACE's own override joins the same network from the other side, and both
+  # expect it to have been created once, by hand:
+  #
+  #     docker network create openbinding-space
+  #
+  # Nothing is published on the host - the gateway reaches SPACE at
+  # http://space-server:3000, the API container itself rather than the nginx in
+  # front of it, so a gateway that can start does not depend on a proxy it does
+  # not own being healthy.
+  space:
+    name: openbinding-space
+    external: true

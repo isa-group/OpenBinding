@@ -26,7 +26,12 @@ from .access import metering, policy
 from .access.dependencies import get_optional_user, optional_session, solve_caller
 from .core.settings import get_settings
 from .db import base as db_base
-from .db.bootstrap import ensure_administrator
+from .db.bootstrap import (
+    DEFAULT_ADMIN_PASSWORD,
+    DEFAULT_ADMIN_USERNAME,
+    ensure_administrator,
+    seed_default_administrator,
+)
 from .db.models import User
 from .jobs import JobManager
 from .models.api import (
@@ -95,7 +100,25 @@ async def lifespan(app: FastAPI):
         # Without this a fresh deployment has no administrator and no way to
         # acquire one, since promoting an account is an administrator's job.
         async with db_base.session_factory()() as session:
-            await ensure_administrator(session, settings)
+            configured = await ensure_administrator(session, settings)
+            if not configured:
+                # A deployment that named its administrator gets that one. One
+                # that did not still has to be able to sign in: seed_default_
+                # administrator acts only on a database with no accounts at
+                # all, so this can never take over an installation in use.
+                #
+                # This used to be reachable only by running tools/seed_admin.py
+                # by hand, which meant `docker compose up` produced a gateway
+                # with no accounts and no way to make one - promoting somebody
+                # is an administrator's privilege, and there was no
+                # administrator.
+                if await seed_default_administrator(session):
+                    logging.getLogger(__name__).warning(
+                        "No administrator existed, so '%s' was created with the well-known "
+                        "password '%s'. Sign in, create a real administrator, and delete it.",
+                        DEFAULT_ADMIN_USERNAME,
+                        DEFAULT_ADMIN_PASSWORD,
+                    )
             await session.commit()
 
             # Registered engines live in the database but are looked up from

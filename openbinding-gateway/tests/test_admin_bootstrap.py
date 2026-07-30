@@ -164,3 +164,67 @@ async def test_a_configured_administrator_without_a_password_is_not_invented(db_
 
     assert changed is False
     assert await users(db_session) == []
+
+
+# -- Starting the gateway ---------------------------------------------------
+
+
+def test_starting_on_an_empty_database_produces_an_administrator(tmp_path, monkeypatch):
+    """The bug this file's other tests could not see.
+
+    Every seeding rule below was correct and covered, and none of it ran:
+    the lifespan called only ``ensure_administrator``, which does nothing
+    without BOOTSTRAP_ADMIN_USERNAME - and the compose files pass that empty.
+    So ``docker compose up`` produced a gateway with no accounts and no way to
+    make one, because promoting somebody is an administrator's privilege and
+    there was no administrator.
+
+    This asserts the outcome a person cares about: start it, sign in.
+    """
+    import asyncio
+
+    from fastapi.testclient import TestClient
+    from sqlalchemy import create_engine
+
+    from openbinding_gateway.core.settings import get_settings
+    from openbinding_gateway.db.base import Base
+
+    database = tmp_path / "bootstrap.db"
+    sync_engine = create_engine(f"sqlite:///{database}")
+    with sync_engine.begin() as connection:
+        Base.metadata.create_all(connection)
+    sync_engine.dispose()
+
+    monkeypatch.setenv("DATABASE_URL", f"sqlite+aiosqlite:///{database}")
+    monkeypatch.setenv("GATEWAY_JWT_SECRET", "a-secret-long-enough-for-hs256-signing")
+    monkeypatch.delenv("BOOTSTRAP_ADMIN_USERNAME", raising=False)
+    get_settings.cache_clear()
+
+    from openbinding_gateway.main import app
+
+    try:
+        # Entering the client runs the lifespan, which is the thing under test.
+        with TestClient(app) as client:
+            signed_in = client.post(
+                "/v1/auth/login",
+                json={
+                    "username_or_email": DEFAULT_ADMIN_USERNAME,
+                    "password": DEFAULT_ADMIN_PASSWORD,
+                },
+            )
+            assert signed_in.status_code == 200, signed_in.text
+
+            profile = client.get(
+                "/v1/users/me",
+                headers={"Authorization": f"Bearer {signed_in.json()['access_token']}"},
+            ).json()
+            assert profile["role"] == "admin"
+    finally:
+        get_settings.cache_clear()
+        asyncio.run(_dispose())
+
+
+async def _dispose():
+    from openbinding_gateway.db.base import dispose_engine
+
+    await dispose_engine()
