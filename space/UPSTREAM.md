@@ -185,7 +185,73 @@ so the declaration is the only thing that changes when the version list grows.
 
 ---
 
-## 6. Smaller things, worth mentioning if a PR is opened anyway
+## 6. `add_contract` reports success for a contract SPACE refused
+
+**Where:** `space-python-client`, `contracts.add_contract`.
+
+**What happens:** the method returns `None` whether SPACE created the contract
+or rejected it. A 400 is not raised, not logged, and not distinguishable from a
+successful call by any return value.
+
+**How it was found:** the plans in this pricing were renamed - `BASIC` became
+`FREE` - and the gateway kept asking for a pricing version that still declared
+the old names. SPACE answered every contract creation with
+
+```
+400 {"error":"Invalid subscription: Error: Plan FREE for service openbinding not found in the request organization"}
+```
+
+and the gateway logged nothing, reported every registration as successful, and
+produced accounts with no contract at all. `GET /v1/users/me/usage` returned an
+empty limit list, which reads as "this plan has no limits" rather than as a
+failure. It went unnoticed until somebody counted the contracts in MongoDB.
+
+**Why it matters:** every other failure in the client raises. This one is the
+single call where silence and success are the same value, and it is the call
+that establishes whether a user is entitled to anything.
+
+**Suggested fix:** raise on a non-2xx, as the other methods do; or return the
+created contract so the caller can tell.
+
+**What this repository does instead:** reads the contract back immediately after
+creating it (`SpacePricingGate.create_contract`) and raises `PricingUnavailable`
+when it is absent, with a message naming the likely cause. No local patch to the
+client.
+
+---
+
+## 7. A database outage is reported as `401 Unauthorized`
+
+**Where:** SPACE 1.0.0, any endpoint, when MongoDB is unreachable.
+
+**What happens:** the API keeps answering, its healthcheck keeps passing, and
+every authenticated request comes back as
+
+```
+401 {"error":"Operation `users.findOne()` buffering timed out after 10000ms"}
+```
+
+The status code says the credential was wrong. The body says Mongoose could not
+reach the database. Only the body is true.
+
+**How it was found:** `bootstrap_space.py` reported "SPACE rejected those
+administrator credentials" against an instance whose password was correct. The
+container had been up for fifteen hours, reporting healthy, with its `mongodb`
+container stopped the whole time.
+
+**Why it matters:** the wrong status sends whoever is debugging to look for a
+password, and the healthcheck actively confirms that the service is fine. Two
+signals agreeing on the wrong answer is expensive.
+
+**Suggested fix:** answer `503` for a database timeout, and make the healthcheck
+depend on the database connection rather than only on the HTTP listener.
+
+**What this repository does instead:** `space/connect.sh` looks for
+`buffering timed out` in the body and says what it actually means.
+
+---
+
+## 8. Smaller things, worth mentioning if a PR is opened anyway
 
 - **Deleting a service leaves its pricings behind.** `DELETE /services/{name}`
   and even `DELETE /services` (prune) return success, but re-registering the same

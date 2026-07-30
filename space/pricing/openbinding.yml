@@ -21,7 +21,7 @@
 # the declaration is the only thing to change once that version list grows.
 syntaxVersion: '3.0'
 saasName: openbinding
-version: 1.0.0
+version: 1.1.0
 createdAt: '2026-07-29'
 currency: EUR
 

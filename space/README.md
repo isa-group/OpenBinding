@@ -42,12 +42,51 @@ and now in your shell history.
 ## Wiring it to the gateway
 
 ```bash
-python space/bootstrap/bootstrap_space.py --url http://localhost:5403
+./space/connect.sh
 ```
 
-It authenticates, registers the `openbinding` service with `pricing/openbinding.yml`,
-and prints `SPACE_ENABLED`, `SPACE_URL` and `SPACE_API_KEY` for OpenBinding's
-`.env`. Running it twice is safe: an already-registered service is left alone.
+One command, idempotent, and the one to reach for after `docker compose up`,
+after changing the pricing, or whenever `/v1/users/me/usage` comes back with no
+limits. It creates the shared network if it is missing, checks that SPACE can
+reach its own database, registers or upgrades the pricing, finds or mints an
+organization key, writes `SPACE_*` into `.env` and restarts the gateway. The
+admin password is asked for only when a key has to be minted.
+
+It talks to SPACE from a throwaway container on `openbinding-space`, because
+SPACE publishes nothing on the host once it is wired this way - which is also
+how the gateway reaches it.
+
+Each step exists because it has silently gone wrong:
+
+* **the network** — declared external by both projects, so neither owns it, and
+  absent on a fresh machine;
+* **the database check** — SPACE answers `401` when MongoDB is unreachable,
+  which reads as a wrong password while its healthcheck keeps passing
+  ([UPSTREAM.md §7](UPSTREAM.md));
+* **the pricing version** — a contract names the version it is written against.
+  When the plans were renamed and the registered pricing was not re-uploaded,
+  SPACE refused every contract and the Python client turned that 400 into a
+  silent `None` ([UPSTREAM.md §6](UPSTREAM.md)), so registration reported success
+  while producing accounts entitled to nothing.
+
+### Doing it by hand
+
+`space/bootstrap/bootstrap_space.py` is what `connect.sh` calls to mint the key.
+It authenticates, registers the `openbinding` service with
+`pricing/openbinding.yml`, and prints `SPACE_ENABLED`, `SPACE_URL` and
+`SPACE_API_KEY`. Running it twice is safe: an already-registered service is left
+alone - which is also why it will not upload a **changed** pricing, and why
+`connect.sh` compares versions itself.
+
+### Checking it worked
+
+```bash
+curl -s localhost:8000/v1/users/me/usage -H "Authorization: Bearer $TOKEN"
+```
+
+Eleven limits means the gateway is reading entitlements from SPACE. An empty
+list means it fell back to running without one - with `SPACE_FAIL_MODE=open`
+that failure is deliberately quiet, so this is the thing to check.
 
 That API key authenticates *the gateway* to SPACE. It is not an OpenBinding API
 key, it is not a user's, and it must never be handed to an account holder — it

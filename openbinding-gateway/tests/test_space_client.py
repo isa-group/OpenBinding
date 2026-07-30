@@ -83,6 +83,10 @@ class Recorder:
 
         def add_contract(self, contract):
             self._outer._record("add_contract", contract)
+            # A working SPACE has the contract afterwards, and the gate reads it
+            # back to tell "created" from "silently refused" - which the real
+            # client cannot express, since it returns None either way.
+            self._outer._contract = contract
             return contract
 
         def update_contract_subscription(self, user_id, subscription):
@@ -105,6 +109,29 @@ class Evaluation:
 class Error:
     def __init__(self, message):
         self.message = message
+
+
+
+@pytest.fixture(autouse=True)
+def a_pristine_environment(monkeypatch):
+    """Defaults are what a deployment gets when it sets nothing.
+
+    Importing ``main`` runs ``load_dotenv()``, which puts the developer's own
+    ``.env`` into the process environment - so once somebody configured SPACE
+    locally, these tests started asserting against their machine rather than
+    against the defaults. Clearing the keys under test is the only way the
+    question stays the intended one.
+    """
+    for name in (
+        "SPACE_ENABLED",
+        "SPACE_URL",
+        "SPACE_API_KEY",
+        "SPACE_FAIL_MODE",
+        "SPACE_TIMEOUT_MS",
+        "FEDERATION_SECRET_KEY",
+        "FEDERATION_REQUIRE_HTTPS",
+    ):
+        monkeypatch.delenv(name, raising=False)
 
 
 def gate_over(recorder: Recorder) -> SpacePricingGate:
@@ -288,6 +315,39 @@ async def test_a_contract_is_created_for_the_service_and_plan(user_id):
     contract = recorder.calls[0][1]
     assert contract.subscription_plans == {"openbinding": "FREE"}
     assert contract.user_contact.email == "someone@example.org"
+
+
+async def test_a_contract_that_space_quietly_refused_is_an_error(user_id):
+    """The failure mode that produced accounts with no contract at all.
+
+    ``add_contract`` returns None whether SPACE created the contract or refused
+    it - the client turns a 400 into a quiet None. So when the plans were
+    renamed and the gateway kept asking for a pricing version that no longer
+    declared them, SPACE answered "Plan FREE for service openbinding not found"
+    and registration reported success for days.
+
+    Reading the contract back is what tells the two apart.
+    """
+    recorder = Recorder()
+    recorder.contracts.add_contract = lambda contract: None  # accepted nothing
+
+    with pytest.raises(PricingUnavailable) as error:
+        await gate_over(recorder).create_contract(user_id, "FREE", "someone@example.org")
+
+    # The message has to name the likely cause, because the API says nothing.
+    assert "pricing version" in str(error.value)
+
+
+async def test_a_contract_is_written_against_the_shipped_pricing_version(user_id):
+    # It was a literal "1.0.0" in two places; the pricing file moved and they
+    # did not.
+    import yaml
+
+    from openbinding_gateway.routes.schemas import _pricing_path
+    from openbinding_gateway.space_client.space import pricing_version
+
+    with open(_pricing_path(), encoding="utf-8") as handle:
+        assert pricing_version() == str(yaml.safe_load(handle)["version"])
 
 
 async def test_a_new_contract_spells_out_an_empty_phone(user_id):

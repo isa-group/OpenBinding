@@ -49,6 +49,34 @@ from .gate import (
 
 T = TypeVar("T")
 
+
+def pricing_version() -> str:
+    """Which version of the pricing a new contract is written against.
+
+    Read from the document this repository ships rather than written out here.
+    It was a literal "1.0.0" in two places, and when the plans changed - BASIC
+    became FREE - the file moved and the constants did not. SPACE then refused
+    every contract with "Plan FREE for service openbinding not found", and the
+    client turned that 400 into a silent None, so registration looked fine and
+    quietly produced accounts with no contract at all.
+    """
+    from ..routes.schemas import _pricing_path
+
+    try:
+        import yaml
+
+        with open(_pricing_path(), "r", encoding="utf-8") as handle:
+            declared = (yaml.safe_load(handle) or {}).get("version")
+        if declared:
+            return str(declared)
+    except Exception:  # noqa: BLE001 - a missing file must not stop the gateway
+        pass
+    return FALLBACK_PRICING_VERSION
+
+
+#: Used only when the document cannot be read at all.
+FALLBACK_PRICING_VERSION = "1.1.0"
+
 #: Limits that bound one request rather than a month, mapped onto PlanCaps.
 _CAP_FIELDS = {
     "maxTimeoutPerTaskLimit": "max_timeout_s",
@@ -244,11 +272,24 @@ class SpacePricingGate:
                     user_id=str(user_id), username=str(user_id), email=email, phone=""
                 ),
                 billing_period=BillingPeriodToCreate(auto_renew=True, renewal_days=30),
-                contracted_services={SERVICE_NAME: "1.0.0"},
+                contracted_services={SERVICE_NAME: pricing_version()},
                 subscription_plans={SERVICE_NAME: plan},
                 subscription_add_ons={},
             ),
         )
+
+        # Read it back, because ``add_contract`` returns None whether it worked
+        # or not: the client turns a 4xx into a quiet None rather than raising.
+        # That is how a pricing version drift - the plans were renamed and the
+        # gateway still asked for the old one - produced accounts with no
+        # contract while every call reported success.
+        if await self._contract(user_id) is None:
+            raise PricingUnavailable(
+                f"SPACE accepted no contract for this account on plan {plan!r}. The usual "
+                f"cause is that pricing version {pricing_version()} of '{SERVICE_NAME}' does "
+                f"not declare that plan - check what is registered against "
+                f"space/pricing/openbinding.yml."
+            )
 
     async def change_plan(self, user_id: uuid.UUID, plan: str) -> None:
         """Move an account to another plan. SPACE calls this a novation."""
@@ -258,7 +299,7 @@ class SpacePricingGate:
             self._client.contracts.update_contract_subscription,
             str(user_id),
             Subscription(
-                contracted_services={SERVICE_NAME: "1.0.0"},
+                contracted_services={SERVICE_NAME: pricing_version()},
                 subscription_plans={SERVICE_NAME: plan},
                 subscription_add_ons={},
             ),

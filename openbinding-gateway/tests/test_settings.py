@@ -14,6 +14,29 @@ import pytest
 from openbinding_gateway.core.settings import Settings
 
 
+
+@pytest.fixture(autouse=True)
+def a_pristine_environment(monkeypatch):
+    """Defaults are what a deployment gets when it sets nothing.
+
+    Importing ``main`` runs ``load_dotenv()``, which puts the developer's own
+    ``.env`` into the process environment - so once somebody configured SPACE
+    locally, these tests started asserting against their machine rather than
+    against the defaults. Clearing the keys under test is the only way the
+    question stays the intended one.
+    """
+    for name in (
+        "SPACE_ENABLED",
+        "SPACE_URL",
+        "SPACE_API_KEY",
+        "SPACE_FAIL_MODE",
+        "SPACE_TIMEOUT_MS",
+        "FEDERATION_SECRET_KEY",
+        "FEDERATION_REQUIRE_HTTPS",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
 def settings(**overrides) -> Settings:
     """A Settings that ignores any .env lying around the working directory."""
     return Settings(_env_file=None, **overrides)
