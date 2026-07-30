@@ -129,6 +129,33 @@ def test_the_drafted_manifest_is_valid_as_it_stands():
     assert parsed.transport.openapi.url == "https://acme.example/openapi.json"
 
 
+def test_a_draft_from_a_pasted_document_carries_that_document():
+    """The obvious path has to work: paste a spec, register what comes back.
+
+    A draft built from a pasted document used to keep a placeholder URL, so
+    registering it failed while trying to fetch a URL the author never typed -
+    on the one route somebody takes precisely because their spec is not
+    published.
+    """
+    manifest, _ = draft_manifest(TIDY_SYNC_SPEC, engine_id="tabu")
+
+    parsed = EngineManifest.model_validate(manifest)
+
+    assert parsed.transport.openapi.url is None
+    assert parsed.transport.openapi.document == TIDY_SYNC_SPEC
+
+
+def test_a_url_is_recorded_when_that_is_how_it_arrived():
+    manifest, _ = draft_manifest(
+        TIDY_SYNC_SPEC, engine_id="tabu", openapi_url="https://acme.example/openapi.json"
+    )
+
+    parsed = EngineManifest.model_validate(manifest)
+
+    assert parsed.transport.openapi.url == "https://acme.example/openapi.json"
+    assert parsed.transport.openapi.document is None
+
+
 def test_the_manifest_borrows_the_title_and_description():
     manifest, _ = draft_manifest(TIDY_SYNC_SPEC, engine_id="tabu")
 

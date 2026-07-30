@@ -11,6 +11,7 @@ import { Tabs } from '../../components/ui/Tabs';
 import { CodeEditor } from '../../components/CodeEditor/CodeEditor';
 import { BindingSpaceExplorer } from '../../components/BindingSpaceExplorer/BindingSpaceExplorer';
 import { TraceChart } from '../../components/TraceChart/TraceChart';
+import { EngineReportView } from '../../components/EngineReportView/EngineReportView';
 import { PartsEditor } from './PartsEditor';
 import './Playground.css';
 
@@ -107,6 +108,10 @@ export function Playground() {
   const [solverOptions, setSolverOptions] = useState(DEFAULT_OPTIONS);
   const [sendOptions, setSendOptions] = useState(true);
   const [verbose, setVerbose] = useState(true);
+  // Separate from verbose on purpose: this one is about provenance rather than
+  // debugging, and it is the only way to see what an engine claimed before the
+  // reference evaluator overwrote it.
+  const [includeEngineReport, setIncludeEngineReport] = useState(false);
   const [selectedExample, setSelectedExample] = useState<string>('');
 
   // The instance can be edited whole, or as the parts it is made of. Only one
@@ -470,7 +475,8 @@ export function Playground() {
         engine_id: selectedEngine,
         instance,
         options,
-        verbose
+        verbose,
+        include_engine_report: includeEngineReport
       });
 
       // Check if it's a validation error response (422)
@@ -613,6 +619,15 @@ export function Playground() {
                 </select>
               </div>
               
+              {selectedEngineData?.federated && (
+                <div className="federated-warning">
+                  <strong>This engine is somebody else's.</strong> Solving on it sends your
+                  instance to <code>{selectedEngineData.owner || 'a third party'}</code>'s
+                  endpoint. The result is scored here, by the same evaluator as every other
+                  engine, and is marked <code>federated</code> in its provenance.
+                </div>
+              )}
+
               {selectedEngineData?.capabilities && (
                 <div className="engine-capabilities-preview">
                   <span className="capabilities-label">Capabilities:</span>
@@ -710,6 +725,17 @@ export function Playground() {
                     />
                     <span>Verbose</span>
                   </label>
+                  <label
+                    className="toggle-label"
+                    title="Also return what the engine itself reported, before the reference evaluator recomputed it."
+                  >
+                    <input
+                      type="checkbox"
+                      checked={includeEngineReport}
+                      onChange={(e) => setIncludeEngineReport(e.target.checked)}
+                    />
+                    <span>Engine report</span>
+                  </label>
                 </div>
               </div>
               
@@ -805,6 +831,14 @@ export function Playground() {
                     badge: result.solutions?.length || 0,
                     content: <SolutionsView result={result} />
                   },
+                  ...(result?.engine_report
+                    ? [{
+                        id: 'engine-report',
+                        label: 'Engine report',
+                        badge: result.engine_report.divergence?.agrees ? 0 : (result.engine_report.divergence?.notes?.length || 0),
+                        content: <EngineReportView report={result.engine_report} />,
+                      }]
+                    : []),
                   {
                     id: 'trace',
                     label: 'Trace',

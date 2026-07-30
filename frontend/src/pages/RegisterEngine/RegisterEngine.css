@@ -1,0 +1,218 @@
+.register-engine-page {
+  padding: var(--space-8) 0;
+}
+
+/* The steps are a map, not a control: they say where you are and how much is
+   left, and clicking them would let somebody skip the reading that makes the
+   next step easy. */
+.wizard-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+}
+
+.wizard-steps li {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full, 999px);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+}
+
+.wizard-steps li.current {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.wizard-steps li.done {
+  color: var(--color-text-primary);
+}
+
+.wizard-card {
+  margin-bottom: var(--space-6);
+}
+
+.wizard-card h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 1.25rem;
+}
+
+.wizard-hint {
+  margin: 0 0 var(--space-5);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  max-width: 70ch;
+}
+
+.source-toggle {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.field {
+  display: block;
+  margin-bottom: var(--space-5);
+}
+
+.field > span {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-size: 0.9375rem;
+}
+
+.field textarea {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  resize: vertical;
+}
+
+.field small {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.checkbox-field {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin-bottom: var(--space-5);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.checkbox-field input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.manifest-editor {
+  width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  resize: vertical;
+  margin-bottom: var(--space-5);
+}
+
+.notes-list,
+.unresolved-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  line-height: 1.7;
+}
+
+.notes-list li {
+  color: var(--color-text-secondary);
+}
+
+.wizard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+/* -- The report ---------------------------------------------------------- */
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-1);
+}
+
+.result-header h2 {
+  margin: 0;
+}
+
+.engine-id-line {
+  margin: 0 0 var(--space-5);
+  color: var(--color-text-secondary);
+}
+
+.findings {
+  margin: var(--space-6) 0;
+}
+
+.findings h3 {
+  font-size: 1rem;
+  margin: 0 0 var(--space-4);
+}
+
+.finding {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-error, #d33);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+  background: var(--color-bg-secondary);
+}
+
+.finding-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.finding p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.steps {
+  margin: var(--space-5) 0;
+  color: var(--color-text-secondary);
+}
+
+.steps summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.steps ul {
+  margin: var(--space-3) 0 0;
+  padding-left: var(--space-5);
+  line-height: 1.7;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}

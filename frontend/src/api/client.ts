@@ -17,6 +17,56 @@ export interface Engine {
   id: string;
   capabilities: any;
   active?: boolean;
+  /** Whether somebody registered this engine rather than it shipping here. */
+  federated?: boolean;
+  owner?: string;
+  visibility?: 'private' | 'pending_review' | 'public';
+  status?: 'draft' | 'verifying' | 'active' | 'failed' | 'disabled';
+  verified_at?: string | null;
+}
+
+/** One thing wrong with a registration, and which manifest field to change. */
+export interface ConformanceFinding {
+  code: string;
+  message: string;
+  field?: string | null;
+}
+
+export interface ConformanceReport {
+  passed: boolean;
+  findings: ConformanceFinding[];
+  steps: string[];
+}
+
+/** A registration as its owner sees it. Never carries the credential. */
+export interface RegisteredEngine {
+  id: string;
+  engine_id: string;
+  display_name: string;
+  owner: string;
+  visibility: 'private' | 'pending_review' | 'public';
+  status: 'draft' | 'verifying' | 'active' | 'failed' | 'disabled';
+  verified_at?: string | null;
+  health_failures: number;
+  manifest: Record<string, any>;
+  conformance_report?: ConformanceReport | null;
+  has_credential: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * What the gateway made of somebody's OpenAPI document.
+ *
+ * `notes` is why each guess was made and `unresolved` is what the document
+ * could not answer - both are meant to be read, which is the difference
+ * between a proposal and a black box.
+ */
+export interface ManifestDraft {
+  manifest: Record<string, any>;
+  notes: string[];
+  unresolved: string[];
+  ready: boolean;
 }
 
 export type EngineDefaultOptions = Record<string, unknown>;
@@ -42,6 +92,24 @@ export interface ValidationError {
   warnings?: Warning[];
 }
 
+/** Where an engine's own account of its answer differs from the canonical one. */
+export interface EngineDivergence {
+  solutions_compared: number;
+  feasibility_mismatches: number;
+  max_objective_delta?: number | null;
+  notes: string[];
+  agrees: boolean;
+}
+
+/** What the engine said, kept beside what the reference evaluator computed. */
+export interface EngineReport {
+  solutions: Array<Record<string, unknown>>;
+  provenance?: Record<string, unknown> | null;
+  raw?: Record<string, unknown> | null;
+  raw_truncated: boolean;
+  divergence: EngineDivergence;
+}
+
 export interface JobStatus {
   job_id: string;
   status: 'queued' | 'running' | 'completed' | 'failed';
@@ -50,6 +118,7 @@ export interface JobStatus {
     solutions?: Array<Record<string, unknown>>;
     provenance?: Record<string, unknown>;
     diagnostics?: Record<string, unknown>;
+    engine_report?: EngineReport | null;
   };
   error?: string;
 }
@@ -59,6 +128,12 @@ export interface SolveRequest {
   instance: any;
   options?: any;
   verbose?: boolean;
+  /**
+   * Also return what the engine itself reported, before the reference
+   * evaluator recomputed it, plus a summary of where the two disagree.
+   * Independent of `verbose`: different purpose, different size.
+   */
+  include_engine_report?: boolean;
 }
 
 export interface AnalyzeRequest {
@@ -588,6 +663,129 @@ class ApiClient {
 
   async adminResyncUsage(userId: string): Promise<UsageResyncResult> {
     return this.request<UsageResyncResult>(`/v1/admin/users/${userId}/usage/resync`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * A 422 body, turned into something a caller can throw.
+   *
+   * `request()` returns validation errors instead of throwing, because for
+   * `/solve` a list of violations is a normal result worth rendering. For the
+   * engine endpoints it is not: a registration either happened or it did not,
+   * and a caller that cannot tell the two apart shows an empty success page.
+   */
+  private orThrow<T extends object>(body: T): T {
+    const detail = (body as any)?.detail;
+    if (detail && typeof detail === 'object' && (detail.code || detail.error)) {
+      const error: any = new Error(detail.error || 'The request was refused.');
+      error.code = detail.code;
+      error.violations = detail.violations;
+      error.detail = detail;
+      throw error;
+    }
+    return body;
+  }
+
+  // -- Registering your own engine -------------------------------------
+
+  /**
+   * Ask the gateway to read an engine's OpenAPI document and propose a manifest.
+   *
+   * The whole reason registering is feasible for anyone who has not read the
+   * manifest reference: the hard parts - which operation solves, where the
+   * instance goes, which field is the binding - are worked out here.
+   */
+  async draftEngineManifest(source: {
+    openapi_url?: string;
+    openapi_document?: Record<string, any>;
+    engine_id?: string;
+    display_name?: string;
+  }): Promise<ManifestDraft> {
+    return this.orThrow(
+      await this.request<ManifestDraft>('/v1/engines/draft', {
+        method: 'POST',
+        body: JSON.stringify(source),
+      })
+    );
+  }
+
+  /** Submit a manifest. Answers with the conformance report either way. */
+  async registerEngine(payload: {
+    manifest: Record<string, any>;
+    credential?: string;
+    publish?: boolean;
+  }): Promise<RegisteredEngine> {
+    return this.orThrow(
+      await this.request<RegisteredEngine>('/v1/engines', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+    );
+  }
+
+  async listOwnEngines(): Promise<RegisteredEngine[]> {
+    return this.request<RegisteredEngine[]>('/v1/engines/registered');
+  }
+
+  async getRegisteredEngine(engineId: string): Promise<RegisteredEngine> {
+    return this.request<RegisteredEngine>(`/v1/engines/registered/${engineId}`);
+  }
+
+  async updateRegisteredEngine(
+    engineId: string,
+    payload: { manifest: Record<string, any>; credential?: string }
+  ): Promise<RegisteredEngine> {
+    return this.orThrow(
+      await this.request<RegisteredEngine>(`/v1/engines/registered/${engineId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      })
+    );
+  }
+
+  /** Ask again, unchanged - for the case where the engine was simply not up. */
+  async verifyRegisteredEngine(engineId: string): Promise<RegisteredEngine> {
+    return this.request<RegisteredEngine>(`/v1/engines/registered/${engineId}/verify`, {
+      method: 'POST',
+    });
+  }
+
+  async publishRegisteredEngine(engineId: string): Promise<RegisteredEngine> {
+    return this.request<RegisteredEngine>(`/v1/engines/registered/${engineId}/publish`, {
+      method: 'POST',
+    });
+  }
+
+  async replaceEngineCredential(engineId: string, credential: string): Promise<RegisteredEngine> {
+    return this.request<RegisteredEngine>(`/v1/engines/registered/${engineId}/credential`, {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    });
+  }
+
+  async deleteRegisteredEngine(engineId: string): Promise<void> {
+    await this.request<void>(`/v1/engines/registered/${engineId}`, { method: 'DELETE' });
+  }
+
+  async adminListEngines(pending = false): Promise<RegisteredEngine[]> {
+    return this.request<RegisteredEngine[]>(`/v1/admin/engines${pending ? '?pending=true' : ''}`);
+  }
+
+  async adminApproveEngine(engineId: string): Promise<RegisteredEngine> {
+    return this.request<RegisteredEngine>(`/v1/admin/engines/${engineId}/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async adminRejectEngine(engineId: string): Promise<RegisteredEngine> {
+    return this.request<RegisteredEngine>(`/v1/admin/engines/${engineId}/reject`, {
+      method: 'POST',
+    });
+  }
+
+  async adminDisableEngine(engineId: string): Promise<RegisteredEngine> {
+    return this.request<RegisteredEngine>(`/v1/admin/engines/${engineId}/disable`, {
       method: 'POST',
     });
   }

@@ -630,3 +630,23 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* -- Solving on somebody else's engine ----------------------------------- */
+
+/* Stated plainly rather than as a subtle badge: sending an instance to a
+   third party is a consequence somebody should notice before they do it, not
+   after. */
+.federated-warning {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-warning, #d98324);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.federated-warning strong {
+  color: var(--color-text-primary);
+}

@@ -363,8 +363,14 @@ def draft_manifest(
     title = info.get("title") if isinstance(info, dict) else None
 
     transport = dict(draft.transport)
-    if transport and openapi_url:
-        transport["openapi"] = {"url": openapi_url}
+    if transport:
+        # Whichever way the document arrived is the way it should be recorded.
+        # Leaving a placeholder URL in a draft built from a pasted document
+        # made the obvious path - paste a spec, register - fail every time, on
+        # a URL the author never typed.
+        transport["openapi"] = (
+            {"url": openapi_url} if openapi_url else {"document": document}
+        )
 
     manifest = {
         "manifest_version": "1",

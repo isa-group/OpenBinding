@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { apiClient } from '../../api/client';
+import { useAuth } from '../../contexts/AuthContext';
 import type { Engine } from '../../api/client';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -14,6 +16,11 @@ export function Engines() {
   const [selectedEngines, setSelectedEngines] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid' as 'grid' | 'comparison');
+  // Built-in engines and registered ones answer different questions - "what
+  // can this gateway do" versus "what have I put here" - so they get a filter
+  // rather than being mixed into one list.
+  const [origin, setOrigin] = useState('all' as 'all' | 'builtin' | 'mine' | 'public');
+  const { user } = useAuth();
 
   useEffect(() => {
     loadEngines();
@@ -32,9 +39,18 @@ export function Engines() {
     }
   };
 
-  const filteredEngines = engines.filter(engine =>
-    engine.id.toLowerCase().includes(searchQuery.toLowerCase())
+  const matchesOrigin = (engine: Engine) => {
+    if (origin === 'all') return true;
+    if (origin === 'builtin') return !engine.federated;
+    if (origin === 'mine') return engine.federated && engine.owner === user?.username;
+    return engine.federated && engine.visibility === 'public';
+  };
+
+  const filteredEngines = engines.filter(
+    (engine) => engine.id.toLowerCase().includes(searchQuery.toLowerCase()) && matchesOrigin(engine)
   );
+
+  const hasFederated = engines.some((engine) => engine.federated);
 
   const toggleEngineSelection = (engineId: string) => {
     setSelectedEngines(prev =>
@@ -142,7 +158,31 @@ export function Engines() {
               Comparison
             </Button>
           </div>
+
+          <Link to="/engines/new" className="register-engine-link">
+            <Button size="sm">Register an engine</Button>
+          </Link>
         </div>
+
+        {hasFederated && (
+          <div className="origin-filter">
+            {([
+              ['all', 'All'],
+              ['builtin', 'Built-in'],
+              ['mine', 'Mine'],
+              ['public', 'Public'],
+            ] as const).map(([value, label]) => (
+              <Button
+                key={value}
+                variant={origin === value ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => setOrigin(value)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+        )}
 
         {/* Comparison Mode Instructions */}
         {viewMode === 'comparison' && (
@@ -170,6 +210,10 @@ export function Engines() {
                     <h3 className="engine-title">{engine.id}</h3>
                     <div className="engine-badges">
                       {isSelected && <Badge variant="success">Selected</Badge>}
+                      {engine.federated && <Badge variant="warning">Federated</Badge>}
+                      {engine.visibility === 'pending_review' && (
+                        <Badge variant="default">Pending review</Badge>
+                      )}
                       <Badge variant={engine.active === false ? 'error' : 'accent'}>
                         {engine.active === false ? 'Inactive' : 'Active'}
                       </Badge>

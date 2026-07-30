@@ -6,6 +6,7 @@ import { Navigation } from './components/Navigation/Navigation';
 import { Home } from './pages/Home/Home';
 import { Playground } from './pages/Playground/Playground';
 import { Engines } from './pages/Engines/Engines';
+import { RegisterEngine } from './pages/RegisterEngine/RegisterEngine';
 import { Schemas } from './pages/Schemas/Schemas';
 import { Pricing } from './pages/Pricing/Pricing';
 import { Login } from './pages/Auth/Login';
@@ -28,6 +29,15 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/playground" element={<Playground />} />
                 <Route path="/engines" element={<Engines />} />
+                {/* Registering needs an account: an engine belongs to somebody. */}
+                <Route
+                  path="/engines/new"
+                  element={
+                    <ProtectedRoute>
+                      <RegisterEngine />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/schemas" element={<Schemas />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/login" element={<Login />} />

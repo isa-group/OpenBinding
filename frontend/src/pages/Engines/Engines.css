@@ -260,3 +260,25 @@
     flex: 1;
   }
 }
+
+/* -- Where an engine came from ------------------------------------------- */
+
+/* Only shown once somebody has registered one: a filter over a single
+   category is a control that does nothing. */
+.origin-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.register-engine-link {
+  text-decoration: none;
+  margin-left: auto;
+}
+
+.engine-owner {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  margin: calc(var(--space-1) * -1) 0 var(--space-3);
+}
