@@ -44,6 +44,7 @@ PLAN_CAPS: Dict[str, PlanCaps] = {
         max_payload_mb=16,
         max_binding_space_log10=9.0,
         job_history_days=7,
+        api_keys_limit=2,
     ),
     "PRO": PlanCaps(
         plan="PRO",
@@ -52,6 +53,7 @@ PLAN_CAPS: Dict[str, PlanCaps] = {
         max_payload_mb=512,
         max_binding_space_log10=30.0,
         job_history_days=90,
+        api_keys_limit=10,
     ),
 }
 

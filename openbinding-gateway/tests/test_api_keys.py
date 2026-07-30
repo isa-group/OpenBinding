@@ -8,6 +8,7 @@ back out, and about a key being usable exactly where a session token is.
 from __future__ import annotations
 
 import pytest
+import pytest_asyncio
 
 from openbinding_gateway.security import apikeys
 
@@ -186,3 +187,93 @@ async def test_minting_a_key_needs_an_account(api_client):
     response = await api_client.post("/v1/users/me/api-keys", json={"name": "a key"})
 
     assert response.status_code == 401
+
+
+# -- The allowance ----------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def gate():
+    from openbinding_gateway import space_client
+    from openbinding_gateway.space_client import FakePricingGate
+
+    installed = FakePricingGate()
+    space_client.set_gate(installed)
+    yield installed
+    space_client.set_gate(None)
+
+
+async def test_the_plan_bounds_how_many_keys_you_may_hold(api_client, registration, gate):
+    """apiKeysLimit was in the pricing and nothing read it.
+
+    Two on the free plan, ten on PRO - published in the plans page, carried
+    through the pricing token, and never once compared against anything, so a
+    free account could mint keys without end.
+    """
+    _, token = await account(api_client, registration)
+    await mint_key(api_client, token, "one")
+    await mint_key(api_client, token, "two")
+
+    refused = await api_client.post(
+        "/v1/users/me/api-keys",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "three"},
+    )
+
+    assert refused.status_code == 402
+    detail = refused.json()["detail"]
+    assert detail["code"] == "quota_exceeded"
+    assert detail["quota"]["limit_id"] == "apiKeysLimit"
+    assert detail["quota"]["limit"] == 2
+
+
+async def test_revoking_one_frees_the_allowance(api_client, registration, gate):
+    # The count is of *live* keys, so a revoked one is not held against you.
+    _, token = await account(api_client, registration)
+    first = await mint_key(api_client, token, "one")
+    await mint_key(api_client, token, "two")
+
+    await api_client.delete(
+        f"/v1/users/me/api-keys/{first['id']}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    again = await api_client.post(
+        "/v1/users/me/api-keys",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "three"},
+    )
+
+    assert again.status_code == 201
+
+
+async def test_a_larger_plan_allows_more(api_client, registration, gate):
+    import uuid as _uuid
+
+    profile, token = await account(api_client, registration)
+    gate.plans[_uuid.UUID(profile["id"])] = "PRO"
+
+    for n in range(3):
+        assert (
+            await api_client.post(
+                "/v1/users/me/api-keys",
+                headers={"Authorization": f"Bearer {token}"},
+                json={"name": f"key {n}"},
+            )
+        ).status_code == 201
+
+
+async def test_keys_can_still_be_minted_while_the_pricing_service_is_down(
+    api_client, registration, gate
+):
+    # Locking somebody out of their own account because SPACE is restarting is
+    # a bigger harm than one key over an allowance.
+    _, token = await account(api_client, registration)
+    gate.unavailable = True
+
+    created = await api_client.post(
+        "/v1/users/me/api-keys",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "while it is down"},
+    )
+
+    assert created.status_code == 201

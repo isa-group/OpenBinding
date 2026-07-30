@@ -908,6 +908,35 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "JobHistory": {
+        "description": "A page of an account's own solves.",
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobSummary"
+            },
+            "title": "Jobs",
+            "type": "array"
+          },
+          "retention_days": {
+            "description": "How far back this plan keeps them. Jobs older than this are not returned, which is the jobHistoryRetentionLimit in the pricing.",
+            "title": "Retention Days",
+            "type": "integer"
+          },
+          "total": {
+            "description": "How many are visible in total.",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "jobs",
+          "total",
+          "retention_days"
+        ],
+        "title": "JobHistory",
+        "type": "object"
+      },
       "JobResponse": {
         "properties": {
           "error": {
@@ -955,6 +984,74 @@
         ],
         "title": "JobStatus",
         "type": "string"
+      },
+      "JobSummary": {
+        "description": "One solve this account asked for.\n\nDeliberately a summary: the result of a job can be hundreds of megabytes,\nand a history is for finding the one you want rather than for reading them\nall. ``GET /v1/jobs/{id}`` is where the answer itself lives.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "engine_id": {
+            "title": "Engine Id",
+            "type": "string"
+          },
+          "feasibility": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Of the result, once there is one.",
+            "title": "Feasibility"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "solutions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How many solutions came back.",
+            "title": "Solutions"
+          },
+          "status": {
+            "description": "queued, running, completed or failed.",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "engine_id",
+          "status",
+          "created_at"
+        ],
+        "title": "JobSummary",
+        "type": "object"
       },
       "LimitUsageView": {
         "description": "One usage limit and what is left of it.",
@@ -1048,6 +1145,18 @@
       "PlanCapsView": {
         "description": "The ceilings a single request runs into, rather than a monthly balance.",
         "properties": {
+          "api_keys_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How many live API keys the plan allows.",
+            "title": "Api Keys Limit"
+          },
           "job_history_days": {
             "description": "How long finished jobs stay queryable.",
             "title": "Job History Days",
@@ -4678,7 +4787,7 @@
         ]
       },
       "post": {
-        "description": "Mint a key and return it once.\n\nThis is the only response that ever contains the secret. What is stored is\na hash, so there is no way to produce it again - a caller who loses it has\nto revoke the key and mint another.",
+        "description": "Mint a key and return it once.\n\nThis is the only response that ever contains the secret. What is stored is\na hash, so there is no way to produce it again - a caller who loses it has\nto revoke the key and mint another.\n\nHow many a plan allows is counted here rather than asked of SPACE. An API\nkey is a row in this database, so the number of live ones is a fact the\ngateway already holds - and counting it avoids the drift that comes from\nkeeping a tally of something somebody else stores.",
         "operationId": "createApiKey",
         "requestBody": {
           "content": {
@@ -4710,6 +4819,16 @@
               }
             },
             "description": "No usable credential was supplied."
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotaErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's plan has no allowance left, or the instance is larger than the plan solves. Distinct from 403: this is an allowance spent rather than a permission missing, so retrying after it renews is worth something."
           },
           "422": {
             "content": {
@@ -4800,6 +4919,80 @@
           }
         },
         "summary": "Revoke an API key",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/v1/users/me/jobs": {
+      "get": {
+        "description": "Your own solves, newest first, as far back as your plan keeps them.\n\nThe retention window is the ``jobHistoryRetentionLimit`` in the pricing -\nseven days on the free plan, ninety on PRO. It was carried all the way to\n``GET /v1/users/me/usage`` and displayed there while nothing applied it,\nbecause there was no endpoint for it to bound. This is that endpoint, and\nthe cutoff is applied here rather than by deleting rows: a job that has\naged out of somebody's history is still the row the metering reconciler\nand any audit need.\n\nSummaries only. A result can be hundreds of megabytes, and a history is for\nfinding the one you want; ``GET /v1/jobs/{id}`` returns the answer itself.",
+        "operationId": "listOwnJobs",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobHistory"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service the gateway depends on is not reachable."
+          }
+        },
+        "summary": "Solves you have asked for",
         "tags": [
           "Users"
         ]

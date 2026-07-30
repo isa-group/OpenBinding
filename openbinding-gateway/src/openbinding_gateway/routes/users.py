@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
-from ..db.models import ApiKey, User, utcnow
+from ..db.models import ApiKey, Job, User, utcnow
 from ..models.accounts import (
     ApiKeyList,
     ApiKeySummary,
     CreateApiKeyRequest,
     CreatedApiKey,
+    JobHistory,
+    JobSummary,
     LimitUsageView,
     PlanCapsView,
     PricingTokenView,
@@ -25,6 +28,7 @@ from ..models.accounts import (
 from ..models.errors import (
     CONFLICT_RESPONSE,
     NOT_FOUND_RESPONSE,
+    QUOTA_RESPONSE,
     UNAUTHORIZED_RESPONSE,
     UNAVAILABLE_RESPONSE,
     api_error,
@@ -34,6 +38,21 @@ from ..security.passwords import hash_password, password_complaint, verify_passw
 from ..space_client import PricingUnavailable, get_gate
 
 router = APIRouter(prefix="/v1/users", tags=["Users"])
+
+
+async def _caps_for(user: User):
+    """This account's ceilings, or the cautious defaults if SPACE cannot say.
+
+    Failing open here is deliberate and narrow: it lets somebody mint a key
+    while the pricing service is restarting, which is a smaller harm than
+    locking them out of their own account over it.
+    """
+    from ..space_client import PlanCaps
+
+    try:
+        return await get_gate().caps(user.id)
+    except PricingUnavailable:
+        return PlanCaps()
 
 
 def profile_of(user: User) -> UserProfile:
@@ -147,7 +166,11 @@ async def list_own_api_keys(
     status_code=status.HTTP_201_CREATED,
     operation_id="createApiKey",
     summary="Mint an API key",
-    responses={401: UNAUTHORIZED_RESPONSE, 503: UNAVAILABLE_RESPONSE},
+    responses={
+        401: UNAUTHORIZED_RESPONSE,
+        402: QUOTA_RESPONSE,
+        503: UNAVAILABLE_RESPONSE,
+    },
 )
 async def create_api_key(
     request: CreateApiKeyRequest,
@@ -159,7 +182,30 @@ async def create_api_key(
     This is the only response that ever contains the secret. What is stored is
     a hash, so there is no way to produce it again - a caller who loses it has
     to revoke the key and mint another.
+
+    How many a plan allows is counted here rather than asked of SPACE. An API
+    key is a row in this database, so the number of live ones is a fact the
+    gateway already holds - and counting it avoids the drift that comes from
+    keeping a tally of something somebody else stores.
     """
+    caps = await _caps_for(user)
+    if caps.api_keys_limit is not None:
+        live = len(await _own_active_keys(session, user))
+        if live >= caps.api_keys_limit:
+            raise api_error(
+                status.HTTP_402_PAYMENT_REQUIRED,
+                "quota_exceeded",
+                f"Your plan allows {caps.api_keys_limit} API key"
+                f"{'' if caps.api_keys_limit == 1 else 's'}, and you have {live}. "
+                f"Revoke one, or move to a plan that allows more.",
+                quota={
+                    "limit_id": "apiKeysLimit",
+                    "limit": caps.api_keys_limit,
+                    "used": live,
+                    "renews_at": None,
+                },
+            )
+
     minted = mint()
     api_key = ApiKey(
         user_id=user.id,
@@ -204,6 +250,84 @@ async def revoke_api_key(
     api_key.revoked_at = utcnow()
     await session.flush()
     return None
+
+
+@router.get(
+    "/me/jobs",
+    response_model=JobHistory,
+    operation_id="listOwnJobs",
+    summary="Solves you have asked for",
+    responses={401: UNAUTHORIZED_RESPONSE, 503: UNAVAILABLE_RESPONSE},
+)
+async def list_own_jobs(
+    limit: int = 50,
+    offset: int = 0,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency),
+) -> JobHistory:
+    """Your own solves, newest first, as far back as your plan keeps them.
+
+    The retention window is the ``jobHistoryRetentionLimit`` in the pricing -
+    seven days on the free plan, ninety on PRO. It was carried all the way to
+    ``GET /v1/users/me/usage`` and displayed there while nothing applied it,
+    because there was no endpoint for it to bound. This is that endpoint, and
+    the cutoff is applied here rather than by deleting rows: a job that has
+    aged out of somebody's history is still the row the metering reconciler
+    and any audit need.
+
+    Summaries only. A result can be hundreds of megabytes, and a history is for
+    finding the one you want; ``GET /v1/jobs/{id}`` returns the answer itself.
+    """
+    caps = await _caps_for(user)
+    cutoff = utcnow() - timedelta(days=caps.job_history_days)
+
+    visible = (
+        select(Job)
+        .where(Job.owner_id == user.id)
+        .where(Job.created_at >= cutoff)
+    )
+
+    total = await session.scalar(
+        select(func.count()).select_from(visible.subquery())
+    )
+
+    rows = (
+        (
+            await session.execute(
+                visible.order_by(Job.created_at.desc())
+                .limit(max(1, min(limit, 200)))
+                .offset(max(0, offset))
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    return JobHistory(
+        jobs=[_job_summary(row) for row in rows],
+        total=int(total or 0),
+        retention_days=caps.job_history_days,
+    )
+
+
+def _job_summary(job: Job) -> JobSummary:
+    """What is worth showing without opening the result.
+
+    ``result`` is JSON on the row and may be enormous, so only its shape is
+    read - how many solutions, and what the feasibility verdict was.
+    """
+    result = job.result if isinstance(job.result, dict) else {}
+    solutions = result.get("solutions")
+
+    return JobSummary(
+        id=job.id,
+        engine_id=job.engine_id,
+        status=job.state.value,
+        feasibility=result.get("feasibility"),
+        solutions=len(solutions) if isinstance(solutions, list) else None,
+        created_at=job.created_at,
+        finished_at=job.finished_at,
+    )
 
 
 @router.get(

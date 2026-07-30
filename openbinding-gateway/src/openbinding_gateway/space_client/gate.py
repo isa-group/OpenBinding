@@ -54,6 +54,10 @@ class PlanCaps:
     max_payload_mb: int = 16
     max_binding_space_log10: float = 9.0
     job_history_days: int = 7
+    #: How many live API keys a plan allows. Counted against this database
+    #: rather than metered in SPACE: a key is a row here, so the live count is
+    #: a fact the gateway already holds.
+    api_keys_limit: Optional[int] = 2
     features: Dict[str, bool] = field(default_factory=dict)
 
     def allows(self, feature: str) -> bool:

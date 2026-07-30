@@ -13,6 +13,24 @@ import type {
   UserProfile,
 } from './auth';
 
+/** One solve in an account's history. */
+export interface JobSummary {
+  id: string;
+  engine_id: string;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  feasibility?: 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN' | null;
+  solutions?: number | null;
+  created_at: string;
+  finished_at?: string | null;
+}
+
+export interface JobHistory {
+  jobs: JobSummary[];
+  total: number;
+  /** How far back this plan keeps them: jobHistoryRetentionLimit. */
+  retention_days: number;
+}
+
 export interface Engine {
   id: string;
   capabilities: any;
@@ -599,6 +617,20 @@ class ApiClient {
 
   async getOwnUsage(): Promise<UsageView> {
     return this.request<UsageView>('/v1/users/me/usage');
+  }
+
+  /**
+   * Your own solves, as far back as the plan keeps them.
+   *
+   * Summaries only - a result can be hundreds of megabytes, and this is for
+   * finding the one you want. `getJobStatus` returns the answer itself.
+   */
+  async listOwnJobs(params: { limit?: number; offset?: number } = {}): Promise<JobHistory> {
+    const query = new URLSearchParams();
+    if (params.limit != null) query.set('limit', String(params.limit));
+    if (params.offset != null) query.set('offset', String(params.offset));
+    const suffix = query.toString() ? `?${query}` : '';
+    return this.request<JobHistory>(`/v1/users/me/jobs${suffix}`);
   }
 
   /**

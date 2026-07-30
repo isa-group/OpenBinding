@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { apiClient } from '../../api/client';
 import type { ApiKeySummary, CreatedApiKey, UsageView } from '../../api/auth';
+import type { JobHistory } from '../../api/client';
 import { PricingUnavailableError } from '../../api/auth';
 import { useAuth } from '../../contexts/AuthContext';
 import { QuotaBar, isBalance } from '../../components/QuotaBar';
@@ -20,6 +21,17 @@ export function Account() {
   const [keyName, setKeyName] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<JobHistory | null>(null);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      setHistory(await apiClient.listOwnJobs({ limit: 20 }));
+    } catch {
+      // A history nobody can read is not worth an error banner over the rest
+      // of the page; the section simply says nothing.
+      setHistory(null);
+    }
+  }, []);
 
   const loadUsage = useCallback(async () => {
     try {
@@ -46,7 +58,8 @@ export function Account() {
   useEffect(() => {
     void loadUsage();
     void loadKeys();
-  }, [loadUsage, loadKeys]);
+    void loadHistory();
+  }, [loadUsage, loadKeys, loadHistory]);
 
   const createKey = async (event: FormEvent) => {
     event.preventDefault();
@@ -227,6 +240,66 @@ export function Account() {
                         Revoke
                       </Button>
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+
+        <Card padding="lg" className="account-history">
+          <h2>Recent solves</h2>
+          <p className="account-note">
+            {history
+              ? `Your last ${history.total} solve${history.total === 1 ? '' : 's'}, kept for ${history.retention_days} days on this plan.`
+              : 'What this account has asked for, as far back as the plan keeps it.'}
+          </p>
+
+          {!history || history.jobs.length === 0 ? (
+            <p className="account-empty">
+              Nothing yet. Solve something in the{' '}
+              <a href="/playground">Playground</a> and it will appear here.
+            </p>
+          ) : (
+            <table className="account-table">
+              <thead>
+                <tr>
+                  <th>Engine</th>
+                  <th>Status</th>
+                  <th>Result</th>
+                  <th>When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.jobs.map((job) => (
+                  <tr key={job.id}>
+                    <td>
+                      <code>{job.engine_id}</code>
+                    </td>
+                    <td>
+                      <Badge
+                        variant={
+                          job.status === 'completed'
+                            ? 'success'
+                            : job.status === 'failed'
+                            ? 'error'
+                            : 'default'
+                        }
+                      >
+                        {job.status}
+                      </Badge>
+                    </td>
+                    <td>
+                      {job.feasibility ? (
+                        <>
+                          {job.feasibility.toLowerCase()}
+                          {job.solutions != null && `, ${job.solutions} solution${job.solutions === 1 ? '' : 's'}`}
+                        </>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td>{new Date(job.created_at).toLocaleString('en-GB')}</td>
                   </tr>
                 ))}
               </tbody>

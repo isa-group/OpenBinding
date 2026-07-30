@@ -208,10 +208,23 @@ services:
     profiles: ["dev"]
     ports:
       - "5173:5173"
+    # The source, so editing a file changes what the dev server serves. Without
+    # these it ran Vite over a copy baked into the image at build time, so the
+    # "dev" profile needed a rebuild per edit while the gateway beside it
+    # reloaded - which is not what anybody means by a dev profile. Only these
+    # three, because mounting all of ./frontend would hide the image's
+    # node_modules.
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
     environment:
       # /examples requests hitting the vite dev server directly are proxied to
       # the nginx-dev static server (see frontend/vite.config.ts).
       - EXAMPLES_PROXY_TARGET=http://nginx-dev:80
+      # A bind mount on macOS or Windows delivers no inotify events, so the
+      # watcher sees nothing without polling.
+      - CHOKIDAR_USEPOLLING=true
     depends_on:
       gateway-dev:
         condition: service_healthy

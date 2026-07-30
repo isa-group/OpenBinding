@@ -84,6 +84,7 @@ _CAP_FIELDS = {
     "maxPayloadSizeLimit": "max_payload_mb",
     "maxBindingSpaceLimit": "max_binding_space_log10",
     "jobHistoryRetentionLimit": "job_history_days",
+    "apiKeysLimit": "api_keys_limit",
 }
 
 

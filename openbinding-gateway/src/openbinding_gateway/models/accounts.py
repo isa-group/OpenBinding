@@ -136,6 +136,44 @@ class PlanCapsView(BaseModel):
         ..., description="Largest instance solvable, as log10 of its binding space."
     )
     job_history_days: int = Field(..., description="How long finished jobs stay queryable.")
+    api_keys_limit: Optional[int] = Field(
+        default=None, description="How many live API keys the plan allows."
+    )
+
+
+class JobSummary(BaseModel):
+    """One solve this account asked for.
+
+    Deliberately a summary: the result of a job can be hundreds of megabytes,
+    and a history is for finding the one you want rather than for reading them
+    all. ``GET /v1/jobs/{id}`` is where the answer itself lives.
+    """
+
+    id: uuid.UUID
+    engine_id: str
+    status: str = Field(..., description="queued, running, completed or failed.")
+    feasibility: Optional[str] = Field(
+        default=None, description="Of the result, once there is one."
+    )
+    solutions: Optional[int] = Field(
+        default=None, description="How many solutions came back."
+    )
+    created_at: datetime
+    finished_at: Optional[datetime] = None
+
+
+class JobHistory(BaseModel):
+    """A page of an account's own solves."""
+
+    jobs: List[JobSummary]
+    total: int = Field(..., description="How many are visible in total.")
+    retention_days: int = Field(
+        ...,
+        description=(
+            "How far back this plan keeps them. Jobs older than this are not "
+            "returned, which is the jobHistoryRetentionLimit in the pricing."
+        ),
+    )
 
 
 class UsageView(BaseModel):

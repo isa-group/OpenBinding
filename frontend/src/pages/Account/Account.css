@@ -123,3 +123,14 @@
     overflow-x: auto;
   }
 }
+
+/* -- What this account has asked for -------------------------------------- */
+
+.account-history {
+  margin-top: var(--space-6);
+}
+
+.account-history h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 1.25rem;
+}
