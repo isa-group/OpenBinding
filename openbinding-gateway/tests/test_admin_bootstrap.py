@@ -228,3 +228,86 @@ async def _dispose():
     from openbinding_gateway.db.base import dispose_engine
 
     await dispose_engine()
+
+
+async def test_a_pending_contract_is_settled_on_the_next_request(db_session):
+    """The debt the flag records has to actually be paid by something.
+
+    Registration survives SPACE being unreachable on purpose - the account is
+    created and ``contract_pending`` says it still owes a contract. Nothing ever
+    read that flag back and acted on it, so such an account stayed unmetered for
+    good, with quotas that read as an empty list rather than as a failure. The
+    first one it happened to was the seeded administrator, created before
+    anybody had connected SPACE at all.
+    """
+    from openbinding_gateway import space_client
+    from openbinding_gateway.access.contracts import settle_pending_contract
+    from openbinding_gateway.space_client import FakePricingGate
+
+    await seed_default_administrator(db_session)
+    await db_session.flush()
+    admin = (
+        await db_session.execute(
+            select(User).where(User.username == DEFAULT_ADMIN_USERNAME)
+        )
+    ).scalar_one()
+    assert admin.contract_pending is True, "the seeded administrator owes a contract"
+
+    gate = FakePricingGate()
+    space_client.set_gate(gate)
+    try:
+        await settle_pending_contract(admin, db_session)
+    finally:
+        space_client.set_gate(None)
+
+    assert admin.contract_pending is False
+    assert admin.id in gate.contracts
+
+
+async def test_settling_is_skipped_for_an_account_that_owes_nothing(db_session):
+    # It runs on every authenticated request, so the common case has to cost a
+    # boolean rather than a call to a pricing service.
+    from openbinding_gateway import space_client
+    from openbinding_gateway.access.contracts import settle_pending_contract
+    from openbinding_gateway.space_client import FakePricingGate
+
+    await seed_default_administrator(db_session)
+    admin = (
+        await db_session.execute(
+            select(User).where(User.username == DEFAULT_ADMIN_USERNAME)
+        )
+    ).scalar_one()
+    admin.contract_pending = False
+
+    gate = FakePricingGate()
+    space_client.set_gate(gate)
+    try:
+        await settle_pending_contract(admin, db_session)
+    finally:
+        space_client.set_gate(None)
+
+    assert gate.contracts == {}
+
+
+async def test_an_account_stays_pending_while_space_is_still_down(db_session):
+    # And the request it happened during must not fail because of it.
+    from openbinding_gateway import space_client
+    from openbinding_gateway.access.contracts import settle_pending_contract
+    from openbinding_gateway.space_client import FakePricingGate
+
+    await seed_default_administrator(db_session)
+    admin = (
+        await db_session.execute(
+            select(User).where(User.username == DEFAULT_ADMIN_USERNAME)
+        )
+    ).scalar_one()
+
+    gate = FakePricingGate()
+    gate.unavailable = True
+    space_client.set_gate(gate)
+    try:
+        await settle_pending_contract(admin, db_session)
+    finally:
+        space_client.set_gate(None)
+
+    assert admin.contract_pending is True

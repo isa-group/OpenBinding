@@ -27,6 +27,7 @@ from ..db.models import ApiKey, User, utcnow
 from ..models.errors import api_error
 from ..security.apikeys import looks_like_api_key, matches, prefix_of
 from ..security.tokens import TokenError, bearer_token, read_access_token
+from .contracts import settle_pending_contract
 
 #: What an unauthenticated caller is told to send.
 _AUTHENTICATE_CHALLENGE = {"WWW-Authenticate": 'Bearer realm="openbinding"'}
@@ -205,6 +206,10 @@ async def get_current_user(
             "That credential is not valid.",
             headers=_AUTHENTICATE_CHALLENGE,
         )
+
+    # An account registered while SPACE was unreachable owes a contract, and
+    # nothing else ever settles it. Doing it here is what the flag was for.
+    await settle_pending_contract(user, session)
     return user
 
 

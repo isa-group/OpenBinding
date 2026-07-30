@@ -465,9 +465,21 @@ def federation_key(monkeypatch):
     get_settings.cache_clear()
 
 
-async def test_a_credential_cannot_be_stored_without_a_key(api_client, registration):
+async def test_a_credential_cannot_be_stored_without_a_key(
+    api_client, registration, monkeypatch
+):
     # Refusing is the right answer: the alternative is a third party's secret
     # sitting in the database in the clear.
+    #
+    # The key is deleted explicitly because importing `main` runs load_dotenv(),
+    # which puts the developer's own .env into the process - so once a deployment
+    # here was configured, this test started asserting against that machine
+    # rather than against an unconfigured gateway.
+    from openbinding_gateway.core.settings import get_settings
+
+    monkeypatch.delenv("FEDERATION_SECRET_KEY", raising=False)
+    get_settings.cache_clear()
+
     _, token = await account(api_client, registration)
     manifest = a_manifest()
     manifest["transport"]["auth"] = {"type": "bearer"}
@@ -476,6 +488,7 @@ async def test_a_credential_cannot_be_stored_without_a_key(api_client, registrat
 
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "secrets_unavailable"
+    get_settings.cache_clear()
 
 
 async def test_a_credential_is_never_returned(api_client, registration, federation_key):

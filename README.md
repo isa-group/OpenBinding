@@ -176,39 +176,46 @@ transformation, priced BIM′ corpus, campaign runner and evaluation notebooks) 
 
 ### Installation & Running
 
-1.  **Configure environment variables**:
-    ```bash
-    cp .env.example .env
-    ```
+```bash
+./up.sh
+```
 
-2.  **Start development stack**:
-    ```bash
-    COMPOSE_PROFILES=dev docker compose up --build
-    ```
+One command, from nothing. It writes a `.env` with fresh secrets if there is
+none, creates the network the two stacks share, brings up SPACE and waits for
+its database, builds and starts the gateway, the engines, PostgreSQL and the
+interface, registers the pricing, mints the SPACE key, and then proves the
+result by signing in and reading the quotas back. Idempotent - run it again
+after pulling, or whenever something looks disconnected.
 
-    Development services:
-    *   **Nginx (local)**: [http://localhost:80](http://localhost:80)
-    *   **Frontend dev server**: [http://localhost:5173](http://localhost:5173)
-    *   **Gateway API docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+    Interface   http://localhost:5173
+    API         http://localhost:8000/docs
+    Sign in     admin / 4dm1n
 
-3.  **Start production stack**:
-    ```bash
-    COMPOSE_PROFILES=prod docker compose up --build -d
-    ```
+That administrator is seeded only into a database with no accounts, and its
+password is in this file. Sign in once, create a real administrator, and delete
+it.
 
-    Production notes:
-    *   **Nginx** listens on ports **80/443**.
-    *   `frontend-prod` generates static assets; only Nginx serves them publicly.
-    *   Place TLS files in `nginx/ssl/` (or override `NGINX_SSL_DIR`) with names:
-        - `fullchain.pem`
-        - `privkey.pem`
-    *   Gateway is exposed only internally behind Nginx.
-    *   Take into account that the production environment is currently configured for `openbinding.score.us.es` and `openbinding.us.es` domains (the domains where we are hosting the service in production). You may need to manually adjust nginx and docker compose configurations for your own domain or local testing.
+Two variations:
 
-4.  **Stop the Stack**:
-    ```bash
-    docker compose down
-    ```
+```bash
+PROFILE=prod ./up.sh      # the production profile
+./up.sh --no-space        # the gateway alone, with no pricing enforcement
+```
+
+SPACE has to be cloned once, since it is a separate project pinned by tag rather
+than vendored here:
+
+```bash
+git clone https://github.com/isa-group/space.git space/space-src
+```
+
+`./up.sh` is a script rather than a list of commands because the order matters
+and three of the steps have gone wrong silently: the shared network has to exist
+before either stack starts; SPACE answers HTTP before its database is reachable,
+and answers `401` rather than `503` while it waits; and the pricing registered
+in SPACE has to match the one in this repository, or every contract is refused
+by a client that reports the refusal as success. See
+[space/README.md](space/README.md).
 
 ### 💻 Local Development (No Docker)
 

@@ -161,7 +161,41 @@ async def test_registration_survives_the_pricing_service_being_down(
     assert created.status_code == 201
 
 
-async def test_an_account_created_without_a_contract_says_so(api_client, registration, gate):
+async def test_an_account_created_without_a_contract_says_so(
+    api_client, registration, gate, db_session
+):
+    """Registration survives SPACE being unreachable, and records the debt.
+
+    Asserted on the row rather than through an endpoint, because every
+    authenticated request now tries to settle the debt - so there is no way to
+    observe the pending state over HTTP without also clearing it.
+    """
+    from sqlalchemy import select
+
+    from openbinding_gateway.db.models import User
+
+    gate.unavailable = True
+    details = registration()
+    created = await api_client.post("/v1/auth/register", json=details)
+
+    assert created.status_code == 201
+    account = (
+        await db_session.execute(select(User).where(User.username == details["username"]))
+    ).scalar_one()
+    assert account.contract_pending is True
+
+
+async def test_a_pending_contract_is_settled_once_space_returns(
+    api_client, registration, gate
+):
+    """The flag is a debt, and something has to pay it.
+
+    It used to be written on registration and never read back, so an account
+    created during an outage stayed unmetered for good - with quotas that come
+    back as an empty list, which reads as "this plan has no limits" rather than
+    as a failure. The first account it happened to was the seeded administrator,
+    created before anybody had connected SPACE at all.
+    """
     gate.unavailable = True
     details = registration()
     await api_client.post("/v1/auth/register", json=details)
@@ -178,4 +212,5 @@ async def test_an_account_created_without_a_contract_says_so(api_client, registr
         )
     ).json()
 
-    assert body["contract_pending"] is True
+    assert body["contract_pending"] is False
+    assert body["limits"], "a settled contract brings the plan's limits with it"
