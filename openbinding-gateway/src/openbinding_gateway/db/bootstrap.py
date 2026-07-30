@@ -87,14 +87,22 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
 
 
 def _administrator(username: str, email: str, password: str) -> User:
+    """An administrator, on the plan an administrator needs.
+
+    PRO rather than FREE. An administrator is the account that demonstrates the
+    system, reproduces what a user reports and moves other people between
+    plans; putting it on the free tier means the person running the deployment
+    is the first to hit a hundred tasks a month. There is no payment gateway,
+    so this costs nothing and asks nobody.
+    """
     return User(
         username=username,
         email=email,
         password_hash=hash_password(password),
         role=UserRole.ADMIN,
-        plan_cache=Plan.FREE,
+        plan_cache=Plan.PRO,
         # No contract yet; the same reconciliation an ordinary registration
-        # relies on will settle it.
+        # relies on will settle it, on this plan.
         contract_pending=True,
     )
 

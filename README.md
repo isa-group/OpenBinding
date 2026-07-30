@@ -189,11 +189,17 @@ after pulling, or whenever something looks disconnected.
 
     Interface   http://localhost:5173
     API         http://localhost:8000/docs
-    Sign in     admin / 4dm1n
+    SPACE       http://localhost:5403
+    Sign in     admin / 4dm1n, on the PRO plan
 
 That administrator is seeded only into a database with no accounts, and its
 password is in this file. Sign in once, create a real administrator, and delete
-it.
+it. It is put on PRO because it is the account that demonstrates the system and
+reproduces what users report - the person running the deployment should not be
+the first to run out of tasks, and with no payment gateway this costs nothing.
+
+SPACE's own interface signs in as `admin` with the `SPACE_ADMIN_PASSWORD` that
+`./up.sh` generated into `.env`.
 
 Two variations:
 

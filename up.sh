@@ -137,6 +137,11 @@ if [ "$WITH_SPACE" = 1 ]; then
 fi
 
 printf '\n\033[32m✓ Ready.\033[0m\n'
-echo "  Interface   http://localhost${PROFILE:+$([ "$PROFILE" = dev ] && echo ':5173' || echo '')}"
+echo "  Interface   http://localhost$([ "$PROFILE" = dev ] && echo ':5173')"
 echo "  API         $GATEWAY/docs"
-echo "  Sign in     admin / 4dm1n  — create a real administrator and delete this one."
+echo "  Sign in     admin / 4dm1n on the PRO plan."
+echo "              Create a real administrator and delete this one."
+if [ "$WITH_SPACE" = 1 ]; then
+  echo "  SPACE       http://localhost:5403"
+  echo "              admin / the SPACE_ADMIN_PASSWORD in .env"
+fi

@@ -36,6 +36,22 @@ async def test_an_empty_database_gets_an_administrator(db_session):
     assert seeded.role is UserRole.ADMIN
 
 
+async def test_an_administrator_is_seeded_on_the_plan_it_needs(db_session):
+    # The account that demonstrates the system and reproduces what users report
+    # should not be the first to run out of tasks. There is no payment gateway,
+    # so PRO costs nothing.
+    from openbinding_gateway.db.models import Plan
+
+    await seed_default_administrator(db_session)
+    admin = (
+        await db_session.execute(
+            select(User).where(User.username == DEFAULT_ADMIN_USERNAME)
+        )
+    ).scalar_one()
+
+    assert admin.plan_cache is Plan.PRO
+
+
 async def test_the_seeded_password_is_the_documented_one(db_session):
     await seed_default_administrator(db_session)
 

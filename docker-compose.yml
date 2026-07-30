@@ -30,6 +30,10 @@ services:
     profiles: ["prod"]
     volumes:
       - ./schemas:/app/schemas
+      # The pricing document is served by GET /v1/schemas/pricing and rendered
+      # by the interface's plans page, and it lives outside the gateway's own
+      # directory - so without this it is simply not in the image.
+      - ./space/pricing:/app/space/pricing:ro
       - ./openbinding-gateway:/app
       - ./examples/generated_instances:/app/examples/generated_instances
     environment:
@@ -86,6 +90,10 @@ services:
       - "8000:8000"
     volumes:
       - ./schemas:/app/schemas
+      # The pricing document is served by GET /v1/schemas/pricing and rendered
+      # by the interface's plans page, and it lives outside the gateway's own
+      # directory - so without this it is simply not in the image.
+      - ./space/pricing:/app/space/pricing:ro
       - ./openbinding-gateway:/app
       - ./examples/generated_instances:/app/examples/generated_instances
     environment:
