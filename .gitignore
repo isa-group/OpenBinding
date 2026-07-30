@@ -225,3 +225,7 @@ experimentation/icsoc/out/bimstar-priced/.DS_Store
 
 # The SPACE checkout. Cloned rather than vendored: see space/README.md.
 space/space-src/
+
+# Clones of third-party repositories, kept here only to prepare upstream pull
+# requests. They are somebody else's history and must never enter ours.
+/upstream/
