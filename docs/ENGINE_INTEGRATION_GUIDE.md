@@ -101,10 +101,13 @@ test suite, so a bound you declare is a bound you have to live within.
 
 ## Required artifacts
 
-1. **Manifest**: `schemas/manifests/<engine-id>.manifest.json`.
-2. **Plugin**: implement `EngineValidationPlugin`, setting `engine_id`. The base
-   class finds the manifest and derives everything above from it.
-3. Engine URL in the registry + env wiring.
+1. **Manifest**: `schemas/manifests/<engine-id>.manifest.json`. Scaffold it with
+   `tools/new_engine.py`.
+2. **An `ENGINE_<ID>_URL`** saying where the engine listens. Read by convention;
+   there is no dictionary to extend.
+3. **A plugin** — *only* if the engine does not speak the contract in
+   `schemas/engine-contract.openapi.yaml`, or enforces something a JSON Schema
+   cannot express. Otherwise the manifest is the whole registration.
 4. **Tests**: unit tests for your search, and your engine id in the integration
    suite's engine list (`tests/integration/conftest.py`), where tests skip
    themselves for objective types you do not claim to support.
@@ -293,22 +296,83 @@ Common checks:
 
 ## Federated engines
 
-A federated engine is the same manifest with a `transport` block, submitted
-through the API instead of committed here. It describes the third party's own
-HTTP surface rather than requiring them to implement ours: their OpenAPI
-document, which of their operations means "solve" and which means "poll a job",
-and JSON Pointers saying where in their payloads our fields sit.
+Everything above assumes the engine ships with the gateway. A **federated**
+engine is one you already run: it stays on your infrastructure, keeps its own
+API, and is registered at runtime through the gateway's own API. No pull
+request, no deployment, no code in this repository.
 
-Do not write one by hand. `POST /v1/engines/draft` takes your OpenAPI URL or
-document and proposes the whole manifest - which operation solves, where the
-instance goes, which field is the binding - with a note per guess saying what it
-was based on. Correct those, then `POST /v1/engines`.
+It is the same manifest, plus a `transport` block describing your HTTP surface
+as it is - your OpenAPI document, which of your operations means "solve" and
+which means "poll a job", and JSON Pointers saying where our fields sit in your
+payloads. You are not asked to implement our contract.
 
-Registration answers with a **conformance report**: the mapped operations are
-looked up in your document, and a two-task problem with four possible bindings is
-sent to your engine and read back through your mapping. Each finding names the
-manifest field to change. An engine that fails keeps its registration and its
-report, so the loop is correct-and-retry rather than resubmit-and-hope.
+### What the gateway does, and what stays yours
+
+| | |
+| --- | --- |
+| Validates the instance against the general schema and your `instance_schema` | Gateway |
+| Refuses instances your capabilities do not cover | Gateway |
+| Searches for a binding | **Yours** |
+| Computes features, violations, feasibility and the objective | Gateway |
+| Enforces plan quotas and concurrency | Gateway |
+
+The division has one consequence worth internalising: **the only thing your
+engine must return is which candidate serves which task.** Everything a caller
+sees afterwards is recomputed by the same reference evaluator that scores the
+four in-tree engines, so your results are comparable with theirs by
+construction rather than by trust - and you cannot accidentally flatter
+yourself, because nothing you claim about a solution is believed.
+
+### The lifecycle
+
+```
+draft ──▶ register ──▶ VERIFYING ──▶ ACTIVE ──▶ (publish) ──▶ reviewed ──▶ public
+                            │
+                            └──▶ FAILED ──▶ fix ──▶ verify ──▶ ACTIVE
+```
+
+**1. Draft.** Do not write the manifest by hand.
+
+```bash
+curl -s -X POST $GATEWAY/v1/engines/draft \
+     -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+     -d '{"openapi_url": "https://acme.example/openapi.json", "engine_id": "tabu"}'
+```
+
+The answer is a whole manifest, plus `notes` saying what each guess was based on
+and `unresolved` listing what your document does not answer. Read both: a wrong
+guess costs one correction now and a debugging session later. Capabilities are
+guessed narrowly on purpose - widen them to what your engine supports, and only
+to what it *enforces*.
+
+**2. Register.** `POST /v1/engines` with the corrected manifest, plus a
+`credential` if your engine authenticates and `publish: true` if you want it
+listed for everyone.
+
+**3. Verification happens immediately**, and the response is a conformance
+report:
+
+- each mapped `operationId` is looked up in your document;
+- your `instance_schema` is held against your capabilities, so claiming SEQ
+  while rejecting a sequence is caught rather than producing an engine nothing
+  can be routed to;
+- a two-task problem with four possible bindings is sent to your engine and read
+  back through your mapping, checking that the binding names every task and
+  picks candidates that can actually serve them.
+
+Each finding names the manifest field to change. An engine that fails is **kept**,
+unusable, with the report attached - so the loop is correct-and-retry
+(`POST /v1/engines/registered/{id}/verify`) rather than resubmit-and-hope. The
+commonest first failure is simply an engine that was not running yet.
+
+**4. Publication is a request.** A verified engine is private to you until you
+ask, and an administrator approves. Only an engine that passes its own checks
+may ask.
+
+There is a wizard for all of this at `/engines/new` in the web interface. It is
+the same API - as everything in the interface is.
+
+### The transport block
 
 ```yaml
 transport:
@@ -328,21 +392,56 @@ transport:
     objective: /score            # optional, kept for the divergence report
 ```
 
-`binding` is the only required mapping, and that is the point: the reference
-evaluator recomputes every metric, so a Task → Candidate map is a complete
-answer. An engine that returns nothing else still comes back with full
-`aggregated_features`, `violations` and `feasible`.
+Two interlocks are enforced when the manifest is parsed rather than at solve
+time. Asynchrony is all or nothing: declaring `operations.job` without
+`response_mapping.job_id`, or the reverse, is refused. And an `api_key` scheme
+must name the header it travels in.
 
-Two rules are enforced when the manifest is parsed. Asynchrony is all or
-nothing: declaring `operations.job` without `response_mapping.job_id`, or the
-reverse, is refused rather than failing later on a real instance. And a
-credential is never part of the manifest — it is supplied separately and stored
-encrypted, so a manifest can be shown to its owner or reviewed without leaking
-one.
+Supplying `objective` is worth it even though it is optional: it is kept as your
+own figure and compared against the canonical one in the engine report, which is
+how a disagreement between your search and the reference evaluator becomes
+visible instead of silent.
 
-Solving on a federated engine **sends the instance to a third-party endpoint**,
-and results carry `provenance.federated = true` so they are never quietly mixed
-into a benchmark with in-tree results.
+See [ENGINE_MANIFEST.md](ENGINE_MANIFEST.md) for every field.
+
+### What to expect at runtime
+
+**Your credential is write-only.** It is stored as Fernet ciphertext and no
+endpoint returns it; it can be replaced (`POST
+/v1/engines/registered/{id}/credential`) but never read back. That is what lets
+a manifest be shown to its owner or reviewed by an administrator.
+
+**Your endpoint must be publicly reachable, over HTTPS.** The gateway refuses
+private, loopback, link-local, CGNAT and cloud-metadata addresses - registering
+an engine is otherwise a way to make the gateway call its own network. It checks
+the *resolved* address, not the hostname, immediately before every request, and
+connects to the address it checked. Redirects are not followed, and responses
+are capped.
+
+**Solving on your engine sends the instance to you**, and the interface says so
+to whoever selects it. Results carry `provenance.federated = true` so they are
+never quietly mixed into a benchmark with in-tree results.
+
+**Registration counts against `federatedEnginesLimit`**, and solving on a
+federated engine spends `federatedTasksLimit` rather than the built-in task
+allowance - the CPU is yours, so the gateway does not charge for it as if it
+were its own.
+
+### Endpoints
+
+| Operation | Endpoint |
+| --- | --- |
+| Propose a manifest from a spec | `POST /v1/engines/draft` |
+| Register | `POST /v1/engines` |
+| Your registrations | `GET /v1/engines/registered` |
+| One of them, with its report | `GET /v1/engines/registered/{id}` |
+| Change it (re-verifies) | `PUT /v1/engines/registered/{id}` |
+| Check again | `POST /v1/engines/registered/{id}/verify` |
+| Replace the credential | `POST /v1/engines/registered/{id}/credential` |
+| Ask to be listed publicly | `POST /v1/engines/registered/{id}/publish` |
+| Remove it | `DELETE /v1/engines/registered/{id}` |
+| Review queue (admin) | `GET /v1/admin/engines?pending=true` |
+| Approve, reject, disable (admin) | `POST /v1/admin/engines/{id}/{action}` |
 
 ## Troubleshooting
 

@@ -369,14 +369,34 @@ the instances it will solve. Nothing is restated in code, so an engine cannot
 advertise one thing and enforce another. Read one with
 `GET /v1/engines/{engine_id}/manifest`.
 
-An engine can arrive two ways. **In-tree**, as a manifest plus a plugin in this
-repository. Or **federated**: somebody else's running solver, registered through
-the API with a manifest that also describes their HTTP surface, validated and
-routed to by the gateway while all scoring stays here — which is why a
-third-party engine only has to return which candidate serves which task.
+An engine can arrive two ways, and neither asks you to write the manifest by
+hand.
+
+**In-tree** — it ships with the gateway. Scaffold the manifest, set
+`ENGINE_<ID>_URL`, and that is the registration:
+
+```bash
+python openbinding-gateway/tools/new_engine.py my-engine --type HEURISTIC --nodes TASK SEQ --objectives MONO
+```
+
+A plugin is needed only for what a manifest cannot express — a request shape
+that differs from the engine contract, or a check beyond a JSON Schema.
+
+**Federated** — a solver you already run, registered at runtime through the API
+and never deployed here. `POST /v1/engines/draft` reads your OpenAPI document
+and proposes the whole manifest; registering it runs a conformance probe against
+your engine and answers with a report naming any field to change. There is a
+wizard at `/engines/new`.
+
+Federation works because scoring stays here: the reference evaluator recomputes
+every metric, so a third-party engine only has to return which candidate serves
+which task, and its results are comparable with the built-in engines' by
+construction rather than by trust. Solving on one sends the instance to its
+owner's endpoint — the interface says so — and results are marked
+`provenance.federated`.
 
 - [docs/ENGINE_INTEGRATION_GUIDE.md](docs/ENGINE_INTEGRATION_GUIDE.md) — adding
-  an engine, end to end.
+  an engine, either way, end to end.
 - [docs/ENGINE_MANIFEST.md](docs/ENGINE_MANIFEST.md) — the manifest reference:
   every field, its default, what is checked, and how to initialize one.
 
