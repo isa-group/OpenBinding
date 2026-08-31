@@ -1,0 +1,65 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "demo_03_xor_application"
+  },
+  "spec": {
+    "tasks": {
+      "t_common": "service/t_common",
+      "t_path_a": "service/t_path_a",
+      "t_path_b": "service/t_path_b"
+    },
+    "metrics": {
+      "availability": {
+        "unit": "prob",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "product",
+          "parallel": "product",
+          "exclusive": "weightedSum",
+          "repeat": "power",
+          "selection": "product"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_common"
+          }
+        },
+        {
+          "exclusive": [
+            {
+              "id": "n_choice_branch_1",
+              "flow": {
+                "task": {
+                  "resource": "application",
+                  "id": "t_path_a"
+                }
+              }
+            },
+            {
+              "id": "n_choice_branch_2",
+              "flow": {
+                "task": {
+                  "resource": "application",
+                  "id": "t_path_b"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

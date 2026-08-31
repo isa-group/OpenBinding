@@ -21,7 +21,7 @@ public class Server {
                 exchange.close();
             }
         });
-        server.createContext("/solve", new Controller());
+        server.createContext("/internal/v1/binding-problems", new Controller());
         server.setExecutor(Executors.newCachedThreadPool());
         server.start();
     }

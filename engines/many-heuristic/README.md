@@ -1,29 +1,18 @@
-# Many-Heuristic engine
+# Many-objective heuristic engine
 
-Java service for **many-objective** problems: three or more objectives, where a
-single best solution does not exist and the answer is a Pareto front.
+This BIM v1 engine performs seeded sampling and keeps a bounded non-dominated
+archive for Pareto optimization. Its single mode rejects other optimization
+strategies instead of returning a result with different semantics.
 
-## What is its own
+It receives only `BindingProblem` IR through `bim-engine/v1`. Full
+catalog-qualified candidate references are preserved in the archive and in
+every decision. Source resources are rejected. Its mode declares placement
+selector `all` and selects only `qos-binding-placement/v1` in `irExtensions`.
+`binding-core` applies the complete lowered placement contract to every sampled
+decision.
 
-Only `ManyBindingSearch`: sampling into a Pareto archive over the per-target
-normalized losses the shared evaluator computes. Because those are losses,
-lower is better on every objective and domination needs no direction handling.
+Options are `iterations`, `archive_size`, `seed` and `time_budget_ms`. The
+algorithm is heuristic: successful results terminate as `FEASIBLE`, and an
+empty feasible archive terminates as `UNKNOWN`.
 
-Everything else - the instance model, the evaluator, the placement semantics -
-comes from [`binding-core`](../binding-core).
-
-## Feasibility and the empty front
-
-Constraints follow the same feasibility-first rule as the other engines: only
-feasible bindings enter the archive. When nothing feasible is found the best
-infeasible one is returned instead, marked as such and naming what it breaks.
-An empty front used to become a 422, which told the caller their request was
-invalid about a problem that was merely hard.
-
-## Request
-
-`{"instance": ..., "options": {"iterations_count": 1000, "archive_size": 20}}`,
-like every other JVM engine. Placement is derived from the instance, not
-received.
-
-Builds against a JDK 8 runtime.
+Run `mvn test` with Java 8 or newer.

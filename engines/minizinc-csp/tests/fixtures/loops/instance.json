@@ -1,0 +1,26 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "demo_06_loops",
+    "version": "1.0.0",
+    "description": "A structured workflow with a repeat block whose explicit expectedCount scales deterministic invocation-scoped QoS aggregation.",
+    "annotations": {
+      "level": "advanced"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      }
+    }
+  }
+}

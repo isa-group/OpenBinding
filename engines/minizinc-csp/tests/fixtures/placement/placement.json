@@ -1,0 +1,221 @@
+{
+  "apiVersion": "qos-binding-placement/v1",
+  "kind": "Placement",
+  "metadata": {
+    "name": "small_placement_demo_placement"
+  },
+  "spec": {
+    "networkMode": "symmetric",
+    "pools": {
+      "p_edge": {
+        "capacity": {
+          "memory": 4.0
+        },
+        "kind": "EDGE"
+      },
+      "p_fog": {
+        "capacity": {
+          "memory": 4.0
+        },
+        "kind": "FOG"
+      },
+      "p_cloud": {
+        "capacity": {
+          "memory": 100.0
+        },
+        "kind": "CLOUD_FAAS"
+      }
+    },
+    "demands": [
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "c_cloud"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "p_cloud"
+        },
+        "resources": {
+          "memory": 2.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "c_edge"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "p_edge"
+        },
+        "resources": {
+          "memory": 2.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "c_fog"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "p_fog"
+        },
+        "resources": {
+          "memory": 2.0
+        }
+      }
+    ],
+    "network": [
+      {
+        "from": {
+          "resource": "placement",
+          "id": "p_edge"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "p_edge"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "p_edge"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "p_fog"
+        },
+        "latency": 10.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "p_edge"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "p_cloud"
+        },
+        "latency": 20.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "p_fog"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "p_fog"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "p_fog"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "p_cloud"
+        },
+        "latency": 4.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "p_cloud"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "p_cloud"
+        },
+        "latency": 0.0
+      }
+    ],
+    "events": {
+      "user_device": {
+        "pool": {
+          "resource": "placement",
+          "id": "p_edge"
+        },
+        "latency": [
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "p_edge"
+            },
+            "latency": 1.0
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "p_fog"
+            },
+            "latency": 5.0
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "p_cloud"
+            },
+            "latency": 9.0
+          }
+        ]
+      }
+    },
+    "transitions": {
+      "tr_login_process": {
+        "from": {
+          "resource": "application",
+          "id": "t_login"
+        },
+        "to": {
+          "resource": "application",
+          "id": "t_process"
+        },
+        "maximum": 15.0,
+        "enforcement": "hard",
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        }
+      },
+      "tr_event_login": {
+        "from": {
+          "resource": "placement",
+          "id": "user_device"
+        },
+        "to": {
+          "resource": "application",
+          "id": "t_login"
+        },
+        "maximum": 6.0,
+        "enforcement": "hard",
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        }
+      }
+    },
+    "capacityRules": [
+      {
+        "resources": [
+          "memory"
+        ],
+        "scope": "selectedCandidate"
+      }
+    ],
+    "globalLatency": {
+      "metric": {
+        "resource": "application",
+        "id": "latency"
+      },
+      "includeExecution": true,
+      "exclusive": "routing",
+      "parallel": "max"
+    }
+  }
+}

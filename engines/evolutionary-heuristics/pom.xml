@@ -8,9 +8,8 @@
   <version>0.1.0-SNAPSHOT</version>
 
   <properties>
-    <maven.compiler.release>21</maven.compiler.release>
+    <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <jmetal.version>7.4</jmetal.version>
     <junit.version>5.12.2</junit.version>
   </properties>
 
@@ -21,14 +20,11 @@
       <version>0.1.0-SNAPSHOT</version>
     </dependency>
     <dependency>
-      <groupId>org.uma.jmetal</groupId>
-      <artifactId>jmetal-core</artifactId>
-      <version>${jmetal.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.uma.jmetal</groupId>
-      <artifactId>jmetal-algorithm</artifactId>
-      <version>${jmetal.version}</version>
+      <groupId>es.us.isa.openbinding</groupId>
+      <artifactId>binding-core</artifactId>
+      <version>0.1.0-SNAPSHOT</version>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.google.code.gson</groupId>

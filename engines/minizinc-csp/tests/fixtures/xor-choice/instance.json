@@ -1,0 +1,27 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "demo_03_xor",
+    "version": "1.0.0",
+    "description": "Exclusive choice between paths based on probability. We want to maximize availability.",
+    "annotations": {
+      "level": "intermediate"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json",
+        "routing": "routing.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      }
+    }
+  }
+}

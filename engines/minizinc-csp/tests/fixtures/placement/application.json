@@ -1,0 +1,109 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "small_placement_demo_application"
+  },
+  "spec": {
+    "tasks": {
+      "t_login": "service/t_login",
+      "t_process": "service/t_process",
+      "t_check": "service/t_check",
+      "t_rules": "service/t_rules",
+      "t_render": "service/t_render"
+    },
+    "metrics": {
+      "latency": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 100000
+        }
+      },
+      "cost": {
+        "unit": "USD/month",
+        "direction": "minimize",
+        "scope": "selectedCandidate",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 100000
+        }
+      },
+      "security": {
+        "unit": "score",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "min",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_login"
+          }
+        },
+        {
+          "parallel": [
+            {
+              "sequence": [
+                {
+                  "task": {
+                    "resource": "application",
+                    "id": "t_process"
+                  }
+                },
+                {
+                  "exclusive": [
+                    {
+                      "id": "n_xor_branch_1",
+                      "flow": {
+                        "task": {
+                          "resource": "application",
+                          "id": "t_check"
+                        }
+                      }
+                    },
+                    {
+                      "id": "n_xor_branch_2",
+                      "flow": {
+                        "task": {
+                          "resource": "application",
+                          "id": "t_rules"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "task": {
+                "resource": "application",
+                "id": "t_render"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

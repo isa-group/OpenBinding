@@ -11,8 +11,8 @@ ENV HTTP_PROXY=$HTTP_PROXY \
 	no_proxy=$NO_PROXY
 
 WORKDIR /app
-# The build context is engines/, so that the shared placement core can be
-# built and installed before the engine that depends on it.
+# The build context is engines/, so the shared BIM v1 evaluator can be built
+# and installed before the search service that depends on it.
 COPY binding-core ./binding-core
 COPY random-search/pom.xml ./random-search/pom.xml
 COPY random-search/src ./random-search/src
@@ -46,7 +46,7 @@ ENV HTTP_PROXY=$HTTP_PROXY \
 
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/random-search/target/RandomSearchQoSawareCWSBinding-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=builder /app/random-search/target/random-search-0.1.0-SNAPSHOT.jar app.jar
 COPY --from=builder /app/random-search/target/dependency /app/dependency
 EXPOSE 8080
 CMD ["java", "-cp", "app.jar:dependency/*", "es.us.isa.qosawarewsbinding.api.Server"]

@@ -4,8 +4,8 @@ ARG HTTPS_PROXY
 ARG NO_PROXY
 ENV HTTP_PROXY=$HTTP_PROXY HTTPS_PROXY=$HTTPS_PROXY NO_PROXY=$NO_PROXY
 WORKDIR /app
-# The build context is engines/, so that the shared placement core can be
-# built and installed before the engine that depends on it.
+# The build context is engines/, so the shared BIM v1 evaluator can be built
+# and installed before the search service that depends on it.
 COPY binding-core ./binding-core
 RUN cd /app/binding-core && mvn -B -q -DskipTests install
 

@@ -1,210 +1,161 @@
 package es.us.isa.openbinding.evolutionary;
 
-import es.us.isa.openbinding.core.BindingEvaluator;
-import static es.us.isa.openbinding.evolutionary.ApiModels.*;
+import com.google.gson.JsonObject;
+import es.us.isa.openbinding.core.BindingProblem;
+import es.us.isa.openbinding.core.CanonicalEvaluator;
+import es.us.isa.openbinding.core.EngineContract;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
-import org.uma.jmetal.algorithm.Algorithm;
-import org.uma.jmetal.algorithm.multiobjective.nsgaii.NSGAIIBuilder;
-import org.uma.jmetal.algorithm.multiobjective.nsgaiii.NSGAIIIBuilder;
-import org.uma.jmetal.operator.crossover.CrossoverOperator;
-import org.uma.jmetal.operator.crossover.impl.IntegerSBXCrossover;
-import org.uma.jmetal.operator.mutation.MutationOperator;
-import org.uma.jmetal.operator.mutation.impl.IntegerPolynomialMutation;
-import org.uma.jmetal.operator.selection.impl.BinaryTournamentSelection;
-import org.uma.jmetal.solution.integersolution.IntegerSolution;
-import org.uma.jmetal.util.SolutionListUtils;
-import org.uma.jmetal.util.pseudorandom.JMetalRandom;
+import java.util.Map;
+import java.util.Random;
 
+/**
+ * Elitist categorical genetic search over BIM v1 bindings.
+ *
+ * <p>Candidate ids are categorical, so crossover exchanges complete genes and
+ * mutation resamples from the task's eligibility set.  Feasibility and every
+ * optimization strategy are ranked by the canonical evaluator; Pareto mode
+ * additionally maintains a non-dominated archive.</p>
+ */
 final class EvolutionarySolver {
-  SolveResponse solve(SolveRequest request) {
-    validate(request);
-    Options options = request.options == null ? new Options() : request.options;
-    EvolutionaryBindingProblem problem =
-        new EvolutionaryBindingProblem(request.instance, options, request.placement);
-
-    double mutationProbability = options.mutation_probability != null
-        ? options.mutation_probability
-        : 1.0 / Math.max(1, problem.numberOfVariables());
-    String operators = resolveOperators(options.operators);
-    CrossoverOperator<IntegerSolution> crossover;
-    MutationOperator<IntegerSolution> mutation;
-    if ("UNIFORM".equals(operators)) {
-      // Categorical variation: candidate indices carry no ordinal meaning, so
-      // genes are exchanged whole and mutations resample the full domain.
-      crossover = new UniformIntegerCrossover(options.crossover_probability);
-      mutation = new RandomResetIntegerMutation(mutationProbability);
-    } else {
-      crossover = new IntegerSBXCrossover(options.crossover_probability, options.distribution_index);
-      mutation = new IntegerPolynomialMutation(mutationProbability, options.distribution_index);
+  static final class Result {
+    final List<CanonicalEvaluator.Evaluation> solutions;
+    final long evaluations;
+    final long elapsedMs;
+    Result(List<CanonicalEvaluator.Evaluation> solutions, long evaluations, long elapsedMs) {
+      this.solutions = solutions;
+      this.evaluations = evaluations;
+      this.elapsedMs = elapsedMs;
     }
+  }
 
-    JMetalRandom.getInstance().setSeed(options.seed);
-    String algorithmName = resolveAlgorithm(request.instance.objective.type, options.algorithm);
-    boolean mono = "MONO".equalsIgnoreCase(request.instance.objective.type);
-    Long timeBudgetMs = options.time_budget_ms;
-    if (timeBudgetMs != null && !mono) {
-      throw new IllegalArgumentException("time_budget_ms is only supported for MONO objectives");
+  Result evaluate(EngineContract.Request request) {
+    JsonObject options = request.options();
+    EngineContract.validateOptions(options, "algorithm", "population_size", "max_evaluations",
+        "archive_size", "seed", "time_budget_ms", "crossover_probability", "mutation_probability");
+    String algorithm = EngineContract.stringOption(options, "algorithm", "elitist-genetic");
+    if (!"elitist-genetic".equals(algorithm) && !"pareto-genetic".equals(algorithm)) {
+      throw new IllegalArgumentException("options.algorithm must be elitist-genetic or pareto-genetic");
     }
-
-    // With a wall-clock budget the evaluation limit becomes effectively
-    // unbounded; the problem interrupts the run once the budget is exhausted
-    // (never before max_evaluations, which acts as the minimum budget).
-    int maxEvaluations = timeBudgetMs != null ? Integer.MAX_VALUE - 1 : options.max_evaluations;
-
-    Algorithm<List<IntegerSolution>> algorithm;
-    if ("NSGAIII".equals(algorithmName)) {
-      int iterations = Math.max(1, maxEvaluations / Math.max(1, options.population_size));
-      algorithm = new NSGAIIIBuilder<IntegerSolution>(problem)
-          .setMaxIterations(iterations)
-          .setNumberOfDivisions(options.reference_divisions)
-          .setCrossoverOperator(crossover)
-          .setMutationOperator(mutation)
-          .setSelectionOperator(new BinaryTournamentSelection<>())
-          .build();
-    } else {
-      algorithm = new NSGAIIBuilder<IntegerSolution>(problem, crossover, mutation, options.population_size)
-          .setMaxEvaluations(maxEvaluations)
-          .build();
+    String mode = request.problem().optimization().get("mode").getAsString();
+    if ("pareto-genetic".equals(algorithm) && !"pareto".equals(mode)) {
+      throw new IllegalArgumentException("pareto-genetic requires optimization.mode pareto");
     }
-
-    problem.resetTrace();
-    problem.configureBudget(timeBudgetMs, options.max_evaluations);
-    long started = System.currentTimeMillis();
-    boolean budgetExhausted = false;
-    List<IntegerSolution> result;
-    try {
-      algorithm.run();
-      result = algorithm.result();
-    } catch (EvolutionaryBindingProblem.BudgetExhaustedException exception) {
-      budgetExhausted = true;
-      result = new ArrayList<>();
+    if ("elitist-genetic".equals(algorithm) && "pareto".equals(mode)) {
+      throw new IllegalArgumentException("elitist-genetic does not implement Pareto archive semantics");
     }
-    long elapsed = System.currentTimeMillis() - started;
-    // Snapshot before toDto(), which may re-evaluate solutions.
-    List<java.util.Map<String, Object>> trace = problem.traceSnapshot();
-    long evaluations = problem.evaluationCount();
+    int populationSize = EngineContract.integerOption(options, "population_size", 100, 2, 10000);
+    // The public options schema permits a budget smaller than the population.
+    // In that case the first generation is deliberately only partially scored.
+    int maxEvaluations = EngineContract.integerOption(options, "max_evaluations", 10000, 2, 10000000);
+    int archiveSize = EngineContract.integerOption(options, "archive_size", 100, 1, 10000);
+    long seed = EngineContract.longOption(options, "seed", 0L);
+    Long timeBudget = EngineContract.optionalPositiveLong(options, "time_budget_ms");
+    double crossover = probability(options, "crossover_probability", 0.9);
+    double mutation = probability(options, "mutation_probability",
+        1.0 / Math.max(1, request.problem().serviceTasks().size()));
+    return search(request.problem(), algorithm, populationSize, maxEvaluations, archiveSize,
+        seed, timeBudget, crossover, mutation);
+  }
 
-    // For MONO the best individual ever evaluated is authoritative: it
-    // survives generational replacement and budget interruptions.
-    if (mono) {
-      IntegerSolution best = problem.bestTrackedSolution();
-      if (best != null) {
-        result = new ArrayList<>(List.of(best));
+  private Result search(BindingProblem problem, String algorithm, int populationSize,
+      int maxEvaluations, int archiveSize, long seed, Long timeBudgetMs,
+      double crossoverProbability, double mutationProbability) {
+    CanonicalEvaluator evaluator = new CanonicalEvaluator(problem);
+    Random random = new Random(seed);
+    List<Map<String, BindingProblem.Ref>> population = new ArrayList<Map<String, BindingProblem.Ref>>();
+    for (int index = 0; index < populationSize; index++) population.add(randomDecision(problem, random, index));
+
+    List<CanonicalEvaluator.Evaluation> archive = new ArrayList<CanonicalEvaluator.Evaluation>();
+    CanonicalEvaluator.Evaluation best = null;
+    long evaluations = 0;
+    long started = System.nanoTime();
+    while (evaluations < maxEvaluations && !expired(started, timeBudgetMs, evaluations)) {
+      List<CanonicalEvaluator.Evaluation> scored = new ArrayList<CanonicalEvaluator.Evaluation>();
+      for (Map<String, BindingProblem.Ref> chromosome : population) {
+        if (evaluations >= maxEvaluations || expired(started, timeBudgetMs, evaluations)) break;
+        CanonicalEvaluator.Evaluation evaluation = evaluator.evaluate(chromosome);
+        scored.add(evaluation);
+        evaluations++;
+        if (evaluation.feasible()) {
+          if (best == null || evaluator.comparator().compare(evaluation, best) < 0) best = evaluation;
+          if ("pareto-genetic".equals(algorithm)) updateArchive(archive, evaluation, evaluator, archiveSize);
+        }
       }
-    }
-
-    List<IntegerSolution> selected = selectResult(result, request.instance.objective.type, options.archive_size);
-    SolveResponse response = new SolveResponse();
-    for (IntegerSolution solution : selected) {
-      response.solutions.add(toDto(solution, problem));
-    }
-    response.provenance.execution_time_ms = elapsed;
-    response.provenance.metadata.put("algorithm", algorithmName);
-    response.provenance.metadata.put("operators", operators);
-    response.provenance.metadata.put("seed", options.seed);
-    response.provenance.metadata.put("population_size", options.population_size);
-    response.provenance.metadata.put("max_evaluations", options.max_evaluations);
-    response.provenance.metadata.put("returned_solutions", response.solutions.size());
-    response.provenance.metadata.put("evaluations", evaluations);
-    response.provenance.metadata.put("trace", trace);
-    response.provenance.metadata.put("time_budget_ms", timeBudgetMs);
-    response.provenance.metadata.put("budget_exhausted", budgetExhausted);
-    return response;
-  }
-
-  private List<IntegerSolution> selectResult(
-      List<IntegerSolution> result, String objectiveType, int archiveSize) {
-    if ("MONO".equalsIgnoreCase(objectiveType)) {
-      return result.stream()
-          .filter(this::feasible)
-          .min(Comparator.comparingDouble(s -> s.objectives()[0]))
-          .map(List::of)
-          .orElseGet(() -> result.stream()
-              .min(Comparator.comparingDouble(s -> Math.abs(s.constraints()[0])))
-              .map(List::of)
-              .orElseGet(List::of));
-    }
-    List<IntegerSolution> feasibleSolutions = result.stream().filter(this::feasible).toList();
-    List<IntegerSolution> candidates = feasibleSolutions.isEmpty()
-        ? result.stream()
-            .sorted(Comparator.comparingDouble(s -> Math.abs(s.constraints()[0])))
-            .limit(Math.max(1, archiveSize))
-            .toList()
-        : feasibleSolutions;
-    List<IntegerSolution> front = SolutionListUtils.getNonDominatedSolutions(candidates);
-    front.sort(Comparator.comparingDouble(this::objectiveSum));
-    return new ArrayList<>(front.subList(0, Math.min(Math.max(1, archiveSize), front.size())));
-  }
-
-  private SolutionDto toDto(IntegerSolution solution, EvolutionaryBindingProblem problem) {
-    BindingEvaluator.Evaluation evaluation =
-        (BindingEvaluator.Evaluation) solution.attributes().get(EvolutionaryBindingProblem.EVALUATION_ATTRIBUTE);
-    if (evaluation == null) {
-      problem.evaluate(solution);
-      evaluation =
-          (BindingEvaluator.Evaluation) solution.attributes().get(EvolutionaryBindingProblem.EVALUATION_ATTRIBUTE);
-    }
-
-    SolutionDto dto = new SolutionDto();
-    dto.binding.putAll(evaluation.binding());
-    dto.aggregated_features.putAll(evaluation.aggregated());
-    dto.violations.addAll(evaluation.constraints().violations());
-    // The engine's internal search objective (lower is better; for MONO this
-    // is the weighted mean of normalized losses, with Deb's infeasibility
-    // offset when no hard constraint is satisfied). The gateway audits it
-    // against the canonical reference evaluation.
-    dto.objective_value = solution.objectives()[0];
-    dto.metadata.put("quality_score", problem.evaluator().qualityScore(evaluation));
-    dto.metadata.put("objective_vector", Arrays.stream(solution.objectives()).boxed().toList());
-    dto.metadata.put("hard_violation", evaluation.constraints().hardViolation());
-    dto.metadata.put("soft_violation", evaluation.constraints().softViolation());
-    dto.metadata.put("feasible", feasible(solution));
-    return dto;
-  }
-
-  private boolean feasible(IntegerSolution solution) {
-    return solution.constraints().length == 0 || solution.constraints()[0] >= 0.0;
-  }
-
-  private double objectiveSum(IntegerSolution solution) {
-    return Arrays.stream(solution.objectives()).sum();
-  }
-
-  private String resolveOperators(String configured) {
-    if (configured == null || configured.isBlank()) {
-      return "SBX";
-    }
-    String normalized = configured.trim().toUpperCase();
-    if (!normalized.equals("SBX") && !normalized.equals("UNIFORM")) {
-      throw new IllegalArgumentException("operators must be SBX or UNIFORM");
-    }
-    return normalized;
-  }
-
-  private String resolveAlgorithm(String objectiveType, String configured) {
-    if (configured != null && !"AUTO".equalsIgnoreCase(configured)) {
-      String normalized = configured.replace("-", "").toUpperCase();
-      if (!normalized.equals("NSGAII") && !normalized.equals("NSGAIII")) {
-        throw new IllegalArgumentException("algorithm must be AUTO, NSGAII, or NSGAIII");
+      if (scored.isEmpty()) break;
+      scored.sort(evaluator.comparator());
+      List<Map<String, BindingProblem.Ref>> next = new ArrayList<Map<String, BindingProblem.Ref>>();
+      // Elitism keeps the best ten percent.  Remaining children come from
+      // tournament selection followed by categorical uniform crossover.
+      int elites = Math.max(1, populationSize / 10);
+      for (int index = 0; index < Math.min(elites, scored.size()); index++) {
+        next.add(new LinkedHashMap<String, BindingProblem.Ref>(scored.get(index).binding()));
       }
-      return normalized;
+      while (next.size() < populationSize) {
+        CanonicalEvaluator.Evaluation first = tournament(scored, evaluator, random);
+        CanonicalEvaluator.Evaluation second = tournament(scored, evaluator, random);
+        Map<String, BindingProblem.Ref> child = new LinkedHashMap<String, BindingProblem.Ref>();
+        for (String task : problem.serviceTasks()) {
+          BindingProblem.Ref gene = random.nextDouble() < crossoverProbability
+              ? (random.nextBoolean() ? first.binding().get(task) : second.binding().get(task))
+              : first.binding().get(task);
+          if (random.nextDouble() < mutationProbability) {
+            List<BindingProblem.Ref> eligible = problem.eligible(task);
+            gene = eligible.get(random.nextInt(eligible.size()));
+          }
+          child.put(task, gene);
+        }
+        next.add(child);
+      }
+      population = next;
     }
-    return "MANY".equalsIgnoreCase(objectiveType) ? "NSGAIII" : "NSGAII";
+    if (!"pareto-genetic".equals(algorithm) && best != null) archive.add(best);
+    return new Result(archive, evaluations, (System.nanoTime() - started) / 1000000L);
   }
 
-  private void validate(SolveRequest request) {
-    if (request == null || request.instance == null) {
-      throw new IllegalArgumentException("Missing OpenBinding instance");
+  private static Map<String, BindingProblem.Ref> randomDecision(BindingProblem problem,
+      Random random, int populationIndex) {
+    Map<String, BindingProblem.Ref> decision = new LinkedHashMap<String, BindingProblem.Ref>();
+    int taskIndex = 0;
+    for (String task : problem.serviceTasks()) {
+      List<BindingProblem.Ref> eligible = problem.eligible(task);
+      int selected = taskIndex == 0 && populationIndex < eligible.size()
+          ? populationIndex : random.nextInt(eligible.size());
+      decision.put(task, eligible.get(selected));
+      taskIndex++;
     }
-    if (request.instance.objective == null || request.instance.objective.targets.isEmpty()) {
-      throw new IllegalArgumentException("At least one objective target is required");
+    return decision;
+  }
+
+  private static CanonicalEvaluator.Evaluation tournament(
+      List<CanonicalEvaluator.Evaluation> population, CanonicalEvaluator evaluator, Random random) {
+    CanonicalEvaluator.Evaluation first = population.get(random.nextInt(population.size()));
+    CanonicalEvaluator.Evaluation second = population.get(random.nextInt(population.size()));
+    return evaluator.comparator().compare(first, second) <= 0 ? first : second;
+  }
+
+  private static void updateArchive(List<CanonicalEvaluator.Evaluation> archive,
+      CanonicalEvaluator.Evaluation candidate, CanonicalEvaluator evaluator, int limit) {
+    for (CanonicalEvaluator.Evaluation member : archive) {
+      if (member.binding().equals(candidate.binding()) || evaluator.dominates(member, candidate)) return;
     }
-    if (request.instance.composition == null || request.instance.composition.root == null) {
-      throw new IllegalArgumentException("A structured composition root is required");
-    }
+    archive.removeIf(member -> evaluator.dominates(candidate, member));
+    archive.add(candidate);
+    archive.sort(evaluator.comparator());
+    while (archive.size() > limit) archive.remove(archive.size() - 1);
+  }
+
+  private static boolean expired(long started, Long timeBudgetMs, long evaluations) {
+    return timeBudgetMs != null && evaluations > 0
+        && (System.nanoTime() - started) / 1000000L >= timeBudgetMs.longValue();
+  }
+
+  private static double probability(JsonObject options, String name, double fallback) {
+    if (!options.has(name)) return fallback;
+    double value = BindingProblem.finiteNumber(options.get(name), "options." + name);
+    if (value < 0.0 || value > 1.0) throw new IllegalArgumentException("options." + name + " must be in [0,1]");
+    return value;
   }
 }

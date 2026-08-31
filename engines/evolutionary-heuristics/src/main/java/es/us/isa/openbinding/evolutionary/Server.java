@@ -1,67 +1,76 @@
 package es.us.isa.openbinding.evolutionary;
 
-import es.us.isa.openbinding.core.PlacementAdapter;
-import static es.us.isa.openbinding.evolutionary.ApiModels.*;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import es.us.isa.openbinding.core.EngineContract;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import java.util.concurrent.Executors;
 
+/** BIM Engine Protocol v1 service for evolutionary search. */
 public final class Server {
-  private static final Gson GSON = new GsonBuilder().serializeNulls().create();
-  private static final int MAX_BODY_BYTES = 512 * 1024 * 1024;
-
+  private static final int MAX_BODY_BYTES = 64 * 1024 * 1024;
   private Server() {}
 
   public static void main(String[] args) throws IOException {
     int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
     HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
-    server.createContext("/health", exchange -> writeJson(exchange, 200, Map.of("status", "ok")));
-    server.createContext("/solve", Server::solve);
-    server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+    server.createContext("/health", exchange -> write(exchange, 200, "{\"status\":\"ok\"}"));
+    server.createContext("/internal/v1/binding-problems", Server::solve);
+    server.setExecutor(Executors.newCachedThreadPool());
     server.start();
+  }
+
+  static String solvePayload(String payload) {
+    EngineContract.Request request = EngineContract.parse(payload);
+    EvolutionarySolver.Result result = new EvolutionarySolver().evaluate(request);
+    JsonObject provenance = new JsonObject();
+    provenance.addProperty("algorithm", EngineContract.stringOption(
+        request.options(), "algorithm", "elitist-genetic"));
+    provenance.addProperty("evaluations", result.evaluations);
+    provenance.addProperty("elapsed_ms", result.elapsedMs);
+    return EngineContract.json(EngineContract.response(
+        result.solutions.isEmpty() ? "UNKNOWN" : "FEASIBLE", result.solutions, provenance));
   }
 
   private static void solve(HttpExchange exchange) throws IOException {
     if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
-      writeJson(exchange, 405, Map.of("error", "Method not allowed"));
+      exchange.sendResponseHeaders(405, -1);
+      exchange.close();
       return;
     }
     try {
       byte[] body = exchange.getRequestBody().readNBytes(MAX_BODY_BYTES + 1);
       if (body.length > MAX_BODY_BYTES) {
-        writeJson(exchange, 413, Map.of("error", "Request body is too large"));
+        writeProblem(exchange, 413, "Request body exceeds 64 MiB");
         return;
       }
-      String payload = new String(body, StandardCharsets.UTF_8);
-      SolveRequest request = GSON.fromJson(payload, SolveRequest.class);
-      if (request == null || request.instance == null) {
-        throw new IllegalArgumentException("Missing OpenBinding instance");
-      }
-      // Derived from the instance's optional resource_model / latency_model
-      // blocks: empty when it carries neither, so the search is the same
-      // either way.
-      @SuppressWarnings("unchecked")
-      Map<String, Object> instanceMap =
-          GSON.fromJson(GSON.toJsonTree(GSON.fromJson(payload, Map.class).get("instance")), Map.class);
-      request.placement = PlacementAdapter.from(instanceMap);
-      writeJson(exchange, 200, new EvolutionarySolver().solve(request));
+      write(exchange, 200, solvePayload(new String(body, StandardCharsets.UTF_8)));
     } catch (IllegalArgumentException exception) {
-      writeJson(exchange, 422, Map.of("error", exception.getMessage()));
-    } catch (Exception exception) {
-      writeJson(exchange, 500, Map.of("error", exception.getMessage()));
+      writeProblem(exchange, 422, exception.getMessage());
+    } catch (RuntimeException exception) {
+      writeProblem(exchange, 500, "Engine execution failed: " + exception.getMessage());
     }
   }
 
-  private static void writeJson(HttpExchange exchange, int status, Object payload) throws IOException {
-    byte[] body = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8);
-    exchange.getResponseHeaders().set("Content-Type", "application/json");
+  private static void writeProblem(HttpExchange exchange, int status, String detail) throws IOException {
+    JsonObject problem = new JsonObject();
+    problem.addProperty("type", "https://bim.dev/problems/engine-request");
+    problem.addProperty("title", status == 422 ? "Invalid BIM engine request" : "BIM engine error");
+    problem.addProperty("status", status);
+    problem.addProperty("detail", detail == null ? "Unknown error" : detail);
+    exchange.getResponseHeaders().set("Content-Type", "application/problem+json");
+    write(exchange, status, EngineContract.json(problem));
+  }
+
+  private static void write(HttpExchange exchange, int status, String payload) throws IOException {
+    byte[] body = payload.getBytes(StandardCharsets.UTF_8);
+    if (exchange.getResponseHeaders().getFirst("Content-Type") == null) {
+      exchange.getResponseHeaders().set("Content-Type", "application/json");
+    }
     exchange.sendResponseHeaders(status, body.length);
     exchange.getResponseBody().write(body);
     exchange.close();

@@ -1,83 +1,68 @@
 package es.us.isa.openbinding.evolutionary;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-
-import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import es.us.isa.openbinding.core.TestProblems;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 class EvolutionarySolverTest {
-  private static final Gson GSON = new Gson();
-
-  @Test
-  void runsNsgaIIForMonoObjective() {
-    ApiModels.SolveRequest request = request("MONO", """
-        ["cost"]
-        """, """
-        {"cost":1.0}
-        """);
-
-    ApiModels.SolveResponse response = new EvolutionarySolver().solve(request);
-
-    assertFalse(response.solutions.isEmpty());
-    assertEquals("NSGAII", response.provenance.metadata.get("algorithm"));
+  @Test void serverRunsRealGeneticSearchAndReturnsCanonicalRef() {
+    String responsePayload = Server.solvePayload(TestProblems.envelope(TestProblems.twoCandidates(),
+        "{\"algorithm\":\"elitist-genetic\",\"population_size\":10,"
+            + "\"max_evaluations\":40,\"archive_size\":5,\"seed\":7}"));
+    JsonObject response = new JsonParser().parse(responsePayload).getAsJsonObject();
+    assertEquals("FEASIBLE", response.get("termination").getAsString());
+    JsonObject candidate = response.getAsJsonArray("solutions").get(0).getAsJsonObject()
+        .getAsJsonObject("decision").getAsJsonObject("binding").getAsJsonObject("t");
+    assertEquals("catalog-a", candidate.get("resource").getAsString());
+    assertEquals(40, response.getAsJsonObject("provenance").get("evaluations").getAsInt());
   }
 
-  @Test
-  void runsNsgaIIIForManyObjectives() {
-    ApiModels.SolveRequest request = request("MANY", """
-        ["cost","latency","reliability"]
-        """, """
-        {"cost":0.34,"latency":0.33,"reliability":0.33}
-        """);
-
-    ApiModels.SolveResponse response = new EvolutionarySolver().solve(request);
-
-    assertFalse(response.solutions.isEmpty());
-    assertEquals("NSGAIII", response.provenance.metadata.get("algorithm"));
+  @Test void serverRejectsUnknownOptionAndSourceShape() {
+    assertThrows(IllegalArgumentException.class, () -> Server.solvePayload(
+        TestProblems.envelope(TestProblems.twoCandidates(), "{\"unsupported_option\":4}")));
+    String source = "{\"apiVersion\":\"bim/v1\",\"kind\":\"Instance\",\"metadata\":{},\"spec\":{}}";
+    assertThrows(IllegalArgumentException.class, () -> Server.solvePayload(
+        "{\"apiVersion\":\"bim/v1\",\"kind\":\"BindingProblemRequest\","
+            + "\"protocol\":\"bim-engine/v1\",\"problem\":" + source + "}"));
   }
 
-  private ApiModels.SolveRequest request(String type, String targets, String weights) {
-    String json = """
-        {
-          "instance": {
-            "features": [
-              {"id":"cost","direction":"MINIMIZE","valid_range":{"min":0,"max":100}},
-              {"id":"latency","direction":"MINIMIZE","valid_range":{"min":0,"max":100}},
-              {"id":"reliability","direction":"MAXIMIZE","valid_range":{"min":0,"max":1}}
-            ],
-            "candidates": [
-              {"id":"a1","task_ids":["a"],"features":{"cost":10,"latency":30,"reliability":0.9}},
-              {"id":"a2","task_ids":["a"],"features":{"cost":30,"latency":10,"reliability":0.99}},
-              {"id":"b1","task_ids":["b"],"features":{"cost":20,"latency":20,"reliability":0.95}},
-              {"id":"b2","task_ids":["b"],"features":{"cost":5,"latency":50,"reliability":0.8}}
-            ],
-            "composition": {
-              "type":"STRUCTURED",
-              "root":{"kind":"SEQ","children":[
-                {"kind":"TASK","task_id":"a"},
-                {"kind":"TASK","task_id":"b"}
-              ]}
-            },
-            "aggregation_policies": {
-              "cost":{"neutral":0,"compose":{"seq":{"fn":"SUM"}}},
-              "latency":{"neutral":0,"compose":{"seq":{"fn":"SUM"}}},
-              "reliability":{"neutral":1,"compose":{"seq":{"fn":"PRODUCT"}}}
-            },
-            "constraints": [],
-            "objective": {
-              "type":"%s","targets":%s,"weights":%s
-            }
-          },
-          "options": {
-            "population_size":20,
-            "max_evaluations":100,
-            "archive_size":10,
-            "seed":7,
-            "reference_divisions":4
-          }
-        }
-        """.formatted(type, targets, weights);
-    return GSON.fromJson(json, ApiModels.SolveRequest.class);
+  @Test void paretoAlgorithmRequiresAndReturnsParetoSemantics() {
+    JsonObject document = TestProblems.twoCandidates();
+    document.getAsJsonObject("spec").getAsJsonObject("optimization").addProperty("mode", "pareto");
+    assertThrows(IllegalArgumentException.class, () -> Server.solvePayload(
+        TestProblems.envelope(document, "{\"algorithm\":\"elitist-genetic\"}")));
+
+    JsonObject response = new JsonParser().parse(Server.solvePayload(TestProblems.envelope(document,
+        "{\"algorithm\":\"pareto-genetic\",\"population_size\":10,"
+            + "\"max_evaluations\":40,\"archive_size\":5,\"seed\":7}"))).getAsJsonObject();
+    assertEquals("FEASIBLE", response.get("termination").getAsString());
+    assertEquals("catalog-a", response.getAsJsonArray("solutions").get(0).getAsJsonObject()
+        .getAsJsonObject("decision").getAsJsonObject("binding")
+        .getAsJsonObject("t").get("resource").getAsString());
+  }
+
+  @Test void geneticHeuristicNeverClaimsInfeasibility() {
+    JsonObject document = TestProblems.twoCandidates();
+    document.getAsJsonObject("spec").getAsJsonArray("constraints").add(
+        new JsonParser().parse("{\"ref\":{\"resource\":\"constraints\",\"id\":\"impossible\"},"
+            + "\"when\":{\"kind\":\"literal\",\"value\":true},"
+            + "\"assert\":{\"kind\":\"literal\",\"value\":false},\"enforcement\":\"hard\"}"));
+    JsonObject response = new JsonParser().parse(Server.solvePayload(TestProblems.envelope(document,
+        "{\"algorithm\":\"elitist-genetic\",\"population_size\":4,\"max_evaluations\":8}")))
+        .getAsJsonObject();
+    assertEquals("UNKNOWN", response.get("termination").getAsString());
+    assertEquals(0, response.getAsJsonArray("solutions").size());
+  }
+
+  @Test void runtimeAcceptsEveryBudgetAllowedByThePublishedOptionsSchema() {
+    JsonObject response = new JsonParser().parse(Server.solvePayload(TestProblems.envelope(
+        TestProblems.twoCandidates(), "{\"algorithm\":\"elitist-genetic\","
+            + "\"population_size\":10,\"max_evaluations\":2,\"seed\":3}")))
+        .getAsJsonObject();
+    assertEquals("FEASIBLE", response.get("termination").getAsString());
+    assertEquals(2, response.getAsJsonObject("provenance").get("evaluations").getAsInt());
   }
 }

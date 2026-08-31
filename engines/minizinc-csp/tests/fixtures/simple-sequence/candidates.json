@@ -1,0 +1,60 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "demo_01_simple_seq_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c1a": {
+        "provides": "service/t1",
+        "metrics": {
+          "latency": 10
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c1b": {
+        "provides": "service/t1",
+        "metrics": {
+          "latency": 20
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c2a": {
+        "provides": "service/t2",
+        "metrics": {
+          "latency": 15
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c3a": {
+        "provides": "service/t3",
+        "metrics": {
+          "latency": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      }
+    },
+    "providers": {
+      "p1": {}
+    },
+    "metricBindings": {
+      "latency": {
+        "resource": "application",
+        "id": "latency"
+      }
+    }
+  }
+}

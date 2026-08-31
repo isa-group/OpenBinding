@@ -1,0 +1,24 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "demo_01_simple_seq_optimization"
+  },
+  "spec": {
+    "mode": "weighted",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        },
+        "weight": 1.0,
+        "normalize": {
+          "min": 0,
+          "max": 1000,
+          "clamp": true
+        }
+      }
+    ]
+  }
+}

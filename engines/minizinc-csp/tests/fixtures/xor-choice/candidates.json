@@ -1,0 +1,50 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "demo_03_xor_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c_common": {
+        "provides": "service/t_common",
+        "metrics": {
+          "availability": 0.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c_a": {
+        "provides": "service/t_path_a",
+        "metrics": {
+          "availability": 0.95
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c_b": {
+        "provides": "service/t_path_b",
+        "metrics": {
+          "availability": 0.999
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      }
+    },
+    "providers": {
+      "p1": {}
+    },
+    "metricBindings": {
+      "availability": {
+        "resource": "application",
+        "id": "availability"
+      }
+    }
+  }
+}
