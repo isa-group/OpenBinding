@@ -1,0 +1,30 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "EngineRegistration",
+  "metadata": {
+    "namespace": "admin",
+    "name": "multi-heuristic-deployment",
+    "version": "1.0.0"
+  },
+  "spec": {
+    "engine": {
+      "namespace": "admin",
+      "name": "multi-heuristic",
+      "version": "1.0.0",
+      "digest": "sha256-a34af723bc05d8e324e171b0ca0e0c886a8f8d17c11653d7e754925d4b8b6999"
+    },
+    "endpoint": "https://multi-heuristic.example.org",
+    "protocol": {
+      "id": "bim-engine/v1",
+      "mediaType": "application/json",
+      "digest": "sha256-cd8ce3b00943aa625ba5de61c862e00c858e82dcd4f132592c9ca33db5deeecf"
+    },
+    "mappings": {
+      "request": "/internal/v1/binding-problems",
+      "health": "/health",
+      "openapi": "/openapi.json"
+    },
+    "auth": {"scheme": "none"},
+    "openapi": {"openapi":"3.1.0","info":{"title":"Federated Multi-Heuristic BIM Engine","version":"1.0.0"},"x-bim-protocol":"bim-engine/v1","x-bim-protocol-digest":"sha256-cd8ce3b00943aa625ba5de61c862e00c858e82dcd4f132592c9ca33db5deeecf","paths":{"/internal/v1/binding-problems":{"post":{"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/BindingProblemRequest"}}}},"responses":{"200":{"description":"Completed result.","content":{"application/json":{"schema":{"$ref":"#/components/schemas/BindingResult"}}}}}}},"/health":{"get":{"responses":{"200":{"description":"Engine is ready."}}}}},"components":{"schemas":{"Ref":{"type":"object","additionalProperties":false,"required":["resource","id"],"properties":{"resource":{"type":"string","minLength":1},"id":{"type":"string","minLength":1}}},"BindingProblem":{"$ref":"./bim/v1/binding-problem.schema.json"},"BindingProblemRequest":{"type":"object","additionalProperties":false,"required":["apiVersion","kind","protocol","problem"],"properties":{"apiVersion":{"const":"bim/v1"},"kind":{"const":"BindingProblemRequest"},"protocol":{"const":"bim-engine/v1"},"problem":{"$ref":"#/components/schemas/BindingProblem"},"options":{"type":"object"}}},"BindingDecision":{"type":"object","additionalProperties":false,"required":["kind","binding"],"properties":{"kind":{"const":"binding"},"binding":{"type":"object","additionalProperties":{"$ref":"#/components/schemas/Ref"}}}},"Violation":{"type":"object","additionalProperties":false,"required":["constraint","enforcement","penalty"],"properties":{"constraint":{"$ref":"#/components/schemas/Ref"},"enforcement":{"type":"string","enum":["hard","soft"]},"penalty":{"type":"number","minimum":0},"message":{"type":"string"}}},"ObjectiveComponent":{"type":"object","additionalProperties":false,"required":["metric","value","loss","weight"],"properties":{"metric":{"$ref":"#/components/schemas/Ref"},"value":{"type":"number"},"loss":{"type":"number"},"weight":{"type":"number","exclusiveMinimum":0}}},"ObjectiveEvaluation":{"type":"object","additionalProperties":false,"required":["mode","components","penalty","score"],"properties":{"mode":{"type":"string","enum":["satisfy","weighted","lexicographic","pareto"]},"components":{"type":"array","items":{"$ref":"#/components/schemas/ObjectiveComponent"}},"penalty":{"type":"number","minimum":0},"score":{"oneOf":[{"type":"number"},{"type":"array","items":{"type":"number"}}]}}},"BindingSolution":{"type":"object","additionalProperties":false,"required":["decision","metrics","objectives","penalties","violations"],"properties":{"decision":{"$ref":"#/components/schemas/BindingDecision"},"metrics":{"type":"object","additionalProperties":{"type":"number"}},"objectives":{"$ref":"#/components/schemas/ObjectiveEvaluation"},"penalties":{"type":"array","items":{"type":"number","minimum":0}},"violations":{"type":"array","items":{"$ref":"#/components/schemas/Violation"}}}},"BindingResult":{"type":"object","additionalProperties":false,"required":["termination","solutions"],"properties":{"termination":{"type":"string","enum":["OPTIMAL","FEASIBLE","INFEASIBLE","UNKNOWN"]},"solutions":{"type":"array","items":{"$ref":"#/components/schemas/BindingSolution"}},"provenance":{"type":"object"}}}}}}
+  }
+}
