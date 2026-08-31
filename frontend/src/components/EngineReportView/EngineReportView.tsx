@@ -10,8 +10,8 @@ import './EngineReportView.css';
  * was simply overwritten. This shows it, and shows where the two differ.
  *
  * The framing matters: agreement is the ordinary case and is reported in one
- * line, while a disagreement is spelled out. An engine whose feasibility
- * disagrees with the reference has a bug in its constraint handling, and that
+ * line, while a disagreement is spelled out. An engine whose termination
+ * disagrees with the reference has a bug in its result handling, and that
  * sentence is worth more to whoever is building it than a table of numbers.
  */
 export function EngineReportView({ report }: { report?: EngineReport | null }) {
@@ -59,10 +59,10 @@ export function EngineReportView({ report }: { report?: EngineReport | null }) {
               <li key={i}>{note}</li>
             ))}
           </ul>
-          {divergence.feasibility_mismatches > 0 && (
+          {divergence.termination_mismatches > 0 && (
             <p className="divergence-hint">
-              A feasibility the reference evaluator rejects points at constraint handling
-              rather than at search quality.
+              A termination the reference evaluator rejects points at result-contract or
+              constraint handling rather than at search quality.
             </p>
           )}
           {divergence.max_objective_delta != null && (

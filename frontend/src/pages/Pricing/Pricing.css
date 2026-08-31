@@ -1,80 +1,98 @@
 .pricing-page {
-  padding: var(--space-10, 2.5rem) 0 var(--space-16, 4rem);
+  padding: clamp(2.5rem, 6vw, 6rem) 0 var(--space-24);
 }
 
-/* -- The opening ---------------------------------------------------------- */
+.pricing-page .container {
+  max-width: 1480px;
+}
 
 .pricing-hero {
-  max-width: 44rem;
-  margin: 0 auto var(--space-10, 2.5rem);
-  text-align: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(19rem, 0.75fr);
+  gap: var(--space-4) clamp(2rem, 8vw, 7rem);
+  align-items: end;
+  margin-bottom: var(--space-12);
+  padding-bottom: var(--space-8);
+  border-bottom: 1px solid var(--color-rule-strong);
 }
 
 .pricing-eyebrow {
-  display: inline-block;
-  margin-bottom: var(--space-3, 0.75rem);
-  padding: 0.2rem 0.7rem;
-  border-radius: var(--radius-full, 999px);
-  background: var(--color-accent-subtle, #ede9fe);
-  color: var(--color-accent, #7c3aed);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  display: inline-flex;
+  grid-column: 1;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  font-weight: 650;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
 }
 
+.pricing-eyebrow::before {
+  width: 1.4rem;
+  height: 1px;
+  content: "";
+  background: var(--color-accent);
+}
+
 .pricing-hero h1 {
-  margin: 0 0 var(--space-4, 1rem);
-  font-size: clamp(2rem, 4vw, 2.75rem);
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  grid-column: 1;
+  grid-row: 2 / span 2;
+  max-width: 12ch;
 }
 
-.pricing-hero p {
-  margin: 0;
-  color: var(--color-text-secondary, #52525b);
-  font-size: 1.05rem;
-  line-height: 1.6;
+.pricing-hero > p {
+  grid-column: 2;
+  grid-row: 2;
+  max-width: 40rem;
+  font-size: clamp(1rem, 1.5vw, 1.18rem);
 }
 
-/* Where the reader stands today: their plan, or an invitation. */
 .pricing-standing {
-  display: inline-flex;
+  display: flex;
+  grid-column: 2;
+  grid-row: 3;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2, 0.5rem);
-  margin-top: var(--space-5, 1.25rem);
-  padding: 0.4rem 0.9rem 0.4rem 0.6rem;
-  border: 1px solid var(--color-border, #e4e4e7);
-  border-radius: var(--radius-full, 999px);
-  background: var(--color-bg-secondary, #f8f9fa);
-  font-size: 0.875rem;
-  color: var(--color-text-secondary, #52525b);
+  gap: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
 }
 
-.pricing-standing strong {
-  color: var(--color-text-primary, #18181b);
+.pricing-standing .pricing-eyebrow {
+  padding: 0.18rem 0.4rem;
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent-ink);
+  font-size: 0.56rem;
 }
 
-/* -- The renderer --------------------------------------------------------- */
+.pricing-standing .pricing-eyebrow::before {
+  display: none;
+}
 
-/*
- * The renderer ships its own palette. Mapping its variables onto OpenBinding's
- * tokens is what stops the plans reading as a third-party widget dropped into
- * the page: same accent, same surfaces, same corners, and it follows the theme
- * toggle because the tokens do.
- *
- * Only the colour and shape variables are remapped. Spacing and type scale are
- * left to the renderer, which sizes them against its own container and knows
- * more about its layout than this file does.
- */
+.pricing-standing a {
+  color: var(--color-accent);
+  font-weight: 650;
+}
+
+.pricing-page > .container > .alert {
+  max-width: 74rem;
+  margin: 0 auto var(--space-5);
+}
+
 .pricing-renderer-shell {
-  max-width: 60rem;
-  margin: 0 auto var(--space-12, 3rem);
+  max-width: 74rem;
+  margin: 0 auto clamp(6rem, 10vw, 9rem);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-rule-strong);
 }
 
 .pricing-renderer-shell pricing-renderer[data-pr-root] {
   display: block;
-
   --pr-color-text: var(--color-text-primary);
   --pr-color-muted: var(--color-text-secondary);
   --pr-color-surface: var(--color-bg-primary);
@@ -87,195 +105,159 @@
   --pr-color-focus: var(--color-accent);
   --pr-color-success: var(--color-success);
   --pr-color-warning: var(--color-warning);
-
-  --pr-radius-sm: var(--radius-md);
-  --pr-radius-md: var(--radius-lg);
-  --pr-radius-lg: var(--radius-xl);
-
-  --pr-shadow-sm: var(--shadow-sm);
-  --pr-shadow-lg: var(--shadow-lg);
+  --pr-radius-sm: var(--radius-sm);
+  --pr-radius-md: var(--radius-md);
+  --pr-radius-lg: var(--radius-md);
+  --pr-shadow-sm: none;
+  --pr-shadow-lg: none;
 }
 
-/*
- * The renderer reports a diagnostic for this document: it declares Pricing2Yaml
- * 3.0, and the renderer supports 3.1, so it says it is rendering the compatible
- * subset. Accurate and harmless - see the comment on syntaxVersion in
- * space/pricing/openbinding.yml - but it is a note for whoever maintains the
- * pricing, not for somebody choosing a plan. Hidden here rather than at the
- * source, so it still surfaces anywhere else the renderer is used.
- */
-.pricing-page [data-pr-part='diagnostics'] {
-  display: none;
-}
-
-/*
- * The renderer opens with its own title, tagline and tag list. Useful when it
- * stands alone; here it is the third heading in a row, restating what the page
- * heading above it just said and naming the document rather than the product.
- * The page keeps one opening, and the renderer gets on with the plans.
- */
-.pricing-renderer-shell [data-pr-part='hero'] {
-  display: none;
-}
-
-/* Its "Plans" section label is redundant for the same reason: the cards are
-   plainly the plans, and the page heading has already said so. The comparison
-   table's own headings stay, because those distinguish one section from
-   another rather than restating the page. */
+.pricing-page [data-pr-part='diagnostics'],
+.pricing-renderer-shell [data-pr-part='hero'],
 .pricing-renderer-shell [data-pr-part='plans'] > .pr-section__heading {
   display: none;
 }
 
-/*
- * Cards at their natural 320px leave two plans stranded in the middle of a
- * 960px column with 150px of nothing on either side. Letting them share the
- * width reads as a pair being compared, which is what they are. Capped so a
- * future third plan still fits, and it falls back to the renderer's own
- * wrapping below that.
- */
 .pricing-renderer-shell .pr-plan-grid {
   grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
-  gap: var(--space-5, 1.25rem);
+  gap: var(--space-4);
 }
 
-/*
- * On a plan card, every included feature was saying it twice: a tick at the
- * start of the row and "✓ Included" at the end of it. The row already means
- * "included" - what earns its place on the right is a *number*, which is why
- * the numeric values stay and only the tautology goes.
- *
- * Scoped to the cards' own list, and that scope is the whole point: in the
- * comparison table there is no tick at the start of the row, so the value *is*
- * the indicator. Hiding it there left columns of blank cells.
- */
 .pricing-renderer-shell .pr-highlight-list .pr-value--included {
   display: none;
 }
 
 .pricing-renderer-shell .pr-highlight-list__value .pr-value {
-  font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
-  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
 }
 
-/*
- * The comparison is the dense part, so it gets the most help: figures line up,
- * and the row a reader is on is easy to keep hold of while their eye travels
- * across plans.
- *
- * Targeted at `comparison-row` rather than at table elements, because the
- * comparison is not a table - it is an article per feature with a description
- * list inside, which is why an earlier attempt at `tbody tr:hover` did nothing
- * at all.
- */
 .pricing-renderer-shell [data-pr-part='comparison-row'] {
   font-variant-numeric: tabular-nums;
-  transition: background-color 120ms ease;
+  transition: background-color var(--transition-fast);
 }
 
-.pricing-renderer-shell [data-pr-part='comparison-row']:hover {
-  background: var(--color-bg-secondary);
+@media (hover: hover) and (pointer: fine) {
+  .pricing-renderer-shell [data-pr-part='comparison-row']:hover {
+    background: var(--color-bg-secondary);
+  }
 }
 
-/* -- How the limits behave ------------------------------------------------ */
-
-/*
- * The part a table of numbers cannot say: what actually happens when you reach
- * one. Three outcomes, because there are exactly three.
- */
 .pricing-behaviour {
-  max-width: 60rem;
+  max-width: 74rem;
   margin: 0 auto;
 }
 
-.pricing-behaviour h2 {
-  margin: 0 0 var(--space-2, 0.5rem);
-  font-size: 1.375rem;
-  letter-spacing: -0.01em;
+.pricing-behaviour > h2,
+.pricing-behaviour > p {
+  max-width: 44rem;
+}
+
+.pricing-behaviour > h2 {
+  margin-bottom: var(--space-4);
+  font-size: clamp(2rem, 4vw, 3.6rem);
 }
 
 .pricing-behaviour > p {
-  margin: 0 0 var(--space-6, 1.5rem);
-  color: var(--color-text-secondary, #52525b);
-  max-width: 60rem;
+  margin-bottom: var(--space-8);
+  font-size: 0.92rem;
 }
 
 .pricing-outcomes {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  gap: var(--space-4, 1rem);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--color-rule-strong);
 }
 
 .pricing-outcome {
-  padding: var(--space-5, 1.25rem);
-  border: 1px solid var(--color-border, #e4e4e7);
-  border-radius: var(--radius-lg, 0.5rem);
-  background: var(--color-bg-elevated, #fff);
+  min-height: 19rem;
+  padding: var(--space-6);
+  border-right: 1px solid var(--color-border);
+}
+
+.pricing-outcome:last-child {
+  border-right: 0;
 }
 
 .pricing-outcome-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  margin-bottom: var(--space-3, 0.75rem);
-  border-radius: var(--radius-md, 0.375rem);
-  font-size: 0.9rem;
+  display: block;
+  margin-bottom: var(--space-10);
+  color: var(--color-dialect);
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
   font-weight: 700;
 }
 
-.pricing-outcome-reduce .pricing-outcome-mark {
-  background: var(--color-info-bg, #dbeafe);
-  color: var(--color-info-text, #1e40af);
-}
-
 .pricing-outcome-wait .pricing-outcome-mark {
-  background: var(--color-warning-bg, #fef3c7);
-  color: var(--color-warning-text, #92400e);
+  color: var(--color-warning);
 }
 
 .pricing-outcome-refuse .pricing-outcome-mark {
-  background: var(--color-error-bg, #fee2e2);
-  color: var(--color-error-text, #991b1b);
+  color: var(--color-error);
 }
 
 .pricing-outcome h3 {
-  margin: 0 0 var(--space-2, 0.5rem);
-  font-size: 1rem;
+  max-width: 15ch;
+  margin-bottom: var(--space-3);
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
 }
 
 .pricing-outcome p {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.55;
-  color: var(--color-text-secondary, #52525b);
-}
-
-.pricing-outcome code {
-  font-size: 0.825rem;
-  padding: 0.05rem 0.3rem;
-  border-radius: var(--radius-sm, 0.25rem);
-  background: var(--color-bg-tertiary, #f1f3f5);
+  font-size: 0.76rem;
+  line-height: 1.65;
 }
 
 .pricing-footnote {
-  max-width: 60rem;
-  margin: var(--space-8, 2rem) auto 0;
-  padding-top: var(--space-5, 1.25rem);
-  border-top: 1px solid var(--color-border, #e4e4e7);
-  font-size: 0.875rem;
-  line-height: 1.6;
-  color: var(--color-text-secondary, #52525b);
+  max-width: 58rem;
+  margin-top: var(--space-8);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-tertiary);
+  font-size: 0.72rem;
 }
 
 .pricing-footnote a {
-  color: var(--color-accent, #7c3aed);
+  color: var(--color-accent);
 }
 
 .pricing-loading {
-  min-height: 24rem;
   display: grid;
+  min-height: 24rem;
   place-items: center;
-  color: var(--color-text-tertiary, #a1a1aa);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+@media (max-width: 800px) {
+  .pricing-hero,
+  .pricing-outcomes {
+    grid-template-columns: 1fr;
+  }
+
+  .pricing-hero h1 {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .pricing-hero > p,
+  .pricing-standing {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .pricing-outcome {
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .pricing-outcome:last-child {
+    border-bottom: 0;
+  }
+
+  .pricing-outcome-mark {
+    margin-bottom: var(--space-6);
+  }
 }

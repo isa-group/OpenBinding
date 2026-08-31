@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/auth';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
@@ -24,7 +24,7 @@ export function Login() {
       await signIn(identifier, password);
       // Back to whatever they were trying to reach, or the account page.
       const from = (location.state as { from?: string } | null)?.from;
-      navigate(from ?? '/account', { replace: true });
+      navigate(from ?? '/account', { replace: true, viewTransition: true });
     } catch {
       // The gateway answers the same way for a wrong password and an account
       // that does not exist, and so does this: saying which would tell an
@@ -39,6 +39,7 @@ export function Login() {
     <div className="auth-page">
       <Card padding="lg" className="auth-card">
         <div className="auth-header">
+          <span className="auth-kicker">Gateway access</span>
           <h1>Sign in</h1>
           <p>Solving needs an account. Analysing and browsing the schemas do not.</p>
         </div>
@@ -50,7 +51,10 @@ export function Login() {
             <label htmlFor="identifier">Username or email</label>
             <input
               id="identifier"
+              name="identifier"
               autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               required
@@ -61,6 +65,7 @@ export function Login() {
             <label htmlFor="password">Password</label>
             <input
               id="password"
+              name="password"
               type="password"
               autoComplete="current-password"
               value={password}
@@ -70,12 +75,12 @@ export function Login() {
           </div>
 
           <Button type="submit" disabled={busy}>
-            {busy ? 'Signing in...' : 'Sign in'}
+            {busy ? 'Signing in…' : 'Sign in'}
           </Button>
         </form>
 
         <p className="auth-footer">
-          No account? <Link to="/register">Create one</Link>.
+          No account? <Link to="/register" viewTransition>Create one</Link>.
         </p>
       </Card>
     </div>

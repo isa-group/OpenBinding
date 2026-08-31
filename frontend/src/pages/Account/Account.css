@@ -1,196 +1,425 @@
 .account-page {
-  padding: var(--space-8, 2rem) 0;
+  padding: clamp(2.5rem, 6vw, 6rem) 0 var(--space-24);
+}
+
+.account-page .container {
+  max-width: 1480px;
+}
+
+.account-page .page-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(19rem, 0.75fr);
+  gap: clamp(2rem, 8vw, 7rem);
+  align-items: end;
+  margin-bottom: var(--space-10);
+  padding-bottom: var(--space-8);
+  border-bottom: 1px solid var(--color-rule-strong);
+}
+
+.account-kicker {
+  grid-column: 1 / -1;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  font-weight: 650;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.account-kicker::before {
+  display: inline-block;
+  width: 1.4rem;
+  height: 1px;
+  margin-right: var(--space-2);
+  content: "";
+  background: var(--color-accent);
+  vertical-align: middle;
+}
+
+.account-page .page-header h1 {
+  max-width: 10ch;
+}
+
+.account-page .page-description {
+  max-width: 38rem;
+  font-size: clamp(1rem, 1.5vw, 1.18rem);
+}
+
+.account-page > .container > .alert {
+  margin-bottom: var(--space-5);
 }
 
 .account-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
-  gap: var(--space-6, 1.5rem);
-  margin-bottom: var(--space-6, 1.5rem);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: var(--space-10);
+  border-block: 1px solid var(--color-rule-strong);
+}
+
+.account-grid > .card {
+  min-width: 0;
+  padding: var(--space-8);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.account-grid > .card + .card {
+  border-left: 1px solid var(--color-border);
 }
 
 .account-page h2 {
-  margin: 0 0 var(--space-4, 1rem);
-  font-size: 1.125rem;
+  margin-bottom: var(--space-6);
+  font-size: clamp(1.45rem, 2.2vw, 2rem);
 }
 
 .account-subheading {
-  margin: var(--space-6, 1.5rem) 0 var(--space-3, 0.75rem);
-  font-size: 0.875rem;
-  font-weight: 600;
+  margin: var(--space-8) 0 var(--space-3);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.63rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-secondary, #666);
 }
 
 .account-facts {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.5rem 1rem;
-  margin: 0 0 var(--space-4, 1rem);
-  font-size: 0.9rem;
+  grid-template-columns: minmax(8rem, 0.65fr) minmax(0, 1.35fr);
+  gap: 0;
+  margin: 0 0 var(--space-5);
+  border-top: 1px solid var(--color-border);
+  font-size: 0.82rem;
+}
+
+.account-facts dt,
+.account-facts dd {
+  min-width: 0;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .account-facts dt {
-  color: var(--color-text-secondary, #666);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
 }
 
 .account-facts dd {
-  margin: 0;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .account-caps dd {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
 .account-quotas {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4, 1rem);
+  gap: var(--space-4);
 }
 
-.account-note {
-  margin: var(--space-3, 0.75rem) 0;
-  font-size: 0.8125rem;
-  color: var(--color-text-secondary, #666);
+.account-note,
+.account-empty {
+  max-width: 58rem;
+  color: var(--color-text-tertiary);
+  font-size: 0.76rem;
+  line-height: 1.6;
 }
 
 .account-pending {
-  font-size: 0.8125rem;
-  color: #d97706;
+  color: var(--color-warning-text);
+  font-size: 0.73rem;
+}
+
+.account-keys,
+.account-history {
+  overflow-x: auto;
+  margin-top: var(--space-10);
+  padding: var(--space-8) 0 0;
+  border: 0;
+  border-top: 1px solid var(--color-rule-strong);
+  border-radius: 0;
+  background: transparent;
 }
 
 .account-key-form {
-  display: flex;
-  gap: var(--space-2, 0.5rem);
-  margin: var(--space-4, 1rem) 0;
+  display: grid;
+  max-width: 74rem;
+  gap: var(--space-5);
+  margin: var(--space-6) 0;
 }
 
-.account-key-form input {
-  flex: 1;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border, #d0d0d0);
-  border-radius: var(--radius-md, 6px);
-  background: var(--color-bg, #fff);
-  color: var(--color-text, #111);
-  font-size: 0.9rem;
+.account-key-name {
+  display: grid;
+  max-width: 40rem;
+  gap: var(--space-2);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+}
+
+.account-key-name input {
+  min-width: 12rem;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+  text-transform: none;
+}
+
+.account-permission-groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-block: 1px solid var(--color-border);
+}
+
+.account-permission-group,
+.account-engine-access {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-4);
+  border: 0;
+}
+
+.account-permission-group + .account-permission-group {
+  border-left: 1px solid var(--color-border);
+}
+
+.account-permission-group legend,
+.account-engine-access legend {
+  padding: 0;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.61rem;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.account-permission-option,
+.account-radio-option,
+.account-engine-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  cursor: pointer;
+}
+
+.account-permission-option + .account-permission-option,
+.account-engine-option + .account-engine-option {
+  border-top: 1px solid var(--color-border);
+}
+
+.account-permission-option input,
+.account-radio-option input,
+.account-engine-option input {
+  flex: 0 0 auto;
+  margin-top: 0.18rem;
+}
+
+.account-permission-option span,
+.account-radio-option span,
+.account-engine-option span {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.account-permission-option strong,
+.account-radio-option strong,
+.account-engine-option strong {
+  color: var(--color-text-primary);
+  font-size: 0.76rem;
+}
+
+.account-permission-option small,
+.account-radio-option small,
+.account-engine-option code {
+  color: var(--color-text-tertiary);
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+
+.account-engine-access {
+  max-width: 52rem;
+  padding-inline: 0;
+}
+
+.account-engine-list {
+  max-height: 18rem;
+  overflow: auto;
+  margin-top: var(--space-3);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+
+.account-key-submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 52rem;
+  gap: var(--space-4);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
 }
 
 .account-secret {
   display: block;
-  margin: var(--space-2, 0.5rem) 0;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-md, 6px);
-  background: var(--color-bg-secondary, #f4f4f5);
-  font-family: var(--font-mono, monospace);
-  font-size: 0.8125rem;
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
   word-break: break-all;
   user-select: all;
 }
 
 .account-table {
   width: 100%;
+  min-width: 64rem;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  border-top: 1px solid var(--color-rule-strong);
+  font-size: 0.78rem;
 }
 
 .account-table th,
 .account-table td {
-  padding: 0.5rem 0.75rem;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
   text-align: left;
-  border-bottom: 1px solid var(--color-border, #e4e4e7);
+  vertical-align: middle;
 }
 
 .account-table th {
-  font-weight: 600;
-  color: var(--color-text-secondary, #666);
-  font-size: 0.8125rem;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.59rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .account-table code {
-  font-size: 0.8125rem;
+  font-size: 0.65rem;
 }
 
-.account-empty {
-  color: var(--color-text-secondary, #666);
-  font-size: 0.9rem;
+.account-key-grants {
+  display: flex;
+  max-width: 24rem;
+  flex-wrap: wrap;
+  gap: var(--space-1);
 }
 
-/* Tables are the one thing here that cannot simply reflow. */
-@media (max-width: 40rem) {
-  .account-keys {
-    overflow-x: auto;
-  }
+.account-key-grants code {
+  padding: 0.18rem 0.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
 }
 
-/* -- What this account has asked for -------------------------------------- */
-
-.account-history {
-  margin-top: var(--space-6);
-}
-
-.account-history h2 {
-  margin: 0 0 var(--space-2);
-  font-size: 1.25rem;
-}
-
-/* A finished solve, opened in place under its history row. */
 .account-actions {
   display: flex;
-  gap: var(--space-2, 0.5rem);
   justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 .account-solution-row td {
-  background: var(--color-surface-subtle, #fafafa);
+  padding: var(--space-5);
+  background: var(--color-bg-secondary);
 }
 
 .account-solution-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3, 0.75rem);
-  flex-wrap: wrap;
-  margin-bottom: var(--space-2, 0.5rem);
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .account-solution-objective {
-  margin-left: var(--space-2, 0.5rem);
-  font-size: 0.875rem;
-  color: var(--color-text-secondary, #666);
+  margin-left: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
 }
 
 .account-solution-features {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3, 0.75rem);
-  margin: 0 0 var(--space-3, 0.75rem);
-  font-size: 0.8125rem;
-  color: var(--color-text-secondary, #666);
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
 }
 
-/* A binding can be long, so it scrolls rather than stretching the page. */
 .account-binding {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8125rem;
   display: block;
+  width: 100%;
   max-height: 18rem;
-  overflow-y: auto;
+  overflow: auto;
+  border-collapse: collapse;
+  font-size: 0.72rem;
 }
 
 .account-binding th,
 .account-binding td {
-  padding: 0.375rem 0.75rem;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
   text-align: left;
-  border-bottom: 1px solid var(--color-border, #e4e4e7);
 }
 
 .account-binding th {
-  font-weight: 600;
-  color: var(--color-text-secondary, #666);
   position: sticky;
   top: 0;
-  background: var(--color-surface-subtle, #fafafa);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  text-transform: uppercase;
+}
+
+@media (max-width: 840px) {
+  .account-page .page-header,
+  .account-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-grid > .card {
+    padding-inline: 0;
+  }
+
+  .account-grid > .card + .card {
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+
+  .account-permission-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .account-permission-group + .account-permission-group {
+    border-top: 1px solid var(--color-border);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .account-key-name input {
+    min-width: 0;
+  }
+
+  .account-key-submit {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }

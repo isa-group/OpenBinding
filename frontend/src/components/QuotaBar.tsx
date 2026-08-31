@@ -1,4 +1,5 @@
 import type { LimitUsage } from '../api/auth';
+import { LIMIT_LABELS, MONTHLY_LIMITS } from './quota';
 import './QuotaBar.css';
 
 /**
@@ -9,22 +10,6 @@ import './QuotaBar.css';
  * never consumed, so drawing them as "0 of 300 used" would say something
  * untrue about them.
  */
-const LIMIT_LABELS: Record<string, string> = {
-  tasksLimit: 'Solve jobs',
-  solverTimeLimit: 'Solver time',
-  federatedTasksLimit: 'Federated solve jobs',
-  concurrentTasksLimit: 'Running at once',
-  federatedEnginesLimit: 'Registered engines',
-  apiKeysLimit: 'API keys',
-};
-
-const MONTHLY = new Set(['tasksLimit', 'solverTimeLimit', 'federatedTasksLimit']);
-
-/** Whether a limit is something that gets spent, rather than a ceiling. */
-export function isBalance(limitId: string): boolean {
-  return limitId in LIMIT_LABELS;
-}
-
 function formatAmount(limitId: string, value: number): string {
   if (limitId !== 'solverTimeLimit') {
     return value.toLocaleString();
@@ -63,7 +48,7 @@ export function QuotaBar({ limit }: { limit: LimitUsage }) {
         <span className="quota-label">{label}</span>
         <span className="quota-figures">
           {formatAmount(limit.limit_id, limit.used)} / {formatAmount(limit.limit_id, limit.limit)}
-          {MONTHLY.has(limit.limit_id) && <span className="quota-period"> this month</span>}
+          {MONTHLY_LIMITS.has(limit.limit_id) && <span className="quota-period"> this month</span>}
         </span>
       </div>
 
@@ -75,7 +60,7 @@ export function QuotaBar({ limit }: { limit: LimitUsage }) {
         aria-valuemin={0}
         aria-valuemax={limit.limit}
       >
-        <div className={`quota-fill quota-fill-${state}`} style={{ width: `${percent}%` }} />
+        <div className={`quota-fill quota-fill-${state}`} style={{ transform: `scaleX(${percent / 100})` }} />
       </div>
 
       {renewal && (

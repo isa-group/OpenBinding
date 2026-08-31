@@ -2,7 +2,8 @@
   display: flex;
   gap: var(--space-3);
   padding: var(--space-4);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
+  border-left-width: 3px;
   border: 1px solid;
   position: relative;
 }
@@ -24,7 +25,7 @@
 }
 
 .alert-title {
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: var(--space-1);
 }
 

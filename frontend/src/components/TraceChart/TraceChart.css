@@ -27,7 +27,7 @@
   color: var(--color-text-secondary);
   border: none;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .trace-mode-button + .trace-mode-button {

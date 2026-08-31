@@ -4,6 +4,7 @@ import type {
   AdminUserPage,
   AdminUserView,
   ApiKeySummary,
+  CreateApiKeyRequest,
   CreatedApiKey,
   PlanName,
   RoleName,
@@ -14,11 +15,13 @@ import type {
 } from './auth';
 
 /** One solve in an account's history. */
+export type Termination = 'OPTIMAL' | 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN';
+
 export interface JobSummary {
   id: string;
   engine_id: string;
   status: 'queued' | 'running' | 'completed' | 'failed';
-  feasibility?: 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN' | null;
+  termination?: Termination | null;
   solutions?: number | null;
   created_at: string;
   finished_at?: string | null;
@@ -31,86 +34,241 @@ export interface JobHistory {
   retention_days: number;
 }
 
-/** What a job was asked to solve, so a past solve can be run again. */
-export interface JobRequest {
-  job_id: string;
-  engine_id: string;
-  instance: any;
-  options: Record<string, unknown>;
-  submitted_at?: string | null;
+export interface BimResourceRef {
+  namespace: string;
+  name: string;
+  version: string;
+  digest: string;
 }
 
-export interface Engine {
+export interface BimMetadata {
+  namespace: string;
+  name: string;
+  version: string;
+  description?: string;
+  labels?: Record<string, string>;
+  annotations?: Record<string, unknown>;
+}
+
+export interface BimAdapter {
   id: string;
-  capabilities: any;
-  active?: boolean;
-  /** Whether somebody registered this engine rather than it shipping here. */
-  federated?: boolean;
-  owner?: string;
-  visibility?: 'private' | 'pending_review' | 'public';
-  status?: 'draft' | 'verifying' | 'active' | 'failed' | 'disabled';
-  verified_at?: string | null;
+  version: string;
+  binaryDigest: string;
 }
 
-/** One thing wrong with a registration, and which manifest field to change. */
-export interface ConformanceFinding {
-  code: string;
-  message: string;
-  field?: string | null;
+export interface BimProfileResourceType {
+  apiVersion: string;
+  kind: string;
+  minimum: number;
+  maximum?: number;
 }
 
-export interface ConformanceReport {
-  passed: boolean;
-  findings: ConformanceFinding[];
-  steps: string[];
+export interface BimProfileRole {
+  resourceTypes: BimProfileResourceType[];
+  extensionTypes: 'none' | 'installed';
 }
 
-/** A registration as its owner sees it. Never carries the credential. */
-export interface RegisteredEngine {
+export interface BimProfileOutput {
+  apiVersion: string;
+  kind: string;
+  schemaDigest: string;
+  engineProtocol: string;
+}
+
+export interface BimCapabilityDimension {
+  values: string[];
+  openValues: boolean;
+}
+
+/** One Profile that is backed by an adapter installed in this gateway. */
+export interface BimProfile {
+  apiVersion: 'bim/v1';
+  kind: 'Profile';
+  metadata: BimMetadata;
+  spec: {
+    deterministic: boolean;
+    roles: Record<string, BimProfileRole>;
+    output: BimProfileOutput;
+    capabilityVocabulary: { dimensions: Record<string, BimCapabilityDimension> };
+    limitVocabulary: string[];
+    adapter: BimAdapter;
+    extensions?: Record<string, unknown>;
+  };
   id: string;
-  engine_id: string;
-  display_name: string;
-  owner: string;
-  visibility: 'private' | 'pending_review' | 'public';
-  status: 'draft' | 'verifying' | 'active' | 'failed' | 'disabled';
-  verified_at?: string | null;
-  health_failures: number;
-  manifest: Record<string, any>;
-  conformance_report?: ConformanceReport | null;
-  has_credential: boolean;
-  created_at: string;
-  updated_at: string;
+  digest: string;
+  output: BimProfileOutput;
+  protocol: string;
+  protocolDigest: string;
 }
 
-/**
- * What the gateway made of somebody's OpenAPI document.
- *
- * `notes` is why each guess was made and `unresolved` is what the document
- * could not answer - both are meant to be read, which is the difference
- * between a proposal and a black box.
- */
-export interface ManifestDraft {
-  manifest: Record<string, any>;
-  notes: string[];
-  unresolved: string[];
-  ready: boolean;
+export interface BimDialectResourceType {
+  apiVersion: string;
+  kind: string;
+  roles: string[];
+  mediaType: string;
+  schemaDigest: string;
+  xmlRoot?: { namespace: string; localName: string };
 }
 
-export type EngineDefaultOptions = Record<string, unknown>;
+export interface BimDialectExtensionPoint {
+  target: { apiVersion: string; kind: string };
+  pointer: string;
+  schemaDigest: string;
+}
+
+export interface BimIrFeature {
+  dimension: string;
+  value: string;
+}
+
+/** One independently versioned source Dialect installed in this gateway. */
+export interface BimDialect {
+  apiVersion: 'bim/v1';
+  kind: 'Dialect';
+  metadata: BimMetadata;
+  spec: {
+    compatibleProfiles: string[];
+    resourceTypes: BimDialectResourceType[];
+    extensionPoints: BimDialectExtensionPoint[];
+    irFeatures: BimIrFeature[];
+    adapter: BimAdapter;
+    extensions?: Record<string, unknown>;
+  };
+  digest: string;
+}
+
+export interface CapabilitySelector {
+  selector: 'none' | 'all' | 'only';
+  values?: string[];
+}
+
+export interface EngineCapabilities {
+  workflowNodes: CapabilitySelector;
+  metricScopes: CapabilitySelector;
+  aggregations: CapabilitySelector;
+  constraints: CapabilitySelector;
+  optimization: CapabilitySelector;
+  objectiveTypes: CapabilitySelector;
+  expressions: CapabilitySelector;
+  placement: CapabilitySelector;
+  irExtensions: CapabilitySelector;
+}
+
+export interface EngineMode {
+  id: string;
+  profile: string;
+  ir: { apiVersion: string; kind: string };
+  algorithm: string;
+  capabilities: EngineCapabilities;
+  optionsSchema: {
+    type: 'object';
+    properties: Record<string, Record<string, unknown>>;
+    required?: string[];
+    additionalProperties: false;
+  };
+  limits: Record<string, number>;
+  guarantees: { termination: Termination[]; exact: boolean; [key: string]: unknown };
+}
+
+/** One immutable Engine revision advertised by the BIM v1 catalogue. */
+export interface EngineCatalogEntry extends BimResourceRef {
+  id: string;
+  ref: BimResourceRef;
+  modes: EngineMode[];
+}
+
+export interface EngineManifest {
+  apiVersion: 'bim/v1';
+  kind: 'Engine';
+  metadata: BimMetadata;
+  spec: {
+    modes: EngineMode[];
+    extensions?: Record<string, unknown>;
+  };
+}
+
+export interface EngineRegistrationManifest {
+  apiVersion: 'bim/v1';
+  kind: 'EngineRegistration';
+  metadata: BimMetadata;
+  spec: {
+    engine: BimResourceRef;
+    endpoint: string;
+    protocol: {
+      id: 'bim-engine/v1';
+      mediaType: 'application/json';
+      digest: string;
+    };
+    mappings: {
+      request: string;
+      job?: string;
+      health: string;
+      openapi: string;
+    };
+    auth: { scheme: 'none' | 'bearer' | 'basic' };
+    /** Exact OpenAPI 3.1 document served by the deployment and pinned for review. */
+    openapi: Record<string, unknown>;
+    extensions?: Record<string, unknown>;
+  };
+}
+
+export type EngineRevisionState = 'private' | 'published';
+export type EngineRegistrationState = 'private' | 'pending_review' | 'published' | 'rejected';
+
+/** Identity and lifecycle state returned after publishing an immutable Engine. */
+export interface EngineRevision extends BimResourceRef {
+  status: EngineRevisionState;
+}
+
+/** Identity and lifecycle state of an immutable EngineRegistration revision. */
+export interface EngineRegistrationRevision extends BimResourceRef {
+  status: EngineRegistrationState;
+  /** Whether this deployment is enabled for its owner's account. */
+  active: boolean;
+}
+
+export interface EngineRegistrationReport extends EngineRegistrationRevision {
+  openapiDigest: string | null;
+  openapi: Record<string, unknown> | null;
+  engine: EngineManifest | null;
+  report: Record<string, unknown> | null;
+}
+
+export const BIM_SCHEMA_KINDS = [
+  'Instance',
+  'Profile',
+  'Application',
+  'CandidateCatalog',
+  'ConstraintSet',
+  'Optimization',
+  'Placement',
+  'RoutingOverlay',
+  'BindingProblem',
+  'Engine',
+  'Dialect',
+  'EngineRegistration',
+  'engine-contract',
+] as const;
+
+export type BimSchemaKind = (typeof BIM_SCHEMA_KINDS)[number];
+
+export function bimResourceKey(ref: BimResourceRef): string {
+  return `${ref.namespace}/${ref.name}@${ref.version}#${ref.digest}`;
+}
 
 export interface ValidationViolation {
   code: string;
   message: string;
   path?: string;
   constraint_id?: string;
-  details?: any;
+  details?: unknown;
   stage?: number;
 }
 
 export interface Warning {
   code: string;
   message: string;
-  details?: any;
+  details?: unknown;
 }
 
 export interface ValidationError {
@@ -122,7 +280,7 @@ export interface ValidationError {
 /** Where an engine's own account of its answer differs from the canonical one. */
 export interface EngineDivergence {
   solutions_compared: number;
-  feasibility_mismatches: number;
+  termination_mismatches: number;
   max_objective_delta?: number | null;
   notes: string[];
   agrees: boolean;
@@ -138,63 +296,54 @@ export interface EngineReport {
 }
 
 export interface JobStatus {
-  job_id: string;
+  id: string;
   status: 'queued' | 'running' | 'completed' | 'failed';
+  provenance?: Record<string, unknown>;
   result?: {
-    feasibility?: 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN';
-    solutions?: Array<Record<string, unknown>>;
+    termination: Termination;
+    solutions: Array<{
+      decision: {
+        kind: 'binding';
+        binding: Record<string, { resource: string; id: string }>;
+      };
+      metrics: Record<string, number>;
+      objectives: {
+        mode: 'satisfy' | 'weighted' | 'lexicographic' | 'pareto';
+        components: Array<Record<string, unknown>>;
+        penalty: number;
+        score: number | number[];
+      };
+      penalties: number[];
+      violations: Array<Record<string, unknown>>;
+    }>;
     provenance?: Record<string, unknown>;
-    diagnostics?: Record<string, unknown>;
-    engine_report?: EngineReport | null;
+    error?: string;
   };
+}
+
+export interface BimAnalysisResponse extends Record<string, unknown> {
+  valid: boolean;
+  diagnostics?: Array<Record<string, unknown>>;
+  compatibleModes?: BimCompatibleMode[];
+}
+
+export interface BimCompatibleMode {
+  engine: BimResourceRef;
+  registration: BimResourceRef;
+  mode: string;
+  compatible: boolean;
+  diagnostics?: Array<Record<string, unknown>>;
+}
+
+export interface V1JobStatus extends JobStatus {
   error?: string;
-}
-
-export interface SolveRequest {
-  engine_id: string;
-  instance: any;
-  options?: any;
-  verbose?: boolean;
-  /**
-   * Also return what the engine itself reported, before the reference
-   * evaluator recomputed it, plus a summary of where the two disagree.
-   * Independent of `verbose`: different purpose, different size.
-   */
-  include_engine_report?: boolean;
-}
-
-export interface AnalyzeRequest {
-  engine_id: string;
-  instance: any;
-  options?: any;
-  verbose?: boolean;
-}
-
-/**
- * An instance taken apart, one entry per component of I' = (M_A, M'_C, Delta, O),
- * plus which model each part belongs to.
- */
-export interface InstanceParts {
-  parts: Record<string, any>;
-  groups: Record<string, string[]>;
-}
-
-export interface BindingSpaceRequest {
-  engine_id: string;
-  instance: any;
-  offset?: number;
-  limit?: number;
-}
-
-export interface BindingSpacePage {
-  total_combinations: string;
-  offset: number;
-  limit: number;
-  bindings: Array<Record<string, string>>;
 }
 
 export class HttpError extends Error {
   status: number;
+  code?: string;
+  problem?: unknown;
+  diagnostics?: unknown[];
 
   constructor(status: number, statusText: string) {
     super(`HTTP ${status}: ${statusText}`);
@@ -213,7 +362,31 @@ const REFRESH_TOKEN_KEY = 'openbinding-refresh-token';
  */
 export const SESSION_ENDED_EVENT = 'openbinding:session-ended';
 
-class ApiClient {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isAbortError(error: unknown): boolean {
+  return isRecord(error) && error.name === 'AbortError';
+}
+
+function quotaFromProblem(value: unknown): NonNullable<QuotaError['quota']> | undefined {
+  if (!isRecord(value) || typeof value.limit_id !== 'string' || typeof value.limit !== 'number') {
+    return undefined;
+  }
+  return {
+    limit_id: value.limit_id,
+    limit: value.limit,
+    ...(typeof value.used === 'number' ? { used: value.used } : {}),
+    ...(typeof value.actual === 'number' ? { actual: value.actual } : {}),
+    ...(typeof value.unit === 'string' ? { unit: value.unit } : {}),
+    ...(typeof value.renews_at === 'string' || value.renews_at === null
+      ? { renews_at: value.renews_at }
+      : {}),
+  };
+}
+
+export class ApiClient {
   private baseUrl: string;
   /** In flight refresh, so that ten simultaneous 401s cause one refresh. */
   private refreshing: Promise<boolean> | null = null;
@@ -289,26 +462,35 @@ class ApiClient {
    * offering an upgrade for and only one is worth retrying.
    */
   private async errorFor(response: Response): Promise<Error> {
-    let detail: any = null;
+    let problem: unknown = null;
     try {
-      detail = (await response.json())?.detail;
+      problem = await response.json();
     } catch {
       /* not JSON; fall through to the status-only error */
     }
 
-    const code = typeof detail === 'object' ? detail?.code : undefined;
+    const problemObject = isRecord(problem) ? problem : undefined;
+    const rawDetail = problemObject?.detail;
+    const detail = isRecord(rawDetail) ? rawDetail : undefined;
+    const code = typeof detail?.code === 'string' ? detail.code : undefined;
     const message =
-      (typeof detail === 'object' ? detail?.error : undefined) ??
-      (typeof detail === 'string' ? detail : undefined) ??
+      (typeof detail?.error === 'string' ? detail.error : undefined) ??
+      (typeof rawDetail === 'string' ? rawDetail : undefined) ??
       response.statusText;
 
     if (response.status === 402) {
-      return new QuotaError(code ?? 'quota_exceeded', message, detail?.quota);
+      return new QuotaError(code ?? 'quota_exceeded', message, quotaFromProblem(detail?.quota));
     }
     if (response.status === 503 && code === 'pricing_unavailable') {
       return new PricingUnavailableError(message);
     }
-    return new HttpError(response.status, message);
+    const error = new HttpError(response.status, message);
+    error.code = typeof problemObject?.title === 'string' ? problemObject.title : code;
+    error.problem = problem;
+    error.diagnostics = Array.isArray(problemObject?.diagnostics)
+      ? problemObject.diagnostics
+      : Array.isArray(detail?.diagnostics) ? detail.diagnostics : [];
+    return error;
   }
 
   private async request<T>(
@@ -357,8 +539,8 @@ class ApiClient {
       }
 
       return response.json();
-    } catch (error: any) {
-      if (error?.name === 'AbortError') {
+    } catch (error: unknown) {
+      if (isAbortError(error)) {
         throw new Error('Request timed out');
       }
       throw error;
@@ -392,8 +574,8 @@ class ApiClient {
       }
 
       return response.text();
-    } catch (error: any) {
-      if (error?.name === 'AbortError') {
+    } catch (error: unknown) {
+      if (isAbortError(error)) {
         throw new Error('Request timed out');
       }
       throw error;
@@ -404,65 +586,82 @@ class ApiClient {
     }
   }
 
-  private async requestWithRetry<T>(
-    endpoint: string,
-    options: RequestInit,
-    timeoutMs: number,
-    retries: number
-  ): Promise<T> {
-    for (let attempt = 0; attempt <= retries; attempt += 1) {
-      try {
-        return await this.request<T>(endpoint, options, timeoutMs);
-      } catch (error) {
-        const isHttpError = error instanceof HttpError;
-        const shouldRetry = isHttpError
-          ? [502, 503, 504].includes(error.status)
-          : true;
-
-        if (attempt >= retries || !shouldRetry) {
-          throw error;
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
+  private async requestBinary(endpoint: string, timeoutMs?: number): Promise<ArrayBuffer> {
+    const controller = new AbortController();
+    const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        headers: this.authHeaders(),
+        signal: controller.signal,
+      });
+      if (!response.ok) throw await this.errorFor(response);
+      return response.arrayBuffer();
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
-
-    throw new Error('Request failed after retries');
   }
 
-  async getEngines(): Promise<Engine[]> {
-    return this.request<Engine[]>('/v1/engines');
+  async getEngines(): Promise<EngineCatalogEntry[]> {
+    const body = await this.request<{ engines: EngineCatalogEntry[] }>('/v1/engines');
+    return body.engines || [];
   }
 
-  async getEngineDefaultOptions(engineId: string): Promise<EngineDefaultOptions> {
-    return this.request<EngineDefaultOptions>(`/v1/engines/${engineId}/options/defaults`);
+  async getProfiles(): Promise<BimProfile[]> {
+    const body = await this.request<{ profiles: BimProfile[] }>('/v1/profiles');
+    return body.profiles || [];
   }
 
-  async getGeneralSchema(): Promise<any> {
-    return this.request<any>('/v1/schemas/general');
+  async getDialects(): Promise<BimDialect[]> {
+    const body = await this.request<{ dialects: BimDialect[] }>('/v1/dialects');
+    return body.dialects || [];
   }
 
-  async getEngineSchema(engineId: string): Promise<any> {
-    return this.request<any>(`/v1/schemas/${engineId}`);
+  async getBimSchema(kind: BimSchemaKind): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>(`/v1/schemas/${encodeURIComponent(kind)}`);
   }
 
-  async solve(request: SolveRequest): Promise<JobStatus> {
-    return this.requestWithRetry<JobStatus>(
-      '/v1/solve',
-      {
-        method: 'POST',
-        body: JSON.stringify(request),
-      },
-      900000,
-      2
-    );
-  }
-
-  async analyze(request: AnalyzeRequest): Promise<any> {
-    return this.request<any>('/v1/analyze', {
+  async analyzeBimPackage(archive: Uint8Array): Promise<BimAnalysisResponse> {
+    return this.request<BimAnalysisResponse>('/v1/analyze', {
       method: 'POST',
-      body: JSON.stringify(request),
-    }, 900000);
+      headers: { 'Content-Type': 'application/vnd.bim+zip' },
+      body: archive as unknown as BodyInit,
+    });
+  }
+
+  async createBimSnapshot(archive: Uint8Array): Promise<{ id: string; irDigest: string }> {
+    return this.request<{ id: string; irDigest: string }>('/v1/instances', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/vnd.bim+zip' },
+      body: archive as unknown as BodyInit,
+    });
+  }
+
+  async createBimJob(
+    snapshot: string,
+    engine: BimResourceRef,
+    registration: BimResourceRef,
+    mode?: string,
+    options: Record<string, unknown> = {},
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<{ id: string; status: string; irDigest: string }> {
+    return this.request<{ id: string; status: string; irDigest: string }>('/v1/jobs', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify({ snapshot, engine, registration, mode, options }),
+    });
+  }
+
+  async getV1Job(jobId: string): Promise<V1JobStatus> {
+    return this.request<V1JobStatus>(`/v1/jobs/${jobId}`);
+  }
+
+  async getBimExamples(): Promise<string[]> {
+    const body = await this.request<{ examples: string[] }>('/v1/examples');
+    return body.examples || [];
+  }
+
+  async getBimExamplePackage(path: string): Promise<ArrayBuffer> {
+    return this.requestBinary(`/v1/examples/${path.split('/').map(encodeURIComponent).join('/')}`);
   }
 
   async getJobStatus(jobId: string, timeoutMs: number = 30000): Promise<JobStatus> {
@@ -473,8 +672,8 @@ class ApiClient {
     jobId: string,
     onUpdate?: (status: JobStatus) => void,
     interval: number = 2000
-  ): Promise<any> {
-    return new Promise((resolve, reject) => {
+  ): Promise<JobStatus['result']> {
+    return new Promise<JobStatus['result']>((resolve, reject) => {
       const start = Date.now();
       let consecutiveErrors = 0;
       const MAX_CONSECUTIVE_ERRORS = 3;
@@ -496,11 +695,11 @@ class ApiClient {
           if (status.status === 'completed') {
             resolve(status.result);
           } else if (status.status === 'failed') {
-            reject(new Error(status.error || 'Job failed'));
+            reject(new Error(status.result?.error || 'Job failed'));
           } else {
             setTimeout(poll, interval);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           consecutiveErrors++;
 
           // If the job is not found (404), it likely completed synchronously
@@ -528,34 +727,12 @@ class ApiClient {
     });
   }
 
-  async exploreBindingSpace(request: BindingSpaceRequest): Promise<BindingSpacePage> {
-    return this.request<BindingSpacePage>('/v1/analyze/binding-space', {
-      method: 'POST',
-      body: JSON.stringify(request),
-    });
-  }
-
-  /** Take an instance apart, one document per component of the tuple. */
-  async splitInstance(instance: any): Promise<InstanceParts> {
-    return this.request<InstanceParts>('/v1/instance/split', {
-      method: 'POST',
-      body: JSON.stringify({ instance }),
-    });
-  }
-
-  /** Merge parts back into the instance they describe. */
-  async composeInstance(parts: Record<string, any>): Promise<{ instance: any }> {
-    return this.request<{ instance: any }>('/v1/instance/compose', {
-      method: 'POST',
-      body: JSON.stringify({ parts }),
-    });
-  }
-
   // -- Accounts --------------------------------------------------------
   //
   // Every one of these is a documented gateway endpoint. The interface is a
-  // client of the API rather than a privileged path into it, so anything the
-  // account page can do, a script with an API key can do too.
+  // client of the API rather than a privileged path into it. A browser session
+  // has account authority; an API key reaches only the operations and Engine
+  // revisions recorded in its immutable grants.
 
   async register(details: {
     username: string;
@@ -613,10 +790,10 @@ class ApiClient {
   }
 
   /** The response carries the secret. It is the only one that ever will. */
-  async createApiKey(name: string): Promise<CreatedApiKey> {
+  async createApiKey(payload: CreateApiKeyRequest): Promise<CreatedApiKey> {
     return this.request<CreatedApiKey>('/v1/users/me/api-keys', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(payload),
     });
   }
 
@@ -634,17 +811,6 @@ class ApiClient {
    * Summaries only - a result can be hundreds of megabytes, and this is for
    * finding the one you want. `getJobStatus` returns the answer itself.
    */
-  /**
-   * The instance and options a job was given.
-   *
-   * Separate from `getJobStatus` because that one also polls a running job,
-   * and an instance can be large enough that returning it on every poll would
-   * be a poor trade for something wanted once.
-   */
-  async getJobRequest(jobId: string): Promise<JobRequest> {
-    return this.request<JobRequest>(`/v1/jobs/${jobId}/request`);
-  }
-
   async listOwnJobs(params: { limit?: number; offset?: number } = {}): Promise<JobHistory> {
     const query = new URLSearchParams();
     if (params.limit != null) query.set('limit', String(params.limit));
@@ -661,7 +827,7 @@ class ApiClient {
    * before signing up is not much of a pricing.
    */
   async getPricingDocument(): Promise<string> {
-    return this.requestText('/v1/schemas/pricing');
+    return this.requestText('/v1/pricing');
   }
 
   /** What the interface gates features with; the browser never sees SPACE. */
@@ -722,125 +888,157 @@ class ApiClient {
   /**
    * A 422 body, turned into something a caller can throw.
    *
-   * `request()` returns validation errors instead of throwing, because for
-   * `/solve` a list of violations is a normal result worth rendering. For the
-   * engine endpoints it is not: a registration either happened or it did not,
+   * `request()` returns validation errors instead of throwing, because a v1
+   * instance diagnosis is a normal result worth rendering. For the engine
+   * endpoints it is not: a registration either happened or it did not,
    * and a caller that cannot tell the two apart shows an empty success page.
-   */
+  */
   private orThrow<T extends object>(body: T): T {
-    const detail = (body as any)?.detail;
-    if (detail && typeof detail === 'object' && (detail.code || detail.error)) {
-      const error: any = new Error(detail.error || 'The request was refused.');
-      error.code = detail.code;
-      error.violations = detail.violations;
+    const detail = (body as { detail?: unknown }).detail;
+    if (detail && typeof detail === 'object') {
+      const problem = detail as Record<string, unknown>;
+      if (!problem.code && !problem.error) return body;
+      const error = new Error(
+        typeof problem.error === 'string' ? problem.error : 'The request was refused.',
+      ) as Error & { code?: unknown; violations?: unknown; detail?: unknown };
+      error.code = problem.code;
+      error.violations = problem.violations;
       error.detail = detail;
       throw error;
     }
     return body;
   }
 
-  // -- Registering your own engine -------------------------------------
+  private requireExactResourceRef<T extends object>(body: T): T & BimResourceRef {
+    for (const field of ['namespace', 'name', 'version', 'digest'] as const) {
+      if (typeof (body as Record<string, unknown>)[field] !== 'string' || !(body as Record<string, string>)[field]) {
+        throw new Error(`The gateway response omitted the immutable resource pin ${field}.`);
+      }
+    }
+    return body as T & BimResourceRef;
+  }
 
-  /**
-   * Ask the gateway to read an engine's OpenAPI document and propose a manifest.
-   *
-   * The whole reason registering is feasible for anyone who has not read the
-   * manifest reference: the hard parts - which operation solves, where the
-   * instance goes, which field is the binding - are worked out here.
-   */
-  async draftEngineManifest(source: {
-    openapi_url?: string;
-    openapi_document?: Record<string, any>;
-    engine_id?: string;
-    display_name?: string;
-  }): Promise<ManifestDraft> {
-    return this.orThrow(
-      await this.request<ManifestDraft>('/v1/engines/draft', {
+  // -- Immutable Engine and EngineRegistration resources ---------------
+
+  /** Publish a portable bim/v1 Engine document without inventing UI-only fields. */
+  async createEngine(manifest: EngineManifest): Promise<EngineRevision> {
+    return this.requireExactResourceRef(this.orThrow(
+      await this.request<EngineRevision>('/v1/engines', {
         method: 'POST',
-        body: JSON.stringify(source),
+        body: JSON.stringify(manifest),
       })
-    );
+    ));
   }
 
-  /** Submit a manifest. Answers with the conformance report either way. */
-  async registerEngine(payload: {
-    manifest: Record<string, any>;
-    credential?: string;
-    publish?: boolean;
-  }): Promise<RegisteredEngine> {
-    return this.orThrow(
-      await this.request<RegisteredEngine>('/v1/engines', {
+  /** Read the pinned BIM engine protocol digest advertised by the gateway. */
+  async getBimProfile(): Promise<{
+    id: 'qos-binding/v1';
+    output: { apiVersion: 'bim/v1'; kind: 'BindingProblem'; schemaDigest: string };
+    protocol: 'bim-engine/v1';
+    protocolDigest: string;
+    digest: string;
+  }> {
+    const profile = (await this.getProfiles()).find((item) => item.id === 'qos-binding/v1');
+    const output = profile?.output;
+    if (!profile || output?.apiVersion !== 'bim/v1' || output?.kind !== 'BindingProblem'
+      || profile.protocol !== 'bim-engine/v1') {
+      throw new Error('The gateway does not advertise the BIM v1 binding profile.');
+    }
+    if (typeof output.schemaDigest !== 'string' || typeof profile.protocolDigest !== 'string'
+      || typeof profile.digest !== 'string') {
+      throw new Error('The gateway did not publish complete immutable BIM profile pins.');
+    }
+    return profile as {
+      id: 'qos-binding/v1';
+      output: { apiVersion: 'bim/v1'; kind: 'BindingProblem'; schemaDigest: string };
+      protocol: 'bim-engine/v1';
+      protocolDigest: string;
+      digest: string;
+    };
+  }
+
+  /** Register private deployment material separately from the portable Engine. */
+  async createEngineRegistration(
+    manifest: EngineRegistrationManifest,
+  ): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(this.orThrow(
+      await this.request<EngineRegistrationRevision>('/v1/engine-registrations', {
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify(manifest),
       })
+    ));
+  }
+
+  async listEngineRegistrations(): Promise<EngineRegistrationRevision[]> {
+    const body = await this.request<{ registrations: EngineRegistrationRevision[] }>('/v1/engine-registrations');
+    return (body.registrations || []).map((registration) => this.requireExactResourceRef(registration));
+  }
+
+  private engineRegistrationEndpoint(ref: BimResourceRef, action?: string): string {
+    const query = new URLSearchParams({
+      namespace: ref.namespace,
+      version: ref.version,
+      digest: ref.digest,
+    });
+    const suffix = action ? `/${action}` : '';
+    return `/v1/engine-registrations/${encodeURIComponent(ref.name)}${suffix}?${query.toString()}`;
+  }
+
+  async getEngineRegistration(ref: BimResourceRef): Promise<EngineRegistrationManifest> {
+    return this.request<EngineRegistrationManifest>(this.engineRegistrationEndpoint(ref));
+  }
+
+  async getEngineRegistrationReport(ref: BimResourceRef): Promise<EngineRegistrationReport> {
+    return this.requireExactResourceRef(
+      await this.request<EngineRegistrationReport>(this.engineRegistrationEndpoint(ref, 'report'))
     );
   }
 
-  async listOwnEngines(): Promise<RegisteredEngine[]> {
-    return this.request<RegisteredEngine[]>('/v1/engines/registered');
-  }
-
-  async getRegisteredEngine(engineId: string): Promise<RegisteredEngine> {
-    return this.request<RegisteredEngine>(`/v1/engines/registered/${engineId}`);
-  }
-
-  async updateRegisteredEngine(
-    engineId: string,
-    payload: { manifest: Record<string, any>; credential?: string }
-  ): Promise<RegisteredEngine> {
-    return this.orThrow(
-      await this.request<RegisteredEngine>(`/v1/engines/registered/${engineId}`, {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-      })
-    );
-  }
-
-  /** Ask again, unchanged - for the case where the engine was simply not up. */
-  async verifyRegisteredEngine(engineId: string): Promise<RegisteredEngine> {
-    return this.request<RegisteredEngine>(`/v1/engines/registered/${engineId}/verify`, {
+  async activateEngineRegistration(ref: BimResourceRef): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'activate'), {
       method: 'POST',
-    });
+    }));
   }
 
-  async publishRegisteredEngine(engineId: string): Promise<RegisteredEngine> {
-    return this.request<RegisteredEngine>(`/v1/engines/registered/${engineId}/publish`, {
+  async deactivateEngineRegistration(ref: BimResourceRef): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'deactivate'), {
       method: 'POST',
-    });
+    }));
   }
 
-  async replaceEngineCredential(engineId: string, credential: string): Promise<RegisteredEngine> {
-    return this.request<RegisteredEngine>(`/v1/engines/registered/${engineId}/credential`, {
+  async requestEngineRegistrationPublication(ref: BimResourceRef): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'publication-request'), {
       method: 'POST',
-      body: JSON.stringify({ credential }),
-    });
+    }));
   }
 
-  async deleteRegisteredEngine(engineId: string): Promise<void> {
-    await this.request<void>(`/v1/engines/registered/${engineId}`, { method: 'DELETE' });
+  async setEngineRegistrationCredential(
+    ref: BimResourceRef,
+    secret: string,
+  ): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'credential'), {
+      method: 'PUT',
+      body: JSON.stringify({ secret }),
+    }));
   }
 
-  async adminListEngines(pending = false): Promise<RegisteredEngine[]> {
-    return this.request<RegisteredEngine[]>(`/v1/admin/engines${pending ? '?pending=true' : ''}`);
+  async adminListEngineRegistrations(): Promise<EngineRegistrationRevision[]> {
+    const body = await this.request<{ registrations: EngineRegistrationRevision[] }>('/v1/engine-registrations?review=true');
+    return (body.registrations || []).map((registration) => this.requireExactResourceRef(registration));
   }
 
-  async adminApproveEngine(engineId: string): Promise<RegisteredEngine> {
-    return this.request<RegisteredEngine>(`/v1/admin/engines/${engineId}/approve`, {
+  async adminApproveEngineRegistration(ref: BimResourceRef): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'approve'), {
       method: 'POST',
-    });
+    }));
   }
 
-  async adminRejectEngine(engineId: string): Promise<RegisteredEngine> {
-    return this.request<RegisteredEngine>(`/v1/admin/engines/${engineId}/reject`, {
+  async adminRejectEngineRegistration(ref: BimResourceRef): Promise<EngineRegistrationRevision> {
+    return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'reject'), {
       method: 'POST',
-    });
+    }));
   }
 
-  async adminDisableEngine(engineId: string): Promise<RegisteredEngine> {
-    return this.request<RegisteredEngine>(`/v1/admin/engines/${engineId}/disable`, {
-      method: 'POST',
-    });
-  }
 }
 
 export const apiClient = new ApiClient();

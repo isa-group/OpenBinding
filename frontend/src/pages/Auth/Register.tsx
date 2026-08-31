@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/auth';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
@@ -32,7 +32,7 @@ export function Register() {
     setBusy(true);
     try {
       await register({ username, email, password });
-      navigate('/account', { replace: true });
+      navigate('/account', { replace: true, viewTransition: true });
     } catch (err) {
       if (err instanceof HttpError && err.status === 409) {
         setError('That username or email is already in use.');
@@ -50,6 +50,7 @@ export function Register() {
     <div className="auth-page">
       <Card padding="lg" className="auth-card">
         <div className="auth-header">
+          <span className="auth-kicker">Account contract</span>
           <h1>Create an account</h1>
           <p>
             Free, and immediate. New accounts start on the Free plan, with a monthly
@@ -64,7 +65,10 @@ export function Register() {
             <label htmlFor="username">Username</label>
             <input
               id="username"
+              name="username"
               autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               pattern="[a-zA-Z0-9][a-zA-Z0-9._\-]{2,63}"
               title="Letters, digits, dot, underscore or hyphen; 3 to 64 characters."
               value={username}
@@ -77,8 +81,11 @@ export function Register() {
             <label htmlFor="email">Email</label>
             <input
               id="email"
+              name="email"
               type="email"
               autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -90,6 +97,7 @@ export function Register() {
             <label htmlFor="password">Password</label>
             <input
               id="password"
+              name="password"
               type="password"
               autoComplete="new-password"
               minLength={MIN_PASSWORD_LENGTH}
@@ -103,12 +111,12 @@ export function Register() {
           </div>
 
           <Button type="submit" disabled={busy}>
-            {busy ? 'Creating...' : 'Create account'}
+            {busy ? 'Creating…' : 'Create account'}
           </Button>
         </form>
 
         <p className="auth-footer">
-          Already have one? <Link to="/login">Sign in</Link>.
+          Already have one? <Link to="/login" viewTransition>Sign in</Link>.
         </p>
       </Card>
     </div>

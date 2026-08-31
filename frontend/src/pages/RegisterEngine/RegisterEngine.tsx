@@ -1,124 +1,146 @@
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
-import type { ManifestDraft, RegisteredEngine } from '../../api/client';
+import type {
+  EngineManifest,
+  EngineRegistrationRevision,
+  EngineRevision,
+} from '../../api/client';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
+import { useAuth } from '../../contexts/auth';
 import './RegisterEngine.css';
 
-/**
- * Registering your own solver, in three steps that each do one thing.
- *
- * The order is deliberate. Reading the spec comes first because everything
- * after it is a correction rather than an authoring task: by the time anyone
- * sees the manifest, the gateway has already worked out which operation solves,
- * where the instance goes and which field is the binding. Then the manifest is
- * shown as text, because the person submitting it has to be able to see the
- * whole thing before it becomes an engine other people might use.
- *
- * The last step is not "success". It is the conformance report - what was
- * checked, what failed, and which field to change - because a registration that
- * fails is the common case on the first attempt and the interface should be
- * built around that rather than around the happy path.
- */
+type AuthScheme = 'none' | 'bearer' | 'basic';
 
-type Step = 'read' | 'correct' | 'result';
-
+/** Create a private Engine and, optionally, its equally private deployment. */
 export function RegisterEngine() {
   const navigate = useNavigate();
-
-  const [step, setStep] = useState<Step>('read');
+  const { user } = useAuth();
+  const [manifestText, setManifestText] = useState(() => engineTemplate(user?.username || 'your-namespace'));
+  const [registerDeployment, setRegisterDeployment] = useState(true);
+  const [registrationName, setRegistrationName] = useState('');
+  const [registrationVersion, setRegistrationVersion] = useState('');
+  const [endpoint, setEndpoint] = useState('');
+  const [requestPath, setRequestPath] = useState('/internal/v1/binding-problems');
+  const [healthPath, setHealthPath] = useState('/health');
+  const [openapiPath, setOpenapiPath] = useState('/openapi.json');
+  const [jobPath, setJobPath] = useState('');
+  const [authScheme, setAuthScheme] = useState<AuthScheme>('none');
+  const [credential, setCredential] = useState('');
+  const [openapiText, setOpenapiText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{
+    engine: EngineRevision;
+    registration?: EngineRegistrationRevision;
+  } | null>(null);
 
-  // Step 1
-  const [sourceKind, setSourceKind] = useState<'url' | 'document'>('url');
-  const [openapiUrl, setOpenapiUrl] = useState('');
-  const [openapiDocument, setOpenapiDocument] = useState('');
-  const [engineId, setEngineId] = useState('');
-  const [displayName, setDisplayName] = useState('');
-
-  // Step 2
-  const [draft, setDraft] = useState<ManifestDraft | null>(null);
-  const [manifestText, setManifestText] = useState('');
-  const [credential, setCredential] = useState('');
-  const [askToPublish, setAskToPublish] = useState(false);
-
-  // Step 3
-  const [registered, setRegistered] = useState<RegisteredEngine | null>(null);
-
-  const readSpec = async () => {
-    setBusy(true);
-    setError(null);
+  const loadOpenApiFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
     try {
-      const source: Parameters<typeof apiClient.draftEngineManifest>[0] = {
-        engine_id: engineId || 'my-engine',
-      };
-      if (displayName) source.display_name = displayName;
-
-      if (sourceKind === 'url') {
-        source.openapi_url = openapiUrl.trim();
-      } else {
-        try {
-          source.openapi_document = JSON.parse(openapiDocument);
-        } catch {
-          throw new Error('That is not valid JSON. Paste the document itself, or use a URL.');
-        }
-      }
-
-      const proposal = await apiClient.draftEngineManifest(source);
-      setDraft(proposal);
-      setManifestText(JSON.stringify(proposal.manifest, null, 2));
-      setStep('correct');
-    } catch (err: any) {
-      setError(err.message || 'The document could not be read.');
-    } finally {
-      setBusy(false);
+      setOpenapiText(await file.text());
+      setError(null);
+    } catch {
+      setError('The OpenAPI file could not be read.');
     }
-  };
-
-  const skipToManual = () => {
-    // Somebody who already has a manifest should not have to own an OpenAPI
-    // URL to paste it in.
-    setDraft({ manifest: {}, notes: [], unresolved: [], ready: false });
-    setManifestText(EMPTY_MANIFEST);
-    setStep('correct');
   };
 
   const submit = async () => {
     setBusy(true);
     setError(null);
     try {
-      let manifest: Record<string, any>;
-      try {
-        manifest = JSON.parse(manifestText);
-      } catch {
-        throw new Error('The manifest is not valid JSON.');
+      if (!user) throw new Error('Registering an Engine requires a signed-in account.');
+      const authored = parseObject(manifestText, 'Engine manifest');
+      const manifest = {
+        ...(authored as unknown as EngineManifest),
+        metadata: {
+          ...(authored.metadata as EngineManifest['metadata']),
+          namespace: user.username,
+        },
+      };
+      let openapi: Record<string, unknown> | null = null;
+      let profile: Awaited<ReturnType<typeof apiClient.getBimProfile>> | null = null;
+      if (registerDeployment) {
+        if (!endpoint.trim()) throw new Error('A deployment endpoint is required.');
+        if (!requestPath.trim() || !healthPath.trim() || !openapiPath.trim()) {
+          throw new Error('Solve, health and OpenAPI paths are required.');
+        }
+        if (authScheme !== 'none' && !credential) {
+          throw new Error(`A ${authScheme} credential is required and will be stored separately.`);
+        }
+        openapi = parseObject(openapiText, 'Deployment OpenAPI document');
+        if (openapi.openapi !== '3.1.0') {
+          throw new Error('The deployment OpenAPI document must declare openapi: 3.1.0.');
+        }
+        const info = openapi.info;
+        if (!info || typeof info !== 'object' || Array.isArray(info)
+          || typeof (info as Record<string, unknown>).title !== 'string'
+          || typeof (info as Record<string, unknown>).version !== 'string') {
+          throw new Error('The deployment OpenAPI document needs info.title and info.version.');
+        }
+        const paths = openapi.paths;
+        if (!paths || typeof paths !== 'object' || Array.isArray(paths) || Object.keys(paths).length === 0) {
+          throw new Error('The deployment OpenAPI document must describe its mapped operations.');
+        }
+        profile = await apiClient.getBimProfile();
+        if (openapi['x-bim-protocol'] !== profile.protocol) {
+          throw new Error('The deployment OpenAPI document must declare x-bim-protocol: bim-engine/v1.');
+        }
+        if (openapi['x-bim-protocol-digest'] !== profile.protocolDigest) {
+          throw new Error('The deployment OpenAPI document does not pin this gateway’s bim-engine/v1 digest.');
+        }
       }
 
-      const result = await apiClient.registerEngine({
-        manifest,
-        credential: credential.trim() || undefined,
-        publish: askToPublish,
+      // Do not persist the portable resource until every client-side deployment
+      // check has passed. The API still validates both resources authoritatively.
+      const engine = await apiClient.createEngine(manifest);
+      if (!registerDeployment) {
+        setResult({ engine });
+        return;
+      }
+      if (!openapi || !profile) throw new Error('The deployment contract was not validated.');
+      const registration = await apiClient.createEngineRegistration({
+        apiVersion: 'bim/v1',
+        kind: 'EngineRegistration',
+        metadata: {
+          namespace: user.username,
+          name: registrationName.trim() || `${engine.name}-deployment`,
+          version: registrationVersion.trim() || engine.version,
+        },
+        spec: {
+          engine: {
+            namespace: engine.namespace,
+            name: engine.name,
+            version: engine.version,
+            digest: engine.digest,
+          },
+          endpoint: endpoint.trim(),
+          protocol: {
+            id: profile.protocol,
+            mediaType: 'application/json',
+            digest: profile.protocolDigest,
+          },
+          mappings: {
+            request: requestPath.trim(),
+            health: healthPath.trim(),
+            openapi: openapiPath.trim(),
+            ...(jobPath.trim() ? { job: jobPath.trim() } : {}),
+          },
+          auth: { scheme: authScheme },
+          openapi,
+        },
       });
-      setRegistered(result);
-      setStep('result');
-    } catch (err: any) {
-      setError(describe(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const verifyAgain = async () => {
-    if (!registered) return;
-    setBusy(true);
-    try {
-      setRegistered(await apiClient.verifyRegisteredEngine(registered.engine_id));
-    } catch (err: any) {
-      setError(err.message || 'The check could not be run.');
+      const stored = authScheme === 'none'
+        ? registration
+        : await apiClient.setEngineRegistrationCredential(registration, credential);
+      setCredential('');
+      setResult({ engine, registration: stored });
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : 'The BIM v1 Engine or registration was refused.');
     } finally {
       setBusy(false);
     }
@@ -127,262 +149,134 @@ export function RegisterEngine() {
   return (
     <div className="register-engine-page">
       <div className="container">
-        <div className="page-header">
-          <h1>Register an engine</h1>
+        <header className="page-header">
+          <span className="register-engine-kicker">Private engine registration</span>
+          <h1>Register an Engine</h1>
           <p className="page-description">
-            Point OpenBinding at a solver you run. It stays yours: the gateway validates
-            instances against what you declare, sends them to your endpoint, and scores the
-            answers with the same evaluator it uses for its own engines.
+            Save an immutable <code>bim/v1</code> Engine and its deployment privately.
+            Administrators cannot see either one until you explicitly request publication.
           </p>
-        </div>
+        </header>
 
-        <ol className="wizard-steps">
-          <li className={step === 'read' ? 'current' : 'done'}>1. Read your spec</li>
-          <li className={step === 'correct' ? 'current' : step === 'result' ? 'done' : ''}>
-            2. Check the manifest
-          </li>
-          <li className={step === 'result' ? 'current' : ''}>3. Conformance</li>
-        </ol>
+        {error && <Alert type="error" title="Registration refused">{error}</Alert>}
 
-        {error && (
-          <Alert type="error" title="That did not work">
-            {error}
-          </Alert>
-        )}
-
-        {step === 'read' && (
+        {!result ? (
           <Card padding="lg" className="wizard-card">
-            <h2>Where is your engine described?</h2>
+            <h2>1. Engine manifest</h2>
             <p className="wizard-hint">
-              The gateway reads your OpenAPI document and works out the manifest: which
-              operation solves, where the instance belongs in your request body, and which
-              field of a solution is the task-to-candidate map. You correct what it got
-              wrong rather than writing it from nothing.
+              Declare modes, Profile/IR support, capabilities, options, limits and real guarantees.
+              {' '}The namespace is fixed to your account: <code>{user?.username}</code>.
             </p>
+            <textarea
+              className="manifest-editor"
+              aria-label="Engine manifest JSON"
+              name="engine-manifest"
+              rows={24}
+              value={manifestText}
+              spellCheck={false}
+              onChange={(event) => setManifestText(event.target.value)}
+            />
 
-            <div className="source-toggle">
-              <Button
-                variant={sourceKind === 'url' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => setSourceKind('url')}
-              >
-                By URL
-              </Button>
-              <Button
-                variant={sourceKind === 'document' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => setSourceKind('document')}
-              >
-                Paste the document
-              </Button>
-            </div>
+            <label className="deployment-choice">
+              <input
+                type="checkbox"
+                checked={registerDeployment}
+                onChange={(event) => setRegisterDeployment(event.target.checked)}
+              />
+              <span><strong>Register a deployment now</strong><small>It starts private and inactive; activation performs a live conformance check.</small></span>
+            </label>
 
-            {sourceKind === 'url' ? (
+            {registerDeployment && <div className="deployment-form">
+              <header>
+                <h2>2. Private deployment</h2>
+                <p className="wizard-hint">The submitted OpenAPI document is immutable and must exactly match the document served by the endpoint.</p>
+              </header>
+              <div className="field-pair">
+                <label className="field">
+                  <span>Registration name</span>
+                  <input value={registrationName} onChange={(event) => setRegistrationName(event.target.value)} placeholder="my-engine-deployment" />
+                  <small>Defaults to the Engine name plus <code>-deployment</code>.</small>
+                </label>
+                <label className="field">
+                  <span>Registration version</span>
+                  <input value={registrationVersion} onChange={(event) => setRegistrationVersion(event.target.value)} placeholder="1.0.0" />
+                  <small>Defaults to the Engine version.</small>
+                </label>
+              </div>
               <label className="field">
-                <span>OpenAPI document URL</span>
-                <input
-                  type="url"
-                  value={openapiUrl}
-                  onChange={(e) => setOpenapiUrl(e.target.value)}
-                  placeholder="https://acme.example/openapi.json"
-                />
-                <small>
-                  Must be reachable on the public internet. The gateway refuses private and
-                  loopback addresses, here and on every solve.
-                </small>
+                <span>HTTPS endpoint</span>
+                <input type="url" autoComplete="off" spellCheck={false} value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder="https://engine.example" />
+                <small>The gateway validates DNS and blocks private-network destinations in production.</small>
               </label>
-            ) : (
-              <label className="field">
-                <span>OpenAPI document (JSON)</span>
-                <textarea
-                  rows={10}
-                  value={openapiDocument}
-                  onChange={(e) => setOpenapiDocument(e.target.value)}
-                  placeholder='{ "openapi": "3.1.0", "paths": { ... } }'
-                />
-                <small>For an engine that does not serve its spec anonymously.</small>
+              <div className="field-pair">
+                <label className="field"><span>Solve path</span><input value={requestPath} onChange={(event) => setRequestPath(event.target.value)} /><small>Mapped <code>POST</code>.</small></label>
+                <label className="field"><span>Health path</span><input value={healthPath} onChange={(event) => setHealthPath(event.target.value)} /><small>Mapped <code>GET</code>.</small></label>
+                <label className="field"><span>OpenAPI path</span><input value={openapiPath} onChange={(event) => setOpenapiPath(event.target.value)} /><small>Document checked at every verification.</small></label>
+                <label className="field"><span>Async job path</span><input value={jobPath} onChange={(event) => setJobPath(event.target.value)} placeholder="/internal/v1/jobs/{id}" /><small>Only for a solve operation returning <code>202</code>.</small></label>
+              </div>
+              <div className="field-pair">
+                <label className="field">
+                  <span>Authentication</span>
+                  <select value={authScheme} onChange={(event) => setAuthScheme(event.target.value as AuthScheme)}>
+                    <option value="none">none</option>
+                    <option value="bearer">bearer</option>
+                    <option value="basic">basic</option>
+                  </select>
+                  <small>Must match the solve, health and optional async-job operation security in OpenAPI.</small>
+                </label>
+                {authScheme !== 'none' && <label className="field">
+                  <span>Credential</span>
+                  <input type="password" autoComplete="off" value={credential} onChange={(event) => setCredential(event.target.value)} />
+                  <small>{authScheme === 'basic' ? 'Use username:password. ' : 'Use the bearer token only. '}Encrypted separately; never inserted into or returned with the manifest.</small>
+                </label>}
+              </div>
+              <label className="openapi-upload">
+                <span>Deployment OpenAPI 3.1 JSON</span>
+                <input type="file" accept="application/json,.json" onChange={(event) => void loadOpenApiFile(event)} />
+                <small>Upload a JSON file or paste the same document served at the mapped OpenAPI path.</small>
               </label>
-            )}
-
-            <div className="field-row">
-              <label className="field">
-                <span>Engine id</span>
-                <input
-                  value={engineId}
-                  onChange={(e) => setEngineId(e.target.value)}
-                  placeholder="tabu"
-                />
-                <small>Lower case, digits and hyphens. Yours is prefixed with your username.</small>
-              </label>
-              <label className="field">
-                <span>Display name (optional)</span>
-                <input
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="ACME Tabu Search"
-                />
-              </label>
-            </div>
+              <textarea
+                className="manifest-editor openapi-editor"
+                aria-label="Deployment OpenAPI JSON"
+                name="deployment-openapi"
+                rows={20}
+                value={openapiText}
+                spellCheck={false}
+                placeholder={'{\n  "openapi": "3.1.0",\n  "info": { "title": "My engine", "version": "1.0.0" },\n  "x-bim-protocol": "bim-engine/v1",\n  "x-bim-protocol-digest": "sha256-…",\n  "paths": { … }\n}'}
+                onChange={(event) => setOpenapiText(event.target.value)}
+              />
+            </div>}
 
             <div className="wizard-actions">
-              <Button
-                onClick={readSpec}
-                disabled={busy || (sourceKind === 'url' ? !openapiUrl.trim() : !openapiDocument.trim())}
-              >
-                {busy ? 'Reading…' : 'Read the spec'}
+              <Button onClick={submit} disabled={busy}>
+                {busy ? 'Saving privately…' : registerDeployment ? 'Save private Engine and deployment' : 'Save private Engine'}
               </Button>
-              <Button variant="ghost" onClick={skipToManual} disabled={busy}>
-                I already have a manifest
-              </Button>
+              <Button variant="ghost" onClick={() => navigate('/engines', { viewTransition: true })} disabled={busy}>Cancel</Button>
             </div>
           </Card>
-        )}
-
-        {step === 'correct' && draft && (
-          <>
-            {draft.notes.length > 0 && (
-              <Card padding="lg" className="wizard-card">
-                <h2>What the gateway worked out</h2>
-                <p className="wizard-hint">
-                  Each of these is a guess based on your document. Check them - a wrong one
-                  costs a correction here, and a debugging session later.
-                </p>
-                <ul className="notes-list">
-                  {draft.notes.map((note, i) => (
-                    <li key={i}>{note}</li>
-                  ))}
-                </ul>
-              </Card>
-            )}
-
-            {draft.unresolved.length > 0 && (
-              <Alert
-                type={draft.ready ? 'info' : 'warning'}
-                title={draft.ready ? 'Worth deciding' : 'Needs your answer'}
-              >
-                <ul className="unresolved-list">
-                  {draft.unresolved.map((item, i) => (
-                    <li key={i}>{item}</li>
-                  ))}
-                </ul>
-              </Alert>
-            )}
-
-            <Card padding="lg" className="wizard-card">
-              <h2>The manifest</h2>
-              <p className="wizard-hint">
-                Everything the gateway will believe about your engine.{' '}
-                <a href="https://github.com/javiercavlop/OpenBinding/blob/main/docs/ENGINE_MANIFEST.md" target="_blank" rel="noreferrer">
-                  Field-by-field reference
-                </a>
-                .
-              </p>
-              <textarea
-                className="manifest-editor"
-                rows={22}
-                value={manifestText}
-                spellCheck={false}
-                onChange={(e) => setManifestText(e.target.value)}
-              />
-
-              <label className="field">
-                <span>Credential (optional)</span>
-                <input
-                  type="password"
-                  value={credential}
-                  onChange={(e) => setCredential(e.target.value)}
-                  placeholder="Only if your engine authenticates"
-                />
-                <small>
-                  Stored encrypted and never returned by any endpoint - replaceable, not
-                  readable. Leave empty for an open engine.
-                </small>
-              </label>
-
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={askToPublish}
-                  onChange={(e) => setAskToPublish(e.target.checked)}
-                />
-                <span>
-                  Ask for this engine to be listed publicly. An administrator decides; until
-                  then only you can see it.
-                </span>
-              </label>
-
-              <div className="wizard-actions">
-                <Button onClick={submit} disabled={busy}>
-                  {busy ? 'Checking your engine…' : 'Register and verify'}
-                </Button>
-                <Button variant="ghost" onClick={() => setStep('read')} disabled={busy}>
-                  Back
-                </Button>
-              </div>
-            </Card>
-          </>
-        )}
-
-        {step === 'result' && registered && (
+        ) : (
           <Card padding="lg" className="wizard-card">
             <div className="result-header">
-              <h2>{registered.display_name}</h2>
-              <Badge variant={registered.status === 'active' ? 'success' : 'error'}>
-                {registered.status}
-              </Badge>
+              <h2>{result.engine.namespace}/{result.engine.name}</h2>
+              <Badge variant={result.engine.status === 'published' ? 'success' : 'info'}>{result.engine.status}</Badge>
             </div>
-            <p className="engine-id-line">
-              <code>{registered.engine_id}</code>
-            </p>
-
-            {registered.status === 'active' ? (
-              <Alert type="success" title="It works">
-                Your engine answered the conformance instance with a legal binding. It is
-                now selectable in the Playground and through <code>POST /v1/solve</code>.
-              </Alert>
-            ) : (
-              <Alert type="warning" title="Not usable yet">
-                The registration is saved. Fix what is listed below and check again - nothing
-                is lost in the meantime.
-              </Alert>
-            )}
-
-            {registered.conformance_report?.findings?.length ? (
-              <div className="findings">
-                <h3>What went wrong</h3>
-                {registered.conformance_report.findings.map((finding, i) => (
-                  <div key={i} className="finding">
-                    <div className="finding-head">
-                      <Badge variant="error">{finding.code}</Badge>
-                      {finding.field && <code>{finding.field}</code>}
-                    </div>
-                    <p>{finding.message}</p>
-                  </div>
-                ))}
+            <p className="engine-id-line"><code>{result.engine.version}</code> · <code>{result.engine.digest}</code></p>
+            <Alert type="success" title="Private Engine revision saved">
+              Only your account can discover it. A material change requires a new version and digest.
+            </Alert>
+            {result.registration && <div className="registration-result">
+              <h3>EngineRegistration</h3>
+              <p><code>{result.registration.namespace}/{result.registration.name}</code> · <code>{result.registration.version}</code></p>
+              <p><code>{result.registration.digest}</code></p>
+              <div className="registration-result-state">
+                <Badge variant="info">{result.registration.status.replace('_', ' ')}</Badge>
+                <Badge variant={result.registration.active ? 'success' : 'default'}>{result.registration.active ? 'active for you' : 'inactive'}</Badge>
               </div>
-            ) : null}
-
-            {registered.conformance_report?.steps?.length ? (
-              <details className="steps">
-                <summary>What was checked</summary>
-                <ul>
-                  {registered.conformance_report.steps.map((entry, i) => (
-                    <li key={i}>{entry}</li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-
+              <p>Activate it from My deployments. Administrators will only see it after you request publication.</p>
+            </div>}
             <div className="wizard-actions">
-              <Button onClick={verifyAgain} disabled={busy}>
-                {busy ? 'Checking…' : 'Check again'}
-              </Button>
-              <Button variant="secondary" onClick={() => setStep('correct')} disabled={busy}>
-                Edit the manifest
-              </Button>
-              <Button variant="ghost" onClick={() => navigate('/engines')}>
-                Done
-              </Button>
+              <Button onClick={() => navigate('/engines', { viewTransition: true })}>Manage deployments</Button>
+              <Button variant="secondary" onClick={() => setResult(null)}>Register another revision</Button>
             </div>
           </Card>
         )}
@@ -391,32 +285,49 @@ export function RegisterEngine() {
   );
 }
 
-const EMPTY_MANIFEST = `{
-  "manifest_version": "1",
-  "engine_id": "my-engine",
-  "display_name": "My Engine",
-  "type": "HEURISTIC",
-  "capabilities": {
-    "qos_features_supported": ["*"],
-    "composition_nodes_supported": ["TASK", "SEQ"],
-    "objective_types_supported": ["MONO"],
-    "constraints_supported": []
-  },
-  "instance_schema": { "type": "object" },
-  "options_schema": { "type": "object", "additionalProperties": true },
-  "transport": {
-    "openapi": { "url": "https://acme.example/openapi.json" },
-    "operations": { "solve": { "operationId": "REPLACE_ME" } },
-    "request_mapping": { "instance": "/instance", "options": "/options" },
-    "response_mapping": { "solutions": "/solutions", "binding": "/binding" }
+function parseObject(source: string, label: string): Record<string, unknown> {
+  let value: unknown;
+  try {
+    value = JSON.parse(source);
+  } catch {
+    throw new Error(`${label} must be valid JSON.`);
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} must be a JSON object.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function engineTemplate(namespace: string): string {
+  return `{
+  "apiVersion": "bim/v1",
+  "kind": "Engine",
+  "metadata": { "namespace": ${JSON.stringify(namespace)}, "name": "my-engine", "version": "1.0.0", "description": "My QoS engine" },
+  "spec": {
+    "modes": [{
+      "id": "default",
+      "profile": "qos-binding/v1",
+      "ir": { "apiVersion": "bim/v1", "kind": "BindingProblem" },
+      "algorithm": "deterministic-search",
+      "capabilities": {
+        "workflowNodes": { "selector": "all" },
+        "metricScopes": { "selector": "all" },
+        "aggregations": { "selector": "all" },
+        "constraints": { "selector": "all" },
+        "optimization": { "selector": "all" },
+        "objectiveTypes": { "selector": "all" },
+        "expressions": { "selector": "all" },
+        "placement": { "selector": "none" },
+        "irExtensions": { "selector": "none" }
+      },
+      "optionsSchema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "limits": { "maxIterations": 100000 },
+      "guarantees": {
+        "termination": ["FEASIBLE", "UNKNOWN"],
+        "exact": false,
+        "deterministicWithoutTimeBudget": true
+      }
+    }]
   }
 }`;
-
-/** A validation failure names every field; anything else has one message. */
-function describe(error: any): string {
-  const violations = error?.detail?.violations ?? error?.violations;
-  if (Array.isArray(violations) && violations.length) {
-    return violations.map((v: any) => `${v.path}: ${v.message}`).join('\n');
-  }
-  return error?.message || 'The registration was refused.';
 }

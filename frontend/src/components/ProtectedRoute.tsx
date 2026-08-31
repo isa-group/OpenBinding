@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/auth';
 
 /**
  * A route that needs an account, and optionally an administrator's.
@@ -23,7 +23,7 @@ export function ProtectedRoute({
   if (loading) {
     // Rendering the redirect before the stored session has been checked would
     // bounce a signed-in user to the login page on every refresh.
-    return <div className="loading-state">Checking your session...</div>;
+    return <div className="loading-state">Checking your session…</div>;
   }
 
   if (!user) {

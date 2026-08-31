@@ -2,21 +2,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 500;
-  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-weight: 650;
+  letter-spacing: 0.025em;
+  border-radius: var(--radius-sm);
   white-space: nowrap;
   border: 1px solid transparent;
 }
 
 .badge-sm {
-  padding: 0.125rem 0.5rem;
-  font-size: 0.75rem;
+  padding: 0.12rem 0.42rem;
+  font-size: 0.67rem;
   line-height: 1.25rem;
 }
 
 .badge-md {
-  padding: 0.25rem 0.75rem;
-  font-size: 0.875rem;
+  padding: 0.22rem 0.58rem;
+  font-size: 0.75rem;
   line-height: 1.5rem;
 }
 

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { apiClient } from '../../api/client';
+import { apiClient, bimResourceKey } from '../../api/client';
 import type { AdminUserView, PlanName, UsageView } from '../../api/auth';
-import type { RegisteredEngine } from '../../api/client';
-import { useAuth } from '../../contexts/AuthContext';
-import { QuotaBar, isBalance } from '../../components/QuotaBar';
+import type { EngineRegistrationReport, EngineRegistrationRevision } from '../../api/client';
+import { useAuth } from '../../contexts/auth';
+import { QuotaBar } from '../../components/QuotaBar';
+import { isBalance } from '../../components/quota';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -22,11 +23,9 @@ export function Admin() {
   const [usage, setUsage] = useState<UsageView | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Publication is a request somebody has to answer. Without this the owner
-  // asks and nothing ever happens, which is a worse outcome than not offering
-  // to publish at all.
-  const [engines, setEngines] = useState<RegisteredEngine[]>([]);
-  const [showAllEngines, setShowAllEngines] = useState(false);
+  const [registrations, setRegistrations] = useState<EngineRegistrationRevision[]>([]);
+  const [reviewing, setReviewing] = useState<EngineRegistrationRevision | null>(null);
+  const [reviewReport, setReviewReport] = useState<EngineRegistrationReport | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -39,21 +38,21 @@ export function Admin() {
     }
   }, [search, offset]);
 
-  const loadEngines = useCallback(async () => {
+  const loadRegistrations = useCallback(async () => {
     try {
-      setEngines(await apiClient.adminListEngines(!showAllEngines));
+      setRegistrations(await apiClient.adminListEngineRegistrations());
     } catch {
-      setError('The registered engines could not be loaded.');
+      setError('The publication review queue could not be loaded.');
     }
-  }, [showAllEngines]);
+  }, []);
 
   useEffect(() => {
-    void load();
+    void Promise.resolve().then(load);
   }, [load]);
 
   useEffect(() => {
-    void loadEngines();
-  }, [loadEngines]);
+    void Promise.resolve().then(loadRegistrations);
+  }, [loadRegistrations]);
 
   const act = async (what: () => Promise<unknown>, done: string) => {
     setError(null);
@@ -61,10 +60,12 @@ export function Admin() {
     try {
       await what();
       setNotice(done);
+      setReviewing(null);
+      setReviewReport(null);
       await load();
-      await loadEngines();
+      await loadRegistrations();
     } catch {
-      setError('That change could not be applied. The pricing service may be unreachable.');
+      setError('That change could not be applied. The gateway may have refused it or a required service may be unavailable.');
     }
   };
 
@@ -78,30 +79,48 @@ export function Admin() {
     }
   };
 
+  const inspectRegistration = async (registration: EngineRegistrationRevision) => {
+    setReviewing(registration);
+    setReviewReport(null);
+    setError(null);
+    try {
+      setReviewReport(await apiClient.getEngineRegistrationReport(registration));
+    } catch {
+      setError('The submitted Engine, OpenAPI document and verification report could not be read.');
+    }
+  };
+
   return (
     <div className="admin-page">
       <div className="container">
-        <div className="page-header">
+        <header className="page-header">
+          <span className="admin-kicker">Operator console</span>
           <h1>Administration</h1>
           <p className="page-description">
             Accounts, plans and keys. Passwords and email addresses are deliberately not here:
             they are how somebody signs in, and changing them would be taking an account over.
           </p>
-        </div>
+        </header>
 
         {error && <Alert type="error">{error}</Alert>}
         {notice && <Alert type="success">{notice}</Alert>}
 
         <div className="admin-controls">
-          <input
-            className="admin-search"
-            placeholder="Search by username or email..."
-            value={search}
-            onChange={(e) => {
-              setOffset(0);
-              setSearch(e.target.value);
-            }}
-          />
+          <label className="admin-search">
+            <span>Filter accounts</span>
+            <input
+              type="search"
+              name="account-search"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="Search by username or email…"
+              value={search}
+              onChange={(e) => {
+                setOffset(0);
+                setSearch(e.target.value);
+              }}
+            />
+          </label>
           <span className="admin-count">{total} account{total === 1 ? '' : 's'}</span>
         </div>
 
@@ -225,124 +244,86 @@ export function Admin() {
 
         <Card padding="lg" className="admin-engines">
           <div className="admin-usage-head">
-            <h2>Registered engines</h2>
-            <label className="admin-toggle">
-              <input
-                type="checkbox"
-                checked={showAllEngines}
-                onChange={(e) => setShowAllEngines(e.target.checked)}
-              />
-              <span>Show every registration, not only those awaiting review</span>
-            </label>
+            <div>
+              <h2>Engine publication requests</h2>
+              <p className="admin-note">Only registrations their owners explicitly submitted appear here. Private and rejected registrations are not discoverable by administrators.</p>
+            </div>
           </div>
 
-          {engines.length === 0 ? (
-            <p className="admin-empty">
-              {showAllEngines
-                ? 'Nobody has registered an engine yet.'
-                : 'Nothing is waiting for review.'}
-            </p>
+          {registrations.length === 0 ? (
+            <p className="admin-empty">Nothing is waiting for publication review.</p>
           ) : (
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Engine</th>
-                  <th>Owner</th>
+                  <th>Registration</th>
+                  <th>Version</th>
+                  <th>Digest</th>
                   <th>Status</th>
-                  <th>Visibility</th>
+                  <th>Owner use</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
-                {engines.map((engine) => (
-                  <tr key={engine.id}>
+                {registrations.map((registration) => <tr key={bimResourceKey(registration)}>
                     <td>
                       <div className="admin-identity">
-                        <strong>{engine.display_name}</strong>
-                        <span>{engine.engine_id}</span>
+                        <strong>{registration.namespace}/{registration.name}</strong>
+                        <span>EngineRegistration</span>
                       </div>
                     </td>
-                    <td>{engine.owner}</td>
+                    <td><code>{registration.version}</code></td>
+                    <td><code title={registration.digest}>{registration.digest.slice(0, 18)}…</code></td>
                     <td>
-                      <Badge variant={engine.status === 'active' ? 'success' : 'error'}>
-                        {engine.status}
-                      </Badge>
-                      {engine.conformance_report && !engine.conformance_report.passed && (
-                        <div
-                          className="admin-finding"
-                          title={engine.conformance_report.findings
-                            .map((f) => f.message)
-                            .join('\n')}
-                        >
-                          {engine.conformance_report.findings[0]?.code}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <Badge
-                        variant={engine.visibility === 'public' ? 'accent' : 'default'}
-                      >
-                        {engine.visibility.replace('_', ' ')}
+                      <Badge variant="warning">
+                        {registration.status.replace('_', ' ')}
                       </Badge>
                     </td>
+                    <td><Badge variant={registration.active ? 'success' : 'default'}>{registration.active ? 'active' : 'inactive'}</Badge></td>
                     <td className="admin-actions">
-                      {engine.visibility === 'pending_review' && (
-                        <>
-                          <Button
-                            size="sm"
-                            // Only a verified engine can be approved; the
-                            // gateway refuses otherwise, and offering the
-                            // button anyway would be offering a 409.
-                            disabled={engine.status !== 'active'}
-                            title={
-                              engine.status === 'active'
-                                ? 'List this engine for everybody'
-                                : 'This engine does not pass its own conformance checks'
-                            }
-                            onClick={() =>
-                              act(
-                                () => apiClient.adminApproveEngine(engine.engine_id),
-                                `${engine.engine_id} is now public.`
-                              )
-                            }
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() =>
-                              act(
-                                () => apiClient.adminRejectEngine(engine.engine_id),
-                                `${engine.engine_id} stays private.`
-                              )
-                            }
-                          >
-                            Reject
-                          </Button>
-                        </>
-                      )}
-                      {engine.status !== 'disabled' && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          title="Stop it being solved on, without deleting it"
-                          onClick={() =>
-                            act(
-                              () => apiClient.adminDisableEngine(engine.engine_id),
-                              `${engine.engine_id} is disabled.`
-                            )
+                      <Button size="sm" variant="ghost" onClick={() => void inspectRegistration(registration)}>Review contract</Button>
+                      <Button
+                        size="sm"
+                        title="Verify the live pinned contract again, then publish this exact revision"
+                        onClick={() => void act(
+                          () => apiClient.adminApproveEngineRegistration(registration),
+                          `${registration.namespace}/${registration.name}@${registration.version} is published.`
+                        )}
+                      >Approve publication</Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          if (window.confirm(`Reject publication of ${registration.namespace}/${registration.name}? The registration will become private to its owner again.`)) {
+                            void act(
+                              () => apiClient.adminRejectEngineRegistration(registration),
+                              `${registration.namespace}/${registration.name}@${registration.version} was rejected and is private again.`
+                            );
                           }
-                        >
-                          Disable
-                        </Button>
-                      )}
+                        }}
+                      >Reject</Button>
                     </td>
-                  </tr>
-                ))}
+                  </tr>)}
               </tbody>
             </table>
           )}
+
+          {reviewing && <section className="admin-registration-report" aria-live="polite">
+            <header>
+              <div><span>Publication contract</span><h3>{reviewing.namespace}/{reviewing.name}@{reviewing.version}</h3></div>
+              <Button size="sm" variant="ghost" onClick={() => { setReviewing(null); setReviewReport(null); }}>Close</Button>
+            </header>
+            {!reviewReport ? <p>Loading the submitted contract…</p> : <>
+              <dl>
+                <div><dt>Registration digest</dt><dd><code>{reviewReport.digest}</code></dd></div>
+                <div><dt>OpenAPI digest</dt><dd><code>{reviewReport.openapiDigest || 'not verified'}</code></dd></div>
+                <div><dt>Verification</dt><dd><code>{String(reviewReport.report?.status || 'pending')}</code></dd></div>
+              </dl>
+              <details><summary>Verification report</summary><pre>{JSON.stringify(reviewReport.report, null, 2)}</pre></details>
+              <details><summary>Submitted Engine</summary><pre>{JSON.stringify(reviewReport.engine, null, 2)}</pre></details>
+              <details><summary>Submitted OpenAPI</summary><pre>{JSON.stringify(reviewReport.openapi, null, 2)}</pre></details>
+            </>}
+          </section>}
         </Card>
 
         {inspecting && (
@@ -383,7 +364,7 @@ export function Admin() {
                 </Button>
               </>
             ) : (
-              <p className="admin-note">Reading the contract...</p>
+              <p className="admin-note">Reading the contract…</p>
             )}
           </Card>
         )}

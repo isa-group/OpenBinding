@@ -1,141 +1,185 @@
 .register-engine-page {
-  padding: var(--space-8) 0;
+  padding: clamp(2.5rem, 6vw, 6rem) 0 var(--space-24);
 }
 
-/* The steps are a map, not a control: they say where you are and how much is
-   left, and clicking them would let somebody skip the reading that makes the
-   next step easy. */
-.wizard-steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  list-style: none;
-  margin: 0 0 var(--space-6);
-  padding: 0;
+.register-engine-page .container {
+  max-width: 1320px;
 }
 
-.wizard-steps li {
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full, 999px);
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  background: var(--color-bg-secondary);
+.register-engine-page .page-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(20rem, 0.8fr);
+  gap: clamp(2rem, 8vw, 7rem);
+  align-items: end;
+  margin-bottom: var(--space-10);
+  padding-bottom: var(--space-8);
+  border-bottom: 1px solid var(--color-rule-strong);
 }
 
-.wizard-steps li.current {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-  font-weight: 600;
+.register-engine-kicker {
+  grid-column: 1 / -1;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  font-weight: 650;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
 }
 
-.wizard-steps li.done {
-  color: var(--color-text-primary);
+.register-engine-kicker::before {
+  display: inline-block;
+  width: 1.4rem;
+  height: 1px;
+  margin-right: var(--space-2);
+  content: "";
+  background: var(--color-accent);
+  vertical-align: middle;
+}
+
+.register-engine-page .page-header h1 {
+  max-width: 12ch;
+}
+
+.register-engine-page .page-description {
+  max-width: 42rem;
+  font-size: clamp(1rem, 1.5vw, 1.18rem);
+}
+
+.register-engine-page > .container > .alert {
+  margin-bottom: var(--space-5);
 }
 
 .wizard-card {
-  margin-bottom: var(--space-6);
+  padding: var(--space-8) 0 0;
+  border: 0;
+  border-top: 1px solid var(--color-rule-strong);
+  border-bottom: 1px solid var(--color-rule-strong);
+  border-radius: 0;
+  background: transparent;
 }
 
 .wizard-card h2 {
-  margin: 0 0 var(--space-2);
-  font-size: 1.25rem;
+  margin-bottom: var(--space-3);
+  font-size: clamp(1.6rem, 2.6vw, 2.35rem);
 }
 
 .wizard-hint {
-  margin: 0 0 var(--space-5);
-  color: var(--color-text-secondary);
-  line-height: 1.6;
-  max-width: 70ch;
-}
-
-.source-toggle {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-5);
-}
-
-.field {
-  display: block;
-  margin-bottom: var(--space-5);
-}
-
-.field > span {
-  display: block;
-  margin-bottom: var(--space-2);
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-.field input,
-.field textarea {
-  width: 100%;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  font-size: 0.9375rem;
-}
-
-.field textarea {
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  resize: vertical;
-}
-
-.field small {
-  display: block;
-  margin-top: var(--space-2);
-  color: var(--color-text-secondary);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-}
-
-.field-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
-}
-
-.checkbox-field {
-  display: flex;
-  gap: var(--space-3);
-  align-items: flex-start;
-  margin-bottom: var(--space-5);
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--color-text-secondary);
-}
-
-.checkbox-field input {
-  margin-top: 0.2rem;
-  flex-shrink: 0;
+  max-width: 72ch;
+  margin-bottom: var(--space-6);
+  font-size: 0.86rem;
+  line-height: 1.65;
 }
 
 .manifest-editor {
+  display: block;
   width: 100%;
-  padding: var(--space-4);
+  min-height: 35rem;
+  margin-bottom: var(--space-6);
+  padding: var(--space-5);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--color-bg-secondary);
   color: var(--color-text-primary);
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  line-height: 1.6;
+  font-size: 0.75rem;
+  line-height: 1.65;
   resize: vertical;
-  margin-bottom: var(--space-5);
+  tab-size: 2;
 }
 
-.notes-list,
-.unresolved-list {
-  margin: 0;
-  padding-left: var(--space-5);
-  line-height: 1.7;
+.field {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.3fr);
+  gap: var(--space-3) var(--space-6);
+  align-items: center;
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--color-border);
 }
 
-.notes-list li {
+.field > span {
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+}
+
+.deployment-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  cursor: pointer;
+}
+
+.deployment-choice input {
+  margin-top: 0.2rem;
+  accent-color: var(--color-accent);
+}
+
+.deployment-choice span {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.deployment-choice small,
+.openapi-upload small {
+  color: var(--color-text-tertiary);
+  font-size: 0.72rem;
+}
+
+.deployment-form {
+  margin-top: var(--space-10);
+  border-top: 1px solid var(--color-rule-strong);
+}
+
+.deployment-form > header {
+  padding-top: var(--space-8);
+}
+
+.field-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--space-8);
+}
+
+.openapi-upload {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--color-border);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 650;
+}
+
+.openapi-upload input {
+  width: fit-content;
+  max-width: 100%;
   color: var(--color-text-secondary);
+  font-family: var(--font-body);
+}
+
+.openapi-editor {
+  min-height: 28rem;
+}
+
+.field small {
+  grid-column: 2;
+  color: var(--color-text-tertiary);
+  font-size: 0.72rem;
 }
 
 .wizard-actions {
@@ -143,76 +187,71 @@
   flex-wrap: wrap;
   gap: var(--space-3);
   align-items: center;
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--color-border);
 }
-
-/* -- The report ---------------------------------------------------------- */
 
 .result-header {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-1);
-}
-
-.result-header h2 {
-  margin: 0;
-}
-
-.engine-id-line {
-  margin: 0 0 var(--space-5);
-  color: var(--color-text-secondary);
-}
-
-.findings {
-  margin: var(--space-6) 0;
-}
-
-.findings h3 {
-  font-size: 1rem;
-  margin: 0 0 var(--space-4);
-}
-
-.finding {
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-error, #d33);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-3);
-  background: var(--color-bg-secondary);
-}
-
-.finding-head {
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-2);
 }
 
-.finding p {
+.result-header h2 {
+  overflow-wrap: anywhere;
+}
+
+.engine-id-line {
+  margin-bottom: var(--space-6);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  overflow-wrap: anywhere;
+}
+
+.registration-result {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-6) 0;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-dialect);
+  border-radius: 0;
+  background: var(--color-dialect-subtle);
+}
+
+.registration-result h3,
+.registration-result p {
   margin: 0;
-  line-height: 1.6;
 }
 
-.steps {
-  margin: var(--space-5) 0;
-  color: var(--color-text-secondary);
+.registration-result code {
+  overflow-wrap: anywhere;
 }
 
-.steps summary {
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.875rem;
+.registration-result-state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
-.steps ul {
-  margin: var(--space-3) 0 0;
-  padding-left: var(--space-5);
-  line-height: 1.7;
-  font-size: 0.875rem;
-}
-
-@media (max-width: 768px) {
-  .field-row {
+@media (max-width: 760px) {
+  .register-engine-page .page-header,
+  .field,
+  .field-pair {
     grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .field small {
+    grid-column: 1;
+  }
+
+  .manifest-editor {
+    min-height: 28rem;
+    padding: var(--space-3);
+    font-size: 0.68rem;
   }
 }

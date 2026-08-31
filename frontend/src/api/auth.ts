@@ -8,6 +8,42 @@
 
 export type RoleName = 'user' | 'admin';
 export type PlanName = 'FREE' | 'PRO';
+export type ApiKeyPermission =
+  | 'account:read'
+  | 'account:write'
+  | 'keys:read'
+  | 'keys:write'
+  | 'instances:read'
+  | 'instances:write'
+  | 'instances:analyze'
+  | 'jobs:read'
+  | 'engines:read'
+  | 'engines:execute'
+  | 'engines:register'
+  | 'engines:publish'
+  | 'engines:moderate'
+  | 'extensions:register'
+  | 'extensions:moderate'
+  | 'admin:accounts:read'
+  | 'admin:accounts:write';
+
+export interface ApiKeyEngineRef {
+  namespace: string;
+  name: string;
+  version: string;
+  digest: string;
+}
+
+export interface ApiKeyEngineAccess {
+  all: boolean;
+  engines: ApiKeyEngineRef[];
+}
+
+export interface CreateApiKeyRequest {
+  name: string;
+  permissions: ApiKeyPermission[];
+  engine_access: ApiKeyEngineAccess;
+}
 
 export interface UserProfile {
   id: string;
@@ -32,6 +68,8 @@ export interface ApiKeySummary {
   prefix: string;
   created_at: string;
   last_used_at?: string | null;
+  permissions: ApiKeyPermission[];
+  engine_access: ApiKeyEngineAccess;
 }
 
 /** The one response that ever carries the secret. It cannot be fetched again. */
@@ -53,8 +91,10 @@ export interface PlanCaps {
   max_timeout_s: number;
   max_iterations: number;
   max_payload_mb: number;
-  max_binding_space_log10: number;
+  max_instance_complexity_log10: number;
   job_history_days: number;
+  /** Ten on FREE; null means the PRO plan has no active-key ceiling. */
+  api_keys_limit: number | null;
 }
 
 export interface UsageView {

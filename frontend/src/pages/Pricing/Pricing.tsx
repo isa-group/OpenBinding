@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { PricingRenderer } from 'pricing-renderer/react';
 import 'pricing-renderer/styles.css';
 import { apiClient } from '../../api/client';
-import { useAuth } from '../../contexts/AuthContext';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/auth';
+import { useTheme } from '../../contexts/theme';
 import { Alert } from '../../components/ui/Alert';
 import './Pricing.css';
 
@@ -12,7 +12,7 @@ import './Pricing.css';
  * The plans, rendered from the same document the gateway serves and SPACE
  * enforces.
  *
- * The YAML is fetched from `GET /api/v1/schemas/pricing` rather than bundled,
+ * The YAML is fetched from `GET /v1/pricing` rather than bundled,
  * so this page cannot drift from what is actually being charged: one document
  * decides what a solve may do and what this page says it may do.
  *
@@ -61,14 +61,14 @@ export function Pricing() {
             <div className="pricing-standing">
               <span className="pricing-eyebrow">{user.plan}</span>
               <span>
-                You are on this plan. <Link to="/account">See what is left of it</Link>.
+                You are on this plan. <Link to="/account" viewTransition>See what is left of it</Link>.
               </span>
             </div>
           ) : (
             <div className="pricing-standing">
               <span>
-                <Link to="/register">Create an account</Link> to start on Free, or{' '}
-                <Link to="/playground">try the playground</Link> without one.
+                <Link to="/register" viewTransition>Create an account</Link> to start on Free, or{' '}
+                <Link to="/playground" viewTransition>try the playground</Link> without one.
               </span>
             </div>
           )}
@@ -86,7 +86,7 @@ export function Pricing() {
                 // Nothing to check out. Whoever is interested either needs an
                 // account first, or needs to ask an administrator.
                 event.preventDefault();
-                navigate(user ? '/account' : '/register');
+                navigate(user ? '/account' : '/register', { viewTransition: true });
               }}
             />
           ) : (
@@ -133,9 +133,9 @@ export function Pricing() {
               </span>
               <h3>An instance is too large</h3>
               <p>
-                The size of a binding space is a fact about the instance, and there is no
-                smaller version of it to solve instead. That one is refused outright rather
-                than trimmed, and tells you the size it measured.
+                Instance complexity is a fact about the submitted resources, and there is no
+                smaller version to run instead. Requests beyond the configured ceiling are refused
+                rather than trimmed, and the refusal tells you the size it measured.
               </p>
             </article>
           </div>

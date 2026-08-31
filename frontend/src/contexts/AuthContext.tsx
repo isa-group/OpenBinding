@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { apiClient, SESSION_ENDED_EVENT } from '../api/client';
 import type { UserProfile } from '../api/auth';
+import { AuthContext } from './auth';
 
 /**
  * Who is signed in, for the whole interface.
@@ -16,20 +17,6 @@ import type { UserProfile } from '../api/auth';
  * both. The exposure that buys is mitigated by short-lived access tokens and
  * refresh rotation.
  */
-
-interface AuthContextValue {
-  user: UserProfile | null;
-  /** True until the stored session has been checked, so guards do not flash. */
-  loading: boolean;
-  signIn: (usernameOrEmail: string, password: string) => Promise<void>;
-  register: (details: { username: string; email: string; password: string }) => Promise<void>;
-  signOut: () => Promise<void>;
-  /** Re-read the profile, after a plan change or a password change. */
-  refresh: () => Promise<void>;
-  isAdmin: boolean;
-}
-
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -50,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void loadProfile().finally(() => setLoading(false));
+    void Promise.resolve().then(loadProfile).finally(() => setLoading(false));
   }, [loadProfile]);
 
   useEffect(() => {
@@ -100,12 +87,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 }

@@ -1,16 +1,61 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { apiClient } from '../../api/client';
-import type { ApiKeySummary, CreatedApiKey, UsageView } from '../../api/auth';
-import type { JobHistory, JobStatus } from '../../api/client';
+import { Link } from 'react-router-dom';
+import { apiClient, bimResourceKey } from '../../api/client';
+import type {
+  ApiKeyPermission,
+  ApiKeySummary,
+  CreatedApiKey,
+  UsageView,
+} from '../../api/auth';
+import type { EngineCatalogEntry, JobHistory, JobStatus } from '../../api/client';
 import { PricingUnavailableError } from '../../api/auth';
-import { useAuth } from '../../contexts/AuthContext';
-import { QuotaBar, isBalance } from '../../components/QuotaBar';
+import { useAuth } from '../../contexts/auth';
+import { QuotaBar } from '../../components/QuotaBar';
+import { isBalance } from '../../components/quota';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
 import './Account.css';
+
+interface PermissionOption {
+  value: ApiKeyPermission;
+  label: string;
+  description: string;
+  group: 'Read' | 'Write' | 'Sensitive';
+  adminOnly?: boolean;
+}
+
+const PERMISSION_OPTIONS: PermissionOption[] = [
+  { value: 'account:read', label: 'Read account', description: 'Profile, plan, usage and pricing token.', group: 'Read' },
+  { value: 'keys:read', label: 'Read API keys', description: 'Names, prefixes and grants; never secrets.', group: 'Read' },
+  { value: 'instances:read', label: 'Read instances', description: 'Owned snapshots, source packages and IR.', group: 'Read' },
+  { value: 'jobs:read', label: 'Read jobs', description: 'Owned jobs for the permitted Engines.', group: 'Read' },
+  { value: 'engines:read', label: 'Read Engines', description: 'Catalog and deployment reports, filtered by Engine.', group: 'Read' },
+  { value: 'account:write', label: 'Write account', description: 'Change the account profile with its password.', group: 'Write' },
+  { value: 'keys:write', label: 'Manage API keys', description: 'Create attenuated keys and revoke owned keys.', group: 'Write' },
+  { value: 'instances:write', label: 'Write instances', description: 'Create owned instance snapshots.', group: 'Write' },
+  { value: 'instances:analyze', label: 'Analyze instances', description: 'Analyze against only the permitted Engines.', group: 'Write' },
+  { value: 'engines:execute', label: 'Execute Engines', description: 'Submit solves to only the permitted Engines.', group: 'Write' },
+  { value: 'engines:register', label: 'Register Engines', description: 'Create Engines and manage private deployments.', group: 'Sensitive' },
+  { value: 'engines:publish', label: 'Request publication', description: 'Submit owned Engine deployments for review.', group: 'Sensitive' },
+  { value: 'extensions:register', label: 'Register extensions', description: 'Register Dialects and BIM resources.', group: 'Sensitive' },
+  { value: 'engines:moderate', label: 'Moderate Engines', description: 'Review Engine publication requests.', group: 'Sensitive', adminOnly: true },
+  { value: 'extensions:moderate', label: 'Moderate extensions', description: 'Approve Dialects and BIM resources.', group: 'Sensitive', adminOnly: true },
+  { value: 'admin:accounts:read', label: 'Read accounts', description: 'Administrator account and usage views.', group: 'Sensitive', adminOnly: true },
+  { value: 'admin:accounts:write', label: 'Administer accounts', description: 'Roles, plans, revocation and usage repair.', group: 'Sensitive', adminOnly: true },
+];
+
+const ENGINE_LIMITED_PERMISSIONS = new Set<ApiKeyPermission>([
+  'engines:read',
+  'engines:execute',
+  'engines:register',
+  'engines:publish',
+  'engines:moderate',
+  'instances:analyze',
+  'jobs:read',
+]);
 
 export function Account() {
   const { user, refresh } = useAuth();
@@ -19,6 +64,10 @@ export function Account() {
   const [keys, setKeys] = useState<ApiKeySummary[]>([]);
   const [minted, setMinted] = useState<CreatedApiKey | null>(null);
   const [keyName, setKeyName] = useState('');
+  const [permissions, setPermissions] = useState<ApiKeyPermission[]>([]);
+  const [engines, setEngines] = useState<EngineCatalogEntry[]>([]);
+  const [allEngines, setAllEngines] = useState(false);
+  const [selectedEngines, setSelectedEngines] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<JobHistory | null>(null);
@@ -46,21 +95,6 @@ export function Account() {
     link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
-  };
-
-  const downloadRequest = async (jobId: string, engineId: string) => {
-    // What a retention window is *for*: being able to run a past solve again,
-    // or compare another engine against it. Downloaded rather than shown,
-    // because an instance is a document you feed back in, not one you read.
-    try {
-      const kept = await apiClient.getJobRequest(jobId);
-      download(kept.instance, `${engineId}-${jobId.slice(0, 8)}.instance.json`);
-    } catch {
-      setError(
-        'That solve did not record what it was asked. Jobs from before the gateway ' +
-          'started keeping instances cannot be reproduced.'
-      );
-    }
   };
 
   const toggleSolution = async (jobId: string) => {
@@ -113,19 +147,66 @@ export function Account() {
     }
   }, []);
 
+  const loadEngines = useCallback(async () => {
+    try {
+      setEngines(await apiClient.getEngines());
+    } catch {
+      setEngines([]);
+    }
+  }, []);
+
   useEffect(() => {
     void loadUsage();
     void loadKeys();
+    void loadEngines();
     void loadHistory();
-  }, [loadUsage, loadKeys, loadHistory]);
+  }, [loadUsage, loadKeys, loadEngines, loadHistory]);
+
+  const togglePermission = (permission: ApiKeyPermission) => {
+    setPermissions((current) =>
+      current.includes(permission)
+        ? current.filter((candidate) => candidate !== permission)
+        : [...current, permission]
+    );
+  };
+
+  const toggleEngine = (engine: EngineCatalogEntry) => {
+    const key = bimResourceKey(engine.ref);
+    setSelectedEngines((current) =>
+      current.includes(key) ? current.filter((candidate) => candidate !== key) : [...current, key]
+    );
+  };
 
   const createKey = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
+    if (permissions.length === 0) {
+      setError('Choose at least one permission for this key.');
+      return;
+    }
+    const needsEngines = permissions.some((permission) => ENGINE_LIMITED_PERMISSIONS.has(permission));
+    if (needsEngines && !allEngines && selectedEngines.length === 0) {
+      setError('Choose at least one exact Engine, or grant access to all Engines.');
+      return;
+    }
     try {
-      const created = await apiClient.createApiKey(keyName.trim() || 'Untitled key');
+      const created = await apiClient.createApiKey({
+        name: keyName.trim() || 'Untitled key',
+        permissions,
+        engine_access: {
+          all: allEngines,
+          engines: allEngines
+            ? []
+            : engines
+                .filter((engine) => selectedEngines.includes(bimResourceKey(engine.ref)))
+                .map((engine) => engine.ref),
+        },
+      });
       setMinted(created);
       setKeyName('');
+      setPermissions([]);
+      setAllEngines(false);
+      setSelectedEngines([]);
       await loadKeys();
       await loadUsage();
     } catch {
@@ -159,13 +240,14 @@ export function Account() {
   return (
     <div className="account-page">
       <div className="container">
-        <div className="page-header">
+        <header className="page-header">
+          <span className="account-kicker">Account contract</span>
           <h1>Your account</h1>
           <p className="page-description">
-            Everything here is a documented endpoint of the gateway API, so anything this page
-            does, a script with an API key can do too.
+            Sessions control the whole account. Each API key below receives only the permissions
+            and exact Engine revisions you choose for it.
           </p>
-        </div>
+        </header>
 
         {error && <Alert type="error">{error}</Alert>}
         {notice && <Alert type="info">{notice}</Alert>}
@@ -224,10 +306,10 @@ export function Account() {
                   <dd>{usage.caps.max_timeout_s} s</dd>
                   <dt>Largest instance</dt>
                   <dd>{usage.caps.max_payload_mb} MB</dd>
-                  <dt>Largest binding space</dt>
-                  <dd>10^{usage.caps.max_binding_space_log10}</dd>
+                  <dt>Largest instance complexity</dt>
+                  <dd>10^{usage.caps.max_instance_complexity_log10}</dd>
                   <dt>Search effort ceiling</dt>
-                  <dd>{usage.caps.max_iterations.toLocaleString()} iterations</dd>
+                  <dd>{usage.caps.max_iterations.toLocaleString()} iterations/evaluations</dd>
                 </dl>
                 <p className="account-note">
                   A request asking for more than these is reduced to them rather than refused,
@@ -241,7 +323,10 @@ export function Account() {
         <Card padding="lg" className="account-keys">
           <h2>API keys</h2>
           <p className="account-note">
-            A key reaches the same account this page does, so it draws on the same allowances.
+            Grants are immutable: revoke and replace a key to change them. Active keys:{' '}
+            <strong>
+              {keys.length} / {usage?.caps.api_keys_limit ?? 'Unlimited'}
+            </strong>
           </p>
 
           {minted && (
@@ -255,16 +340,100 @@ export function Account() {
           )}
 
           <form className="account-key-form" onSubmit={createKey}>
-            <input
-              aria-label="What this key is for"
-              placeholder="What is this key for?"
-              value={keyName}
-              onChange={(e) => setKeyName(e.target.value)}
-              maxLength={128}
-            />
-            <Button type="submit" size="sm">
-              Create key
-            </Button>
+            <label className="account-key-name">
+              <span>Name</span>
+              <input
+                aria-label="What this key is for"
+                name="key-name"
+                autoComplete="off"
+                placeholder="CI deployment key…"
+                value={keyName}
+                onChange={(e) => setKeyName(e.target.value)}
+                maxLength={128}
+              />
+            </label>
+
+            <div className="account-permission-groups">
+              {(['Read', 'Write', 'Sensitive'] as const).map((group) => (
+                <fieldset key={group} className="account-permission-group">
+                  <legend>{group}</legend>
+                  {PERMISSION_OPTIONS.filter(
+                    (option) => option.group === group && (!option.adminOnly || user.role === 'admin')
+                  ).map((option) => (
+                    <label key={option.value} className="account-permission-option">
+                      <input
+                        type="checkbox"
+                        checked={permissions.includes(option.value)}
+                        onChange={() => togglePermission(option.value)}
+                      />
+                      <span>
+                        <strong>{option.label}</strong>
+                        <small>{option.description}</small>
+                      </span>
+                    </label>
+                  ))}
+                </fieldset>
+              ))}
+            </div>
+
+            <fieldset className="account-engine-access">
+              <legend>Engine access</legend>
+              <label className="account-radio-option">
+                <input
+                  type="radio"
+                  name="engine-access"
+                  checked={allEngines}
+                  onChange={() => setAllEngines(true)}
+                />
+                <span>
+                  <strong>All Engines</strong>
+                  <small>Includes Engines that become visible in the future.</small>
+                </span>
+              </label>
+              <label className="account-radio-option">
+                <input
+                  type="radio"
+                  name="engine-access"
+                  checked={!allEngines}
+                  onChange={() => setAllEngines(false)}
+                />
+                <span>
+                  <strong>Selected revisions</strong>
+                  <small>{selectedEngines.length} exact revision{selectedEngines.length === 1 ? '' : 's'} selected.</small>
+                </span>
+              </label>
+              {!allEngines && (
+                <div className="account-engine-list">
+                  {engines.length === 0 ? (
+                    <p className="account-empty">No visible Engines are available to select.</p>
+                  ) : (
+                    engines.map((engine) => {
+                      const key = bimResourceKey(engine.ref);
+                      return (
+                        <label key={key} className="account-engine-option">
+                          <input
+                            type="checkbox"
+                            checked={selectedEngines.includes(key)}
+                            onChange={() => toggleEngine(engine)}
+                          />
+                          <span>
+                            <strong>{engine.namespace}/{engine.name}</strong>
+                            <code>{engine.version} · {engine.digest.slice(0, 18)}…</code>
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </fieldset>
+
+            <div className="account-key-submit">
+              <span>{permissions.length} permission{permissions.length === 1 ? '' : 's'} selected</span>
+              <Button type="submit" size="sm">
+                Create key
+              </Button>
+            </div>
           </form>
 
           {keys.length === 0 ? (
@@ -275,6 +444,8 @@ export function Account() {
                 <tr>
                   <th>Name</th>
                   <th>Prefix</th>
+                  <th>Permissions</th>
+                  <th>Engines</th>
                   <th>Created</th>
                   <th>Last used</th>
                   <th />
@@ -286,6 +457,18 @@ export function Account() {
                     <td>{key.name}</td>
                     <td>
                       <code>{key.prefix}</code>
+                    </td>
+                    <td>
+                      <div className="account-key-grants">
+                        {key.permissions.map((permission) => (
+                          <code key={permission}>{permission}</code>
+                        ))}
+                      </div>
+                    </td>
+                    <td>
+                      {key.engine_access.all
+                        ? 'All'
+                        : `${key.engine_access.engines.length} selected`}
                     </td>
                     <td>{new Date(key.created_at).toLocaleDateString()}</td>
                     <td>
@@ -316,7 +499,7 @@ export function Account() {
           {!history || history.jobs.length === 0 ? (
             <p className="account-empty">
               Nothing yet. Solve something in the{' '}
-              <a href="/playground">Playground</a> and it will appear here.
+              <Link to="/playground" viewTransition>Playground</Link> and it will appear here.
             </p>
           ) : (
             <table className="account-table">
@@ -350,9 +533,9 @@ export function Account() {
                       </Badge>
                     </td>
                     <td>
-                      {job.feasibility ? (
+                      {job.termination ? (
                         <>
-                          {job.feasibility.toLowerCase()}
+                          {job.termination.toLowerCase()}
                           {job.solutions != null && `, ${job.solutions} solution${job.solutions === 1 ? '' : 's'}`}
                         </>
                       ) : (
@@ -361,14 +544,6 @@ export function Account() {
                     </td>
                     <td>{new Date(job.created_at).toLocaleString('en-GB')}</td>
                     <td className="account-actions">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        title="Download the instance and options this solve was given"
-                        onClick={() => void downloadRequest(job.id, job.engine_id)}
-                      >
-                        Request
-                      </Button>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -417,7 +592,7 @@ export function Account() {
 /**
  * A finished solve, as the reference evaluator scored it.
  *
- * The history row says a solve happened and whether it was feasible; this says
+ * The history row says a solve happened and how it terminated; this says
  * what it actually decided. Only the canonical numbers are shown - the binding,
  * the objective and the aggregated features - because those are the ones the
  * gateway computed itself and stands behind. Anything else a caller wants is in
@@ -425,15 +600,15 @@ export function Account() {
  */
 function SolutionPanel({ job, onDownload }: { job: JobStatus; onDownload: () => void }) {
   const solution = job.result?.solutions?.[0];
-  const binding = (solution?.binding ?? null) as Record<string, string> | null;
-  const objective = solution?.objective_value;
-  const features = solution?.aggregated_features as Record<string, number> | undefined;
+  const binding = solution?.decision.binding ?? null;
+  const objective = solution?.objectives.score;
+  const metrics = solution?.metrics;
 
   if (!solution) {
     return (
       <p className="account-empty">
         This solve finished without producing a binding
-        {job.result?.feasibility === 'INFEASIBLE'
+        {job.result?.termination === 'INFEASIBLE'
           ? ': no assignment satisfies every constraint.'
           : '.'}
       </p>
@@ -444,14 +619,27 @@ function SolutionPanel({ job, onDownload }: { job: JobStatus; onDownload: () => 
     <div className="account-solution">
       <div className="account-solution-head">
         <span>
-          {job.result?.feasibility && (
-            <Badge variant={job.result.feasibility === 'FEASIBLE' ? 'success' : 'error'}>
-              {job.result.feasibility.toLowerCase()}
+          {job.result?.termination && (
+            <Badge
+              variant={
+                job.result.termination === 'OPTIMAL' || job.result.termination === 'FEASIBLE'
+                  ? 'success'
+                  : job.result.termination === 'INFEASIBLE'
+                  ? 'error'
+                  : 'warning'
+              }
+            >
+              {job.result.termination.toLowerCase()}
             </Badge>
           )}
-          {typeof objective === 'number' && (
+          {objective != null && (
             <span className="account-solution-objective">
-              objective <strong>{objective.toLocaleString('en-GB', { maximumFractionDigits: 4 })}</strong>
+              objective{' '}
+              <strong>
+                {typeof objective === 'number'
+                  ? objective.toLocaleString('en-GB', { maximumFractionDigits: 4 })
+                  : `[${objective.map((value) => value.toLocaleString('en-GB', { maximumFractionDigits: 4 })).join(', ')}]`}
+              </strong>
             </span>
           )}
         </span>
@@ -460,9 +648,9 @@ function SolutionPanel({ job, onDownload }: { job: JobStatus; onDownload: () => 
         </Button>
       </div>
 
-      {features && Object.keys(features).length > 0 && (
+      {metrics && Object.keys(metrics).length > 0 && (
         <p className="account-solution-features">
-          {Object.entries(features).map(([name, value]) => (
+          {Object.entries(metrics).map(([name, value]) => (
             <span key={name}>
               {name} <strong>{typeof value === 'number' ? value.toLocaleString('en-GB', { maximumFractionDigits: 4 }) : String(value)}</strong>
             </span>
@@ -485,7 +673,7 @@ function SolutionPanel({ job, onDownload }: { job: JobStatus; onDownload: () => 
                   <code>{task}</code>
                 </td>
                 <td>
-                  <code>{String(candidate)}</code>
+                  <code>{candidate.resource}:{candidate.id}</code>
                 </td>
               </tr>
             ))}

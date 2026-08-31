@@ -1,0 +1,124 @@
+.examples-page { max-width: 1680px; }
+.examples-intro { align-items: start; }
+.example-profile-note { display: flex; gap: var(--space-3); margin-top: var(--space-6); padding: var(--space-4); border-left: 2px solid var(--color-dialect); background: var(--color-dialect-subtle); font-size: 0.75rem; }
+.example-profile-note svg { flex: 0 0 auto; width: 0.9rem; color: var(--color-dialect); }
+.example-profile-note code { white-space: nowrap; }
+.examples-page > .alert { margin-top: calc(var(--space-10) * -1); margin-bottom: var(--space-10); }
+
+.lesson-orientation { display: grid; grid-template-columns: minmax(18rem, 0.68fr) minmax(0, 1.32fr); gap: clamp(2rem, 8vw, 8rem); margin-bottom: clamp(6rem, 10vw, 9rem); }
+.lesson-orientation h2 { max-width: 14ch; margin-top: var(--space-4); }
+.lesson-orientation ol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-block: 1px solid var(--color-rule-strong); list-style: none; }
+.lesson-orientation li { min-height: 15rem; padding: var(--space-5); border-right: 1px solid var(--color-border); }
+.lesson-orientation li:last-child { border-right: 0; }
+.lesson-orientation li > span { color: var(--color-accent); font-family: var(--font-mono); font-size: 0.63rem; }
+.lesson-orientation li strong { display: block; margin: var(--space-10) 0 var(--space-3); font-family: var(--font-display); font-size: 1.15rem; }
+.lesson-orientation li p { font-size: 0.75rem; }
+
+.lesson-catalog { margin-bottom: clamp(7rem, 12vw, 11rem); }
+.lesson-controls { display: grid; grid-template-columns: minmax(14rem, auto) minmax(15rem, 1fr) auto; gap: var(--space-6); align-items: end; margin-bottom: var(--space-8); }
+.lesson-controls h2 { margin-top: var(--space-2); font-size: 1.65rem; }
+.lesson-search { display: flex; align-items: center; gap: var(--space-3); min-width: 0; padding: 0 var(--space-4); border-bottom: 1px solid var(--color-rule-strong); }
+.lesson-search svg { width: 1rem; color: var(--color-text-tertiary); }
+.lesson-search { transition: border-color var(--transition-fast), box-shadow var(--transition-fast); }
+.lesson-search:focus-within { border-color: var(--color-accent); box-shadow: 0 2px 0 var(--color-accent); }
+.lesson-search input { width: 100%; min-width: 0; padding: var(--space-3) 0; border: 0; background: transparent; }
+.lesson-search input:focus-visible { outline: 0; }
+.lesson-filters { display: flex; flex-wrap: wrap; justify-content: flex-end; border: 1px solid var(--color-border); }
+.lesson-filters button { padding: 0.62rem 0.8rem; border: 0; border-right: 1px solid var(--color-border); background: var(--color-bg-elevated); color: var(--color-text-secondary); font-size: 0.67rem; font-weight: 700; cursor: pointer; transition: background-color var(--transition-fast), color var(--transition-fast); }
+.lesson-filters button:last-child { border-right: 0; }
+.lesson-filters button.is-active { background: var(--color-accent); color: white; }
+
+.lesson-rail { border-top: 1px solid var(--color-rule-strong); }
+.lesson-row { display: grid; grid-template-columns: 3.2rem minmax(12rem, 0.7fr) minmax(13rem, 0.76fr) minmax(18rem, 1.24fr) 9rem; min-height: 14rem; border-bottom: 1px solid var(--color-rule-strong); }
+.lesson-row > *:not(.lesson-marker) { padding: var(--space-5); border-left: 1px solid var(--color-border); }
+.lesson-marker { position: relative; display: flex; justify-content: center; padding-top: var(--space-5); color: var(--color-text-tertiary); font-family: var(--font-mono); font-size: 0.61rem; }
+.lesson-marker i { position: absolute; top: 3.1rem; bottom: -1px; left: 50%; width: 1px; background: var(--color-border); }
+.lesson-marker i::before { position: absolute; top: 0; left: -3px; width: 7px; height: 7px; content: ""; border-radius: 50%; background: var(--color-accent); }
+.lesson-identity { display: flex; flex-direction: column; }
+.lesson-identity > span { color: var(--color-accent); font-family: var(--font-mono); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.lesson-identity h3 { margin: var(--space-6) 0 var(--space-2); }
+.lesson-identity p { font-size: 0.72rem; }
+.lesson-shape { display: flex; flex-direction: column; justify-content: space-between; background: var(--color-bg-secondary); }
+.workflow-glyph { width: 100%; height: auto; max-height: 6rem; overflow: visible; }
+.glyph-line { fill: none; stroke: var(--color-rule-strong); stroke-width: 2; }
+.glyph-node { fill: var(--color-bg-elevated); stroke: var(--color-rule-strong); stroke-width: 2; }
+.glyph-end { stroke: var(--color-accent); }
+.glyph-block { fill: var(--color-bg-elevated); stroke: var(--color-dialect); stroke-width: 2; }
+.glyph-diamond { fill: var(--color-bg-elevated); stroke: var(--color-accent); stroke-width: 2; }
+.glyph-accent { fill: var(--color-accent-subtle); stroke: var(--color-accent); stroke-width: 2; }
+.lesson-shape > code { align-self: flex-start; font-size: 0.58rem; }
+.lesson-outcome { display: flex; flex-direction: column; }
+.lesson-outcome > p { margin: var(--space-4) 0; font-size: 0.8rem; }
+.lesson-outcome > small { display: flex; gap: var(--space-2); padding: var(--space-3); border-left: 2px solid var(--color-dialect); background: var(--color-dialect-subtle); color: var(--color-text-secondary); font-size: 0.65rem; }
+.lesson-outcome > small svg { flex: 0 0 auto; width: 0.8rem; color: var(--color-dialect); }
+.lesson-outcome > div { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: auto; }
+.lesson-outcome > div span { padding: 0.12rem 0.38rem; border: 1px solid var(--color-border); color: var(--color-text-tertiary); font-family: var(--font-mono); font-size: 0.56rem; }
+.lesson-open { display: flex; flex-direction: column; justify-content: space-between; background: var(--color-bg-elevated); color: var(--color-text-primary); font-family: var(--font-display); font-weight: 700; text-decoration: none; transition: background-color var(--transition-fast), color var(--transition-fast); }
+.lesson-open svg { width: 1.2rem; transition: transform var(--transition-fast); }
+.lesson-open:hover { background: var(--color-accent); color: white; text-decoration: none; }
+@media (hover: hover) and (pointer: fine) {
+  .lesson-open:hover svg { transform: translateX(3px); }
+}
+.lesson-placement .lesson-identity > span { color: var(--color-dialect); }
+.lesson-literature .lesson-identity > span { color: var(--color-core); }
+
+.lesson-empty { display: grid; min-height: 20rem; place-items: center; align-content: center; gap: var(--space-4); border-block: 1px solid var(--color-rule-strong); }
+.lesson-empty svg { color: var(--color-text-tertiary); }
+.lesson-empty button { padding: var(--space-2) var(--space-4); border: 1px solid var(--color-border); background: var(--color-bg-elevated); color: var(--color-text-primary); cursor: pointer; }
+
+.track-explainer { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: clamp(7rem, 12vw, 11rem); border-block: 1px solid var(--color-rule-strong); }
+.track-explainer article { min-height: 22rem; padding: var(--space-6); border-right: 1px solid var(--color-border); }
+.track-explainer article:last-child { border-right: 0; }
+.track-explainer svg { width: 2.8rem; height: 2.8rem; margin-bottom: var(--space-12); color: var(--color-dialect); stroke-width: 1.2; }
+.track-explainer span { display: block; color: var(--color-text-tertiary); font-family: var(--font-mono); font-size: 0.61rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.track-explainer h3 { max-width: 15ch; margin: var(--space-4) 0; }
+.track-explainer p { font-size: 0.8rem; }
+
+.examples-next { padding: var(--space-12); border: 1px solid var(--color-rule-strong); background: var(--color-bg-secondary); }
+.examples-next h2 { max-width: 22ch; margin: var(--space-4) 0 var(--space-8); }
+.examples-next a { display: inline-flex; align-items: center; gap: var(--space-3); padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-accent); color: var(--color-accent); font-weight: 700; }
+.examples-next svg { width: 1rem; }
+
+@supports (animation-timeline: view()) {
+  .lesson-row {
+    animation: lesson-row-reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 4% cover 18%;
+  }
+
+  @keyframes lesson-row-reveal {
+    from { opacity: 0.38; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@media (max-width: 1120px) {
+  .lesson-controls { grid-template-columns: 1fr 1fr; }
+  .lesson-filters { grid-column: 1 / -1; justify-self: start; }
+  .lesson-row { grid-template-columns: 3rem minmax(12rem, 0.72fr) minmax(16rem, 1.28fr) 8rem; }
+  .lesson-shape { display: none; }
+}
+
+@media (max-width: 760px) {
+  .lesson-orientation { grid-template-columns: 1fr; }
+  .lesson-orientation ol { grid-template-columns: 1fr; }
+  .lesson-orientation li { min-height: 10rem; border-right: 0; border-bottom: 1px solid var(--color-border); }
+  .lesson-orientation li strong { margin-top: var(--space-6); }
+  .lesson-controls { grid-template-columns: 1fr; }
+  .lesson-filters { grid-column: auto; justify-self: stretch; overflow-x: auto; flex-wrap: nowrap; justify-content: flex-start; }
+  .lesson-filters button { white-space: nowrap; }
+  .lesson-row { grid-template-columns: 2.4rem minmax(0, 1fr); }
+  .lesson-row > *:not(.lesson-marker) { grid-column: 2; border-left: 1px solid var(--color-border); }
+  .lesson-marker { grid-row: 1 / span 3; }
+  .lesson-identity { min-height: 9rem; }
+  .lesson-outcome { min-height: 12rem; border-top: 1px solid var(--color-border); }
+  .lesson-open { min-height: 5rem; flex-direction: row; align-items: center; border-top: 1px solid var(--color-border); }
+  .track-explainer { grid-template-columns: 1fr; }
+  .track-explainer article { min-height: 17rem; border-right: 0; border-bottom: 1px solid var(--color-border); }
+  .examples-next { padding: var(--space-6); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lesson-row { animation: none; }
+  .lesson-open svg { transition-duration: 1ms; }
+}

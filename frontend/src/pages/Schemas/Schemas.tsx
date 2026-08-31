@@ -1,325 +1,225 @@
-import { useEffect, useState } from 'react';
-import { apiClient } from '../../api/client';
-import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Braces, Check, Copy, Download, FileJson2, Network, Search } from 'lucide-react';
+import { apiClient, type BimSchemaKind } from '../../api/client';
 import { Alert } from '../../components/ui/Alert';
 import './Schemas.css';
 
-// The general schema covers plain binding problems and placement-aware ones
-// alike: the resource and latency models are optional blocks within it.
-type SchemaType = 'general' | 'engine';
+type SchemaGroup = 'Core & compilation' | 'Profile resources' | 'Extension & execution';
+
+interface SchemaCatalogItem {
+  kind: BimSchemaKind;
+  title: string;
+  group: SchemaGroup;
+  description: string;
+  boundary: string;
+  connectsTo: BimSchemaKind[];
+  example?: string;
+}
+
+const SCHEMA_CATALOG: SchemaCatalogItem[] = [
+  { kind: 'Instance', title: 'Instance', group: 'Core & compilation', description: 'Small portable root index: selects one installed Profile and maps logical ids to local or immutable registered resources by Profile role.', boundary: 'Portable source root', connectsTo: ['Profile', 'Application', 'CandidateCatalog', 'ConstraintSet', 'Optimization'], example: 'demo/01_simple_seq' },
+  { kind: 'Profile', title: 'Profile', group: 'Core & compilation', description: 'Executable semantic frame: roles, cardinalities, output IR, capability and limit vocabularies, plus a pinned installed adapter.', boundary: 'Problem-family contract', connectsTo: ['Instance', 'Dialect', 'BindingProblem', 'Engine'] },
+  { kind: 'BindingProblem', title: 'BindingProblem', group: 'Core & compilation', description: 'Closed compiled IR produced by qos-binding/v1. It is Profile output sent to engines, not another name for the source Instance package.', boundary: 'Compiled execution IR', connectsTo: ['Profile', 'Engine', 'engine-contract'], example: 'demo/05_multi_obj' },
+  { kind: 'Application', title: 'Application', group: 'Profile resources', description: 'Tasks, typed metrics and the native or externally represented workflow for qos-binding/v1.', boundary: 'application role', connectsTo: ['Instance', 'BindingProblem'], example: 'demo/02_parallel' },
+  { kind: 'CandidateCatalog', title: 'CandidateCatalog', group: 'Profile resources', description: 'Typed capabilities, provider/property data, metric bindings and deterministic finite scalar QoS values.', boundary: 'candidateCatalog role', connectsTo: ['Instance', 'Application', 'BindingProblem'], example: 'demo/08_dependencies' },
+  { kind: 'ConstraintSet', title: 'ConstraintSet', group: 'Profile resources', description: 'Independent hard and soft assertions expressed as the BIM expression AST or restricted CEL.', boundary: 'constraintSet role', connectsTo: ['Instance', 'Optimization', 'BindingProblem'], example: 'demo/07_soft_constraints' },
+  { kind: 'Optimization', title: 'Optimization', group: 'Profile resources', description: 'Exactly one satisfy, weighted, lexicographic or Pareto decision preference for the current Profile.', boundary: 'optimization role', connectsTo: ['Instance', 'ConstraintSet', 'BindingProblem'], example: 'demo/12_many_obj_pareto' },
+  { kind: 'Placement', title: 'Placement', group: 'Profile resources', description: 'Optional qos-binding-placement/v1 resource for pools, demands, capacity, directed network effects, security and pricing constraints.', boundary: 'Dialect resource in application role', connectsTo: ['Dialect', 'Application', 'BindingProblem', 'Engine'], example: 'placement/01_small_placement' },
+  { kind: 'RoutingOverlay', title: 'RoutingOverlay', group: 'Profile resources', description: 'Separate deterministic branch probabilities and expected-count values; workflow structure remains representation-neutral.', boundary: 'application role', connectsTo: ['Application', 'BindingProblem'], example: 'demo/03_xor_choice' },
+  { kind: 'Dialect', title: 'Dialect', group: 'Extension & execution', description: 'Independently versioned source-language contract: compatible Profiles, exact resource types or extension points, emitted IR features and pinned adapter.', boundary: 'Replaceable source vocabulary', connectsTo: ['Profile', 'Application', 'BindingProblem', 'Engine'] },
+  { kind: 'Engine', title: 'Engine', group: 'Extension & execution', description: 'Portable immutable execution resource with Profile/IR-targeted modes, feature selectors, closed options, limits and truthful guarantees.', boundary: 'Public capability declaration', connectsTo: ['Profile', 'BindingProblem', 'EngineRegistration'], example: 'demo/10_large_scale' },
+  { kind: 'EngineRegistration', title: 'EngineRegistration', group: 'Extension & execution', description: 'Private deployment manifest pinned to one exact Engine revision, HTTPS endpoint and bim-engine/v1 protocol digest.', boundary: 'Deployment and federation', connectsTo: ['Engine', 'engine-contract'] },
+  { kind: 'engine-contract', title: 'Engine protocol', group: 'Extension & execution', description: 'Pinned bim-engine/v1 OpenAPI protocol between the gateway and local or remote Engine deployments. Only compiled Profile IR crosses it.', boundary: 'Engine protocol', connectsTo: ['BindingProblem', 'EngineRegistration'] },
+];
+
+const GROUPS: SchemaGroup[] = ['Core & compilation', 'Profile resources', 'Extension & execution'];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function fileStem(kind: BimSchemaKind): string {
+  return kind.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+}
+
+function valueType(value: unknown): string {
+  if (!isRecord(value)) return Array.isArray(value) ? 'array' : typeof value;
+  if (typeof value.type === 'string') return value.type;
+  if (typeof value.$ref === 'string') return value.$ref.split('/').at(-1) || '$ref';
+  if (Array.isArray(value.oneOf)) return `oneOf · ${value.oneOf.length}`;
+  if (Array.isArray(value.anyOf)) return `anyOf · ${value.anyOf.length}`;
+  return 'object';
+}
 
 export function Schemas() {
-  const [engines, setEngines] = useState<string[]>([]);
-  const [generalSchema, setGeneralSchema] = useState<any>(null);
-  const [engineSchemas, setEngineSchemas] = useState<Record<string, any>>({});
-  const [selectedType, setSelectedType] = useState<SchemaType>('general');
-  const [selectedEngine, setSelectedEngine] = useState<string>('');
-  const [loadingSchema, setLoadingSchema] = useState(false);
+  const [selectedKind, setSelectedKind] = useState<BimSchemaKind>('Instance');
+  const [schemas, setSchemas] = useState<Partial<Record<BimSchemaKind, Record<string, unknown>>>>({});
+  const [loadingSchema, setLoadingSchema] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [view, setView] = useState<'map' | 'json'>('map');
+  const [copiedPath, setCopiedPath] = useState('');
 
   useEffect(() => {
-    loadEngines();
-    loadGeneralSchema();
-  }, []);
+    if (schemas[selectedKind]) return;
+    let cancelled = false;
+    void apiClient.getBimSchema(selectedKind)
+      .then((schema) => {
+        if (!cancelled) setSchemas((current) => ({ ...current, [selectedKind]: schema }));
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : `Failed to load the ${selectedKind} schema`);
+      })
+      .finally(() => { if (!cancelled) setLoadingSchema(false); });
+    return () => { cancelled = true; };
+  }, [schemas, selectedKind]);
 
-  useEffect(() => {
-    if (selectedType === 'engine' && selectedEngine && !engineSchemas[selectedEngine]) {
-      loadEngineSchema(selectedEngine);
-    }
-  }, [selectedType, selectedEngine, engineSchemas]);
+  const schema = schemas[selectedKind];
+  const selectedItem = SCHEMA_CATALOG.find((item) => item.kind === selectedKind) ?? SCHEMA_CATALOG[0];
+  const rootProperties = useMemo(() => {
+    if (!schema) return [];
+    const properties = isRecord(schema.properties) ? schema.properties : isRecord(schema.openapi) ? schema.openapi : {};
+    return Object.entries(properties).filter(([name]) => name.toLowerCase().includes(searchQuery.trim().toLowerCase()));
+  }, [schema, searchQuery]);
+  const definitions = schema && isRecord(schema.$defs) ? Object.keys(schema.$defs) : [];
+  const required = schema && Array.isArray(schema.required) ? schema.required.filter((item): item is string => typeof item === 'string') : [];
 
-  const loadEngines = async () => {
-    try {
-      const data = await apiClient.getEngines();
-      const engineIds = data.map(e => e.id);
-      setEngines(engineIds);
-      if (engineIds.length > 0 && !selectedEngine) {
-        setSelectedEngine(engineIds[0]);
-      }
-    } catch (err) {
-      console.error('Failed to load engines:', err);
-    }
-  };
-
-  const loadGeneralSchema = async () => {
-    try {
-      setLoadingSchema(true);
-      setError(null);
-      const schema = await apiClient.getGeneralSchema();
-      setGeneralSchema(schema);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load general schema');
-    } finally {
-      setLoadingSchema(false);
-    }
-  };
-
-  const loadEngineSchema = async (engineId: string) => {
-    try {
-      setLoadingSchema(true);
-      setError(null);
-      const schema = await apiClient.getEngineSchema(engineId);
-      setEngineSchemas(prev => ({ ...prev, [engineId]: schema }));
-    } catch (err: any) {
-      setError(err.message || `Failed to load schema for ${engineId}`);
-    } finally {
-      setLoadingSchema(false);
-    }
-  };
-
-  const getCurrentSchema = () => {
-    if (selectedType === 'general') {
-      return generalSchema;
-    }
-    return engineSchemas[selectedEngine];
+  const selectKind = (kind: BimSchemaKind) => {
+    setSelectedKind(kind);
+    setLoadingSchema(!schemas[kind]);
+    setSearchQuery('');
+    setExpandedPaths(new Set());
+    setError(null);
+    setCopiedPath('');
   };
 
   const downloadSchema = () => {
-    const schema = getCurrentSchema();
     if (!schema) return;
-
-    const filename = selectedType === 'general'
-      ? 'general-schema.json'
-      : `${selectedEngine}-schema.json`;
-    
     const blob = new Blob([JSON.stringify(schema, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `bim-v1-${fileStem(selectedKind)}.json`;
+    anchor.click();
     URL.revokeObjectURL(url);
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = (path: string) => {
+    void navigator.clipboard.writeText(path).then(() => {
+      setCopiedPath(path);
+      window.setTimeout(() => setCopiedPath((current) => current === path ? '' : current), 1200);
+    });
   };
 
   const togglePath = (path: string) => {
-    setExpandedPaths(prev => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
+    setExpandedPaths((current) => {
+      const next = new Set(current);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
       return next;
     });
   };
 
-  const renderJsonTree = (obj: any, path: string = '', level: number = 0): React.ReactElement => {
-    if (obj === null) {
-      return <span className="json-null">null</span>;
-    }
-
-    if (typeof obj !== 'object') {
-      const className = `json-${typeof obj}`;
-      return <span className={className}>{JSON.stringify(obj)}</span>;
-    }
-
-    if (Array.isArray(obj)) {
-      if (obj.length === 0) {
-        return <span className="json-array">[]</span>;
-      }
-
+  const renderJsonTree = (value: unknown, path = '', level = 0): ReactElement => {
+    if (value === null) return <span className="json-null">null</span>;
+    if (typeof value !== 'object') return <span className={`json-${typeof value}`}>{JSON.stringify(value)}</span>;
+    if (Array.isArray(value)) {
+      if (value.length === 0) return <span className="json-array">[]</span>;
       const isExpanded = expandedPaths.has(path);
-      
-      return (
-        <div className="json-node">
-          <span 
-            className="json-toggle" 
-            onClick={() => togglePath(path)}
-            style={{ cursor: 'pointer' }}
-          >
-            {isExpanded ? '▼' : '▶'} [{obj.length}]
-          </span>
-          {isExpanded && (
-            <div className="json-children" style={{ marginLeft: `${level * 16}px` }}>
-              {obj.map((item, i) => (
-                <div key={i} className="json-item">
-                  <span className="json-key">{i}:</span>
-                  {renderJsonTree(item, `${path}[${i}]`, level + 1)}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      );
+      return <div className="json-node">
+        <button type="button" className="json-toggle" aria-expanded={isExpanded} onClick={() => togglePath(path)}>{isExpanded ? '−' : '+'} [{value.length}]</button>
+        {isExpanded && <div className="json-children">{value.map((item, index) => <div key={index} className="json-item"><span className="json-key">{index}</span>{renderJsonTree(item, `${path}[${index}]`, level + 1)}</div>)}</div>}
+      </div>;
     }
-
-    const keys = Object.keys(obj);
-    if (keys.length === 0) {
-      return <span className="json-object">{'{}'}</span>;
-    }
-
+    const object = value as Record<string, unknown>;
+    const keys = Object.keys(object);
+    if (keys.length === 0) return <span className="json-object">{'{}'}</span>;
     const isExpanded = expandedPaths.has(path) || level === 0;
-
-    return (
-      <div className="json-node">
-        <span 
-          className="json-toggle" 
-          onClick={() => level > 0 && togglePath(path)}
-          style={{ cursor: level > 0 ? 'pointer' : 'default' }}
-        >
-          {level > 0 && (isExpanded ? '▼' : '▶')} {'{'}
-        </span>
-        {isExpanded && (
-          <div className="json-children" style={{ marginLeft: `${Math.max(0, level) * 16}px` }}>
-            {keys.map(key => {
-              const childPath = path ? `${path}.${key}` : key;
-              const matchesSearch = !searchQuery || 
-                key.toLowerCase().includes(searchQuery.toLowerCase());
-
-              if (!matchesSearch && searchQuery) return null;
-
-              return (
-                <div key={key} className="json-item">
-                  <span className="json-key">{key}:</span>
-                  <span className="json-copy" onClick={() => copyToClipboard(childPath)} title="Copy path">
-                    📋
-                  </span>
-                  {renderJsonTree(obj[key], childPath, level + 1)}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        <span className="json-bracket">{'}'}</span>
-      </div>
-    );
-  };
-
-  const schema = getCurrentSchema();
-
-  const renderJsonTab = () => {
-    if (loadingSchema) {
-      return <div className="loading-state">Loading schema...</div>;
-    }
-
-    if (error) {
-      return (
-        <Alert type="error" title="Error">
-          {error}
-        </Alert>
-      );
-    }
-
-    if (!schema) {
-      return (
-        <Alert type="info">
-          Select a schema type to view its structure.
-        </Alert>
-      );
-    }
-
-    return (
-      <>
-        <div className="schema-search">
-          <input
-            type="text"
-            placeholder="Search schema properties..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
-          />
-          {searchQuery && (
-            <Button variant="ghost" size="sm" onClick={() => setSearchQuery('')}>
-              Clear
-            </Button>
-          )}
-        </div>
-        <Card padding="lg" className="schema-viewer">
-          <div className="json-tree">
-            {renderJsonTree(schema)}
-          </div>
-        </Card>
-      </>
-    );
+    return <div className="json-node">
+      {level > 0 ? <button type="button" className="json-toggle" aria-expanded={isExpanded} onClick={() => togglePath(path)}>{isExpanded ? '−' : '+'} {'{'}</button> : <span className="json-toggle">{'{'}</span>}
+      {isExpanded && <div className="json-children">{keys.map((key) => {
+        const childPath = path ? `${path}.${key}` : key;
+        return <div key={key} className="json-item"><span className="json-key">{key}</span><button type="button" className="json-copy" onClick={() => copyToClipboard(childPath)} aria-label={`Copy JSON path ${childPath}`}><Copy aria-hidden="true" /> {copiedPath === childPath ? 'Copied' : 'Path'}</button>{renderJsonTree(object[key], childPath, level + 1)}</div>;
+      })}</div>}
+      <span className="json-bracket">{'}'}</span>
+    </div>;
   };
 
   return (
-    <div className="schemas-page">
-      <div className="container">
-        <div className="page-header">
-          <h1>Schema Explorer</h1>
-          <p className="page-description">
-            Browse the general schema and the instance schema each engine accepts
-          </p>
-        </div>
+    <div className="schemas-page page-shell">
+      <header className="page-intro schemas-intro">
+        <div><span className="kicker">05 · Inspect the contracts</span><h1 className="page-title">The specification is a connected system.</h1></div>
+        <div><p className="page-lede">Move from the stable Instance container through Profile-directed resources and compiled IR to extension manifests and the Engine protocol. The exact JSON remains one click away.</p></div>
+      </header>
 
-        {/* Controls */}
-        <div className="schema-controls">
-          <div className="schema-type-selector">
-            <Button
-              variant={selectedType === 'general' ? 'primary' : 'secondary'}
-              onClick={() => setSelectedType('general')}
-            >
-              General Schema
-            </Button>
-            <Button
-              variant={selectedType === 'engine' ? 'primary' : 'secondary'}
-              onClick={() => setSelectedType('engine')}
-            >
-              Engine Schemas
-            </Button>
+      <section className="schema-workbench" aria-labelledby="schema-workbench-title">
+        <aside className="schema-catalogue">
+          <span className="section-label">Contract catalogue</span>
+          <h2 id="schema-workbench-title">BIM v1 boundaries</h2>
+          <label className="schema-kind-field">
+            <span>Contract</span>
+            <select aria-label="BIM v1 contract" value={selectedKind} onChange={(event) => selectKind(event.target.value as BimSchemaKind)}>
+              {GROUPS.map((group) => <optgroup key={group} label={group}>{SCHEMA_CATALOG.filter((item) => item.group === group).map((item) => <option key={item.kind} value={item.kind}>{item.title}</option>)}</optgroup>)}
+            </select>
+          </label>
+          <nav aria-label="BIM contract kinds">
+            {GROUPS.map((group) => <section key={group}><h3>{group}</h3>{SCHEMA_CATALOG.filter((item) => item.group === group).map((item) => <button key={item.kind} type="button" className={selectedKind === item.kind ? 'is-active' : ''} aria-pressed={selectedKind === item.kind} onClick={() => selectKind(item.kind)}><span>{item.boundary}</span><strong>{item.title}</strong></button>)}</section>)}
+          </nav>
+        </aside>
+
+        <div className="schema-content">
+          <header className="schema-summary">
+            <div><span className="micro-label">{selectedItem.group} · {selectedItem.boundary}</span><h2>{selectedItem.title}</h2><p>{selectedItem.description}</p></div>
+            <div className="schema-summary-actions">
+              <button type="button" onClick={downloadSchema} disabled={!schema}><Download aria-hidden="true" /> Download JSON</button>
+              <Link to="/examples" viewTransition>See examples <ArrowRight aria-hidden="true" /></Link>
+            </div>
+          </header>
+
+          <div className="schema-connections">
+            <span className="micro-label">Connected contracts</span>
+            <div><strong>{selectedItem.title}</strong><ArrowRight aria-hidden="true" />{selectedItem.connectsTo.map((kind) => <button key={kind} type="button" onClick={() => selectKind(kind)}>{SCHEMA_CATALOG.find((item) => item.kind === kind)?.title ?? kind}</button>)}</div>
+            {selectedItem.example && <Link to={`/playground?example=${encodeURIComponent(selectedItem.example)}`} viewTransition>Open a connected package <code>{selectedItem.example}</code><ArrowRight aria-hidden="true" /></Link>}
           </div>
 
-          {selectedType === 'engine' && (
-            <select
-              value={selectedEngine}
-              onChange={(e) => setSelectedEngine(e.target.value)}
-              className="engine-selector"
-            >
-              {engines.map(id => (
-                <option key={id} value={id}>{id}</option>
-              ))}
-            </select>
-          )}
+          <div className="schema-toolbar">
+            <div className="schema-view-tabs" role="tablist" aria-label="Schema view">
+              <button type="button" role="tab" aria-selected={view === 'map'} className={view === 'map' ? 'is-active' : ''} onClick={() => setView('map')}><Network aria-hidden="true" /> Property map</button>
+              <button type="button" role="tab" aria-selected={view === 'json'} className={view === 'json' ? 'is-active' : ''} onClick={() => setView('json')}><FileJson2 aria-hidden="true" /> Exact JSON</button>
+            </div>
+            <label className="schema-search"><Search aria-hidden="true" /><span className="sr-only">Search schema properties</span><input type="search" name="schema-search" autoComplete="off" spellCheck={false} value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Filter root properties…" /></label>
+          </div>
 
-          {schema && (
-            <Button variant="secondary" onClick={downloadSchema}>
-              Download JSON
-            </Button>
+          {loadingSchema ? <div className="loading-state">Loading the pinned contract…</div> : error ? <Alert type="error" title="Schema unavailable">{error}</Alert> : !schema ? <Alert type="info">Select a BIM v1 contract.</Alert> : view === 'map' ? (
+            <div className="schema-map" role="tabpanel">
+              <div className="schema-facts">
+                <article><span>Schema identity</span><code>{typeof schema.$id === 'string' ? schema.$id : typeof schema.protocol === 'string' ? schema.protocol : selectedItem.title}</code></article>
+                <article><span>Root properties</span><strong>{rootProperties.length}</strong></article>
+                <article><span>Required at root</span><strong>{required.length}</strong></article>
+                <article><span>Reusable definitions</span><strong>{definitions.length}</strong></article>
+              </div>
+              <div className="property-map-heading"><div><Braces aria-hidden="true" /><span><small>Structure</small><strong>Root property map</strong></span></div><p>Required fields and references are shown without hiding the exact schema.</p></div>
+              <div className="property-map">
+                {rootProperties.length ? rootProperties.map(([name, value]) => {
+                  const node = isRecord(value) ? value : {};
+                  return <article key={name}><div><code>{name}</code>{required.includes(name) && <span>required</span>}</div><strong>{valueType(value)}</strong><p>{typeof node.description === 'string' ? node.description : typeof node.$ref === 'string' ? `Resolves ${node.$ref}` : 'See the exact JSON contract for nested constraints.'}</p><button type="button" onClick={() => copyToClipboard(`properties.${name}`)}><Copy aria-hidden="true" /> {copiedPath === `properties.${name}` ? 'Copied' : 'Copy path'}</button></article>;
+                }) : <div className="property-map-empty"><p>{searchQuery ? 'No root property matches this filter.' : 'This document wraps its contract under a protocol or reusable definitions. Open Exact JSON to inspect it.'}</p></div>}
+              </div>
+              {definitions.length > 0 && <div className="definition-index"><span className="micro-label">$defs index</span><div>{definitions.map((name) => <button key={name} type="button" onClick={() => { setView('json'); setExpandedPaths(new Set(['$defs', `$defs.${name}`])); }}>{name}</button>)}</div></div>}
+            </div>
+          ) : (
+            <div className="schema-json-panel" role="tabpanel"><div className="json-tree">{renderJsonTree(schema)}</div></div>
           )}
         </div>
+      </section>
 
-        {/* Schema Info */}
-        {schema && (
-          <Card padding="md" className="schema-info-card">
-            <div className="schema-info-grid">
-              {schema.$id && (
-                <div className="schema-info-item">
-                  <span className="info-label">Schema ID:</span>
-                  <code>{schema.$id}</code>
-                </div>
-              )}
-              {schema.$schema && (
-                <div className="schema-info-item">
-                  <span className="info-label">JSON Schema Version:</span>
-                  <code>{schema.$schema}</code>
-                </div>
-              )}
-              {schema.title && (
-                <div className="schema-info-item">
-                  <span className="info-label">Title:</span>
-                  <span>{schema.title}</span>
-                </div>
-              )}
-              {schema.description && (
-                <div className="schema-info-item">
-                  <span className="info-label">Description:</span>
-                  <span>{schema.description}</span>
-                </div>
-              )}
-            </div>
-          </Card>
-        )}
-
-        {renderJsonTab()}
-      </div>
+      <section className="schema-principles">
+        <article><Check aria-hidden="true" /><span>Stable core</span><h3>Container contracts do not absorb domain semantics.</h3></article>
+        <article><Check aria-hidden="true" /><span>Installed extension</span><h3>Schema validation without explicit lowering is not executable.</h3></article>
+        <article><Check aria-hidden="true" /><span>Exact boundary</span><h3>Digests pin Profiles, Dialects, adapters, IR, Engines and protocol.</h3></article>
+      </section>
     </div>
   );
 }

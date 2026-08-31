@@ -17,8 +17,11 @@ export function Alert({ type = 'info', children, title, onClose }: AlertProps) {
   };
 
   return (
-    <div className={`alert alert-${type}`}>
-      <div className="alert-icon">{icons[type]}</div>
+    <div
+      className={`alert alert-${type}`}
+      role={type === 'error' || type === 'warning' ? 'alert' : 'status'}
+    >
+      <div className="alert-icon" aria-hidden="true">{icons[type]}</div>
       <div className="alert-content">
         {title && <div className="alert-title">{title}</div>}
         <div className="alert-message">{children}</div>
