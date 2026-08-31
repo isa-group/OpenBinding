@@ -25,6 +25,14 @@ Thanks for contributing to OpenBinding.
 
 4. Address review feedback and keep the branch up to date with `develop`. All PRs must pass CI checks before merging.
 
+## Commit policy
+
+- Each commit should represent one coherent, reviewable change.
+- Use a Conventional Commit prefix: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, or `ci`.
+- Write the subject in lowercase, in the imperative, without a final period; add a scope when it improves clarity.
+- Keep generated artifacts, dependency updates, documentation, tests, and functional changes in separate commits when they can be reviewed independently.
+- Do not mix unrelated changes, and include the relevant tests or documentation in the same commit as the behavior they describe.
+
 ## Expectations
 
 - Keep changes focused and well tested.
