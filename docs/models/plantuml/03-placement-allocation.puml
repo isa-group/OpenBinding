@@ -1,0 +1,54 @@
+@startuml
+title Placement allocation and capacity metamodel
+left to right direction
+hide methods
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class Placement <<dialect>> {
+  apiVersion = qos-binding-placement/v1
+  kind = Placement
+  defaults: non-negative demand map [0..1]
+}
+class Pool <<dialect>> {
+  id: name
+  name: string [0..1]
+  kind: string [0..1]
+  capacity: non-negative number map
+  properties: object [0..1]
+}
+class GroupAssignment <<dialect>> {
+  id: name
+  capability xor candidates
+  resources: non-negative demand map
+}
+class CandidateDemand <<dialect>> {
+  resources: non-negative demand map
+}
+class CapacityRule <<dialect>> {
+  resources: name[1..*]
+  scope: invocation | selectedCandidate
+}
+class ResourceRef <<core>> {
+  resource: string
+  id: string
+}
+class Candidate <<source>>
+
+Placement "1" *-- "1..*" Pool : pools
+Placement "1" *-- "0..*" GroupAssignment : groups
+Placement "1" *-- "0..*" CandidateDemand : demands
+Placement "1" *-- "0..*" CapacityRule : capacityRules
+
+GroupAssignment "1" *-- "1" ResourceRef : pool
+GroupAssignment "0..*" --> Candidate : candidate refs or capability
+CandidateDemand "1" *-- "1" ResourceRef : candidate
+CandidateDemand "1" *-- "1" ResourceRef : pool
+CandidateDemand ..> Candidate
+
+note bottom of Placement
+  Every eligible candidate resolves to exactly one pool when Placement is used.
+  Explicit candidate demand overrides group and default demand.
+end note
+@enduml

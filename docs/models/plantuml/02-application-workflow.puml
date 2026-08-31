@@ -1,0 +1,96 @@
+@startuml
+title Application, metric, and recursive workflow metamodel
+left to right direction
+hide methods
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class Application <<source>> {
+  apiVersion = qos-binding/v1
+  kind = Application
+}
+class Task <<source>> {
+  id: name
+  kind: service | local
+  name: string [0..1]
+}
+class Requirement <<source>> {
+  type: string
+}
+class MetricDefinition <<source>> {
+  id: name
+  type: number
+  unit: string
+  direction: minimize | maximize
+  scope: invocation | selectedCandidate
+  neutral: finite number
+}
+class Domain <<source>> {
+  kind: real | integer | ratio
+  minimum: number [0..1]
+  maximum: number [0..1]
+}
+class Aggregation <<source>> {
+  sequence: operator
+  parallel: operator
+  exclusive: operator
+  repeat: operator
+  selection: operator
+}
+abstract class WorkflowNode <<source>> {
+  id: string [0..1]
+  exactly one node form
+}
+class TaskNode <<source>>
+class EmptyNode <<source>>
+class Sequence <<source>>
+class Parallel <<source>>
+class Exclusive <<source>>
+class Repeat <<source>> {
+  count: integer [0..1]
+  expectedCount: number [0..1]
+}
+class BPMNNode <<source>>
+class Branch <<source>> {
+  id: string
+}
+class ResourceRef <<core>> {
+  resource: string
+  id: string
+}
+abstract class Expression <<source>>
+
+Application "1" *-- "1..*" Task : tasks
+Application "1" *-- "0..*" MetricDefinition : metrics
+Application "1" *-- "1" WorkflowNode : workflow
+Task "0..1" *-- Requirement : service requires
+Requirement "0..1" --> Expression : predicate
+MetricDefinition "1" *-- "1" Domain
+MetricDefinition "1" *-- "1" Aggregation
+
+WorkflowNode <|-- TaskNode
+WorkflowNode <|-- EmptyNode
+WorkflowNode <|-- Sequence
+WorkflowNode <|-- Parallel
+WorkflowNode <|-- Exclusive
+WorkflowNode <|-- Repeat
+WorkflowNode <|-- BPMNNode
+TaskNode "1" *-- "1" ResourceRef : task
+BPMNNode "1" *-- "1" ResourceRef : bpmn
+Sequence "1" *-- "1..*" WorkflowNode : ordered steps
+Parallel "1" *-- "1..*" WorkflowNode : branches
+Exclusive "1" *-- "1..*" Branch
+Branch "1" *-- "1" WorkflowNode : flow
+Branch "0..1" --> Expression : when
+Repeat "1" *-- "1" WorkflowNode : body
+
+note bottom of Repeat
+  Exactly one of count or expectedCount.
+  Both are deterministic multipliers.
+end note
+note bottom of Task
+  A service task has one Requirement.
+  A local task has none and selects no candidate.
+end note
+@enduml

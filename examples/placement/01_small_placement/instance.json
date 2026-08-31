@@ -1,0 +1,28 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "small_placement_demo",
+    "version": "2.0.0",
+    "description": "Five service tasks in structured sequence, parallel and exclusive blocks are placed over three infrastructure pools. The instance exercises selected-candidate cost, capacity rules, directed transition latency, an event source, security constraints and a pricing budget."
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json",
+        "routing": "routing.json",
+        "placement": "placement.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

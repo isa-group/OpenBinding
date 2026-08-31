@@ -1,0 +1,114 @@
+@startuml
+' Status: informative snapshot of normative-derived installed manifests
+' Source:
+' - openbinding-gateway/src/openbinding_gateway/v1/compiler.py
+
+title Installed BIM v1 Profile and Dialects
+
+hide empty methods
+hide circle
+skinparam shadowing false
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam defaultFontName SansSerif
+skinparam objectBackgroundColor #FFFFFF
+skinparam objectBorderColor #475569
+skinparam classArrowColor #64748B
+skinparam classBackgroundColor<<profile>> #EDE9FE
+skinparam classBorderColor<<profile>> #6D28D9
+skinparam classBackgroundColor<<dialect>> #FEF3C7
+skinparam classBorderColor<<dialect>> #B45309
+
+object "qosBinding : Profile" as Profile <<profile>> {
+  id = qos-binding/v1
+  namespace = bim.builtin
+  version = 1.0.0
+  deterministic = true
+  output = bim/v1 BindingProblem
+  output schema = pinned BindingProblem schema digest
+  engineProtocol = bim-engine/v1
+  capabilities[0..2] = workflowNodes, aggregations, metricScopes
+  capabilities[3..5] = constraints, optimization, objectiveTypes
+  capabilities[6..8] = expressions, placement, irExtensions(open)
+  limits[0..3] = maxTasks, maxCandidates, minObjectives, maxObjectives
+  limits[4..7] = maxIterations, maxPopulation, maxSolutions, maxTimeBudgetMs
+  adapter = qos-binding-profile@1.0.0
+}
+
+object "application : RoleContract" as ApplicationRole <<profile>> {
+  Application = 1
+  RoutingOverlay = 0..1
+  OMG BPMN = 0..*
+  extensionTypes = installed
+}
+
+object "candidateCatalog : RoleContract" as CatalogRole <<profile>> {
+  CandidateCatalog = 1..*
+  extensionTypes = installed
+}
+
+object "constraintSet : RoleContract" as ConstraintRole <<profile>> {
+  ConstraintSet = 0..*
+  extensionTypes = installed
+}
+
+object "optimization : RoleContract" as OptimizationRole <<profile>> {
+  Optimization = 1
+  extensionTypes = installed
+}
+
+object "qosTerms : Dialect" as QoS <<dialect>> {
+  id = qos-binding/v1
+  compatible = qos-binding/v1
+  Application -> application
+  RoutingOverlay -> application
+  CandidateCatalog -> candidateCatalog
+  ConstraintSet -> constraintSet
+  Optimization -> optimization
+  extensionPoints = []
+  irFeatures = []
+  adapter = bim-core@1.0.0
+}
+
+object "bpmnWorkflow : Dialect" as BPMN <<dialect>> {
+  id = bpmn-workflow/v1
+  compatible = qos-binding/v1
+  type = omg/bpmn/2.0.2 BPMN
+  mediaType = application/vnd.omg.bpmn+xml
+  role = application
+  XML root localName = definitions
+  XML namespace = http://www.omg.org/spec/BPMN/20100524/MODEL
+  extensionPoints = []
+  irFeatures = []
+  adapter = bim-bpmn@1.0.0
+}
+
+object "placement : Dialect" as Placement <<dialect>> {
+  id = qos-binding-placement/v1
+  compatible = qos-binding/v1
+  type = qos-binding-placement/v1 Placement
+  mediaType = application/json
+  role = application
+  extensionPoints = []
+  irFeature[0] = placement:placement
+  irFeature[1] = irExtensions:qos-binding-placement/v1
+  adapter = bim-placement@1.0.0
+}
+
+Profile *-- ApplicationRole : roles
+Profile *-- CatalogRole : roles
+Profile *-- ConstraintRole : roles
+Profile *-- OptimizationRole : roles
+
+QoS --> Profile : compatibleProfiles
+BPMN --> Profile : compatibleProfiles
+Placement --> Profile : compatibleProfiles
+
+QoS ..> ApplicationRole : supplies base types
+QoS ..> CatalogRole : supplies base type
+QoS ..> ConstraintRole : supplies base type
+QoS ..> OptimizationRole : supplies base type
+BPMN ..> ApplicationRole : supplies base type
+Placement ..> ApplicationRole : installed extension type
+
+@enduml

@@ -1,0 +1,63 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "stock_market_placement_sample_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "security_min_fBuy": {
+        "assert": "tasks.fBuy.metrics.security >= 1.0",
+        "enforcement": "hard"
+      },
+      "security_min_fBuyOrSell": {
+        "assert": "tasks.fBuyOrSell.metrics.security >= 1.0",
+        "enforcement": "hard"
+      },
+      "security_min_fCheck": {
+        "assert": "tasks.fCheck.metrics.security >= 1.0",
+        "enforcement": "hard"
+      },
+      "security_min_fRecord": {
+        "assert": "tasks.fRecord.metrics.security >= 1.0",
+        "enforcement": "hard"
+      },
+      "security_min_fSell": {
+        "assert": "tasks.fSell.metrics.security >= 1.0",
+        "enforcement": "hard"
+      },
+      "fCheck_requires_database": {
+        "assert": "tasks.fCheck.metrics.has_service_database == 1",
+        "enforcement": "hard"
+      },
+      "fRecord_requires_database": {
+        "assert": "tasks.fRecord.metrics.has_service_database == 1",
+        "enforcement": "hard"
+      },
+      "budget_global_stockOrch": {
+        "assert": "metrics.cost <= 99.45059011",
+        "enforcement": "hard"
+      },
+      "budget_local_fCheck": {
+        "assert": "tasks.fCheck.metrics.cost <= 32.03485725",
+        "enforcement": "hard"
+      },
+      "budget_local_fBuyOrSell": {
+        "assert": "tasks.fBuyOrSell.metrics.cost <= 67.039127",
+        "enforcement": "hard"
+      },
+      "budget_local_fSell": {
+        "assert": "tasks.fSell.metrics.cost <= 24.65581241",
+        "enforcement": "hard"
+      },
+      "budget_local_fBuy": {
+        "assert": "tasks.fBuy.metrics.cost <= 20.50388885",
+        "enforcement": "hard"
+      },
+      "budget_local_fRecord": {
+        "assert": "tasks.fRecord.metrics.cost <= 50.05446445",
+        "enforcement": "hard"
+      }
+    }
+  }
+}

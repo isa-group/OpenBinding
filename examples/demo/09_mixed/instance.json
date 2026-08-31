@@ -1,0 +1,30 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "demo_09_mixed",
+    "version": "1.0.0",
+    "description": "Combines a sequential workflow, an exclusive branch with explicit routing probabilities, deterministic QoS aggregation and a hard metric constraint.",
+    "annotations": {
+      "level": "advanced"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json",
+        "routing": "routing.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

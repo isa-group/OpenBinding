@@ -1,0 +1,60 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "demo_10_large_scale_optimization"
+  },
+  "spec": {
+    "mode": "weighted",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "weight": 0.4,
+        "normalize": {
+          "min": 0,
+          "max": 1000,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "time"
+        },
+        "weight": 0.3,
+        "normalize": {
+          "min": 0,
+          "max": 5000,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "reliability"
+        },
+        "weight": 0.2,
+        "normalize": {
+          "min": 0.005,
+          "max": 0.01,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "reputation"
+        },
+        "weight": 0.1,
+        "normalize": {
+          "min": 0,
+          "max": 10,
+          "clamp": true
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,117 @@
+@startuml
+' Status: normative-derived
+' Sources:
+' - schemas/bim/v1/profile.schema.json
+' - openbinding-gateway/src/openbinding_gateway/v1/compiler.py
+
+title BIM v1 Profile metamodel
+
+hide empty methods
+hide circle
+skinparam shadowing false
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam defaultFontName SansSerif
+skinparam classBackgroundColor #FFFFFF
+skinparam classBorderColor #475569
+skinparam classArrowColor #64748B
+skinparam classBackgroundColor<<profile>> #EDE9FE
+skinparam classBorderColor<<profile>> #6D28D9
+skinparam classBackgroundColor<<IR>> #DCFCE7
+skinparam classBorderColor<<IR>> #15803D
+skinparam classBackgroundColor<<execution>> #FFEDD5
+skinparam classBorderColor<<execution>> #C2410C
+
+class Profile <<profile>> {
+  +apiVersion = "bim/v1"
+  +kind = "Profile"
+  +publicId: VersionedId {derived}
+}
+
+class ManifestMetadata <<profile>> {
+  +namespace: string
+  +name: Name
+  +version: SemVer
+  +description: string [0..1]
+  +labels: Map<string,string> [0..1]
+  +annotations: Map<string,JSON> [0..1]
+}
+
+class ProfileSpec <<profile>> {
+  +deterministic: boolean
+  +limitVocabulary: Name [0..*] {unique}
+  +extensions: Map<string,JSON> [0..1]
+}
+
+class RoleContract <<profile>> {
+  +name: Name {map key}
+  +extensionTypes: none | installed
+}
+
+class ProfileResourceType <<profile>> {
+  +apiVersion: string
+  +kind: Name
+  +minimum: integer >= 0
+  +maximum: integer >= 1 [0..1]
+}
+
+class OutputContract <<IR>> {
+  +apiVersion: string
+  +kind: Name
+  +schemaDigest: sha256
+  +engineProtocol: VersionedId
+}
+
+class CapabilityVocabulary <<profile>>
+
+class CapabilityDimension <<profile>> {
+  +name: Name {map key}
+  +values: string [0..*] {unique}
+  +openValues: boolean
+}
+
+class AdapterDescriptor <<execution>> {
+  +id: string
+  +version: string
+  +binaryDigest: sha256
+}
+
+Profile *-- "1" ManifestMetadata : metadata
+Profile *-- "1" ProfileSpec : spec
+ProfileSpec *-- "1..*" RoleContract : roles {map}
+RoleContract *-- "0..*" ProfileResourceType : resourceTypes
+ProfileSpec *-- "1" OutputContract : output
+ProfileSpec *-- "1" CapabilityVocabulary : capabilityVocabulary
+CapabilityVocabulary *-- "1..*" CapabilityDimension : dimensions {map}
+ProfileSpec *-- "1" AdapterDescriptor : adapter
+
+note right of Profile
+  publicId = metadata.name +
+  "/v" + SemVer major
+end note
+
+note bottom of ProfileResourceType
+  maximum absent means unbounded.
+  Installed-framework invariant:
+  maximum >= minimum when present.
+end note
+
+note bottom of RoleContract
+  Base types use their declared
+  cardinalities. Non-base whole-resource
+  types require extensionTypes=installed.
+end note
+
+note bottom of OutputContract
+  The output schema must be installed
+  at exactly schemaDigest together with
+  the pinned Profile adapter.
+end note
+
+note bottom of CapabilityDimension
+  openValues=false: only listed values.
+  openValues=true: Dialects may declare
+  explicit additional values.
+end note
+
+@enduml

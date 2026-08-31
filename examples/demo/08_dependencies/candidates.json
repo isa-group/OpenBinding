@@ -1,0 +1,61 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "demo_08_dependencies_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c1_A": {
+        "provides": "service/t1",
+        "metrics": {
+          "cost": 10
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "pA"
+        }
+      },
+      "c1_B": {
+        "provides": "service/t1",
+        "metrics": {
+          "cost": 20
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "pB"
+        }
+      },
+      "c2_A": {
+        "provides": "service/t2",
+        "metrics": {
+          "cost": 10
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "pA"
+        }
+      },
+      "c2_B": {
+        "provides": "service/t2",
+        "metrics": {
+          "cost": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "pB"
+        }
+      }
+    },
+    "providers": {
+      "pA": {},
+      "pB": {}
+    },
+    "metricBindings": {
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      }
+    }
+  }
+}

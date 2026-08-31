@@ -1,0 +1,36 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "demo_06_loops_application"
+  },
+  "spec": {
+    "tasks": {
+      "t1": "service/t1"
+    },
+    "metrics": {
+      "cost": {
+        "unit": "eur",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "workflow": {
+      "repeat": {
+        "body": {
+          "task": {
+            "resource": "application",
+            "id": "t1"
+          }
+        },
+        "expectedCount": 10
+      }
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bim.dev/schema/bim/v1/instance.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {"const": "bim/v1"},
+    "kind": {"const": "Instance"},
+    "metadata": {"$ref": "#/$defs/metadata"},
+    "spec": {
+      "type": "object",
+      "required": ["profile", "resources"],
+      "properties": {
+        "profile": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}/v[1-9][0-9]*$"
+        },
+        "resources": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+          "additionalProperties": {"$ref": "#/$defs/nonEmptyGroup"}
+        },
+        "extensions": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+        "version": {"type": "string", "minLength": 1},
+        "description": {"type": "string"},
+        "labels": {"type": "object", "additionalProperties": {"type": "string"}},
+        "annotations": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    },
+    "registeredRef": {
+      "type": "object",
+      "required": ["namespace", "name", "version", "digest"],
+      "properties": {
+        "namespace": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "digest": {"type": "string", "pattern": "^sha256-[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "localPath": {
+      "type": "string",
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000]+\\.(json|bpmn|xml)$"
+    },
+    "resourceTarget": {
+      "oneOf": [
+        {"$ref": "#/$defs/localPath"},
+        {"$ref": "#/$defs/registeredRef"}
+      ]
+    },
+    "nonEmptyGroup": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+      "additionalProperties": {"$ref": "#/$defs/resourceTarget"}
+    }
+  }
+}

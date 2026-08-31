@@ -1,0 +1,68 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "demo_05_multi_obj_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c_fast_expensive": {
+        "provides": "service/t1",
+        "metrics": {
+          "cost": 90,
+          "latency": 10
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c_slow_cheap": {
+        "provides": "service/t1",
+        "metrics": {
+          "cost": 10,
+          "latency": 90
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c_balanced": {
+        "provides": "service/t1",
+        "metrics": {
+          "cost": 50,
+          "latency": 50
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c_bad": {
+        "provides": "service/t1",
+        "metrics": {
+          "cost": 100,
+          "latency": 100
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      }
+    },
+    "providers": {
+      "p1": {}
+    },
+    "metricBindings": {
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      },
+      "latency": {
+        "resource": "application",
+        "id": "latency"
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "demo_05_multi_obj",
+    "version": "1.0.0",
+    "description": "A normalized weighted trade-off between cost and latency, resolved by engine modes that declare weighted optimization support.",
+    "annotations": {
+      "level": "intermediate"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      }
+    }
+  }
+}

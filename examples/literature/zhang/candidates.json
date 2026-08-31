@@ -1,0 +1,103 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "zhang2014_entertainment_planner_running_example_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c_dining_autre_saison": {
+        "provides": "service/t_dining",
+        "metrics": {
+          "cost": 20,
+          "time": 60,
+          "distance": 1600,
+          "availability": 0.979,
+          "reliability": 0.977,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_rest_autre_saison"
+        }
+      },
+      "c_dining_seven_night_club": {
+        "provides": "service/t_dining",
+        "metrics": {
+          "cost": 20,
+          "time": 60,
+          "distance": 1800,
+          "availability": 0.977,
+          "reliability": 0.975,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_seven_night_club"
+        }
+      },
+      "c_shopping_local": {
+        "provides": "service/t_shopping",
+        "metrics": {
+          "cost": 20,
+          "time": 45,
+          "distance": 1200,
+          "availability": 0.983,
+          "reliability": 0.981,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local_shopping"
+        }
+      },
+      "c_movie_the_help_banque_scotia": {
+        "provides": "service/t_movie",
+        "metrics": {
+          "cost": 10,
+          "time": 135,
+          "distance": 1700,
+          "availability": 0.978,
+          "reliability": 0.976,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_cinema_banque_scotia"
+        }
+      }
+    },
+    "providers": {
+      "p_rest_autre_saison": {},
+      "p_cinema_banque_scotia": {},
+      "p_seven_night_club": {},
+      "p_local_shopping": {}
+    },
+    "metricBindings": {
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      },
+      "time": {
+        "resource": "application",
+        "id": "time"
+      },
+      "distance": {
+        "resource": "application",
+        "id": "distance"
+      },
+      "availability": {
+        "resource": "application",
+        "id": "availability"
+      },
+      "reliability": {
+        "resource": "application",
+        "id": "reliability"
+      },
+      "security": {
+        "resource": "application",
+        "id": "security"
+      }
+    }
+  }
+}

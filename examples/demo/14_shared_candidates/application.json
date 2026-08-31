@@ -1,0 +1,60 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "demo_14_shared_candidates_application"
+  },
+  "spec": {
+    "tasks": {
+      "t1": "service/t1",
+      "t2": "service/t2",
+      "t3": "service/t3"
+    },
+    "metrics": {
+      "cost": {
+        "unit": "eur",
+        "direction": "minimize",
+        "scope": "selectedCandidate",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "latency": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "t1"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "t2"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "t3"
+          }
+        }
+      ]
+    }
+  }
+}

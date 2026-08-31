@@ -1,0 +1,20 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "RoutingOverlay",
+  "metadata": {
+    "name": "demo_15_bpmn_complete_routing",
+    "description": "Observed traffic split between the cache hit and origin fetch sequence flows."
+  },
+  "spec": {
+    "entries": [
+      {
+        "target": {"resource": "workflow", "id": "Flow_Cache"},
+        "probability": 0.65
+      },
+      {
+        "target": {"resource": "workflow", "id": "Flow_Fetch"},
+        "probability": 0.35
+      }
+    ]
+  }
+}

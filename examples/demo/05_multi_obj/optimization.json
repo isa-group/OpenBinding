@@ -1,0 +1,37 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "demo_05_multi_obj_optimization"
+  },
+  "spec": {
+    "mode": "weighted",
+    "type": "MONO",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "weight": 0.5,
+        "normalize": {
+          "min": 0,
+          "max": 100,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        },
+        "weight": 0.5,
+        "normalize": {
+          "min": 0,
+          "max": 100,
+          "clamp": true
+        }
+      }
+    ]
+  }
+}

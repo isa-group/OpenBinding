@@ -1,0 +1,36 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "stock_market_placement_sample",
+    "version": "1.0.0",
+    "description": "Mid-size playground sample derived from the experimentation corpus (stockOrch application, 50-node infrastructure, dataset seed 146588263): candidates subset to ~10 per task, pools and latency matrices pruned accordingly. Real on-demand iPricing costs, security thresholds, transition latency bounds, resource capacities and pricing budgets.",
+    "annotations": {
+      "source_dataset": "experimentation/icsoc/original_dataset",
+      "application_id": "stockOrch",
+      "dataset_seed": "146588263",
+      "infrastructure": "infrastructure_50.json",
+      "generator_seed": 12345,
+      "generator_version": "0.1.0"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json",
+        "routing": "routing.json",
+        "placement": "placement.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

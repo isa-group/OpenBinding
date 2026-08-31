@@ -41,18 +41,26 @@ The instances are adapted from the following key papers and datasets:
 
 ## Structure
 
-Each JSON file represents a "Base Scenario". These base scenarios define the *structure* (Tasks, Composition) and *features* of the problem.
-
-For experimentation, these base scenarios are typically **scaled up** using the `experimentation/generator.py` script, which:
-1.  Multiplies the number of candidates per task to increase the binding space size.
-2.  Varies the constraints and objectives to create diverse test instances.
+Each directory is a BIM v1 `Instance` with modular application,
+candidate, constraint, and optimization resources. The workflow is native v1
+JSON and task references use explicit `{resource,id}` objects. QoS values are
+finite deterministic scalars; these scenarios do not encode scheduling or
+uncertainty.
 
 ## Usage
 
-To use a base scenario directly:
+Export a scenario directory as a deterministic `.bim.zip`, then submit the
+complete package. For example:
 
 ```bash
-curl -X POST "http://localhost:8000/v1/solve?engine=random-search" \
-     -H "Content-Type: application/json" \
-     -d @benatallah.json
+curl -X POST "http://localhost:8000/v1/jobs" \
+     -H "Content-Type: application/vnd.bim+zip" \
+     -H "Idempotency-Key: literature-benatallah" \
+     --data-binary @benatallah.bim.zip
 ```
+
+The direct ZIP form uses the default compatible Engine mode. Create a snapshot
+with `POST /v1/instances` and submit
+`{ "snapshot": "...", "engine": "...", "mode": "...", "options": {...} }`
+to select a different mode. The API never treats `instance.json` alone as the
+whole scenario.

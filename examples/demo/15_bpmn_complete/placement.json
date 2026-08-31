@@ -1,0 +1,116 @@
+{
+  "apiVersion": "qos-binding-placement/v1",
+  "kind": "Placement",
+  "metadata": {
+    "name": "demo_15_bpmn_complete_placement",
+    "description": "Optional edge/fog/cloud deployment, capacity, network, event and transition model."
+  },
+  "spec": {
+    "pools": {
+      "edge": {
+        "name": "Edge cluster",
+        "kind": "edge",
+        "capacity": {"cpu": 8, "memory": 16},
+        "properties": {"region": "eu-south"}
+      },
+      "fog": {
+        "name": "Fog cluster",
+        "kind": "fog",
+        "capacity": {"cpu": 12, "memory": 24},
+        "properties": {"region": "eu-west"}
+      },
+      "cloud": {
+        "name": "Cloud region",
+        "kind": "cloud",
+        "capacity": {"cpu": 32, "memory": 64},
+        "properties": {"region": "eu-central"}
+      }
+    },
+    "defaults": {"cpu": 0.5, "memory": 1},
+    "groups": {
+      "edge-runtime": {
+        "pool": {"resource": "placement", "id": "edge"},
+        "candidates": [
+          {"resource": "catalog", "id": "auth-edge"},
+          {"resource": "catalog", "id": "enrich-edge"},
+          {"resource": "catalog", "id": "cache-edge"},
+          {"resource": "catalog", "id": "audit-edge"}
+        ],
+        "resources": {"cpu": 0.75, "memory": 1.5}
+      },
+      "fog-runtime": {
+        "pool": {"resource": "placement", "id": "fog"},
+        "candidates": [
+          {"resource": "catalog", "id": "fetch-fog"},
+          {"resource": "catalog", "id": "score-fog"},
+          {"resource": "catalog", "id": "publish-fog"}
+        ],
+        "resources": {"cpu": 1, "memory": 2}
+      },
+      "cloud-runtime": {
+        "pool": {"resource": "placement", "id": "cloud"},
+        "candidates": [
+          {"resource": "catalog", "id": "auth-cloud"},
+          {"resource": "catalog", "id": "enrich-cloud"},
+          {"resource": "catalog", "id": "cache-cloud"},
+          {"resource": "catalog", "id": "fetch-cloud"},
+          {"resource": "catalog", "id": "score-cloud"},
+          {"resource": "catalog", "id": "audit-cloud"},
+          {"resource": "catalog", "id": "publish-cloud"}
+        ],
+        "resources": {"cpu": 1.25, "memory": 2}
+      }
+    },
+    "networkMode": "symmetric",
+    "network": [
+      {"from": {"resource": "placement", "id": "edge"}, "to": {"resource": "placement", "id": "edge"}, "latency": 0},
+      {"from": {"resource": "placement", "id": "fog"}, "to": {"resource": "placement", "id": "fog"}, "latency": 0},
+      {"from": {"resource": "placement", "id": "cloud"}, "to": {"resource": "placement", "id": "cloud"}, "latency": 0},
+      {"from": {"resource": "placement", "id": "edge"}, "to": {"resource": "placement", "id": "fog"}, "latency": 8},
+      {"from": {"resource": "placement", "id": "edge"}, "to": {"resource": "placement", "id": "cloud"}, "latency": 25},
+      {"from": {"resource": "placement", "id": "fog"}, "to": {"resource": "placement", "id": "cloud"}, "latency": 12}
+    ],
+    "events": {
+      "client-request": {
+        "pool": {"resource": "placement", "id": "edge"},
+        "latency": [
+          {"pool": {"resource": "placement", "id": "edge"}, "latency": 0},
+          {"pool": {"resource": "placement", "id": "fog"}, "latency": 6},
+          {"pool": {"resource": "placement", "id": "cloud"}, "latency": 18}
+        ]
+      }
+    },
+    "transitions": {
+      "client-to-auth": {
+        "from": {"resource": "placement", "id": "client-request"},
+        "to": {"resource": "application", "id": "authenticate"},
+        "metric": {"resource": "application", "id": "latency"},
+        "maximum": 30,
+        "enforcement": "hard"
+      },
+      "auth-to-enrich": {
+        "from": {"resource": "application", "id": "authenticate"},
+        "to": {"resource": "application", "id": "enrich"},
+        "metric": {"resource": "application", "id": "latency"},
+        "maximum": 35,
+        "enforcement": "hard"
+      },
+      "score-to-publish": {
+        "from": {"resource": "application", "id": "score"},
+        "to": {"resource": "application", "id": "publish"},
+        "metric": {"resource": "application", "id": "latency"},
+        "maximum": 20,
+        "enforcement": "hard"
+      }
+    },
+    "capacityRules": [
+      {"resources": ["cpu", "memory"], "scope": "selectedCandidate"}
+    ],
+    "globalLatency": {
+      "metric": {"resource": "application", "id": "latency"},
+      "includeExecution": true,
+      "exclusive": "routing",
+      "parallel": "max"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "RoutingOverlay",
+  "metadata": {
+    "name": "demo_09_mixed_routing"
+  },
+  "spec": {
+    "entries": [
+      {
+        "target": {
+          "resource": "application",
+          "id": "xor_branch_1"
+        },
+        "probability": 0.5
+      },
+      {
+        "target": {
+          "resource": "application",
+          "id": "xor_branch_2"
+        },
+        "probability": 0.5
+      }
+    ]
+  }
+}

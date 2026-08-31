@@ -1,0 +1,76 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "demo_09_mixed_application"
+  },
+  "spec": {
+    "tasks": {
+      "t1": "service/t1",
+      "t2": "service/t2",
+      "t3": "service/t3"
+    },
+    "metrics": {
+      "cost": {
+        "unit": "$",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      },
+      "rel": {
+        "unit": "1",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "product",
+          "parallel": "product",
+          "exclusive": "weightedSum",
+          "repeat": "power",
+          "selection": "product"
+        },
+        "domain": {
+          "kind": "ratio",
+          "minimum": 0.0,
+          "maximum": 0.01
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "t1"
+          }
+        },
+        {
+          "exclusive": [
+            {
+              "id": "xor_branch_1",
+              "flow": {
+                "task": {
+                  "resource": "application",
+                  "id": "t2"
+                }
+              }
+            },
+            {
+              "id": "xor_branch_2",
+              "flow": {
+                "task": {
+                  "resource": "application",
+                  "id": "t3"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

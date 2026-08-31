@@ -1,0 +1,36 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "demo_14_shared_candidates_optimization"
+  },
+  "spec": {
+    "mode": "weighted",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "weight": 1,
+        "normalize": {
+          "min": 0,
+          "max": 30,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        },
+        "weight": 1,
+        "normalize": {
+          "min": 0,
+          "max": 90,
+          "clamp": true
+        }
+      }
+    ]
+  }
+}

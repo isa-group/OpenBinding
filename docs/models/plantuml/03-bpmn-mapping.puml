@@ -1,0 +1,49 @@
+@startuml
+title Executable BPMN 2.0.2 to canonical workflow mapping
+left to right direction
+skinparam monochrome true
+skinparam shadowing false
+
+package "Accepted structured SESE BPMN" <<dialect>> {
+  class Definitions
+  class Process
+  class NoneStartEnd
+  class ServiceOrLocalTask
+  class SequenceFlow
+  class ExclusiveGateway
+  class ParallelGateway
+  class SequentialMultiInstance {
+    loopCardinality: static non-negative integer
+  }
+}
+package "Canonical workflow" <<IR>> {
+  class WorkflowRoot
+  class TaskNode
+  class Sequence
+  class Exclusive
+  class Parallel
+  class RepeatCount
+  class RoutingEntry
+}
+package "Rejected with source diagnostic" {
+  class Unsupported {
+    unstructured or multiple processes
+    graph cycles
+    unsupported events or gateways
+    standardLoopCharacteristics
+    parallel multi-instance
+    dynamic loop cardinality
+  }
+}
+
+Definitions --> Process : exactly one executable process
+Process --> WorkflowRoot : structured lowering
+NoneStartEnd --> WorkflowRoot : boundaries
+ServiceOrLocalTask --> TaskNode : resolves to Application task
+SequenceFlow --> Sequence : structured order
+SequenceFlow --> RoutingEntry : overlay target
+ExclusiveGateway --> Exclusive
+ParallelGateway --> Parallel
+SequentialMultiInstance --> RepeatCount
+Unsupported -[#black,dashed]-> WorkflowRoot : never approximated
+@enduml

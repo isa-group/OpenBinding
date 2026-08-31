@@ -1,0 +1,19 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "demo_14_shared_candidates_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "first_two_on_one_thing": {
+        "assert": "tasks.t1.candidate == tasks.t2.candidate",
+        "enforcement": "hard"
+      },
+      "keep_the_third_apart": {
+        "assert": "tasks.t2.candidate != tasks.t3.candidate",
+        "enforcement": "hard"
+      }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "demo_08_dependencies",
+    "version": "1.0.0",
+    "description": "Constraints on provider selection. We enforce that Task 1 and Task 2 must be served by the SAME provider.",
+    "annotations": {
+      "level": "intermediate"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

@@ -1,0 +1,179 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "bultan2003_warehouse_example_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c_authorize_store_v1": {
+        "provides": "service/t_authorize",
+        "metrics": {
+          "latency_ms": 55,
+          "cost_usd": 0.01,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_store"
+        }
+      },
+      "c_ok_bank_v1": {
+        "provides": "service/t_ok",
+        "metrics": {
+          "latency_ms": 45,
+          "cost_usd": 0.01,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_bank"
+        }
+      },
+      "c_order1_store_v1": {
+        "provides": "service/t_order1",
+        "metrics": {
+          "latency_ms": 65,
+          "cost_usd": 0.02,
+          "availability": 0.998,
+          "reliability": 0.996,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_store"
+        }
+      },
+      "c_receipt1_wh1_v1": {
+        "provides": "service/t_receipt1",
+        "metrics": {
+          "latency_ms": 80,
+          "cost_usd": 0.015,
+          "availability": 0.997,
+          "reliability": 0.995,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh1"
+        }
+      },
+      "c_bill1_wh1_v1": {
+        "provides": "service/t_bill1",
+        "metrics": {
+          "latency_ms": 75,
+          "cost_usd": 0.015,
+          "availability": 0.998,
+          "reliability": 0.996,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh1"
+        }
+      },
+      "c_payment1_bank_v1": {
+        "provides": "service/t_payment1",
+        "metrics": {
+          "latency_ms": 90,
+          "cost_usd": 0.03,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_bank"
+        }
+      },
+      "c_order2_store_v1": {
+        "provides": "service/t_order2",
+        "metrics": {
+          "latency_ms": 70,
+          "cost_usd": 0.02,
+          "availability": 0.998,
+          "reliability": 0.996,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_store"
+        }
+      },
+      "c_receipt2_wh2_v1": {
+        "provides": "service/t_receipt2",
+        "metrics": {
+          "latency_ms": 85,
+          "cost_usd": 0.015,
+          "availability": 0.997,
+          "reliability": 0.995,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh2"
+        }
+      },
+      "c_bill2_wh2_v1": {
+        "provides": "service/t_bill2",
+        "metrics": {
+          "latency_ms": 78,
+          "cost_usd": 0.015,
+          "availability": 0.998,
+          "reliability": 0.996,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh2"
+        }
+      },
+      "c_payment2_bank_v1": {
+        "provides": "service/t_payment2",
+        "metrics": {
+          "latency_ms": 95,
+          "cost_usd": 0.03,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_bank"
+        }
+      }
+    },
+    "providers": {
+      "p_store": {},
+      "p_bank": {},
+      "p_wh1": {},
+      "p_wh2": {}
+    },
+    "metricBindings": {
+      "latency_ms": {
+        "resource": "application",
+        "id": "latency_ms"
+      },
+      "cost_usd": {
+        "resource": "application",
+        "id": "cost_usd"
+      },
+      "availability": {
+        "resource": "application",
+        "id": "availability"
+      },
+      "reliability": {
+        "resource": "application",
+        "id": "reliability"
+      },
+      "security": {
+        "resource": "application",
+        "id": "security"
+      }
+    }
+  }
+}

@@ -1,0 +1,49 @@
+@startuml
+title Constraint and expression metamodel
+left to right direction
+hide methods
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class ConstraintSet <<source>>
+class Constraint <<source>> {
+  id: name
+  enforcement: hard | soft
+}
+abstract class Expression <<source>>
+class Literal <<source>> {
+  value: scalar
+}
+class Path <<source>> {
+  segments: string[1..*]
+}
+class Unary <<source>> {
+  op: not | negate
+}
+class Binary <<source>> {
+  op: boolean | compare | arithmetic
+}
+class Call <<source>> {
+  op: approved function
+}
+
+ConstraintSet "1" *-- "0..*" Constraint
+Constraint "0..1" *-- Expression : when
+Constraint "1" *-- Expression : assert
+Constraint "0..1" *-- Expression : soft penalty
+
+Expression <|-- Literal
+Expression <|-- Path
+Expression <|-- Unary
+Expression <|-- Binary
+Expression <|-- Call
+Unary "1" *-- "1" Expression : value
+Binary "1" *-- "2" Expression : operands
+Call "1" *-- "1..16" Expression : args
+
+note bottom of Constraint
+  A soft constraint requires a finite non-negative penalty and an explicit
+  Optimization penalty reference. Hard constraints have no penalty.
+end note
+@enduml

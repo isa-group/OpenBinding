@@ -1,0 +1,70 @@
+@startuml
+title Candidate catalog and compiled eligibility metamodel
+left to right direction
+hide methods
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class Application <<source>>
+class Task <<source>> {
+  id: name
+  kind: service | local
+}
+class Requirement <<source>> {
+  type: string
+}
+class MetricDefinition <<source>> {
+  id: name
+}
+class CandidateCatalog <<source>> {
+  apiVersion = qos-binding/v1
+  kind = CandidateCatalog
+}
+class Provider <<source>> {
+  id: name
+  properties: scalar map
+}
+class Candidate <<source>> {
+  id: name
+  properties: scalar map
+  metrics: finite-number map
+}
+class Capability <<source>> {
+  type: string
+  properties: scalar map
+}
+class MetricBinding <<source>> {
+  slot: name
+}
+class ResourceRef <<core>> {
+  resource: string
+  id: string
+}
+class Eligibility <<IR>> {
+  taskRef -> candidateRef[]
+}
+class Predicate <<source>>
+
+Application "1" *-- "1..*" Task
+Application "1" *-- "0..*" MetricDefinition
+Task "0..1" *-- Requirement
+Requirement "0..1" --> Predicate
+
+CandidateCatalog "1" *-- "0..*" Provider
+CandidateCatalog "1" *-- "1..*" Candidate
+CandidateCatalog "1" *-- "0..*" MetricBinding
+Candidate "0..1" --> Provider : provider ref
+Candidate "1" *-- "1..*" Capability : provides
+MetricBinding "1" *-- "1" ResourceRef : Application metric
+
+Task ..> Eligibility : requirement
+Candidate ..> Eligibility : capabilities + predicate
+MetricBinding ..> Eligibility : registers metric slots
+
+note bottom of Eligibility
+  Materialized before search.
+  Local tasks are absent.
+  Candidates never list task ids.
+end note
+@enduml

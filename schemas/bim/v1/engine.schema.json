@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bim.dev/schema/bim/v1/engine.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {"const": "bim/v1"},
+    "kind": {"const": "Engine"},
+    "metadata": {"$ref": "#/$defs/metadata"},
+    "spec": {
+      "type": "object",
+      "required": ["modes"],
+      "properties": {
+        "modes": {
+          "type": "array", "minItems": 1,
+          "items": {"$ref": "#/$defs/mode"}
+        },
+        "extensions": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "metadata": {
+      "type": "object", "required": ["namespace", "name", "version"],
+      "properties": {
+        "namespace": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+        "version": {"$ref": "#/$defs/semver"},
+        "description": {"type": "string"},
+        "labels": {"type": "object", "additionalProperties": {"type": "string"}},
+        "annotations": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    },
+    "selector": {
+      "oneOf": [
+        {
+          "type": "object", "required": ["selector"],
+          "properties": {"selector": {"enum": ["none", "all"]}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object", "required": ["selector", "values"],
+          "properties": {
+            "selector": {"const": "only"},
+            "values": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^([1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "capabilities": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+      "additionalProperties": {"$ref": "#/$defs/selector"}
+    },
+    "option": {
+      "type": "object",
+      "properties": {
+        "type": {"enum": ["integer", "number", "string", "boolean"]},
+        "const": {},
+        "enum": {"type": "array", "minItems": 1, "uniqueItems": true},
+        "minimum": {"type": "number"},
+        "maximum": {"type": "number"},
+        "exclusiveMinimum": {"type": "number"},
+        "exclusiveMaximum": {"type": "number"},
+        "default": {},
+        "description": {"type": "string"}
+      },
+      "oneOf": [
+        {"required": ["type"], "not": {"anyOf": [{"required": ["const"]}, {"required": ["enum"]}]}},
+        {"required": ["const"], "not": {"anyOf": [{"required": ["type"]}, {"required": ["enum"]}]}},
+        {"required": ["enum"], "not": {"anyOf": [{"required": ["type"]}, {"required": ["const"]}]}}
+      ],
+      "allOf": [
+        {
+          "if": {
+            "anyOf": [
+              {"required": ["minimum"]},
+              {"required": ["maximum"]},
+              {"required": ["exclusiveMinimum"]},
+              {"required": ["exclusiveMaximum"]}
+            ]
+          },
+          "then": {"properties": {"type": {"enum": ["integer", "number"]}}, "required": ["type"]}
+        }
+      ],
+      "additionalProperties": false
+    },
+    "optionsSchema": {
+      "type": "object", "required": ["type", "properties", "additionalProperties"],
+      "properties": {
+        "type": {"const": "object"},
+        "properties": {"type": "object", "additionalProperties": {"$ref": "#/$defs/option"}},
+        "required": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "additionalProperties": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+      "additionalProperties": {"type": "integer", "minimum": 1}
+    },
+    "guarantees": {
+      "type": "object", "required": ["termination", "exact"],
+      "properties": {
+        "termination": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"enum": ["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"]}
+        },
+        "exact": {"type": "boolean"},
+        "deterministicWithoutTimeBudget": {"type": "boolean"},
+        "completeParetoFront": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "mode": {
+      "type": "object",
+      "required": ["id", "profile", "ir", "algorithm", "capabilities", "optionsSchema", "limits", "guarantees"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "profile": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}/v[1-9][0-9]*$"},
+        "ir": {
+          "type": "object",
+          "required": ["apiVersion", "kind"],
+          "properties": {
+            "apiVersion": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$"},
+            "kind": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"}
+          },
+          "additionalProperties": false
+        },
+        "algorithm": {"type": "string", "minLength": 1},
+        "capabilities": {"$ref": "#/$defs/capabilities"},
+        "optionsSchema": {"$ref": "#/$defs/optionsSchema"},
+        "limits": {"$ref": "#/$defs/limits"},
+        "guarantees": {"$ref": "#/$defs/guarantees"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

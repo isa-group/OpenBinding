@@ -1,0 +1,31 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "netedu2020_transport_agency",
+    "version": "1.0.0",
+    "description": "Models the transport-agency running example from Netedu et al. (2020). Because the paper does not provide QoS observations, the package supplies an explicit deterministic cost metric for executable binding experiments.",
+    "annotations": {
+      "paper": {
+        "title": "A Web Service Composition Method Based on OpenAPI Semantic Annotations",
+        "authors": "A. Netedu et al.",
+        "year": 2020,
+        "doi": "10.1007/978-3-030-34986-8_25"
+      }
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      }
+    }
+  }
+}

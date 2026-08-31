@@ -1,0 +1,15 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "demo_08_dependencies_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "c_same_prov": {
+        "assert": "tasks.t1.provider == tasks.t2.provider",
+        "enforcement": "hard"
+      }
+    }
+  }
+}

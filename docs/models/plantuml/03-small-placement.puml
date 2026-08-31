@@ -1,0 +1,73 @@
+@startuml
+title 01_small_placement concrete object model
+left to right direction
+skinparam monochrome true
+skinparam shadowing false
+
+object "instance : Instance" as instance <<core>> {
+  profile = qos-binding/v1
+}
+object "application : Application" as app <<source>> {
+  tasks = 5 service tasks
+  metrics = latency, cost, security
+  workflow = sequence + parallel + exclusive
+}
+object "catalog : CandidateCatalog" as catalog <<source>> {
+  candidates = c_edge, c_fog, c_cloud
+  every candidate provides all 5 capabilities
+}
+object "placement : Placement" as placement <<dialect>> {
+  networkMode = symmetric
+  defaults.memory = 2
+  globalLatency.metric = latency
+  includeExecution = true
+  exclusive = routing
+  parallel = max
+}
+object "p_edge : Pool" as edge <<dialect>> {
+  capacity.memory = 4
+}
+object "p_fog : Pool" as fog <<dialect>> {
+  capacity.memory = 4
+}
+object "p_cloud : Pool" as cloud <<dialect>> {
+  capacity.memory = 100
+}
+object "user_device : Event" as event <<dialect>> {
+  source = p_edge
+  latency = edge 1, fog 5, cloud 9
+}
+object "transitions" as transitions <<dialect>> {
+  tr_event_login <= 6 ms
+  tr_login_process <= 15 ms
+}
+object "constraints : ConstraintSet" as constraints <<source>> {
+  security_min_login
+  budget_global
+  check_and_rules_together
+}
+object "optimization : Optimization" as optimization <<source>> {
+  mode = weighted
+  latency = 0.4
+  cost = 0.4
+  security = 0.2
+}
+
+instance *-- app
+instance *-- catalog
+instance *-- placement
+instance *-- constraints
+instance *-- optimization
+placement *-- edge
+placement *-- fog
+placement *-- cloud
+placement *-- event
+placement *-- transitions
+catalog --> edge : c_edge demand
+catalog --> fog : c_fog demand
+catalog --> cloud : c_cloud demand
+event --> transitions : event -> t_login
+app --> transitions : t_login -> t_process
+app --> constraints
+app --> optimization : metric refs
+@enduml

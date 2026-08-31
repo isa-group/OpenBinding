@@ -1,0 +1,40 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "demo_07_soft_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c1": {
+        "provides": "service/t1",
+        "metrics": {
+          "latency": 40
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c2": {
+        "provides": "service/t1",
+        "metrics": {
+          "latency": 60
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      }
+    },
+    "providers": {
+      "p1": {}
+    },
+    "metricBindings": {
+      "latency": {
+        "resource": "application",
+        "id": "latency"
+      }
+    }
+  }
+}

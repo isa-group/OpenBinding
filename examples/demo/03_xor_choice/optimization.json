@@ -1,0 +1,22 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "demo_03_xor_optimization"
+  },
+  "spec": {
+    "mode": "weighted",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "availability"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 1
+        }
+      }
+    ]
+  }
+}

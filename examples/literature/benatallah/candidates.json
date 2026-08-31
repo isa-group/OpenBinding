@@ -1,0 +1,215 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "benatallah2002_selfserv_travel_solution_cts_itas_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "svc_ass_1": {
+        "provides": "service/t_attractions_search",
+        "metrics": {
+          "latency_ms": 180,
+          "cost_usd": 0,
+          "availability": 0.995,
+          "reliability": 0.993,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_attractions_a"
+        }
+      },
+      "svc_ass_2": {
+        "provides": "service/t_attractions_search",
+        "metrics": {
+          "latency_ms": 120,
+          "cost_usd": 5,
+          "availability": 0.99,
+          "reliability": 0.988,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_attractions_b"
+        }
+      },
+      "svc_dfbs_1": {
+        "provides": "service/t_flight_booking_domestic",
+        "metrics": {
+          "latency_ms": 650,
+          "cost_usd": 420,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_dom_air_a"
+        }
+      },
+      "svc_dfbs_2": {
+        "provides": "service/t_flight_booking_domestic",
+        "metrics": {
+          "latency_ms": 520,
+          "cost_usd": 460,
+          "availability": 0.99,
+          "reliability": 0.988,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_dom_air_b"
+        }
+      },
+      "svc_ifbs_1": {
+        "provides": "service/t_flight_booking_international",
+        "metrics": {
+          "latency_ms": 780,
+          "cost_usd": 820,
+          "availability": 0.98,
+          "reliability": 0.978,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_int_air_a"
+        }
+      },
+      "svc_ifbs_2": {
+        "provides": "service/t_flight_booking_international",
+        "metrics": {
+          "latency_ms": 610,
+          "cost_usd": 900,
+          "availability": 0.988,
+          "reliability": 0.986,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_int_air_b"
+        }
+      },
+      "svc_tis_1": {
+        "provides": "service/t_travel_insurance",
+        "metrics": {
+          "latency_ms": 240,
+          "cost_usd": 55,
+          "availability": 0.997,
+          "reliability": 0.995,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_ins_a"
+        }
+      },
+      "svc_tis_2": {
+        "provides": "service/t_travel_insurance",
+        "metrics": {
+          "latency_ms": 190,
+          "cost_usd": 70,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_ins_b"
+        }
+      },
+      "svc_abs_1": {
+        "provides": "service/t_accommodation_booking",
+        "metrics": {
+          "latency_ms": 430,
+          "cost_usd": 950,
+          "availability": 0.992,
+          "reliability": 0.99,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_hotel_a"
+        }
+      },
+      "svc_abs_2": {
+        "provides": "service/t_accommodation_booking",
+        "metrics": {
+          "latency_ms": 350,
+          "cost_usd": 1100,
+          "availability": 0.995,
+          "reliability": 0.993,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_hotel_b"
+        }
+      },
+      "svc_crs_1": {
+        "provides": "service/t_car_rental_booking",
+        "metrics": {
+          "latency_ms": 310,
+          "cost_usd": 260,
+          "availability": 0.99,
+          "reliability": 0.988,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_car_a"
+        }
+      },
+      "svc_crs_2": {
+        "provides": "service/t_car_rental_booking",
+        "metrics": {
+          "latency_ms": 260,
+          "cost_usd": 320,
+          "availability": 0.996,
+          "reliability": 0.9940000000000001,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_car_b"
+        }
+      }
+    },
+    "providers": {
+      "p_attractions_a": {},
+      "p_attractions_b": {},
+      "p_dom_air_a": {},
+      "p_dom_air_b": {},
+      "p_int_air_a": {},
+      "p_int_air_b": {},
+      "p_ins_a": {},
+      "p_ins_b": {},
+      "p_hotel_a": {},
+      "p_hotel_b": {},
+      "p_car_a": {},
+      "p_car_b": {}
+    },
+    "metricBindings": {
+      "latency_ms": {
+        "resource": "application",
+        "id": "latency_ms"
+      },
+      "cost_usd": {
+        "resource": "application",
+        "id": "cost_usd"
+      },
+      "availability": {
+        "resource": "application",
+        "id": "availability"
+      },
+      "reliability": {
+        "resource": "application",
+        "id": "reliability"
+      },
+      "security": {
+        "resource": "application",
+        "id": "security"
+      }
+    }
+  }
+}

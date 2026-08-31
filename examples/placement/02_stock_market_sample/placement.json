@@ -1,0 +1,2595 @@
+{
+  "apiVersion": "qos-binding-placement/v1",
+  "kind": "Placement",
+  "metadata": {
+    "name": "stock_market_placement_sample_placement"
+  },
+  "spec": {
+    "pools": {
+      "edge23": {
+        "capacity": {
+          "memory_mb": 1024.0,
+          "vcpu": 4.0,
+          "mhz": 3000.0,
+          "concurrency": 0.0
+        },
+        "kind": "EDGE",
+        "properties": {
+          "source": "original_dataset",
+          "provider": "privateCitizen3",
+          "node_type": "edge"
+        }
+      },
+      "fog2": {
+        "capacity": {
+          "memory_mb": 4096.0,
+          "vcpu": 4.0,
+          "mhz": 2000.0,
+          "concurrency": 0.0
+        },
+        "kind": "FOG",
+        "properties": {
+          "source": "original_dataset",
+          "provider": "university",
+          "node_type": "fog"
+        }
+      },
+      "fog5": {
+        "capacity": {
+          "memory_mb": 3500.0,
+          "vcpu": 16.0,
+          "mhz": 2000.0,
+          "concurrency": 0.0
+        },
+        "kind": "FOG",
+        "properties": {
+          "source": "original_dataset",
+          "provider": "telco",
+          "node_type": "fog"
+        }
+      },
+      "fog9": {
+        "capacity": {
+          "memory_mb": 3500.0,
+          "vcpu": 16.0,
+          "mhz": 2000.0,
+          "concurrency": 0.0
+        },
+        "kind": "FOG",
+        "properties": {
+          "source": "original_dataset",
+          "provider": "telco",
+          "node_type": "fog"
+        }
+      },
+      "cloud1": {
+        "capacity": {
+          "memory_mb": 1000000000.0,
+          "vcpu": 1000000000.0,
+          "mhz": 1000000000.0,
+          "concurrency": 0.0
+        },
+        "kind": "CLOUD",
+        "properties": {
+          "source": "original_dataset",
+          "provider": "cloudProvider",
+          "node_type": "cloud"
+        }
+      },
+      "cloud2": {
+        "capacity": {
+          "memory_mb": 1000000000.0,
+          "vcpu": 1000000000.0,
+          "mhz": 1000000000.0,
+          "concurrency": 0.0
+        },
+        "kind": "CLOUD",
+        "properties": {
+          "source": "original_dataset",
+          "provider": "cloudProvider",
+          "node_type": "cloud"
+        }
+      },
+      "cloud3": {
+        "capacity": {
+          "memory_mb": 1000000000.0,
+          "vcpu": 1000000000.0,
+          "mhz": 1000000000.0,
+          "concurrency": 0.0
+        },
+        "kind": "CLOUD",
+        "properties": {
+          "source": "original_dataset",
+          "provider": "cloudProvider",
+          "node_type": "cloud"
+        }
+      },
+      "aws_faas_eu_west_1": {
+        "capacity": {
+          "concurrency": 1000000.0,
+          "memory_mb": 0.0,
+          "vcpu": 0.0,
+          "mhz": 0.0
+        },
+        "kind": "CLOUD_FAAS",
+        "properties": {
+          "source": "generated_cloud_faas",
+          "commercial_provider": "aws",
+          "region": "eu-west-1"
+        }
+      },
+      "aws_faas_us_east_1": {
+        "capacity": {
+          "concurrency": 1000000.0,
+          "memory_mb": 0.0,
+          "vcpu": 0.0,
+          "mhz": 0.0
+        },
+        "kind": "CLOUD_FAAS",
+        "properties": {
+          "source": "generated_cloud_faas",
+          "commercial_provider": "aws",
+          "region": "us-east-1"
+        }
+      },
+      "azure_faas_westeurope": {
+        "capacity": {
+          "concurrency": 1000000.0,
+          "memory_mb": 0.0,
+          "vcpu": 0.0,
+          "mhz": 0.0
+        },
+        "kind": "CLOUD_FAAS",
+        "properties": {
+          "source": "generated_cloud_faas",
+          "commercial_provider": "azure",
+          "region": "westeurope"
+        }
+      },
+      "azure_faas_eastus": {
+        "capacity": {
+          "concurrency": 1000000.0,
+          "memory_mb": 0.0,
+          "vcpu": 0.0,
+          "mhz": 0.0
+        },
+        "kind": "CLOUD_FAAS",
+        "properties": {
+          "source": "generated_cloud_faas",
+          "commercial_provider": "azure",
+          "region": "eastus"
+        }
+      },
+      "gcp_faas_europe_west1": {
+        "capacity": {
+          "concurrency": 1000000.0,
+          "memory_mb": 0.0,
+          "vcpu": 0.0,
+          "mhz": 0.0
+        },
+        "kind": "CLOUD_FAAS",
+        "properties": {
+          "source": "generated_cloud_faas",
+          "commercial_provider": "gcp",
+          "region": "europe-west1"
+        }
+      }
+    },
+    "demands": [
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuyOrSell_aws_faas_eu_west_1_mem2048_937190b0"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuyOrSell_aws_faas_eu_west_1_mem4096_bfb5ff15"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuyOrSell_aws_faas_us_east_1_mem2048_fca4c019"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuyOrSell_aws_faas_us_east_1_mem4096_2d423c8f"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuyOrSell_azure_faas_eastus_mem2048_95892990"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuyOrSell_azure_faas_westeurope_mem2048_d3da1020"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuyOrSell_cloud1_orig_4d017223"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "resources": {
+          "memory_mb": 2048.0,
+          "vcpu": 4.0,
+          "mhz": 1200.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuyOrSell_cloud2_orig_72d85ab4"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "resources": {
+          "memory_mb": 2048.0,
+          "vcpu": 4.0,
+          "mhz": 1200.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuyOrSell_cloud3_orig_1622d05e"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "resources": {
+          "memory_mb": 2048.0,
+          "vcpu": 4.0,
+          "mhz": 1200.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuyOrSell_fog2_orig_7bda1723"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "resources": {
+          "memory_mb": 2048.0,
+          "vcpu": 4.0,
+          "mhz": 1200.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuy_aws_faas_eu_west_1_mem1024_35db5f23"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuy_aws_faas_eu_west_1_mem256_986184bb"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuy_aws_faas_eu_west_1_mem512_2fde36d8"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuy_aws_faas_us_east_1_mem256_e9bbee65"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuy_aws_faas_us_east_1_mem512_2b561a88"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuy_azure_faas_westeurope_mem256_55ccaeea"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuy_cloud1_orig_f86fc30f"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "resources": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuy_cloud2_orig_6f68d5e9"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "resources": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuy_cloud3_orig_8d287ecd"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "resources": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fBuy_fog9_orig_0e17942b"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "resources": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fCheck_fog2_orig_1555d474"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "resources": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fCheck_fog2_orig_1c007edb"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "resources": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fCheck_fog2_orig_1db3dbdc"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "resources": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fCheck_fog2_orig_da6e8f74"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "resources": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fCheck_fog5_orig_3a70e90c"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "resources": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fCheck_fog5_orig_47218c21"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "resources": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fCheck_fog5_orig_7e21be4d"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "resources": {
+          "memory_mb": 512.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fRecord_aws_faas_eu_west_1_mem2048_934e82be"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fRecord_aws_faas_eu_west_1_mem4096_57ea71a5"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fRecord_fog2_orig_862e2a3b"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "resources": {
+          "memory_mb": 1600.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fRecord_fog2_orig_9409211d"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "resources": {
+          "memory_mb": 1600.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fRecord_fog2_orig_e596d480"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "resources": {
+          "memory_mb": 1600.0,
+          "vcpu": 2.0,
+          "mhz": 500.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fRecord_gcp_faas_europe_west1_mem2048_7e198e3b"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fRecord_gcp_faas_europe_west1_mem4096_61ce5a71"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fSell_aws_faas_eu_west_1_mem1024_97e4d6a3"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fSell_aws_faas_eu_west_1_mem256_7ac79ad3"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fSell_aws_faas_eu_west_1_mem512_3b0e404b"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fSell_aws_faas_us_east_1_mem256_20de2790"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fSell_aws_faas_us_east_1_mem512_23d26335"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fSell_azure_faas_westeurope_mem256_f096d601"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "resources": {
+          "concurrency": 20.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fSell_cloud1_orig_6284fade"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "resources": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fSell_cloud2_orig_523a0778"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "resources": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fSell_cloud3_orig_9815e1b8"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "resources": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      },
+      {
+        "candidate": {
+          "resource": "catalog",
+          "id": "cand_fSell_fog9_orig_b04d55e5"
+        },
+        "pool": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "resources": {
+          "memory_mb": 256.0,
+          "vcpu": 2.0,
+          "mhz": 400.0
+        }
+      }
+    ],
+    "network": [
+      {
+        "from": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "latency": 39.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "latency": 39.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "latency": 37.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "latency": 6.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "latency": 5.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "latency": 8.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "latency": 34.321
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "latency": 99.931
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "latency": 40.076
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "latency": 149.82
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "latency": 36.807
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "latency": 40.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "latency": 37.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "latency": 38.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "latency": 6.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "latency": 14.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": 6.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "latency": 51.476
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "latency": 82.794
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "latency": 23.553
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "latency": 108.37
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "latency": 45.691
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "latency": 38.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "latency": 39.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "latency": 32.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "latency": 6.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "latency": 13.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": 5.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "latency": 50.41
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "latency": 129.722
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "latency": 37.877
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "latency": 112.72
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "latency": 36.93
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "latency": 31.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "latency": 36.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "latency": 35.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "latency": 14.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "latency": 13.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": 8.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "latency": 22.168
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "latency": 146.905
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "latency": 30.176
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "latency": 116.555
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "latency": 23.847
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "latency": 44.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "latency": 42.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "latency": 40.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "latency": 38.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "latency": 31.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": 39.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "latency": 35.137
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "latency": 128.723
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "latency": 26.431
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "latency": 146.711
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "latency": 49.26
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "latency": 44.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "latency": 53.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "latency": 37.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "latency": 39.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "latency": 36.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": 39.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "latency": 21.029
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "latency": 94.054
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "latency": 48.977
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "latency": 83.837
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "latency": 26.99
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "latency": 42.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "latency": 53.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "latency": 38.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "latency": 32.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "latency": 35.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": 37.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "latency": 25.584
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "latency": 125.859
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "latency": 38.188
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "latency": 144.849
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "latency": 59.555
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": 34.321
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "latency": 51.476
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "latency": 50.41
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "latency": 22.168
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "latency": 35.137
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "latency": 21.029
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "latency": 25.584
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "latency": 73.021
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "latency": 30.367
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "latency": 102.197
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "latency": 30.978
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": 99.931
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "latency": 82.794
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "latency": 129.722
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "latency": 146.905
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "latency": 128.723
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "latency": 94.054
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "latency": 125.859
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "latency": 73.021
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "latency": 90.605
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "latency": 20.371
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "latency": 104.692
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": 40.076
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "latency": 23.553
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "latency": 37.877
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "latency": 30.176
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "latency": 26.431
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "latency": 48.977
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "latency": 38.188
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "latency": 30.367
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "latency": 90.605
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "latency": 72.052
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "latency": 20.673
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": 149.82
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "latency": 108.37
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "latency": 112.72
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "latency": 116.555
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "latency": 146.711
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "latency": 83.837
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "latency": 144.849
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "latency": 102.197
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "latency": 20.371
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "latency": 72.052
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "latency": 123.277
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "latency": 0.0
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": 36.807
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog2"
+        },
+        "latency": 45.691
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog5"
+        },
+        "latency": 36.93
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "fog9"
+        },
+        "latency": 23.847
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud1"
+        },
+        "latency": 49.26
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud2"
+        },
+        "latency": 26.99
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "cloud3"
+        },
+        "latency": 59.555
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_eu_west_1"
+        },
+        "latency": 30.978
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "aws_faas_us_east_1"
+        },
+        "latency": 104.692
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_westeurope"
+        },
+        "latency": 20.673
+      },
+      {
+        "from": {
+          "resource": "placement",
+          "id": "gcp_faas_europe_west1"
+        },
+        "to": {
+          "resource": "placement",
+          "id": "azure_faas_eastus"
+        },
+        "latency": 123.277
+      }
+    ],
+    "events": {
+      "device3_event2": {
+        "pool": {
+          "resource": "placement",
+          "id": "edge23"
+        },
+        "latency": [
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "edge23"
+            },
+            "latency": 0.0
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "fog2"
+            },
+            "latency": 6.0
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "fog5"
+            },
+            "latency": 5.0
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "fog9"
+            },
+            "latency": 8.0
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "cloud1"
+            },
+            "latency": 39.0
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "cloud2"
+            },
+            "latency": 39.0
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "cloud3"
+            },
+            "latency": 37.0
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "aws_faas_eu_west_1"
+            },
+            "latency": 34.321
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "aws_faas_us_east_1"
+            },
+            "latency": 99.931
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "azure_faas_westeurope"
+            },
+            "latency": 40.076
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "azure_faas_eastus"
+            },
+            "latency": 149.82
+          },
+          {
+            "pool": {
+              "resource": "placement",
+              "id": "gcp_faas_europe_west1"
+            },
+            "latency": 36.807
+          }
+        ]
+      }
+    },
+    "transitions": {
+      "latency_device3_event2_to_fCheck": {
+        "from": {
+          "resource": "placement",
+          "id": "device3_event2"
+        },
+        "to": {
+          "resource": "application",
+          "id": "fCheck"
+        },
+        "maximum": 25.0,
+        "enforcement": "hard",
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        }
+      },
+      "latency_1_fBuyOrSell_to_fSell": {
+        "from": {
+          "resource": "application",
+          "id": "fBuyOrSell"
+        },
+        "to": {
+          "resource": "application",
+          "id": "fSell"
+        },
+        "maximum": 14.0,
+        "enforcement": "hard",
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        }
+      },
+      "latency_2_fBuyOrSell_to_fBuy": {
+        "from": {
+          "resource": "application",
+          "id": "fBuyOrSell"
+        },
+        "to": {
+          "resource": "application",
+          "id": "fBuy"
+        },
+        "maximum": 22.0,
+        "enforcement": "hard",
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        }
+      },
+      "latency_3_fBuy_to_fRecord": {
+        "from": {
+          "resource": "application",
+          "id": "fBuy"
+        },
+        "to": {
+          "resource": "application",
+          "id": "fRecord"
+        },
+        "maximum": 24.0,
+        "enforcement": "hard",
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        }
+      },
+      "latency_4_fSell_to_fRecord": {
+        "from": {
+          "resource": "application",
+          "id": "fSell"
+        },
+        "to": {
+          "resource": "application",
+          "id": "fRecord"
+        },
+        "maximum": 24.0,
+        "enforcement": "hard",
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        }
+      },
+      "latency_5_fCheck_to_fBuyOrSell": {
+        "from": {
+          "resource": "application",
+          "id": "fCheck"
+        },
+        "to": {
+          "resource": "application",
+          "id": "fBuyOrSell"
+        },
+        "maximum": 15.0,
+        "enforcement": "hard",
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        }
+      }
+    },
+    "capacityRules": [
+      {
+        "resources": [
+          "memory_mb",
+          "vcpu",
+          "mhz",
+          "concurrency"
+        ],
+        "scope": "selectedCandidate"
+      }
+    ],
+    "globalLatency": {
+      "metric": {
+        "resource": "application",
+        "id": "latency"
+      },
+      "includeExecution": true,
+      "exclusive": "routing",
+      "parallel": "max"
+    }
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "netedu2020_transport_agency_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c_get_country_from_location": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 1,
+          "execution_time": 192,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "c_get_transport_company": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1,
+          "execution_time": 192,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "c_get_closest_city": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1,
+          "execution_time": 192,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "c_get_local_subsidiary": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1,
+          "execution_time": 192,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "c_get_vehicle": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1,
+          "execution_time": 192,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "c_make_arrangements": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1,
+          "execution_time": 192,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      }
+    },
+    "providers": {
+      "p_transport_agency": {}
+    },
+    "metricBindings": {
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      },
+      "availability": {
+        "resource": "application",
+        "id": "availability"
+      },
+      "reliability": {
+        "resource": "application",
+        "id": "reliability"
+      },
+      "security": {
+        "resource": "application",
+        "id": "security"
+      },
+      "execution_time": {
+        "resource": "application",
+        "id": "execution_time"
+      }
+    }
+  }
+}

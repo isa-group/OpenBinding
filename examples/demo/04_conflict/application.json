@@ -1,0 +1,31 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "demo_04_conflict_application"
+  },
+  "spec": {
+    "tasks": {
+      "t1": "service/t1"
+    },
+    "metrics": {
+      "cost": {
+        "unit": "eur",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "workflow": {
+      "task": {
+        "resource": "application",
+        "id": "t1"
+      }
+    }
+  }
+}

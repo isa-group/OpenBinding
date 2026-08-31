@@ -1,0 +1,41 @@
+@startuml
+title 01_simple_seq concrete source model
+left to right direction
+skinparam monochrome true
+skinparam shadowing false
+
+object "demo_01_simple_seq : Instance" as instance <<core>> {
+  profile = qos-binding/v1
+  application.application = application.json
+  candidateCatalog.catalog = candidates.json
+  optimization.optimization = optimization.json
+}
+object "application : Application" as app <<source>> {
+  tasks = t1, t2, t3
+  metric = latency ms
+  workflow = sequence(t1, t2, t3)
+}
+object "catalog : CandidateCatalog" as catalog <<source>> {
+  c1a provides service/t1, latency 10
+  c1b provides service/t1, latency 20
+  c2a provides service/t2, latency 15
+  c3a provides service/t3, latency 5
+}
+object "optimization : Optimization" as optimization <<source>> {
+  mode = weighted
+  metric = application/latency
+  normalize = 0..1000
+}
+object "eligibility : Eligibility" as eligibility <<IR>> {
+  t1 -> c1a, c1b
+  t2 -> c2a
+  t3 -> c3a
+}
+
+instance *-- app
+instance *-- catalog
+instance *-- optimization
+app --> eligibility : task requirements
+catalog --> eligibility : capabilities
+app --> optimization : latency metric ref
+@enduml

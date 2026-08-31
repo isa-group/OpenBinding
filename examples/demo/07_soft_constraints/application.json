@@ -1,0 +1,37 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "demo_07_soft_application"
+  },
+  "spec": {
+    "tasks": {
+      "t1": "service/t1"
+    },
+    "metrics": {
+      "latency": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "workflow": {
+      "task": {
+        "resource": "application",
+        "id": "t1"
+      }
+    }
+  }
+}

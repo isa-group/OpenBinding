@@ -1,0 +1,46 @@
+@startuml
+title Routing and optimization metamodel
+left to right direction
+hide methods
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class Optimization <<source>> {
+  mode: satisfy | weighted | lexicographic | pareto
+  type: MONO | MULTI | MANY [0..1]
+}
+class Term <<source>> {
+  direction: minimize | maximize [0..1]
+  weight: positive number [0..1]
+  normalize: bounds [0..1]
+}
+class PenaltyTerm <<source>> {
+  weight: positive number [0..1]
+}
+class RoutingOverlay <<source>> {
+  uniform: true [0..1]
+}
+class RoutingEntry <<source>> {
+  probability: 0..1
+}
+class ResourceRef <<core>> {
+  resource: string
+  id: string
+}
+class ExclusiveBranch <<source>>
+
+Optimization "1" *-- "0..*" Term
+Optimization "1" *-- "0..*" PenaltyTerm
+Term "1" *-- "1" ResourceRef : metric
+PenaltyTerm "1" *-- "1" ResourceRef : constraint or transition
+
+RoutingOverlay "1" *-- "0..*" RoutingEntry
+RoutingEntry "1" *-- "1" ResourceRef : branch or sequenceFlow
+RoutingEntry ..> ExclusiveBranch : target
+
+note bottom of RoutingOverlay
+  Exactly one authoring form: uniform or entries.
+  A routed XOR has every probability or none; supplied values sum to 1.
+end note
+@enduml

@@ -1,0 +1,43 @@
+@startuml
+title Federated multi-heuristic Engine and Registration objects
+left to right direction
+skinparam monochrome true
+skinparam shadowing false
+
+object "admin/multi-heuristic/1.0.0 : Engine" as engine <<execution>> {
+  mode = pareto-sampling
+  profile = qos-binding/v1
+  IR = bim/v1 BindingProblem
+  algorithm = bounded-pareto-sampling
+  optimization = only pareto
+  objectiveTypes = only MULTI
+  placement = all
+  irExtensions = only qos-binding-placement/v1
+  minObjectives = 2
+  maxObjectives = 3
+  exact = false
+}
+object "admin/multi-heuristic-deployment/1.0.0 : EngineRegistration" as registration <<execution>> {
+  endpoint = https://multi-heuristic.example.org
+  protocol = bim-engine/v1
+  request = /internal/v1/binding-problems
+  health = /health
+  openapi = /openapi.json
+  auth = none
+}
+object "immutable Engine reference" as ref <<execution>> {
+  namespace = admin
+  name = multi-heuristic
+  version = 1.0.0
+  digest = sha256-a34af...b6999
+}
+object "separate lifecycle state" as lifecycle <<execution>> {
+  owner visibility
+  activation verification
+  publication review
+}
+
+registration *-- ref
+ref --> engine
+registration --> lifecycle
+@enduml

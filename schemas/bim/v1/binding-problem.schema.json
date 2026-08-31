@@ -1,0 +1,590 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bim.dev/schema/bim/v1/binding-problem.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {"const": "bim/v1"},
+    "kind": {"const": "BindingProblem"},
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {"name": {"type": "string", "minLength": 1}},
+      "additionalProperties": false
+    },
+    "spec": {
+      "type": "object",
+      "required": ["profile", "dialects", "instance", "application", "candidates", "eligibility", "routing", "constraints", "placement", "optimization", "extensions", "sourceMap"],
+      "properties": {
+        "profile": {"$ref": "#/$defs/profile"},
+        "dialects": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/dialect"}},
+        "instance": {"$ref": "#/$defs/instanceIdentity"},
+        "application": {"$ref": "#/$defs/application"},
+        "candidates": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"$ref": "#/$defs/candidateCatalog"}
+        },
+        "eligibility": {
+          "type": "object",
+          "additionalProperties": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/ref"}}
+        },
+        "routing": {"type": "array", "items": {"$ref": "#/$defs/routingEntry"}},
+        "constraints": {"type": "array", "items": {"$ref": "#/$defs/constraint"}},
+        "placement": {"type": "array", "items": {"$ref": "#/$defs/placement"}},
+        "optimization": {"$ref": "#/$defs/optimization"},
+        "extensions": {"type": "object", "additionalProperties": {"type": "object"}},
+        "sourceMap": {"type": "object", "additionalProperties": {"$ref": "#/$defs/sourceLocation"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256-[0-9a-f]{64}$"},
+    "ref": {
+      "type": "object",
+      "required": ["resource", "id"],
+      "properties": {
+        "resource": {"type": "string", "minLength": 1},
+        "id": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "numberMap": {"type": "object", "additionalProperties": {"type": "number"}},
+    "nonnegativeNumberMap": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0}},
+    "scalarMap": {"type": "object", "additionalProperties": {"type": ["string", "number", "boolean", "null"]}},
+    "profile": {
+      "type": "object",
+      "required": ["namespace", "id", "version", "output", "deterministic", "digest", "adapter"],
+      "properties": {
+        "namespace": {"type": "string", "minLength": 1},
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "output": {
+          "type": "object",
+          "required": ["apiVersion", "kind", "schemaDigest"],
+          "properties": {
+            "apiVersion": {"type": "string", "minLength": 1},
+            "kind": {"type": "string", "minLength": 1},
+            "schemaDigest": {"$ref": "#/$defs/digest"}
+          },
+          "additionalProperties": false
+        },
+        "deterministic": {"type": "boolean"},
+        "digest": {"$ref": "#/$defs/digest"},
+        "adapter": {"$ref": "#/$defs/adapterDescriptor"}
+      },
+      "additionalProperties": false
+    },
+    "dialect": {
+      "type": "object",
+      "required": ["namespace", "id", "version", "digest", "irFeatures", "adapter"],
+      "properties": {
+        "namespace": {"type": "string", "minLength": 1},
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "digest": {"$ref": "#/$defs/digest"},
+        "irFeatures": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/irFeature"}},
+        "adapter": {"$ref": "#/$defs/adapterDescriptor"}
+      },
+      "additionalProperties": false
+    },
+    "irFeature": {
+      "type": "object",
+      "required": ["dimension", "value"],
+      "properties": {
+        "dimension": {"type": "string", "minLength": 1},
+        "value": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "adapterDescriptor": {
+      "type": "object",
+      "required": ["id", "version", "digest"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "digest": {"$ref": "#/$defs/digest"}
+      },
+      "additionalProperties": false
+    },
+    "resourceIdentity": {
+      "type": "object",
+      "required": ["role", "apiVersion", "kind", "digest"],
+      "properties": {
+        "role": {"type": "string", "minLength": 1},
+        "apiVersion": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "registered": {
+          "type": "object",
+          "required": ["namespace", "name", "version", "digest"],
+          "properties": {
+            "namespace": {"type": "string", "minLength": 1},
+            "name": {"type": "string", "minLength": 1},
+            "version": {"type": "string", "minLength": 1},
+            "digest": {"$ref": "#/$defs/digest"}
+          },
+          "additionalProperties": false
+        },
+        "digest": {"$ref": "#/$defs/digest"}
+      },
+      "oneOf": [
+        {"required": ["path"], "not": {"required": ["registered"]}},
+        {"required": ["registered"], "not": {"required": ["path"]}}
+      ],
+      "additionalProperties": false
+    },
+    "instanceIdentity": {
+      "type": "object",
+      "required": ["digest", "resources"],
+      "properties": {
+        "digest": {"$ref": "#/$defs/digest"},
+        "resources": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/resourceIdentity"}}
+      },
+      "additionalProperties": false
+    },
+    "requirement": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"type": "string", "minLength": 1},
+        "predicate": {"$ref": "#/$defs/expression"}
+      },
+      "additionalProperties": false
+    },
+    "task": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "requires"],
+          "properties": {
+            "kind": {"const": "service"},
+            "name": {"type": "string"},
+            "requires": {"$ref": "#/$defs/requirement"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": {"const": "local"},
+            "name": {"type": "string"}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "domain": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {"enum": ["real", "integer", "ratio"]},
+        "minimum": {"type": "number"},
+        "maximum": {"type": "number"}
+      },
+      "additionalProperties": false
+    },
+    "aggregationValue": {
+      "oneOf": [
+        {"enum": ["sum", "product", "min", "max", "weightedSum", "weightedProduct", "scale", "power", "identity"]},
+        {
+          "type": "object",
+          "required": ["expression"],
+          "properties": {"expression": {"$ref": "#/$defs/expression"}},
+          "additionalProperties": false
+        }
+      ]
+    },
+    "metric": {
+      "type": "object",
+      "required": ["type", "unit", "domain", "direction", "scope", "aggregation", "neutral"],
+      "properties": {
+        "name": {"type": "string"},
+        "type": {"const": "number"},
+        "unit": {"type": "string", "minLength": 1},
+        "domain": {"$ref": "#/$defs/domain"},
+        "direction": {"enum": ["minimize", "maximize"]},
+        "scope": {"enum": ["invocation", "selectedCandidate"]},
+        "neutral": {"type": "number"},
+        "aggregation": {
+          "type": "object",
+          "required": ["sequence", "parallel", "exclusive", "repeat", "selection"],
+          "properties": {
+            "sequence": {"$ref": "#/$defs/aggregationValue"},
+            "parallel": {"$ref": "#/$defs/aggregationValue"},
+            "exclusive": {"$ref": "#/$defs/aggregationValue"},
+            "repeat": {"$ref": "#/$defs/aggregationValue"},
+            "selection": {"$ref": "#/$defs/aggregationValue"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflow": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "task"],
+          "properties": {"kind": {"const": "task"}, "id": {"type": "string"}, "task": {"$ref": "#/$defs/ref"}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind"],
+          "properties": {"kind": {"const": "empty"}, "id": {"type": "string"}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "steps"],
+          "properties": {"kind": {"const": "sequence"}, "id": {"type": "string"}, "steps": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/workflow"}}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "branches"],
+          "properties": {"kind": {"const": "parallel"}, "id": {"type": "string"}, "branches": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/workflow"}}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "branches"],
+          "properties": {"kind": {"const": "exclusive"}, "id": {"type": "string"}, "branches": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/workflowBranch"}}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "body"],
+          "properties": {
+            "kind": {"const": "repeat"},
+            "id": {"type": "string"},
+            "body": {"$ref": "#/$defs/workflow"},
+            "count": {"type": "integer", "minimum": 0},
+            "expectedCount": {"type": "number", "minimum": 0}
+          },
+          "oneOf": [
+            {"required": ["count"], "not": {"required": ["expectedCount"]}},
+            {"required": ["expectedCount"], "not": {"required": ["count"]}}
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "workflowBranch": {
+      "type": "object",
+      "required": ["id", "flow"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "flow": {"$ref": "#/$defs/workflow"},
+        "when": {"$ref": "#/$defs/expression"}
+      },
+      "additionalProperties": false
+    },
+    "application": {
+      "type": "object",
+      "required": ["resource", "tasks", "metrics", "requiredMetrics", "taskRequiredMetrics", "workflow"],
+      "properties": {
+        "resource": {"type": "string", "minLength": 1},
+        "tasks": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/task"}},
+        "metrics": {"type": "object", "additionalProperties": {"$ref": "#/$defs/metric"}},
+        "requiredMetrics": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "taskRequiredMetrics": {"type": "object", "additionalProperties": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}},
+        "workflow": {"$ref": "#/$defs/workflow"}
+      },
+      "additionalProperties": false
+    },
+    "capability": {
+      "type": "object",
+      "required": ["type", "properties"],
+      "properties": {"type": {"type": "string", "minLength": 1}, "properties": {"$ref": "#/$defs/scalarMap"}},
+      "additionalProperties": false
+    },
+    "provider": {
+      "type": "object",
+      "required": ["properties"],
+      "properties": {
+        "name": {"type": "string"},
+        "properties": {"$ref": "#/$defs/scalarMap"}
+      },
+      "additionalProperties": false
+    },
+    "candidate": {
+      "type": "object",
+      "required": ["ref", "provides", "properties", "metrics"],
+      "properties": {
+        "ref": {"$ref": "#/$defs/ref"},
+        "name": {"type": "string"},
+        "provider": {"$ref": "#/$defs/ref"},
+        "provides": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/capability"}},
+        "properties": {"$ref": "#/$defs/scalarMap"},
+        "metrics": {"$ref": "#/$defs/numberMap"}
+      },
+      "additionalProperties": false
+    },
+    "candidateCatalog": {
+      "type": "object",
+      "required": ["providers", "metricBindings", "candidates"],
+      "properties": {
+        "providers": {"type": "object", "additionalProperties": {"$ref": "#/$defs/provider"}},
+        "metricBindings": {"type": "object", "additionalProperties": {"$ref": "#/$defs/ref"}},
+        "candidates": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/candidate"}}
+      },
+      "additionalProperties": false
+    },
+    "routingEntry": {
+      "type": "object",
+      "required": ["target", "probability"],
+      "properties": {
+        "target": {"$ref": "#/$defs/ref"},
+        "probability": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    },
+    "expression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "value"],
+          "properties": {"kind": {"const": "literal"}, "value": {"type": ["string", "number", "boolean", "null"]}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "segments"],
+          "properties": {
+            "kind": {"const": "path"},
+            "segments": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "value"],
+          "properties": {"kind": {"enum": ["not", "negate"]}, "value": {"$ref": "#/$defs/expression"}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "left", "right"],
+          "properties": {"kind": {"enum": ["and", "or"]}, "left": {"$ref": "#/$defs/expression"}, "right": {"$ref": "#/$defs/expression"}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "op", "left", "right"],
+          "properties": {"kind": {"const": "compare"}, "op": {"enum": ["eq", "ne", "lt", "lte", "gt", "gte"]}, "left": {"$ref": "#/$defs/expression"}, "right": {"$ref": "#/$defs/expression"}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "op", "left", "right"],
+          "properties": {"kind": {"const": "arithmetic"}, "op": {"enum": ["add", "sub", "mul", "div", "pow"]}, "left": {"$ref": "#/$defs/expression"}, "right": {"$ref": "#/$defs/expression"}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "name", "args"],
+          "properties": {
+            "kind": {"const": "call"},
+            "name": {"enum": ["has", "min", "max", "sum", "product", "weightedSum", "weightedProduct"]},
+            "args": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/expression"}}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "constraint": {
+      "type": "object",
+      "required": ["ref", "when", "assert", "enforcement"],
+      "properties": {
+        "ref": {"$ref": "#/$defs/ref"},
+        "when": {"$ref": "#/$defs/expression"},
+        "assert": {"$ref": "#/$defs/expression"},
+        "enforcement": {"enum": ["hard", "soft"]},
+        "penalty": {"$ref": "#/$defs/expression"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"enforcement": {"const": "soft"}}, "required": ["enforcement"]},
+          "then": {"required": ["penalty"]},
+          "else": {"not": {"required": ["penalty"]}}
+        }
+      ],
+      "additionalProperties": false
+    },
+    "pool": {
+      "type": "object",
+      "required": ["ref", "kind", "capacity", "properties"],
+      "properties": {
+        "ref": {"$ref": "#/$defs/ref"},
+        "name": {"type": "string"},
+        "kind": {"type": "string", "minLength": 1},
+        "capacity": {"$ref": "#/$defs/nonnegativeNumberMap"},
+        "properties": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "demand": {
+      "type": "object",
+      "required": ["candidate", "pool", "resources"],
+      "properties": {"candidate": {"$ref": "#/$defs/ref"}, "pool": {"$ref": "#/$defs/ref"}, "resources": {"$ref": "#/$defs/nonnegativeNumberMap"}},
+      "additionalProperties": false
+    },
+    "networkLink": {
+      "type": "object",
+      "required": ["from", "to", "latency"],
+      "properties": {"from": {"$ref": "#/$defs/ref"}, "to": {"$ref": "#/$defs/ref"}, "latency": {"type": "number", "minimum": 0}},
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "required": ["ref", "pool", "latency"],
+      "properties": {
+        "ref": {"$ref": "#/$defs/ref"},
+        "pool": {"$ref": "#/$defs/ref"},
+        "latency": {"type": "array", "items": {"$ref": "#/$defs/eventLatency"}}
+      },
+      "additionalProperties": false
+    },
+    "eventLatency": {
+      "type": "object",
+      "required": ["pool", "latency"],
+      "properties": {
+        "pool": {"$ref": "#/$defs/ref"},
+        "latency": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "transition": {
+      "type": "object",
+      "required": ["ref", "from", "to", "metric", "maximum", "enforcement"],
+      "properties": {
+        "ref": {"$ref": "#/$defs/ref"},
+        "from": {"$ref": "#/$defs/ref"},
+        "to": {"$ref": "#/$defs/ref"},
+        "metric": {"$ref": "#/$defs/ref"},
+        "maximum": {"type": "number", "minimum": 0},
+        "enforcement": {"enum": ["hard", "soft"]},
+        "penalty": {"type": "number", "minimum": 0}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"enforcement": {"const": "soft"}}, "required": ["enforcement"]},
+          "then": {"required": ["penalty"]},
+          "else": {"not": {"required": ["penalty"]}}
+        }
+      ],
+      "additionalProperties": false
+    },
+    "globalLatency": {
+      "type": "object",
+      "required": ["metric", "includeExecution", "exclusive", "parallel"],
+      "properties": {
+        "metric": {"$ref": "#/$defs/ref"},
+        "includeExecution": {"type": "boolean"},
+        "exclusive": {"enum": ["routing", "condition"]},
+        "parallel": {"enum": ["max", "sum"]}
+      },
+      "additionalProperties": false
+    },
+    "capacityRule": {
+      "type": "object",
+      "required": ["ref", "resources", "scope"],
+      "properties": {
+        "ref": {"$ref": "#/$defs/ref"},
+        "resources": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "scope": {"enum": ["invocation", "selectedCandidate"]}
+      },
+      "additionalProperties": false
+    },
+    "placement": {
+      "type": "object",
+      "required": ["resource", "pools", "demands", "network", "events", "transitions"],
+      "properties": {
+        "resource": {"type": "string", "minLength": 1},
+        "pools": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/pool"}},
+        "demands": {"type": "array", "items": {"$ref": "#/$defs/demand"}},
+        "network": {"type": "array", "items": {"$ref": "#/$defs/networkLink"}},
+        "events": {"type": "object", "additionalProperties": {"$ref": "#/$defs/event"}},
+        "transitions": {"type": "array", "items": {"$ref": "#/$defs/transition"}},
+        "globalLatency": {"$ref": "#/$defs/globalLatency"},
+        "capacityRules": {"type": "array", "items": {"$ref": "#/$defs/capacityRule"}}
+      },
+      "additionalProperties": false
+    },
+    "term": {
+      "type": "object",
+      "required": ["metric", "direction", "weight"],
+      "properties": {
+        "metric": {"$ref": "#/$defs/ref"},
+        "direction": {"enum": ["minimize", "maximize"]},
+        "weight": {"type": "number", "exclusiveMinimum": 0},
+        "normalize": {
+          "type": "object",
+          "required": ["min", "max", "clamp"],
+          "properties": {
+            "min": {"type": "number"},
+            "max": {"type": "number"},
+            "clamp": {"type": "boolean"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "optimizationPenalty": {
+      "type": "object",
+      "required": ["constraint", "weight"],
+      "properties": {"constraint": {"$ref": "#/$defs/ref"}, "weight": {"type": "number", "exclusiveMinimum": 0}},
+      "additionalProperties": false
+    },
+    "optimization": {
+      "type": "object",
+      "required": ["resource", "mode", "type", "terms", "penalties"],
+      "properties": {
+        "resource": {"type": "string", "minLength": 1},
+        "mode": {"enum": ["satisfy", "weighted", "lexicographic", "pareto"]},
+        "type": {"enum": ["MONO", "MULTI", "MANY"]},
+        "terms": {"type": "array", "items": {"$ref": "#/$defs/term"}},
+        "penalties": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/optimizationPenalty"}}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"mode": {"const": "satisfy"}}, "required": ["mode"]},
+          "then": {"properties": {"type": {"const": "MONO"}, "terms": {"maxItems": 0}}},
+          "else": {"properties": {"terms": {"minItems": 1}}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "MULTI"}}, "required": ["type"]},
+          "then": {"properties": {"terms": {"minItems": 2, "maxItems": 3}}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "MANY"}}, "required": ["type"]},
+          "then": {"properties": {"terms": {"minItems": 3}}}
+        }
+      ],
+      "additionalProperties": false
+    },
+    "sourceLocation": {
+      "type": "object",
+      "required": ["resource", "path"],
+      "properties": {
+        "resource": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "pointer": {"type": "string"},
+        "bpmnElement": {"type": "string", "minLength": 1},
+        "span": {
+          "type": "object",
+          "required": ["start", "end"],
+          "properties": {"start": {"type": "integer", "minimum": 0}, "end": {"type": "integer", "minimum": 0}},
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

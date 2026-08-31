@@ -1,0 +1,24 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "demo_04_conflict_optimization"
+  },
+  "spec": {
+    "mode": "weighted",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "weight": 1.0,
+        "normalize": {
+          "min": 0,
+          "max": 1000,
+          "clamp": true
+        }
+      }
+    ]
+  }
+}

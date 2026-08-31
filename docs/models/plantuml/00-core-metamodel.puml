@@ -1,0 +1,130 @@
+@startuml
+' Status: normative-derived
+' Sources:
+' - schemas/bim/v1/instance.schema.json
+' - openbinding-gateway/src/openbinding_gateway/v1/package.py
+' - openbinding-gateway/src/openbinding_gateway/v1/compiler.py
+
+title BIM v1 core package and Instance metamodel
+
+hide empty methods
+hide circle
+skinparam shadowing false
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam defaultFontName SansSerif
+skinparam classBackgroundColor #FFFFFF
+skinparam classBorderColor #475569
+skinparam classArrowColor #64748B
+skinparam classBackgroundColor<<core>> #E0F2FE
+skinparam classBorderColor<<core>> #0369A1
+skinparam classBackgroundColor<<source>> #F8FAFC
+skinparam classBorderColor<<source>> #64748B
+
+abstract class "BIM JSON Envelope" as Envelope <<core>> {
+  +apiVersion: string {required}
+  +kind: string {required}
+}
+
+class Instance <<core>> {
+  +apiVersion = "bim/v1"
+  +kind = "Instance"
+}
+
+class InstanceMetadata <<core>> {
+  +name: string {required}
+  +version: string [0..1]
+  +description: string [0..1]
+  +labels: Map<string,string> [0..1]
+  +annotations: Map<string,JSON> [0..1]
+}
+
+class InstanceSpec <<core>> {
+  +profile: VersionedId {required}
+  +extensions: Map<string,JSON> [0..1]
+}
+
+class ResourceGroup <<core>> {
+  +role: Name {map key}
+}
+
+class ResourceEntry <<core>> {
+  +resourceId: Name {map key}
+}
+
+abstract class ResourceTarget <<core>>
+
+class LocalResourceTarget <<core>> {
+  +path: RelativePOSIXPath
+  +suffix: json | bpmn | xml
+}
+
+class RegisteredResourceTarget <<core>> {
+  +namespace: string
+  +name: string
+  +version: string
+  +digest: sha256
+}
+
+class InstancePackage <<core>> {
+  +files: Map<path,bytes>
+  +resourceDigests: Map<path,sha256>
+  +packageDigest: sha256
+}
+
+class LocalResourceFile <<source>> {
+  +path: RelativePOSIXPath
+  +content: bytes
+}
+
+class InstalledRegistryRevision <<source>> {
+  +namespace: string
+  +name: string
+  +version: string
+  +digest: sha256
+  +mediaType: string
+  +content: bytes
+}
+
+Envelope <|-- Instance
+Instance *-- "1" InstanceMetadata : metadata
+Instance *-- "1" InstanceSpec : spec
+InstanceSpec *-- "1..*" ResourceGroup : resources {map}
+ResourceGroup *-- "1..*" ResourceEntry : entries {map}
+ResourceEntry *-- "1" ResourceTarget : target
+ResourceTarget <|-- LocalResourceTarget
+ResourceTarget <|-- RegisteredResourceTarget
+
+InstancePackage *-- "1" Instance : instance.json
+InstancePackage *-- "0..*" LocalResourceFile : declared local files
+LocalResourceTarget --> "1" LocalResourceFile : resolves to
+RegisteredResourceTarget --> "0..1" InstalledRegistryRevision : exact local lookup
+
+note right of InstanceSpec
+  profile matches:
+  name/v<positive-major>
+
+  Every group is non-empty.
+  Role names come from the
+  selected installed Profile.
+end note
+
+note bottom of ResourceEntry
+  Compiler invariants:
+  - resourceId is package-wide unique
+  - a local path is declared at most once
+  - undeclared package files are rejected
+end note
+
+note bottom of LocalResourceTarget
+  Relative, forward-slash-only,
+  traversal-safe package path.
+end note
+
+note bottom of RegisteredResourceTarget
+  All four fields are required.
+  Resolution is local and exact;
+  no network lookup occurs.
+end note
+
+@enduml

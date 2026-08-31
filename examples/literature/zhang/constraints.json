@@ -1,0 +1,25 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "zhang2014_entertainment_planner_running_example_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "c_within_2km": {
+        "assert": "metrics.distance <= 2000",
+        "enforcement": "hard"
+      },
+      "c_time_budget": {
+        "assert": "metrics.time <= 240",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "c_cost_budget": {
+        "assert": "metrics.cost <= 100",
+        "enforcement": "soft",
+        "penalty": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "cremaschi2018_textbook_access_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c_google_books_api": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 250,
+          "cost_usd": 0.0001,
+          "availability": 0.995,
+          "reliability": 0.993,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "c_amazon_market_api": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 400,
+          "cost_usd": 0.001,
+          "availability": 0.99,
+          "reliability": 0.988,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "c_opac_library_api": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 350,
+          "cost_usd": 0.0001,
+          "availability": 0.98,
+          "reliability": 0.978,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "c_google_geocoding_api": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 300,
+          "cost_usd": 0.002,
+          "availability": 0.995,
+          "reliability": 0.993,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "c_google_transit_api": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 450,
+          "cost_usd": 0.0001,
+          "availability": 0.995,
+          "reliability": 0.993,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "c_archive_api": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 500,
+          "cost_usd": 0.0001,
+          "availability": 0.97,
+          "reliability": 0.968,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      }
+    },
+    "providers": {
+      "p_google": {},
+      "p_amazon": {},
+      "p_unimib": {},
+      "p_archive": {},
+      "p_local": {}
+    },
+    "metricBindings": {
+      "latency_ms": {
+        "resource": "application",
+        "id": "latency_ms"
+      },
+      "cost_usd": {
+        "resource": "application",
+        "id": "cost_usd"
+      },
+      "availability": {
+        "resource": "application",
+        "id": "availability"
+      },
+      "reliability": {
+        "resource": "application",
+        "id": "reliability"
+      },
+      "security": {
+        "resource": "application",
+        "id": "security"
+      }
+    }
+  }
+}

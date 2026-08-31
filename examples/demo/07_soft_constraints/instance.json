@@ -1,0 +1,29 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "demo_07_soft",
+    "version": "1.0.0",
+    "description": "Demonstrates soft constraints. A soft constraint violation adds a penalty to the objective function, but does not invalidate the solution.",
+    "annotations": {
+      "level": "intermediate"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

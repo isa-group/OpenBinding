@@ -1,0 +1,183 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "fleet_routing_qaco_001_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "cand_t1_google_cloud": {
+        "provides": "service/T1",
+        "metrics": {
+          "cost": 240,
+          "execution_time": 220,
+          "availability": 0.9998,
+          "reliability": 0.998,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "google"
+        }
+      },
+      "cand_t1_aws": {
+        "provides": "service/T1",
+        "metrics": {
+          "cost": 220,
+          "execution_time": 210,
+          "availability": 0.9995,
+          "reliability": 0.9975,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "amazon"
+        }
+      },
+      "cand_t2_radius_iot_network": {
+        "provides": "service/T2",
+        "metrics": {
+          "cost": 500,
+          "execution_time": 420,
+          "availability": 0.998,
+          "reliability": 0.993,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "radius"
+        }
+      },
+      "cand_t2_samsara_fleet_api": {
+        "provides": "service/T2",
+        "metrics": {
+          "cost": 650,
+          "execution_time": 520,
+          "availability": 0.9984999999999999,
+          "reliability": 0.9940000000000001,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "samsara"
+        }
+      },
+      "cand_t3_here_routing_api": {
+        "provides": "service/T3",
+        "metrics": {
+          "cost": 300,
+          "execution_time": 380,
+          "availability": 0.9990000000000001,
+          "reliability": 0.995,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "here"
+        }
+      },
+      "cand_t3_distance_matrix_api": {
+        "provides": "service/T3",
+        "metrics": {
+          "cost": 900,
+          "execution_time": 300,
+          "availability": 0.9995,
+          "reliability": 0.996,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "google"
+        }
+      },
+      "cand_t5_amazon_braket": {
+        "provides": "service/T5",
+        "metrics": {
+          "cost": 1200,
+          "execution_time": 9000,
+          "availability": 0.9990000000000001,
+          "reliability": 0.99,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "amazon"
+        }
+      },
+      "cand_t5_ibm_quantum": {
+        "provides": "service/T5",
+        "metrics": {
+          "cost": 1500,
+          "execution_time": 12000,
+          "availability": 0.997,
+          "reliability": 0.997,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "ibm"
+        }
+      },
+      "cand_t6_paypal": {
+        "provides": "service/T6",
+        "metrics": {
+          "cost": 1200,
+          "execution_time": 450,
+          "availability": 0.9995,
+          "reliability": 0.992,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "paypal"
+        }
+      },
+      "cand_t6_stripe": {
+        "provides": "service/T6",
+        "metrics": {
+          "cost": 950,
+          "execution_time": 520,
+          "availability": 0.9998999999999999,
+          "reliability": 0.995,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "stripe"
+        }
+      }
+    },
+    "providers": {
+      "google": {},
+      "amazon": {},
+      "radius": {},
+      "samsara": {},
+      "here": {},
+      "ibm": {},
+      "paypal": {},
+      "stripe": {}
+    },
+    "metricBindings": {
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      },
+      "execution_time": {
+        "resource": "application",
+        "id": "execution_time"
+      },
+      "availability": {
+        "resource": "application",
+        "id": "availability"
+      },
+      "reliability": {
+        "resource": "application",
+        "id": "reliability"
+      },
+      "security": {
+        "resource": "application",
+        "id": "security"
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "demo_06_loops_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c1": {
+        "provides": "service/t1",
+        "metrics": {
+          "cost": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      }
+    },
+    "providers": {
+      "p1": {}
+    },
+    "metricBindings": {
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      }
+    }
+  }
+}

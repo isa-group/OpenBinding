@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  id="Definitions_Fulfillment"
+  targetNamespace="https://openbinding.dev/examples/bpmn-complete">
+  <bpmn:process id="Process_Fulfillment" name="Adaptive fulfillment" isExecutable="true">
+    <bpmn:startEvent id="Start_Request" name="Request received" />
+    <bpmn:serviceTask id="authenticate" name="Authenticate" />
+    <bpmn:parallelGateway id="Gateway_Parallel_Split" name="Work in parallel" />
+    <bpmn:serviceTask id="enrich" name="Enrich request" />
+    <bpmn:exclusiveGateway id="Gateway_Source_Split" name="Cache hit?" />
+    <bpmn:serviceTask id="cache" name="Read cache" />
+    <bpmn:serviceTask id="fetch" name="Fetch origin" />
+    <bpmn:exclusiveGateway id="Gateway_Source_Join" />
+    <bpmn:serviceTask id="score" name="Score twice">
+      <bpmn:multiInstanceLoopCharacteristics isSequential="true">
+        <bpmn:loopCardinality>2</bpmn:loopCardinality>
+      </bpmn:multiInstanceLoopCharacteristics>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="audit" name="Audit" />
+    <bpmn:parallelGateway id="Gateway_Parallel_Join" />
+    <bpmn:serviceTask id="publish" name="Publish" />
+    <bpmn:endEvent id="End_Published" name="Published" />
+
+    <bpmn:sequenceFlow id="Flow_Start" sourceRef="Start_Request" targetRef="authenticate" />
+    <bpmn:sequenceFlow id="Flow_Authenticated" sourceRef="authenticate" targetRef="Gateway_Parallel_Split" />
+    <bpmn:sequenceFlow id="Flow_Enrich" sourceRef="Gateway_Parallel_Split" targetRef="enrich" />
+    <bpmn:sequenceFlow id="Flow_Audit" sourceRef="Gateway_Parallel_Split" targetRef="audit" />
+    <bpmn:sequenceFlow id="Flow_To_Source" sourceRef="enrich" targetRef="Gateway_Source_Split" />
+    <bpmn:sequenceFlow id="Flow_Cache" sourceRef="Gateway_Source_Split" targetRef="cache" />
+    <bpmn:sequenceFlow id="Flow_Fetch" sourceRef="Gateway_Source_Split" targetRef="fetch" />
+    <bpmn:sequenceFlow id="Flow_Cache_Join" sourceRef="cache" targetRef="Gateway_Source_Join" />
+    <bpmn:sequenceFlow id="Flow_Fetch_Join" sourceRef="fetch" targetRef="Gateway_Source_Join" />
+    <bpmn:sequenceFlow id="Flow_Score" sourceRef="Gateway_Source_Join" targetRef="score" />
+    <bpmn:sequenceFlow id="Flow_Score_Join" sourceRef="score" targetRef="Gateway_Parallel_Join" />
+    <bpmn:sequenceFlow id="Flow_Audit_Join" sourceRef="audit" targetRef="Gateway_Parallel_Join" />
+    <bpmn:sequenceFlow id="Flow_Publish" sourceRef="Gateway_Parallel_Join" targetRef="publish" />
+    <bpmn:sequenceFlow id="Flow_End" sourceRef="publish" targetRef="End_Published" />
+  </bpmn:process>
+
+  <bpmndi:BPMNDiagram id="Diagram_Fulfillment">
+    <bpmndi:BPMNPlane id="Plane_Fulfillment" bpmnElement="Process_Fulfillment">
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start_Request"><dc:Bounds x="70" y="232" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Authenticate" bpmnElement="authenticate"><dc:Bounds x="145" y="210" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Parallel_Split" bpmnElement="Gateway_Parallel_Split"><dc:Bounds x="310" y="225" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Enrich" bpmnElement="enrich"><dc:Bounds x="405" y="100" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Source_Split" bpmnElement="Gateway_Source_Split" isMarkerVisible="true"><dc:Bounds x="570" y="115" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Cache" bpmnElement="cache"><dc:Bounds x="665" y="35" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Fetch" bpmnElement="fetch"><dc:Bounds x="665" y="155" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Source_Join" bpmnElement="Gateway_Source_Join" isMarkerVisible="true"><dc:Bounds x="830" y="115" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Score" bpmnElement="score" isExpanded="true"><dc:Bounds x="925" y="100" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Audit" bpmnElement="audit"><dc:Bounds x="665" y="330" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Parallel_Join" bpmnElement="Gateway_Parallel_Join"><dc:Bounds x="1090" y="225" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Publish" bpmnElement="publish"><dc:Bounds x="1185" y="210" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End" bpmnElement="End_Published"><dc:Bounds x="1350" y="232" width="36" height="36" /></bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Edge_Start" bpmnElement="Flow_Start"><di:waypoint x="106" y="250" /><di:waypoint x="145" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Authenticated" bpmnElement="Flow_Authenticated"><di:waypoint x="265" y="250" /><di:waypoint x="310" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Enrich" bpmnElement="Flow_Enrich"><di:waypoint x="335" y="225" /><di:waypoint x="335" y="140" /><di:waypoint x="405" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Audit" bpmnElement="Flow_Audit"><di:waypoint x="335" y="275" /><di:waypoint x="335" y="370" /><di:waypoint x="665" y="370" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_To_Source" bpmnElement="Flow_To_Source"><di:waypoint x="525" y="140" /><di:waypoint x="570" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Cache" bpmnElement="Flow_Cache"><di:waypoint x="595" y="115" /><di:waypoint x="595" y="75" /><di:waypoint x="665" y="75" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Fetch" bpmnElement="Flow_Fetch"><di:waypoint x="595" y="165" /><di:waypoint x="595" y="195" /><di:waypoint x="665" y="195" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Cache_Join" bpmnElement="Flow_Cache_Join"><di:waypoint x="785" y="75" /><di:waypoint x="855" y="75" /><di:waypoint x="855" y="115" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Fetch_Join" bpmnElement="Flow_Fetch_Join"><di:waypoint x="785" y="195" /><di:waypoint x="855" y="195" /><di:waypoint x="855" y="165" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Score" bpmnElement="Flow_Score"><di:waypoint x="880" y="140" /><di:waypoint x="925" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Score_Join" bpmnElement="Flow_Score_Join"><di:waypoint x="1045" y="140" /><di:waypoint x="1115" y="140" /><di:waypoint x="1115" y="225" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Audit_Join" bpmnElement="Flow_Audit_Join"><di:waypoint x="785" y="370" /><di:waypoint x="1115" y="370" /><di:waypoint x="1115" y="275" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Publish" bpmnElement="Flow_Publish"><di:waypoint x="1140" y="250" /><di:waypoint x="1185" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_End" bpmnElement="Flow_End"><di:waypoint x="1305" y="250" /><di:waypoint x="1350" y="250" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

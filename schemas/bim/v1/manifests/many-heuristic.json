@@ -1,0 +1,48 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Engine",
+  "metadata": {
+    "namespace": "bim.builtin",
+    "name": "many-heuristic",
+    "version": "1.0.0",
+    "description": "Bounded Pareto sampling over canonical BIM v1 binding decisions"
+  },
+  "spec": {
+    "modes": [
+      {
+        "id": "pareto-sampling",
+        "profile": "qos-binding/v1",
+        "ir": {"apiVersion": "bim/v1", "kind": "BindingProblem"},
+        "algorithm": "bounded-pareto-sampling",
+        "capabilities": {
+          "workflowNodes": {"selector": "all"},
+          "metricScopes": {"selector": "all"},
+          "aggregations": {"selector": "all"},
+          "constraints": {"selector": "all"},
+          "optimization": {"selector": "only", "values": ["pareto"]},
+          "objectiveTypes": {"selector": "only", "values": ["MANY"]},
+          "expressions": {"selector": "all"},
+          "placement": {"selector": "all"},
+          "irExtensions": {"selector": "only", "values": ["qos-binding-placement/v1"]}
+        },
+        "optionsSchema": {
+          "type": "object",
+          "properties": {
+            "iterations": {"type": "integer", "minimum": 1, "maximum": 1000000, "default": 5000},
+            "archive_size": {"type": "integer", "minimum": 1, "maximum": 10000, "default": 100},
+            "seed": {"type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991, "default": 0},
+            "time_budget_ms": {"type": "integer", "minimum": 1, "maximum": 3600000}
+          },
+          "additionalProperties": false
+        },
+        "limits": {"minObjectives": 3, "maxIterations": 1000000, "maxSolutions": 10000, "maxTimeBudgetMs": 3600000},
+        "guarantees": {
+          "termination": ["FEASIBLE", "UNKNOWN"],
+          "exact": false,
+          "completeParetoFront": false,
+          "deterministicWithoutTimeBudget": true
+        }
+      }
+    ]
+  }
+}

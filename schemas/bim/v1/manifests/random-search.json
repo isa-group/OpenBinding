@@ -1,0 +1,46 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Engine",
+  "metadata": {
+    "namespace": "bim.builtin",
+    "name": "random-search",
+    "version": "1.0.0",
+    "description": "Seeded random search over canonical BIM v1 binding decisions"
+  },
+  "spec": {
+    "modes": [
+      {
+        "id": "seeded",
+        "profile": "qos-binding/v1",
+        "ir": {"apiVersion": "bim/v1", "kind": "BindingProblem"},
+        "algorithm": "seeded-random-search",
+        "capabilities": {
+          "workflowNodes": {"selector": "all"},
+          "metricScopes": {"selector": "all"},
+          "aggregations": {"selector": "all"},
+          "constraints": {"selector": "all"},
+          "optimization": {"selector": "all"},
+          "objectiveTypes": {"selector": "all"},
+          "expressions": {"selector": "all"},
+          "placement": {"selector": "all"},
+          "irExtensions": {"selector": "only", "values": ["qos-binding-placement/v1"]}
+        },
+        "optionsSchema": {
+          "type": "object",
+          "properties": {
+            "iterations": {"type": "integer", "minimum": 1, "maximum": 1000000, "default": 1000},
+            "seed": {"type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991, "default": 0},
+            "time_budget_ms": {"type": "integer", "minimum": 1, "maximum": 3600000}
+          },
+          "additionalProperties": false
+        },
+        "limits": {"maxIterations": 1000000, "maxTimeBudgetMs": 3600000},
+        "guarantees": {
+          "termination": ["FEASIBLE", "UNKNOWN"],
+          "exact": false,
+          "deterministicWithoutTimeBudget": true
+        }
+      }
+    ]
+  }
+}

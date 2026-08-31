@@ -1,0 +1,28 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "small_placement_edge_heavy",
+    "version": "1.0.0",
+    "description": "A placement-aware workflow with five service tasks in sequence, parallel and exclusive blocks, three infrastructure pools, capacity rules, transition latency, an event source, security constraints and pricing limits."
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json",
+        "routing": "routing.json",
+        "placement": "placement.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

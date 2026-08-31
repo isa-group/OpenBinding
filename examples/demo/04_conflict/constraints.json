@@ -1,0 +1,15 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "demo_04_conflict_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "c_impossible": {
+        "assert": "metrics.cost < 0",
+        "enforcement": "hard"
+      }
+    }
+  }
+}

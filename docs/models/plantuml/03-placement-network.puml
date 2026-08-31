@@ -1,0 +1,39 @@
+@startuml
+title Placement network and event metamodel
+left to right direction
+hide methods
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class Placement <<dialect>> {
+  apiVersion = qos-binding-placement/v1
+  kind = Placement
+  networkMode: directed | symmetric [0..1]
+}
+class NetworkLink <<dialect>> {
+  latency: non-negative number
+}
+class Event <<dialect>> {
+  id: name
+}
+class EventLatency <<dialect>> {
+  latency: non-negative number
+}
+class ResourceRef <<core>> {
+  resource: string
+  id: string
+}
+
+Placement "1" *-- "0..*" NetworkLink : network
+Placement "1" *-- "0..*" Event : events
+NetworkLink "1" *-- "2" ResourceRef : from / to pools
+Event "1" *-- "1" ResourceRef : source pool
+Event "1" *-- "0..*" EventLatency
+EventLatency "1" *-- "1" ResourceRef : destination pool
+
+note bottom of Placement
+  Symmetric authoring materializes reverse links. The normalized network is
+  direct and directed; no shortest-path inference exists.
+end note
+@enduml

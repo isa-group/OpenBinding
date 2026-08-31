@@ -1,0 +1,151 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "fleet_routing_qaco_001_application"
+  },
+  "spec": {
+    "tasks": {
+      "T1": "service/T1",
+      "T2": "service/T2",
+      "T3": "service/T3",
+      "T5": "service/T5",
+      "T6": "service/T6",
+      "node_classic_routing": {
+        "kind": "local",
+        "name": "Classic routing path executed outside the selectable candidate set."
+      }
+    },
+    "metrics": {
+      "cost": {
+        "unit": "USD/month",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 10000
+        }
+      },
+      "execution_time": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 20000
+        }
+      },
+      "availability": {
+        "unit": "1",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "product",
+          "parallel": "product",
+          "exclusive": "weightedSum",
+          "repeat": "power",
+          "selection": "product"
+        },
+        "domain": {
+          "kind": "ratio",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "reliability": {
+        "unit": "1",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "product",
+          "parallel": "product",
+          "exclusive": "weightedSum",
+          "repeat": "power",
+          "selection": "product"
+        },
+        "domain": {
+          "kind": "ratio",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "security": {
+        "unit": "score",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "min",
+          "parallel": "min",
+          "exclusive": "weightedSum",
+          "repeat": "identity",
+          "selection": "min"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 1,
+          "maximum": 5
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "T1"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "T2"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "T3"
+          }
+        },
+        {
+          "exclusive": [
+            {
+              "id": "node_routing_choice_branch_1",
+              "flow": {
+                "task": {
+                  "resource": "application",
+                  "id": "node_classic_routing"
+                }
+              }
+            },
+            {
+              "id": "node_routing_choice_branch_2",
+              "flow": {
+                "task": {
+                  "resource": "application",
+                  "id": "T5"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "T6"
+          }
+        }
+      ]
+    }
+  }
+}

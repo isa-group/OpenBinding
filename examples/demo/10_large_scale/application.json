@@ -1,0 +1,166 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "demo_10_large_scale_application"
+  },
+  "spec": {
+    "tasks": {
+      "t1": "service/t1",
+      "t2": "service/t2",
+      "t3": "service/t3",
+      "t4": "service/t4",
+      "t5": "service/t5",
+      "t6": "service/t6",
+      "t7": "service/t7",
+      "t8": "service/t8",
+      "t9": "service/t9",
+      "t10": "service/t10"
+    },
+    "metrics": {
+      "cost": {
+        "unit": "USD",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      },
+      "time": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 5000
+        }
+      },
+      "reliability": {
+        "unit": "1",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "product",
+          "parallel": "product",
+          "exclusive": "weightedSum",
+          "repeat": "power",
+          "selection": "product"
+        },
+        "domain": {
+          "kind": "ratio",
+          "minimum": 0.005,
+          "maximum": 0.01
+        }
+      },
+      "reputation": {
+        "unit": "scale",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 10
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "t1"
+          }
+        },
+        {
+          "parallel": [
+            {
+              "task": {
+                "resource": "application",
+                "id": "t2"
+              }
+            },
+            {
+              "task": {
+                "resource": "application",
+                "id": "t3"
+              }
+            }
+          ]
+        },
+        {
+          "exclusive": [
+            {
+              "id": "shipping_choice_branch_1",
+              "flow": {
+                "task": {
+                  "resource": "application",
+                  "id": "t4"
+                }
+              }
+            },
+            {
+              "id": "shipping_choice_branch_2",
+              "flow": {
+                "task": {
+                  "resource": "application",
+                  "id": "t5"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "repeat": {
+            "body": {
+              "task": {
+                "resource": "application",
+                "id": "t6"
+              }
+            },
+            "expectedCount": 1.1
+          }
+        },
+        {
+          "sequence": [
+            {
+              "task": {
+                "resource": "application",
+                "id": "t7"
+              }
+            },
+            {
+              "task": {
+                "resource": "application",
+                "id": "t8"
+              }
+            }
+          ]
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "t9"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "t10"
+          }
+        }
+      ]
+    }
+  }
+}

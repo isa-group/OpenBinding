@@ -1,0 +1,100 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "demo_many_obj_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "S1_1": {
+        "provides": "service/T1",
+        "metrics": {
+          "cost": 10,
+          "time": 5,
+          "reliability": 0.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "P1"
+        }
+      },
+      "S1_2": {
+        "provides": "service/T1",
+        "metrics": {
+          "cost": 50,
+          "time": 1,
+          "reliability": 0.999
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "P1"
+        }
+      },
+      "S2_1": {
+        "provides": "service/T2",
+        "metrics": {
+          "cost": 20,
+          "time": 4,
+          "reliability": 0.95
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "P1"
+        }
+      },
+      "S2_2": {
+        "provides": "service/T2",
+        "metrics": {
+          "cost": 5,
+          "time": 10,
+          "reliability": 0.8
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "P1"
+        }
+      },
+      "S3_1": {
+        "provides": "service/T3",
+        "metrics": {
+          "cost": 15,
+          "time": 3,
+          "reliability": 0.9
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "P1"
+        }
+      },
+      "S3_2": {
+        "provides": "service/T3",
+        "metrics": {
+          "cost": 30,
+          "time": 2,
+          "reliability": 0.95
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "P1"
+        }
+      }
+    },
+    "providers": {
+      "P1": {}
+    },
+    "metricBindings": {
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      },
+      "time": {
+        "resource": "application",
+        "id": "time"
+      },
+      "reliability": {
+        "resource": "application",
+        "id": "reliability"
+      }
+    }
+  }
+}

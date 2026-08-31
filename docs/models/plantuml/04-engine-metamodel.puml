@@ -1,0 +1,94 @@
+@startuml
+title Engine capability and deployment metamodel
+left to right direction
+hide methods
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class Engine <<execution>> {
+  apiVersion = bim/v1
+  kind = Engine
+  immutable revision identity
+}
+class Mode <<execution>> {
+  id: string
+  profile: versioned id
+  ir: apiVersion + kind
+  algorithm: string
+}
+class CapabilitySelector <<execution>> {
+  dimension: Profile-defined name
+  selector: none | all | only
+  values: string[1..*] for only
+}
+class OptionsSchema <<execution>> {
+  closed JSON object schema
+}
+class Limit <<execution>> {
+  Profile-defined name
+  positive integer ceiling
+}
+class Guarantees <<execution>> {
+  termination: status[1..*]
+  exact: boolean
+  deterministicWithoutTimeBudget [0..1]
+  completeParetoFront [0..1]
+}
+class EngineRegistration <<execution>> {
+  apiVersion = bim/v1
+  kind = EngineRegistration
+  endpoint: URI
+}
+class RegisteredEngineRef <<execution>> {
+  namespace
+  name
+  version
+  digest
+}
+class Protocol <<execution>> {
+  id = bim-engine/v1
+  mediaType = application/json
+  digest: sha256
+}
+class Mappings <<execution>> {
+  request: absolute path
+  job: absolute path [0..1]
+  health: absolute path
+  openapi: absolute path
+}
+class Authentication <<execution>> {
+  scheme: none | bearer | basic
+}
+class OpenAPIContract <<execution>> {
+  openapi = 3.1.0
+  protocol id + digest
+}
+class CredentialStore <<execution>>
+
+Engine "1" *-- "1..*" Mode : modes
+Mode "1" *-- "1..*" CapabilitySelector : capabilities
+Mode "1" *-- "1" OptionsSchema
+Mode "1" *-- "1..*" Limit : limits
+Mode "1" *-- "1" Guarantees
+
+EngineRegistration "1" *-- "1" RegisteredEngineRef : engine
+RegisteredEngineRef --> Engine : immutable revision
+EngineRegistration "1" *-- "1" Protocol
+EngineRegistration "1" *-- "1" Mappings
+EngineRegistration "1" *-- "1" Authentication
+EngineRegistration "1" *-- "1" OpenAPIContract
+EngineRegistration ..> CredentialStore : credential stored separately
+
+' The capability and deployment halves are independent, so stack them.
+Engine -[hidden]down-> EngineRegistration
+
+note bottom of CapabilitySelector
+  all is valid only for a closed Profile dimension.
+  An open dimension such as irExtensions requires none or explicit only.
+end note
+note bottom of EngineRegistration
+  A package never chooses an endpoint or supplies credentials.
+  Registration and Engine revisions are independently immutable.
+end note
+@enduml

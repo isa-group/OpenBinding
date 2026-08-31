@@ -1,0 +1,66 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "small_placement_cloud_only_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c_fog": {
+        "provides": [
+          "service/t_login",
+          "service/t_process",
+          "service/t_check",
+          "service/t_rules",
+          "service/t_render"
+        ],
+        "metrics": {
+          "cost": 10.0,
+          "latency": 2.0,
+          "security": 0.66
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "prov_fog"
+        }
+      },
+      "c_cloud": {
+        "provides": [
+          "service/t_login",
+          "service/t_process",
+          "service/t_check",
+          "service/t_rules",
+          "service/t_render"
+        ],
+        "metrics": {
+          "cost": 18.0,
+          "latency": 2.0,
+          "security": 1.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "prov_cloud"
+        }
+      }
+    },
+    "providers": {
+      "prov_edge": {},
+      "prov_fog": {},
+      "prov_cloud": {}
+    },
+    "metricBindings": {
+      "latency": {
+        "resource": "application",
+        "id": "latency"
+      },
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      },
+      "security": {
+        "resource": "application",
+        "id": "security"
+      }
+    }
+  }
+}

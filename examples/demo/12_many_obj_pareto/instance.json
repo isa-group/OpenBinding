@@ -1,0 +1,26 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "demo_many_obj",
+    "version": "1.0.0",
+    "description": "A demo instance with 3 objectives, designed for the Many-Heuristic engine to find a Pareto front.",
+    "annotations": {
+      "level": "expert"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      }
+    }
+  }
+}

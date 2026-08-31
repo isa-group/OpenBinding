@@ -1,0 +1,131 @@
+@startuml
+' Status: normative-derived
+' Sources:
+' - schemas/bim/v1/dialect.schema.json
+' - openbinding-gateway/src/openbinding_gateway/v1/compiler.py
+
+title BIM v1 Dialect metamodel
+
+hide empty methods
+hide circle
+skinparam shadowing false
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam defaultFontName SansSerif
+skinparam classBackgroundColor #FFFFFF
+skinparam classBorderColor #475569
+skinparam classArrowColor #64748B
+skinparam classBackgroundColor<<dialect>> #FEF3C7
+skinparam classBorderColor<<dialect>> #B45309
+skinparam classBackgroundColor<<profile>> #EDE9FE
+skinparam classBorderColor<<profile>> #6D28D9
+skinparam classBackgroundColor<<IR>> #DCFCE7
+skinparam classBorderColor<<IR>> #15803D
+skinparam classBackgroundColor<<execution>> #FFEDD5
+skinparam classBorderColor<<execution>> #C2410C
+
+class Dialect <<dialect>> {
+  +apiVersion = "bim/v1"
+  +kind = "Dialect"
+  +publicId: VersionedId {derived}
+}
+
+class ManifestMetadata <<dialect>> {
+  +namespace: string
+  +name: Name
+  +version: SemVer
+  +description: string [0..1]
+  +labels: Map<string,string> [0..1]
+  +annotations: Map<string,JSON> [0..1]
+}
+
+class DialectSpec <<dialect>> {
+  +compatibleProfiles: VersionedId [1..*] {unique}
+  +extensions: Map<string,JSON> [0..1]
+}
+
+class ResourceType <<dialect>> {
+  +apiVersion: string
+  +kind: Name
+  +roles: Name [1..*] {unique}
+  +mediaType: string
+  +schemaDigest: sha256
+}
+
+class XMLRootQName <<dialect>> {
+  +namespace: string
+  +localName: Name
+}
+
+class ExtensionPoint <<dialect>> {
+  +pointer: RFC6901Pointer
+  +schemaDigest: sha256
+}
+
+class ExtensionTarget <<dialect>> {
+  +apiVersion: string
+  +kind: Name
+}
+
+class IRFeature <<IR>> {
+  +dimension: Name
+  +value: string
+}
+
+class AdapterDescriptor <<execution>> {
+  +id: string
+  +version: string
+  +binaryDigest: sha256
+}
+
+class "Profile role" as ProfileRole <<profile>> {
+  +name: Name
+}
+
+class "Profile capability dimension" as ProfileDimension <<profile>> {
+  +name: Name
+  +openValues: boolean
+}
+
+Dialect *-- "1" ManifestMetadata : metadata
+Dialect *-- "1" DialectSpec : spec
+DialectSpec *-- "0..*" ResourceType : resourceTypes {unique}
+DialectSpec *-- "0..*" ExtensionPoint : extensionPoints {unique}
+DialectSpec *-- "0..*" IRFeature : irFeatures {unique}
+DialectSpec *-- "1" AdapterDescriptor : adapter
+ResourceType *-- "0..1" XMLRootQName : xmlRoot
+ExtensionPoint *-- "1" ExtensionTarget : target
+ResourceType ..> "1..*" ProfileRole : role names
+IRFeature ..> "1" ProfileDimension : dimension/value
+
+note right of Dialect
+  publicId = metadata.name +
+  "/v" + SemVer major
+end note
+
+note right of DialectSpec
+  At least one resourceType OR
+  one extensionPoint is required.
+  Every compatible Profile must
+  already be installed.
+end note
+
+note bottom of ResourceType
+  Identity = apiVersion + kind + mediaType.
+  Claims must be unambiguous per Profile.
+  XML media types require xmlRoot;
+  non-XML types forbid it.
+end note
+
+note bottom of ExtensionPoint
+  target + pointer identifies the payload site.
+  The exact payload validator and lowerer
+  must be deployed with the contract.
+end note
+
+note bottom of IRFeature
+  dimension must exist in the Profile.
+  value must be listed when openValues=false.
+end note
+
+@enduml

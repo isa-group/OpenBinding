@@ -1,0 +1,91 @@
+@startuml
+title bim/v1 BindingProblem canonical IR metamodel
+left to right direction
+hide methods
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class BindingProblem <<IR>> {
+  apiVersion = bim/v1
+  kind = BindingProblem
+  metadata.name: string
+}
+class ProfileDescriptor <<IR>> {
+  namespace: string
+  id: versioned id
+  version: semver
+  deterministic: boolean
+  digest: sha256
+}
+class DialectDescriptor <<IR>> {
+  namespace: string
+  id: versioned id
+  version: semver
+  digest: sha256
+  irFeatures: feature[0..*]
+}
+class AdapterDescriptor <<IR>> {
+  id: string
+  version: string
+  digest: sha256
+}
+class InstanceIdentity <<IR>> {
+  digest: sha256
+}
+class ResourceIdentity <<IR>> {
+  id: package-wide resource id
+  role: string
+  apiVersion: string
+  kind: string
+  path xor registered identity
+  digest: sha256
+}
+class ApplicationIR <<IR>> {
+  tasks
+  metrics
+  requiredMetrics
+  taskRequiredMetrics
+  workflow
+}
+class CandidateCatalogIR <<IR>> {
+  providers
+  metricBindings
+  candidates
+}
+class Eligibility <<IR>> {
+  taskRef -> candidateRef[1..*]
+}
+class RoutingEntryIR <<IR>>
+class ConstraintIR <<IR>>
+class PlacementIR <<IR>>
+class OptimizationIR <<IR>>
+class ExtensionNamespace <<IR>>
+class SourceLocation <<IR>> {
+  resource: string
+  path: string
+  pointer | bpmnElement | span
+}
+
+BindingProblem "1" *-- "1" ProfileDescriptor : profile
+BindingProblem "1" *-- "1..*" DialectDescriptor : dialects
+ProfileDescriptor "1" *-- "1" AdapterDescriptor
+DialectDescriptor "1" *-- "1" AdapterDescriptor
+BindingProblem "1" *-- "1" InstanceIdentity : instance
+InstanceIdentity "1" *-- "1..*" ResourceIdentity : resources
+BindingProblem "1" *-- "1" ApplicationIR : application
+BindingProblem "1" *-- "1..*" CandidateCatalogIR : candidates
+BindingProblem "1" *-- "1" Eligibility : eligibility
+BindingProblem "1" *-- "0..*" RoutingEntryIR : routing
+BindingProblem "1" *-- "0..*" ConstraintIR : constraints
+BindingProblem "1" *-- "0..*" PlacementIR : placement
+BindingProblem "1" *-- "1" OptimizationIR : optimization
+BindingProblem "1" *-- "0..*" ExtensionNamespace : extensions
+BindingProblem "1" *-- "0..*" SourceLocation : sourceMap
+
+note bottom of BindingProblem
+  Output is closed and schema-validated before dispatch.
+  The semantic IR digest excludes source representation, sourceMap,
+  Instance provenance, and Dialect descriptors; jobs retain them separately.
+end note
+@enduml

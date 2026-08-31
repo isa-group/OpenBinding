@@ -1,0 +1,33 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "demo_16_json_complete",
+    "version": "1.0.0",
+    "description": "The native JSON twin of demo/15_bpmn_complete: the same executable workflow, routing, constraints, optimization and placement without BPMN source.",
+    "annotations": {
+      "level": "advanced",
+      "showcase": "json-routing-placement",
+      "equivalentTo": "demo/15_bpmn_complete"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json",
+        "routing": "routing.json",
+        "placement": "placement.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      }
+    }
+  }
+}

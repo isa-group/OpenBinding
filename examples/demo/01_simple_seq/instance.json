@@ -1,0 +1,26 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "demo_01_simple_seq",
+    "version": "1.0.0",
+    "description": "A basic sequential composition of 3 tasks. This is the simplest possible workflow.",
+    "annotations": {
+      "level": "beginner"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      }
+    }
+  }
+}

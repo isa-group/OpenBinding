@@ -1,0 +1,10 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "RoutingOverlay",
+  "metadata": {
+    "name": "small_placement_demo_routing"
+  },
+  "spec": {
+    "uniform": true
+  }
+}

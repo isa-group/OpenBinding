@@ -1,0 +1,45 @@
+@startuml
+title Placement transition and global latency metamodel
+left to right direction
+hide methods
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class Placement <<dialect>> {
+  apiVersion = qos-binding-placement/v1
+  kind = Placement
+}
+class Transition <<dialect>> {
+  id: name
+  maximum: non-negative number
+  enforcement: hard | soft [0..1]
+  penalty: non-negative number [0..1]
+}
+class GlobalLatency <<dialect>> {
+  includeExecution: boolean
+  exclusive: routing | condition
+  parallel: max | sum
+}
+class ResourceRef <<core>> {
+  resource: string
+  id: string
+}
+class Task <<source>>
+class Event <<dialect>>
+class MetricDefinition <<source>>
+
+Placement "1" *-- "0..*" Transition : transitions
+Placement "1" *-- "0..1" GlobalLatency
+Transition "1" *-- "2" ResourceRef : from / to
+Transition "1" *-- "1" ResourceRef : metric
+Transition ..> Task
+Transition ..> Event
+Transition ..> MetricDefinition
+GlobalLatency "1" *-- "1" ResourceRef : metric
+
+note bottom of Transition
+  from = service task or event; to = service task.
+  penalty exists exactly when enforcement is soft.
+end note
+@enduml

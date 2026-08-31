@@ -1,0 +1,29 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "demo_14_shared_candidates",
+    "version": "1.0.0",
+    "description": "One candidate can implement several tasks. Cost is accounted once per selected candidate, while latency is accounted per invocation. Typed constraints require the first two tasks to share a candidate and the third to use another candidate.",
+    "annotations": {
+      "level": "intermediate"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

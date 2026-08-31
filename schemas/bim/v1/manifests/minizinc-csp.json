@@ -1,0 +1,60 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Engine",
+  "metadata": {
+    "namespace": "bim.builtin",
+    "name": "minizinc-csp",
+    "version": "1.0.0",
+    "description": "Exact MiniZinc solver for its explicitly declared BIM v1 subset"
+  },
+  "spec": {
+    "modes": [
+      {
+        "id": "exact-weighted",
+        "profile": "qos-binding/v1",
+        "ir": {"apiVersion": "bim/v1", "kind": "BindingProblem"},
+        "algorithm": "minizinc-csp",
+        "capabilities": {
+          "workflowNodes": {
+            "selector": "only",
+            "values": ["task", "empty", "sequence", "parallel", "exclusive.probabilistic", "repeat.count"]
+          },
+          "aggregations": {
+            "selector": "only",
+            "values": [
+              "sequence.sum", "sequence.min", "sequence.max",
+              "parallel.sum", "parallel.min", "parallel.max",
+              "exclusive.weightedSum", "exclusive.min", "exclusive.max",
+              "repeat.scale", "repeat.identity",
+              "selection.sum", "selection.min", "selection.max"
+            ]
+          },
+          "metricScopes": {
+            "selector": "only",
+            "values": ["invocation", "selectedCandidate"]
+          },
+          "constraints": {"selector": "only", "values": ["hard.aggregate-bound", "hard.expression"]},
+          "optimization": {"selector": "only", "values": ["weighted"]},
+          "objectiveTypes": {"selector": "only", "values": ["MONO"]},
+          "expressions": {"selector": "only", "values": ["literal", "path.metrics", "path.tasks", "compare"]},
+          "placement": {"selector": "all"},
+          "irExtensions": {"selector": "only", "values": ["qos-binding-placement/v1"]}
+        },
+        "optionsSchema": {
+          "type": "object",
+          "properties": {
+            "time_budget_ms": {"type": "integer", "minimum": 1, "maximum": 3600000, "default": 30000},
+            "solver": {"const": "gecode", "default": "gecode"}
+          },
+          "additionalProperties": false
+        },
+        "limits": {"maxTasks": 10000, "maxCandidates": 100000, "maxTimeBudgetMs": 3600000},
+        "guarantees": {
+          "termination": ["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"],
+          "exact": true,
+          "deterministicWithoutTimeBudget": true
+        }
+      }
+    ]
+  }
+}

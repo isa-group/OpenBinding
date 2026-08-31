@@ -1,0 +1,79 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "demo_09_mixed_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c1a": {
+        "provides": "service/t1",
+        "metrics": {
+          "cost": 100,
+          "rel": 0.009899999999999999
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c1b": {
+        "provides": "service/t1",
+        "metrics": {
+          "cost": 50,
+          "rel": 0.009000000000000001
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c2a": {
+        "provides": "service/t2",
+        "metrics": {
+          "cost": 100,
+          "rel": 0.009899999999999999
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c2b": {
+        "provides": "service/t2",
+        "metrics": {
+          "cost": 50,
+          "rel": 0.009000000000000001
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      },
+      "c3": {
+        "provides": "service/t3",
+        "metrics": {
+          "cost": 10,
+          "rel": 0.009899999999999999
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        }
+      }
+    },
+    "providers": {
+      "p1": {}
+    },
+    "metricBindings": {
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      },
+      "rel": {
+        "resource": "application",
+        "id": "rel"
+      }
+    }
+  }
+}

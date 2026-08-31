@@ -1,0 +1,48 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "stock_market_placement_sample_optimization"
+  },
+  "spec": {
+    "mode": "weighted",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        },
+        "weight": 0.33,
+        "normalize": {
+          "min": 0.0,
+          "max": 599.28,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "weight": 0.34,
+        "normalize": {
+          "min": 14.45990841,
+          "max": 264.23741579,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "security"
+        },
+        "weight": 0.33,
+        "normalize": {
+          "min": 0.66,
+          "max": 1.0,
+          "clamp": true
+        }
+      }
+    ]
+  }
+}

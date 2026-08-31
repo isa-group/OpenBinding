@@ -1,0 +1,35 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "demo_multi_obj_optimization"
+  },
+  "spec": {
+    "mode": "pareto",
+    "type": "MULTI",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 100,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "time"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 100,
+          "clamp": true
+        }
+      }
+    ]
+  }
+}

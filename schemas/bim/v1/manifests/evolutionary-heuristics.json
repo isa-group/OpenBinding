@@ -1,0 +1,84 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Engine",
+  "metadata": {
+    "namespace": "bim.builtin",
+    "name": "evolutionary-heuristics",
+    "version": "1.0.0",
+    "description": "Categorical elitist genetic search over canonical BIM v1 binding decisions"
+  },
+  "spec": {
+    "modes": [
+      {
+        "id": "elitist-genetic",
+        "profile": "qos-binding/v1",
+        "ir": {"apiVersion": "bim/v1", "kind": "BindingProblem"},
+        "algorithm": "elitist-genetic-search",
+        "capabilities": {
+          "workflowNodes": {"selector": "all"},
+          "metricScopes": {"selector": "all"},
+          "aggregations": {"selector": "all"},
+          "constraints": {"selector": "all"},
+          "optimization": {"selector": "only", "values": ["satisfy", "weighted", "lexicographic"]},
+          "objectiveTypes": {"selector": "all"},
+          "expressions": {"selector": "all"},
+          "placement": {"selector": "all"},
+          "irExtensions": {"selector": "only", "values": ["qos-binding-placement/v1"]}
+        },
+        "optionsSchema": {
+          "type": "object",
+          "properties": {
+            "algorithm": {"const": "elitist-genetic", "default": "elitist-genetic"},
+            "population_size": {"type": "integer", "minimum": 2, "maximum": 10000, "default": 100},
+            "max_evaluations": {"type": "integer", "minimum": 2, "maximum": 10000000, "default": 10000},
+            "archive_size": {"type": "integer", "minimum": 1, "maximum": 10000, "default": 100},
+            "seed": {"type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991, "default": 0},
+            "time_budget_ms": {"type": "integer", "minimum": 1, "maximum": 3600000},
+            "crossover_probability": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.9},
+            "mutation_probability": {"type": "number", "minimum": 0, "maximum": 1}
+          },
+          "additionalProperties": false
+        },
+        "limits": {"maxIterations": 10000000, "maxPopulation": 10000, "maxSolutions": 10000, "maxTimeBudgetMs": 3600000},
+        "guarantees": {"termination": ["FEASIBLE", "UNKNOWN"], "exact": false}
+      },
+      {
+        "id": "pareto-genetic",
+        "profile": "qos-binding/v1",
+        "ir": {"apiVersion": "bim/v1", "kind": "BindingProblem"},
+        "algorithm": "pareto-genetic-search",
+        "capabilities": {
+          "workflowNodes": {"selector": "all"},
+          "metricScopes": {"selector": "all"},
+          "aggregations": {"selector": "all"},
+          "constraints": {"selector": "all"},
+          "optimization": {"selector": "only", "values": ["pareto"]},
+          "objectiveTypes": {"selector": "all"},
+          "expressions": {"selector": "all"},
+          "placement": {"selector": "all"},
+          "irExtensions": {"selector": "only", "values": ["qos-binding-placement/v1"]}
+        },
+        "optionsSchema": {
+          "type": "object",
+          "properties": {
+            "algorithm": {"const": "pareto-genetic", "default": "pareto-genetic"},
+            "population_size": {"type": "integer", "minimum": 2, "maximum": 10000, "default": 100},
+            "max_evaluations": {"type": "integer", "minimum": 2, "maximum": 10000000, "default": 10000},
+            "archive_size": {"type": "integer", "minimum": 1, "maximum": 10000, "default": 100},
+            "seed": {"type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991, "default": 0},
+            "time_budget_ms": {"type": "integer", "minimum": 1, "maximum": 3600000},
+            "crossover_probability": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.9},
+            "mutation_probability": {"type": "number", "minimum": 0, "maximum": 1}
+          },
+          "additionalProperties": false
+        },
+        "limits": {"maxIterations": 10000000, "maxPopulation": 10000, "maxSolutions": 10000, "maxTimeBudgetMs": 3600000},
+        "guarantees": {
+          "termination": ["FEASIBLE", "UNKNOWN"],
+          "exact": false,
+          "completeParetoFront": false
+        }
+      }
+    ]
+  }
+}

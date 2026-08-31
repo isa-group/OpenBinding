@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bim.dev/schema/bim/v1/placement.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {"const": "qos-binding-placement/v1"},
+    "kind": {"const": "Placement"},
+    "metadata": {"$ref": "#/$defs/metadata"},
+    "spec": {
+      "type": "object",
+      "required": ["pools"],
+      "properties": {
+        "pools": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+          "additionalProperties": {"$ref": "#/$defs/pool"}
+        },
+        "defaults": {"$ref": "#/$defs/demandValues"},
+        "groups": {
+          "type": "object",
+          "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+          "additionalProperties": {"$ref": "#/$defs/group"}
+        },
+        "demands": {"type": "array", "items": {"$ref": "#/$defs/demand"}},
+        "network": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/networkEntry"}
+        },
+        "networkMode": {"enum": ["directed", "symmetric"]},
+        "events": {
+          "type": "object",
+          "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+          "additionalProperties": {"$ref": "#/$defs/event"}
+        },
+        "transitions": {
+          "type": "object",
+          "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+          "additionalProperties": {"$ref": "#/$defs/transition"}
+        },
+        "capacityRules": {"type": "array", "items": {"$ref": "#/$defs/capacityRule"}},
+        "globalLatency": {"$ref": "#/$defs/globalLatency"},
+        "extensions": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+        "version": {"type": "string", "minLength": 1},
+        "description": {"type": "string"},
+        "labels": {"type": "object", "additionalProperties": {"type": "string"}},
+        "annotations": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    },
+    "ref": {
+      "type": "object",
+      "required": ["resource", "id"],
+      "properties": {
+        "resource": {"type": "string", "minLength": 1},
+        "id": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "numberMap": {
+      "type": "object",
+      "additionalProperties": {"type": "number", "minimum": 0}
+    },
+    "pool": {
+      "type": "object",
+      "required": ["capacity"],
+      "properties": {
+        "name": {"type": "string"},
+        "kind": {"type": "string", "minLength": 1},
+        "capacity": {"$ref": "#/$defs/numberMap"},
+        "properties": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    },
+    "demandValues": {
+      "type": "object",
+      "additionalProperties": {"type": "number", "minimum": 0}
+    },
+    "group": {
+      "type": "object",
+      "required": ["pool", "resources"],
+      "properties": {
+        "pool": {"$ref": "#/$defs/ref"},
+        "capability": {"type": "string", "minLength": 1},
+        "candidates": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/ref"}},
+        "resources": {"$ref": "#/$defs/demandValues"}
+      },
+      "oneOf": [
+        {"required": ["capability"], "not": {"required": ["candidates"]}},
+        {"required": ["candidates"], "not": {"required": ["capability"]}}
+      ],
+      "additionalProperties": false
+    },
+    "demand": {
+      "type": "object",
+      "required": ["candidate", "pool", "resources"],
+      "properties": {
+        "candidate": {"$ref": "#/$defs/ref"},
+        "pool": {"$ref": "#/$defs/ref"},
+        "resources": {"$ref": "#/$defs/demandValues"}
+      },
+      "additionalProperties": false
+    },
+    "networkEntry": {
+      "type": "object",
+      "required": ["from", "to", "latency"],
+      "properties": {
+        "from": {"$ref": "#/$defs/ref"},
+        "to": {"$ref": "#/$defs/ref"},
+        "latency": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "eventLatency": {
+      "type": "object",
+      "required": ["pool", "latency"],
+      "properties": {
+        "pool": {"$ref": "#/$defs/ref"},
+        "latency": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "required": ["pool", "latency"],
+      "properties": {
+        "pool": {"$ref": "#/$defs/ref"},
+        "latency": {"type": "array", "items": {"$ref": "#/$defs/eventLatency"}}
+      },
+      "additionalProperties": false
+    },
+    "transition": {
+      "type": "object",
+      "required": ["from", "to", "metric", "maximum"],
+      "properties": {
+        "from": {"$ref": "#/$defs/ref"},
+        "to": {"$ref": "#/$defs/ref"},
+        "metric": {"$ref": "#/$defs/ref"},
+        "maximum": {"type": "number", "minimum": 0},
+        "enforcement": {"enum": ["hard", "soft"]},
+        "penalty": {"type": "number", "minimum": 0}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"enforcement": {"const": "soft"}}, "required": ["enforcement"]},
+          "then": {"required": ["penalty"]},
+          "else": {"not": {"required": ["penalty"]}}
+        }
+      ],
+      "additionalProperties": false
+    },
+    "capacityRule": {
+      "type": "object",
+      "required": ["resources", "scope"],
+      "properties": {
+        "resources": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "scope": {"enum": ["invocation", "selectedCandidate"]}
+      },
+      "additionalProperties": false
+    },
+    "globalLatency": {
+      "type": "object",
+      "required": ["metric", "includeExecution", "exclusive", "parallel"],
+      "properties": {
+        "metric": {"$ref": "#/$defs/ref"},
+        "includeExecution": {"type": "boolean"},
+        "exclusive": {"enum": ["routing", "condition"]},
+        "parallel": {"enum": ["max", "sum"]}
+      },
+      "additionalProperties": false
+    }
+  }
+}

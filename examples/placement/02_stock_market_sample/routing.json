@@ -1,0 +1,25 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "RoutingOverlay",
+  "metadata": {
+    "name": "stock_market_placement_sample_routing"
+  },
+  "spec": {
+    "entries": [
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_4_xor_branch_1"
+        },
+        "probability": 0.5
+      },
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_4_xor_branch_2"
+        },
+        "probability": 0.5
+      }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "demo_15_bpmn_complete_constraints",
+    "description": "Global service levels plus a task-local latency check and provider separation rule."
+  },
+  "spec": {
+    "constraints": {
+      "end_to_end_latency": {"assert": "metrics.latency <= 220", "enforcement": "hard"},
+      "run_budget": {"assert": "metrics.cost <= 30", "enforcement": "hard"},
+      "carbon_budget": {"assert": "metrics.carbon <= 30", "enforcement": "hard"},
+      "trust_floor": {"assert": "metrics.trust >= 0.85", "enforcement": "hard"},
+      "authentication_response": {"assert": "tasks.authenticate.metrics.latency <= 9", "enforcement": "hard"},
+      "edge_authentication": {"assert": "tasks.authenticate.provider.id == 'edge-labs'", "enforcement": "hard"}
+    }
+  }
+}

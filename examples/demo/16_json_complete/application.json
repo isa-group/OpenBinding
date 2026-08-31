@@ -1,0 +1,97 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "demo_16_json_complete_application",
+    "description": "The native JSON form of the seven-task BPMN fulfillment workflow in demo/15_bpmn_complete."
+  },
+  "spec": {
+    "tasks": {
+      "authenticate": "service/authenticate",
+      "enrich": "service/enrich",
+      "cache": "service/cache",
+      "fetch": "service/fetch",
+      "score": "service/score",
+      "audit": "service/audit",
+      "publish": "service/publish"
+    },
+    "metrics": {
+      "latency": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {"kind": "real", "minimum": 0, "maximum": 500}
+      },
+      "cost": {
+        "unit": "EUR/run",
+        "direction": "minimize",
+        "scope": "selectedCandidate",
+        "aggregation": "sum",
+        "domain": {"kind": "real", "minimum": 0, "maximum": 100}
+      },
+      "carbon": {
+        "unit": "gCO2e/run",
+        "direction": "minimize",
+        "scope": "selectedCandidate",
+        "aggregation": "sum",
+        "domain": {"kind": "real", "minimum": 0, "maximum": 100}
+      },
+      "trust": {
+        "unit": "1",
+        "direction": "maximize",
+        "scope": "selectedCandidate",
+        "aggregation": "min",
+        "domain": {"kind": "ratio"}
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {"task": {"resource": "application", "id": "authenticate"}},
+        {
+          "sequence": [
+            {
+              "parallel": [
+                {
+                  "sequence": [
+                    {"task": {"resource": "application", "id": "enrich"}},
+                    {
+                      "sequence": [
+                        {
+                          "exclusive": [
+                              {
+                                "id": "Flow_Cache",
+                                "flow": {"task": {"resource": "application", "id": "cache"}}
+                              },
+                              {
+                                "id": "Flow_Fetch",
+                                "flow": {"task": {"resource": "application", "id": "fetch"}}
+                              }
+                            ]
+                        },
+                        {
+                          "repeat": {
+                            "body": {"task": {"resource": "application", "id": "score"}},
+                            "count": 2
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {"task": {"resource": "application", "id": "audit"}}
+              ]
+            },
+            {"task": {"resource": "application", "id": "publish"}}
+          ]
+        }
+      ]
+    }
+  }
+}

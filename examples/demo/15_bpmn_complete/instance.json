@@ -1,0 +1,33 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "demo_15_bpmn_complete",
+    "version": "1.0.0",
+    "description": "A complete BPMN 2.0.2 fulfillment workflow with nested AND/XOR gateways, probabilistic routing, exact sequential multi-instance work, provider constraints, four QoS metrics, and optional edge/fog/cloud placement.",
+    "annotations": {
+      "level": "advanced",
+      "showcase": "bpmn-routing-placement"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json",
+        "workflow": "workflow.bpmn",
+        "routing": "routing.json",
+        "placement": "placement.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      }
+    }
+  }
+}

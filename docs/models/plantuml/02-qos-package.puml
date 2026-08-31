@@ -1,0 +1,60 @@
+@startuml
+title qos-binding/v1 source package contract
+left to right direction
+hide methods
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+class Instance <<core>> {
+  apiVersion = bim/v1
+  kind = Instance
+  profile = qos-binding/v1
+}
+class QosBindingProfile <<profile>> {
+  id = qos-binding/v1
+  output = bim/v1 BindingProblem
+}
+class Application <<source>> {
+  apiVersion = qos-binding/v1
+  kind = Application
+}
+class RoutingOverlay <<source>> {
+  apiVersion = qos-binding/v1
+  kind = RoutingOverlay
+}
+class BPMN <<dialect>> {
+  apiVersion = omg/bpmn/2.0.2
+  kind = BPMN
+}
+class Placement <<dialect>> {
+  apiVersion = qos-binding-placement/v1
+  kind = Placement
+}
+class CandidateCatalog <<source>> {
+  apiVersion = qos-binding/v1
+  kind = CandidateCatalog
+}
+class ConstraintSet <<source>> {
+  apiVersion = qos-binding/v1
+  kind = ConstraintSet
+}
+class Optimization <<source>> {
+  apiVersion = qos-binding/v1
+  kind = Optimization
+}
+
+Instance --> "1" QosBindingProfile : selects
+Instance "1" *-- "1" Application : application role
+Instance "1" *-- "0..1" RoutingOverlay : application role
+Instance "1" *-- "0..*" BPMN : application role
+Instance "1" *-- "0..*" Placement : installed extension type\napplication role
+Instance "1" *-- "1..*" CandidateCatalog : candidateCatalog role
+Instance "1" *-- "0..*" ConstraintSet : constraintSet role
+Instance "1" *-- "1" Optimization : optimization role
+
+note bottom of Instance
+  Resource ids are package-wide.
+  A target is a local path or an immutable registered reference.
+end note
+@enduml

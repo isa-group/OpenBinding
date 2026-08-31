@@ -1,0 +1,23 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "small_placement_edge_heavy_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "security_min_login": {
+        "assert": "tasks.t_login.metrics.security >= 0.66",
+        "enforcement": "hard"
+      },
+      "budget_global": {
+        "assert": "metrics.cost <= 30.0",
+        "enforcement": "hard"
+      },
+      "check_and_rules_together": {
+        "assert": "tasks.t_check.candidate == tasks.t_rules.candidate",
+        "enforcement": "hard"
+      }
+    }
+  }
+}

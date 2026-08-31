@@ -1,0 +1,25 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "RoutingOverlay",
+  "metadata": {
+    "name": "demo_10_large_scale_routing"
+  },
+  "spec": {
+    "entries": [
+      {
+        "target": {
+          "resource": "application",
+          "id": "shipping_choice_branch_1"
+        },
+        "probability": 0.8
+      },
+      {
+        "target": {
+          "resource": "application",
+          "id": "shipping_choice_branch_2"
+        },
+        "probability": 0.2
+      }
+    ]
+  }
+}

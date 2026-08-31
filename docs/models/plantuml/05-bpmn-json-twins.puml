@@ -1,0 +1,48 @@
+@startuml
+title Complete BPMN and native JSON source twins
+left to right direction
+skinparam monochrome true
+skinparam shadowing false
+
+object "15_bpmn_complete : Instance" as bpmnInstance <<core>> {
+  profile = qos-binding/v1
+  Application workflow = BPMN ref
+  BPMN resource = workflow.bpmn
+}
+object "bpmn-workflow/v1 : Dialect" as bpmnDialect <<dialect>>
+object "16_json_complete : Instance" as jsonInstance <<core>> {
+  profile = qos-binding/v1
+  Application workflow = native sequence tree
+}
+object "shared semantic resources" as shared <<source>> {
+  7 tasks
+  14 candidates
+  4 metrics
+  constraints + routing
+  3-pool Placement
+  weighted 4-term objective
+}
+object "semantic BindingProblem" as semantic <<IR>> {
+  identical application workflow
+  identical candidates + eligibility
+  identical routing + constraints
+  identical placement + optimization
+  identical semantic digest
+}
+object "BPMN provenance" as bpmnProvenance <<IR>> {
+  includes bpmn-workflow/v1 descriptor
+  BPMN element source locations
+}
+object "JSON provenance" as jsonProvenance <<IR>> {
+  no bpmn-workflow/v1 descriptor
+  JSON Pointer source locations
+}
+
+bpmnInstance --> bpmnDialect : validated + lowered by
+bpmnInstance --> shared : contains equivalent values
+jsonInstance --> shared : contains equivalent values
+bpmnInstance --> semantic : compile
+jsonInstance --> semantic : compile
+bpmnInstance --> bpmnProvenance
+jsonInstance --> jsonProvenance
+@enduml

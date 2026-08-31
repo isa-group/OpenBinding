@@ -1,0 +1,37 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "demo_15_bpmn_complete_catalog",
+    "description": "Two independently placeable implementations per service task."
+  },
+  "spec": {
+    "providers": {
+      "edge-labs": {"name": "Edge Labs", "properties": {"tier": "edge", "region": "eu-south"}},
+      "fog-works": {"name": "Fog Works", "properties": {"tier": "fog", "region": "eu-west"}},
+      "cloud-grid": {"name": "Cloud Grid", "properties": {"tier": "cloud", "region": "eu-central"}}
+    },
+    "metricBindings": {
+      "latency": {"resource": "application", "id": "latency"},
+      "cost": {"resource": "application", "id": "cost"},
+      "carbon": {"resource": "application", "id": "carbon"},
+      "trust": {"resource": "application", "id": "trust"}
+    },
+    "candidates": {
+      "auth-edge": {"provides": "service/authenticate", "provider": {"resource": "catalog", "id": "edge-labs"}, "metrics": {"latency": 4, "cost": 3, "carbon": 1, "trust": 0.95}},
+      "auth-cloud": {"provides": "service/authenticate", "provider": {"resource": "catalog", "id": "cloud-grid"}, "metrics": {"latency": 8, "cost": 2, "carbon": 3, "trust": 0.98}},
+      "enrich-edge": {"provides": "service/enrich", "provider": {"resource": "catalog", "id": "edge-labs"}, "metrics": {"latency": 7, "cost": 4, "carbon": 1.5, "trust": 0.90}},
+      "enrich-cloud": {"provides": "service/enrich", "provider": {"resource": "catalog", "id": "cloud-grid"}, "metrics": {"latency": 5, "cost": 3, "carbon": 3, "trust": 0.95}},
+      "cache-edge": {"provides": "service/cache", "provider": {"resource": "catalog", "id": "edge-labs"}, "metrics": {"latency": 2, "cost": 2, "carbon": 1, "trust": 0.90}},
+      "cache-cloud": {"provides": "service/cache", "provider": {"resource": "catalog", "id": "cloud-grid"}, "metrics": {"latency": 5, "cost": 1, "carbon": 2.5, "trust": 0.98}},
+      "fetch-fog": {"provides": "service/fetch", "provider": {"resource": "catalog", "id": "fog-works"}, "metrics": {"latency": 6, "cost": 4, "carbon": 2, "trust": 0.88}},
+      "fetch-cloud": {"provides": "service/fetch", "provider": {"resource": "catalog", "id": "cloud-grid"}, "metrics": {"latency": 4, "cost": 3, "carbon": 4, "trust": 0.96}},
+      "score-fog": {"provides": "service/score", "provider": {"resource": "catalog", "id": "fog-works"}, "metrics": {"latency": 9, "cost": 5, "carbon": 2, "trust": 0.86}},
+      "score-cloud": {"provides": "service/score", "provider": {"resource": "catalog", "id": "cloud-grid"}, "metrics": {"latency": 6, "cost": 4, "carbon": 5, "trust": 0.97}},
+      "audit-edge": {"provides": "service/audit", "provider": {"resource": "catalog", "id": "edge-labs"}, "metrics": {"latency": 3, "cost": 2, "carbon": 1, "trust": 0.92}},
+      "audit-cloud": {"provides": "service/audit", "provider": {"resource": "catalog", "id": "cloud-grid"}, "metrics": {"latency": 5, "cost": 1, "carbon": 2, "trust": 0.96}},
+      "publish-fog": {"provides": "service/publish", "provider": {"resource": "catalog", "id": "fog-works"}, "metrics": {"latency": 5, "cost": 3, "carbon": 1.5, "trust": 0.89}},
+      "publish-cloud": {"provides": "service/publish", "provider": {"resource": "catalog", "id": "cloud-grid"}, "metrics": {"latency": 4, "cost": 2, "carbon": 3, "trust": 0.98}}
+    }
+  }
+}

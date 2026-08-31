@@ -1,0 +1,461 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "stock_market_placement_sample_application"
+  },
+  "spec": {
+    "tasks": {
+      "fCheck": "service/fCheck",
+      "fBuyOrSell": "service/fBuyOrSell",
+      "fSell": "service/fSell",
+      "fBuy": "service/fBuy",
+      "fRecord": "service/fRecord"
+    },
+    "metrics": {
+      "latency": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      },
+      "cost": {
+        "unit": "USD/month",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1000000
+        }
+      },
+      "security": {
+        "unit": "score",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "min",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "has_service_bucket": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "has_service_checkGp": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "has_service_checkRules": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "has_service_database": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "has_service_maps": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "has_service_userDB": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_bucket3": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_bucket4": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_bucket5": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_cMaps1": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_cMaps2": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_gp14": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_gp15": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_gp16": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_gp17": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_myDatabase10": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_myDatabase11": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_myDatabase12": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_myDatabase13": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_myUserDb6": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_myUserDb7": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_myUserDb8": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_myUserDb9": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_openM22": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_openM23": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_openM24": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_openM25": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_openM26": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_rules18": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_rules19": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_rules20": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "bind_service_rules21": {
+        "unit": "boolean",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "max",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "fCheck"
+          }
+        },
+        {
+          "sequence": [
+            {
+              "sequence": [
+                {
+                  "task": {
+                    "resource": "application",
+                    "id": "fBuyOrSell"
+                  }
+                },
+                {
+                  "exclusive": [
+                    {
+                      "id": "n_4_xor_branch_1",
+                      "flow": {
+                        "task": {
+                          "resource": "application",
+                          "id": "fSell"
+                        }
+                      }
+                    },
+                    {
+                      "id": "n_4_xor_branch_2",
+                      "flow": {
+                        "task": {
+                          "resource": "application",
+                          "id": "fBuy"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "task": {
+                "resource": "application",
+                "id": "fRecord"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

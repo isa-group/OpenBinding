@@ -1,0 +1,16 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "demo_07_soft_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "c_soft_lat": {
+        "assert": "metrics.latency <= 50",
+        "enforcement": "soft",
+        "penalty": 1
+      }
+    }
+  }
+}

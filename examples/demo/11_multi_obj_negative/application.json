@@ -1,0 +1,64 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "demo_multi_obj_application"
+  },
+  "spec": {
+    "tasks": {
+      "T1": "service/T1",
+      "T2": "service/T2"
+    },
+    "metrics": {
+      "cost": {
+        "unit": "eur",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "time": {
+        "unit": "s",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "reliability": {
+        "unit": "p",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "product",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "T1"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "T2"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "demo_multi_obj",
+    "version": "1.0.0",
+    "description": "A two-term Pareto optimization instance used to verify capability-based engine filtering and explicit multiobjective result vectors.",
+    "annotations": {
+      "level": "expert"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      }
+    }
+  }
+}

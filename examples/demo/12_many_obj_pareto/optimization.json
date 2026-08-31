@@ -1,0 +1,46 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "demo_many_obj_optimization"
+  },
+  "spec": {
+    "mode": "pareto",
+    "type": "MANY",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 100,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "time"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 100,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "reliability"
+        },
+        "normalize": {
+          "min": 0.0,
+          "max": 1.0,
+          "clamp": true
+        }
+      }
+    ]
+  }
+}

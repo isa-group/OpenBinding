@@ -1,0 +1,86 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "small_placement_demo_application"
+  },
+  "spec": {
+    "tasks": {
+      "t_login": "service/t_login",
+      "t_process": "service/t_process",
+      "t_check": "service/t_check",
+      "t_rules": "service/t_rules",
+      "t_render": "service/t_render"
+    },
+    "metrics": {
+      "latency": {
+        "unit": "ms",
+        "aggregation": {
+          "parallel": "max"
+        }
+      },
+      "cost": {
+        "unit": "USD/month",
+        "scope": "selectedCandidate"
+      },
+      "security": {
+        "unit": "score",
+        "direction": "maximize",
+        "aggregation": "min",
+        "domain": "ratio"
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_login"
+          }
+        },
+        {
+          "parallel": [
+            {
+              "sequence": [
+                {
+                  "task": {
+                    "resource": "application",
+                    "id": "t_process"
+                  }
+                },
+                {
+                  "exclusive": [
+                    {
+                      "id": "n_xor_branch_1",
+                      "flow": {
+                        "task": {
+                          "resource": "application",
+                          "id": "t_check"
+                        }
+                      }
+                    },
+                    {
+                      "id": "n_xor_branch_2",
+                      "flow": {
+                        "task": {
+                          "resource": "application",
+                          "id": "t_rules"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "task": {
+                "resource": "application",
+                "id": "t_render"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

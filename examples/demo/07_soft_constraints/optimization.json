@@ -1,0 +1,33 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "demo_07_soft_optimization"
+  },
+  "spec": {
+    "mode": "weighted",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        },
+        "weight": 1.0,
+        "normalize": {
+          "min": 0,
+          "max": 1000,
+          "clamp": true
+        }
+      }
+    ],
+    "penalties": [
+      {
+        "constraint": {
+          "resource": "constraints",
+          "id": "c_soft_lat"
+        },
+        "weight": 1
+      }
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "fleet_routing_qaco_001",
+    "version": "1.0.0",
+    "description": "QoS-aware service composition instance for a fleet management system (FMS).",
+    "annotations": {
+      "level": "expert"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json",
+        "routing": "routing.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      }
+    }
+  }
+}
