@@ -1,15 +1,16 @@
 # Accounts, plans and quotas
 
-OpenBinding used to be anonymous. Anyone could post to `/v1/solve` and hold a
-solver for half an hour, because there was no caller to attribute the work to
-and therefore no basis on which to refuse it. This describes what replaced that.
+The OpenBinding `/v1` gateway separates public validation from authenticated
+job ownership. When solve authentication is enabled, every `/v1/jobs` request
+resolves to an account, so concurrency and compute can be metered and limited.
 
 Two ideas carry most of the weight:
 
-**The web and the API are the same channel.** A browser session and an API key
-resolve to the same account, so a plan applies to a person rather than to the
-way they happened to call. Every operation the interface performs is a
-documented gateway endpoint — there is no privileged path from the frontend.
+**The web and the API share identity, not authority.** A browser session and an
+API key resolve to the same account, so one plan and one ownership boundary
+apply. A session controls the account; each API key is narrower, with immutable
+permissions and either an exact Engine allow-list or access to all visible
+Engines. Every operation remains a documented gateway endpoint.
 
 **The gateway does not decide entitlements.** A [SPACE](https://github.com/isa-group/space)
 instance does. It holds a contract per user, knows what each plan allows, and
@@ -32,6 +33,25 @@ argon2: the secret is 256 uniformly random bits, so there is nothing to guess
 and no reason to spend 100 ms of CPU per request proving it. The prefix is
 stored in the clear because something has to find the row before there is
 anything to compare against.
+
+Creating a key requires an explicit, closed set of permissions. Account, key,
+instance, job, Engine execution, Engine registration/publication, extension
+registration and administrator operations are independently grantable. Admin
+permissions never replace the account-role check: both are required. A key
+that may create other keys can grant only a subset of its own permissions and
+Engine revisions. Grants cannot be edited; revoke and replace the key so an
+audit never has to guess which authority an old use had.
+
+Engine access is either `all` (including future visible revisions) or a list of
+exact `{namespace, name, version, digest}` references. Catalogues, compatibility
+analysis, execution, deployment management, publication and job reads are
+filtered, and an exact disallowed resource answers `404` so the key does not
+learn that it exists. Registering a brand-new Engine revision requires an
+all-Engines key because its immutable digest cannot be selected in advance.
+
+The FREE plan permits 10 active keys. PRO has no active-key ceiling. Revoked
+keys do not count. The gateway serializes each account's count-and-create in
+the database so concurrent requests cannot step past the FREE limit.
 
 ## The first administrator
 
@@ -85,15 +105,15 @@ rather than a preference.
 
 | Kind | Example | What happens |
 |---|---|---|
-| A budget you asked for | `time_limit_ms`, `iterations_count` | **Reduced** to what the plan allows, with an `OPTION_CLAMPED` warning alongside the result |
+| A budget you asked for | `time_budget_ms`, `iterations`, `max_evaluations` | **Reduced** to what the plan allows, with an `OPTION_CLAMPED` warning alongside the result |
 | An allowance you spend | monthly solver time, job count, concurrency | **Refused** with `402` until it renews, naming the limit and the renewal date |
-| A fact about the work | binding-space size | **Refused** with `402`, because there is no smaller version of an instance to solve |
+| A fact about the work | instance complexity | **Refused** with `402`, because there is no smaller version of an instance to run |
 
-Clamping rather than refusing matters more than it sounds: MiniZinc defaults to a
-fifteen-minute budget and the free plan allows five, so refusing would make the
-*default* request fail for every new account. Every reduction is reported,
-because a solve that quietly did a tenth of the work asked for would produce a
-worse answer with no explanation.
+Clamping rather than refusing matters more than it sounds: defaults are applied
+before plan ceilings, so refusing an otherwise valid default could make a new
+account's first request fail. Every reduction is reported, because a solve that
+quietly did a tenth of the work asked for would produce a worse answer with no
+explanation.
 
 `402` rather than `403` throughout: this is an allowance spent, not a permission
 missing, and only one of those is worth retrying next month.
@@ -144,7 +164,6 @@ quotas still refuse in development — they just live in memory.
 |---|---|
 | `DATABASE_URL` | Async SQLAlchemy URL. Unset means no accounts: the gateway serves anonymously, as it always did, and the account routes answer `503` explaining why. |
 | `GATEWAY_JWT_SECRET` | Signs session tokens. No default on purpose — a well-known signing key is worse than a missing one. |
-| `AUTH_REQUIRED_FOR_SOLVE` | Whether solving needs an account. Analysis and the schemas stay public either way. |
 | `SPACE_ENABLED`, `SPACE_URL`, `SPACE_API_KEY` | The pricing service. The key must be a `MANAGEMENT`-scoped organization key; see [`space/README.md`](../space/README.md). |
 | `SPACE_FAIL_MODE` | `closed` or `open`, above. |
 | `BOOTSTRAP_ADMIN_*` | The first administrator, above. |

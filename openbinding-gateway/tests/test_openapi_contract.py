@@ -16,12 +16,23 @@ import subprocess
 import sys
 from pathlib import Path
 
+import jsonschema
 import pytest
+from fastapi.routing import APIRoute
+from fastapi.testclient import TestClient
 
+from _repo import REPO_ROOT
+from openbinding_gateway.access.dependencies import (
+    get_current_user,
+    require_admin,
+    require_v1_admin,
+    solve_caller,
+)
 from openbinding_gateway.main import app
+from openbinding_gateway.security.apikeys import ENGINE_LIMITED_PERMISSIONS
 
 GATEWAY_ROOT = Path(__file__).resolve().parents[1]
-SNAPSHOT = GATEWAY_ROOT.parent / "docs" / "openapi.json"
+SNAPSHOT = REPO_ROOT / "docs" / "openapi.json"
 
 
 @pytest.fixture(scope="module")
@@ -71,6 +82,203 @@ def test_every_operation_has_a_summary(document):
     assert missing == []
 
 
+def test_every_success_response_has_a_concrete_media_schema(document):
+    empty = []
+    for path, method, operation in operations(document):
+        for code, response in operation.get("responses", {}).items():
+            if not code.startswith("2"):
+                continue
+            for media_type, representation in response.get("content", {}).items():
+                if representation.get("schema") in ({}, None):
+                    empty.append(f"{method.upper()} {path} {code} {media_type}")
+    assert empty == []
+
+
+def test_every_custom_component_is_valid_json_schema(document):
+    for name, schema in document["components"]["schemas"].items():
+        try:
+            jsonschema.Draft202012Validator.check_schema(schema)
+        except jsonschema.SchemaError as error:
+            pytest.fail(f"components.schemas.{name} is invalid: {error.message}")
+
+
+def test_authentication_and_role_requirements_are_explicit(document):
+    expected = [{"BearerAuth": []}, {"ApiKeyAuth": []}]
+    schemes = document["components"]["securitySchemes"]
+    assert schemes["BearerAuth"]["type"] == "http"
+    assert schemes["BearerAuth"]["scheme"] == "bearer"
+    assert schemes["ApiKeyAuth"] == {
+        "type": "apiKey",
+        "description": (
+            "OpenBinding API key. Each key has immutable granular permissions and "
+            "access to either selected immutable Engine revisions or all visible Engines."
+        ),
+        "in": "header",
+        "name": "X-API-Key",
+    }
+
+    public = {
+        ("/health", "get"),
+        ("/v1/auth/register", "post"),
+        ("/v1/auth/login", "post"),
+        ("/v1/auth/refresh", "post"),
+        ("/v1/auth/logout", "post"),
+        ("/v1/profiles", "get"),
+        ("/v1/dialects", "get"),
+        ("/v1/resources", "get"),
+        ("/v1/resources/{name}", "get"),
+        ("/v1/schemas/{kind}", "get"),
+        ("/v1/examples", "get"),
+        ("/v1/examples/{example_path}", "get"),
+        ("/v1/pricing", "get"),
+        ("/v1/instances/validate", "post"),
+    }
+    for path, method, operation in operations(document):
+        if (path, method) in public:
+            assert not operation.get("security"), f"{method.upper()} {path} must stay public"
+            continue
+        assert operation.get("security") == expected, f"{method.upper()} {path} lacks account auth"
+        assert {"401", "503"} <= set(operation["responses"])
+        assert operation.get("x-required-api-key-permissions"), (
+            f"{method.upper()} {path} has no documented API-key permission"
+        )
+        engine_limited = bool(
+            set(operation["x-required-api-key-permissions"])
+            & ENGINE_LIMITED_PERMISSIONS
+        )
+        assert bool(operation.get("x-api-key-engine-access")) is engine_limited, (
+            f"{method.upper()} {path} Engine boundary is not documented consistently"
+        )
+        assert "403" in operation["responses"]
+
+    admin_only = {
+        ("/v1/dialects/{name}/approve", "post"),
+        ("/v1/resources/{name}/approve", "post"),
+        ("/v1/admin/users", "get"),
+        ("/v1/admin/users/{user_id}", "patch"),
+        ("/v1/admin/users/{user_id}/plan", "post"),
+        ("/v1/admin/users/{user_id}/usage", "get"),
+        ("/v1/admin/users/{user_id}/api-keys/{key_id}", "delete"),
+        ("/v1/admin/users/{user_id}/usage/resync", "post"),
+        ("/v1/engine-registrations/{name}/approve", "post"),
+        ("/v1/engine-registrations/{name}/reject", "post"),
+    }
+    for path, method in admin_only:
+        operation = document["paths"][path][method]
+        assert operation["x-required-role"] == "admin"
+        assert "403" in operation["responses"]
+
+    described_admin_only = {
+        (path, method)
+        for path, method, operation in operations(document)
+        if operation.get("x-required-role") == "admin"
+    }
+    assert described_admin_only == admin_only
+
+
+def test_documented_security_matches_the_runtime_dependency_graph(document):
+    """Catch a protected-looking operation whose handler forgot its guard."""
+
+    def calls(dependant) -> set[object]:
+        found = {dependant.call}
+        for dependency in dependant.dependencies:
+            found.update(calls(dependency))
+        return found
+
+    routes = {}
+    for included in app.routes:
+        original_router = getattr(included, "original_router", None)
+        candidates = original_router.routes if original_router is not None else [included]
+        for route in candidates:
+            if isinstance(route, APIRoute):
+                for method in route.methods - {"HEAD", "OPTIONS"}:
+                    routes[(route.path_format, method.lower())] = route
+    auth_guards = {get_current_user, solve_caller, require_admin}
+    for path, method, operation in operations(document):
+        route = routes[(path, method)]
+        dependencies = calls(route.dependant)
+        assert bool(dependencies & auth_guards) is bool(operation.get("security")), (
+            f"{method.upper()} {path} runtime authentication and OpenAPI security differ"
+        )
+        assert bool({require_admin, require_v1_admin} & dependencies) is (
+            operation.get("x-required-role") == "admin"
+        ), f"{method.upper()} {path} runtime role and OpenAPI role differ"
+
+
+def test_engine_registration_contract_describes_private_lifecycle_and_openapi(document):
+    schemas = document["components"]["schemas"]
+    registration = schemas["EngineRegistrationManifest"]
+    assert "openapi" in registration["properties"]["spec"]["required"]
+    submitted_openapi = registration["properties"]["spec"]["properties"]["openapi"]
+    assert {"openapi", "info", "paths", "x-bim-protocol", "x-bim-protocol-digest"} <= set(
+        submitted_openapi["required"]
+    )
+    revision = schemas["EngineRegistrationRevision"]
+    assert set(revision["properties"]["status"]["enum"]) == {
+        "private",
+        "pending_review",
+        "published",
+        "rejected",
+    }
+    assert {"status", "active"} <= set(revision["required"])
+
+    paths = document["paths"]
+    assert "/v1/catalog/engines" not in paths
+    assert "/v1/catalog/engines/{name}" not in paths
+    for action in ("activate", "deactivate", "publication-request", "approve", "reject"):
+        assert f"/v1/engine-registrations/{{name}}/{action}" in paths
+    for removed in ("disable", "publish", "unpublish"):
+        assert f"/v1/engine-registrations/{{name}}/{removed}" not in paths
+
+    report = paths["/v1/engine-registrations/{name}/report"]["get"]
+    assert report["responses"]["200"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/EngineRegistrationReport"
+    }
+    assert "404" in report["responses"]
+    report_schema = schemas["EngineRegistrationReport"]
+    assert {"openapiDigest", "openapi", "engine", "report"} <= set(
+        report_schema["required"]
+    )
+
+
+def test_binary_yaml_and_job_inputs_have_their_real_media_types(document):
+    paths = document["paths"]
+    pricing = paths["/v1/pricing"]["get"]["responses"]["200"]["content"]
+    assert set(pricing) == {"application/yaml"}
+    example = paths["/v1/examples/{example_path}"]["get"]["responses"]["200"]["content"]
+    source = paths["/v1/instances/{snapshot_id}/source"]["get"]["responses"]["200"]["content"]
+    assert set(example) == set(source) == {"application/vnd.bim+zip"}
+
+    analyze = paths["/v1/analyze"]["post"]["requestBody"]["content"]
+    assert {"application/vnd.bim+zip", "application/json"} <= set(analyze)
+    jobs = paths["/v1/jobs"]["post"]
+    assert {"application/vnd.bim+zip", "application/json", "multipart/form-data"} <= set(
+        jobs["requestBody"]["content"]
+    )
+    assert any(parameter["name"] == "Idempotency-Key" for parameter in jobs["parameters"])
+
+
+@pytest.mark.parametrize(
+    ("path", "component"),
+    [
+        ("/v1/profiles", "ProfileList"),
+        ("/v1/dialects", "DialectList"),
+        ("/v1/resources", "RegisteredResourceList"),
+        ("/v1/examples", "ExampleList"),
+    ],
+)
+def test_public_catalogue_responses_satisfy_the_published_schema(document, path, component):
+    response = TestClient(app).get(path)
+    assert response.status_code == 200, response.text
+    validator = jsonschema.Draft202012Validator(
+        {
+            "$ref": f"#/components/schemas/{component}",
+            "components": document["components"],
+        }
+    )
+    validator.validate(response.json())
+
+
 # -- Errors -----------------------------------------------------------------
 
 
@@ -79,7 +287,6 @@ def test_the_error_shape_is_described(document):
     # actually contained.
     schemas = document["components"]["schemas"]
     assert "ErrorResponse" in schemas
-    assert "ViolationsErrorResponse" in schemas
     assert "QuotaErrorResponse" in schemas
 
 
@@ -99,9 +306,8 @@ def test_a_quota_refusal_says_which_limit_and_where_it_stands(document):
 @pytest.mark.parametrize(
     "path,method,statuses",
     [
-        ("/v1/solve", "post", {"401", "402", "413", "422", "503"}),
-        ("/v1/jobs/{job_id}", "get", {"401", "404", "503"}),
-        ("/v1/analyze/binding-space", "post", {"422"}),
+        ("/v1/jobs", "post", {"202"}),
+        ("/v1/jobs/{job_id}", "get", {"200", "422"}),
         ("/v1/auth/login", "post", {"401", "503"}),
         ("/v1/auth/register", "post", {"409", "503"}),
         ("/v1/users/me", "get", {"401", "503"}),
@@ -113,38 +319,51 @@ def test_the_failures_an_endpoint_can_produce_are_declared(document, path, metho
     assert statuses <= declared, f"{method.upper()} {path} is missing {statuses - declared}"
 
 
-def test_solving_declares_a_quota_refusal_rather_than_a_forbidden(document):
-    # The distinction is the point: 402 is an allowance spent, which is worth
-    # retrying once it renews; 403 would say the account may never do this.
-    responses = document["paths"]["/v1/solve"]["post"]["responses"]
-    assert "402" in responses
-    assert "403" not in responses
+def test_v1_jobs_are_always_accepted_asynchronously(document):
+    responses = document["paths"]["/v1/jobs"]["post"]["responses"]
+    assert {code for code in responses if code.startswith("2")} == {"202"}
+    assert {"401", "503"} <= set(responses)
 
 
 # -- The instance and the solution ------------------------------------------
 
 
 def test_the_instance_structure_is_in_the_document(document):
-    # Not `object`. Somebody has to be able to build a request from this alone,
-    # and the general schema is injected for exactly that reason.
-    instance = document["components"]["schemas"]["SolveRequest"]["properties"]["instance"]
-    assert "properties" in instance, "the instance is opaque; the contract is useless"
-    for part in ("composition", "candidates", "features"):
-        assert part in instance["properties"], f"the instance schema omits {part}"
+    schema = json.loads((REPO_ROOT / "schemas/bim/v1/instance.schema.json").read_text())
+    assert schema["properties"]["kind"]["const"] == "Instance"
+    spec = schema["properties"]["spec"]
+    assert set(spec["required"]) == {"profile", "resources"}
+    assert spec["properties"]["profile"]["pattern"] == "^[A-Za-z][A-Za-z0-9_.-]{0,127}/v[1-9][0-9]*$"
+    resources = schema["properties"]["spec"]["properties"]["resources"]
+    assert resources["type"] == "object"
+    assert resources["minProperties"] == 1
+    assert resources["additionalProperties"] == {"$ref": "#/$defs/nonEmptyGroup"}
+    assert "required" not in resources
+    assert "properties" not in resources
+    target = schema["$defs"]["resourceTarget"]
+    assert target["oneOf"] == [
+        {"$ref": "#/$defs/localPath"},
+        {"$ref": "#/$defs/registeredRef"},
+    ]
 
 
-def test_a_solution_requires_only_its_binding(document):
-    # The minimum an engine has to produce. Everything else about a solution is
-    # recomputed by the reference evaluator, which is what makes a third-party
-    # engine possible at all.
-    solution = document["components"]["schemas"]["Solution"]
-    assert solution["required"] == ["binding"]
+def test_v1_surface_has_no_replaced_routes(document):
+    assert all(path.startswith("/v1") or path == "/health" for path in document["paths"])
 
 
-def test_a_solution_keeps_the_engine_objective_apart_from_the_canonical_one(document):
-    properties = document["components"]["schemas"]["Solution"]["properties"]
-    assert "objective_value" in properties
-    assert "engine_objective_value" in properties
+def test_no_method_and_path_is_registered_twice():
+    pairs = []
+    for included in app.routes:
+        router = getattr(included, "original_router", None)
+        routes = router.routes if router is not None else [included]
+        for route in routes:
+            path = getattr(route, "path", None)
+            for method in getattr(route, "methods", set()) or set():
+                if path is not None and method not in {"HEAD", "OPTIONS"}:
+                    pairs.append((method, path))
+
+    duplicates = {pair for pair in pairs if pairs.count(pair) > 1}
+    assert duplicates == set()
 
 
 # -- The snapshot -----------------------------------------------------------

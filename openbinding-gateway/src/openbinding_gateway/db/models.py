@@ -26,15 +26,16 @@ from typing import List, Optional
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     Float,
     ForeignKey,
-    Integer,
+    LargeBinary,
     String,
+    UniqueConstraint,
     Uuid,
     func,
-    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -104,12 +105,6 @@ class User(Base):
     refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    #: Engines this user has registered. Deleting the account takes them with
-    #: it: an engine is reachable only through its owner's credential, so an
-    #: ownerless one could not be solved on anyway.
-    engines: Mapped[List["FederatedEngine"]] = relationship(
-        back_populates="owner", cascade="all, delete-orphan"
-    )
 
     @property
     def is_admin(self) -> bool:
@@ -134,6 +129,9 @@ class ApiKey(Base):
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     prefix: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
     secret_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    #: Immutable least-privilege policy. Missing or malformed fields are
+    #: interpreted as no access by ``security.apikeys``.
+    grants: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
@@ -171,6 +169,13 @@ class Job(Base):
     """
 
     __tablename__ = "jobs"
+    __table_args__ = (
+        UniqueConstraint("owner_id", "idempotency_key", name="uq_jobs_owner_idempotency_key"),
+        CheckConstraint(
+            "termination IS NULL OR termination IN ('OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'UNKNOWN')",
+            name="ck_jobs_termination",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     #: Null for jobs created before accounts existed, or while running without
@@ -193,8 +198,17 @@ class Job(Base):
     #: a seed is what makes a heuristic's answer reproducible.
     options: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     warnings: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
-    binding_space: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    instance_complexity: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    termination: Mapped[Optional[str]] = mapped_column(String(16), nullable=True, index=True)
+    # v1 jobs pin the immutable source snapshot and every request identity so
+    # a restart or a second replica can answer the same polling request.
+    instance_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("v1_instance_snapshots.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    provenance: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    idempotency_key: Mapped[Optional[str]] = mapped_column(String(256), nullable=True, index=True)
+    idempotency_fingerprint: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
 
     #: What the caller was allowed to spend, so an abandoned job can be
     #: reconciled against something rather than guessed at.
@@ -206,125 +220,6 @@ class Job(Base):
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now(), index=True
     )
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-
-
-class EngineVisibility(str, enum.Enum):
-    """Who may see and use a registered engine.
-
-    Private is the default and stays the default: an engine is somebody's
-    endpoint, possibly costing them money per call, and publishing it is a
-    decision its owner makes rather than one made for them.
-    """
-
-    PRIVATE = "private"
-    #: Asked to be public, waiting on a human. Still private in the meantime.
-    PENDING_REVIEW = "pending_review"
-    PUBLIC = "public"
-
-
-class EngineStatus(str, enum.Enum):
-    """Whether the engine may be solved on.
-
-    Only ACTIVE may. The rest exist so that a failing engine keeps its
-    registration and its conformance report instead of vanishing, which is the
-    difference between "here is what went wrong" and "it did not work".
-    """
-
-    DRAFT = "draft"
-    VERIFYING = "verifying"
-    ACTIVE = "active"
-    FAILED = "failed"
-    #: Turned off after repeated health failures, or by an administrator.
-    DISABLED = "disabled"
-
-
-class FederatedEngine(Base):
-    """Somebody else's solver, registered as an engine.
-
-    The row is the runtime equivalent of what a built-in engine ships as a
-    Python plugin plus a manifest file plus an environment variable: the
-    manifest holds the first two, ``transport`` inside it holds the third.
-
-    Three columns deserve a note.
-
-    ``manifest`` is stored whole, as given, rather than exploded into columns.
-    It is a document with a version, its shape will change, and the thing that
-    reads it is a Pydantic model that already knows how - so a schema migration
-    per manifest field would buy nothing. The columns that exist alongside it
-    are exactly those the database needs to *find* rows: the id, the owner, the
-    visibility and the status.
-
-    ``credential_encrypted`` is Fernet ciphertext and is never returned by any
-    endpoint. A credential can be replaced but not read back, which is the same
-    contract the API keys table offers in the other direction.
-
-    ``openapi_document`` caches what was fetched at registration. Verifying
-    against a document and then solving against whatever the URL serves later
-    would make the conformance report a statement about the past; pinning it
-    means a third party who changes their API gets re-verified rather than
-    silently mis-routed.
-    """
-
-    __tablename__ = "federated_engines"
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    #: The qualified id, ``<owner>~<name>``, as used everywhere an engine id is
-    #: used. Unique across the installation and, by construction, incapable of
-    #: colliding with a built-in id.
-    engine_id: Mapped[str] = mapped_column(String(160), unique=True, index=True, nullable=False)
-    owner_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-
-    display_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    manifest: Mapped[dict] = mapped_column(JSON, nullable=False)
-    openapi_document: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-
-    visibility: Mapped[EngineVisibility] = _enum_column(
-        EngineVisibility, EngineVisibility.PRIVATE, length=32
-    )
-    status: Mapped[EngineStatus] = _enum_column(EngineStatus, EngineStatus.DRAFT, length=32)
-
-    #: Never returned; replaceable only. See the class docstring.
-    credential_encrypted: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
-
-    #: What the conformance probe found, and when it last passed.
-    conformance_report: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    #: Consecutive health failures, so one blip does not disable an engine.
-    health_failures: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default=text("0")
-    )
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=utcnow,
-        onupdate=utcnow,
-        server_default=func.now(),
-    )
-
-    owner: Mapped[User] = relationship(back_populates="engines")
-
-    @property
-    def is_usable(self) -> bool:
-        return self.status is EngineStatus.ACTIVE
-
-    def is_visible_to(self, user: Optional[User]) -> bool:
-        """Whether this engine exists, as far as ``user`` is concerned.
-
-        Callers turn a false into a 404 rather than a 403: telling a stranger
-        that ``alice~tabu`` exists but is not theirs is telling them something
-        about Alice.
-        """
-        if self.visibility is EngineVisibility.PUBLIC:
-            return True
-        if user is None:
-            return False
-        return user.id == self.owner_id or user.is_admin
 
 
 class RefreshToken(Base):
@@ -357,3 +252,187 @@ class RefreshToken(Base):
             # SQLite hands back naive datetimes; the value is UTC either way.
             expires_at = expires_at.replace(tzinfo=timezone.utc)
         return expires_at > utcnow()
+
+
+class InstanceSnapshot(Base):
+    """Immutable v1 source index retained independently from a solve job."""
+
+    __tablename__ = "v1_instance_snapshots"
+    __table_args__ = (UniqueConstraint("owner_id", "package_digest", name="uq_v1_snapshot_owner_package"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    instance_digest: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
+    package_digest: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
+    root_document: Mapped[dict] = mapped_column(JSON, nullable=False)
+    resource_digests: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    source_archive: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
+
+
+class InstanceResource(Base):
+    __tablename__ = "v1_instance_resources"
+    __table_args__ = (
+        UniqueConstraint("snapshot_id", "resource_id", name="uq_v1_resource_snapshot_id"),
+        UniqueConstraint("snapshot_id", "path", name="uq_v1_resource_snapshot_path"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("v1_instance_snapshots.id", ondelete="CASCADE"), nullable=False, index=True)
+    resource_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    role: Mapped[str] = mapped_column(String(128), nullable=False)
+    api_version: Mapped[str] = mapped_column(String(255), nullable=False)
+    kind: Mapped[str] = mapped_column(String(128), nullable=False)
+    dialect_id: Mapped[str] = mapped_column(String(132), nullable=False)
+    path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    registered_namespace: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    registered_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    registered_version: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    registered_digest: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    media_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    document: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+
+
+class BindingIRSnapshot(Base):
+    __tablename__ = "v1_binding_ir"
+    __table_args__ = (UniqueConstraint("snapshot_id", name="uq_v1_ir_snapshot"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("v1_instance_snapshots.id", ondelete="CASCADE"), nullable=False, index=True)
+    ir_digest: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
+    document: Mapped[dict] = mapped_column(JSON, nullable=False)
+    source_map: Mapped[dict] = mapped_column(JSON, nullable=False)
+    compiler_version: Mapped[str] = mapped_column(String(64), nullable=False, default="bim-compiler/v1")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
+
+
+class EngineRevision(Base):
+    __tablename__ = "v1_engine_revisions"
+    __table_args__ = (UniqueConstraint("namespace", "name", "version", name="uq_v1_engine_identity"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    namespace: Mapped[str] = mapped_column(String(128), nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    version: Mapped[str] = mapped_column(String(64), nullable=False)
+    digest: Mapped[str] = mapped_column(String(80), unique=True, index=True, nullable=False)
+    document: Mapped[dict] = mapped_column(JSON, nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, default="private")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
+
+
+class EngineRegistrationRevision(Base):
+    __tablename__ = "v1_engine_registration_revisions"
+    __table_args__ = (
+        UniqueConstraint("namespace", "name", "version", name="uq_v1_registration_identity"),
+        UniqueConstraint("namespace", "manifest_digest", name="uq_v1_registration_namespace_digest"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    namespace: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    version: Mapped[str] = mapped_column(String(64), nullable=False)
+    manifest_digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    engine_digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    document: Mapped[dict] = mapped_column(JSON, nullable=False)
+    endpoint: Mapped[str] = mapped_column(String(512), nullable=False)
+    protocol_digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    openapi_document: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    openapi_digest: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    mappings: Mapped[dict] = mapped_column(JSON, nullable=False)
+    auth_scheme: Mapped[str] = mapped_column(String(32), nullable=False, default="none")
+    verification_report: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Publication and owner activation are independent. A private deployment
+    # can be active for its owner without becoming visible to an administrator,
+    # while a published deployment remains public even if its owner disables it
+    # for their own account.
+    publication_status: Mapped[str] = mapped_column(
+        "state", String(32), nullable=False, default="private"
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
+
+
+class DialectRevision(Base):
+    __tablename__ = "v1_dialect_revisions"
+    __table_args__ = (UniqueConstraint("namespace", "name", "version", name="uq_v1_dialect_identity"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    namespace: Mapped[str] = mapped_column(String(128), nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    version: Mapped[str] = mapped_column(String(64), nullable=False)
+    digest: Mapped[str] = mapped_column(String(80), nullable=False, unique=True, index=True)
+    adapter_digest: Mapped[str] = mapped_column(String(80), nullable=False)
+    document: Mapped[dict] = mapped_column(JSON, nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, default="pending_review")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
+
+
+class RegisteredResourceRevision(Base):
+    """Immutable, locally stored BIM source resource approved for exact refs."""
+
+    __tablename__ = "v1_registered_resource_revisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "namespace", "name", "version", name="uq_v1_registered_resource_identity"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    namespace: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    version: Mapped[str] = mapped_column(String(64), nullable=False)
+    digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(128), nullable=False)
+    api_version: Mapped[str] = mapped_column(String(255), nullable=False)
+    kind: Mapped[str] = mapped_column(String(128), nullable=False)
+    dialect_id: Mapped[str] = mapped_column(String(132), nullable=False)
+    media_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    document: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    content: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, default="pending_review")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class EngineCredential(Base):
+    __tablename__ = "v1_engine_credentials"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    registration_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("v1_engine_registration_revisions.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    credential_ref: Mapped[str] = mapped_column(String(256), nullable=False)
+    credential_encrypted: Mapped[str] = mapped_column(String(4096), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now())
+
+
+class ManifestPublication(Base):
+    __tablename__ = "v1_manifest_publications"
+    __table_args__ = (UniqueConstraint("resource_kind", "resource_digest", name="uq_v1_publication_resource"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    resource_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    resource_digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    publisher_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    state: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
+
+
+class JobProvenance(Base):
+    __tablename__ = "v1_job_provenance"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    document: Mapped[dict] = mapped_column(JSON, nullable=False)
+    digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())

@@ -1,8 +1,7 @@
 """The wire shapes for accounts, sessions and API keys.
 
-Kept apart from ``models.api``, which describes solving. The two have nothing to
-say to each other, and a reader looking for the shape of a solution should not
-have to scroll past a login form to find it.
+Kept apart from the compiler and engine contracts. Account views describe
+identity, plans, keys, and job history without importing the language model.
 """
 
 from __future__ import annotations
@@ -10,9 +9,11 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+
+from ..security.apikeys import ApiKeyPermission, ENGINE_LIMITED_PERMISSIONS
 
 USERNAME_PATTERN = r"^[a-zA-Z0-9][a-zA-Z0-9._-]{2,63}$"
 
@@ -83,6 +84,45 @@ class UpdateProfileRequest(BaseModel):
     new_password: Optional[str] = None
 
 
+class ApiKeyEngineRef(BaseModel):
+    """One immutable Engine revision a key may discover and execute."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    namespace: str = Field(..., min_length=1, max_length=128)
+    name: str = Field(..., min_length=1, max_length=128)
+    version: str = Field(..., min_length=1, max_length=64)
+    digest: str = Field(..., pattern=r"^sha256-[0-9a-f]{64}$")
+
+
+class ApiKeyEngineAccess(BaseModel):
+    """Either every visible Engine, or an exact immutable allow-list."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    all: bool = Field(
+        default=False,
+        description="Grant access to every Engine visible now or in the future.",
+    )
+    engines: List[ApiKeyEngineRef] = Field(
+        default_factory=list,
+        max_length=1000,
+        description="Exact Engine revisions granted when all is false.",
+    )
+
+    @model_validator(mode="after")
+    def unambiguous(self):
+        if self.all and self.engines:
+            raise ValueError("engine_access.engines must be empty when all is true")
+        identities = {
+            (engine.namespace, engine.name, engine.version, engine.digest)
+            for engine in self.engines
+        }
+        if len(identities) != len(self.engines):
+            raise ValueError("engine_access.engines contains a duplicate revision")
+        return self
+
+
 class ApiKeySummary(BaseModel):
     """An API key as it can safely be shown: everything except the secret."""
 
@@ -93,10 +133,36 @@ class ApiKeySummary(BaseModel):
     prefix: str
     created_at: datetime
     last_used_at: Optional[datetime] = None
+    permissions: List[ApiKeyPermission]
+    engine_access: ApiKeyEngineAccess
 
 
 class CreateApiKeyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(..., min_length=1, max_length=128, description="What this key is for.")
+    permissions: List[ApiKeyPermission] = Field(
+        ...,
+        min_length=1,
+        description="Closed, immutable set of capabilities granted to this key.",
+    )
+    engine_access: ApiKeyEngineAccess
+
+    @model_validator(mode="after")
+    def useful_and_unique(self):
+        if len(set(self.permissions)) != len(self.permissions):
+            raise ValueError("permissions contains a duplicate")
+        permission_values = {permission.value for permission in self.permissions}
+        if (
+            permission_values & ENGINE_LIMITED_PERMISSIONS
+            and not self.engine_access.all
+            and not self.engine_access.engines
+        ):
+            raise ValueError(
+                "Engine discovery, analysis, execution and job access require "
+                "all Engines or at least one exact Engine revision"
+            )
+        return self
 
 
 class CreatedApiKey(ApiKeySummary):
@@ -130,10 +196,13 @@ class PlanCapsView(BaseModel):
     """The ceilings a single request runs into, rather than a monthly balance."""
 
     max_timeout_s: float = Field(..., description="Longest solver budget one job may ask for.")
-    max_iterations: int = Field(..., description="Ceiling for iteration-driven options.")
+    max_iterations: int = Field(
+        ...,
+        description="Ceiling for BIM v1 search-effort options (iterations and max_evaluations).",
+    )
     max_payload_mb: int = Field(..., description="Largest instance accepted in one request.")
-    max_binding_space_log10: float = Field(
-        ..., description="Largest instance solvable, as log10 of its binding space."
+    max_instance_complexity_log10: float = Field(
+        ..., description="Largest instance complexity accepted, as log10 of eligibility combinations."
     )
     job_history_days: int = Field(..., description="How long finished jobs stay queryable.")
     api_keys_limit: Optional[int] = Field(
@@ -152,8 +221,8 @@ class JobSummary(BaseModel):
     id: uuid.UUID
     engine_id: str
     status: str = Field(..., description="queued, running, completed or failed.")
-    feasibility: Optional[str] = Field(
-        default=None, description="Of the result, once there is one."
+    termination: Optional[Literal["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"]] = Field(
+        default=None, description="Canonical BIM v1 termination, once the result is available."
     )
     solutions: Optional[int] = Field(
         default=None, description="How many solutions came back."

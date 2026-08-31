@@ -132,7 +132,15 @@ async def test_the_listing_reports_how_many_keys_are_in_use(
     api_client, registration, gate, db_session
 ):
     profile, headers = await account(api_client, registration)
-    await api_client.post("/v1/users/me/api-keys", headers=headers, json={"name": "k"})
+    await api_client.post(
+        "/v1/users/me/api-keys",
+        headers=headers,
+        json={
+            "name": "k",
+            "permissions": ["account:read"],
+            "engine_access": {"all": False, "engines": []},
+        },
+    )
     _, admin = await account(api_client, registration, db_session, admin=True)
 
     listing = await api_client.get(f"/v1/admin/users?search={profile['username']}", headers=admin)
@@ -278,7 +286,15 @@ async def test_an_administrator_sees_the_same_usage_the_holder_does(
 async def test_a_key_can_be_taken_back(api_client, registration, gate, db_session):
     # For when one has leaked and its owner is unreachable.
     profile, theirs = await account(api_client, registration)
-    key = await api_client.post("/v1/users/me/api-keys", headers=theirs, json={"name": "k"})
+    key = await api_client.post(
+        "/v1/users/me/api-keys",
+        headers=theirs,
+        json={
+            "name": "k",
+            "permissions": ["account:read"],
+            "engine_access": {"all": False, "engines": []},
+        },
+    )
     _, admin = await account(api_client, registration, db_session, admin=True)
 
     revoked = await api_client.delete(

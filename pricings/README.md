@@ -28,4 +28,4 @@ declarative entities that can be resolved from external structured sources:
 The metering transformation that combines these iPricings with expected-consumption profiles
 (invocations, execution duration, allocated resources) to obtain per-candidate monthly costs lives
 in `experimentation/icsoc/generator/pricing.py`; the resulting cost is attached to each candidate as
-a BIM′ feature.
+a deterministic BIM v1 metric.

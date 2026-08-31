@@ -1,341 +1,169 @@
-# The contract a solver engine implements.
-#
-# This is the other side of the gateway's own OpenAPI document. That one
-# describes what a *client* can ask OpenBinding; this describes what OpenBinding
-# asks an *engine*. Until now the second half existed only as prose in
-# docs/ENGINE_INTEGRATION_GUIDE.md and as three response shapes implicit in
-# `Router._is_sync_response`, which is not something a third party can implement
-# against.
-#
-# Served at `GET /v1/schemas/engine-contract`.
-#
-# The one thing worth reading first: **an engine only has to return a
-# Task-to-Candidate map.** Every metric a solution carries - aggregated
-# features, violations, feasibility - is recomputed by the gateway's reference
-# evaluator, and an objective the engine reports is kept beside the canonical
-# one rather than instead of it. That is what makes a federated engine possible
-# without trusting its arithmetic.
 openapi: 3.1.0
-
 info:
-  title: OpenBinding Engine Contract
+  title: BIM Engine Protocol v1
   version: 1.0.0
-  summary: What a solver engine must expose for the OpenBinding gateway to use it.
-  description: |
-    An engine is an HTTP service with three operations: a health probe, a solve,
-    and - if it works asynchronously - a job read.
-
-    **Synchronous or asynchronous is the engine's choice**, and the gateway tells
-    them apart by what `POST /solve` returns: a body carrying `job_id` means the
-    work is in flight and the gateway will poll; anything else is read as a
-    finished result. The three built-in JVM engines answer synchronously, and the
-    MiniZinc engine answers with a job.
-
-    **The instance travels whole.** The gateway sends `{"instance": ..., "options":
-    ...}` and nothing else. It does not pre-digest the problem: an engine reads
-    the composition, the constraints and the optional `resource_model` /
-    `latency_model` blocks itself. Authoring shorthands are expanded before
-    anything sees the instance, so an engine never has to handle a bare task id
-    where a node belongs.
-
-    **Declare only what you enforce.** A capability advertised but not enforced
-    returns wrong answers marked feasible; one enforced but rejected by the
-    specialisation schema is unreachable. Both have happened.
-  license:
-    name: CC BY 4.0
-    url: https://creativecommons.org/licenses/by/4.0/
-
-servers:
-  - url: http://engine:8080
-    description: Whatever host and port the gateway is configured to reach.
-
+  description: Private, source-free transport between the OpenBinding platform and BIM v1 engines.
 paths:
-  /health:
-    get:
-      operationId: engineHealth
-      summary: Whether the engine is ready to solve
-      description: |
-        Probed with a 1.5 second timeout when listing engines. Any 2xx counts as
-        healthy; the body is not read.
-      responses:
-        '200':
-          description: Ready.
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-              example: { status: ok }
-
-  /solve:
+  /internal/v1/binding-problems:
     post:
-      operationId: engineSolve
-      summary: Solve an instance
-      description: |
-        The gateway waits up to the caller's plan budget, and retries a 502, 503
-        or 504 twice with a second between attempts - so a transient failure
-        should be one of those rather than a 500.
-
-        Answer with `job_id` to be polled, or with a result to finish here.
+      summary: Solve a canonical BIM v1 BindingProblem IR.
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/SolveRequest'
+            schema: {$ref: '#/components/schemas/BindingProblemRequest'}
       responses:
         '200':
-          description: A finished result.
+          description: Completed result.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/SolveResult'
+              schema: {$ref: '#/components/schemas/BindingResult'}
         '202':
-          description: Accepted; the gateway will poll `/jobs/{id}`.
+          description: The engine accepted the immutable IR for asynchronous execution.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/JobAccepted'
-        '413':
-          description: |
-            The payload is larger than the engine accepts. Passed through to the
-            caller as a 413 rather than treated as an engine failure.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EngineError'
+              schema: {$ref: '#/components/schemas/EngineJobAccepted'}
         '422':
-          description: |
-            The engine cannot solve this instance. A body whose `error` contains
-            "No feasible solution" is understood as a genuine answer - the
-            gateway reports an empty, infeasible result rather than a failure.
+          description: The IR or requested options are not supported by this engine mode.
           content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EngineError'
-              example: { error: No feasible solution found }
-
-  /jobs/{id}:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '413':
+          description: The request body exceeds the engine transport limit.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '500':
+          description: The engine failed while executing an accepted request.
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+  /internal/v1/jobs/{id}:
     get:
-      operationId: engineJob
-      summary: A job's status, and its result once it has one
-      description: |
-        Only for engines that answered `POST /solve` with a `job_id`. Polled with
-        a 30 second timeout, driven by the client polling the gateway - so an
-        engine must keep a finished job readable rather than discarding it on
-        first read.
+      summary: Read an asynchronous engine job.
       parameters:
-        - name: id
-          in: path
+        - in: path
+          name: id
           required: true
-          schema: { type: string }
-          description: The `job_id` returned by `POST /solve`.
+          schema: {type: string, minLength: 1}
       responses:
         '200':
-          description: The job.
+          description: Current engine job state.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/JobState'
+              schema: {$ref: '#/components/schemas/EngineJob'}
         '404':
-          description: |
-            No such job. Reported to the caller as a failed job rather than as a
-            missing one, because the gateway's own identifier does exist.
+          description: The engine job does not exist.
           content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EngineError'
-
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
 components:
   schemas:
-
-    SolveRequest:
+    Ref:
       type: object
-      required: [instance]
       additionalProperties: false
+      required: [resource, id]
       properties:
-        instance:
-          type: object
-          description: |
-            The binding instance, whole and canonical. Its structure is the
-            general schema, served at `GET /v1/schemas/general` and described in
-            `schemas/general/schema.specification.md`; a specialisation of it per
-            engine is at `GET /v1/schemas/{engine_id}`.
-          additionalProperties: true
-        options:
-          type: object
-          description: |
-            Solver options, already clamped to the caller's plan. An option the
-            engine does not recognise should be ignored rather than refused.
-
-            Whatever an engine accepts should be declared by its
-            `get_options_schema()`, which the gateway serves at
-            `GET /v1/engines/{engine_id}/options/schema` - that is how a client
-            learns what it may send.
-          additionalProperties: true
-
-    JobAccepted:
+        resource: {type: string, minLength: 1}
+        id: {type: string, minLength: 1}
+    BindingProblem:
+      $ref: './bim/v1/binding-problem.schema.json'
+    BindingProblemRequest:
       type: object
-      required: [job_id]
-      additionalProperties: true
-      description: |
-        The presence of `job_id` is what marks a response as asynchronous. It is
-        the only field the gateway reads.
+      additionalProperties: false
+      required: [apiVersion, kind, protocol, problem]
       properties:
-        job_id:
-          type: string
-          description: Opaque to the gateway; used verbatim to poll `/jobs/{id}`.
-        status:
-          type: string
-          description: Ignored on this response. The gateway asks `/jobs/{id}`.
-      example: { job_id: 4f2c1e, status: queued }
-
-    JobState:
+        apiVersion: {const: bim/v1}
+        kind: {const: BindingProblemRequest}
+        protocol: {const: bim-engine/v1}
+        problem: {$ref: '#/components/schemas/BindingProblem'}
+        options: {type: object}
+    BindingDecision:
       type: object
-      required: [status]
-      additionalProperties: true
+      additionalProperties: false
+      required: [kind, binding]
       properties:
-        status:
-          type: string
-          enum: [queued, running, completed, optimized, failed]
-          description: |
-            `optimized` is treated as `completed`; the others map straight
-            through. Anything else is a failure.
-        error:
-          type: string
-          description: Why it failed. Passed to the caller.
-      allOf:
-        - $ref: '#/components/schemas/SolveResult'
-
-    SolveResult:
-      description: |
-        A finished result, in any of three shapes. The gateway accepts all three
-        because its own engines grew into different ones; a new engine should
-        use `SolutionsResult`, which needs no translation.
+        kind: {const: binding}
+        binding: {type: object, additionalProperties: {$ref: '#/components/schemas/Ref'}}
+    Violation:
+      type: object
+      additionalProperties: false
+      required: [constraint, enforcement, penalty]
+      properties:
+        constraint: {$ref: '#/components/schemas/Ref'}
+        enforcement: {type: string, enum: [hard, soft]}
+        penalty: {type: number, minimum: 0}
+        message: {type: string}
+    ObjectiveComponent:
+      type: object
+      additionalProperties: false
+      required: [metric, value, loss, weight]
+      properties:
+        metric: {$ref: '#/components/schemas/Ref'}
+        value: {type: number}
+        loss: {type: number}
+        weight: {type: number, exclusiveMinimum: 0}
+    ObjectiveEvaluation:
+      type: object
+      additionalProperties: false
+      required: [mode, components, penalty, score]
+      properties:
+        mode: {type: string, enum: [satisfy, weighted, lexicographic, pareto]}
+        components: {type: array, items: {$ref: '#/components/schemas/ObjectiveComponent'}}
+        penalty: {type: number, minimum: 0}
+        score:
+          oneOf:
+            - {type: number}
+            - {type: array, items: {type: number}}
+    BindingSolution:
+      type: object
+      additionalProperties: false
+      required: [decision, metrics, objectives, penalties, violations]
+      properties:
+        decision: {$ref: '#/components/schemas/BindingDecision'}
+        metrics: {type: object, additionalProperties: {type: number}}
+        objectives: {$ref: '#/components/schemas/ObjectiveEvaluation'}
+        penalties: {type: array, items: {type: number, minimum: 0}}
+        violations: {type: array, items: {$ref: '#/components/schemas/Violation'}}
+    BindingResult:
+      type: object
+      additionalProperties: false
+      required: [termination, solutions]
+      properties:
+        termination: {type: string, enum: [OPTIMAL, FEASIBLE, INFEASIBLE, UNKNOWN]}
+        solutions: {type: array, items: {$ref: '#/components/schemas/BindingSolution'}}
+        provenance: {type: object}
+    EngineJobAccepted:
+      type: object
+      additionalProperties: false
+      required: [id, status]
+      properties:
+        id: {type: string, minLength: 1}
+        status: {const: queued}
+    EngineJob:
+      type: object
+      additionalProperties: false
+      required: [id, status, created_at]
+      properties:
+        id: {type: string, minLength: 1}
+        status: {type: string, enum: [queued, running, completed, failed]}
+        created_at: {type: integer, minimum: 0}
+        result: {$ref: '#/components/schemas/BindingResult'}
+        error: {type: string}
       oneOf:
-        - $ref: '#/components/schemas/SolutionsResult'
-        - $ref: '#/components/schemas/SelectionResult'
-        - $ref: '#/components/schemas/NestedSelectionResult'
-
-    SolutionsResult:
+        - properties: {status: {enum: [queued, running]}}
+          not: {anyOf: [{required: [result]}, {required: [error]}]}
+        - properties: {status: {const: completed}}
+          required: [result]
+          not: {required: [error]}
+        - properties: {status: {const: failed}}
+          required: [error]
+          not: {required: [result]}
+    Problem:
       type: object
-      required: [solutions]
-      additionalProperties: true
-      description: The general shape, and the one to prefer.
+      required: [type, title, status, detail]
       properties:
-        solutions:
-          type: array
-          items: { $ref: '#/components/schemas/EngineSolution' }
-        provenance:
-          $ref: '#/components/schemas/Provenance'
-        diagnostics:
-          type: object
-          description: Anything the engine wants to report. Surfaced when the caller asks to be verbose.
-          additionalProperties: true
-
-    SelectionResult:
-      type: object
-      required: [selection]
-      additionalProperties: true
-      description: A single solution with the binding at the top level.
-      properties:
-        selection:
-          $ref: '#/components/schemas/Binding'
-        objective_value:
-          type: number
-          description: Kept as `engine_objective_value` and compared with the canonical one.
-        provenance:
-          $ref: '#/components/schemas/Provenance'
-
-    NestedSelectionResult:
-      type: object
-      required: [result]
-      additionalProperties: true
-      description: A single solution wrapped under `result.solution`.
-      properties:
-        result:
-          type: object
-          required: [solution]
-          properties:
-            solution:
-              type: object
-              required: [selection]
-              properties:
-                selection:
-                  $ref: '#/components/schemas/Binding'
-                objective_value: { type: number }
-
-    EngineSolution:
-      type: object
-      required: [binding]
-      additionalProperties: true
-      description: |
-        One solution. **`binding` is the only field an engine must produce.**
-
-        `aggregated_features`, `violations` and `feasible` may be sent and will
-        be *overwritten*: every solution goes through the gateway's reference
-        evaluator, which re-derives them from the instance. Four independent
-        copies of that arithmetic is what this architecture exists to avoid.
-
-        Send an objective if you have one. It is kept as
-        `engine_objective_value` beside the canonical figure, and the difference
-        is how a divergence in an engine's semantics gets noticed.
-      properties:
-        binding:
-          $ref: '#/components/schemas/Binding'
-        objective_value:
-          type: number
-          description: The engine's own objective. Kept, not trusted.
-        aggregated_features:
-          type: object
-          additionalProperties: { type: number }
-          description: Recomputed by the gateway. Sending it is optional and has no effect on the result.
-        violations:
-          type: array
-          items: { type: object, additionalProperties: true }
-          description: Recomputed by the gateway.
-        feasible:
-          type: boolean
-          description: Recomputed by the gateway.
-
-    Binding:
-      type: object
-      description: |
-        Which candidate implements which task: task id to candidate id.
-
-        A candidate may serve several tasks - `candidates[*].task_ids` lists
-        every task it can implement - so two tasks can share one. When k tasks
-        do: a feature declared `"sharing": "DIVIDE"` is worth `v/k` to each,
-        every other feature is still worth `v` to each, the candidate's resource
-        demand is taken up **once** on its pool rather than k times, and
-        `SAME_CANDIDATE` / `DIFFERENT_CANDIDATE` compare candidate ids. k is
-        counted over the whole binding, including tasks under a branch that does
-        not run.
-      additionalProperties: { type: string }
-      example: { t1: c3, t2: c7 }
-
-    Provenance:
-      type: object
-      additionalProperties: true
-      properties:
-        engine_id:
-          type: string
-        execution_time_ms:
-          type: number
-          description: |
-            How long the search took. Preferred over the gateway's own clock when
-            charging solver time, because it excludes transferring the instance -
-            so an engine that reports it is billed more accurately.
-        metadata:
-          type: object
-          additionalProperties: true
-
-    EngineError:
-      type: object
-      additionalProperties: true
-      properties:
-        error:
-          type: string
-          description: |
-            Truncated to 200 characters when passed on, so put the useful part
-            first.
+        type: {type: string, format: uri-reference}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}

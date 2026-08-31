@@ -9,12 +9,18 @@ that imported a helper out of another test module.
 from __future__ import annotations
 
 import os
+import sys
 import uuid
 
 import pytest
 import pytest_asyncio
 
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+REPO_ROOT = os.environ.get(
+    "OPENBINDING_REPO_ROOT",
+    os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")),
+)
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
 
 # Set before anything imports the gateway: schema paths are resolved when the
 # validators are constructed.

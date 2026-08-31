@@ -1,19 +1,13 @@
-"""One shape for everything that goes wrong.
+"""Documented account, authorization, and quota error responses.
 
-The gateway already answered failed validation with a structured body - an
-``error`` string beside a list of violations - but every other failure was a
-bare string, and none of it was described in the OpenAPI document. A client
-could not tell "this instance is invalid" from "your quota is spent" without
-reading the prose.
-
-So: every error carries a machine-readable ``code``, and the endpoints declare
-which of these they can return. ``ViolationsError`` keeps the existing
-validation body exactly as it was, because clients already parse it.
+BIM endpoints use the v1 ``application/problem+json`` contract directly.  This
+module contains only the response models still shared by the surrounding
+account and platform routes.
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
@@ -30,25 +24,6 @@ class ErrorResponse(BaseModel):
     """A failure, as it appears on the wire."""
 
     detail: ErrorBody
-
-
-class ViolationBody(BaseModel):
-    code: str
-    message: str
-    path: Optional[str] = None
-    constraint_id: Optional[str] = None
-    stage: Optional[str] = None
-
-
-class ViolationsErrorBody(BaseModel):
-    error: str
-    violations: List[ViolationBody] = Field(default_factory=list)
-
-
-class ViolationsErrorResponse(BaseModel):
-    """A rejected instance, with the reasons it was rejected."""
-
-    detail: ViolationsErrorBody
 
 
 class QuotaBody(BaseModel):
@@ -121,10 +96,6 @@ CONFLICT_RESPONSE = {
 UNAVAILABLE_RESPONSE = {
     "model": ErrorResponse,
     "description": "A service the gateway depends on is not reachable.",
-}
-VIOLATIONS_RESPONSE = {
-    "model": ViolationsErrorResponse,
-    "description": "The instance is invalid: schema, semantic or logical violations.",
 }
 QUOTA_RESPONSE = {
     "model": QuotaErrorResponse,

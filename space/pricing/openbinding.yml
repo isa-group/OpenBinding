@@ -21,7 +21,7 @@
 # the declaration is the only thing to change once that version list grows.
 syntaxVersion: '3.0'
 saasName: openbinding
-version: 1.1.0
+version: 0.1.0
 createdAt: '2026-07-29'
 currency: EUR
 
@@ -35,7 +35,7 @@ tags:
 
 features:
   analyze:
-    description: Validate instances and measure the binding space before solving.
+    description: Validate modular instances and measure their complexity before solving.
     tag: Analysis
     type: DOMAIN
     valueType: BOOLEAN
@@ -58,15 +58,6 @@ features:
     expression: >-
       pricingContext['features']['solve'] && subscriptionContext['tasksLimit'] < pricingContext['usageLimits']['tasksLimit'] && subscriptionContext['concurrentTasksLimit'] < pricingContext['usageLimits']['concurrentTasksLimit']
 
-  bindingSpaceExploration:
-    description: Enumerate the binding space page by page.
-    tag: Analysis
-    type: DOMAIN
-    valueType: BOOLEAN
-    defaultValue: true
-    expression: >-
-      pricingContext['features']['bindingSpaceExploration']
-
   apiAccess:
     description: Call the gateway programmatically with a personal API key.
     tag: Access
@@ -78,7 +69,7 @@ features:
       pricingContext['features']['apiAccess'] && subscriptionContext['apiKeysLimit'] < pricingContext['usageLimits']['apiKeysLimit']
 
   evolutionaryEngine:
-    description: Use the evolutionary (NSGA-II/III) engine.
+    description: Use the BIM v1 evolutionary engine's elitist or Pareto genetic modes.
     tag: Solving
     type: DOMAIN
     valueType: BOOLEAN
@@ -200,27 +191,13 @@ usageLimits:
       - solve
 
   maxIterationsLimit:
-    description: Ceiling for iteration-driven options (iterations_count, max_evaluations).
+    description: Ceiling for BIM v1 search-effort options (iterations, max_evaluations).
     tag: Solving
     type: NON_RENEWABLE
     trackable: false
     valueType: NUMERIC
     defaultValue: 10000
     unit: iteration
-    linkedFeatures:
-      - solve
-
-  maxBindingSpaceLimit:
-    description: >-
-      Largest instance that may be solved, as log10 of its binding space. Derived
-      from the instance itself rather than consumed, and the one limit that
-      refuses instead of clamping - an instance cannot be made smaller.
-    tag: Solving
-    type: NON_RENEWABLE
-    trackable: false
-    valueType: NUMERIC
-    defaultValue: 9
-    unit: log10(combinations)
     linkedFeatures:
       - solve
 
@@ -262,8 +239,6 @@ plans:
         value: true
       solve:
         value: true
-      bindingSpaceExploration:
-        value: true
       apiAccess:
         value: true
       evolutionaryEngine:
@@ -284,13 +259,11 @@ plans:
       federatedEnginesLimit:
         value: 1
       apiKeysLimit:
-        value: 2
+        value: 10
       maxTimeoutPerTaskLimit:
         value: 300
       maxIterationsLimit:
         value: 10000
-      maxBindingSpaceLimit:
-        value: 9
       maxPayloadSizeLimit:
         value: 16
       jobHistoryRetentionLimit:
@@ -306,8 +279,6 @@ plans:
       analyze:
         value: true
       solve:
-        value: true
-      bindingSpaceExploration:
         value: true
       apiAccess:
         value: true
@@ -331,15 +302,13 @@ plans:
       federatedEnginesLimit:
         value: 10
       apiKeysLimit:
-        value: 10
+        value: .inf
       maxTimeoutPerTaskLimit:
         # Matches ENGINE_SOLVE_TIMEOUT_S: asking for longer than the gateway
         # itself will wait would be a promise it cannot keep.
         value: 1800
       maxIterationsLimit:
         value: 10000000
-      maxBindingSpaceLimit:
-        value: 30
       maxPayloadSizeLimit:
         # Matches MAX_SOLVE_BODY_BYTES.
         value: 512

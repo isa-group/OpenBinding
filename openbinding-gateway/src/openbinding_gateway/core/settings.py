@@ -1,8 +1,8 @@
 """Every knob the gateway reads from the environment, in one place.
 
 Configuration used to be a scattering of ``os.getenv`` calls: the CORS rule in
-``main``, the engine URLs in the registry, the solve timeout inside the router's
-request loop, the schema paths in two modules that disagreed about the default.
+``main``, engine endpoints, request limits, and schema paths each had a
+different default.
 Nothing was wrong with any one of them, but there was no way to answer "what can
 be configured?" short of grepping, and a user module adding a database URL, a
 signing secret and a SPACE endpoint is exactly the point where that stops being
@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # -- Engines ---------------------------------------------------------
     # The defaults are the compose service names, so these only need setting
     # when the gateway runs outside the stack.
+    # Federated deployments do not belong here; their endpoints are immutable
+    # EngineRegistration revisions persisted through the public API.
     engine_minizinc_url: str = "http://engine-minizinc:3000"
     engine_random_search_url: str = "http://engine-random-search:8080"
     engine_many_heuristic_url: str = "http://engine-many-heuristic:8080"
@@ -49,11 +51,8 @@ class Settings(BaseSettings):
     #: to be kept in step, with nginx's the larger of the two.
     engine_solve_timeout_s: float = 1800.0
 
-    # -- Schemas ---------------------------------------------------------
-    #: Preferred location of the general schema's root document. Unset means
-    #: "work it out from the repository layout"; see ``models.api``.
-    general_schema_path: Optional[str] = None
-    #: Directory holding ``general/`` and ``manifests/``.
+    # -- v1 schemas ------------------------------------------------------
+    #: Directory holding the BIM v1 schemas and manifests.
     schemas_dir: str = "/app/schemas"
 
     # -- CORS ------------------------------------------------------------
@@ -127,34 +126,23 @@ class Settings(BaseSettings):
 
     @property
     def engine_urls(self) -> dict:
-        """Engine id to base URL, for the engines that ship with the gateway.
-
-        The four named fields stay because they are what the compose files and
-        ``.env.example`` already set, and one of them - ``ENGINE_MINIZINC_URL``
-        for ``minizinc-csp`` - predates the convention and does not follow it.
-
-        Everything else is found rather than listed: an engine with a manifest
-        on disk reads ``ENGINE_<ID>_URL``. That is what lets a new in-tree
-        engine be a manifest and an environment variable instead of a manifest
-        and four edits to this file.
-        """
-        from ..registry.discovery import manifest_ids, url_env_var
-        from ..validation.engine_plugins.base import manifests_dir_for
-
+        """Resolve built-in mode endpoints from the v1 manifest directory."""
         urls = {
             "minizinc-csp": self.engine_minizinc_url,
             "random-search": self.engine_random_search_url,
             "many-heuristic": self.engine_many_heuristic_url,
             "evolutionary-heuristics": self.engine_evolutionary_heuristics_url,
         }
-
-        for engine_id in manifest_ids(manifests_dir_for(self.schemas_dir)):
-            if engine_id in urls:
+        manifest_root = os.path.join(self.schemas_dir, "bim", "v1", "manifests")
+        if not os.path.isdir(manifest_root):
+            return urls
+        for filename in os.listdir(manifest_root):
+            if not filename.endswith(".json"):
                 continue
-            configured = os.environ.get(url_env_var(engine_id))
+            engine_id = filename[:-5]
+            configured = os.environ.get("ENGINE_" + engine_id.replace("-", "_").upper() + "_URL")
             if configured:
                 urls[engine_id] = configured
-
         return urls
 
 

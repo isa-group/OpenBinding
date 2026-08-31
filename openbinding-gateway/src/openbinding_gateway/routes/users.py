@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,8 @@ from ..access.dependencies import get_current_user, get_user_by_identifier, sess
 from ..db.models import ApiKey, Job, User, utcnow
 from ..models.accounts import (
     ApiKeyList,
+    ApiKeyEngineAccess,
+    ApiKeyEngineRef,
     ApiKeySummary,
     CreateApiKeyRequest,
     CreatedApiKey,
@@ -33,7 +35,15 @@ from ..models.errors import (
     UNAVAILABLE_RESPONSE,
     api_error,
 )
-from ..security.apikeys import mint
+from ..security.apikeys import (
+    ADMIN_PERMISSIONS,
+    allows_engine,
+    authenticated_api_key,
+    engine_access_of,
+    grants_document,
+    mint,
+    permissions_of,
+)
 from ..security.passwords import hash_password, password_complaint, verify_password
 from ..space_client import PricingUnavailable, get_gate
 
@@ -93,7 +103,7 @@ async def read_own_profile(user: User = Depends(get_current_user)) -> UserProfil
 async def update_own_profile(
     request: UpdateProfileRequest,
     user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> UserProfile:
     """Change what the account holder is allowed to change.
 
@@ -144,6 +154,30 @@ async def _own_active_keys(session: AsyncSession, user: User) -> list[ApiKey]:
     return list(result.scalars().all())
 
 
+def _api_key_summary(api_key: ApiKey) -> ApiKeySummary:
+    all_engines, engine_refs = engine_access_of(api_key)
+    return ApiKeySummary(
+        id=api_key.id,
+        name=api_key.name,
+        prefix=api_key.prefix,
+        created_at=api_key.created_at,
+        last_used_at=api_key.last_used_at,
+        permissions=sorted(permissions_of(api_key)),
+        engine_access=ApiKeyEngineAccess(
+            all=all_engines,
+            engines=[
+                ApiKeyEngineRef(
+                    namespace=reference[0],
+                    name=reference[1],
+                    version=reference[2],
+                    digest=reference[3],
+                )
+                for reference in sorted(engine_refs)
+            ],
+        ),
+    )
+
+
 @router.get(
     "/me/api-keys",
     response_model=ApiKeyList,
@@ -153,11 +187,11 @@ async def _own_active_keys(session: AsyncSession, user: User) -> list[ApiKey]:
 )
 async def list_own_api_keys(
     user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> ApiKeyList:
     """List the keys that still work. Revoked ones are gone, not shown greyed out."""
     keys = await _own_active_keys(session, user)
-    return ApiKeyList(api_keys=[ApiKeySummary.model_validate(key) for key in keys])
+    return ApiKeyList(api_keys=[_api_key_summary(key) for key in keys])
 
 
 @router.post(
@@ -173,9 +207,10 @@ async def list_own_api_keys(
     },
 )
 async def create_api_key(
-    request: CreateApiKeyRequest,
+    request: Request,
+    payload: CreateApiKeyRequest,
     user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CreatedApiKey:
     """Mint a key and return it once.
 
@@ -188,8 +223,47 @@ async def create_api_key(
     gateway already holds - and counting it avoids the drift that comes from
     keeping a tally of something somebody else stores.
     """
+    requested_permissions = {permission.value for permission in payload.permissions}
+    if not user.is_admin and requested_permissions & ADMIN_PERMISSIONS:
+        raise api_error(
+            status.HTTP_403_FORBIDDEN,
+            "permission_not_grantable",
+            "Only an administrator account may grant moderation or account-administration permissions.",
+        )
+
+    parent_key = authenticated_api_key(user)
+    if parent_key is not None:
+        parent_permissions = permissions_of(parent_key)
+        if not requested_permissions <= parent_permissions:
+            raise api_error(
+                status.HTTP_403_FORBIDDEN,
+                "api_key_escalation",
+                "A key may create only keys whose permissions are a subset of its own.",
+            )
+        parent_all_engines, parent_engines = engine_access_of(parent_key)
+        requested_engines = {
+            (engine.namespace, engine.name, engine.version, engine.digest)
+            for engine in payload.engine_access.engines
+        }
+        if payload.engine_access.all and not parent_all_engines:
+            raise api_error(
+                status.HTTP_403_FORBIDDEN,
+                "api_key_escalation",
+                "A key limited to selected Engines cannot create an all-Engines key.",
+            )
+        if not parent_all_engines and not requested_engines <= parent_engines:
+            raise api_error(
+                status.HTTP_403_FORBIDDEN,
+                "api_key_escalation",
+                "A key may grant only Engine revisions it can access itself.",
+            )
+
     caps = await _caps_for(user)
     if caps.api_keys_limit is not None:
+        # Serialize this user's count-and-insert on PostgreSQL. Without the
+        # row lock, concurrent requests could both observe nine live keys and
+        # both create the eleventh on a FREE account.
+        await session.execute(select(User.id).where(User.id == user.id).with_for_update())
         live = len(await _own_active_keys(session, user))
         if live >= caps.api_keys_limit:
             raise api_error(
@@ -209,9 +283,14 @@ async def create_api_key(
     minted = mint()
     api_key = ApiKey(
         user_id=user.id,
-        name=request.name,
+        name=payload.name,
         prefix=minted.prefix,
         secret_hash=minted.secret_hash,
+        grants=grants_document(
+            sorted(requested_permissions),
+            all_engines=payload.engine_access.all,
+            engines=[engine.model_dump() for engine in payload.engine_access.engines],
+        ),
     )
     session.add(api_key)
     await session.flush()
@@ -222,6 +301,8 @@ async def create_api_key(
         prefix=api_key.prefix,
         created_at=api_key.created_at,
         last_used_at=None,
+        permissions=sorted(requested_permissions),
+        engine_access=payload.engine_access,
         secret=minted.secret,
     )
 
@@ -236,7 +317,7 @@ async def create_api_key(
 async def revoke_api_key(
     key_id: uuid.UUID,
     user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> None:
     """Revoke a key of your own.
 
@@ -263,7 +344,7 @@ async def list_own_jobs(
     limit: int = 50,
     offset: int = 0,
     user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> JobHistory:
     """Your own solves, newest first, as far back as your plan keeps them.
 
@@ -287,21 +368,38 @@ async def list_own_jobs(
         .where(Job.created_at >= cutoff)
     )
 
-    total = await session.scalar(
-        select(func.count()).select_from(visible.subquery())
-    )
-
-    rows = (
-        (
-            await session.execute(
-                visible.order_by(Job.created_at.desc())
-                .limit(max(1, min(limit, 200)))
-                .offset(max(0, offset))
+    if authenticated_api_key(user) is None:
+        total = await session.scalar(select(func.count()).select_from(visible.subquery()))
+        rows = (
+            (
+                await session.execute(
+                    visible.order_by(Job.created_at.desc())
+                    .limit(max(1, min(limit, 200)))
+                    .offset(max(0, offset))
+                )
             )
+            .scalars()
+            .all()
         )
-        .scalars()
-        .all()
-    )
+    else:
+        candidates = (
+            (await session.execute(visible.order_by(Job.created_at.desc())))
+            .scalars()
+            .all()
+        )
+        permitted = [
+            job
+            for job in candidates
+            if allows_engine(
+                user,
+                (job.provenance or {}).get("engine", {})
+                if isinstance(job.provenance, dict)
+                else {},
+            )
+        ]
+        total = len(permitted)
+        start = max(0, offset)
+        rows = permitted[start : start + max(1, min(limit, 200))]
 
     return JobHistory(
         jobs=[_job_summary(row) for row in rows],
@@ -314,7 +412,7 @@ def _job_summary(job: Job) -> JobSummary:
     """What is worth showing without opening the result.
 
     ``result`` is JSON on the row and may be enormous, so only its shape is
-    read - how many solutions, and what the feasibility verdict was.
+    read - how many solutions, and what the canonical termination was.
     """
     result = job.result if isinstance(job.result, dict) else {}
     solutions = result.get("solutions")
@@ -323,7 +421,7 @@ def _job_summary(job: Job) -> JobSummary:
         id=job.id,
         engine_id=job.engine_id,
         status=job.state.value,
-        feasibility=result.get("feasibility"),
+        termination=job.termination,
         solutions=len(solutions) if isinstance(solutions, list) else None,
         created_at=job.created_at,
         finished_at=job.finished_at,
@@ -372,8 +470,9 @@ async def usage_view_for(user: User) -> UsageView:
             max_timeout_s=caps.max_timeout_s,
             max_iterations=caps.max_iterations,
             max_payload_mb=caps.max_payload_mb,
-            max_binding_space_log10=caps.max_binding_space_log10,
+            max_instance_complexity_log10=caps.max_instance_complexity_log10,
             job_history_days=caps.job_history_days,
+            api_keys_limit=caps.api_keys_limit,
         ),
         limits=[
             LimitUsageView(

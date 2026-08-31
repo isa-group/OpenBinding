@@ -14,6 +14,8 @@ dependencies = [
     "httpx>=0.27,<1.0",
     "jsonschema>=4.21,<5.0",
     "pyyaml>=6.0,<7.0",
+    # Offline validation against the vendored OMG BPMN 2.0.2 XSD bundle.
+    "lxml>=5.2,<7.0",
     "python-dotenv>=1.0,<2.0",
     # Accounts, sessions and API keys. SQLAlchemy talks to Postgres through
     # asyncpg in a deployment and to SQLite through aiosqlite in the tests,
@@ -36,11 +38,13 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
+    "pandas>=2.2,<3.0",
     "pytest>=8.0,<9.0",
     "pytest-asyncio>=0.23,<2.0",
     "httpx>=0.27,<1.0",
     "requests>=2.31,<3.0",
-    "ruff>=0.4,<1.0"
+    "ruff>=0.4,<1.0",
+    "scipy>=1.11,<2.0"
 ]
 
 [tool.ruff]

@@ -73,7 +73,6 @@ async def test_usage_reports_the_ceilings_one_request_runs_into(api_client, regi
     assert caps["max_timeout_s"] > 0
     assert caps["max_iterations"] > 0
     assert caps["max_payload_mb"] > 0
-    assert caps["max_binding_space_log10"] > 0
 
 
 async def test_spending_shows_up_in_usage(api_client, registration, gate):
@@ -126,7 +125,13 @@ async def test_an_api_key_works_for_these_too(api_client, registration, gate):
     # point of both channels resolving to the same account.
     _, headers = await account(api_client, registration)
     created = await api_client.post(
-        "/v1/users/me/api-keys", headers=headers, json={"name": "a key"}
+        "/v1/users/me/api-keys",
+        headers=headers,
+        json={
+            "name": "a key",
+            "permissions": ["account:read"],
+            "engine_access": {"all": False, "engines": []},
+        },
     )
 
     usage = await api_client.get(

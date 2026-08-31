@@ -27,19 +27,31 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..models.api import AnalyzeWarning
+from pydantic import BaseModel
+
 from ..space_client import PlanCaps
 
-#: Options naming a duration in milliseconds, bounded by the plan's per-task
-#: ceiling. Collected by name because that is how engines spell them; a new
-#: engine reusing either name is covered without further work.
-TIME_BUDGET_OPTIONS = ("time_limit_ms", "time_budget_ms")
+#: The BIM v1 engine protocol has one public duration option. Keeping the
+#: vocabulary singular prevents account policy from accidentally accepting an
+#: option that no current Engine mode declares.
+TIME_BUDGET_OPTIONS = ("time_budget_ms",)
 
-#: Options naming an amount of search effort, bounded by the iteration ceiling.
-EFFORT_OPTIONS = ("iterations_count", "max_evaluations")
+#: BIM v1's sampling engines count iterations, while its genetic modes count
+#: evaluations. Population size is deliberately absent: that is a shape
+#: parameter bounded by the mode's ``optionsSchema``/``maxPopulation``, not a
+#: search-effort budget.
+EFFORT_OPTIONS = ("iterations", "max_evaluations")
 
 #: Warning code attached when an option was brought down to the plan's ceiling.
 OPTION_CLAMPED = "OPTION_CLAMPED"
+
+
+class AnalyzeWarning(BaseModel):
+    """A non-fatal account-policy adjustment."""
+
+    code: str
+    message: str
+    details: Optional[Dict[str, Any]] = None
 
 
 @dataclass(frozen=True)
@@ -108,10 +120,9 @@ def clamp_options(options: Optional[Dict[str, Any]], caps: PlanCaps) -> ClampedO
 def plan_aware_defaults(defaults: Dict[str, Any], caps: PlanCaps) -> Dict[str, Any]:
     """An engine's defaults, brought within a plan.
 
-    MiniZinc defaults to a fifteen-minute budget and the free plan allows five,
-    so the defaults an account is shown have to be the ones it can actually
-    run. Otherwise the Playground offers a request that is silently reduced the
-    moment it is sent.
+    Mode defaults may evolve independently of account plans, so the defaults an
+    account is shown have to be the ones it can actually run. Otherwise the
+    Playground could offer a request that is reduced the moment it is sent.
     """
     return clamp_options(defaults, caps).options
 
@@ -132,12 +143,12 @@ def payload_ceiling_bytes(caps: PlanCaps, gateway_ceiling: int) -> int:
     return min(gateway_ceiling, caps.max_payload_mb * 1024 * 1024)
 
 
-def binding_space_too_large(log10_cardinality: Optional[float], caps: PlanCaps) -> bool:
+def instance_complexity_too_large(log10_cardinality: Optional[float], caps: PlanCaps) -> bool:
     """Whether this instance is beyond what the plan will solve.
 
-    Refused rather than clamped: an instance's binding space is a fact about
-    the instance, and there is no smaller version of it to run instead.
+    Refused rather than clamped: instance complexity is a fact about the
+    submitted resources, and there is no smaller version to run instead.
     """
     if log10_cardinality is None:
         return False
-    return log10_cardinality > caps.max_binding_space_log10
+    return log10_cardinality > caps.max_instance_complexity_log10

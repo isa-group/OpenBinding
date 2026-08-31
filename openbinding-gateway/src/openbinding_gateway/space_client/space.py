@@ -31,6 +31,8 @@ import base64
 import binascii
 import functools
 import json
+import math
+import os
 import uuid
 from typing import Any, Callable, Dict, Optional, TypeVar
 
@@ -60,8 +62,6 @@ def pricing_version() -> str:
     client turned that 400 into a silent None, so registration looked fine and
     quietly produced accounts with no contract at all.
     """
-    from ..routes.schemas import _pricing_path
-
     try:
         import yaml
 
@@ -77,12 +77,19 @@ def pricing_version() -> str:
 #: Used only when the document cannot be read at all.
 FALLBACK_PRICING_VERSION = "1.1.0"
 
+
+def _pricing_path() -> str:
+    """Locate the deployment's pricing document without an HTTP route import."""
+    configured = os.path.join(os.path.dirname(Settings().schemas_dir), "space", "pricing", "openbinding.yml")
+    if os.path.exists(configured):
+        return configured
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../space/pricing/openbinding.yml"))
+
 #: Limits that bound one request rather than a month, mapped onto PlanCaps.
 _CAP_FIELDS = {
     "maxTimeoutPerTaskLimit": "max_timeout_s",
     "maxIterationsLimit": "max_iterations",
     "maxPayloadSizeLimit": "max_payload_mb",
-    "maxBindingSpaceLimit": "max_binding_space_log10",
     "jobHistoryRetentionLimit": "job_history_days",
     "apiKeysLimit": "api_keys_limit",
 }
@@ -216,14 +223,30 @@ class SpacePricingGate:
         if claims is None:
             return PlanCaps()
 
+        contract = await self._contract(user_id)
+        plan = _plan_name(contract)
         allowances = _scoped(claims.get("pricingContext", {}).get("usageLimits") or {})
         values: Dict[str, Any] = {}
         for limit_name, attribute in _CAP_FIELDS.items():
-            if allowances.get(limit_name) is not None:
-                values[attribute] = allowances[limit_name]
+            allowance = allowances.get(limit_name)
+            if attribute == "api_keys_limit":
+                # Pricing2Yaml carries PRO as ``.inf``; pricing4ts may expose
+                # that as a large numeric sentinel. The plan meaning is still
+                # unlimited, represented inside the gateway as ``None``.
+                # FREE remains a concrete ten.
+                try:
+                    finite = allowance is not None and math.isfinite(float(allowance))
+                except (TypeError, ValueError):
+                    finite = False
+                if plan == "PRO":
+                    values[attribute] = None
+                elif finite:
+                    values[attribute] = int(float(allowance))
+            elif allowance is not None:
+                values[attribute] = allowance
 
         return PlanCaps(
-            plan=_plan_name(await self._contract(user_id)),
+            plan=plan,
             features=_scoped(claims.get("pricingContext", {}).get("features") or {}),
             **values,
         )
@@ -238,6 +261,14 @@ class SpacePricingGate:
         consumption = _scoped(claims.get("subscriptionContext") or {})
         renewals = _renewal_dates(contract)
 
+        finite_allowances = {}
+        for name, allowance in allowances.items():
+            try:
+                if math.isfinite(float(allowance)):
+                    finite_allowances[name] = allowance
+            except (TypeError, ValueError):
+                continue
+
         return UsageSnapshot(
             plan=_plan_name(contract),
             limits={
@@ -247,7 +278,7 @@ class SpacePricingGate:
                     used=float(consumption.get(name, 0) or 0),
                     renews_at=renewals.get(name),
                 )
-                for name, allowance in allowances.items()
+                for name, allowance in finite_allowances.items()
             },
         )
 

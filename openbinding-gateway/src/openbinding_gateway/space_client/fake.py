@@ -24,7 +24,7 @@ PLAN_LIMITS: Dict[str, Dict[str, float]] = {
         "federatedTasksLimit": 200,
         "concurrentTasksLimit": 1,
         "federatedEnginesLimit": 1,
-        "apiKeysLimit": 2,
+        "apiKeysLimit": 10,
     },
     "PRO": {
         "tasksLimit": 100000,
@@ -32,7 +32,6 @@ PLAN_LIMITS: Dict[str, Dict[str, float]] = {
         "federatedTasksLimit": 100000,
         "concurrentTasksLimit": 5,
         "federatedEnginesLimit": 10,
-        "apiKeysLimit": 10,
     },
 }
 
@@ -42,18 +41,18 @@ PLAN_CAPS: Dict[str, PlanCaps] = {
         max_timeout_s=300.0,
         max_iterations=10_000,
         max_payload_mb=16,
-        max_binding_space_log10=9.0,
+        max_instance_complexity_log10=9.0,
         job_history_days=7,
-        api_keys_limit=2,
+        api_keys_limit=10,
     ),
     "PRO": PlanCaps(
         plan="PRO",
         max_timeout_s=1800.0,
         max_iterations=10_000_000,
         max_payload_mb=512,
-        max_binding_space_log10=30.0,
+        max_instance_complexity_log10=30.0,
         job_history_days=90,
-        api_keys_limit=10,
+        api_keys_limit=None,
     ),
 }
 

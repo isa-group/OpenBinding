@@ -111,7 +111,7 @@ async def _issue_session(
 )
 async def register(
     request: RegisterRequest,
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> UserProfile:
     complaint = password_complaint(request.password)
@@ -167,7 +167,7 @@ async def register(
 )
 async def login(
     request: LoginRequest,
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> TokenPair:
     user = await get_user_by_identifier(session, request.username_or_email)
@@ -196,7 +196,7 @@ async def login(
 )
 async def refresh(
     request: RefreshRequest,
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> TokenPair:
     try:
@@ -234,7 +234,7 @@ async def refresh(
 )
 async def logout(
     request: LogoutRequest,
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> None:
     """Revoke a refresh token.

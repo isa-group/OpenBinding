@@ -257,6 +257,17 @@ async def test_missing_ceilings_fall_back_to_the_cautious_defaults(user_id):
     assert caps.max_iterations == 10_000
 
 
+async def test_api_key_cap_is_ten_on_free_and_unlimited_on_pro(user_id):
+    free = Recorder(token=a_token(limits={"apiKeysLimit": 10}))
+    pro = Recorder(
+        token=a_token(limits={"apiKeysLimit": 100_000_000}),
+        contract={"subscriptionPlans": {"openbinding": "PRO"}},
+    )
+
+    assert (await gate_over(free).caps(user_id)).api_keys_limit == 10
+    assert (await gate_over(pro).caps(user_id)).api_keys_limit is None
+
+
 async def test_an_account_with_no_token_gets_the_cautious_defaults(user_id):
     caps = await gate_over(Recorder(token=None)).caps(user_id)
 
@@ -343,8 +354,7 @@ async def test_a_contract_is_written_against_the_shipped_pricing_version(user_id
     # did not.
     import yaml
 
-    from openbinding_gateway.routes.schemas import _pricing_path
-    from openbinding_gateway.space_client.space import pricing_version
+    from openbinding_gateway.space_client.space import _pricing_path, pricing_version
 
     with open(_pricing_path(), encoding="utf-8") as handle:
         assert pricing_version() == str(yaml.safe_load(handle)["version"])

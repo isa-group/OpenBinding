@@ -1,29 +1,26 @@
-"""The gateway's HTTP surface.
+"""OpenBinding gateway for the BIM v1 language.
 
-Nothing here reads configuration while being imported, which is why the imports
-are ordinary imports at the top of the file. They used to sit below a
-``load_dotenv()`` call because the engine registry read its URLs at import time;
-that is resolved lazily now, and ``.env`` is loaded by the settings object
-itself.
+The public language surface is deliberately assembled from the v1 router and
+the account routers only.  Source instances are compiled by the v1 pipeline;
+there is no second HTTP surface that accepts an earlier document shape.
 """
+
+from __future__ import annotations
 
 import asyncio
 import json
 import logging
-import time
-import uuid
 from contextlib import asynccontextmanager, suppress
-from typing import Any, Dict, Optional
+from pathlib import Path
 
-import httpx
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.responses import JSONResponse
 
 from . import space_client
-from .access import metering, policy
-from .access.dependencies import get_optional_user, optional_session, solve_caller
+from .access import metering
 from .core.settings import get_settings
 from .db import base as db_base
 from .db.bootstrap import (
@@ -32,111 +29,41 @@ from .db.bootstrap import (
     ensure_administrator,
     seed_default_administrator,
 )
-from .db.models import User
-from .jobs import JobManager
-from .models.api import (
-    AnalyzeResponse,
-    AnalyzeWarning,
-    BindingSpacePage,
-    BindingSpaceRequest,
-    JobResponse,
-    JobStatus,
-    Provenance,
-    SolveRequest,
-)
-from .models.errors import (
-    NOT_FOUND_RESPONSE,
-    PAYLOAD_TOO_LARGE_RESPONSE,
-    QUOTA_RESPONSE,
-    UNAUTHORIZED_RESPONSE,
-    UNAVAILABLE_RESPONSE,
-    VIOLATIONS_RESPONSE,
-    api_error,
-)
-from .openapi_examples import (
-    _ANALYZE_FAILED_EXAMPLE,
-    _ANALYZE_VALIDATED_EXAMPLE,
-    _BINDING_SPACE_EXAMPLE,
-    _ENGINES_EXAMPLE,
-    _HEALTH_EXAMPLE,
-    _JOB_COMPLETED_EXAMPLE,
-    _JOB_FAILED_EXAMPLE,
-    _JOB_QUEUED_EXAMPLE,
-)
-from .registry.engine import EngineRegistry
-from .registry.federated import load_entries
 from .routes.admin import router as admin_router
 from .routes.auth import router as auth_router
-from .routes.engines import admin_router as engines_admin_router
-from .routes.engines import router as engines_router
-from .routes.instance_parts import router as instance_parts_router
-from .routes.schemas import router as schemas_router
 from .routes.users import router as users_router
-from .routing.router import PAYLOAD_TOO_LARGE_MESSAGE, PayloadTooLargeError, Router
-from .space_client import PlanCaps, PricingUnavailable
-from .validation.analysis import (
-    compute_binding_space_summary,
-    generate_binding_space_subset,
-    generate_warnings,
+from .routes.v1 import router as v1_router
+from .security.apikeys import (
+    ALL_PERMISSIONS,
+    ENGINE_LIMITED_PERMISSIONS,
+    required_permissions,
 )
-from .validation.pipeline import ValidationPipeline
 
 load_dotenv()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Open what the process needs, and close it on the way out.
-
-    The accounts module is optional: a gateway with no ``DATABASE_URL`` runs
-    exactly as it always did, anonymously, and the endpoints that need a
-    database say so rather than failing obscurely.
-    """
     settings = get_settings()
     if settings.database_url:
         db_base.init_engine(settings.database_url)
     space_client.set_gate(space_client.build_gate(settings))
 
     if settings.database_url:
-        # Without this a fresh deployment has no administrator and no way to
-        # acquire one, since promoting an account is an administrator's job.
         async with db_base.session_factory()() as session:
             configured = await ensure_administrator(session, settings)
-            if not configured:
-                # A deployment that named its administrator gets that one. One
-                # that did not still has to be able to sign in: seed_default_
-                # administrator acts only on a database with no accounts at
-                # all, so this can never take over an installation in use.
-                #
-                # This used to be reachable only by running tools/seed_admin.py
-                # by hand, which meant `docker compose up` produced a gateway
-                # with no accounts and no way to make one - promoting somebody
-                # is an administrator's privilege, and there was no
-                # administrator.
-                if await seed_default_administrator(session):
-                    logging.getLogger(__name__).warning(
-                        "No administrator existed, so '%s' was created with the well-known "
-                        "password '%s'. Sign in, create a real administrator, and delete it.",
-                        DEFAULT_ADMIN_USERNAME,
-                        DEFAULT_ADMIN_PASSWORD,
-                    )
+            if not configured and await seed_default_administrator(session):
+                logging.getLogger(__name__).warning(
+                    "No administrator existed, so '%s' was created with the well-known "
+                    "password '%s'. Sign in, create a real administrator, and delete it.",
+                    DEFAULT_ADMIN_USERNAME,
+                    DEFAULT_ADMIN_PASSWORD,
+                )
             await session.commit()
 
-            # Registered engines live in the database but are looked up from
-            # synchronous code, so the registry holds a snapshot. Loading it
-            # here means the first request after a restart already knows about
-            # them; a row that will not load is skipped and logged rather than
-            # taking the others with it.
-            entries, problems = await load_entries(session)
-            EngineRegistry.refresh_federated(entries)
-            for problem in problems:
-                logging.getLogger(__name__).warning("Federated engine unavailable: %s", problem)
-
-    # A solve that nobody polls for would otherwise hold a concurrency slot
-    # forever, and for an account allowed one that means never solving again.
     reconciler = None
     if settings.database_url:
         reconciler = asyncio.create_task(metering.run_reconciler(space_client.get_gate()))
-
     try:
         yield
     finally:
@@ -150,55 +77,112 @@ async def lifespan(app: FastAPI):
         space_client.set_gate(None)
         await db_base.dispose_engine()
 
-#: Groups the operations, so a generated client and the interactive docs both
-#: organise themselves the way the system is actually divided.
+
 TAGS_METADATA = [
     {"name": "Health", "description": "Whether the gateway is answering."},
-    {"name": "Solving", "description": "Validate an instance, measure it, and solve it."},
-    {"name": "Engines", "description": "Which solvers are registered, and what they accept."},
-    {"name": "Schemas", "description": "The instance schemas, and the pricing, as documents."},
-    {"name": "Instance parts", "description": "Take an instance apart along the tuple, and put it back."},
+    {"name": "BIM v1", "description": "Modular deterministic QoS binding."},
     {"name": "Authentication", "description": "Accounts and sessions."},
-    {"name": "Users", "description": "Your own account: profile, API keys, quotas."},
-    {"name": "Administration", "description": "Other people's accounts. Administrators only."},
+    {"name": "Users", "description": "Your account, keys and quotas."},
+    {"name": "Administration", "description": "Account administration."},
 ]
-
-DESCRIPTION = """\
-A QoS-aware service composition gateway. Validate a binding instance against
-the general schema and against the manifest of the engine you asked for,
-measure its binding space, and route it to that engine.
-
-**This document is the contract.** Instance structure is described in full
-under `SolveRequest.instance`; the shape of a solution is `Solution`, and its
-metrics are always recomputed by the reference evaluator rather than taken from
-whatever the engine reported. An engine only has to return a Task-to-Candidate
-map for the rest to be derived.
-
-**Both channels are the same channel.** A browser session and an `obk_`-prefixed
-API key resolve to the same account, so a pricing plan applies to the caller
-rather than to how they called. Everything the web interface can do is an
-operation here.
-
-**Errors carry a machine-readable `code`.** `402` means an allowance is spent,
-which is worth retrying once it renews; `403` means a permission is missing,
-which is not; `503` with `Retry-After` means the gateway could not find out.
-"""
 
 app = FastAPI(
     title="OpenBinding Gateway",
     version="1.0.0",
-    summary="QoS-aware service composition: validate, measure and solve binding instances.",
-    description=DESCRIPTION,
+    summary="OpenBinding gateway for deterministic BIM v1 QoS binding.",
+    description=(
+        "OpenBinding validates modular BIM v1 Instance packages, lowers them to a "
+        "canonical BindingProblem IR, and reevaluates every returned binding."
+    ),
     openapi_tags=TAGS_METADATA,
     license_info={"name": "CC BY 4.0", "url": "https://creativecommons.org/licenses/by/4.0/"},
     lifespan=lifespan,
     root_path="/api",
 )
 
-MAX_SOLVE_BODY_BYTES = 512 * 1024 * 1024
+_BIM_PATH_PREFIXES = (
+    "/v1/profiles",
+    "/v1/dialects",
+    "/v1/catalog",
+    "/v1/schemas",
+    "/v1/examples",
+    "/v1/engines",
+    "/v1/engine-registrations",
+    "/v1/resources",
+    "/v1/instances",
+    "/v1/analyze",
+    "/v1/jobs",
+)
+
+
+def _is_bim_request(request: Request) -> bool:
+    return any(request.url.path.startswith(prefix) for prefix in _BIM_PATH_PREFIXES)
+
+
+def _problem_response(
+    status_code: int,
+    code: str,
+    detail: str,
+    diagnostics: list[dict] | None = None,
+    headers: dict[str, str] | None = None,
+) -> JSONResponse:
+    body: dict = {
+        "type": f"https://openbinding.dev/problems/{code}",
+        "title": code,
+        "status": status_code,
+        "detail": detail,
+    }
+    if diagnostics:
+        body["diagnostics"] = diagnostics
+    return JSONResponse(
+        body,
+        status_code=status_code,
+        media_type="application/problem+json",
+        headers=headers,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def bim_request_validation_error(request: Request, exc: RequestValidationError):
+    if not _is_bim_request(request):
+        from fastapi.exception_handlers import request_validation_exception_handler
+
+        return await request_validation_exception_handler(request, exc)
+    diagnostics = [
+        {
+            "code": error.get("type", "request_validation"),
+            "message": error.get("msg", "request validation failed"),
+            "pointer": "/" + "/".join(str(part) for part in error.get("loc", ())),
+        }
+        for error in exc.errors()
+    ]
+    return _problem_response(422, "request_validation", "Request validation failed", diagnostics)
+
+
+@app.exception_handler(HTTPException)
+async def bim_http_error(request: Request, exc: HTTPException):
+    if not _is_bim_request(request):
+        from fastapi.exception_handlers import http_exception_handler
+
+        return await http_exception_handler(request, exc)
+    detail = exc.detail
+    if isinstance(detail, dict):
+        code = str(detail.get("code", "request_error"))
+        message = str(detail.get("message", code))
+        diagnostics = detail.get("diagnostics")
+    else:
+        code = "request_error"
+        message = str(detail)
+        diagnostics = None
+    return _problem_response(
+        exc.status_code,
+        code,
+        message,
+        diagnostics,
+        headers=exc.headers,
+    )
 
 settings = get_settings()
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -207,773 +191,990 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-pipeline = ValidationPipeline()
-router = Router()
 
-
-async def plan_caps_for(user: Optional[User]) -> PlanCaps:
-    """The ceilings that bound this caller's request.
-
-    A visitor with no account gets the cautious defaults - the same ones the
-    free plan carries. That matters where solving is left open: an anonymous
-    request is bounded by something rather than by nothing.
-    """
-    if user is None:
-        return PlanCaps()
-    try:
-        return await space_client.get_gate().caps(user.id)
-    except PricingUnavailable as error:
-        if get_settings().space_fail_mode == "open":
-            # Development, and deployments that would rather work than meter.
-            return PlanCaps()
-        raise _pricing_unavailable(error) from error
-
-
-def _pricing_unavailable(error: Exception) -> HTTPException:
-    """What a caller is told when the pricing service cannot be reached.
-
-    Not a 402: their quota may be perfectly healthy, and saying otherwise
-    would be a lie about the reason. 503 with Retry-After says what it is.
-    """
-    return api_error(
-        status.HTTP_503_SERVICE_UNAVAILABLE,
-        "pricing_unavailable",
-        f"Quotas cannot be checked right now, so solving is on hold: {error}",
-        headers={"Retry-After": "30"},
-    )
-
-
-def _quota_exceeded(verdict) -> HTTPException:
-    """What a caller is told when their plan has nothing left.
-
-    402 rather than 403: this is not a permission the account lacks, it is an
-    allowance it has spent, and the distinction is what tells a client whether
-    retrying later is worth anything.
-    """
-    quota = None
-    if verdict.limit is not None:
-        quota = {
-            "limit_id": verdict.limit.limit_id,
-            "limit": verdict.limit.limit,
-            "used": verdict.limit.used,
-            "renews_at": verdict.limit.renews_at,
-        }
-    return api_error(
-        status.HTTP_402_PAYMENT_REQUIRED,
-        "quota_exceeded",
-        verdict.reason or "Your plan has no allowance left for this.",
-        quota=quota,
-    )
-
-@app.get(
-    "/health",
-    tags=["Health"],
-    operation_id="health",
-    summary="Whether the gateway is up",
-    responses={
-        200: {
-            "description": "OK",
-            "content": {"application/json": {"example": _HEALTH_EXAMPLE}},
-        }
-    },
-)
-async def health():
+@app.get("/health", tags=["Health"], operation_id="health", summary="Whether the gateway is up")
+async def health() -> dict[str, str]:
     return {"status": "ok"}
 
-@app.get(
-    "/v1/engines",
-    tags=["Engines"],
-    operation_id="listEngines",
-    summary="Registered engines and their capabilities",
-    responses={
-        200: {
-            "description": "Registered engines and their capabilities",
-            "content": {"application/json": {"example": _ENGINES_EXAMPLE}},
-        }
-    },
-)
-async def list_engines(user: Optional[User] = Depends(get_optional_user)):
-    """Every engine the caller may use.
 
-    Public, and the answer depends on who is asking: the four built-in engines
-    for everybody, plus the registered ones that are public and the ones this
-    caller owns. An engine somebody may not see is absent rather than listed as
-    forbidden, for the same reason a foreign job answers 404 - whether
-    ``alice~tabu`` exists is Alice's business.
-    """
-    engines = EngineRegistry.list_engines(user)
-
-    async def check_engine_health(engine_id: str, client: httpx.AsyncClient) -> bool:
-        try:
-            transport = EngineRegistry.get_transport(engine_id)
-            if hasattr(transport, "healthy"):
-                # A federated engine is probed through its own declared health
-                # operation, if it declared one. Asking it for /health would be
-                # asking it to implement our contract, which is the thing
-                # federation exists to avoid.
-                return await transport.healthy(client)
-            plugin = EngineRegistry.get_plugin(engine_id)
-            base_url = EngineRegistry.get_url(engine_id)
-            return await plugin.check_engine_health(base_url, client)
-        except Exception:
-            return False
-
-    timeout = httpx.Timeout(1.5, connect=1.0)
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        results = await asyncio.gather(
-            *(check_engine_health(e["id"], client) for e in engines),
-            return_exceptions=True,
-        )
-
-    for engine, result in zip(engines, results, strict=True):
-        engine["active"] = bool(result) and not isinstance(result, Exception)
-
-    return engines
-
-
-@app.get(
-    "/v1/engines/{engine_id}/manifest",
-    tags=["Engines"],
-    operation_id="getEngineManifest",
-    summary="An engine's manifest",
-    responses={
-        200: {"description": "The manifest this engine declares itself with"},
-        404: NOT_FOUND_RESPONSE,
-    },
-)
-async def get_engine_manifest(engine_id: str) -> Dict[str, Any]:
-    """Everything an engine declares about itself, in one document.
-
-    The same document for every engine: the four that ship with the gateway
-    keep it in ``schemas/manifests/``, and a registered one keeps it in a
-    database row. Capabilities, the instance schema and the options schema are
-    all read from here rather than restated in code, so this is the whole of
-    what the gateway believes about an engine.
-
-    It is also the template a third party works from. Fetching the manifest of
-    an engine whose behaviour you want to match, and changing the parts that
-    differ, is a better starting point than an empty file.
-    """
-    try:
-        plugin = EngineRegistry.get_plugin(engine_id)
-    except ValueError as error:
-        raise api_error(
-            status.HTTP_404_NOT_FOUND, "engine_not_found", f"No engine called '{engine_id}'."
-        ) from error
-
-    try:
-        return plugin.get_manifest().model_dump(mode="json", exclude_none=True)
-    except Exception as error:
-        raise api_error(
-            status.HTTP_404_NOT_FOUND,
-            "manifest_unavailable",
-            f"No readable manifest for '{engine_id}'.",
-        ) from error
-
-
-@app.get(
-    "/v1/engines/{engine_id}/options/defaults",
-    tags=["Engines"],
-    operation_id="getEngineDefaultOptions",
-    summary="An engine's default options",
-    responses={
-        200: {
-            "description": "Gateway-level default options for a given engine",
-            "content": {"application/json": {"example": {"iterations_count": 1000}}},
-        },
-        404: NOT_FOUND_RESPONSE,
-    },
-)
-async def get_engine_default_options(engine_id: str) -> Dict[str, Any]:
-    try:
-        plugin = EngineRegistry.get_plugin(engine_id)
-    except ValueError as error:
-        raise api_error(
-            status.HTTP_404_NOT_FOUND, "engine_not_found", f"No engine called '{engine_id}'."
-        ) from error
-
-    defaults = plugin.get_default_options() or {}
-    if not isinstance(defaults, dict):
-        # Defensive: ensure API always returns an object
-        defaults = {}
-    return defaults
-
-
-@app.get(
-    "/v1/engines/{engine_id}/options/schema",
-    tags=["Engines"],
-    operation_id="getEngineOptionsSchema",
-    summary="What options an engine accepts",
-    responses={
-        200: {
-            "description": "A JSON Schema for this engine's options object",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "$schema": "https://json-schema.org/draft/2020-12/schema",
-                        "title": "random-search options",
-                        "type": "object",
-                        "additionalProperties": True,
-                        "properties": {"iterations_count": {"type": "integer", "default": 1000}},
-                    }
-                }
-            },
-        },
-        404: NOT_FOUND_RESPONSE,
-    },
-)
-async def get_engine_options_schema(engine_id: str) -> Dict[str, Any]:
-    """The shape of the ``options`` object, per engine.
-
-    ``SolveRequest.options`` is an open dictionary in the contract, because what
-    belongs in it depends entirely on which engine is being asked. That left a
-    client with the defaults endpoint and guesswork: it could see that
-    ``iterations_count`` defaults to 1000 without learning that it is an integer
-    or that a plan caps it. This says so.
-
-    It is also the counterpart of a registered engine's ``options_schema``: a
-    federated manifest declares one, so a built-in engine had better be able to
-    answer the same question.
-    """
-    try:
-        plugin = EngineRegistry.get_plugin(engine_id)
-    except ValueError as error:
-        raise api_error(
-            status.HTTP_404_NOT_FOUND, "engine_not_found", f"No engine called '{engine_id}'."
-        ) from error
-
-    schema = plugin.get_options_schema()
-    if not isinstance(schema, dict):
-        return {"type": "object", "additionalProperties": True}
-    return schema
-
-def assert_engine_available(engine_id: str, user: Optional[User]) -> None:
-    """Refuse an engine this caller may not use, before anything else happens.
-
-    Before this, naming a registered engine was enough to have an instance
-    validated against its manifest - so a stranger could learn that
-    ``alice~tabu`` exists and what it accepts, and solve on it. Hiding an engine
-    from the catalogue is not the same as refusing to use it, and only the
-    second one is a permission.
-    """
-    refusal = EngineRegistry.refusal_for(engine_id, user)
-    if refusal is not None:
-        code, slug, message = refusal
-        raise api_error(code, slug, message)
-
-
-def validate_and_prepare(request: SolveRequest):
-    """
-    Standard check-and-prep for both solving and analyzing.
-    Ensures the engine exists and the instance follows our QoS schemas.
-    """
-    # Validate Engine ID
-    default_warnings = []
-    try:
-        EngineRegistry.get_plugin(request.engine_id)
-    except ValueError:
-        return {
-            "valid": False,
-            "error": f"Engine '{request.engine_id}' isn't registered here.",
-            "code": "engine_not_found"
-        }
-
-    violations = pipeline.validate_general_schema(request.instance)
-    if violations:
-        return {
-            "valid": False,
-            "error": f"The instance doesn't follow the general QoS structure: {json.dumps([v.model_dump() for v in violations])}",
-            "violations": violations
-        }
-
-    # Stages 2-4: Engine-specific schemas, semantic checks, and logic invariants.
-    try:
-        violations, default_warnings = pipeline.validate_full(request.engine_id, request.instance)
-        if violations:
-            return {
-                "valid": False,
-                "error": f"The problem has semantic or logical errors: {json.dumps([v.model_dump() for v in violations])}",
-                "violations": violations
-            }
-    except ValueError as e:
-        return {"valid": False, "error": str(e), "code": "invalid_input"}
-    except RuntimeError as e:
-        return {"valid": False, "error": str(e), "code": "engine_error"}
-
-    # Everything looks good. Let's calculate the binding space size and check for empty tasks.
-    binding_space = compute_binding_space_summary(request.instance)
-    warnings = generate_warnings(binding_space)
-    if default_warnings:
-        for path, value in default_warnings:
-            warnings.append(
-                AnalyzeWarning(
-                    code="DEFAULT_APPLIED",
-                    message=f"Applied default for '{path}'",
-                    details={"path": path, "value": value}
-                )
-            )
-    
-    return {
-        "valid": True,
-        "binding_space": binding_space,
-        "warnings": warnings
-    }
-
-
-def _content_length_too_large(header_value: str | None, max_bytes: int) -> bool:
-    if not header_value:
-        return False
-    try:
-        return int(header_value) > max_bytes
-    except (TypeError, ValueError):
-        return False
-
-@app.post(
-    "/v1/analyze",
-    tags=["Solving"],
-    operation_id="analyze",
-    summary="Validate an instance and measure its binding space",
-    response_model=AnalyzeResponse,
-    status_code=status.HTTP_200_OK,
-    response_model_exclude_none=True,
-    responses={
-        200: {
-            "description": "Validation result (either validated or failed)",
-            "content": {
-                "application/json": {
-                    "examples": {
-                        "validated": {"summary": "Validated instance", "value": _ANALYZE_VALIDATED_EXAMPLE},
-                        "failed": {"summary": "Failed validation", "value": _ANALYZE_FAILED_EXAMPLE},
-                    }
-                }
-            },
-        }
-    },
-)
-async def analyze(
-    request: SolveRequest, user: Optional[User] = Depends(get_optional_user)
-):
-    start_time = time.time()
-    assert_engine_available(request.engine_id, user)
-    result = validate_and_prepare(request)
-    duration = (time.time() - start_time) * 1000
-
-    if not result["valid"]:
-        # Return failed analysis with structured violations
-        violations_data = result.get("violations", [])
-        
-        # Convert violations to warnings format for the response
-        warnings = []
-        if violations_data:
-            for v in violations_data:
-                if isinstance(v, dict):
-                    warnings.append(AnalyzeWarning(
-                        code=v.get("code", "validation_error"),
-                        message=v.get("message", str(v)),
-                        details={
-                            "path": v.get("path"),
-                            "constraint_id": v.get("constraint_id"),
-                            "stage": v.get("stage")
-                        } if v.get("path") or v.get("constraint_id") else None
-                    ))
-                else:
-                    # Handle ValidationViolation objects
-                    warnings.append(AnalyzeWarning(
-                        code=getattr(v, "code", "validation_error"),
-                        message=getattr(v, "message", str(v)),
-                        details={
-                            "path": getattr(v, "path", None),
-                            "constraint_id": getattr(v, "constraint_id", None),
-                        } if hasattr(v, "path") or hasattr(v, "constraint_id") else None
-                    ))
-        
-        return AnalyzeResponse(
-            status="failed",
-            error=result.get("error", "Validation failed"),
-            warnings=warnings if warnings else None,
-            provenance=Provenance(
-                engine_id=request.engine_id,
-                execution_time_ms=duration
-            )
-        )
-    
-    # Success
-    binding_space = result["binding_space"]
-    warnings = result["warnings"] or []
-
-    # We also check if the engine plugin has any specific warnings (like ignored constraints).
-    plugin_warnings = []
-    try:
-        plugin = EngineRegistry.get_plugin(request.engine_id)
-        if plugin:
-             _, p_warnings = plugin.transform_request(request.instance, request.options)
-             if p_warnings:
-                 plugin_warnings = p_warnings
-    except Exception as e:
-        # If transformation fails here, we just note it as a warning since basic validation passed.
-        plugin_warnings = [f"Wait, engine-specific check failed: {str(e)}"]
-
-    diagnostics = {}
-    
-    # Verbose mode includes these engine-specific details.
-    if request.verbose:
-        if plugin_warnings:
-             diagnostics["warnings"] = plugin_warnings
-    
-    return AnalyzeResponse(
-        status="validated",
-        binding_space=binding_space,
-        warnings=warnings if warnings else None, # Top level returns only general warnings
-        provenance=Provenance(
-            engine_id=request.engine_id,
-            execution_time_ms=duration
-        ),
-        diagnostics=diagnostics if diagnostics else None
-    )
-
-@app.post(
-    "/v1/analyze/binding-space",
-    tags=["Solving"],
-    operation_id="exploreBindingSpace",
-    summary="Enumerate the binding space, a page at a time",
-    response_model=BindingSpacePage,
-    status_code=status.HTTP_200_OK,
-    responses={
-        200: {
-            "description": "A page of the binding space",
-            "content": {"application/json": {"example": _BINDING_SPACE_EXAMPLE}},
-        },
-        422: VIOLATIONS_RESPONSE,
-    },
-)
-async def analyze_binding_space(
-    request: BindingSpaceRequest, user: Optional[User] = Depends(get_optional_user)
-):
-    # Reuse the same validation logic.
-    # We treat BindingSpaceRequest as a SolveRequest for validation since it inherits from it.
-    assert_engine_available(request.engine_id, user)
-    result = validate_and_prepare(request)
-    
-    if not result["valid"]:
-         # Raise 422 with details
-        violations_data = result.get("violations", [])
-        error_response = {
-            "error": result.get("error", "Validation failed"),
-            "violations": []
-        }
-        if violations_data:
-            for v in violations_data:
-                 # Helper to extract dict or object
-                if isinstance(v, dict):
-                     error_response["violations"].append(v)
-                else:
-                    error_response["violations"].append(v.model_dump())
-
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=error_response
-        )
-        
-    # Generate the requested subset
-    subset = generate_binding_space_subset(request.instance, request.offset, request.limit)
-    
-    return BindingSpacePage(
-        total_combinations=subset["total_combinations"],
-        offset=subset["offset"],
-        limit=subset["limit"],
-        bindings=subset["bindings"]
-    )
-
-@app.post(
-    "/v1/solve",
-    tags=["Solving"],
-    operation_id="solve",
-    summary="Solve an instance on one of the engines",
-    response_model=JobResponse,
-    status_code=status.HTTP_202_ACCEPTED,
-    response_model_exclude_none=True,
-    responses={
-        202: {
-            "description": "Solve request accepted (job created)",
-            "content": {"application/json": {"example": _JOB_QUEUED_EXAMPLE}},
-        },
-        200: {
-             "description": "Solve request completed synchronously",
-             "content": {"application/json": {"example": _JOB_COMPLETED_EXAMPLE}},
-        },
-        401: UNAUTHORIZED_RESPONSE,
-        402: QUOTA_RESPONSE,
-        413: PAYLOAD_TOO_LARGE_RESPONSE,
-        422: VIOLATIONS_RESPONSE,
-        503: UNAVAILABLE_RESPONSE,
-    },
-)
-async def solve(
-    http_request: Request,
-    request: SolveRequest,
-    response: Response,
-    user: Optional[User] = Depends(solve_caller),
-    session: Optional[AsyncSession] = Depends(optional_session),
-):
-    caps = await plan_caps_for(user)
-    body_ceiling = policy.payload_ceiling_bytes(caps, MAX_SOLVE_BODY_BYTES)
-    if _content_length_too_large(http_request.headers.get("content-length"), body_ceiling):
-        raise api_error(
-            status.HTTP_413_CONTENT_TOO_LARGE,
-            "payload_too_large",
-            f"Request body is too large. Maximum allowed size is {body_ceiling} bytes.",
-        )
-
-    assert_engine_available(request.engine_id, user)
-    result = validate_and_prepare(request)
-    
-    if not result["valid"]:
-        # Return validation error immediately with structured violations
-        violations_data = result.get("violations", [])
-        
-        error_response = {
-            "error": result.get("error", "Validation failed"),
-            "violations": []
-        }
-        
-        if violations_data:
-            for v in violations_data:
-                if isinstance(v, dict):
-                    error_response["violations"].append({
-                        "code": v.get("code", "validation_error"),
-                        "message": v.get("message", str(v)),
-                        "path": v.get("path"),
-                        "constraint_id": v.get("constraint_id"),
-                        "stage": v.get("stage")
-                    })
-                else:
-                    # Handle ValidationViolation objects
-                    error_response["violations"].append({
-                        "code": getattr(v, "code", "validation_error"),
-                        "message": getattr(v, "message", str(v)),
-                        "path": getattr(v, "path", None),
-                        "constraint_id": getattr(v, "constraint_id", None),
-                    })
-        
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=error_response
-        )
-    
-    binding_space = result.get("binding_space")
-    warnings = result.get("warnings") or []
-
-    # An instance too large for the plan is refused rather than reduced: there
-    # is no smaller version of it to solve instead.
-    log10_size = getattr(binding_space, "log10_cardinality", None)
-    if policy.binding_space_too_large(log10_size, caps):
-        raise api_error(
-            status.HTTP_402_PAYMENT_REQUIRED,
-            "binding_space_too_large",
-            "This instance's binding space is larger than your plan solves.",
-            quota={
-                "limit_id": "maxBindingSpaceLimit",
-                "limit": caps.max_binding_space_log10,
-                "actual": log10_size,
-                "unit": "log10(combinations)",
-            },
-        )
-
-    # Budgets the caller merely asked for are brought within the plan, and the
-    # reduction is reported rather than applied silently.
-    clamped = policy.clamp_options(request.options, caps)
-    request = request.model_copy(update={"options": clamped.options})
-    warnings = warnings + clamped.warnings
-
-    reservation = None
-    if user is not None:
-        gate = space_client.get_gate()
-        try:
-            verdict, reservation = await metering.reserve(gate, user.id)
-            if not verdict.allowed:
-                raise _quota_exceeded(verdict)
-        except PricingUnavailable as error:
-            # Fail closed by default: handing out an unmetered half-hour of
-            # solver time is worse than a temporary outage. Deployments that
-            # would rather keep working than keep accounts set the other mode,
-            # and this solve simply goes uncounted.
-            if get_settings().space_fail_mode != "open":
-                raise _pricing_unavailable(error) from error
-
-    warning_payload = [w.model_dump() if hasattr(w, "model_dump") else w for w in warnings]
-
-    # Hand the validated request over to the router to find a solution.
-    started_at = time.time()
-    try:
-        job_resp = await router.route_solve(
-            request,
-            binding_space=binding_space,
-            warnings=warning_payload,
-            owner_id=user.id if user else None,
-            session=session,
-            budget_s=policy.solve_timeout_s(caps, get_settings().engine_solve_timeout_s),
-        )
-    except PayloadTooLargeError:
-        # Nothing was solved, so nothing is owed.
-        await metering.release(space_client.get_gate(), reservation)
-        raise api_error(
-            status.HTTP_413_CONTENT_TOO_LARGE, "payload_too_large", PAYLOAD_TOO_LARGE_MESSAGE
-        ) from None
-    except Exception:
-        await metering.release(space_client.get_gate(), reservation)
-        raise
-
-    if job_resp.status == JobStatus.COMPLETED or job_resp.status == JobStatus.FAILED:
-        response.status_code = status.HTTP_200_OK
-        # A synchronous engine has already spent whatever it was going to
-        # spend, so the bill is settled here rather than left to a poll that
-        # will never come.
-        if user is not None and session is not None:
-            await metering.settle(
-                space_client.get_gate(),
-                session,
-                uuid.UUID(job_resp.job_id),
-                solver_seconds=_engine_seconds(job_resp, time.time() - started_at),
-            )
-
-    return job_resp
-
-
-def _engine_seconds(job_resp: JobResponse, wall_clock_s: float) -> float:
-    """How long the engine spent, preferring its own account of it.
-
-    An engine that reports its execution time is more accurate than the clock
-    around the call, which also counts transferring the instance. Falling back
-    to the wall clock matters more than the precision does: an engine that
-    reports nothing must not solve for free.
-    """
-    provenance = getattr(job_resp.result, "provenance", None) if job_resp.result else None
-    reported_ms = None
-    if provenance is not None:
-        reported_ms = (
-            provenance.get("execution_time_ms")
-            if isinstance(provenance, dict)
-            else getattr(provenance, "execution_time_ms", None)
-        )
-    if isinstance(reported_ms, (int, float)) and reported_ms > 0:
-        return float(reported_ms) / 1000.0
-    return max(0.0, wall_clock_s)
-
-@app.get(
-    "/v1/jobs/{job_id}",
-    tags=["Solving"],
-    operation_id="getJob",
-    summary="A job's status, and its result once it has one",
-    response_model=JobResponse,
-    response_model_exclude_none=True,
-    responses={
-        200: {
-            "description": "Job status (queued/running/completed/failed)",
-            "content": {
-                "application/json": {
-                    "examples": {
-                        "queued": {"summary": "Queued job", "value": _JOB_QUEUED_EXAMPLE},
-                        "completed": {"summary": "Completed job", "value": _JOB_COMPLETED_EXAMPLE},
-                        "failed": {"summary": "Failed job", "value": _JOB_FAILED_EXAMPLE},
-                    }
-                }
-            },
-        },
-        401: UNAUTHORIZED_RESPONSE,
-        404: {
-            **NOT_FOUND_RESPONSE,
-            "description": (
-                "No such job, or one belonging to somebody else. Deliberately not 403: "
-                "a caller who may not read a job should not learn that it exists."
-            ),
-        },
-        503: UNAVAILABLE_RESPONSE,
-    },
-)
-async def get_job(
-    job_id: str,
-    user: Optional[User] = Depends(solve_caller),
-    session: Optional[AsyncSession] = Depends(optional_session),
-):
-    """A job's status, to whoever is entitled to it.
-
-    A job that belongs to somebody else answers "not found" rather than
-    "forbidden". Job identifiers used to be, in effect, bearer tokens for
-    whatever they named; refusing by existence rather than by permission is
-    what stops the endpoint from confirming which identifiers are real.
-    """
-    stored = await JobManager.get_job(job_id, session=session)
-    if stored is not None and not stored.readable_by(user):
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "No such job.")
-
-    job = await router.get_job_status(job_id, session=session)
-    if not job:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "No such job.")
-    return job
-
-
-@app.get(
-    "/v1/jobs/{job_id}/request",
-    tags=["Solving"],
-    operation_id="getJobRequest",
-    summary="What a job was asked to solve",
-    responses={
-        200: {"description": "The instance and options as they were submitted"},
-        401: UNAUTHORIZED_RESPONSE,
-        404: NOT_FOUND_RESPONSE,
-        503: UNAVAILABLE_RESPONSE,
-    },
-)
-async def get_job_request(
-    job_id: str,
-    user: Optional[User] = Depends(solve_caller),
-    session: Optional[AsyncSession] = Depends(optional_session),
-) -> Dict[str, Any]:
-    """The instance and options a job was given, exactly as submitted.
-
-    A history that records only what came back is a list of outcomes nobody can
-    reproduce - you can see that a solve was feasible three weeks ago and have
-    no way to run it again, compare an engine against it, or find out what
-    changed. The plan sells a retention window; this is what is being retained.
-
-    Kept apart from ``GET /v1/jobs/{id}`` because that one is also the polling
-    endpoint, and returning a megabyte of instance on every poll of a running
-    job would be a poor trade for something wanted once.
-    """
-    stored = await JobManager.get_job(job_id, session=session)
-    if stored is None or not stored.readable_by(user):
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "No such job.")
-
-    instance = (stored.metadata or {}).get("original_request")
-    if not instance:
-        raise api_error(
-            status.HTTP_404_NOT_FOUND,
-            "request_not_kept",
-            "This job did not record what it was asked. Jobs solved before the "
-            "gateway started keeping instances cannot be reproduced.",
-        )
-
-    return {
-        "job_id": stored.id,
-        "engine_id": stored.engine_id,
-        "instance": instance,
-        "options": (stored.metadata or {}).get("options") or {},
-        "submitted_at": getattr(stored, "created_at", None),
-    }
-
-
-# Serving the schema files themselves has nothing to do with solving, so it
-# lives in its own module.
-app.include_router(schemas_router)
-app.include_router(instance_parts_router)
-
-# Accounts. These are registered whether or not this deployment configured a
-# database, because the OpenAPI document describes the API rather than one
-# installation of it; without a database they answer 503 and say why.
+app.include_router(v1_router)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(admin_router)
-# Registering an engine is a documented operation like any other, which is the
-# whole point of the API-first rule: nothing the interface can do is missing here.
-app.include_router(engines_router)
-app.include_router(engines_admin_router)
+
+
+_generated_openapi = app.openapi
+
+
+def openapi_with_security_contract() -> dict:
+    """Add the failures implied by shared auth dependencies in one place."""
+
+    if app.openapi_schema is not None:
+        return app.openapi_schema
+    document = _generated_openapi()
+    problem_schema = {
+        "type": "object",
+        "required": ["type", "title", "status", "detail"],
+        "properties": {
+            "type": {"type": "string", "format": "uri-reference"},
+            "title": {"type": "string"},
+            "status": {"type": "integer"},
+            "detail": {"type": "string"},
+            "diagnostics": {"type": "array", "items": {"type": "object"}},
+        },
+    }
+    document.setdefault("components", {}).setdefault("schemas", {}).setdefault(
+        "ProblemDetails", problem_schema
+    )
+    document["x-api-key-permissions"] = list(ALL_PERMISSIONS)
+    schemas = document["components"]["schemas"]
+    schema_root = Path(settings.schemas_dir)
+    if not schema_root.is_dir():
+        schema_root = Path(__file__).resolve().parents[3] / "schemas"
+
+    def embedded_schema(filename: str, component: str) -> dict:
+        value = json.loads((schema_root / "bim" / "v1" / filename).read_text(encoding="utf-8"))
+
+        def rewrite(item):
+            if isinstance(item, dict):
+                return {
+                    key: (
+                        f"#/components/schemas/{component}{child[1:]}"
+                        if key == "$ref" and isinstance(child, str) and child.startswith("#/")
+                        else rewrite(child)
+                    )
+                    for key, child in item.items()
+                }
+            if isinstance(item, list):
+                return [rewrite(child) for child in item]
+            return item
+
+        return rewrite(value)
+
+    schemas["EngineManifest"] = embedded_schema("engine.schema.json", "EngineManifest")
+    schemas["EngineRegistrationManifest"] = embedded_schema(
+        "engine-registration.schema.json", "EngineRegistrationManifest"
+    )
+    schemas["InstanceManifest"] = embedded_schema("instance.schema.json", "InstanceManifest")
+    schemas["BindingProblem"] = embedded_schema(
+        "binding-problem.schema.json", "BindingProblem"
+    )
+    schemas["ProfileManifest"] = embedded_schema("profile.schema.json", "ProfileManifest")
+    schemas["DialectManifest"] = embedded_schema("dialect.schema.json", "DialectManifest")
+    digest_schema = {"type": "string", "pattern": "^sha256-[0-9a-f]{64}$"}
+    diagnostic_list = {"type": "array", "items": {"type": "object"}}
+    digest_map = {"type": "object", "additionalProperties": digest_schema}
+    resource_ref_required = ["namespace", "name", "version", "digest"]
+    resource_ref_properties = {
+        "namespace": {"type": "string"},
+        "name": {"type": "string"},
+        "version": {"type": "string"},
+        "digest": digest_schema,
+    }
+    schemas["ImmutableResourceRef"] = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": resource_ref_required,
+        "properties": resource_ref_properties,
+    }
+    schemas["EngineRevision"] = {
+        "type": "object",
+        "required": [*resource_ref_required, "status"],
+        "properties": {
+            **resource_ref_properties,
+            "status": {"type": "string", "enum": ["private", "published"]},
+        },
+        "additionalProperties": False,
+    }
+    registration_status = {
+        "type": "string",
+        "enum": ["private", "pending_review", "published", "rejected"],
+    }
+    registration_active = {
+        "type": "boolean",
+        "description": "Whether the owner has enabled this deployment for their own account.",
+    }
+    schemas["EngineRegistrationRevision"] = {
+        "type": "object",
+        "required": [*resource_ref_required, "status", "active"],
+        "properties": {
+            **resource_ref_properties,
+            "status": registration_status,
+            "active": registration_active,
+        },
+        "additionalProperties": False,
+    }
+    schemas["EngineCatalog"] = {
+        "type": "object",
+        "required": ["engines"],
+        "properties": {
+            "engines": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": [*resource_ref_required, "id", "ref", "modes"],
+                    "properties": {
+                        **resource_ref_properties,
+                        "id": {"type": "string"},
+                        "ref": {"$ref": "#/components/schemas/ImmutableResourceRef"},
+                        "modes": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/EngineManifest/$defs/mode"
+                            },
+                        },
+                    },
+                    "additionalProperties": False,
+                },
+            }
+        },
+    }
+    schemas["ProfileCatalogEntry"] = {
+        "type": "object",
+        "required": [
+            "apiVersion",
+            "kind",
+            "metadata",
+            "spec",
+            "id",
+            "digest",
+            "output",
+            "protocol",
+            "protocolDigest",
+        ],
+        "properties": {
+            "apiVersion": {"const": "bim/v1"},
+            "kind": {"const": "Profile"},
+            "metadata": {"type": "object"},
+            "spec": {"type": "object"},
+            "id": {"type": "string"},
+            "digest": digest_schema,
+            "output": {"type": "object"},
+            "protocol": {"const": "bim-engine/v1"},
+            "protocolDigest": digest_schema,
+        },
+        "additionalProperties": False,
+    }
+    schemas["DialectCatalogEntry"] = {
+        "type": "object",
+        "required": ["apiVersion", "kind", "metadata", "spec", "digest"],
+        "properties": {
+            "apiVersion": {"const": "bim/v1"},
+            "kind": {"const": "Dialect"},
+            "metadata": {"type": "object"},
+            "spec": {"type": "object"},
+            "digest": digest_schema,
+        },
+        "additionalProperties": False,
+    }
+    schemas["ReviewableRevision"] = {
+        "type": "object",
+        "required": [*resource_ref_required, "status"],
+        "properties": {
+            **resource_ref_properties,
+            "status": {
+                "type": "string",
+                "enum": ["pending_review", "published"],
+            },
+        },
+        "additionalProperties": False,
+    }
+    schemas["RegisteredResourceSummary"] = {
+        "type": "object",
+        "required": [
+            *resource_ref_required,
+            "role",
+            "apiVersion",
+            "kind",
+            "dialect",
+            "mediaType",
+            "status",
+        ],
+        "properties": {
+            **resource_ref_properties,
+            "role": {"type": "string"},
+            "apiVersion": {"type": "string"},
+            "kind": {"type": "string"},
+            "dialect": {"type": "string"},
+            "mediaType": {"type": "string"},
+            "status": {"const": "published"},
+        },
+        "additionalProperties": False,
+    }
+    schemas["ProfileList"] = {
+        "type": "object",
+        "required": ["profiles"],
+        "properties": {
+            "profiles": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/ProfileCatalogEntry"},
+            }
+        },
+        "additionalProperties": False,
+    }
+    schemas["DialectList"] = {
+        "type": "object",
+        "required": ["dialects"],
+        "properties": {
+            "dialects": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/DialectCatalogEntry"},
+            }
+        },
+        "additionalProperties": False,
+    }
+    schemas["RegisteredResourceList"] = {
+        "type": "object",
+        "required": ["resources"],
+        "properties": {
+            "resources": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/RegisteredResourceSummary"},
+            }
+        },
+        "additionalProperties": False,
+    }
+    schemas["ExampleList"] = {
+        "type": "object",
+        "required": ["examples"],
+        "properties": {
+            "examples": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": False,
+    }
+    schemas["BimCatalog"] = {
+        "type": "object",
+        "required": ["apiVersion", "profiles", "dialects", "resources", "examples", "engines"],
+        "properties": {
+            "apiVersion": {"const": "bim/v1"},
+            "profiles": schemas["ProfileList"]["properties"]["profiles"],
+            "dialects": schemas["DialectList"]["properties"]["dialects"],
+            "resources": schemas["RegisteredResourceList"]["properties"]["resources"],
+            "examples": schemas["ExampleList"]["properties"]["examples"],
+            "engines": schemas["EngineCatalog"]["properties"]["engines"],
+        },
+        "additionalProperties": False,
+    }
+    schemas["EngineRegistrationList"] = {
+        "type": "object",
+        "required": ["registrations"],
+        "properties": {
+            "registrations": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/EngineRegistrationRevision"},
+            }
+        },
+    }
+    schemas["EngineVerificationReport"] = {
+        "type": "object",
+        "required": ["protocol", "protocolDigest", "status", "checks"],
+        "properties": {
+            "protocol": {"const": "bim-engine/v1"},
+            "protocolDigest": {
+                "type": "string",
+                "pattern": "^sha256-[0-9a-f]{64}$",
+            },
+            "status": {"type": "string", "enum": ["pending", "verified", "failed"]},
+            "checks": {"type": "array", "items": {"type": "object"}},
+            "durationMs": {"type": "number", "minimum": 0},
+            "verifiedAt": {"type": "string", "format": "date-time"},
+        },
+        "additionalProperties": True,
+    }
+    nullable_digest = {
+        "oneOf": [
+            {"type": "string", "pattern": "^sha256-[0-9a-f]{64}$"},
+            {"type": "null"},
+        ]
+    }
+    schemas["EngineRegistrationReport"] = {
+        "type": "object",
+        "required": [
+            *resource_ref_required,
+            "status",
+            "active",
+            "openapiDigest",
+            "openapi",
+            "engine",
+            "report",
+        ],
+        "properties": {
+            **resource_ref_properties,
+            "status": registration_status,
+            "active": registration_active,
+            "openapiDigest": nullable_digest,
+            "openapi": {
+                "oneOf": [
+                    {
+                        "$ref": (
+                            "#/components/schemas/EngineRegistrationManifest/"
+                            "properties/spec/properties/openapi"
+                        )
+                    },
+                    {"type": "null"},
+                ]
+            },
+            "engine": {
+                "oneOf": [
+                    {"$ref": "#/components/schemas/EngineManifest"},
+                    {"type": "null"},
+                ]
+            },
+            "report": {
+                "oneOf": [
+                    {"$ref": "#/components/schemas/EngineVerificationReport"},
+                    {"type": "null"},
+                ]
+            },
+        },
+        "additionalProperties": False,
+    }
+    schemas["EngineCredentialInput"] = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["secret"],
+        "properties": {"secret": {"type": "string", "minLength": 1, "writeOnly": True}},
+    }
+    schemas["SnapshotReference"] = {
+        "type": "object",
+        "required": ["snapshot"],
+        "properties": {"snapshot": {"type": "string", "format": "uuid"}},
+        "additionalProperties": False,
+    }
+    schemas["ValidationResult"] = {
+        "type": "object",
+        "required": [
+            "valid",
+            "instanceDigest",
+            "packageDigest",
+            "fileDigests",
+            "resourceDigests",
+            "irDigest",
+            "diagnostics",
+        ],
+        "properties": {
+            "valid": {"const": True},
+            "instanceDigest": digest_schema,
+            "packageDigest": digest_schema,
+            "fileDigests": digest_map,
+            "resourceDigests": digest_map,
+            "irDigest": digest_schema,
+            "diagnostics": diagnostic_list,
+        },
+    }
+    schemas["EngineCompatibility"] = {
+        "type": "object",
+        "required": ["engine", "registration", "mode", "compatible", "diagnostics"],
+        "properties": {
+            "engine": {"$ref": "#/components/schemas/ImmutableResourceRef"},
+            "registration": {"$ref": "#/components/schemas/ImmutableResourceRef"},
+            "mode": {"type": "string"},
+            "compatible": {"type": "boolean"},
+            "diagnostics": diagnostic_list,
+        },
+        "additionalProperties": False,
+    }
+    schemas["AnalysisResult"] = {
+        "type": "object",
+        "required": [
+            *schemas["ValidationResult"]["required"],
+            "analysis",
+            "compatibleModes",
+        ],
+        "properties": {
+            **schemas["ValidationResult"]["properties"],
+            "analysis": {
+                "type": "object",
+                "required": ["tasks", "candidates", "constraints", "placement"],
+                "properties": {
+                    "tasks": {"type": "integer", "minimum": 0},
+                    "candidates": {"type": "integer", "minimum": 0},
+                    "constraints": {"type": "integer", "minimum": 0},
+                    "placement": {"type": "boolean"},
+                },
+                "additionalProperties": False,
+            },
+            "compatibleModes": {
+                "type": "array",
+                "items": {"$ref": "#/components/schemas/EngineCompatibility"},
+            },
+        },
+        "additionalProperties": False,
+    }
+    schemas["SnapshotCreated"] = {
+        "type": "object",
+        "required": [
+            "id",
+            "kind",
+            "instanceDigest",
+            "packageDigest",
+            "irDigest",
+            "fileDigests",
+            "resourceDigests",
+        ],
+        "properties": {
+            "id": {"type": "string", "format": "uuid"},
+            "kind": {"const": "InstanceSnapshot"},
+            "instanceDigest": digest_schema,
+            "packageDigest": digest_schema,
+            "irDigest": digest_schema,
+            "fileDigests": digest_map,
+            "resourceDigests": digest_map,
+        },
+        "additionalProperties": False,
+    }
+    schemas["SnapshotView"] = {
+        "type": "object",
+        "required": [*schemas["SnapshotCreated"]["required"], "instance", "createdAt"],
+        "properties": {
+            **schemas["SnapshotCreated"]["properties"],
+            "instance": {"$ref": "#/components/schemas/InstanceManifest"},
+            "createdAt": {"type": "string", "format": "date-time"},
+        },
+        "additionalProperties": False,
+    }
+    schemas["JobRequest"] = {
+        "type": "object",
+        "required": ["snapshot"],
+        "properties": {
+            "snapshot": {"type": "string", "format": "uuid"},
+            "engine": {
+                "oneOf": [
+                    {"type": "string"},
+                    {"$ref": "#/components/schemas/ImmutableResourceRef"},
+                ]
+            },
+            "registration": {"$ref": "#/components/schemas/ImmutableResourceRef"},
+            "mode": {"type": "string"},
+            "options": {"type": "object"},
+        },
+        "additionalProperties": False,
+    }
+    schemas["JobAccepted"] = {
+        "type": "object",
+        "required": ["id", "status", "profile", "irDigest"],
+        "properties": {
+            "id": {"type": "string", "format": "uuid"},
+            "status": {
+                "type": "string",
+                "enum": ["queued", "running", "completed", "failed"],
+            },
+            "profile": {"type": "string"},
+            "irDigest": digest_schema,
+            "idempotent": {"type": "boolean"},
+        },
+        "additionalProperties": False,
+    }
+    schemas["GatewayBindingResult"] = {
+        "type": "object",
+        "required": ["termination", "solutions"],
+        "properties": {
+            "termination": {
+                "type": "string",
+                "enum": ["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"],
+            },
+            "solutions": {"type": "array", "items": {"type": "object"}},
+            "provenance": {"type": "object"},
+            "error": {"type": "string"},
+        },
+        "additionalProperties": False,
+    }
+    schemas["JobView"] = {
+        "type": "object",
+        "required": ["id", "status", "provenance"],
+        "properties": {
+            "id": {"type": "string", "format": "uuid"},
+            "status": {
+                "type": "string",
+                "enum": ["queued", "running", "completed", "failed"],
+            },
+            "provenance": {"type": "object"},
+            "result": {"$ref": "#/components/schemas/GatewayBindingResult"},
+        },
+        "additionalProperties": False,
+    }
+    schemas["JobInstanceView"] = {
+        "type": "object",
+        "required": [
+            "id",
+            "instanceDigest",
+            "packageDigest",
+            "fileDigests",
+            "resourceDigests",
+            "instance",
+        ],
+        "properties": {
+            "id": {"type": "string", "format": "uuid"},
+            "instanceDigest": digest_schema,
+            "packageDigest": digest_schema,
+            "fileDigests": digest_map,
+            "resourceDigests": digest_map,
+            "instance": {"$ref": "#/components/schemas/InstanceManifest"},
+        },
+        "additionalProperties": False,
+    }
+    schemas["JobReport"] = {
+        "type": "object",
+        "required": ["id", "gatewayEvaluation", "remote", "provenance"],
+        "properties": {
+            "id": {"type": "string", "format": "uuid"},
+            "gatewayEvaluation": {
+                "type": "object",
+                "required": ["termination", "solutions"],
+                "properties": {
+                    "termination": {
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "enum": ["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"],
+                            },
+                            {"type": "null"},
+                        ]
+                    },
+                    "solutions": {"type": "array", "items": {"type": "object"}},
+                },
+                "additionalProperties": False,
+            },
+            "remote": {"type": "object"},
+            "provenance": {"type": "object"},
+        },
+        "additionalProperties": False,
+    }
+
+    def refusal(description: str) -> dict:
+        return {
+            "description": description,
+            "content": {
+                "application/problem+json": {
+                    "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+                }
+            },
+        }
+
+    methods = {"get", "post", "put", "patch", "delete"}
+    for path, path_item in document.get("paths", {}).items():
+        for method, operation in path_item.items():
+            if method not in methods or not operation.get("security"):
+                continue
+            responses = operation.setdefault("responses", {})
+            responses.setdefault("401", refusal("Missing or invalid account credential."))
+            responses.setdefault(
+                "503", refusal("Account authentication is not configured on this deployment.")
+            )
+            permissions = sorted(required_permissions(path, method))
+            operation["x-required-api-key-permissions"] = permissions
+            if set(permissions) & ENGINE_LIMITED_PERMISSIONS:
+                operation["x-api-key-engine-access"] = "exact-revision-allow-list-or-all"
+            if path == "/v1/engine-registrations" and method == "get":
+                operation["x-conditional-api-key-permissions"] = {
+                    "review=true": ["engines:moderate"]
+                }
+            responses.setdefault(
+                "403",
+                refusal(
+                    "The account role, API-key permission, or Engine allow-list does not permit this request."
+                ),
+            )
+            admin_only = (
+                path.startswith("/v1/admin/")
+                or path.endswith("/approve")
+                or path.endswith("/reject")
+            )
+            if admin_only:
+                operation["x-required-role"] = "admin"
+                responses.setdefault("403", refusal("An administrator account is required."))
+
+    def json_body(component: str, description: str) -> dict:
+        return {
+            "required": True,
+            "description": description,
+            "content": {
+                "application/json": {"schema": {"$ref": f"#/components/schemas/{component}"}}
+            },
+        }
+
+    def json_response(component: str, description: str) -> dict:
+        return {
+            "description": description,
+            "content": {
+                "application/json": {"schema": {"$ref": f"#/components/schemas/{component}"}}
+            },
+        }
+
+    zip_schema = {"type": "string", "format": "binary"}
+    zip_media_types = (
+        "application/vnd.bim+zip",
+        "application/x-bim+zip",
+        "application/zip",
+        "application/octet-stream",
+    )
+
+    def package_body(description: str, *, json_component: str | None = None, multipart: bool = False) -> dict:
+        content = {media_type: {"schema": zip_schema} for media_type in zip_media_types}
+        if json_component is not None:
+            content["application/json"] = {
+                "schema": {"$ref": f"#/components/schemas/{json_component}"}
+            }
+        if multipart:
+            content["multipart/form-data"] = {
+                "schema": {
+                    "type": "object",
+                    "required": ["package"],
+                    "properties": {"package": zip_schema},
+                    "additionalProperties": False,
+                }
+            }
+        return {"required": True, "description": description, "content": content}
+
+    def zip_response(description: str) -> dict:
+        return {
+            "description": description,
+            "headers": {
+                "Digest": {
+                    "description": "SHA-256 digest of the returned archive.",
+                    "schema": {"type": "string"},
+                },
+                "Content-Disposition": {
+                    "description": "Suggested .bim.zip filename.",
+                    "schema": {"type": "string"},
+                },
+            },
+            "content": {"application/vnd.bim+zip": {"schema": zip_schema}},
+        }
+
+    paths = document["paths"]
+    profiles = paths["/v1/profiles"]["get"]
+    profiles["responses"]["200"] = json_response("ProfileList", "Installed BIM Profiles.")
+    dialects = paths["/v1/dialects"]
+    dialects["get"]["responses"]["200"] = json_response(
+        "DialectList", "Installed BIM Dialects."
+    )
+    dialects["post"]["summary"] = "Submit an immutable Dialect revision"
+    dialects["post"]["description"] = (
+        "Stores the caller-owned revision for administrator approval. Publication records "
+        "never install executable adapter code; the adapter must already be deployed."
+    )
+    dialects["post"]["requestBody"] = json_body(
+        "DialectManifest", "Immutable BIM v1 Dialect manifest."
+    )
+    dialects["post"]["responses"]["201"] = json_response(
+        "ReviewableRevision", "Dialect revision awaiting administrator review."
+    )
+    dialect_approval = paths["/v1/dialects/{name}/approve"]["post"]
+    dialect_approval["summary"] = "Approve an installed Dialect revision"
+    dialect_approval["responses"]["200"] = json_response(
+        "ReviewableRevision", "Published Dialect revision."
+    )
+
+    resources = paths["/v1/resources"]
+    resources["get"]["responses"]["200"] = json_response(
+        "RegisteredResourceList", "Published immutable BIM resources."
+    )
+    resources["post"]["requestBody"] = {
+        "required": True,
+        "description": "JSON or XML resource governed by an installed Dialect.",
+        "content": {
+            "application/json": {"schema": {"type": "object"}},
+            "application/xml": {"schema": {"type": "string"}},
+            "text/xml": {"schema": {"type": "string"}},
+            "application/vnd.omg.bpmn+xml": {"schema": {"type": "string"}},
+        },
+    }
+    resources["post"]["summary"] = "Submit an immutable BIM resource revision"
+    resources["post"]["description"] = (
+        "Stores JSON or XML source data only; executable adapters are never accepted. "
+        "Ordinary users receive pending_review, while administrators may publish directly."
+    )
+    resources["post"]["responses"]["201"] = json_response(
+        "ReviewableRevision", "Stored immutable resource revision."
+    )
+    resource = paths["/v1/resources/{name}"]["get"]
+    resource["responses"]["200"] = {
+        "description": "Exact published resource bytes in their registered media type.",
+        "headers": {
+            "Digest": {
+                "description": "SHA-256 digest of the resource.",
+                "schema": {"type": "string"},
+            }
+        },
+        "content": {
+            "application/json": {"schema": {"type": "object"}},
+            "application/xml": {"schema": {"type": "string"}},
+            "text/xml": {"schema": {"type": "string"}},
+            "application/vnd.omg.bpmn+xml": {"schema": {"type": "string"}},
+            "application/*+xml": {"schema": {"type": "string"}},
+        },
+    }
+    resource_approval = paths["/v1/resources/{name}/approve"]["post"]
+    resource_approval["summary"] = "Approve a BIM resource revision"
+    resource_approval["responses"]["200"] = json_response(
+        "ReviewableRevision", "Published immutable resource revision."
+    )
+    paths["/v1/catalog"]["get"]["responses"]["200"] = json_response(
+        "BimCatalog", "Profiles, Dialects, resources, examples and visible Engines."
+    )
+    paths["/v1/schemas/{kind}"]["get"]["responses"]["200"] = {
+        "description": "Requested JSON Schema or the BIM Engine OpenAPI contract.",
+        "content": {
+            "application/json": {
+                "schema": {"type": "object", "additionalProperties": True}
+            }
+        },
+    }
+    paths["/v1/pricing"]["get"]["responses"]["200"] = {
+        "description": "Pricing2Yaml contract enforced by this deployment.",
+        "content": {
+            "application/yaml": {"schema": {"type": "string"}}
+        },
+    }
+    examples = paths["/v1/examples"]
+    examples["get"]["responses"]["200"] = json_response(
+        "ExampleList", "Available BIM example package identifiers."
+    )
+    paths["/v1/examples/{example_path}"]["get"]["responses"]["200"] = zip_response(
+        "Portable BIM example package."
+    )
+
+    engines = paths["/v1/engines"]
+    engines["get"]["summary"] = "List Engines visible to the authenticated account"
+    engines["get"]["description"] = (
+        "Returns built-in and published Engines plus the caller's own private revisions. "
+        "Private revisions owned by other accounts, including administrators, are never disclosed."
+    )
+    engines["get"]["responses"]["200"] = json_response("EngineCatalog", "Visible Engine revisions.")
+    engines["post"]["summary"] = "Create an immutable private Engine revision"
+    engines["post"]["description"] = (
+        "Creates a revision owned by the caller. It is private until a related "
+        "EngineRegistration publication request is approved."
+    )
+    engines["post"]["requestBody"] = json_body("EngineManifest", "Portable BIM v1 Engine manifest.")
+    engines["post"]["responses"]["201"] = json_response("EngineRevision", "Private Engine revision created.")
+
+    engine = paths["/v1/engines/{name}"]["get"]
+    engine["summary"] = "Read one exact visible Engine revision"
+    engine["responses"]["200"] = json_response("EngineManifest", "Exact Engine manifest.")
+
+    registrations = paths["/v1/engine-registrations"]
+    registrations["post"]["summary"] = "Create an immutable private engine deployment"
+    registrations["post"]["description"] = (
+        "Stores endpoint details and the complete submitted OpenAPI document privately. "
+        "Creation does not notify administrators and the deployment starts inactive."
+    )
+    registrations["post"]["requestBody"] = json_body(
+        "EngineRegistrationManifest", "Deployment, protocol, authentication and pinned OpenAPI contract."
+    )
+    registrations["post"]["responses"]["201"] = json_response(
+        "EngineRegistrationRevision", "Private inactive registration created."
+    )
+    registrations["get"]["summary"] = "List visible engine deployments"
+    registrations["get"]["description"] = (
+        "Normally returns the caller's registrations and published registrations. "
+        "Administrators may set review=true to receive only explicit publication requests."
+    )
+    registrations["get"]["responses"]["200"] = json_response(
+        "EngineRegistrationList", "Visible registrations."
+    )
+
+    registration = paths["/v1/engine-registrations/{name}"]["get"]
+    registration["summary"] = "Read one exact visible engine deployment"
+    registration["description"] = (
+        "Visible only to its owner, to authenticated users after publication, or to an "
+        "administrator while this exact revision is pending review."
+    )
+    registration["responses"]["200"] = json_response(
+        "EngineRegistrationManifest", "Exact immutable registration manifest."
+    )
+    action_summaries = {
+        "activate": "Verify and enable a deployment for its owner",
+        "deactivate": "Disable a deployment for its owner",
+        "publication-request": "Submit a verified deployment for publication review",
+        "approve": "Approve a publication request",
+        "reject": "Reject a publication request",
+    }
+    action_descriptions = {
+        "activate": (
+            "Owner-only. Revalidates the live pinned OpenAPI and response contract, then "
+            "enables this deployment for the owner's own account without changing its "
+            "publication state."
+        ),
+        "deactivate": (
+            "Owner-only. Disables this deployment for the owner's account; its publication "
+            "state and availability to other authenticated users do not change."
+        ),
+        "publication-request": (
+            "Owner-only. Revalidates an active deployment and makes this exact revision "
+            "discoverable to administrators for the first time."
+        ),
+        "approve": (
+            "Administrator-only. Revalidates a pending request and publishes its immutable "
+            "Engine and deployment to every authenticated account."
+        ),
+        "reject": (
+            "Administrator-only. Removes a pending request from moderation and returns it "
+            "to private owner-only visibility."
+        ),
+    }
+    for action, summary in action_summaries.items():
+        operation = paths[f"/v1/engine-registrations/{{name}}/{action}"]["post"]
+        operation["summary"] = summary
+        operation["description"] = action_descriptions[action]
+        operation["responses"]["200"] = json_response(
+            "EngineRegistrationRevision", "Updated registration lifecycle state."
+        )
+    report = paths["/v1/engine-registrations/{name}/report"]["get"]
+    report["summary"] = "Inspect a visible engine deployment contract"
+    report["description"] = (
+        "Returns the immutable submitted OpenAPI document, its digest, the exact Engine "
+        "manifest and the latest conformance report. It follows the same private, pending-review "
+        "and published visibility rules as the registration itself."
+    )
+    report["responses"]["200"] = json_response(
+        "EngineRegistrationReport", "Pinned deployment contract and verification evidence."
+    )
+    credential = paths["/v1/engine-registrations/{name}/credential"]["put"]
+    credential["summary"] = "Replace a private deployment credential"
+    credential["requestBody"] = json_body(
+        "EngineCredentialInput", "Secret stored encrypted and never returned."
+    )
+    credential["responses"]["200"] = json_response(
+        "EngineRegistrationRevision", "Credential stored; registration is inactive and private."
+    )
+
+    validation = paths["/v1/instances/validate"]["post"]
+    validation["requestBody"] = package_body(
+        "Portable BIM source package to validate without executing an Engine."
+    )
+    validation["responses"]["200"] = json_response(
+        "ValidationResult", "Canonical validation and digest result."
+    )
+    analysis = paths["/v1/analyze"]["post"]
+    analysis["requestBody"] = package_body(
+        "Portable BIM source package, or an exact snapshot owned by the caller.",
+        json_component="SnapshotReference",
+    )
+    analysis["responses"]["200"] = json_response(
+        "AnalysisResult", "Compiled complexity and exact compatible Engine deployments."
+    )
+    snapshots = paths["/v1/instances"]
+    snapshots["post"]["requestBody"] = package_body(
+        "Portable BIM source package to persist privately."
+    )
+    snapshots["post"]["responses"]["201"] = json_response(
+        "SnapshotCreated", "Private immutable Instance snapshot created."
+    )
+    snapshot = paths["/v1/instances/{snapshot_id}"]["get"]
+    snapshot["responses"]["200"] = json_response(
+        "SnapshotView", "Exact private Instance snapshot."
+    )
+    snapshot_source = paths["/v1/instances/{snapshot_id}/source"]["get"]
+    snapshot_source["responses"]["200"] = zip_response(
+        "Original portable source package for the private snapshot."
+    )
+    snapshot_ir = paths["/v1/instances/{snapshot_id}/ir"]["get"]
+    snapshot_ir["responses"]["200"] = json_response(
+        "BindingProblem", "Canonical immutable BindingProblem IR."
+    )
+
+    jobs = paths["/v1/jobs"]
+    jobs["post"]["requestBody"] = package_body(
+        "A BIM package using the default built-in Engine, or a JSON snapshot request that "
+        "selects an exact Engine and deployment.",
+        json_component="JobRequest",
+        multipart=True,
+    )
+    jobs["post"].setdefault("parameters", []).append(
+        {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": False,
+            "description": "Reuse the first response only when the complete request fingerprint matches.",
+            "schema": {"type": "string", "minLength": 1, "maxLength": 255},
+        }
+    )
+    jobs["post"]["responses"]["202"] = json_response(
+        "JobAccepted", "Private asynchronous solve accepted."
+    )
+    job = paths["/v1/jobs/{job_id}"]["get"]
+    job["responses"]["200"] = json_response(
+        "JobView", "Owned job status, provenance and optional result."
+    )
+    job_ir = paths["/v1/jobs/{job_id}/ir"]["get"]
+    job_ir["responses"]["200"] = json_response(
+        "BindingProblem", "Canonical BindingProblem dispatched for the owned job."
+    )
+    job_instance = paths["/v1/jobs/{job_id}/instance"]["get"]
+    job_instance["responses"]["200"] = json_response(
+        "JobInstanceView", "Private source Instance snapshot used by the owned job."
+    )
+    job_report = paths["/v1/jobs/{job_id}/report"]["get"]
+    job_report["responses"]["200"] = json_response(
+        "JobReport", "Gateway reevaluation, remote provenance and immutable execution pins."
+    )
+
+    def add_problem(operation: dict, status_code: int, description: str) -> None:
+        operation.setdefault("responses", {})[str(status_code)] = refusal(description)
+
+    for path, path_item in paths.items():
+        if not any(path.startswith(prefix) for prefix in _BIM_PATH_PREFIXES):
+            continue
+        for method, operation in path_item.items():
+            if method in methods and "422" in operation.get("responses", {}):
+                add_problem(operation, 422, "The request does not satisfy the BIM v1 contract.")
+
+    add_problem(dialects["post"], 403, "The Dialect namespace does not belong to the caller.")
+    add_problem(dialects["post"], 409, "The revision is immutable or its adapter is not installed.")
+    add_problem(dialects["post"], 413, "The Dialect manifest exceeds the request size limit.")
+    add_problem(dialects["post"], 422, "The Dialect manifest is invalid.")
+    add_problem(dialect_approval, 404, "The exact Dialect revision does not exist.")
+    add_problem(dialect_approval, 409, "The referenced adapter contract is not installed.")
+    add_problem(resources["post"], 403, "The resource namespace does not belong to the caller.")
+    add_problem(resources["post"], 409, "The immutable identity or Dialect contract conflicts.")
+    add_problem(resources["post"], 413, "The resource exceeds the request size limit.")
+    add_problem(resources["post"], 415, "The resource media type is not supported.")
+    add_problem(resources["post"], 422, "The resource does not satisfy its installed Dialect.")
+    add_problem(resource, 404, "The exact published resource does not exist.")
+    add_problem(resource_approval, 404, "The exact resource revision does not exist.")
+    add_problem(paths["/v1/schemas/{kind}"]["get"], 404, "The requested BIM schema does not exist.")
+    add_problem(paths["/v1/pricing"]["get"], 404, "This deployment has no pricing document.")
+    add_problem(paths["/v1/examples/{example_path}"]["get"], 404, "The example package does not exist.")
+    add_problem(paths["/v1/examples/{example_path}"]["get"], 422, "The installed example package is invalid.")
+    add_problem(engines["post"], 403, "The manifest namespace does not belong to the caller.")
+    add_problem(engines["post"], 409, "That immutable Engine identity already has different content.")
+    add_problem(engines["post"], 413, "The Engine manifest exceeds the request size limit.")
+    add_problem(engines["post"], 422, "The Engine manifest is invalid.")
+    add_problem(engine, 404, "The exact Engine revision is absent or not visible to the caller.")
+    add_problem(registrations["post"], 403, "The registration namespace does not belong to the caller.")
+    add_problem(registrations["post"], 409, "An immutable reference or protocol/OpenAPI digest does not match.")
+    add_problem(registrations["post"], 413, "The registration exceeds the request size limit.")
+    add_problem(registrations["post"], 422, "The registration, endpoint or submitted OpenAPI is invalid.")
+    add_problem(registrations["get"], 403, "Only administrators may request the moderation queue.")
+    add_problem(registration, 404, "The exact registration is absent or not visible to the caller.")
+    add_problem(report, 404, "The exact registration report is absent or not visible to the caller.")
+    for action in action_summaries:
+        operation = paths[f"/v1/engine-registrations/{{name}}/{action}"]["post"]
+        add_problem(operation, 404, "The exact registration is absent or not visible to this actor.")
+        add_problem(operation, 409, "The requested lifecycle transition or conformance check failed.")
+    add_problem(credential, 404, "The exact private registration is absent or not owned by the caller.")
+    add_problem(credential, 409, "Published registration credentials are immutable.")
+    add_problem(credential, 413, "The credential request exceeds the request size limit.")
+    add_problem(credential, 422, "A non-empty secret is required.")
+    for operation in (validation, analysis, snapshots["post"]):
+        add_problem(operation, 413, "The BIM source package exceeds the request size limit.")
+        add_problem(operation, 415, "The request media type is not a supported BIM package type.")
+        add_problem(operation, 422, "The BIM source package or snapshot reference is invalid.")
+    add_problem(analysis, 404, "The exact private snapshot does not exist for the caller.")
+    for operation in (snapshot, snapshot_source, snapshot_ir):
+        add_problem(operation, 404, "The exact private snapshot does not exist for the caller.")
+    for operation in (job, job_ir, job_instance, job_report):
+        add_problem(operation, 404, "The exact owned job or related artifact does not exist.")
+    add_problem(jobs["post"], 404, "A selected snapshot, Engine or deployment is not visible.")
+    add_problem(jobs["post"], 409, "An immutable selection or idempotency key conflicts.")
+    add_problem(jobs["post"], 413, "The request exceeds the caller or transport size limit.")
+    add_problem(jobs["post"], 415, "The request media type is not supported.")
+    add_problem(jobs["post"], 422, "The package, selection, mode or options are invalid.")
+    add_problem(jobs["post"], 429, "The caller's solve quota or concurrency allowance is exhausted.")
+    app.openapi_schema = document
+    return document
+
+
+app.openapi = openapi_with_security_contract

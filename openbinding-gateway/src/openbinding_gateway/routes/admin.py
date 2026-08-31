@@ -66,7 +66,7 @@ async def _user_or_404(session: AsyncSession, user_id: uuid.UUID) -> User:
     responses={503: UNAVAILABLE_RESPONSE},
 )
 async def list_users(
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
     search: Optional[str] = Query(default=None, description="Match on username or email."),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
@@ -133,7 +133,7 @@ async def update_user(
     user_id: uuid.UUID,
     request: UpdateUserRequest,
     administrator: User = Depends(require_admin),
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> AdminUserView:
     """Change what an administrator is allowed to change.
 
@@ -180,7 +180,7 @@ async def update_user(
 async def change_plan(
     user_id: uuid.UUID,
     request: ChangePlanRequest,
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> AdminUserView:
     """Perform the novation, then update what the interface displays.
 
@@ -225,7 +225,7 @@ async def change_plan(
 )
 async def user_usage(
     user_id: uuid.UUID,
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> UsageView:
     """The same view the account holder sees, read from the contract."""
     user = await _user_or_404(session, user_id)
@@ -242,7 +242,7 @@ async def user_usage(
 async def revoke_api_key(
     user_id: uuid.UUID,
     key_id: uuid.UUID,
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> None:
     """Take back a key, for when one has leaked and its owner is unreachable."""
     api_key = await session.get(ApiKey, key_id)
@@ -263,7 +263,7 @@ async def revoke_api_key(
 )
 async def resync_usage(
     user_id: uuid.UUID,
-    session: AsyncSession = Depends(session_dependency),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> UsageResyncResult:
     """Reconcile the recorded concurrency against the jobs actually in flight.
 

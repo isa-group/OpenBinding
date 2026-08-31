@@ -132,7 +132,6 @@ async def test_changing_plan_raises_the_ceilings(gate, user_id):
     after = await gate.caps(user_id)
 
     assert before.max_timeout_s < after.max_timeout_s
-    assert before.max_binding_space_log10 < after.max_binding_space_log10
 
 
 @pytest.mark.parametrize("plan", ["FREE", "PRO"])
@@ -144,7 +143,6 @@ def test_every_plan_bounds_a_single_request(plan):
     assert caps.max_timeout_s > 0
     assert caps.max_iterations > 0
     assert caps.max_payload_mb > 0
-    assert caps.max_binding_space_log10 > 0
 
 
 async def test_a_pro_ceiling_never_promises_more_than_the_gateway_waits():
