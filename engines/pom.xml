@@ -23,19 +23,20 @@
     <module>binding-core</module>
     <module>random-search</module>
     <module>many-heuristic</module>
+    <module>multi-heuristic</module>
   </modules>
 
   <profiles>
     <!--
-      evolutionary-heuristics targets Java 21 while the other two run on a
+      evolutionary-heuristics targets Java 17 while the other two run on a
       JDK 8 runtime, so it joins the reactor only on a JDK that can build it.
       Without this the aggregator fails on an older JDK with an error about
       the release version, which says nothing about which module or why.
     -->
     <profile>
-      <id>jdk21-engines</id>
+      <id>jdk17-engines</id>
       <activation>
-        <jdk>[21,)</jdk>
+        <jdk>[17,)</jdk>
       </activation>
       <modules>
         <module>evolutionary-heuristics</module>
