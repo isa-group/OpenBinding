@@ -1,0 +1,154 @@
+{
+  "method": "bim-semantic-control-fields/v1",
+  "baselineRevision": "6ac0751",
+  "minimumReduction": 0.5,
+  "cases": {
+    "sequence": {
+      "package": "examples/demo/01_simple_seq",
+      "baseline": {
+        "metricInterpretation": 5,
+        "aggregation": 4,
+        "workflowDialect": 1,
+        "optimization": 2
+      },
+      "expectedControls": 4,
+      "normalizationRanges": {"latency": [30.0, 40.0]},
+      "semanticProjectionSha256": "3284ba5d5e0db3b9c454a029553d1792583f388ed21bf867b429e3bce848f9b7",
+      "historicalComparison": {
+        "status": "exact",
+        "equivalentMetrics": {"latency": 30.0},
+        "objectiveScore": 0.03
+      },
+      "probe": {
+        "binding": {
+          "t1": {"resource": "catalog", "id": "c1a"},
+          "t2": {"resource": "catalog", "id": "c2a"},
+          "t3": {"resource": "catalog", "id": "c3a"}
+        },
+        "metrics": {"latency": 30.0},
+        "mode": "weighted",
+        "score": 0.03,
+        "penalty": 0.0,
+        "violations": []
+      }
+    },
+    "xor": {
+      "package": "examples/demo/03_xor_choice",
+      "baseline": {
+        "metricInterpretation": 5,
+        "aggregation": 5,
+        "workflowDialect": 1,
+        "optimization": 2
+      },
+      "expectedControls": 6,
+      "normalizationRanges": {"availability": [0.950202, 0.950202]},
+      "semanticProjectionSha256": "9beb8898a52a769dd8b155917598018fbfd53079f9e1973250d49ca6abfc5a54",
+      "historicalComparison": {
+        "status": "exact",
+        "equivalentMetrics": {"availability": 0.950202},
+        "objectiveScore": 0.04979800000000001
+      },
+      "probe": {
+        "binding": {
+          "t_common": {"resource": "catalog", "id": "c_common"},
+          "t_path_a": {"resource": "catalog", "id": "c_a"},
+          "t_path_b": {"resource": "catalog", "id": "c_b"}
+        },
+        "metrics": {"availability": 0.950202},
+        "mode": "weighted",
+        "score": 0.04979800000000001,
+        "penalty": 0.0,
+        "violations": []
+      }
+    },
+    "placement": {
+      "package": "examples/placement/01_small_placement",
+      "baseline": {
+        "metricInterpretation": 16,
+        "aggregation": 17,
+        "workflowDialect": 1,
+        "constraints": 13,
+        "optimization": 5,
+        "placement": 10
+      },
+      "expectedControls": 30,
+      "normalizationRanges": {
+        "cost": [3.0, 31.0],
+        "latency": [7.0, 55.0],
+        "security": [0.33, 1.0]
+      },
+      "semanticProjectionSha256": "ca1e564fce89c996de767d6f5d0c142ca952281678b1d14308e3050d6cde974c",
+      "historicalComparison": {
+        "status": "normative-change",
+        "equivalentMetrics": {"latency": 11.0, "security": 0.66},
+        "previous": {"cost": 8.0, "objectiveScore": 0.176},
+        "current": {"cost": 10.0, "objectiveScore": 0.192},
+        "reason": "BIM v1 accounts a selected-candidate metric once instead of dividing it across workflow invocations."
+      },
+      "probe": {
+        "binding": {
+          "t_login": {"resource": "catalog", "id": "c_fog"},
+          "t_process": {"resource": "catalog", "id": "c_fog"},
+          "t_check": {"resource": "catalog", "id": "c_fog"},
+          "t_rules": {"resource": "catalog", "id": "c_fog"},
+          "t_render": {"resource": "catalog", "id": "c_fog"}
+        },
+        "metrics": {"cost": 10.0, "latency": 11.0, "security": 0.66},
+        "mode": "weighted",
+        "score": 0.192,
+        "penalty": 0.0,
+        "violations": []
+      }
+    },
+    "soft-multiobjective": {
+      "package": "experimentation/icws/instances/benatallah2002-selfserv-travel-solution-cts-itas_multi_soft",
+      "baseline": {
+        "metricInterpretation": 25,
+        "aggregation": 25,
+        "workflowDialect": 1,
+        "constraints": 13,
+        "optimization": 5
+      },
+      "expectedControls": 32,
+      "normalizationRanges": {
+        "availability": [0.8666351366890651, 0.9999556000000001],
+        "cost_usd": [1583.5800000000002, 1865.0],
+        "latency_ms": [1060.0, 1358.384]
+      },
+      "semanticProjectionSha256": "41444c7e5a7b1444fad13f9d2c862a710d1d9d527871ce019cc6b2c7ab2bf4be",
+      "historicalComparison": {
+        "status": "normative-change",
+        "equivalentMetrics": {
+          "availability": 0.9661922622771199,
+          "cost_usd": 1630.0,
+          "latency_ms": 1321.0
+        },
+        "previous": {"objectiveScore": 0.16266763082577926, "softPenalty": 0.0},
+        "current": {
+          "objectiveScore": [0.03380773772288015, 0.326, 0.1321, 0.3333333333333333],
+          "softPenalty": 0.3333333333333333
+        },
+        "reason": "BIM v1 gives Pareto objectives and explicitly weighted soft penalties their declared semantics."
+      },
+      "probe": {
+        "binding": {
+          "t_attractions_search": {"resource": "catalog", "id": "svc_ass_1"},
+          "t_flight_booking_domestic": {"resource": "catalog", "id": "svc_dfbs_1"},
+          "t_flight_booking_international": {"resource": "catalog", "id": "svc_ifbs_1"},
+          "t_travel_insurance": {"resource": "catalog", "id": "svc_tis_1"},
+          "t_accommodation_booking": {"resource": "catalog", "id": "svc_abs_1"},
+          "t_car_rental_booking": {"resource": "catalog", "id": "svc_crs_1"}
+        },
+        "metrics": {
+          "availability": 0.9661922622771199,
+          "cost_usd": 1630.0,
+          "latency_ms": 1321.0
+        },
+        "mode": "pareto",
+        "score": [0.03380773772288015, 0.326, 0.1321, 0.3333333333333333],
+        "penalty": 0.3333333333333333,
+        "violations": ["gen_c_dep_same_1"]
+      }
+    }
+  }
+}

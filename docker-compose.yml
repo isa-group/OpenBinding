@@ -1,7 +1,7 @@
 x-proxy-build-args: &proxy-build-args
   HTTP_PROXY: ${HTTP_PROXY_ARG:-}
   HTTPS_PROXY: ${HTTPS_PROXY_ARG:-}
-  NO_PROXY: ${NO_PROXY_ARG:-localhost,127.0.0.1,gateway,gateway-dev,engine-minizinc,engine-random-search,engine-many-heuristic,engine-evolutionary-heuristics,frontend-dev,frontend-prod,nginx,nginx-dev}
+  NO_PROXY: ${NO_PROXY_ARG:-localhost,127.0.0.1,gateway,gateway-dev,engine-minizinc,engine-random-search,engine-many-heuristic,engine-multi-heuristic,engine-evolutionary-heuristics,frontend-dev,frontend-prod,nginx,nginx-dev}
 
 services:
   postgres:
@@ -30,15 +30,14 @@ services:
     profiles: ["prod"]
     volumes:
       - ./schemas:/app/schemas
-      # The pricing document is served by GET /v1/schemas/pricing and rendered
+      # The pricing document is served by GET /v1/pricing and rendered
       # by the interface's plans page, and it lives outside the gateway's own
       # directory - so without this it is simply not in the image.
       - ./space/pricing:/app/space/pricing:ro
       - ./openbinding-gateway:/app
-      - ./examples/generated_instances:/app/examples/generated_instances
+      - ./examples:/app/examples:ro
     environment:
       - APP_ENV=prod
-      - GENERAL_SCHEMA_PATH=/app/schemas/general/schema.json
       - SCHEMAS_DIR=/app/schemas
       - PYTHONPATH=/app/src
       - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_PROD:-https://openbinding.score.us.es,https://openbinding.us.es}
@@ -89,15 +88,23 @@ services:
       - "8000:8000"
     volumes:
       - ./schemas:/app/schemas
-      # The pricing document is served by GET /v1/schemas/pricing and rendered
+      # The pricing document is served by GET /v1/pricing and rendered
       # by the interface's plans page, and it lives outside the gateway's own
       # directory - so without this it is simply not in the image.
       - ./space/pricing:/app/space/pricing:ro
       - ./openbinding-gateway:/app
-      - ./examples/generated_instances:/app/examples/generated_instances
+      - ./examples:/app/examples:ro
+      - ./docs:/app/docs:ro
+      - ./engines:/app/engines:ro
+      - ./tools:/app/repository-tools:ro
+      # The reduced ICSOC integration regression regenerates one historical
+      # case in pytest's temporary directory; the 479 MB generated corpus is
+      # deliberately not mounted or committed.
+      - ./experimentation:/app/experimentation:ro
+      - ./pricings:/app/pricings:ro
     environment:
       - APP_ENV=dev
-      - GENERAL_SCHEMA_PATH=/app/schemas/general/schema.json
+      - OPENBINDING_REPO_ROOT=/app
       - SCHEMAS_DIR=/app/schemas
       - PYTHONPATH=/app/src
       - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_DEV:-http://localhost,http://localhost:80,http://localhost:5173,http://127.0.0.1,http://127.0.0.1:80,http://127.0.0.1:5173}
@@ -174,6 +181,24 @@ services:
       args:
         <<: *proxy-build-args
     profiles: ["dev", "prod"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  # Runnable third-party deployment example. It is intentionally not a
+  # gateway dependency and has no ENGINE_*_URL; federation happens via /v1.
+  engine-multi-heuristic:
+    build:
+      context: ./engines
+      dockerfile: multi-heuristic/Dockerfile
+      args:
+        <<: *proxy-build-args
+    profiles: ["federated-example"]
+    ports:
+      - "8081:8080"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
       interval: 10s
