@@ -1,0 +1,34 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "netedu2020_transport_agency_mono_one_hard",
+    "version": "1.0.0",
+    "description": "Models the running example from 'A Web Service Composition Method Based on OpenAPI Semantic Annotations' (Netedu et al., 2020), Sect. 5 Case Study: A Transport Agency. QoS values are not provided in the paper; a minimal 'cost' feature is added for schema compliance.",
+    "annotations": {
+      "paper": {
+        "title": "A Web Service Composition Method Based on OpenAPI Semantic Annotations",
+        "authors": "A. Netedu et al.",
+        "year": 2020,
+        "doi": "10.1007/978-3-030-34986-8_25"
+      }
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "zhang2014_entertainment_planner_running_example_mono_utility_soft",
+    "version": "1.0.0",
+    "description": "Modeled from the motivating example in 'Context-aware Generic Service Discovery and Service Composition' (IEEE MobServ 2014).",
+    "annotations": {
+      "paper": {
+        "title": "Context-aware Generic Service Discovery and Service Composition",
+        "authors": "Y. Zhang et al.",
+        "year": 2014,
+        "doi": "10.1109/MobServ.2014.27"
+      }
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

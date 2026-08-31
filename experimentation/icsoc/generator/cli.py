@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 from .config import load_config
 from .generator import generate_dataset
@@ -16,10 +16,10 @@ def csv_set(value: str | None) -> set[str] | None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generate and validate BIM' instances for the ICSOC placement dataset")
+    parser = argparse.ArgumentParser(description="Generate and validate BIM v1 instances for the ICSOC placement dataset")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    generate = sub.add_parser("generate", help="Generate BIM' instances and trace reports")
+    generate = sub.add_parser("generate", help="Generate v1 instances and trace reports")
     generate.add_argument("--dataset", required=True, help="Path to experimentation/icsoc/original_dataset")
     generate.add_argument("--pricing-dir", required=True, help="Path to the pricings directory")
     generate.add_argument("--config", default=None, help="YAML config file")
@@ -29,9 +29,9 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--dataset-seeds", default=None, help="Optional comma-separated dataset seeds")
     generate.add_argument("--sizes", default=None, help="Optional comma-separated infrastructure sizes")
 
-    validate = sub.add_parser("validate", help="Validate generated BIM' instances")
+    validate = sub.add_parser("validate", help="Validate generated v1 instances")
     validate.add_argument("--instances", required=True, help="Directory containing generated instances")
-    validate.add_argument("--schema", required=True, help="BIM' JSON Schema path")
+    validate.add_argument("--schema", required=True, help="BIM v1 JSON Schema path")
     validate.add_argument("--report", required=True, help="Validation report JSON path")
 
     return parser
@@ -53,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
             sizes=csv_set(args.sizes),
         )
         print(
-            "Generated BIM' traces: "
+            "Generated BIM v1 traces: "
             f"{len(reports.candidate_rows)} task summaries, "
             f"{len(reports.pricing_rows)} priced candidates"
         )

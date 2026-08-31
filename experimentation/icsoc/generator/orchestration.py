@@ -1,41 +1,63 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import re
+from dataclasses import dataclass
+from itertools import pairwise
 from typing import Any
 
 from .utils import safe_id
 
+APPLICATION_RESOURCE = "application"
 
-@dataclass
-class OrchNode:
-    kind: str
-    task_id: str | None = None
-    bindings: list[str] = field(default_factory=list)
-    latency_bound_ms: float | None = None
-    children: list["OrchNode"] = field(default_factory=list)
-    guard: "OrchNode | None" = None
-    then_branch: "OrchNode | None" = None
-    else_branch: "OrchNode | None" = None
+
+@dataclass(frozen=True)
+class TaskCall:
+    """Source-only details attached to a native BIM task reference."""
+
+    task: dict[str, str]
+    bindings: tuple[str, ...]
+    latency_bound_ms: float
+
+
+@dataclass(frozen=True)
+class Orchestration:
+    """The original dataset orchestration represented as BIM v1 workflow data."""
+
+    workflow: dict[str, Any]
+    calls: dict[str, TaskCall]
+
+
+@dataclass(frozen=True)
+class WorkflowFlow:
+    """Entry, exit and transfer information expressed with BIM references."""
+
+    first: tuple[dict[str, str], ...]
+    last: tuple[dict[str, str], ...]
+    transitions: tuple[dict[str, Any], ...]
 
 
 TOKEN_RE = re.compile(r"\s*([A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|[\[\](),])")
 
 
 class OrchestrationParser:
-    def __init__(self, text: str):
-        self.tokens = [m.group(1) for m in TOKEN_RE.finditer(text)]
+    """Parse the external ICSOC dataset DSL directly into BIM v1 blocks."""
+
+    def __init__(self, text: str, application_resource: str = APPLICATION_RESOURCE):
+        self.tokens = [match.group(1) for match in TOKEN_RE.finditer(text)]
         joined = "".join(self.tokens)
         compact = re.sub(r"\s+", "", text)
         if joined != compact:
             raise ValueError(f"Unsupported orchestration syntax near: {text}")
         self.pos = 0
+        self.application_resource = application_resource
+        self.calls: dict[str, TaskCall] = {}
+        self._exclusive_counter = 0
 
-    def parse(self) -> OrchNode:
-        node = self._expr()
+    def parse(self) -> Orchestration:
+        workflow = self._expression()
         if self.pos != len(self.tokens):
             raise ValueError(f"Unexpected trailing token: {self.tokens[self.pos]}")
-        return node
+        return Orchestration(workflow=workflow, calls=dict(self.calls))
 
     def _peek(self) -> str | None:
         return self.tokens[self.pos] if self.pos < len(self.tokens) else None
@@ -52,53 +74,75 @@ class OrchestrationParser:
         if actual != expected:
             raise ValueError(f"Expected '{expected}', got '{actual}'")
 
-    def _expr(self) -> OrchNode:
+    def _expression(self) -> dict[str, Any]:
         head = self._take()
         if head == "fun":
-            return self._fun()
+            return self._task()
         if head == "seq":
             self._expect("(")
-            first = self._expr()
+            first = self._expression()
             self._expect(",")
-            second = self._expr()
+            second = self._expression()
             self._expect(")")
-            return OrchNode(kind="SEQ", children=[first, second])
+            return {"sequence": [first, second]}
         if head == "par":
             self._expect("(")
-            children: list[OrchNode]
             if self._peek() == "[":
                 self._expect("[")
-                children = [self._expr()]
+                children = [self._expression()]
                 while self._peek() == ",":
                     self._expect(",")
-                    children.append(self._expr())
+                    children.append(self._expression())
                 self._expect("]")
             else:
-                children = [self._expr()]
+                children = [self._expression()]
                 self._expect(",")
-                children.append(self._expr())
+                children.append(self._expression())
             self._expect(")")
-            return OrchNode(kind="AND", children=children)
+            return {"parallel": children}
         if head == "if":
             self._expect("(")
-            guard = self._expr()
+            guard = self._expression()
             self._expect(",")
-            then_branch = self._expr()
+            then_branch = self._expression()
             self._expect(",")
-            else_branch = self._expr()
+            else_branch = self._expression()
             self._expect(")")
-            return OrchNode(kind="IF", guard=guard, then_branch=then_branch, else_branch=else_branch)
+            self._exclusive_counter += 1
+            group = safe_id(f"exclusive_{self._exclusive_counter}")
+            return {
+                "sequence": [
+                    guard,
+                    {
+                        "exclusive": [
+                            {"id": f"{group}_branch_1", "flow": then_branch},
+                            {"id": f"{group}_branch_2", "flow": else_branch},
+                        ]
+                    },
+                ]
+            }
         raise ValueError(f"Unsupported orchestration expression '{head}'")
 
-    def _fun(self) -> OrchNode:
+    def _task(self) -> dict[str, Any]:
         self._expect("(")
-        task_id = self._take()
+        source_name = self._take()
         self._expect(",")
         bindings = self._binding_list()
         self._expect(",")
         latency = float(self._take())
         self._expect(")")
-        return OrchNode(kind="TASK", task_id=task_id, bindings=bindings, latency_bound_ms=latency)
+        name = safe_id(source_name)
+        reference = {"resource": self.application_resource, "id": name}
+        if name in self.calls:
+            raise ValueError(
+                f"Task {source_name!r} appears more than once in the orchestration"
+            )
+        self.calls[name] = TaskCall(
+            task=reference,
+            bindings=tuple(bindings),
+            latency_bound_ms=latency,
+        )
+        return {"task": reference}
 
     def _binding_list(self) -> list[str]:
         self._expect("[")
@@ -113,103 +157,104 @@ class OrchestrationParser:
         return bindings
 
 
-def parse_orchestration(text: str) -> OrchNode:
-    return OrchestrationParser(text).parse()
+def parse_orchestration(
+    text: str,
+    application_resource: str = APPLICATION_RESOURCE,
+) -> Orchestration:
+    return OrchestrationParser(text, application_resource).parse()
 
 
-def collect_task_calls(node: OrchNode) -> dict[str, OrchNode]:
-    out: dict[str, OrchNode] = {}
+def routing_entries(workflow: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build the separate BIM routing overlay from native exclusive branches."""
+    entries: list[dict[str, Any]] = []
 
-    def walk(current: OrchNode) -> None:
-        if current.kind == "TASK" and current.task_id:
-            out[current.task_id] = current
-        for child in current.children:
-            walk(child)
-        if current.guard:
-            walk(current.guard)
-        if current.then_branch:
-            walk(current.then_branch)
-        if current.else_branch:
-            walk(current.else_branch)
+    def walk(node: dict[str, Any]) -> None:
+        for branch in node.get("exclusive", []):
+            entries.append(
+                {
+                    "target": {
+                        "resource": APPLICATION_RESOURCE,
+                        "id": branch["id"],
+                    },
+                    "probability": 0.5,
+                }
+            )
+            walk(branch["flow"])
+        for key in ("sequence", "parallel"):
+            for child in node.get(key, []):
+                walk(child)
+        repeat = node.get("repeat")
+        if repeat:
+            walk(repeat["body"])
 
-    walk(node)
-    return out
-
-
-def to_bim_composition(node: OrchNode) -> dict[str, Any]:
-    counter = 0
-
-    def next_id(prefix: str) -> str:
-        nonlocal counter
-        counter += 1
-        return safe_id(f"n_{counter}_{prefix}")
-
-    def convert(current: OrchNode) -> dict[str, Any]:
-        if current.kind == "TASK":
-            assert current.task_id is not None
-            return {"id": next_id(current.task_id), "kind": "TASK", "task_id": safe_id(current.task_id)}
-        if current.kind == "SEQ":
-            return {"id": next_id("seq"), "kind": "SEQ", "children": [convert(c) for c in current.children]}
-        if current.kind == "AND":
-            return {"id": next_id("and"), "kind": "AND", "children": [convert(c) for c in current.children]}
-        if current.kind == "IF":
-            assert current.guard is not None and current.then_branch is not None and current.else_branch is not None
-            xor = {
-                "id": next_id("xor"),
-                "kind": "XOR",
-                "branches": [
-                    {"p": 0.5, "child": convert(current.then_branch)},
-                    {"p": 0.5, "child": convert(current.else_branch)},
-                ],
-            }
-            return {"id": next_id("if_seq"), "kind": "SEQ", "children": [convert(current.guard), xor]}
-        raise ValueError(f"Unsupported node kind: {current.kind}")
-
-    return {"type": "STRUCTURED", "root": convert(node)}
+    walk(workflow)
+    return entries
 
 
-@dataclass
-class FlowInfo:
-    first: set[str]
-    last: set[str]
-    transitions: list[tuple[str, str, float]]
+def _reference_key(reference: dict[str, str]) -> tuple[str, str]:
+    return reference["resource"], reference["id"]
 
 
-def derive_transitions(node: OrchNode, task_latency: dict[str, float]) -> FlowInfo:
-    if node.kind == "TASK":
-        assert node.task_id is not None
-        tid = safe_id(node.task_id)
-        return FlowInfo(first={tid}, last={tid}, transitions=[])
+def _unique_references(references: list[dict[str, str]]) -> tuple[dict[str, str], ...]:
+    unique: dict[tuple[str, str], dict[str, str]] = {}
+    for reference in references:
+        unique[_reference_key(reference)] = reference
+    return tuple(unique[key] for key in sorted(unique))
 
-    if node.kind in {"SEQ", "AND"}:
-        infos = [derive_transitions(child, task_latency) for child in node.children]
-        transitions: list[tuple[str, str, float]] = []
-        for info in infos:
-            transitions.extend(info.transitions)
-        if node.kind == "SEQ":
-            for left, right in zip(infos, infos[1:]):
-                for from_task in sorted(left.last):
-                    for to_task in sorted(right.first):
-                        transitions.append((from_task, to_task, task_latency[to_task]))
-            return FlowInfo(first=infos[0].first, last=infos[-1].last, transitions=transitions)
-        first = set().union(*(info.first for info in infos))
-        last = set().union(*(info.last for info in infos))
-        return FlowInfo(first=first, last=last, transitions=transitions)
 
-    if node.kind == "IF":
-        assert node.guard is not None and node.then_branch is not None and node.else_branch is not None
-        guard = derive_transitions(node.guard, task_latency)
-        then_info = derive_transitions(node.then_branch, task_latency)
-        else_info = derive_transitions(node.else_branch, task_latency)
-        transitions = [*guard.transitions, *then_info.transitions, *else_info.transitions]
-        for branch in (then_info, else_info):
-            for from_task in sorted(guard.last):
-                for to_task in sorted(branch.first):
-                    transitions.append((from_task, to_task, task_latency[to_task]))
-        return FlowInfo(
-            first=guard.first,
-            last=set(then_info.last) | set(else_info.last),
-            transitions=transitions,
-        )
+def derive_transitions(orchestration: Orchestration) -> WorkflowFlow:
+    """Derive bounded task-to-task transfers from a native BIM workflow."""
 
-    raise ValueError(f"Unsupported node kind: {node.kind}")
+    def visit(node: dict[str, Any]) -> WorkflowFlow:
+        reference = node.get("task")
+        if reference:
+            return WorkflowFlow(first=(reference,), last=(reference,), transitions=())
+
+        if "sequence" in node:
+            children = [visit(child) for child in node["sequence"]]
+            transitions: list[dict[str, Any]] = [
+                transition for child in children for transition in child.transitions
+            ]
+            for left, right in pairwise(children):
+                for source in left.last:
+                    for target in right.first:
+                        call = orchestration.calls[target["id"]]
+                        transitions.append(
+                            {
+                                "from": source,
+                                "to": target,
+                                "maximum": float(call.latency_bound_ms),
+                            }
+                        )
+            return WorkflowFlow(
+                first=children[0].first,
+                last=children[-1].last,
+                transitions=tuple(transitions),
+            )
+
+        if "parallel" in node or "exclusive" in node:
+            branch_nodes = node.get("parallel") or [
+                branch["flow"] for branch in node["exclusive"]
+            ]
+            branches = [visit(child) for child in branch_nodes]
+            return WorkflowFlow(
+                first=_unique_references(
+                    [reference for branch in branches for reference in branch.first]
+                ),
+                last=_unique_references(
+                    [reference for branch in branches for reference in branch.last]
+                ),
+                transitions=tuple(
+                    transition
+                    for branch in branches
+                    for transition in branch.transitions
+                ),
+            )
+
+        if "repeat" in node:
+            return visit(node["repeat"]["body"])
+        if node.get("empty") is True:
+            return WorkflowFlow(first=(), last=(), transitions=())
+        raise ValueError(f"Unsupported BIM workflow block: {node!r}")
+
+    return visit(orchestration.workflow)

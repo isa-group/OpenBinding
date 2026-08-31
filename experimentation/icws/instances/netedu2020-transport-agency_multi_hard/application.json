@@ -1,0 +1,120 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "netedu2020_transport_agency_multi_hard_application"
+  },
+  "spec": {
+    "tasks": {
+      "t_get_country_from_location": "service/t_get_country_from_location",
+      "t_get_transport_company": "service/t_get_transport_company",
+      "t_get_closest_city": "service/t_get_closest_city",
+      "t_get_local_subsidiary": "service/t_get_local_subsidiary",
+      "t_get_vehicle": "service/t_get_vehicle",
+      "t_make_arrangements": "service/t_make_arrangements"
+    },
+    "metrics": {
+      "cost": {
+        "unit": "USD",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      },
+      "availability": {
+        "unit": "ratio",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "product",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "reliability": {
+        "unit": "1",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "product",
+        "domain": {
+          "kind": "ratio",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "security": {
+        "unit": "score",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "min",
+        "domain": {
+          "kind": "real",
+          "minimum": 1,
+          "maximum": 5
+        }
+      },
+      "execution_time": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 20000
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_get_country_from_location"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_get_transport_company"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_get_closest_city"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_get_local_subsidiary"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_get_vehicle"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_make_arrangements"
+          }
+        }
+      ]
+    }
+  }
+}

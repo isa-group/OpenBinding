@@ -1,0 +1,941 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "bultan2003_warehouse_example_mono_utility_hard_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c_authorize_store_v1": {
+        "provides": "service/t_authorize",
+        "metrics": {
+          "latency_ms": 55,
+          "cost_usd": 0.01,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_store"
+        }
+      },
+      "c_ok_bank_v1": {
+        "provides": "service/t_ok",
+        "metrics": {
+          "latency_ms": 45,
+          "cost_usd": 0.01,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_bank"
+        }
+      },
+      "c_order1_store_v1": {
+        "provides": "service/t_order1",
+        "metrics": {
+          "latency_ms": 65,
+          "cost_usd": 0.02,
+          "availability": 0.998,
+          "reliability": 0.996,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_store"
+        }
+      },
+      "c_receipt1_wh1_v1": {
+        "provides": "service/t_receipt1",
+        "metrics": {
+          "latency_ms": 80,
+          "cost_usd": 0.015,
+          "availability": 0.997,
+          "reliability": 0.995,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh1"
+        }
+      },
+      "c_bill1_wh1_v1": {
+        "provides": "service/t_bill1",
+        "metrics": {
+          "latency_ms": 75,
+          "cost_usd": 0.015,
+          "availability": 0.998,
+          "reliability": 0.996,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh1"
+        }
+      },
+      "c_payment1_bank_v1": {
+        "provides": "service/t_payment1",
+        "metrics": {
+          "latency_ms": 90,
+          "cost_usd": 0.03,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_bank"
+        }
+      },
+      "c_order2_store_v1": {
+        "provides": "service/t_order2",
+        "metrics": {
+          "latency_ms": 70,
+          "cost_usd": 0.02,
+          "availability": 0.998,
+          "reliability": 0.996,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_store"
+        }
+      },
+      "c_receipt2_wh2_v1": {
+        "provides": "service/t_receipt2",
+        "metrics": {
+          "latency_ms": 85,
+          "cost_usd": 0.015,
+          "availability": 0.997,
+          "reliability": 0.995,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh2"
+        }
+      },
+      "c_bill2_wh2_v1": {
+        "provides": "service/t_bill2",
+        "metrics": {
+          "latency_ms": 78,
+          "cost_usd": 0.015,
+          "availability": 0.998,
+          "reliability": 0.996,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh2"
+        }
+      },
+      "c_payment2_bank_v1": {
+        "provides": "service/t_payment2",
+        "metrics": {
+          "latency_ms": 95,
+          "cost_usd": 0.03,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_bank"
+        }
+      },
+      "t_authorize_gen_1": {
+        "provides": "service/t_authorize",
+        "metrics": {
+          "latency_ms": 56.03,
+          "cost_usd": 0.01,
+          "availability": 0.9942,
+          "reliability": 1.0,
+          "security": 3.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_ok_gen_1": {
+        "provides": "service/t_ok",
+        "metrics": {
+          "latency_ms": 46.27,
+          "cost_usd": 0.01,
+          "availability": 0.984384,
+          "reliability": 1.0,
+          "security": 4.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_order1_gen_1": {
+        "provides": "service/t_order1",
+        "metrics": {
+          "latency_ms": 66.69,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 0.9752,
+          "security": 2.91
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_receipt1_gen_1": {
+        "provides": "service/t_receipt1",
+        "metrics": {
+          "latency_ms": 79.2,
+          "cost_usd": 0.02,
+          "availability": 0.97957,
+          "reliability": 0.9709,
+          "security": 3.01
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_bill1_gen_1": {
+        "provides": "service/t_bill1",
+        "metrics": {
+          "latency_ms": 72.8,
+          "cost_usd": 0.02,
+          "availability": 0.968331,
+          "reliability": 0.9756,
+          "security": 2.97
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_payment1_gen_1": {
+        "provides": "service/t_payment1",
+        "metrics": {
+          "latency_ms": 87.89,
+          "cost_usd": 0.03,
+          "availability": 0.997928,
+          "reliability": 1.0,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_order2_gen_1": {
+        "provides": "service/t_order2",
+        "metrics": {
+          "latency_ms": 72.01,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 0.9666,
+          "security": 3.02
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_receipt2_gen_1": {
+        "provides": "service/t_receipt2",
+        "metrics": {
+          "latency_ms": 85.02,
+          "cost_usd": 0.01,
+          "availability": 0.997673,
+          "reliability": 0.9848,
+          "security": 3.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_bill2_gen_1": {
+        "provides": "service/t_bill2",
+        "metrics": {
+          "latency_ms": 76.18,
+          "cost_usd": 0.01,
+          "availability": 0.973522,
+          "reliability": 0.9708,
+          "security": 4.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_payment2_gen_1": {
+        "provides": "service/t_payment2",
+        "metrics": {
+          "latency_ms": 93.93,
+          "cost_usd": 0.03,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.85
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_authorize_gen_2": {
+        "provides": "service/t_authorize",
+        "metrics": {
+          "latency_ms": 54.26,
+          "cost_usd": 0.01,
+          "availability": 0.998527,
+          "reliability": 0.9762000000000001,
+          "security": 2.91
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh1"
+        }
+      },
+      "t_bill1_gen_2": {
+        "provides": "service/t_bill1",
+        "metrics": {
+          "latency_ms": 73.99,
+          "cost_usd": 0.01,
+          "availability": 0.996294,
+          "reliability": 1.0,
+          "security": 3.04
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh2"
+        }
+      },
+      "t_bill2_gen_2": {
+        "provides": "service/t_bill2",
+        "metrics": {
+          "latency_ms": 78.59,
+          "cost_usd": 0.02,
+          "availability": 0.990829,
+          "reliability": 1.0,
+          "security": 4.06
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_ok_gen_2": {
+        "provides": "service/t_ok",
+        "metrics": {
+          "latency_ms": 46.21,
+          "cost_usd": 0.01,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_order1_gen_2": {
+        "provides": "service/t_order1",
+        "metrics": {
+          "latency_ms": 66.46,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 0.9740000000000001,
+          "security": 3.02
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_order2_gen_2": {
+        "provides": "service/t_order2",
+        "metrics": {
+          "latency_ms": 68.57,
+          "cost_usd": 0.02,
+          "availability": 0.996217,
+          "reliability": 0.9778,
+          "security": 3.03
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_payment1_gen_2": {
+        "provides": "service/t_payment1",
+        "metrics": {
+          "latency_ms": 90.48,
+          "cost_usd": 0.03,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_payment2_gen_2": {
+        "provides": "service/t_payment2",
+        "metrics": {
+          "latency_ms": 94.53,
+          "cost_usd": 0.03,
+          "availability": 0.973657,
+          "reliability": 1.0,
+          "security": 4.97
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_store"
+        }
+      },
+      "t_receipt1_gen_2": {
+        "provides": "service/t_receipt1",
+        "metrics": {
+          "latency_ms": 79.11,
+          "cost_usd": 0.01,
+          "availability": 0.971762,
+          "reliability": 0.9675,
+          "security": 3.02
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_bank"
+        }
+      },
+      "t_receipt2_gen_2": {
+        "provides": "service/t_receipt2",
+        "metrics": {
+          "latency_ms": 85.74,
+          "cost_usd": 0.01,
+          "availability": 0.996048,
+          "reliability": 1.0,
+          "security": 4.1
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh1"
+        }
+      },
+      "t_authorize_gen_3": {
+        "provides": "service/t_authorize",
+        "metrics": {
+          "latency_ms": 56.2,
+          "cost_usd": 0.01,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 3.03
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh2"
+        }
+      },
+      "t_bill1_gen_3": {
+        "provides": "service/t_bill1",
+        "metrics": {
+          "latency_ms": 76.22,
+          "cost_usd": 0.01,
+          "availability": 0.977922,
+          "reliability": 1.0,
+          "security": 3.03
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_bill2_gen_3": {
+        "provides": "service/t_bill2",
+        "metrics": {
+          "latency_ms": 77.35,
+          "cost_usd": 0.02,
+          "availability": 0.983864,
+          "reliability": 1.0,
+          "security": 4.02
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_ok_gen_3": {
+        "provides": "service/t_ok",
+        "metrics": {
+          "latency_ms": 44.98,
+          "cost_usd": 0.01,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_order1_gen_3": {
+        "provides": "service/t_order1",
+        "metrics": {
+          "latency_ms": 65.5,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 0.9779000000000001,
+          "security": 2.92
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_order2_gen_3": {
+        "provides": "service/t_order2",
+        "metrics": {
+          "latency_ms": 70.45,
+          "cost_usd": 0.02,
+          "availability": 0.982687,
+          "reliability": 0.9873000000000001,
+          "security": 3.06
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_payment1_gen_3": {
+        "provides": "service/t_payment1",
+        "metrics": {
+          "latency_ms": 91.89,
+          "cost_usd": 0.03,
+          "availability": 1.0,
+          "reliability": 0.9699,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_store"
+        }
+      },
+      "t_payment2_gen_3": {
+        "provides": "service/t_payment2",
+        "metrics": {
+          "latency_ms": 94.76,
+          "cost_usd": 0.03,
+          "availability": 0.983712,
+          "reliability": 1.0,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_bank"
+        }
+      },
+      "t_receipt1_gen_3": {
+        "provides": "service/t_receipt1",
+        "metrics": {
+          "latency_ms": 78.43,
+          "cost_usd": 0.01,
+          "availability": 0.971182,
+          "reliability": 0.9856999999999999,
+          "security": 3.03
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh1"
+        }
+      },
+      "t_receipt2_gen_3": {
+        "provides": "service/t_receipt2",
+        "metrics": {
+          "latency_ms": 85.75,
+          "cost_usd": 0.01,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 3.92
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh2"
+        }
+      },
+      "t_authorize_gen_4": {
+        "provides": "service/t_authorize",
+        "metrics": {
+          "latency_ms": 54.13,
+          "cost_usd": 0.01,
+          "availability": 0.974987,
+          "reliability": 0.9793999999999999,
+          "security": 2.97
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_bill1_gen_4": {
+        "provides": "service/t_bill1",
+        "metrics": {
+          "latency_ms": 76.92,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 0.9899,
+          "security": 2.96
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_bill2_gen_4": {
+        "provides": "service/t_bill2",
+        "metrics": {
+          "latency_ms": 79.04,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.12
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_ok_gen_4": {
+        "provides": "service/t_ok",
+        "metrics": {
+          "latency_ms": 46.21,
+          "cost_usd": 0.01,
+          "availability": 1.0,
+          "reliability": 0.9853000000000001,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_order1_gen_4": {
+        "provides": "service/t_order1",
+        "metrics": {
+          "latency_ms": 64.08,
+          "cost_usd": 0.02,
+          "availability": 0.984128,
+          "reliability": 1.0,
+          "security": 2.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_order2_gen_4": {
+        "provides": "service/t_order2",
+        "metrics": {
+          "latency_ms": 70.0,
+          "cost_usd": 0.02,
+          "availability": 0.981079,
+          "reliability": 1.0,
+          "security": 2.95
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_store"
+        }
+      },
+      "t_payment1_gen_4": {
+        "provides": "service/t_payment1",
+        "metrics": {
+          "latency_ms": 88.16,
+          "cost_usd": 0.03,
+          "availability": 1.0,
+          "reliability": 0.9958,
+          "security": 4.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_bank"
+        }
+      },
+      "t_payment2_gen_4": {
+        "provides": "service/t_payment2",
+        "metrics": {
+          "latency_ms": 95.76,
+          "cost_usd": 0.03,
+          "availability": 0.975464,
+          "reliability": 1.0,
+          "security": 4.89
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh1"
+        }
+      },
+      "t_receipt1_gen_4": {
+        "provides": "service/t_receipt1",
+        "metrics": {
+          "latency_ms": 81.41,
+          "cost_usd": 0.02,
+          "availability": 0.975061,
+          "reliability": 0.9677,
+          "security": 3.05
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh2"
+        }
+      },
+      "t_receipt2_gen_4": {
+        "provides": "service/t_receipt2",
+        "metrics": {
+          "latency_ms": 86.99,
+          "cost_usd": 0.02,
+          "availability": 0.980013,
+          "reliability": 1.0,
+          "security": 3.91
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_authorize_gen_5": {
+        "provides": "service/t_authorize",
+        "metrics": {
+          "latency_ms": 55.25,
+          "cost_usd": 0.01,
+          "availability": 1.0,
+          "reliability": 0.9787,
+          "security": 2.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_bill1_gen_5": {
+        "provides": "service/t_bill1",
+        "metrics": {
+          "latency_ms": 75.35,
+          "cost_usd": 0.01,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 3.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_bill2_gen_5": {
+        "provides": "service/t_bill2",
+        "metrics": {
+          "latency_ms": 77.83,
+          "cost_usd": 0.01,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 3.89
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_ok_gen_5": {
+        "provides": "service/t_ok",
+        "metrics": {
+          "latency_ms": 44.24,
+          "cost_usd": 0.01,
+          "availability": 0.969617,
+          "reliability": 0.977,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_order1_gen_5": {
+        "provides": "service/t_order1",
+        "metrics": {
+          "latency_ms": 65.72,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 3.06
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_store"
+        }
+      },
+      "t_order2_gen_5": {
+        "provides": "service/t_order2",
+        "metrics": {
+          "latency_ms": 70.37,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 3.06
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_bank"
+        }
+      },
+      "t_payment1_gen_5": {
+        "provides": "service/t_payment1",
+        "metrics": {
+          "latency_ms": 89.66,
+          "cost_usd": 0.03,
+          "availability": 1.0,
+          "reliability": 0.9698,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh1"
+        }
+      },
+      "t_payment2_gen_5": {
+        "provides": "service/t_payment2",
+        "metrics": {
+          "latency_ms": 94.01,
+          "cost_usd": 0.03,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_wh2"
+        }
+      },
+      "t_receipt1_gen_5": {
+        "provides": "service/t_receipt1",
+        "metrics": {
+          "latency_ms": 80.75,
+          "cost_usd": 0.02,
+          "availability": 0.972502,
+          "reliability": 0.9856999999999999,
+          "security": 3.06
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_receipt2_gen_5": {
+        "provides": "service/t_receipt2",
+        "metrics": {
+          "latency_ms": 84.51,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 3.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_authorize_gen_6": {
+        "provides": "service/t_authorize",
+        "metrics": {
+          "latency_ms": 53.52,
+          "cost_usd": 0.01,
+          "availability": 0.996913,
+          "reliability": 0.9954999999999999,
+          "security": 3.06
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_bill1_gen_6": {
+        "provides": "service/t_bill1",
+        "metrics": {
+          "latency_ms": 74.41,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 0.9691,
+          "security": 3.07
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_bill2_gen_6": {
+        "provides": "service/t_bill2",
+        "metrics": {
+          "latency_ms": 76.04,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 0.9937,
+          "security": 4.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_ok_gen_6": {
+        "provides": "service/t_ok",
+        "metrics": {
+          "latency_ms": 44.16,
+          "cost_usd": 0.01,
+          "availability": 0.981122,
+          "reliability": 0.9795999999999999,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_store"
+        }
+      }
+    },
+    "providers": {
+      "p_store": {},
+      "p_bank": {},
+      "p_wh1": {},
+      "p_wh2": {},
+      "p_gen_shared": {},
+      "p_gen_1": {},
+      "p_gen_2": {},
+      "p_gen_3": {},
+      "p_gen_4": {},
+      "p_gen_5": {}
+    },
+    "metricBindings": {
+      "latency_ms": {
+        "resource": "application",
+        "id": "latency_ms"
+      },
+      "cost_usd": {
+        "resource": "application",
+        "id": "cost_usd"
+      },
+      "availability": {
+        "resource": "application",
+        "id": "availability"
+      },
+      "reliability": {
+        "resource": "application",
+        "id": "reliability"
+      },
+      "security": {
+        "resource": "application",
+        "id": "security"
+      }
+    }
+  }
+}

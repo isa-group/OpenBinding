@@ -1,0 +1,91 @@
+{
+  "case": {
+    "application": "mediaOrch",
+    "datasetSeed": "146588263",
+    "infrastructureSize": 50,
+    "generatorSeed": 12345,
+    "sourceCommit": "81e095ca06f52316f23e738e84011356e0d51e81"
+  },
+  "digests": {
+    "package": "sha256-d9cfdd7911b2c09d1126b6313766a4202730d3f94e12c6b6f6eee502a3fbf6a8",
+    "ir": "sha256-d9f918390977af87ba910858952221ccd2b7bef1a8a19f40e2f1111ac68a4bbe"
+  },
+  "structure": {
+    "tasks": 5,
+    "candidates": 540,
+    "pools": 56,
+    "metrics": 35,
+    "constraints": 13,
+    "demands": 540,
+    "capacityRules": 1,
+    "transitions": 5,
+    "globalLatencyRules": 4
+  },
+  "legacyCorpusRow": {
+    "localConstraints": 12,
+    "globalConstraints": 1,
+    "dependencyConstraints": 0,
+    "resourceCapacityConstraints": 2,
+    "budgetConstraints": 6,
+    "log10BindingSpace": 9.936,
+    "globalBudget": 25.21124166
+  },
+  "normalization": {
+    "latency": {"min": 0.0, "max": 599.28},
+    "cost": {"min": 1.26844236, "max": 225.08162276},
+    "security": {"min": 0.33, "max": 1.0}
+  },
+  "legacyExact": {
+    "engine": "minizinc-csp",
+    "termination": "OPTIMAL",
+    "score": 0.02037444933920705,
+    "metrics": {"cost": 1.26844236, "latency": 37.0, "security": 1.0},
+    "elapsedSeconds": 2.099
+  },
+  "currentExact": {
+    "score": 0.02037444933920705,
+    "metrics": {"cost": 1.26844236, "latency": 37.0, "security": 1.0}
+  },
+  "currentObserved": {
+    "date": "2026-08-28",
+    "random-search": {
+      "seed": 7,
+      "evaluations": 1000,
+      "score": 0.0698825520019213,
+      "metrics": {"cost": 20.075004, "latency": 75.0245, "security": 1.0},
+      "classification": "similar"
+    },
+    "evolutionary-heuristics": {
+      "seed": 7,
+      "evaluations": 1000,
+      "score": 0.06420703414416934,
+      "metrics": {"cost": 16.660663890000002, "latency": 74.137, "security": 1.0},
+      "classification": "similar"
+    }
+  },
+  "heuristicMethod": {
+    "source": "last incumbent at or before 1000 evaluations for each of 10 historical seeds",
+    "sampleCount": 10,
+    "cutoffEvaluations": 1000,
+    "quantileMethod": "linear index (n - 1) * p",
+    "robustUpperFenceFormula": "Q3 + 3 * (Q3 - Q1)"
+  },
+  "heuristic1000Evaluations": {
+    "random-search": {
+      "historicalMin": 0.065503613485025,
+      "historicalQ1": 0.07438611361747388,
+      "historicalMedian": 0.08230290206545454,
+      "historicalQ3": 0.09749580784100842,
+      "historicalMax": 0.11399396674787696,
+      "robustUpperFence": 0.16682489051161203
+    },
+    "evolutionary-heuristics": {
+      "historicalMin": 0.026352915446794,
+      "historicalQ1": 0.02839424256136995,
+      "historicalMedian": 0.03524062708225532,
+      "historicalQ3": 0.04188501726431264,
+      "historicalMax": 0.0660137340236509,
+      "robustUpperFence": 0.0823573413731407
+    }
+  }
+}

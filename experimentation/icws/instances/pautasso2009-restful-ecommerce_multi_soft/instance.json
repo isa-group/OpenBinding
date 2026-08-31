@@ -1,0 +1,35 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "pautasso2009_restful_ecommerce_multi_soft",
+    "version": "1.0.0",
+    "description": "QoS-aware composition instance derived from the running e-Commerce example in Pautasso (2009) 'BPEL for REST'. QoS numbers are illustrative (the paper specifies the workflow/API but not QoS measurements).",
+    "annotations": {
+      "paper": {
+        "title": "RESTful Web service composition with BPEL for REST",
+        "authors": "C. Pautasso",
+        "year": 2009,
+        "doi": "10.1016/j.datak.2009.02.016"
+      }
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json",
+        "routing": "routing.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

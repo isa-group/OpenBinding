@@ -1,0 +1,180 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "benatallah2002_selfserv_travel_solution_cts_itas_many_hard_application"
+  },
+  "spec": {
+    "tasks": {
+      "t_attractions_search": "service/t_attractions_search",
+      "t_flight_booking_domestic": "service/t_flight_booking_domestic",
+      "t_flight_booking_international": "service/t_flight_booking_international",
+      "t_travel_insurance": "service/t_travel_insurance",
+      "t_accommodation_booking": "service/t_accommodation_booking",
+      "t_car_rental_booking": "service/t_car_rental_booking",
+      "n_no_car": {
+        "kind": "local",
+        "name": "Skip car rental (represents the near(...) branch)"
+      }
+    },
+    "metrics": {
+      "latency_ms": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 10000
+        }
+      },
+      "cost_usd": {
+        "unit": "usd",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 5000
+        }
+      },
+      "availability": {
+        "unit": "ratio",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "product",
+          "parallel": "product",
+          "exclusive": "weightedSum",
+          "repeat": "power",
+          "selection": "product"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "reliability": {
+        "unit": "1",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "product",
+          "parallel": "product",
+          "exclusive": "weightedSum",
+          "repeat": "power",
+          "selection": "product"
+        },
+        "domain": {
+          "kind": "ratio",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "security": {
+        "unit": "score",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "min",
+          "parallel": "min",
+          "exclusive": "weightedSum",
+          "repeat": "identity",
+          "selection": "min"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 1,
+          "maximum": 5
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "parallel": [
+            {
+              "task": {
+                "resource": "application",
+                "id": "t_attractions_search"
+              }
+            },
+            {
+              "sequence": [
+                {
+                  "exclusive": [
+                    {
+                      "id": "n_flight_choice_branch_1",
+                      "flow": {
+                        "task": {
+                          "resource": "application",
+                          "id": "t_flight_booking_domestic"
+                        }
+                      }
+                    },
+                    {
+                      "id": "n_flight_choice_branch_2",
+                      "flow": {
+                        "sequence": [
+                          {
+                            "task": {
+                              "resource": "application",
+                              "id": "t_flight_booking_international"
+                            }
+                          },
+                          {
+                            "task": {
+                              "resource": "application",
+                              "id": "t_travel_insurance"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "task": {
+                    "resource": "application",
+                    "id": "t_accommodation_booking"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "exclusive": [
+            {
+              "id": "n_car_choice_branch_1",
+              "flow": {
+                "task": {
+                  "resource": "application",
+                  "id": "t_car_rental_booking"
+                }
+              }
+            },
+            {
+              "id": "n_car_choice_branch_2",
+              "flow": {
+                "task": {
+                  "resource": "application",
+                  "id": "n_no_car"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

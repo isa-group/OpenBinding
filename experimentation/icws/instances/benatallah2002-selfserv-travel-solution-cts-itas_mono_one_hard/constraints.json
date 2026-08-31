@@ -1,0 +1,23 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "benatallah2002_selfserv_travel_solution_cts_itas_mono_one_hard_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "gen_c_global_latency_ms_1": {
+        "assert": "metrics.latency_ms <= 1359.88",
+        "enforcement": "hard"
+      },
+      "gen_c_local_t_flight_booking_domestic_reliability_1": {
+        "assert": "tasks.t_flight_booking_domestic.metrics.reliability >= 0.9725",
+        "enforcement": "hard"
+      },
+      "gen_c_dep_same_1": {
+        "assert": "tasks.t_accommodation_booking.provider == tasks.t_attractions_search.provider",
+        "enforcement": "hard"
+      }
+    }
+  }
+}

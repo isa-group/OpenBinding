@@ -1,0 +1,35 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "benatallah2002_selfserv_travel_solution_cts_itas_many_soft",
+    "version": "1.0.0",
+    "description": "Problem instance derived from the SELF-SERV running example (CTS and ITAS statecharts). QoS values and branch probabilities are illustrative because the paper does not provide numeric QoS.",
+    "annotations": {
+      "paper": {
+        "title": "Declarative Compositionand Peer-to-PeerProvisioning of Dynamic WebServices",
+        "authors": "B. Benatallah et al.",
+        "year": 2002,
+        "doi": "10.1109/ICDE.2002.994738"
+      }
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json",
+        "routing": "routing.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

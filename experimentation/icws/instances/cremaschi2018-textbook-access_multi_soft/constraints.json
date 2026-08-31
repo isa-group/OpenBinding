@@ -1,0 +1,26 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "cremaschi2018_textbook_access_multi_soft_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "gen_c_global_latency_ms_1": {
+        "assert": "metrics.latency_ms <= 1382.51",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "gen_c_local_t_books_reliability_1": {
+        "assert": "tasks.t_books.metrics.reliability >= 0.995",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "gen_c_dep_same_1": {
+        "assert": "tasks.t_archive.provider == tasks.t_books.provider",
+        "enforcement": "soft",
+        "penalty": 1
+      }
+    }
+  }
+}

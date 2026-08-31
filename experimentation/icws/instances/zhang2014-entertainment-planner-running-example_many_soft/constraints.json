@@ -1,0 +1,41 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "zhang2014_entertainment_planner_running_example_many_soft_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "c_within_2km": {
+        "assert": "metrics.distance <= 2000",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "c_time_budget": {
+        "assert": "metrics.time <= 240",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "c_cost_budget": {
+        "assert": "metrics.cost <= 100",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "gen_c_global_cost_1": {
+        "assert": "metrics.cost <= 54.89",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "gen_c_local_t_movie_availability_1": {
+        "assert": "tasks.t_movie.metrics.availability >= 0.98",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "gen_c_dep_same_1": {
+        "assert": "tasks.t_dining.provider == tasks.t_movie.provider",
+        "enforcement": "soft",
+        "penalty": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,1866 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "cremaschi2018_textbook_access_mono_utility_hard_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c_google_books_api": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 250,
+          "cost_usd": 0.0001,
+          "availability": 0.995,
+          "reliability": 0.993,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "c_amazon_market_api": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 400,
+          "cost_usd": 0.001,
+          "availability": 0.99,
+          "reliability": 0.988,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "c_opac_library_api": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 350,
+          "cost_usd": 0.0001,
+          "availability": 0.98,
+          "reliability": 0.978,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "c_google_geocoding_api": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 300,
+          "cost_usd": 0.002,
+          "availability": 0.995,
+          "reliability": 0.993,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "c_google_transit_api": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 450,
+          "cost_usd": 0.0001,
+          "availability": 0.995,
+          "reliability": 0.993,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "c_archive_api": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 500,
+          "cost_usd": 0.0001,
+          "availability": 0.97,
+          "reliability": 0.968,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_books_gen_1": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 250.27,
+          "cost_usd": 0.0,
+          "availability": 0.970656,
+          "reliability": 1.0,
+          "security": 3.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_market_gen_1": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 402.66,
+          "cost_usd": 0.0,
+          "availability": 0.987549,
+          "reliability": 1.0,
+          "security": 4.98
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_library_gen_1": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 341.11,
+          "cost_usd": 0.0,
+          "availability": 0.980612,
+          "reliability": 0.9606,
+          "security": 3.09
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_geocoding_gen_1": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 302.02,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9914000000000001,
+          "security": 3.92
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_transit_gen_1": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 439.11,
+          "cost_usd": 0.0,
+          "availability": 0.977952,
+          "reliability": 1.0,
+          "security": 4.07
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_archive_gen_1": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 503.06,
+          "cost_usd": 0.0,
+          "availability": 0.956024,
+          "reliability": 0.9963,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_archive_gen_2": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 494.4,
+          "cost_usd": 0.0,
+          "availability": 0.973217,
+          "reliability": 0.9412999999999999,
+          "security": 4.88
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "t_books_gen_2": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 255.12,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 3.96
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_geocoding_gen_2": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 297.95,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9878,
+          "security": 3.93
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local"
+        }
+      },
+      "t_library_gen_2": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 348.82,
+          "cost_usd": 0.0,
+          "availability": 0.952039,
+          "reliability": 0.9933,
+          "security": 3.07
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_market_gen_2": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 411.11,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9956,
+          "security": 4.88
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_transit_gen_2": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 436.62,
+          "cost_usd": 0.0,
+          "availability": 0.979665,
+          "reliability": 0.9886,
+          "security": 3.93
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_archive_gen_3": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 498.66,
+          "cost_usd": 0.0,
+          "availability": 0.943994,
+          "reliability": 0.9682,
+          "security": 4.89
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_books_gen_3": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 243.48,
+          "cost_usd": 0.0,
+          "availability": 0.977863,
+          "reliability": 1.0,
+          "security": 3.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_geocoding_gen_3": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 305.94,
+          "cost_usd": 0.0,
+          "availability": 0.994703,
+          "reliability": 1.0,
+          "security": 3.96
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "t_library_gen_3": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 352.53,
+          "cost_usd": 0.0,
+          "availability": 0.982925,
+          "reliability": 0.9887999999999999,
+          "security": 3.07
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "t_market_gen_3": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 406.0,
+          "cost_usd": 0.0,
+          "availability": 0.973312,
+          "reliability": 1.0,
+          "security": 4.88
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "t_transit_gen_3": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 440.3,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_archive_gen_4": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 487.87,
+          "cost_usd": 0.0,
+          "availability": 0.944589,
+          "reliability": 0.9494,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local"
+        }
+      },
+      "t_books_gen_4": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 250.03,
+          "cost_usd": 0.0,
+          "availability": 0.972106,
+          "reliability": 0.9893000000000001,
+          "security": 4.05
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_geocoding_gen_4": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 302.9,
+          "cost_usd": 0.0,
+          "availability": 0.977431,
+          "reliability": 0.9934000000000001,
+          "security": 3.89
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_library_gen_4": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 358.74,
+          "cost_usd": 0.0,
+          "availability": 0.991357,
+          "reliability": 0.961,
+          "security": 2.98
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_market_gen_4": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 396.51,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9979,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_transit_gen_4": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 445.54,
+          "cost_usd": 0.0,
+          "availability": 0.996718,
+          "reliability": 0.9884999999999999,
+          "security": 3.98
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_archive_gen_5": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 503.38,
+          "cost_usd": 0.0,
+          "availability": 0.971479,
+          "reliability": 0.9779000000000001,
+          "security": 4.98
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "t_books_gen_5": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 245.82,
+          "cost_usd": 0.0,
+          "availability": 0.992238,
+          "reliability": 1.0,
+          "security": 4.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "t_geocoding_gen_5": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 300.62,
+          "cost_usd": 0.0,
+          "availability": 0.983201,
+          "reliability": 0.9773999999999999,
+          "security": 3.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "t_library_gen_5": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 355.93,
+          "cost_usd": 0.0,
+          "availability": 0.991587,
+          "reliability": 0.9994,
+          "security": 2.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_market_gen_5": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 406.4,
+          "cost_usd": 0.0,
+          "availability": 0.968705,
+          "reliability": 0.9681000000000001,
+          "security": 4.96
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local"
+        }
+      },
+      "t_transit_gen_5": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 445.63,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_archive_gen_6": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 494.39,
+          "cost_usd": 0.0,
+          "availability": 0.980383,
+          "reliability": 0.9884000000000001,
+          "security": 4.89
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_books_gen_6": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 256.93,
+          "cost_usd": 0.0,
+          "availability": 0.97478,
+          "reliability": 0.9793999999999999,
+          "security": 4.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_geocoding_gen_6": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 298.46,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9861,
+          "security": 4.06
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_library_gen_6": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 357.21,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.998,
+          "security": 3.09
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_market_gen_6": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 409.87,
+          "cost_usd": 0.0,
+          "availability": 0.965028,
+          "reliability": 0.9843999999999999,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "t_transit_gen_6": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 456.47,
+          "cost_usd": 0.0,
+          "availability": 0.97569,
+          "reliability": 0.9886,
+          "security": 3.96
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "t_archive_gen_7": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 488.83,
+          "cost_usd": 0.0,
+          "availability": 0.950163,
+          "reliability": 0.9842,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "t_books_gen_7": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 247.74,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9834999999999999,
+          "security": 4.01
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_geocoding_gen_7": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 305.23,
+          "cost_usd": 0.0,
+          "availability": 0.982777,
+          "reliability": 1.0,
+          "security": 3.9
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local"
+        }
+      },
+      "t_library_gen_7": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 353.26,
+          "cost_usd": 0.0,
+          "availability": 0.992687,
+          "reliability": 0.9534,
+          "security": 2.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_market_gen_7": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 390.0,
+          "cost_usd": 0.0,
+          "availability": 0.961067,
+          "reliability": 0.9751000000000001,
+          "security": 4.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_transit_gen_7": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 457.74,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.01
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_archive_gen_8": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 499.87,
+          "cost_usd": 0.0,
+          "availability": 0.988489,
+          "reliability": 0.9533,
+          "security": 4.85
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_books_gen_8": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 252.43,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.966,
+          "security": 4.01
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_geocoding_gen_8": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 292.56,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "t_library_gen_8": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 343.33,
+          "cost_usd": 0.0,
+          "availability": 0.982993,
+          "reliability": 0.9732999999999999,
+          "security": 3.06
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "t_market_gen_8": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 393.47,
+          "cost_usd": 0.0,
+          "availability": 0.979889,
+          "reliability": 0.9734999999999999,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "t_transit_gen_8": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 446.94,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9656,
+          "security": 4.01
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_archive_gen_9": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 514.55,
+          "cost_usd": 0.0,
+          "availability": 0.94291,
+          "reliability": 0.993,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local"
+        }
+      },
+      "t_books_gen_9": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 247.62,
+          "cost_usd": 0.0,
+          "availability": 0.979967,
+          "reliability": 0.9641,
+          "security": 3.92
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_geocoding_gen_9": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 304.88,
+          "cost_usd": 0.0,
+          "availability": 0.973295,
+          "reliability": 0.9786,
+          "security": 3.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_library_gen_9": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 343.58,
+          "cost_usd": 0.0,
+          "availability": 0.966058,
+          "reliability": 1.0,
+          "security": 3.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_market_gen_9": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 400.76,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9640000000000001,
+          "security": 4.86
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_transit_gen_9": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 439.52,
+          "cost_usd": 0.0,
+          "availability": 0.968892,
+          "reliability": 0.9652,
+          "security": 4.1
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_archive_gen_10": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 504.56,
+          "cost_usd": 0.0,
+          "availability": 0.968295,
+          "reliability": 0.9620000000000001,
+          "security": 4.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "t_books_gen_10": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 254.35,
+          "cost_usd": 0.0,
+          "availability": 0.997499,
+          "reliability": 0.9973000000000001,
+          "security": 3.91
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "t_geocoding_gen_10": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 294.26,
+          "cost_usd": 0.0,
+          "availability": 0.981066,
+          "reliability": 0.9781,
+          "security": 4.02
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "t_library_gen_10": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 356.89,
+          "cost_usd": 0.0,
+          "availability": 0.99595,
+          "reliability": 0.9911,
+          "security": 2.96
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_market_gen_10": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 391.76,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9682,
+          "security": 4.89
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local"
+        }
+      },
+      "t_transit_gen_10": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 457.72,
+          "cost_usd": 0.0,
+          "availability": 0.992615,
+          "reliability": 1.0,
+          "security": 4.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_archive_gen_11": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 490.4,
+          "cost_usd": 0.0,
+          "availability": 0.989264,
+          "reliability": 0.9667,
+          "security": 4.92
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_books_gen_11": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 255.82,
+          "cost_usd": 0.0,
+          "availability": 0.991967,
+          "reliability": 0.9868000000000001,
+          "security": 4.11
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_geocoding_gen_11": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 308.82,
+          "cost_usd": 0.0,
+          "availability": 0.998824,
+          "reliability": 1.0,
+          "security": 4.07
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_library_gen_11": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 341.12,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9723,
+          "security": 3.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_market_gen_11": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 395.49,
+          "cost_usd": 0.0,
+          "availability": 0.96444,
+          "reliability": 0.9649,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "t_transit_gen_11": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 460.1,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.02
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "t_archive_gen_12": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 508.63,
+          "cost_usd": 0.0,
+          "availability": 0.950372,
+          "reliability": 0.9769,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "t_books_gen_12": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 242.94,
+          "cost_usd": 0.0,
+          "availability": 0.9754,
+          "reliability": 0.9845,
+          "security": 4.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_geocoding_gen_12": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 294.5,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9841,
+          "security": 3.93
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local"
+        }
+      },
+      "t_library_gen_12": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 352.29,
+          "cost_usd": 0.0,
+          "availability": 0.966004,
+          "reliability": 0.9567,
+          "security": 2.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_market_gen_12": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 390.79,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9753000000000001,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_transit_gen_12": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 442.63,
+          "cost_usd": 0.0,
+          "availability": 0.990566,
+          "reliability": 0.9873000000000001,
+          "security": 4.01
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_archive_gen_13": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 495.04,
+          "cost_usd": 0.0,
+          "availability": 0.977696,
+          "reliability": 0.9456,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_books_gen_13": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 249.3,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 3.92
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_geocoding_gen_13": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 293.89,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9739,
+          "security": 4.11
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "t_library_gen_13": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 344.49,
+          "cost_usd": 0.0,
+          "availability": 0.970147,
+          "reliability": 0.9795999999999999,
+          "security": 3.02
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "t_market_gen_13": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 391.5,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9852,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "t_transit_gen_13": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 449.85,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.03
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_archive_gen_14": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 497.41,
+          "cost_usd": 0.0,
+          "availability": 0.95645,
+          "reliability": 0.9841,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local"
+        }
+      },
+      "t_books_gen_14": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 245.41,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9652,
+          "security": 3.92
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_geocoding_gen_14": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 304.17,
+          "cost_usd": 0.0,
+          "availability": 0.979282,
+          "reliability": 1.0,
+          "security": 4.1
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_library_gen_14": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 356.61,
+          "cost_usd": 0.0,
+          "availability": 0.97807,
+          "reliability": 0.9726,
+          "security": 2.95
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_market_gen_14": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 407.96,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9773000000000001,
+          "security": 4.87
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_transit_gen_14": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 457.07,
+          "cost_usd": 0.0,
+          "availability": 0.990552,
+          "reliability": 0.9727,
+          "security": 4.09
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_archive_gen_15": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 513.91,
+          "cost_usd": 0.0,
+          "availability": 0.969627,
+          "reliability": 0.9823000000000001,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "t_books_gen_15": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 248.94,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "t_geocoding_gen_15": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 302.06,
+          "cost_usd": 0.0,
+          "availability": 0.996372,
+          "reliability": 1.0,
+          "security": 4.09
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "t_library_gen_15": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 345.85,
+          "cost_usd": 0.0,
+          "availability": 0.971756,
+          "reliability": 0.9499,
+          "security": 3.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_market_gen_15": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 400.62,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.97
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local"
+        }
+      },
+      "t_transit_gen_15": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 453.83,
+          "cost_usd": 0.0,
+          "availability": 0.986498,
+          "reliability": 0.972,
+          "security": 3.98
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_archive_gen_16": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 510.25,
+          "cost_usd": 0.0,
+          "availability": 0.988302,
+          "reliability": 0.9911,
+          "security": 4.86
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_books_gen_16": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 257.45,
+          "cost_usd": 0.0,
+          "availability": 0.966095,
+          "reliability": 0.9979,
+          "security": 4.02
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_geocoding_gen_16": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 293.25,
+          "cost_usd": 0.0,
+          "availability": 0.979151,
+          "reliability": 0.9753000000000001,
+          "security": 4.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_library_gen_16": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 343.44,
+          "cost_usd": 0.0,
+          "availability": 0.951441,
+          "reliability": 0.958,
+          "security": 3.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_market_gen_16": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 400.88,
+          "cost_usd": 0.0,
+          "availability": 0.996581,
+          "reliability": 0.9831,
+          "security": 4.88
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "t_transit_gen_16": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 438.82,
+          "cost_usd": 0.0,
+          "availability": 0.971495,
+          "reliability": 0.9743,
+          "security": 4.04
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "t_archive_gen_17": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 509.02,
+          "cost_usd": 0.0,
+          "availability": 0.989791,
+          "reliability": 0.993,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "t_books_gen_17": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 243.87,
+          "cost_usd": 0.0,
+          "availability": 0.979021,
+          "reliability": 0.9965,
+          "security": 4.05
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_geocoding_gen_17": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 292.24,
+          "cost_usd": 0.0,
+          "availability": 0.994343,
+          "reliability": 0.9851000000000001,
+          "security": 3.88
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local"
+        }
+      },
+      "t_library_gen_17": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 356.04,
+          "cost_usd": 0.0,
+          "availability": 0.952163,
+          "reliability": 0.9834,
+          "security": 3.03
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_market_gen_17": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 399.09,
+          "cost_usd": 0.0,
+          "availability": 0.975712,
+          "reliability": 0.9852,
+          "security": 4.98
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_transit_gen_17": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 439.6,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9854999999999999,
+          "security": 4.09
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_archive_gen_18": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 500.05,
+          "cost_usd": 0.0,
+          "availability": 0.967357,
+          "reliability": 0.951,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_books_gen_18": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 251.12,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 3.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_geocoding_gen_18": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 299.86,
+          "cost_usd": 0.0,
+          "availability": 0.999241,
+          "reliability": 1.0,
+          "security": 4.04
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "t_library_gen_18": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 347.9,
+          "cost_usd": 0.0,
+          "availability": 0.976277,
+          "reliability": 0.9801000000000001,
+          "security": 3.09
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "t_market_gen_18": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 405.75,
+          "cost_usd": 0.0,
+          "availability": 0.987193,
+          "reliability": 0.9987,
+          "security": 4.97
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "t_transit_gen_18": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 456.53,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9899,
+          "security": 4.1
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_archive_gen_19": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 499.07,
+          "cost_usd": 0.0,
+          "availability": 0.941216,
+          "reliability": 0.9671,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local"
+        }
+      },
+      "t_books_gen_19": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 254.67,
+          "cost_usd": 0.0,
+          "availability": 0.99733,
+          "reliability": 1.0,
+          "security": 4.02
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_geocoding_gen_19": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 308.69,
+          "cost_usd": 0.0,
+          "availability": 0.983611,
+          "reliability": 0.9924,
+          "security": 4.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_library_gen_19": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 356.29,
+          "cost_usd": 0.0,
+          "availability": 0.990729,
+          "reliability": 0.9511,
+          "security": 2.97
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_market_gen_19": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 407.25,
+          "cost_usd": 0.0,
+          "availability": 0.98121,
+          "reliability": 0.9806999999999999,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_transit_gen_19": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 463.18,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_archive_gen_20": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 511.86,
+          "cost_usd": 0.0,
+          "availability": 0.961491,
+          "reliability": 0.9891,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_google"
+        }
+      },
+      "t_books_gen_20": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 252.5,
+          "cost_usd": 0.0,
+          "availability": 0.999939,
+          "reliability": 1.0,
+          "security": 3.92
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_amazon"
+        }
+      },
+      "t_geocoding_gen_20": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 292.58,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 3.93
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_unimib"
+        }
+      },
+      "t_library_gen_20": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 354.45,
+          "cost_usd": 0.0,
+          "availability": 0.997486,
+          "reliability": 0.9551999999999999,
+          "security": 3.04
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_archive"
+        }
+      },
+      "t_market_gen_20": {
+        "provides": "service/t_market",
+        "metrics": {
+          "latency_ms": 402.16,
+          "cost_usd": 0.0,
+          "availability": 0.970721,
+          "reliability": 0.9629000000000001,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_local"
+        }
+      },
+      "t_transit_gen_20": {
+        "provides": "service/t_transit",
+        "metrics": {
+          "latency_ms": 453.23,
+          "cost_usd": 0.0,
+          "availability": 0.991788,
+          "reliability": 1.0,
+          "security": 4.01
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_archive_gen_21": {
+        "provides": "service/t_archive",
+        "metrics": {
+          "latency_ms": 489.17,
+          "cost_usd": 0.0,
+          "availability": 0.957852,
+          "reliability": 0.9914000000000001,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_books_gen_21": {
+        "provides": "service/t_books",
+        "metrics": {
+          "latency_ms": 246.83,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9721,
+          "security": 3.88
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_geocoding_gen_21": {
+        "provides": "service/t_geocoding",
+        "metrics": {
+          "latency_ms": 307.3,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9667,
+          "security": 4.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_library_gen_21": {
+        "provides": "service/t_library",
+        "metrics": {
+          "latency_ms": 345.7,
+          "cost_usd": 0.0,
+          "availability": 0.981583,
+          "reliability": 0.9667,
+          "security": 3.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      }
+    },
+    "providers": {
+      "p_google": {},
+      "p_amazon": {},
+      "p_unimib": {},
+      "p_archive": {},
+      "p_local": {},
+      "p_gen_shared": {},
+      "p_gen_1": {},
+      "p_gen_2": {},
+      "p_gen_3": {},
+      "p_gen_4": {},
+      "p_gen_5": {}
+    },
+    "metricBindings": {
+      "latency_ms": {
+        "resource": "application",
+        "id": "latency_ms"
+      },
+      "cost_usd": {
+        "resource": "application",
+        "id": "cost_usd"
+      },
+      "availability": {
+        "resource": "application",
+        "id": "availability"
+      },
+      "reliability": {
+        "resource": "application",
+        "id": "reliability"
+      },
+      "security": {
+        "resource": "application",
+        "id": "security"
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "zhang2014_entertainment_planner_running_example_multi_hard_optimization"
+  },
+  "spec": {
+    "mode": "pareto",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "availability"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 1,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 1000,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "distance"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 50000,
+          "clamp": true
+        }
+      }
+    ]
+  }
+}

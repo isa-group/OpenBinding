@@ -1,0 +1,41 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "pautasso2009_restful_ecommerce_multi_soft_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "bind_shop_mono_provider": {
+        "assert": "tasks.t_create_order.provider == tasks.t_add_item.provider && tasks.t_create_order.provider == tasks.t_remove_item.provider && tasks.t_create_order.provider == tasks.t_get_amount.provider && tasks.t_create_order.provider == tasks.t_checkout.provider && tasks.t_create_order.provider == tasks.t_list_confirmed.provider && tasks.t_create_order.provider == tasks.t_ship_order.provider && tasks.t_create_order.provider == tasks.t_update_shipment.provider && tasks.t_create_order.provider == tasks.t_cancel_order.provider",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "bind_catalog_mono_provider": {
+        "assert": "tasks.t_request_quote.provider == tasks.t_get_quote.provider",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "bind_payment_mono_provider": {
+        "assert": "tasks.t_charge_payment.provider == tasks.t_refund_payment.provider",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "gen_c_global_latency_ms_1": {
+        "assert": "metrics.latency_ms <= 1903.85",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "gen_c_local_t_checkout_security_1": {
+        "assert": "tasks.t_checkout.metrics.security >= 4.98",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "gen_c_dep_same_1": {
+        "assert": "tasks.t_add_item.provider == tasks.t_cancel_order.provider",
+        "enforcement": "soft",
+        "penalty": 1
+      }
+    }
+  }
+}

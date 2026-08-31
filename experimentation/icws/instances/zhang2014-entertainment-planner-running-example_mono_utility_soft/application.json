@@ -1,0 +1,116 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "zhang2014_entertainment_planner_running_example_mono_utility_soft_application"
+  },
+  "spec": {
+    "tasks": {
+      "t_dining": "service/t_dining",
+      "t_shopping": "service/t_shopping",
+      "t_movie": "service/t_movie"
+    },
+    "metrics": {
+      "cost": {
+        "unit": "usd",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      },
+      "time": {
+        "unit": "min",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1440
+        }
+      },
+      "distance": {
+        "unit": "m",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "max",
+          "parallel": "max",
+          "exclusive": "max",
+          "repeat": "scale",
+          "selection": "max"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 50000
+        }
+      },
+      "availability": {
+        "unit": "ratio",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "product",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "reliability": {
+        "unit": "1",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "product",
+        "domain": {
+          "kind": "ratio",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "security": {
+        "unit": "score",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "min",
+        "domain": {
+          "kind": "real",
+          "minimum": 1,
+          "maximum": 5
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_dining"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_shopping"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_movie"
+          }
+        }
+      ]
+    }
+  }
+}

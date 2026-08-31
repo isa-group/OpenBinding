@@ -1,0 +1,138 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "cremaschi2018_textbook_access_mono_utility_hard_application"
+  },
+  "spec": {
+    "tasks": {
+      "t_books": "service/t_books",
+      "t_market": "service/t_market",
+      "t_library": "service/t_library",
+      "t_geocoding": "service/t_geocoding",
+      "t_transit": "service/t_transit",
+      "t_archive": "service/t_archive",
+      "n_report": {
+        "kind": "local",
+        "name": "Assemble final textbook access report"
+      }
+    },
+    "metrics": {
+      "latency_ms": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 10000
+        }
+      },
+      "cost_usd": {
+        "unit": "usd",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 10
+        }
+      },
+      "availability": {
+        "unit": "ratio",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "product",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "reliability": {
+        "unit": "1",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "product",
+        "domain": {
+          "kind": "ratio",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "security": {
+        "unit": "score",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "min",
+        "domain": {
+          "kind": "real",
+          "minimum": 1,
+          "maximum": 5
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_books"
+          }
+        },
+        {
+          "parallel": [
+            {
+              "task": {
+                "resource": "application",
+                "id": "t_market"
+              }
+            },
+            {
+              "sequence": [
+                {
+                  "task": {
+                    "resource": "application",
+                    "id": "t_library"
+                  }
+                },
+                {
+                  "task": {
+                    "resource": "application",
+                    "id": "t_geocoding"
+                  }
+                },
+                {
+                  "task": {
+                    "resource": "application",
+                    "id": "t_transit"
+                  }
+                }
+              ]
+            },
+            {
+              "task": {
+                "resource": "application",
+                "id": "t_archive"
+              }
+            }
+          ]
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "n_report"
+          }
+        }
+      ]
+    }
+  }
+}

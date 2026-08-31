@@ -1,14 +1,18 @@
 from __future__ import annotations
 
-from collections import Counter, defaultdict
 import csv
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .orchestration import collect_task_calls, derive_transitions, parse_orchestration, to_bim_composition
+from .orchestration import (
+    derive_transitions,
+    parse_orchestration,
+    routing_entries,
+)
 from .pricing import FaaSPricing
 from .security import infer_task_security, node_security_score
 from .utils import (
@@ -34,6 +38,14 @@ class GenerationReports:
     budget_rows: list[dict[str, Any]] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class BimPackage:
+    """A Git-readable BIM v1 package before it is written to disk."""
+
+    root: dict[str, Any]
+    documents: dict[str, dict[str, Any]]
+
+
 @dataclass
 class InfraContext:
     seed: str
@@ -43,7 +55,7 @@ class InfraContext:
     nodes: dict[str, dict[str, Any]]
     services: list[dict[str, Any]]
     event_generators: list[dict[str, Any]]
-    pools: list[dict[str, Any]]
+    pools: dict[str, dict[str, Any]]
     pool_by_original_node: dict[str, str]
     pool_kinds: dict[str, str]
     pool_latency: dict[str, dict[str, float]]
@@ -70,30 +82,33 @@ def generate_dataset(
 
     for app in apps:
         app_id = safe_id(app["orchestration_id"])
-        if applications and app_id not in applications and app["orchestration_id"] not in applications:
+        if (
+            applications
+            and app_id not in applications
+            and app["orchestration_id"] not in applications
+        ):
             continue
-        root = parse_orchestration(app["orchestration_structure"])
-        task_calls = collect_task_calls(root)
-        task_latency = {safe_id(tid): float(call.latency_bound_ms or 0) for tid, call in task_calls.items()}
-        flow = derive_transitions(root, task_latency)
-        composition = to_bim_composition(root)
-        security = infer_task_security(app, root, config)
+        orchestration = parse_orchestration(app["orchestration_structure"])
+        flow = derive_transitions(orchestration)
+        security = infer_task_security(app, orchestration, config)
         reports.security_rows.extend(security.trace_rows)
 
         for seed_dir in sorted(p for p in infra_root.iterdir() if p.is_dir()):
             if dataset_seeds and seed_dir.name not in dataset_seeds:
                 continue
-            for infra_path in sorted(seed_dir.glob("infrastructure_*.json"), key=lambda p: _infra_size(p.name)):
+            for infra_path in sorted(
+                seed_dir.glob("infrastructure_*.json"),
+                key=lambda p: _infra_size(p.name),
+            ):
                 size = str(_infra_size(infra_path.name))
                 if sizes and size not in sizes and infra_path.stem not in sizes:
                     continue
                 infra = build_infra_context(infra_path, config, seed, reports)
                 instance, instance_report_rows = build_instance(
                     app=app,
-                    composition=composition,
-                    root=root,
+                    workflow=orchestration.workflow,
                     flow=flow,
-                    task_calls=task_calls,
+                    task_calls=orchestration.calls,
                     security_thresholds=security.task_thresholds,
                     infra=infra,
                     pricing=pricing,
@@ -101,18 +116,24 @@ def generate_dataset(
                     generator_seed=seed,
                     reports=reports,
                 )
-                target = (
-                    out
-                    / "instances"
-                    / app_id
-                    / seed_dir.name
-                    / f"{infra_path.stem}.bimstar.json"
-                )
-                write_json(target, instance)
+                target = out / "instances" / app_id / seed_dir.name / infra_path.stem
+                write_instance_package(target, instance)
                 reports.candidate_rows.extend(instance_report_rows)
 
     write_reports(out / "reports", reports)
     return reports
+
+
+def write_instance_package(target: Path, package: BimPackage) -> None:
+    """Write a deterministic Git-readable BIM v1 package directory."""
+    target.mkdir(parents=True, exist_ok=True)
+    expected_files = {"instance.json", *package.documents}
+    for existing in target.iterdir():
+        if existing.is_file() and existing.name not in expected_files:
+            existing.unlink()
+    for relative_path, document in package.documents.items():
+        write_json(target / relative_path, document)
+    write_json(target / "instance.json", package.root)
 
 
 def _infra_size(filename: str) -> int:
@@ -131,7 +152,7 @@ def build_infra_context(
     nodes = {node["name"]: node for node in raw.get("nodes", [])}
     pool_by_original_node: dict[str, str] = {}
     pool_kinds: dict[str, str] = {}
-    pools: list[dict[str, Any]] = []
+    pools: dict[str, dict[str, Any]] = {}
     node_monthly_costs: dict[str, float] = {}
 
     for node in raw.get("nodes", []):
@@ -139,21 +160,24 @@ def build_infra_context(
         pool_by_original_node[node["name"]] = node_id
         kind = str(node.get("type", "node")).upper()
         pool_kinds[node_id] = kind
-        capacity = _node_capacity(node)
-        pools.append(
-            {
-                "id": node_id,
-                "name": node["name"],
-                "kind": kind,
-                "capacity": capacity,
-                "metadata": {
-                    "source": "original_dataset",
-                    "provider": safe_id(node.get("provider", "unknown")),
-                    "node_type": node.get("type", "unknown"),
-                },
-            }
+        declared_capacity = _node_capacity(node)
+        capacity = {
+            dimension: float(declared_capacity.get(dimension, 0.0))
+            for dimension in ("memory_mb", "vcpu", "mhz", "concurrency")
+        }
+        pools[node_id] = {
+            "name": node["name"],
+            "kind": kind,
+            "capacity": capacity,
+            "properties": {
+                "source": "original_dataset",
+                "provider": safe_id(node.get("provider", "unknown")),
+                "node_type": node.get("type", "unknown"),
+            },
+        }
+        node_monthly_costs[node["name"]] = _node_monthly_cost(
+            node, seed, generator_seed, config
         )
-        node_monthly_costs[node["name"]] = _node_monthly_cost(node, seed, generator_seed, config)
         reports.non_cloud_cost_rows.append(
             {
                 "dataset_seed": seed,
@@ -172,21 +196,32 @@ def build_infra_context(
         for region in regions:
             pool_id = safe_id(f"{provider}.faas.{region}")
             pool_kinds[pool_id] = "CLOUD_FAAS"
-            pools.append(
-                {
-                    "id": pool_id,
-                    "name": f"{provider.upper()} FaaS {region}",
-                    "kind": "CLOUD_FAAS",
-                    "capacity": {"concurrency": float(config["cloud_faas_capacity"]["concurrency"])},
-                    "metadata": {
-                        "source": "generated_cloud_faas",
-                        "commercial_provider": provider,
-                        "region": region,
-                    },
-                }
-            )
+            pools[pool_id] = {
+                "name": f"{provider.upper()} FaaS {region}",
+                "kind": "CLOUD_FAAS",
+                "capacity": {
+                    "memory_mb": 0.0,
+                    "vcpu": 0.0,
+                    "mhz": 0.0,
+                    "concurrency": float(config["cloud_faas_capacity"]["concurrency"]),
+                },
+                "properties": {
+                    "source": "generated_cloud_faas",
+                    "commercial_provider": provider,
+                    "region": region,
+                },
+            }
 
-    pool_latency = build_latency_matrix(raw, pools, pool_by_original_node, config, generator_seed, reports, seed, infra_path.stem)
+    pool_latency = build_latency_matrix(
+        raw,
+        pools,
+        pool_by_original_node,
+        config,
+        generator_seed,
+        reports,
+        seed,
+        infra_path.stem,
+    )
     return InfraContext(
         seed=seed,
         size=size,
@@ -221,22 +256,42 @@ def _task_demand(function: dict[str, Any]) -> dict[str, float]:
     }
 
 
-def _node_monthly_cost(node: dict[str, Any], dataset_seed: str, generator_seed: int, config: dict[str, Any]) -> float:
+def _node_monthly_cost(
+    node: dict[str, Any], dataset_seed: str, generator_seed: int, config: dict[str, Any]
+) -> float:
     kind = str(node.get("type", "edge")).lower()
     ranges = config["non_cloud_costs"]["base_monthly_usd"]
     low, high = ranges.get(kind, ranges.get("edge", [2, 15]))
-    base = seeded_uniform(float(low), float(high), generator_seed, dataset_seed, node["name"], "node-cost-v1")
+    base = seeded_uniform(
+        float(low),
+        float(high),
+        generator_seed,
+        dataset_seed,
+        node["name"],
+        "node-cost-v1",
+    )
     coeffs = config["non_cloud_costs"]["coefficients"]
     hw = node.get("hardware_caps", {})
-    memory_gb = 0 if str(hw.get("memory")).lower() == "inf" else parse_number(hw.get("memory", 0)) / 1024.0
-    vcpu = 0 if str(hw.get("v_cpu")).lower() == "inf" else parse_number(hw.get("v_cpu", 0))
+    memory_gb = (
+        0
+        if str(hw.get("memory")).lower() == "inf"
+        else parse_number(hw.get("memory", 0)) / 1024.0
+    )
+    vcpu = (
+        0 if str(hw.get("v_cpu")).lower() == "inf" else parse_number(hw.get("v_cpu", 0))
+    )
     mhz = 0 if str(hw.get("mhz")).lower() == "inf" else parse_number(hw.get("mhz", 0))
-    return base + coeffs["memory_gb"] * memory_gb + coeffs["vcpu"] * vcpu + coeffs["mhz_per_1000"] * (mhz / 1000.0)
+    return (
+        base
+        + coeffs["memory_gb"] * memory_gb
+        + coeffs["vcpu"] * vcpu
+        + coeffs["mhz_per_1000"] * (mhz / 1000.0)
+    )
 
 
 def build_latency_matrix(
     raw: dict[str, Any],
-    pools: list[dict[str, Any]],
+    pools: dict[str, dict[str, Any]],
     pool_by_original_node: dict[str, str],
     config: dict[str, Any],
     generator_seed: int,
@@ -244,7 +299,7 @@ def build_latency_matrix(
     dataset_seed: str,
     infra_name: str,
 ) -> dict[str, dict[str, float]]:
-    pool_ids = [p["id"] for p in pools]
+    pool_ids = list(pools)
     matrix = {pid: {pid: 0.0} for pid in pool_ids}
 
     for link in raw.get("links", []):
@@ -256,13 +311,15 @@ def build_latency_matrix(
         matrix.setdefault(a, {})[b] = latency
         matrix.setdefault(b, {})[a] = latency
 
-    pool_meta = {p["id"]: p.get("metadata", {}) for p in pools}
-    pool_kind = {p["id"]: p.get("kind") for p in pools}
+    pool_meta = {name: pool.get("properties", {}) for name, pool in pools.items()}
+    pool_kind = {name: pool.get("kind") for name, pool in pools.items()}
     for a in pool_ids:
         for b in pool_ids:
             if b in matrix.setdefault(a, {}):
                 continue
-            latency = generated_latency(a, b, pool_kind, pool_meta, config, generator_seed, dataset_seed)
+            latency = generated_latency(
+                a, b, pool_kind, pool_meta, config, generator_seed, dataset_seed
+            )
             matrix[a][b] = latency
             matrix.setdefault(b, {})[a] = latency
             reports.latency_rows.append(
@@ -333,14 +390,18 @@ def generated_latency(
             low, high = lat_cfg["original_to_cloud_intra_geo_ms"]
         else:
             low, high = lat_cfg["original_to_cloud_inter_geo_ms"]
-    return round(seeded_uniform(float(low), float(high), generator_seed, dataset_seed, a, b, "latency-v2"), 3)
+    return round(
+        seeded_uniform(
+            float(low), float(high), generator_seed, dataset_seed, a, b, "latency-v2"
+        ),
+        3,
+    )
 
 
 def build_instance(
     *,
     app: dict[str, Any],
-    composition: dict[str, Any],
-    root: Any,
+    workflow: dict[str, Any],
     flow: Any,
     task_calls: dict[str, Any],
     security_thresholds: dict[str, float],
@@ -349,263 +410,360 @@ def build_instance(
     config: dict[str, Any],
     generator_seed: int,
     reports: GenerationReports,
-) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+) -> tuple[BimPackage, list[dict[str, Any]]]:
     app_id = safe_id(app["orchestration_id"])
     functions = {safe_id(f["id"]): f for f in app.get("functions", [])}
     service_types = unique_sorted(
         [safe_id(s["type"]) for s in infra.services]
-        + [safe_id(req["type"]) for fn in app.get("functions", []) for req in (fn.get("service_reqs", []) or [])]
+        + [
+            safe_id(req["type"])
+            for fn in app.get("functions", [])
+            for req in (fn.get("service_reqs", []) or [])
+        ]
     )
     service_ids = unique_sorted(safe_id(s["name"]) for s in infra.services)
-    feature_defs = base_feature_defs(service_types, service_ids)
-    feature_ids = [f["id"] for f in feature_defs]
+    metrics = base_metric_definitions(service_types, service_ids)
     providers = build_providers(infra)
-    tasks = [{"id": safe_id(f["id"]), "name": f["id"]} for f in app.get("functions", [])]
-    candidates: list[dict[str, Any]] = []
-    candidate_bindings: list[dict[str, Any]] = []
+    tasks = {
+        safe_id(function["id"]): f"service/{safe_id(function['id'])}"
+        for function in app.get("functions", [])
+    }
+    candidates: dict[str, dict[str, Any]] = {}
+    demands: list[dict[str, Any]] = []
     candidate_report_rows: list[dict[str, Any]] = []
     constraints = build_security_constraints(security_thresholds)
-    constraints.extend(build_service_constraints(app))
+    constraints.update(build_service_constraints(app))
 
-    for task_id, function in functions.items():
-        task_candidates, task_bindings, report_row = generate_task_candidates(
+    for task_name, function in functions.items():
+        task_candidates, task_demands, report_row = generate_task_candidates(
             app_id=app_id,
             function=function,
-            task_call=task_calls[function["id"]],
+            task_call=task_calls[task_name],
             infra=infra,
             pricing=pricing,
             config=config,
             generator_seed=generator_seed,
-            feature_ids=feature_ids,
-            security_threshold=security_thresholds.get(task_id, 0.33),
+            metric_names=list(metrics),
+            security_threshold=security_thresholds.get(task_name, 0.33),
             reports=reports,
         )
-        candidates.extend(task_candidates)
-        candidate_bindings.extend(task_bindings)
+        candidates.update(task_candidates)
+        demands.extend(task_demands)
         candidate_report_rows.append(report_row)
 
-    first_task_bounds = {safe_id(tid): float(call.latency_bound_ms or 0) for tid, call in task_calls.items()}
-    event_constraints, event_pools, event_latencies = build_event_latency(app, flow, infra, first_task_bounds)
+    first_task_bounds = {
+        name: float(call.latency_bound_ms or 0) for name, call in task_calls.items()
+    }
+    event_constraints, event_pools, event_latencies = build_event_latency(
+        app, flow, infra, first_task_bounds
+    )
 
-    policies = aggregation_policies(feature_ids)
-    transition_constraints = [*event_constraints]
-    for idx, (from_task, to_task, bound) in enumerate(flow.transitions, start=1):
-        transition_constraints.append(
-            {
-                "id": safe_id(f"latency_{idx}_{from_task}_to_{to_task}"),
-                "from_task": from_task,
-                "to_task": to_task,
-                "op": "<=",
-                "value": float(bound),
-                "hard": True,
-            }
-        )
+    transitions = dict(event_constraints)
+    for index, edge in enumerate(flow.transitions, start=1):
+        source = edge["from"]
+        target = edge["to"]
+        name = safe_id(f"latency_{index}_{source['id']}_to_{target['id']}")
+        transitions[name] = {
+            **edge,
+            "enforcement": "hard",
+            "metric": {"resource": "application", "id": "latency"},
+        }
 
     pricing_cfg = config.get("pricing_constraints", {}) or {}
     if pricing_cfg.get("enabled", True):
         pricing_constraints, normalize_bounds = build_pricing_artifacts(
             app_id=app_id,
-            tasks=tasks,
+            task_names=list(tasks),
             candidates=candidates,
-            candidate_bindings=candidate_bindings,
-            composition=composition,
+            demands=demands,
+            workflow=workflow,
             security_thresholds=security_thresholds,
-            transition_constraints=transition_constraints,
+            transitions=transitions,
             config=config,
             infra=infra,
             event_latencies=event_latencies,
             reports=reports,
         )
-        constraints.extend(pricing_constraints)
-        for feature_id, bounds in normalize_bounds.items():
-            policies[feature_id]["normalize"] = {"type": "minmax", "bounds": bounds}
+        constraints.update(pricing_constraints)
+    else:
+        normalize_bounds = _fallback_normalization_bounds(candidates)
 
-    instance = {
-        "metadata": {
-            "id": safe_id(f"{app_id}_{infra.seed}_{infra.path.stem}"),
-            "name": f"{app['name']} on {infra.path.stem} ({infra.seed})",
-            "version": "1.0.0",
-            "created_at": "2026-07-05T00:00:00Z",
-            "description": "Generated BIM' instance from the ICSOC placement dataset.",
-            "source_dataset": "experimentation/icsoc/original_dataset",
-            "application_id": app_id,
-            "dataset_seed": infra.seed,
-            "infrastructure": infra.path.name,
-            "generator_seed": generator_seed,
-            "generator_version": __version__,
+    name = safe_id(f"{app_id}_{infra.seed}_{infra.path.stem}")
+    application = {
+        "apiVersion": "qos-binding/v1",
+        "kind": "Application",
+        "metadata": {"name": f"{name}_application"},
+        "spec": {"tasks": tasks, "metrics": metrics, "workflow": workflow},
+    }
+    catalog = {
+        "apiVersion": "qos-binding/v1",
+        "kind": "CandidateCatalog",
+        "metadata": {"name": f"{name}_catalog"},
+        "spec": {
+            "providers": providers,
+            "metricBindings": {
+                metric_name: {"resource": "application", "id": metric_name}
+                for metric_name in metrics
+            },
+            "candidates": candidates,
         },
-        "features": feature_defs,
-        "providers": providers,
-        "tasks": tasks,
-        "candidates": candidates,
-        "composition": composition,
-        "aggregation_policies": policies,
-        "constraints": constraints,
-        "objective": {
-            "type": "MONO",
-            "targets": ["latency", "cost", "security"],
-            "weights": config["objective"]["weights"],
-            "weights_sum_to_one": True,
-        },
-        "resource_model": {
-            "resources": ["memory_mb", "vcpu", "mhz", "concurrency"],
-            "pools": infra.pools,
-            "candidate_bindings": candidate_bindings,
-            "constraints": [
+    }
+    constraint_set = {
+        "apiVersion": "qos-binding/v1",
+        "kind": "ConstraintSet",
+        "metadata": {"name": f"{name}_constraints"},
+        "spec": {"constraints": constraints},
+    }
+    objective_weights = config["objective"]["weights"]
+    optimization = {
+        "apiVersion": "qos-binding/v1",
+        "kind": "Optimization",
+        "metadata": {"name": f"{name}_optimization"},
+        "spec": {
+            "mode": "weighted",
+            "terms": [
                 {
-                    "id": "accumulated_node_capacity",
-                    "kind": "DEPENDENCY",
-                    "type": "RESOURCE_CAPACITY",
-                    "scope": "POOL_KIND",
-                    "pool_kinds": ["EDGE", "FOG", "CLOUD"],
-                    "resources": ["memory_mb", "vcpu", "mhz"],
-                    "hard": True,
-                },
-                {
-                    "id": "cloud_concurrency_capacity",
-                    "kind": "DEPENDENCY",
-                    "type": "RESOURCE_CAPACITY",
-                    "scope": "POOL_KIND",
-                    "pool_kinds": ["CLOUD_FAAS"],
-                    "resources": ["concurrency"],
-                    "hard": True,
-                },
+                    "metric": {"resource": "application", "id": metric_name},
+                    "weight": abs(float(objective_weights.get(metric_name, 1.0)))
+                    or 1.0,
+                    "normalize": {**normalize_bounds[metric_name], "clamp": True},
+                }
+                for metric_name in ("latency", "cost", "security")
             ],
+            **(
+                {
+                    "penalties": [
+                        {
+                            "constraint": {
+                                "resource": "constraints",
+                                "id": constraint_name,
+                            },
+                            "weight": 1.0,
+                        }
+                        for constraint_name, constraint in constraints.items()
+                        if constraint["enforcement"] == "soft"
+                    ]
+                }
+                if any(value["enforcement"] == "soft" for value in constraints.values())
+                else {}
+            ),
         },
-        "latency_model": {
-            "unit": "ms",
-            "pool_latency_matrix_ms": infra.pool_latency,
-            "event_generator_pools": event_pools,
-            "event_latency_matrix_ms": event_latencies,
-            "transition_constraints": transition_constraints,
-            "global_latency": {
-                "attribute_id": "latency",
-                "include_execution_latency_feature": True,
-                "xor_semantics": "EXPECTED",
-                "and_semantics": "MAX",
+    }
+    network = [
+        {
+            "from": {"resource": "placement", "id": source},
+            "to": {"resource": "placement", "id": target},
+            "latency": latency,
+        }
+        for source in sorted(infra.pool_latency)
+        for target, latency in sorted(infra.pool_latency[source].items())
+        if source <= target
+    ]
+    events = {
+        event_name: {
+            "pool": {"resource": "placement", "id": event_pools[event_name]},
+            "latency": [
+                {
+                    "pool": {"resource": "placement", "id": pool_name},
+                    "latency": latency,
+                }
+                for pool_name, latency in sorted(values.items())
+            ],
+        }
+        for event_name, values in sorted(event_latencies.items())
+    }
+    placement = {
+        "apiVersion": "qos-binding-placement/v1",
+        "kind": "Placement",
+        "metadata": {"name": f"{name}_placement"},
+        "spec": {
+            "pools": infra.pools,
+            "demands": demands,
+            "networkMode": "symmetric",
+            "network": network,
+            "events": events,
+            "transitions": transitions,
+            "capacityRules": [
+                {
+                    "resources": ["memory_mb", "vcpu", "mhz", "concurrency"],
+                    "scope": "selectedCandidate",
+                }
+            ],
+            "globalLatency": {
+                "metric": {"resource": "application", "id": "latency"},
+                "includeExecution": True,
+                "exclusive": "routing",
+                "parallel": "max",
             },
         },
     }
-    return instance, candidate_report_rows
 
-
-def base_feature_defs(service_types: list[str], service_ids: list[str]) -> list[dict[str, Any]]:
-    features = [
-        {
-            "id": "latency",
-            "name": "Latency",
-            "direction": "MINIMIZE",
-            "unit": "ms",
-            "scale": "RATIO",
-            "valid_range": {"min": 0, "max": 1_000_000},
+    entries = routing_entries(workflow)
+    documents: dict[str, dict[str, Any]] = {
+        "application.json": application,
+        "candidates.json": catalog,
+        "constraints.json": constraint_set,
+        "optimization.json": optimization,
+        "placement.json": placement,
+    }
+    application_resources = {
+        "application": "application.json",
+        "placement": "placement.json",
+    }
+    if entries:
+        documents["routing.json"] = {
+            "apiVersion": "qos-binding/v1",
+            "kind": "RoutingOverlay",
+            "metadata": {"name": f"{name}_routing"},
+            "spec": {"entries": entries},
+        }
+        application_resources["routing"] = "routing.json"
+    instance = {
+        "apiVersion": "bim/v1",
+        "kind": "Instance",
+        "metadata": {
+            "name": name,
+            "version": "1.0.0",
+            "description": (
+                f"{app['name']} on {infra.path.stem} ({infra.seed}). "
+                "Generated BIM v1 instance from the ICSOC placement dataset."
+            ),
+            "annotations": {
+                "source_dataset": "experimentation/icsoc/original_dataset",
+                "application_id": app_id,
+                "dataset_seed": infra.seed,
+                "infrastructure": infra.path.name,
+                "generator_seed": generator_seed,
+                "generator_version": __version__,
+            },
         },
-        {
-            "id": "cost",
-            "name": "Expected monthly cost",
-            "direction": "MINIMIZE",
-            "unit": "USD/month",
-            "scale": "RATIO",
-            "valid_range": {"min": 0, "max": 1_000_000},
-        },
-        {
-            "id": "security",
-            "name": "Security score",
-            "direction": "MAXIMIZE",
-            "unit": "score",
-            "scale": "RATIO",
-            "valid_range": {"min": 0, "max": 1},
-        },
-    ]
-    for service_type in service_types:
-        features.append(
-            {
-                "id": f"has.service.{service_type}",
-                "name": f"Has service {service_type}",
-                "direction": "MAXIMIZE",
-                "unit": "boolean",
-                "scale": "RATIO",
-                "valid_range": {"min": 0, "max": 1},
-            }
-        )
-    for service_id in service_ids:
-        features.append(
-            {
-                "id": f"bind.service.{service_id}",
-                "name": f"Binds service {service_id}",
-                "direction": "MAXIMIZE",
-                "unit": "boolean",
-                "scale": "RATIO",
-                "valid_range": {"min": 0, "max": 1},
-            }
-        )
-    return features
-
-
-def build_providers(infra: InfraContext) -> list[dict[str, str]]:
-    ids = {safe_id(node.get("provider", "unknown")): node.get("provider", "unknown") for node in infra.nodes.values()}
-    ids.update({"aws": "AWS", "azure": "Azure", "gcp": "Google Cloud"})
-    return [{"id": pid, "name": name} for pid, name in sorted(ids.items())]
-
-
-def aggregation_policies(feature_ids: list[str]) -> dict[str, Any]:
-    policies: dict[str, Any] = {
-        "cost": {
-            "neutral": 0,
-            "compose": {"seq": {"fn": "SUM"}, "and": {"fn": "SUM"}, "xor": {"fn": "SCALED_SUM"}},
-        },
-        "latency": {
-            "neutral": 0,
-            "compose": {"seq": {"fn": "SUM"}, "and": {"fn": "MAX"}, "xor": {"fn": "SCALED_SUM"}},
-        },
-        "security": {
-            "neutral": 1,
-            "compose": {"seq": {"fn": "MIN"}, "and": {"fn": "MIN"}, "xor": {"fn": "MIN"}},
+        "spec": {
+            "profile": "qos-binding/v1",
+            "resources": {
+                "application": application_resources,
+                "candidateCatalog": {"catalog": "candidates.json"},
+                "constraintSet": {"constraints": "constraints.json"},
+                "optimization": {"optimization": "optimization.json"},
+            },
         },
     }
-    for fid in feature_ids:
-        if fid.startswith("has.service.") or fid.startswith("bind.service."):
-            policies[fid] = {
-                "neutral": 0,
-                "compose": {"seq": {"fn": "MAX"}, "and": {"fn": "MAX"}, "xor": {"fn": "MAX"}},
+    return BimPackage(root=instance, documents=documents), candidate_report_rows
+
+
+def _fallback_normalization_bounds(
+    candidates: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, float]]:
+    bounds: dict[str, dict[str, float]] = {}
+    for metric_name in ("latency", "cost", "security"):
+        values = [
+            float(candidate["metrics"][metric_name])
+            for candidate in candidates.values()
+            if isinstance(candidate.get("metrics", {}).get(metric_name), (int, float))
+        ]
+        if values:
+            minimum, maximum = min(values), max(values)
+            bounds[metric_name] = {
+                "min": minimum,
+                "max": maximum if maximum > minimum else minimum + 1.0,
             }
-    return policies
+    return bounds
 
 
-def build_security_constraints(security_thresholds: dict[str, float]) -> list[dict[str, Any]]:
-    return [
-        {
-            "id": safe_id(f"security_min_{task_id}"),
-            "kind": "ATTRIBUTE_BOUND",
-            "scope": "LOCAL",
-            "tasks": [task_id],
-            "attribute_id": "security",
-            "op": ">=",
-            "value": round(float(threshold), 6),
-            "hard": True,
+def base_metric_definitions(
+    service_types: list[str],
+    service_names: list[str],
+) -> dict[str, dict[str, Any]]:
+    metrics: dict[str, dict[str, Any]] = {
+        "latency": {
+            "unit": "ms",
+            "direction": "minimize",
+            "scope": "invocation",
+            "aggregation": {
+                "sequence": "sum",
+                "parallel": "max",
+                "exclusive": "weightedSum",
+                "repeat": "scale",
+                "selection": "sum",
+            },
+            "domain": {"kind": "real", "minimum": 0.0, "maximum": 1_000_000.0},
+        },
+        "cost": {
+            "unit": "USD/month",
+            "direction": "minimize",
+            "scope": "invocation",
+            "aggregation": "sum",
+            "domain": {"kind": "real", "minimum": 0.0, "maximum": 1_000_000.0},
+        },
+        "security": {
+            "unit": "score",
+            "direction": "maximize",
+            "scope": "invocation",
+            "aggregation": "min",
+            "domain": {"kind": "real", "minimum": 0.0, "maximum": 1.0},
+        },
+    }
+    for service_type in service_types:
+        metrics[f"has_service_{service_type}"] = {
+            "unit": "boolean",
+            "direction": "maximize",
+            "scope": "invocation",
+            "aggregation": "max",
+            "domain": {"kind": "real", "minimum": 0.0, "maximum": 1.0},
         }
-        for task_id, threshold in sorted(security_thresholds.items())
-    ]
+    for service_name in service_names:
+        metrics[f"bind_service_{service_name}"] = {
+            "unit": "boolean",
+            "direction": "maximize",
+            "scope": "invocation",
+            "aggregation": "max",
+            "domain": {"kind": "real", "minimum": 0.0, "maximum": 1.0},
+        }
+    return metrics
 
 
-def build_service_constraints(app: dict[str, Any]) -> list[dict[str, Any]]:
-    constraints = []
+def build_providers(infra: InfraContext) -> dict[str, dict[str, str]]:
+    ids = {
+        safe_id(node.get("provider", "unknown")): node.get("provider", "unknown")
+        for node in infra.nodes.values()
+    }
+    ids.update({"aws": "AWS", "azure": "Azure", "gcp": "Google Cloud"})
+    return {name: {"name": label} for name, label in sorted(ids.items())}
+
+
+def build_security_constraints(
+    security_thresholds: dict[str, float],
+) -> dict[str, dict[str, Any]]:
+    return {
+        safe_id(f"security_min_{task_name}"): {
+            "assert": (
+                f"tasks.{task_name}.metrics.security >= "
+                f"{json_number(round(float(threshold), 6))}"
+            ),
+            "enforcement": "hard",
+        }
+        for task_name, threshold in sorted(security_thresholds.items())
+    }
+
+
+def build_service_constraints(app: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    constraints: dict[str, dict[str, Any]] = {}
     for function in app.get("functions", []):
-        task_id = safe_id(function["id"])
+        task_name = safe_id(function["id"])
         for req in function.get("service_reqs", []) or []:
             service_type = safe_id(req["type"])
-            constraints.append(
-                {
-                    "id": safe_id(f"{task_id}_requires_{service_type}"),
-                    "kind": "ATTRIBUTE_BOUND",
-                    "scope": "LOCAL",
-                    "tasks": [task_id],
-                    "attribute_id": f"has.service.{service_type}",
-                    "op": "==",
-                    "value": 1,
-                    "hard": True,
-                }
-            )
+            constraints[safe_id(f"{task_name}_requires_{service_type}")] = {
+                "assert": f"tasks.{task_name}.metrics.has_service_{service_type} == 1",
+                "enforcement": "hard",
+            }
     return constraints
+
+
+def json_number(value: Any) -> str:
+    return (
+        str(int(value))
+        if isinstance(value, float) and value.is_integer()
+        else str(value)
+    )
 
 
 def generate_task_candidates(
@@ -617,16 +775,16 @@ def generate_task_candidates(
     pricing: FaaSPricing,
     config: dict[str, Any],
     generator_seed: int,
-    feature_ids: list[str],
+    metric_names: list[str],
     security_threshold: float,
     reports: GenerationReports,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
-    task_id = safe_id(function["id"])
+) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+    task_name = safe_id(function["id"])
     demand = _task_demand(function)
     service_reqs = function.get("service_reqs", []) or []
     counters = Counter()
-    candidates: list[dict[str, Any]] = []
-    bindings: list[dict[str, Any]] = []
+    candidates: dict[str, dict[str, Any]] = {}
+    demands: list[dict[str, Any]] = []
 
     for node in infra.nodes.values():
         pool_id = infra.pool_by_original_node[node["name"]]
@@ -637,36 +795,71 @@ def generate_task_candidates(
         if not _supports_hardware(node, demand):
             counters["filtered_by_hw"] += 1
             continue
-        service_sets = service_options_for_pool(pool_id, service_reqs, task_call.bindings, infra)
+        service_sets = service_options_for_pool(
+            pool_id, service_reqs, task_call.bindings, infra
+        )
         if service_reqs and not service_sets:
             counters["filtered_by_service"] += 1
             continue
-        score_label, security_score = node_security_score(node.get("security_caps", []), config)
-        base_cost = original_candidate_cost(node, demand, infra.node_monthly_costs[node["name"]])
+        score_label, security_score = node_security_score(
+            node.get("security_caps", []), config
+        )
+        base_cost = original_candidate_cost(
+            node, demand, infra.node_monthly_costs[node["name"]]
+        )
         for selected_services in service_sets or [[]]:
-            cid = candidate_id(task_id, pool_id, selected_services, "orig")
-            features = candidate_features(feature_ids, base_cost, security_score, selected_services)
-            candidates.append(
+            candidate_name = candidate_key(
+                task_name, pool_id, selected_services, "orig"
+            )
+            candidates[candidate_name] = {
+                "name": f"{function['id']} on {node['name']}",
+                "provider": {
+                    "resource": "catalog",
+                    "id": safe_id(node.get("provider", "unknown")),
+                },
+                "provides": f"service/{task_name}",
+                "properties": {
+                    "description": (
+                        f"Original {node.get('type')} node, security={score_label}"
+                    )
+                },
+                "metrics": candidate_metrics(
+                    metric_names,
+                    base_cost,
+                    security_score,
+                    selected_services,
+                ),
+            }
+            demands.append(
                 {
-                    "id": cid,
-                    "name": f"{function['id']} on {node['name']}",
-                    "task_ids": [task_id],
-                    "provider_id": safe_id(node.get("provider", "unknown")),
-                    "features": features,
-                    "description": f"Original {node.get('type')} node, security={score_label}",
+                    "candidate": {"resource": "catalog", "id": candidate_name},
+                    "pool": {"resource": "placement", "id": pool_id},
+                    "resources": demand,
                 }
             )
-            bindings.append({"candidate_id": cid, "pool_id": pool_id, "demand": demand})
             counters["non_cloud_candidates"] += 1
             reports.pricing_rows.append(
-                pricing_row(app_id, infra, task_id, cid, "original", "", "", 0, 0, base_cost)
+                pricing_row(
+                    app_id,
+                    infra,
+                    task_name,
+                    candidate_name,
+                    "original",
+                    "",
+                    "",
+                    0,
+                    0,
+                    base_cost,
+                )
             )
 
     workload = config["workload_defaults"]
     for provider, regions in config["cloud_regions"].items():
         for region in regions:
             pool_id = safe_id(f"{provider}.faas.{region}")
-            service_sets = service_options_for_pool(pool_id, service_reqs, task_call.bindings, infra)
+            service_sets = service_options_for_pool(
+                pool_id, service_reqs, task_call.bindings, infra
+            )
             if service_reqs and not service_sets:
                 counters["cloud_filtered_by_service"] += 1
                 continue
@@ -684,23 +877,33 @@ def generate_task_candidates(
                     counters["cloud_filtered_by_pricing"] += 1
                     continue
                 for selected_services in service_sets or [[]]:
-                    cid = candidate_id(task_id, pool_id, selected_services, f"mem{memory_mb}")
-                    features = candidate_features(feature_ids, cost, 1.0, selected_services)
-                    candidates.append(
-                        {
-                            "id": cid,
-                            "name": f"{function['id']} on {provider.upper()} {region} ({memory_mb} MB)",
-                            "task_ids": [task_id],
-                            "provider_id": safe_id(provider),
-                            "features": features,
-                            "description": "Generated regional FaaS candidate",
-                        }
+                    candidate_name = candidate_key(
+                        task_name,
+                        pool_id,
+                        selected_services,
+                        f"mem{memory_mb}",
                     )
-                    bindings.append(
+                    candidates[candidate_name] = {
+                        "name": f"{function['id']} on {provider.upper()} {region} ({memory_mb} MB)",
+                        "provider": {"resource": "catalog", "id": safe_id(provider)},
+                        "provides": f"service/{task_name}",
+                        "properties": {
+                            "description": "Generated regional FaaS candidate"
+                        },
+                        "metrics": candidate_metrics(
+                            metric_names,
+                            cost,
+                            1.0,
+                            selected_services,
+                        ),
+                    }
+                    demands.append(
                         {
-                            "candidate_id": cid,
-                            "pool_id": pool_id,
-                            "demand": {"concurrency": float(workload["concurrency"])},
+                            "candidate": {"resource": "catalog", "id": candidate_name},
+                            "pool": {"resource": "placement", "id": pool_id},
+                            "resources": {
+                                "concurrency": float(workload["concurrency"])
+                            },
                         }
                     )
                     counters["cloud_candidates"] += 1
@@ -708,8 +911,8 @@ def generate_task_candidates(
                         pricing_row(
                             app_id,
                             infra,
-                            task_id,
-                            cid,
+                            task_name,
+                            candidate_name,
                             provider,
                             region,
                             memory_mb,
@@ -721,15 +924,19 @@ def generate_task_candidates(
 
     counters["filtered_by_security"] = 0
     counters["total_candidates"] = len(candidates)
-    return candidates, bindings, {
-        "application": app_id,
-        "dataset_seed": infra.seed,
-        "infrastructure": infra.path.stem,
-        "infra_size": infra.size,
-        "task": task_id,
-        "security_threshold": security_threshold,
-        **dict(counters),
-    }
+    return (
+        candidates,
+        demands,
+        {
+            "application": app_id,
+            "dataset_seed": infra.seed,
+            "infrastructure": infra.path.stem,
+            "infra_size": infra.size,
+            "task": task_name,
+            "security_threshold": security_threshold,
+            **dict(counters),
+        },
+    )
 
 
 def _supports_software(node: dict[str, Any], function: dict[str, Any]) -> bool:
@@ -765,7 +972,10 @@ def service_options_for_pool(
         for service in infra.services:
             if service.get("type") != req_type:
                 continue
-            if explicit and not any(service["name"].lower().startswith(prefix.lower()) for prefix in explicit):
+            if explicit and not any(
+                service["name"].lower().startswith(prefix.lower())
+                for prefix in explicit
+            ):
                 continue
             service_pool = infra.pool_by_original_node.get(service["node"])
             if not service_pool:
@@ -778,10 +988,16 @@ def service_options_for_pool(
     return [list(items) for items in product(*options)]
 
 
-def original_candidate_cost(node: dict[str, Any], demand: dict[str, float], node_monthly_cost: float) -> float:
+def original_candidate_cost(
+    node: dict[str, Any], demand: dict[str, float], node_monthly_cost: float
+) -> float:
     hw = node.get("hardware_caps", {})
     fractions = []
-    for demand_key, hw_key in (("memory_mb", "memory"), ("vcpu", "v_cpu"), ("mhz", "mhz")):
+    for demand_key, hw_key in (
+        ("memory_mb", "memory"),
+        ("vcpu", "v_cpu"),
+        ("mhz", "mhz"),
+    ):
         raw = hw.get(hw_key, 0)
         if str(raw).lower() == "inf":
             continue
@@ -792,39 +1008,48 @@ def original_candidate_cost(node: dict[str, Any], demand: dict[str, float], node
     return round(max(0.000001, node_monthly_cost * fraction), 8)
 
 
-def cloud_memory_variants(function: dict[str, Any], config: dict[str, Any]) -> list[int]:
+def cloud_memory_variants(
+    function: dict[str, Any], config: dict[str, Any]
+) -> list[int]:
     required = parse_number(function.get("hw_reqs", {}).get("memory", 128))
     domain = [int(v) for v in config["cloud_memory_mb_domain"]]
     return [value for value in domain if value >= required] or [max(domain)]
 
 
-def candidate_id(task_id: str, pool_id: str, services: list[dict[str, Any]], variant: str) -> str:
-    service_part = "_".join(safe_id(s["name"]) for s in services) if services else "nosvc"
-    digest = stable_hash(task_id, pool_id, service_part, variant, length=8)
-    return safe_id(f"cand_{task_id}_{pool_id}_{variant}_{digest}")
+def candidate_key(
+    task_name: str,
+    pool_name: str,
+    services: list[dict[str, Any]],
+    variant: str,
+) -> str:
+    service_part = (
+        "_".join(safe_id(s["name"]) for s in services) if services else "nosvc"
+    )
+    digest = stable_hash(task_name, pool_name, service_part, variant, length=8)
+    return safe_id(f"cand_{task_name}_{pool_name}_{variant}_{digest}")
 
 
-def candidate_features(
-    feature_ids: list[str],
+def candidate_metrics(
+    metric_names: list[str],
     cost: float,
     security: float,
     selected_services: list[dict[str, Any]],
 ) -> dict[str, float]:
-    features = {fid: 0.0 for fid in feature_ids}
-    features["latency"] = 0.0
-    features["cost"] = round(float(cost), 8)
-    features["security"] = round(float(security), 6)
+    metrics = {name: 0.0 for name in metric_names}
+    metrics["latency"] = 0.0
+    metrics["cost"] = round(float(cost), 8)
+    metrics["security"] = round(float(security), 6)
     for service in selected_services:
-        features[f"has.service.{safe_id(service['type'])}"] = 1.0
-        features[f"bind.service.{safe_id(service['name'])}"] = 1.0
-    return features
+        metrics[f"has_service_{safe_id(service['type'])}"] = 1.0
+        metrics[f"bind_service_{safe_id(service['name'])}"] = 1.0
+    return metrics
 
 
 def pricing_row(
     app_id: str,
     infra: InfraContext,
-    task_id: str,
-    candidate_id_value: str,
+    task_name: str,
+    candidate_name: str,
     provider: str,
     region: str,
     memory_mb: Any,
@@ -836,8 +1061,8 @@ def pricing_row(
         "application": app_id,
         "dataset_seed": infra.seed,
         "infrastructure": infra.path.stem,
-        "task": task_id,
-        "candidate": candidate_id_value,
+        "task": task_name,
+        "candidate": candidate_name,
         "provider": provider,
         "region": region,
         "memory_mb": memory_mb,
@@ -860,38 +1085,53 @@ def _quantile(sorted_values: list[float], q: float) -> float:
     return sorted_values[lower] * (1.0 - fraction) + sorted_values[upper] * fraction
 
 
-def fold_over_composition(node: dict[str, Any], per_task: dict[str, float], fns: dict[str, str]) -> float:
-    """Aggregate per-task values over the composition tree with fixed policies."""
-    kind = node["kind"]
-    if kind == "TASK":
-        return per_task[node["task_id"]]
-    if kind in ("SEQ", "AND"):
-        values = [fold_over_composition(child, per_task, fns) for child in node["children"]]
-        return _apply_fold(fns["seq" if kind == "SEQ" else "and"], values)
-    if kind == "XOR":
-        fn = fns["xor"]
-        values = [fold_over_composition(branch["child"], per_task, fns) for branch in node["branches"]]
-        if fn in ("SCALED_SUM", "WEIGHTED_SUM", "SUM"):
-            return sum(branch["p"] * value for branch, value in zip(node["branches"], values))
-        return _apply_fold(fn, values)
-    raise ValueError(f"Unsupported node kind for fold: {kind}")
+def fold_over_workflow(
+    node: dict[str, Any],
+    per_task: dict[str, float],
+    operators: dict[str, str],
+) -> float:
+    """Aggregate values directly over BIM v1 workflow blocks."""
+    reference = node.get("task")
+    if reference:
+        return per_task[reference["id"]]
+    if "sequence" in node or "parallel" in node:
+        block = "sequence" if "sequence" in node else "parallel"
+        values = [
+            fold_over_workflow(child, per_task, operators) for child in node[block]
+        ]
+        return _apply_fold(operators[block], values)
+    if "exclusive" in node:
+        values = [
+            fold_over_workflow(branch["flow"], per_task, operators)
+            for branch in node["exclusive"]
+        ]
+        if operators["exclusive"] == "weightedSum":
+            probability = 1.0 / len(values)
+            return sum(probability * value for value in values)
+        return _apply_fold(operators["exclusive"], values)
+    if "repeat" in node:
+        repeat = node["repeat"]
+        count = float(repeat.get("count", repeat.get("expectedCount", 1.0)))
+        return count * fold_over_workflow(repeat["body"], per_task, operators)
+    if node.get("empty") is True:
+        return 0.0
+    raise ValueError(f"Unsupported BIM workflow block for fold: {node!r}")
 
 
-def _apply_fold(fn: str, values: list[float]) -> float:
-    if fn == "MIN":
+def _apply_fold(operator: str, values: list[float]) -> float:
+    if operator == "min":
         return min(values)
-    if fn == "MAX":
+    if operator == "max":
         return max(values)
     return sum(values)
 
 
-_COST_FNS = {"seq": "SUM", "and": "SUM", "xor": "SCALED_SUM"}
-_SECURITY_FNS = {"seq": "MIN", "and": "MIN", "xor": "MIN"}
+_COST_OPERATORS = {"sequence": "sum", "parallel": "sum", "exclusive": "weightedSum"}
+_SECURITY_OPERATORS = {"sequence": "min", "parallel": "min", "exclusive": "min"}
 
 
 def _latency_norm_bounds(
-    composition: dict[str, Any],
-    tasks: list[dict[str, Any]],
+    workflow: dict[str, Any],
     infra: InfraContext,
     event_latencies: dict[str, dict[str, float]],
     min_exec: dict[str, float] | None = None,
@@ -903,9 +1143,8 @@ def _latency_norm_bounds(
     latency, so scheduling the scenario DAGs with constant extremal transfer
     latencies and per-task extremal execution latencies yields valid bounds.
 
-    Requires the gateway's reference evaluator: it owns the scenario
-    enumeration, and deriving the bounds from a second implementation would be
-    the kind of drift the reference exists to prevent.
+    The generator enumerates its own finite BIM workflow here because
+    normalization is part of the generated source contract, not engine state.
     """
     min_exec = min_exec or {}
     max_exec = max_exec or {}
@@ -917,20 +1156,106 @@ def _latency_norm_bounds(
         default=0.0,
     )
 
-    from openbinding_gateway.semantics import build_scenarios
+    exclusive_nodes: list[dict[str, Any]] = []
 
-    scenarios = build_scenarios(composition["root"], sorted(event_latencies.keys()))
+    def collect_exclusives(node: dict[str, Any]) -> None:
+        if "exclusive" in node:
+            exclusive_nodes.append(node)
+            for branch in node["exclusive"]:
+                collect_exclusives(branch["flow"])
+        for block in ("sequence", "parallel"):
+            for child in node.get(block, []):
+                collect_exclusives(child)
+        if "repeat" in node:
+            collect_exclusives(node["repeat"]["body"])
+
+    def build_dag(
+        node: dict[str, Any],
+        entries: list[tuple[str, str]],
+        choices: dict[int, int],
+        predecessors: dict[str, list[tuple[str, str]]],
+        order: list[str],
+    ) -> list[tuple[str, str]]:
+        reference = node.get("task")
+        if reference:
+            task_name = reference["id"]
+            if task_name in predecessors:
+                raise ValueError(
+                    f"task {task_name!r} appears more than once in the workflow"
+                )
+            predecessors[task_name] = list(entries)
+            order.append(task_name)
+            return [("task", task_name)]
+        if "sequence" in node:
+            current = list(entries)
+            for child in node["sequence"]:
+                current = build_dag(child, current, choices, predecessors, order)
+            return current
+        if "parallel" in node:
+            exits: list[tuple[str, str]] = []
+            for child in node["parallel"]:
+                exits.extend(
+                    build_dag(child, list(entries), choices, predecessors, order)
+                )
+            return exits
+        if "exclusive" in node:
+            branches = node["exclusive"]
+            return build_dag(
+                branches[choices[id(node)]]["flow"],
+                entries,
+                choices,
+                predecessors,
+                order,
+            )
+        if "repeat" in node:
+            return build_dag(
+                node["repeat"]["body"], entries, choices, predecessors, order
+            )
+        if node.get("empty") is True:
+            return list(entries)
+        raise ValueError(f"unsupported BIM workflow block in latency bounds: {node!r}")
+
+    collect_exclusives(workflow)
+    scenarios: list[dict[str, Any]] = []
+    combinations = (
+        product(*(range(len(node["exclusive"])) for node in exclusive_nodes))
+        if exclusive_nodes
+        else [()]
+    )
+    for combination in combinations:
+        choices = {id(node): index for node, index in zip(exclusive_nodes, combination)}
+        probability = 1.0
+        for node, _index in zip(exclusive_nodes, combination):
+            probability *= 1.0 / len(node["exclusive"])
+        predecessors: dict[str, list[tuple[str, str]]] = {}
+        order: list[str] = []
+        entries = [("event", event_id) for event_id in sorted(event_latencies)]
+        exits = build_dag(workflow, entries, choices, predecessors, order)
+        scenarios.append(
+            {
+                "prob": probability,
+                "preds": predecessors,
+                "order": order,
+                "sinks": [
+                    source_id
+                    for source_kind, source_id in exits
+                    if source_kind == "task"
+                ],
+            }
+        )
 
     def makespan(transfer: float, event: float, exec_of: dict[str, float]) -> float:
         total = 0.0
         for scenario in scenarios:
             finish: dict[str, float] = {}
-            for task_id in scenario["order"]:
+            for task_name in scenario["order"]:
                 start = 0.0
-                for src_kind, src_id in scenario["preds"][task_id]:
+                for src_kind, src_id in scenario["preds"][task_name]:
                     ready = 0.0 if src_kind == "event" else finish[src_id]
-                    start = max(start, ready + (event if src_kind == "event" else transfer))
-                finish[task_id] = start + float(exec_of.get(task_id, 0.0))
+                    start = max(
+                        start, ready + (event if src_kind == "event" else transfer)
+                    )
+                finish[task_name] = start + float(exec_of.get(task_name, 0.0))
             sinks = scenario["sinks"] or scenario["order"]
             total += scenario["prob"] * max((finish[t] for t in sinks), default=0.0)
         return total
@@ -939,10 +1264,10 @@ def _latency_norm_bounds(
 
 
 def _latency_arc_consistent_pools(
-    tasks: list[dict[str, Any]],
-    by_task: dict[str, list[dict[str, Any]]],
+    task_names: list[str],
+    by_task: dict[str, list[str]],
     candidate_pools: dict[str, str],
-    transition_constraints: list[dict[str, Any]],
+    transitions: dict[str, dict[str, Any]],
     infra: InfraContext,
     event_latencies: dict[str, dict[str, float]],
 ) -> dict[str, set[str]]:
@@ -955,57 +1280,64 @@ def _latency_arc_consistent_pools(
     candidate sets are anchored to latency-plausible costs.
     """
     domains: dict[str, set[str]] = {
-        task["id"]: {candidate_pools[c["id"]] for c in by_task.get(task["id"], [])}
-        for task in tasks
+        task_name: {
+            candidate_pools[candidate_name]
+            for candidate_name in by_task.get(task_name, [])
+        }
+        for task_name in task_names
     }
 
     binary: list[tuple[str, str, float]] = []
-    for tc in transition_constraints:
-        bound = float(tc["value"])
-        to_task = tc["to_task"]
-        if tc.get("from_event") is not None:
-            event_row = event_latencies.get(tc["from_event"], {})
-            domains[to_task] = {
-                pool for pool in domains.get(to_task, set())
+    for transition in transitions.values():
+        bound = float(transition["maximum"])
+        source = transition["from"]
+        target_name = transition["to"]["id"]
+        if source["resource"] == "placement":
+            event_row = event_latencies.get(source["id"], {})
+            domains[target_name] = {
+                pool
+                for pool in domains.get(target_name, set())
                 if event_row.get(pool, float("inf")) <= bound + 1e-9
             }
-        elif tc.get("from_task") is not None:
-            binary.append((tc["from_task"], to_task, bound))
+        else:
+            binary.append((source["id"], target_name, bound))
 
     latency = infra.pool_latency
     changed = True
     while changed:
         changed = False
-        for from_task, to_task, bound in binary:
-            dom_from = domains.get(from_task, set())
-            dom_to = domains.get(to_task, set())
+        for source_name, target_name, bound in binary:
+            dom_from = domains.get(source_name, set())
+            dom_to = domains.get(target_name, set())
             keep_from = {
-                p for p in dom_from
+                p
+                for p in dom_from
                 if any(latency[p][q] <= bound + 1e-9 for q in dom_to)
             }
             keep_to = {
-                q for q in dom_to
+                q
+                for q in dom_to
                 if any(latency[p][q] <= bound + 1e-9 for p in keep_from)
             }
             if keep_from != dom_from:
-                domains[from_task] = keep_from
+                domains[source_name] = keep_from
                 changed = True
             if keep_to != dom_to:
-                domains[to_task] = keep_to
+                domains[target_name] = keep_to
                 changed = True
     return domains
 
 
 def _cheapest_feasible_witness(
-    tasks: list[dict[str, Any]],
-    eligible_by_task: dict[str, list[dict[str, Any]]],
+    task_names: list[str],
+    eligible_by_task: dict[str, list[str]],
     candidate_pools: dict[str, str],
     demand_of: dict[str, dict[str, float]],
     infra: InfraContext,
-    transition_constraints: list[dict[str, Any]],
+    transitions: dict[str, dict[str, Any]],
     event_latencies: dict[str, dict[str, float]],
     node_budget: int = 500_000,
-) -> dict[str, dict[str, Any]] | None:
+) -> dict[str, str] | None:
     """Cheapest-first backtracking search for a certified feasible binding.
 
     AC-3 only guarantees arc consistency, so budgets anchored to per-task
@@ -1015,47 +1347,55 @@ def _cheapest_feasible_witness(
     sets), every transition constraint and every pool capacity, so budgets
     anchored to it keep the instance certifiably satisfiable.
     """
-    capacity_of = {p["id"]: dict(p.get("capacity") or {}) for p in infra.pools}
+    capacity_of = {
+        name: dict(pool.get("capacity") or {}) for name, pool in infra.pools.items()
+    }
     latency = infra.pool_latency
 
     event_bounds: dict[str, list[tuple[str, float]]] = defaultdict(list)
     binary_bounds: dict[str, list[tuple[str, float]]] = defaultdict(list)
-    for tc in transition_constraints:
-        bound = float(tc["value"])
-        if tc.get("from_event") is not None:
-            event_bounds[tc["to_task"]].append((tc["from_event"], bound))
-        elif tc.get("from_task") is not None:
+    for transition in transitions.values():
+        bound = float(transition["maximum"])
+        source = transition["from"]
+        target_name = transition["to"]["id"]
+        if source["resource"] == "placement":
+            event_bounds[target_name].append((source["id"], bound))
+        else:
+            source_name = source["id"]
             # Index by both endpoints so a task is checked against every
             # already-assigned neighbour as soon as it gets a pool.
-            binary_bounds[tc["to_task"]].append((tc["from_task"], bound))
-            binary_bounds[tc["from_task"]].append((tc["to_task"], bound))
+            binary_bounds[target_name].append((source_name, bound))
+            binary_bounds[source_name].append((target_name, bound))
 
     order = sorted(
-        (t["id"] for t in tasks if eligible_by_task.get(t["id"])),
-        key=lambda tid: len(eligible_by_task[tid]),
+        (name for name in task_names if eligible_by_task.get(name)),
+        key=lambda name: len(eligible_by_task[name]),
     )
-    if len(order) < len(tasks):
+    if len(order) < len(task_names):
         return None  # some task has no eligible candidate at all
 
-    assignment: dict[str, dict[str, Any]] = {}
+    assignment: dict[str, str] = {}
     pool_of: dict[str, str] = {}
     usage: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
     expansions = 0
 
-    def fits(task_id: str, cand: dict[str, Any]) -> bool:
-        pool = candidate_pools[cand["id"]]
-        for event_id, bound in event_bounds.get(task_id, ()):
+    def fits(task_name: str, candidate_name: str) -> bool:
+        pool = candidate_pools[candidate_name]
+        for event_id, bound in event_bounds.get(task_name, ()):
             if event_latencies.get(event_id, {}).get(pool, float("inf")) > bound + 1e-9:
                 return False
-        for other, bound in binary_bounds.get(task_id, ()):
+        for other, bound in binary_bounds.get(task_name, ()):
             other_pool = pool_of.get(other)
             if other_pool is not None and latency[pool][other_pool] > bound + 1e-9:
                 return False
         capacity = capacity_of.get(pool) or {}
-        demand = demand_of.get(cand["id"]) or {}
+        demand = demand_of.get(candidate_name) or {}
         for resource, needed in demand.items():
             cap = capacity.get(resource)
-            if cap is not None and usage[pool][resource] + float(needed) > float(cap) + 1e-9:
+            if (
+                cap is not None
+                and usage[pool][resource] + float(needed) > float(cap) + 1e-9
+            ):
                 return False
         return True
 
@@ -1063,24 +1403,24 @@ def _cheapest_feasible_witness(
         nonlocal expansions
         if depth == len(order):
             return True
-        task_id = order[depth]
-        for cand in eligible_by_task[task_id]:
+        task_name = order[depth]
+        for candidate_name in eligible_by_task[task_name]:
             expansions += 1
             if expansions > node_budget:
                 return False
-            if not fits(task_id, cand):
+            if not fits(task_name, candidate_name):
                 continue
-            pool = candidate_pools[cand["id"]]
-            assignment[task_id] = cand
-            pool_of[task_id] = pool
-            for resource, needed in (demand_of.get(cand["id"]) or {}).items():
+            pool = candidate_pools[candidate_name]
+            assignment[task_name] = candidate_name
+            pool_of[task_name] = pool
+            for resource, needed in (demand_of.get(candidate_name) or {}).items():
                 usage[pool][resource] += float(needed)
             if search(depth + 1):
                 return True
-            for resource, needed in (demand_of.get(cand["id"]) or {}).items():
+            for resource, needed in (demand_of.get(candidate_name) or {}).items():
                 usage[pool][resource] -= float(needed)
-            del assignment[task_id]
-            del pool_of[task_id]
+            del assignment[task_name]
+            del pool_of[task_name]
         return False
 
     return dict(assignment) if search(0) else None
@@ -1089,17 +1429,17 @@ def _cheapest_feasible_witness(
 def build_pricing_artifacts(
     *,
     app_id: str,
-    tasks: list[dict[str, Any]],
-    candidates: list[dict[str, Any]],
-    candidate_bindings: list[dict[str, Any]],
-    composition: dict[str, Any],
+    task_names: list[str],
+    candidates: dict[str, dict[str, Any]],
+    demands: list[dict[str, Any]],
+    workflow: dict[str, Any],
     security_thresholds: dict[str, float],
-    transition_constraints: list[dict[str, Any]],
+    transitions: dict[str, dict[str, Any]],
     config: dict[str, Any],
     infra: InfraContext,
     event_latencies: dict[str, dict[str, float]],
     reports: GenerationReports,
-) -> tuple[list[dict[str, Any]], dict[str, dict[str, float]]]:
+) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, float]]]:
     """Pricing (budget) constraints and canonical normalization bounds.
 
     - Eligibility is latency-aware: candidate pools are filtered by AC-3 over
@@ -1109,8 +1449,8 @@ def build_pricing_artifacts(
       backtracking assignment satisfying transitions + capacities), so the
       emitted instance stays satisfiable.
     - Global budget: factor x cost of the witness binding, aggregated over
-      the composition tree.
-    - Normalization bounds: per-feature [min, max] of the aggregated value
+      the BIM workflow.
+    - Normalization bounds: per-metric [min, max] of the aggregated value
       over any binding (folds of per-task extremes; scheduler bounds for the
       end-to-end latency), shared by every engine through the instance.
     """
@@ -1119,36 +1459,58 @@ def build_pricing_artifacts(
     quantile = float(cfg.get("local_budget_quantile", 0.75))
     slack = float(cfg.get("global_budget_slack", 0.25))
 
-    by_task: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for candidate in candidates:
-        for task_id in candidate["task_ids"]:
-            by_task[task_id].append(candidate)
-    candidate_pools = {cb["candidate_id"]: cb["pool_id"] for cb in candidate_bindings}
+    by_task: dict[str, list[str]] = defaultdict(list)
+    known_tasks = set(task_names)
+    for candidate_name, candidate in candidates.items():
+        provided = candidate["provides"]
+        capabilities = [provided] if isinstance(provided, str) else provided
+        for capability in capabilities:
+            if capability.startswith("service/") and capability[8:] in known_tasks:
+                by_task[capability[8:]].append(candidate_name)
+    candidate_pools = {
+        demand["candidate"]["id"]: demand["pool"]["id"] for demand in demands
+    }
 
     ac_domains = _latency_arc_consistent_pools(
-        tasks, by_task, candidate_pools, transition_constraints, infra, event_latencies
+        task_names,
+        by_task,
+        candidate_pools,
+        transitions,
+        infra,
+        event_latencies,
     )
 
-    demand_of = {cb["candidate_id"]: dict(cb.get("demand") or {}) for cb in candidate_bindings}
-    eligible_by_task: dict[str, list[dict[str, Any]]] = {}
-    for task in tasks:
-        task_id = task["id"]
-        threshold = float(security_thresholds.get(task_id, 0.0))
-        pool_domain = ac_domains.get(task_id, set())
-        eligible_by_task[task_id] = sorted(
+    demand_of = {
+        demand["candidate"]["id"]: dict(demand.get("resources") or {})
+        for demand in demands
+    }
+    eligible_by_task: dict[str, list[str]] = {}
+    for task_name in task_names:
+        threshold = float(security_thresholds.get(task_name, 0.0))
+        pool_domain = ac_domains.get(task_name, set())
+        eligible_by_task[task_name] = sorted(
             (
-                c for c in by_task.get(task_id, [])
-                if float(c["features"]["security"]) >= threshold - 1e-9
-                and candidate_pools.get(c["id"]) in pool_domain
+                candidate_name
+                for candidate_name in by_task.get(task_name, [])
+                if float(candidates[candidate_name]["metrics"]["security"])
+                >= threshold - 1e-9
+                and candidate_pools.get(candidate_name) in pool_domain
             ),
-            key=lambda c: float(c["features"]["cost"]),
+            key=lambda candidate_name: float(
+                candidates[candidate_name]["metrics"]["cost"]
+            ),
         )
     witness = _cheapest_feasible_witness(
-        tasks, eligible_by_task, candidate_pools, demand_of, infra,
-        transition_constraints, event_latencies,
+        task_names,
+        eligible_by_task,
+        candidate_pools,
+        demand_of,
+        infra,
+        transitions,
+        event_latencies,
     )
 
-    constraints: list[dict[str, Any]] = []
+    constraints: dict[str, dict[str, Any]] = {}
     min_cost_eligible: dict[str, float] = {}
     local_budget_by_task: dict[str, float] = {}
     min_cost_all: dict[str, float] = {}
@@ -1156,25 +1518,31 @@ def build_pricing_artifacts(
     min_sec_all: dict[str, float] = {}
     max_sec_all: dict[str, float] = {}
 
-    for task in tasks:
-        task_id = task["id"]
-        cands = by_task.get(task_id, [])
-        if not cands:
+    for task_name in task_names:
+        task_candidates = by_task.get(task_name, [])
+        if not task_candidates:
             continue
-        costs_all = [float(c["features"]["cost"]) for c in cands]
-        secs_all = [float(c["features"]["security"]) for c in cands]
-        threshold = float(security_thresholds.get(task_id, 0.0))
-        pool_domain = ac_domains.get(task_id, set())
+        costs_all = [
+            float(candidates[name]["metrics"]["cost"]) for name in task_candidates
+        ]
+        securities_all = [
+            float(candidates[name]["metrics"]["security"]) for name in task_candidates
+        ]
+        threshold = float(security_thresholds.get(task_name, 0.0))
+        pool_domain = ac_domains.get(task_name, set())
         latency_feasible = bool(pool_domain)
-        eligible_costs = [float(c["features"]["cost"]) for c in eligible_by_task[task_id]]
+        eligible_costs = [
+            float(candidates[name]["metrics"]["cost"])
+            for name in eligible_by_task[task_name]
+        ]
         security_feasible = bool(eligible_costs)
         if not eligible_costs:
             # Degenerate fallback (latency/security-infeasible task): derive
             # budgets from the security-only filter, then from all candidates.
             eligible_costs = [
-                float(c["features"]["cost"])
-                for c in cands
-                if float(c["features"]["security"]) >= threshold - 1e-9
+                float(candidates[name]["metrics"]["cost"])
+                for name in task_candidates
+                if float(candidates[name]["metrics"]["security"]) >= threshold - 1e-9
             ] or costs_all
 
         local_budget = round(_quantile(sorted(eligible_costs), quantile), 8)
@@ -1182,57 +1550,60 @@ def build_pricing_artifacts(
         # within the local budget, otherwise the joint transition/capacity
         # structure can make the emitted instance UNSAT.
         witness_cost = (
-            float(witness[task_id]["features"]["cost"]) if witness and task_id in witness else None
+            float(candidates[witness[task_name]]["metrics"]["cost"])
+            if witness and task_name in witness
+            else None
         )
         if witness_cost is not None and witness_cost > local_budget:
             local_budget = round(witness_cost, 8)
-        local_budget_by_task[task_id] = local_budget
-        constraints.append(
-            {
-                "id": safe_id(f"budget_local_{task_id}"),
-                "kind": "ATTRIBUTE_BOUND",
-                "scope": "LOCAL",
-                "tasks": [task_id],
-                "attribute_id": "cost",
-                "op": "<=",
-                "value": local_budget,
-                "hard": True,
-            }
-        )
+        local_budget_by_task[task_name] = local_budget
+        constraints[safe_id(f"budget_local_{task_name}")] = {
+            "assert": (
+                f"tasks.{task_name}.metrics.cost <= {json_number(local_budget)}"
+            ),
+            "enforcement": "hard",
+        }
         # The global budget builds on the witness binding (feasible w.r.t.
         # transitions and capacities); without a witness it falls back to the
         # cheapest candidate within all local requirements.
         if witness_cost is not None:
-            min_cost_eligible[task_id] = witness_cost
+            min_cost_eligible[task_name] = witness_cost
         else:
             within_local = [c for c in eligible_costs if c <= local_budget + 1e-9]
-            min_cost_eligible[task_id] = min(within_local) if within_local else min(eligible_costs)
-        min_cost_all[task_id] = min(costs_all)
-        max_cost_all[task_id] = max(costs_all)
-        min_sec_all[task_id] = min(secs_all)
-        max_sec_all[task_id] = max(secs_all)
+            min_cost_eligible[task_name] = (
+                min(within_local) if within_local else min(eligible_costs)
+            )
+        min_cost_all[task_name] = min(costs_all)
+        max_cost_all[task_name] = max(costs_all)
+        min_sec_all[task_name] = min(securities_all)
+        max_sec_all[task_name] = max(securities_all)
 
         reports.budget_rows.append(
             {
                 "application": app_id,
                 "dataset_seed": infra.seed,
                 "infrastructure": infra.path.stem,
-                "task": task_id,
+                "task": task_name,
                 "security_threshold": threshold,
                 "eligible_candidates": len(eligible_costs),
                 "latency_feasible": latency_feasible,
                 "security_feasible": security_feasible,
                 "witness_found": witness is not None,
-                "witness_cost": round(witness_cost, 8) if witness_cost is not None else None,
+                "witness_cost": round(witness_cost, 8)
+                if witness_cost is not None
+                else None,
                 "ac_pool_domain_size": len(pool_domain),
                 "local_budget_quantile": quantile,
                 "local_budget": local_budget,
-                "min_eligible_cost": round(min_cost_eligible[task_id], 8),
+                "min_eligible_cost": round(min_cost_eligible[task_name], 8),
             }
         )
 
-    root = composition["root"]
-    cheapest_eligible = fold_over_composition(root, min_cost_eligible, _COST_FNS)
+    cheapest_eligible = fold_over_workflow(
+        workflow,
+        min_cost_eligible,
+        _COST_OPERATORS,
+    )
     if witness is not None:
         # Certified-feasible budget with controlled difficulty: the budget
         # always covers the witness binding (so the instance is satisfiable)
@@ -1241,47 +1612,62 @@ def build_pricing_artifacts(
         # cheapest witness collapses the feasible region when ultra-cheap
         # cloud candidates anchor it (random search then never finds a
         # feasible binding), so slack interpolates instead of multiplying.
-        local_fold = fold_over_composition(root, local_budget_by_task, _COST_FNS)
+        local_fold = fold_over_workflow(
+            workflow,
+            local_budget_by_task,
+            _COST_OPERATORS,
+        )
         global_budget = round(
             cheapest_eligible + slack * max(0.0, local_fold - cheapest_eligible), 8
         )
     else:
         global_budget = round(factor * cheapest_eligible, 8)
-    constraints.insert(
-        0,
-        {
-            "id": safe_id(f"budget_global_{app_id}"),
-            "kind": "ATTRIBUTE_BOUND",
-            "scope": "GLOBAL",
-            "attribute_id": "cost",
-            "op": "<=",
-            "value": global_budget,
-            "hard": True,
+    constraints = {
+        safe_id(f"budget_global_{app_id}"): {
+            "assert": f"metrics.cost <= {json_number(global_budget)}",
+            "enforcement": "hard",
         },
-    )
+        **constraints,
+    }
 
     min_exec_lat: dict[str, float] = {}
     max_exec_lat: dict[str, float] = {}
-    for task in tasks:
+    for task_name in task_names:
         exec_lats = [
-            float((c.get("features") or {}).get("latency", 0.0))
-            for c in by_task.get(task["id"], [])
+            float(candidates[name]["metrics"].get("latency", 0.0))
+            for name in by_task.get(task_name, [])
         ]
         if exec_lats:
-            min_exec_lat[task["id"]] = min(exec_lats)
-            max_exec_lat[task["id"]] = max(exec_lats)
+            min_exec_lat[task_name] = min(exec_lats)
+            max_exec_lat[task_name] = max(exec_lats)
     lat_min, lat_max = _latency_norm_bounds(
-        composition, tasks, infra, event_latencies, min_exec_lat, max_exec_lat
+        workflow,
+        infra,
+        event_latencies,
+        min_exec_lat,
+        max_exec_lat,
     )
     normalize_bounds = {
         "cost": {
-            "min": round(fold_over_composition(root, min_cost_all, _COST_FNS), 8),
-            "max": round(fold_over_composition(root, max_cost_all, _COST_FNS), 8),
+            "min": round(
+                fold_over_workflow(workflow, min_cost_all, _COST_OPERATORS),
+                8,
+            ),
+            "max": round(
+                fold_over_workflow(workflow, max_cost_all, _COST_OPERATORS),
+                8,
+            ),
         },
         "latency": {"min": round(lat_min, 6), "max": round(lat_max, 6)},
         "security": {
-            "min": round(fold_over_composition(root, min_sec_all, _SECURITY_FNS), 6),
-            "max": round(fold_over_composition(root, max_sec_all, _SECURITY_FNS), 6),
+            "min": round(
+                fold_over_workflow(workflow, min_sec_all, _SECURITY_OPERATORS),
+                6,
+            ),
+            "max": round(
+                fold_over_workflow(workflow, max_sec_all, _SECURITY_OPERATORS),
+                6,
+            ),
         },
     }
 
@@ -1313,32 +1699,34 @@ def build_event_latency(
     flow: Any,
     infra: InfraContext,
     first_task_bounds: dict[str, float],
-) -> tuple[list[dict[str, Any]], dict[str, str], dict[str, dict[str, float]]]:
+) -> tuple[dict[str, dict[str, Any]], dict[str, str], dict[str, dict[str, float]]]:
     event = trigger_event(app.get("trigger", ""))
     event_pools: dict[str, str] = {}
     event_latencies: dict[str, dict[str, float]] = {}
-    constraints: list[dict[str, Any]] = []
-    pool_ids = [pool["id"] for pool in infra.pools]
+    transitions: dict[str, dict[str, Any]] = {}
+    pool_names = list(infra.pools)
     for generator in infra.event_generators:
         events = {trigger_event(e) for e in generator.get("events", [])}
         if event not in events:
             continue
-        event_id = safe_id(f"{generator['name']}_{event}")
+        event_name = safe_id(f"{generator['name']}_{event}")
         source_pool = infra.pool_by_original_node[generator["node"]]
-        event_pools[event_id] = source_pool
-        event_latencies[event_id] = {pool_id: infra.pool_latency[source_pool][pool_id] for pool_id in pool_ids}
-        for first_task in sorted(flow.first):
-            constraints.append(
-                {
-                    "id": safe_id(f"latency_{event_id}_to_{first_task}"),
-                    "from_event": event_id,
-                    "to_task": first_task,
-                    "op": "<=",
-                    "value": float(first_task_bounds[first_task]),
-                    "hard": True,
-                }
-            )
-    return constraints, event_pools, event_latencies
+        event_pools[event_name] = source_pool
+        event_latencies[event_name] = {
+            pool_name: infra.pool_latency[source_pool][pool_name]
+            for pool_name in pool_names
+        }
+        for first_task in sorted(flow.first, key=lambda reference: reference["id"]):
+            task_name = first_task["id"]
+            transition_name = safe_id(f"latency_{event_name}_to_{task_name}")
+            transitions[transition_name] = {
+                "from": {"resource": "placement", "id": event_name},
+                "to": first_task,
+                "maximum": float(first_task_bounds[task_name]),
+                "enforcement": "hard",
+                "metric": {"resource": "application", "id": "latency"},
+            }
+    return transitions, event_pools, event_latencies
 
 
 def write_reports(report_dir: Path, reports: GenerationReports) -> None:

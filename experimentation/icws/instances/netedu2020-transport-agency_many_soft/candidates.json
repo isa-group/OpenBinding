@@ -1,0 +1,1862 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "netedu2020_transport_agency_many_soft_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c_get_country_from_location": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 1,
+          "execution_time": 192,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "c_get_transport_company": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1,
+          "execution_time": 192,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "c_get_closest_city": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1,
+          "execution_time": 192,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "c_get_local_subsidiary": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1,
+          "execution_time": 192,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "c_get_vehicle": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1,
+          "execution_time": 192,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "c_make_arrangements": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1,
+          "execution_time": 192,
+          "availability": 0.985,
+          "reliability": 0.983,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_1": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.86,
+          "execution_time": 190.91
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_get_transport_company_gen_1": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.991803,
+          "reliability": 0.9876999999999999,
+          "security": 5.0,
+          "execution_time": 191.05
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_get_closest_city_gen_1": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.97843,
+          "reliability": 0.9883,
+          "security": 5.0,
+          "execution_time": 187.83
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_get_local_subsidiary_gen_1": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.996911,
+          "reliability": 0.9882,
+          "security": 5.0,
+          "execution_time": 193.53
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_get_vehicle_gen_1": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1.03,
+          "availability": 0.964604,
+          "reliability": 0.9541,
+          "security": 5.0,
+          "execution_time": 187.98
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_make_arrangements_gen_1": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 0.97,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 197.69
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_get_closest_city_gen_2": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.999128,
+          "reliability": 0.9634,
+          "security": 5.0,
+          "execution_time": 195.22
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_2": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.962685,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 194.52
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_2": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.988709,
+          "reliability": 0.9729000000000001,
+          "security": 5.0,
+          "execution_time": 189.62
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_2": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.969007,
+          "reliability": 0.9721,
+          "security": 5.0,
+          "execution_time": 194.4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_2": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.996238,
+          "reliability": 0.9747,
+          "security": 4.87,
+          "execution_time": 195.96
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_2": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.968931,
+          "reliability": 0.9944,
+          "security": 4.99,
+          "execution_time": 187.2
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_3": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 1.0,
+          "reliability": 0.9967,
+          "security": 5.0,
+          "execution_time": 196.65
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_3": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.985383,
+          "reliability": 0.9925,
+          "security": 5.0,
+          "execution_time": 189.5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_3": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 0.959119,
+          "reliability": 0.9822,
+          "security": 4.99,
+          "execution_time": 190.46
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_3": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.977779,
+          "reliability": 0.9882,
+          "security": 5.0,
+          "execution_time": 194.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_3": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 0.968685,
+          "reliability": 0.971,
+          "security": 4.99,
+          "execution_time": 187.93
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_3": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.974933,
+          "reliability": 0.9632999999999999,
+          "security": 4.88,
+          "execution_time": 189.36
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_4": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.03,
+          "availability": 0.989821,
+          "reliability": 0.9662000000000001,
+          "security": 5.0,
+          "execution_time": 196.09
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_4": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.98547,
+          "reliability": 0.9709,
+          "security": 5.0,
+          "execution_time": 189.15
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_4": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.957077,
+          "reliability": 0.9994,
+          "security": 5.0,
+          "execution_time": 196.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_4": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 1.0,
+          "reliability": 0.9545999999999999,
+          "security": 5.0,
+          "execution_time": 194.47
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_4": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 0.97,
+          "availability": 0.97782,
+          "reliability": 0.9982,
+          "security": 5.0,
+          "execution_time": 191.18
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_4": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 0.994841,
+          "reliability": 0.9619,
+          "security": 4.94,
+          "execution_time": 191.59
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_5": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 1.0,
+          "reliability": 0.9764,
+          "security": 5.0,
+          "execution_time": 190.92
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_5": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.975724,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 188.3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_5": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.03,
+          "availability": 0.982868,
+          "reliability": 0.9847,
+          "security": 5.0,
+          "execution_time": 191.79
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_5": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.993595,
+          "reliability": 0.9781,
+          "security": 5.0,
+          "execution_time": 191.21
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_5": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 0.97,
+          "availability": 1.0,
+          "reliability": 0.9931,
+          "security": 4.93,
+          "execution_time": 195.66
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_5": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9979,
+          "security": 5.0,
+          "execution_time": 192.11
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_6": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.984055,
+          "reliability": 0.9723999999999999,
+          "security": 4.9,
+          "execution_time": 190.64
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_6": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.972367,
+          "reliability": 0.9592,
+          "security": 4.94,
+          "execution_time": 192.53
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_6": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.981194,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 197.33
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_6": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.93,
+          "execution_time": 195.91
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_6": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 1.0,
+          "reliability": 0.9863,
+          "security": 5.0,
+          "execution_time": 187.63
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_6": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.979578,
+          "reliability": 0.9897,
+          "security": 4.88,
+          "execution_time": 196.53
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_7": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 1.0,
+          "reliability": 0.9893000000000001,
+          "security": 4.96,
+          "execution_time": 195.29
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_7": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 0.962911,
+          "reliability": 0.9876999999999999,
+          "security": 4.92,
+          "execution_time": 189.75
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_7": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.993956,
+          "reliability": 0.9882,
+          "security": 5.0,
+          "execution_time": 187.62
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_7": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.998395,
+          "reliability": 0.9784,
+          "security": 4.87,
+          "execution_time": 189.49
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_7": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9706,
+          "security": 4.95,
+          "execution_time": 196.26
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_7": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9758,
+          "security": 4.95,
+          "execution_time": 197.22
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_8": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.974905,
+          "reliability": 0.9932,
+          "security": 5.0,
+          "execution_time": 191.26
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_8": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.991678,
+          "reliability": 0.9570000000000001,
+          "security": 4.89,
+          "execution_time": 194.96
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_8": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 1.0,
+          "reliability": 0.9839,
+          "security": 5.0,
+          "execution_time": 195.17
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_8": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 0.97,
+          "availability": 0.986512,
+          "reliability": 0.9567,
+          "security": 5.0,
+          "execution_time": 188.34
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_8": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.995343,
+          "reliability": 0.9989,
+          "security": 4.91,
+          "execution_time": 186.64
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_8": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 1.0,
+          "reliability": 0.9764,
+          "security": 5.0,
+          "execution_time": 190.8
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_9": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 1.0,
+          "reliability": 0.961,
+          "security": 5.0,
+          "execution_time": 193.12
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_9": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.984417,
+          "reliability": 0.9993000000000001,
+          "security": 4.86,
+          "execution_time": 195.44
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_9": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 0.979951,
+          "reliability": 0.9906999999999999,
+          "security": 5.0,
+          "execution_time": 193.63
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_9": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.95873,
+          "reliability": 0.9813,
+          "security": 5.0,
+          "execution_time": 195.21
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_9": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 1.0,
+          "reliability": 0.9722,
+          "security": 4.91,
+          "execution_time": 195.14
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_9": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 0.972509,
+          "reliability": 0.9943000000000001,
+          "security": 5.0,
+          "execution_time": 195.27
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_10": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9673,
+          "security": 5.0,
+          "execution_time": 195.5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_10": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.985623,
+          "reliability": 0.9704,
+          "security": 4.86,
+          "execution_time": 195.38
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_10": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.990336,
+          "reliability": 0.9926999999999999,
+          "security": 5.0,
+          "execution_time": 190.04
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_10": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 1.0,
+          "reliability": 0.9781,
+          "security": 4.96,
+          "execution_time": 197.17
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_10": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.988537,
+          "reliability": 0.9547,
+          "security": 5.0,
+          "execution_time": 192.06
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_10": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9691,
+          "security": 4.98,
+          "execution_time": 194.44
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_11": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 0.97,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.91,
+          "execution_time": 192.85
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_11": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9851000000000001,
+          "security": 5.0,
+          "execution_time": 191.43
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_11": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.999127,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 189.03
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_11": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.998897,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 194.01
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_11": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 0.97,
+          "availability": 0.989577,
+          "reliability": 0.9716,
+          "security": 5.0,
+          "execution_time": 194.37
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_11": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.964069,
+          "reliability": 0.9568000000000001,
+          "security": 4.92,
+          "execution_time": 190.77
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_12": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9924,
+          "security": 4.87,
+          "execution_time": 187.09
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_12": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.975577,
+          "reliability": 1.0,
+          "security": 4.89,
+          "execution_time": 194.36
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_12": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.978063,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 194.01
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_12": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.03,
+          "availability": 0.992155,
+          "reliability": 0.9926999999999999,
+          "security": 4.95,
+          "execution_time": 191.46
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_12": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.957107,
+          "reliability": 0.9570000000000001,
+          "security": 5.0,
+          "execution_time": 191.11
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_12": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.994209,
+          "reliability": 0.9581000000000001,
+          "security": 4.93,
+          "execution_time": 193.27
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_13": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.970495,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 194.73
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_13": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.995586,
+          "reliability": 0.9619,
+          "security": 5.0,
+          "execution_time": 197.23
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_13": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 1.0,
+          "reliability": 0.9645999999999999,
+          "security": 5.0,
+          "execution_time": 190.45
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_13": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9878,
+          "security": 4.86,
+          "execution_time": 187.78
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_13": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.97126,
+          "reliability": 0.9542,
+          "security": 4.99,
+          "execution_time": 192.77
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_13": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9567,
+          "security": 4.99,
+          "execution_time": 195.55
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_14": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.963526,
+          "reliability": 0.9873000000000001,
+          "security": 5.0,
+          "execution_time": 192.87
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_14": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.998234,
+          "reliability": 0.9847,
+          "security": 4.86,
+          "execution_time": 195.43
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_14": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 0.97,
+          "availability": 0.992707,
+          "reliability": 0.9749,
+          "security": 4.9,
+          "execution_time": 192.4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_14": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.993391,
+          "reliability": 1.0,
+          "security": 4.95,
+          "execution_time": 194.72
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_14": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.95636,
+          "reliability": 0.9631000000000001,
+          "security": 4.89,
+          "execution_time": 189.49
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_14": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.968359,
+          "reliability": 1.0,
+          "security": 4.85,
+          "execution_time": 195.85
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_15": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.97858,
+          "reliability": 0.9765999999999999,
+          "security": 4.94,
+          "execution_time": 195.05
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_15": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 0.99494,
+          "reliability": 1.0,
+          "security": 4.88,
+          "execution_time": 186.49
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_15": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 1.0,
+          "reliability": 0.9945,
+          "security": 4.93,
+          "execution_time": 194.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_15": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 0.981698,
+          "reliability": 0.9538,
+          "security": 4.87,
+          "execution_time": 188.72
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_15": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.992215,
+          "reliability": 0.9732,
+          "security": 4.96,
+          "execution_time": 197.19
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_15": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.997873,
+          "reliability": 0.9606,
+          "security": 4.98,
+          "execution_time": 193.14
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_16": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.03,
+          "availability": 0.997898,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 189.05
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_16": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.969288,
+          "reliability": 0.9697,
+          "security": 5.0,
+          "execution_time": 191.62
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_16": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.03,
+          "availability": 0.990874,
+          "reliability": 0.9990000000000001,
+          "security": 4.89,
+          "execution_time": 194.75
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_16": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.03,
+          "availability": 0.989328,
+          "reliability": 0.9544,
+          "security": 4.85,
+          "execution_time": 191.76
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_16": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9638,
+          "security": 5.0,
+          "execution_time": 195.28
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_16": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.997782,
+          "reliability": 0.9586,
+          "security": 4.94,
+          "execution_time": 188.76
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_17": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 197.5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_17": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 0.97,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.99,
+          "execution_time": 189.82
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_17": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.997078,
+          "reliability": 1.0,
+          "security": 4.99,
+          "execution_time": 192.29
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_17": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.956197,
+          "reliability": 0.9984000000000001,
+          "security": 5.0,
+          "execution_time": 194.97
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_17": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.992812,
+          "reliability": 0.9797,
+          "security": 4.96,
+          "execution_time": 193.45
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_17": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.987863,
+          "reliability": 0.9723,
+          "security": 5.0,
+          "execution_time": 189.26
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_18": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 0.97,
+          "availability": 0.960686,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 194.72
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_18": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.956918,
+          "reliability": 0.9892,
+          "security": 4.98,
+          "execution_time": 187.14
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_18": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.997013,
+          "reliability": 0.9747,
+          "security": 4.99,
+          "execution_time": 189.56
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_18": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.03,
+          "availability": 1.0,
+          "reliability": 0.9787,
+          "security": 5.0,
+          "execution_time": 193.63
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_18": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 0.97,
+          "availability": 0.992388,
+          "reliability": 0.9544,
+          "security": 5.0,
+          "execution_time": 194.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_18": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.978011,
+          "reliability": 0.9906,
+          "security": 4.93,
+          "execution_time": 188.6
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_19": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 0.967284,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 190.16
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_19": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.958774,
+          "reliability": 0.9847,
+          "security": 5.0,
+          "execution_time": 189.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_19": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9621999999999999,
+          "security": 5.0,
+          "execution_time": 187.65
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_19": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 1.0,
+          "reliability": 0.998,
+          "security": 4.94,
+          "execution_time": 192.9
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_19": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 1.01,
+          "availability": 0.976513,
+          "reliability": 1.0,
+          "security": 5.0,
+          "execution_time": 194.41
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_19": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 1.0,
+          "reliability": 0.9784,
+          "security": 5.0,
+          "execution_time": 193.08
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_20": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 0.97,
+          "availability": 0.97562,
+          "reliability": 0.9659,
+          "security": 4.91,
+          "execution_time": 195.9
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_20": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9943000000000001,
+          "security": 5.0,
+          "execution_time": 197.03
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_20": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.02,
+          "availability": 0.97548,
+          "reliability": 0.9773999999999999,
+          "security": 5.0,
+          "execution_time": 186.76
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_20": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 0.961157,
+          "reliability": 0.9590000000000001,
+          "security": 5.0,
+          "execution_time": 194.3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_get_vehicle_gen_20": {
+        "provides": "service/t_get_vehicle",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 0.982694,
+          "reliability": 0.9802,
+          "security": 4.88,
+          "execution_time": 194.96
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_make_arrangements_gen_20": {
+        "provides": "service/t_make_arrangements",
+        "metrics": {
+          "cost": 0.98,
+          "availability": 1.0,
+          "reliability": 0.9582999999999999,
+          "security": 5.0,
+          "execution_time": 191.65
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_closest_city_gen_21": {
+        "provides": "service/t_get_closest_city",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9818000000000001,
+          "security": 5.0,
+          "execution_time": 196.98
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_transport_agency"
+        }
+      },
+      "t_get_country_from_location_gen_21": {
+        "provides": "service/t_get_country_from_location",
+        "metrics": {
+          "cost": 0.99,
+          "availability": 1.0,
+          "reliability": 0.955,
+          "security": 4.89,
+          "execution_time": 193.37
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_get_local_subsidiary_gen_21": {
+        "provides": "service/t_get_local_subsidiary",
+        "metrics": {
+          "cost": 1.03,
+          "availability": 0.975774,
+          "reliability": 0.9947,
+          "security": 4.95,
+          "execution_time": 197.21
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_get_transport_company_gen_21": {
+        "provides": "service/t_get_transport_company",
+        "metrics": {
+          "cost": 1.0,
+          "availability": 1.0,
+          "reliability": 0.9609000000000001,
+          "security": 4.86,
+          "execution_time": 196.02
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      }
+    },
+    "providers": {
+      "p_transport_agency": {},
+      "p_gen_shared": {},
+      "p_gen_1": {},
+      "p_gen_2": {},
+      "p_gen_3": {},
+      "p_gen_4": {},
+      "p_gen_5": {}
+    },
+    "metricBindings": {
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      },
+      "availability": {
+        "resource": "application",
+        "id": "availability"
+      },
+      "reliability": {
+        "resource": "application",
+        "id": "reliability"
+      },
+      "security": {
+        "resource": "application",
+        "id": "security"
+      },
+      "execution_time": {
+        "resource": "application",
+        "id": "execution_time"
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-"""BIM' generator (slug: bimstar) for the ICSOC placement dataset."""
+"""BIM v1 generator for the ICSOC placement dataset."""
 
 __all__ = ["__version__"]
 

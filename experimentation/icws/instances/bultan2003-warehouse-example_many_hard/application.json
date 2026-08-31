@@ -1,0 +1,186 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "bultan2003_warehouse_example_many_hard_application"
+  },
+  "spec": {
+    "tasks": {
+      "t_authorize": "service/t_authorize",
+      "t_ok": "service/t_ok",
+      "t_order1": "service/t_order1",
+      "t_receipt1": "service/t_receipt1",
+      "t_bill1": "service/t_bill1",
+      "t_payment1": "service/t_payment1",
+      "t_order2": "service/t_order2",
+      "t_receipt2": "service/t_receipt2",
+      "t_bill2": "service/t_bill2",
+      "t_payment2": "service/t_payment2"
+    },
+    "metrics": {
+      "latency_ms": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 5000
+        }
+      },
+      "cost_usd": {
+        "unit": "usd",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      },
+      "availability": {
+        "unit": "prob",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "product",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "reliability": {
+        "unit": "1",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "product",
+        "domain": {
+          "kind": "ratio",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "security": {
+        "unit": "score",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "min",
+        "domain": {
+          "kind": "real",
+          "minimum": 1,
+          "maximum": 5
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_authorize"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_ok"
+          }
+        },
+        {
+          "parallel": [
+            {
+              "repeat": {
+                "body": {
+                  "sequence": [
+                    {
+                      "task": {
+                        "resource": "application",
+                        "id": "t_order1"
+                      }
+                    },
+                    {
+                      "parallel": [
+                        {
+                          "task": {
+                            "resource": "application",
+                            "id": "t_receipt1"
+                          }
+                        },
+                        {
+                          "sequence": [
+                            {
+                              "task": {
+                                "resource": "application",
+                                "id": "t_bill1"
+                              }
+                            },
+                            {
+                              "task": {
+                                "resource": "application",
+                                "id": "t_payment1"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "expectedCount": 2.5
+              }
+            },
+            {
+              "repeat": {
+                "body": {
+                  "sequence": [
+                    {
+                      "task": {
+                        "resource": "application",
+                        "id": "t_order2"
+                      }
+                    },
+                    {
+                      "parallel": [
+                        {
+                          "task": {
+                            "resource": "application",
+                            "id": "t_receipt2"
+                          }
+                        },
+                        {
+                          "sequence": [
+                            {
+                              "task": {
+                                "resource": "application",
+                                "id": "t_bill2"
+                              }
+                            },
+                            {
+                              "task": {
+                                "resource": "application",
+                                "id": "t_payment2"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "expectedCount": 2.5
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

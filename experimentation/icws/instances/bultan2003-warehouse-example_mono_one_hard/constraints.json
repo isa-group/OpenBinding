@@ -1,0 +1,23 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "bultan2003_warehouse_example_mono_one_hard_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "gen_c_global_latency_ms_1": {
+        "assert": "metrics.latency_ms <= 1337.9",
+        "enforcement": "hard"
+      },
+      "gen_c_local_t_receipt2_security_1": {
+        "assert": "tasks.t_receipt2.metrics.security >= 3.97",
+        "enforcement": "hard"
+      },
+      "gen_c_dep_same_1": {
+        "assert": "tasks.t_authorize.provider == tasks.t_bill1.provider",
+        "enforcement": "hard"
+      }
+    }
+  }
+}

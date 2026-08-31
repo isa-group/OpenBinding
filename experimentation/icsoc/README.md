@@ -1,135 +1,144 @@
-# OpenBinding4Placement experimentation: solving CLASP-FaaS as QACO′
+# BIM v1 placement experiment
 
-Experimental pipeline for the paper *QoS-aware Placement of FaaS Compositions in the Cloud-Edge
-Continuum*. It gives CLASP-FaaS — the Cost- and Latency-Aware Secure Placement of FaaS
-Compositions — an operational semantics as a placement-aware extension of the QoS-aware service
-composition problem (QACO′), encodes each instance as a priced **BIM′** instance
-(implementation slug: `bimstar`), and solves it through the OpenBinding gateway with three
-engines. OpenBinding4Placement is the name of this placement-aware extension of OpenBinding.
+This directory contains the reproducible experiment for *QoS-aware Placement
+of FaaS Compositions in the Cloud-Edge Continuum*. It gives CLASP-FaaS—the
+Cost- and Latency-Aware Secure Placement of FaaS Compositions—a deterministic
+placement-aware formulation of QACO′, generates each case as a modular BIM v1
+Instance, and runs compatible modes through the OpenBinding platform.
+`OpenBinding4Placement` is the experiment name, not a language or API version.
 
 ## Pipeline
 
+```text
+original_dataset/       BIM v1 generator        OpenBinding /v1       campaign.py
+(applications and  ──>  readable Instance  ──>  compile + dispatch ──> generated results
+infrastructures)        package directories     + reevaluation        and provenance
 ```
-original_dataset/          bimstar generator            OpenBinding stack           campaign.py            notebooks/03
-(3 apps, 20 seeds,   ──►   priced BIM′ corpus     ──►   gateway + 3 engines   ──►   runs.csv/traces.csv ──► figures &
- 35 sizes each)            (105 instances, 1 seed)      (docker compose)            (resumable)            statistics
-```
 
-- **Generator** (`bimstar/`): deterministic transformation (generator seed 12345, dataset seed
-  146588263). Per candidate: monthly USD cost from on-demand **iPricings** (`pricings/`), security
-  score, resource demands; per instance: provider/region-aware latency model, transition
-  constraints, capacity constraints, security thresholds and canonical min–max normalization
-  bounds shared by every engine.
-  - **Security thresholds** come from a per-variable information-flow analysis
-    (`security.output_propagation: variable`): trigger labels ride on the named dataflow
-    variables, so tasks touching only low/medium data get thresholds below `top` and the
-    security term of the objective genuinely discriminates (the classic saturating join is
-    available as `saturate`).
-  - **Pricing budgets** are anchored to a **certified feasible witness** — a cheapest-first
-    backtracking assignment over the AC-3-filtered pools that satisfies every transition bound
-    and pool capacity. Per-task budget = max(p75 of eligible costs, witness cost); global
-    budget = witness cost + `global_budget_slack` × (fold of local budgets − witness cost),
-    so every instance is satisfiable by construction with a configurable difficulty.
-- **Reference evaluator** (`openbinding_gateway.validation.engine_plugins.bimstar`): the single
-  source of truth for the placement semantics (end-to-end latency = expected makespan over XOR
-  scenarios, capacity, transitions, canonical objective). Every solution returned by any engine is
-  re-evaluated with it.
-- **Engines**: `minizinc-csp` (exact, Gecode), `random-search` (**baseline** of the study),
-  `evolutionary-heuristics` (NSGA-II, MONO mode with Deb's feasibility rules; uniform crossover +
-  random-reset mutation — the standard variation for categorical candidate indices — population 20,
-  selected in a preliminary 3-way pilot on the hard application, see `pilot_ga.py` and
-  `out/results/pilot_ga.csv`).
+The deterministic generator combines the source dataset with the local
+iPricing models in `pricings/`. It emits typed capabilities, finite scalar QoS
+metrics, candidate-to-pool assignments, capacity rules, explicit transition
+bounds, directed or explicitly symmetric network latency, and a weighted
+latency/cost/security objective. It also emits the routing and repeat
+multipliers used by the deterministic workflow semantics. The generated corpus
+contains three applications, 35 infrastructure sizes, and one pinned dataset
+seed: 105 BIM v1 Instances in total.
 
-## Experimental design
+Every Instance is a directory rooted at `instance.json`. The campaign builds a
+deterministic `.bim.zip`, creates or reuses an immutable snapshot, and submits a
+job to `/v1`. Every returned binding is reevaluated by the gateway's
+authoritative BIM v1 evaluator before its metrics and objective are recorded.
 
-| Variable | Domain |
-|---|---|
-| Algorithms | exact (Gecode), random search (baseline), NSGA-II (pop 20, uniform crossover + random-reset mutation) |
-| Objective | `J = 0.33·loss(latency) + 0.34·loss(cost) + 0.33·loss(security)` (canonical, lower is better) |
-| Instances | 3 applications × 35 infrastructure sizes (50–220 nodes) × dataset seed 146588263 = 105 |
-| Repetitions | exact ×1; stochastic ×10 (solver seeds 1–10) ⇒ 2 205 runs |
-| Stopping criterion | shared wall-clock budget **T = 300 s** for every algorithm |
-| Heuristic floor | ≥ 1 000 evaluations always granted (standard literature budget) |
+## Engine compatibility
 
-**Anytime protocol**: every solver returns the best solution it was considering when the budget
-expires — the exact engine returns its last (possibly unproven) incumbent; the heuristics return
-their best sample even when infeasible, flagged by the reference evaluator. Best-so-far traces
-record `(eval_index, elapsed_ms)` per improvement, so any cutoff τ ≤ T is recoverable offline.
+The bundled mode matrix is:
 
-**Exact-failure fallback**: when the exact engine returns no solution for an instance
-(UNSATISFIABLE / UNKNOWN), the evaluation uses the heuristics at the standard 1 000-evaluation
-cutoff as the per-instance reference.
+| Engine | Mode | Placement | Optimization | This corpus |
+| --- | --- | --- | --- | --- |
+| `minizinc-csp` | `exact-weighted` | `all` | `weighted` | compatible; exact reference |
+| `random-search` | `seeded` | `all` | `all` | compatible |
+| `evolutionary-heuristics` | `elitist-genetic` | `all` | `satisfy`, `weighted`, `lexicographic` | compatible |
+| `many-heuristic` | `pareto-sampling` | `all` | `pareto` only | incompatible with the weighted objective |
+
+The campaign executes `minizinc-csp/exact-weighted`, `random-search/seeded`,
+and `evolutionary-heuristics/elitist-genetic`. Compatibility is derived from the
+published Engine manifests and checked again against each compiled
+`BindingProblem`; an incompatible mode is never used as a fallback.
+All three selected modes pair their closed `placement: all` capability with
+`irExtensions: only(qos-binding-placement/v1)`; none claims support for an
+unknown future IR extension.
+
+MiniZinc supplies an exact `OPTIMAL`/`INFEASIBLE` reference when it finishes.
+The other two lanes are heuristic and report only `FEASIBLE` or `UNKNOWN`.
+Comparisons use the same finite wall-clock budget, explicit seeds, and the
+authoritative reevaluated weighted loss. Raw values are compared only within
+the same Instance; cross-instance summaries use normalized gaps or ranks.
 
 ## Layout
 
-```
+```text
 experimentation/icsoc/
-├── original_dataset/          # SecFaaS2Fog input (applications + infrastructures)
-├── bimstar/                   # BIM′ generator package (+ unit tests in bimstar/tests/)
-├── campaign.py                # resumable campaign runner (CLI + importable)
-├── analysis.py                # evaluation helpers (references, profiles, stats, figures)
+├── original_dataset/          # source applications and infrastructures
+├── generator/                 # BIM v1 generator and unit tests
+├── campaign.py                # resumable /v1 campaign runner
+├── regression/                # tiny pinned historical baseline (not the corpus)
+├── analysis.py                # result analysis helpers
 ├── notebooks/
-│   ├── 01_dataset_preprocessing.ipynb   # dataset → corpus, pricing & latency verification
-│   ├── 02_campaign_execution.ipynb      # stack, pilot, launch commands, monitoring
-│   └── 03_results_evaluation.ipynb      # full evaluation + paper figures
+│   ├── 01_dataset_preprocessing.ipynb
+│   ├── 02_campaign_execution.ipynb
+│   └── 03_results_evaluation.ipynb
 └── out/
-    ├── bimstar-priced/        # generated BIM′ corpus + provenance reports (CSV)
-    └── results/               # runs.csv, traces.csv, corpus_summary.csv, figures/
+    ├── bim-v1/                 # generated BIM v1 corpus and generation reports
+    └── results/                # generated locally by a new BIM v1 campaign
 ```
 
-## How to run
+The reduced regression pins one historical case and its exact result so changes
+can be classified as coincident, similar, statistically sensible, or a
+regression. “Similar” lies inside the historical min/max at 1,000 evaluations;
+“sensible” lies outside that range but below the Tukey-style outer fence
+`Q3 + 3 × IQR`, reconstructed from the last incumbent of each of ten published
+seeds. The baseline records Q1, Q3, the quantile method, and the current seeded
+observations, all of which are asserted in CI. Generate a fresh full corpus and
+run the current campaign before evaluating or publishing new figures.
+
+## Run the experiment
 
 ```bash
-# 0) Environment (once)
+# 0) Environment
 uv pip install -e ./openbinding-gateway pandas matplotlib scipy httpx --python .venv/bin/python
 
-# 1) Stack
-docker compose --profile dev up -d --build gateway-dev engine-minizinc \
-  engine-random-search engine-evolutionary-heuristics engine-many-heuristic
+# 1) Placement-compatible stack
+docker compose --profile dev up -d --build gateway-dev \
+  engine-minizinc engine-random-search engine-evolutionary-heuristics
 
-# 2) Corpus (deterministic; also available from notebook 01)
+# 2) Deterministic corpus
 .venv/bin/python -m experimentation.icsoc.generator.cli generate \
-  --dataset experimentation/icsoc/original_dataset --pricing-dir pricings \
+  --dataset experimentation/icsoc/original_dataset \
+  --pricing-dir pricings \
   --config experimentation/icsoc/generator/configs/default.yml \
-  --seed 12345 --out experimentation/icsoc/out/bimstar-priced --dataset-seeds 146588263
+  --seed 12345 \
+  --out experimentation/icsoc/out/bim-v1 \
+  --dataset-seeds 146588263
 
-# 3) Campaign — three parallel lanes (three terminals), resumable
+# 3) Resumable campaign (one exact and two heuristic lanes)
+.venv/bin/python experimentation/icsoc/campaign.py
+
+# Optional independent lanes
 .venv/bin/python experimentation/icsoc/campaign.py --engines minizinc-csp
 .venv/bin/python experimentation/icsoc/campaign.py --engines random-search
 .venv/bin/python experimentation/icsoc/campaign.py --engines evolutionary-heuristics
 
-# 4) Monitor
+# 4) Status and evaluation
 .venv/bin/python experimentation/icsoc/campaign.py --status
-
-# 5) Evaluate
 jupyter lab experimentation/icsoc/notebooks/03_results_evaluation.ipynb
 ```
 
-Sharding for a cluster: add `--applications arOrch` (etc.) per shard and merge the CSVs afterwards.
-A shorter horizon: `--time-budget-ms 60000` (the ≥1 000-evaluation floor is preserved).
+Use `--applications arOrch` (or another application id) to shard the campaign.
+A shorter wall-clock horizon can be selected with `--time-budget-ms`; use the
+  same value for all modes in a comparison.
 
-## Fair comparison of objective values
+## Reproducibility contract
 
-Engines may compute objectives internally in different ways, so the study never compares
-solver-reported numbers directly:
+- Generator seed `12345` and dataset seed `146588263` determine the 105 source
+  directories.
+- Export uses canonical JSON, UTF-8/LF, sorted POSIX paths, fixed timestamps,
+  ZIP `STORE`, and SHA-256 digests.
+- Every job records package, `fileDigests`, logical `resourceDigests`, selected
+  Dialect and adapter revisions, IR, Engine/mode, effective options, limits,
+  compiler, and evaluator in provenance.
+- Solver seeds are explicit and run ids are deterministic, so an interrupted
+  campaign can resume without changing completed runs.
+- Only gateway-reevaluated metrics, objectives, penalties, and violations enter
+  analysis outputs.
 
-1. **One referee** — every returned binding is re-evaluated by the gateway reference evaluator;
-   only that canonical J reaches `runs.csv` and the evaluation.
-2. **Same landscape, proven** — normalization bounds are part of the instance (a declared
-   contract), all engines use the same weighted-mean-of-losses convention, and each run carries an
-   integrity audit (`oracle_match`): the engine's internal objective (`engine_objective_value`)
-   must equal the canonical J for feasible solutions.
-3. **Scale-free aggregation** — J is normalized per instance, so raw values are only comparable
-   within an instance; cross-instance conclusions use gaps to the per-instance reference,
-   % improvement vs the random-search baseline, Dolan–Moré performance profiles, and mean ranks
-   with a Friedman test plus per-instance Mann–Whitney/Â₁₂.
-4. **Feasibility first** — infeasible solutions are never compared by J (they are reported through
-   success rates and violation magnitudes; NSGA-II infeasible bests carry Deb's offset by design).
+Run the generator tests and BIM v1 gateway tests before launching a campaign:
 
-## Reproducibility
+```bash
+PYTHONPATH=.:openbinding-gateway/src pytest \
+  experimentation/icsoc/generator/tests openbinding-gateway/tests
 
-- Corpus: generator seed 12345 + dataset seed 146588263 fully determine the 105 instances.
-- Runs: solver seeds are explicit (1–10); run ids are deterministic (`instance|engine#seed`).
-- Objectives: every reported value is recomputed by the gateway reference evaluator
-  (`oracle_match` flags any divergence; expected count 0).
-- Tests: `pytest experimentation/icsoc/generator/tests openbinding-gateway/tests`.
+# With the Compose stack running, this also regenerates and solves the reduced
+# historical case through all three compatible engines.
+docker compose exec -T gateway-dev test \
+  tests/integration/test_icsoc_regression.py -m integration
+```

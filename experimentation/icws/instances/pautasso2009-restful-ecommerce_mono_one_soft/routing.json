@@ -1,0 +1,60 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "RoutingOverlay",
+  "metadata": {
+    "name": "pautasso2009_restful_ecommerce_mono_one_soft_routing"
+  },
+  "spec": {
+    "entries": [
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_edit_action_branch_1"
+        },
+        "probability": 0.7
+      },
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_edit_action_branch_2"
+        },
+        "probability": 0.1
+      },
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_edit_action_branch_3"
+        },
+        "probability": 0.2
+      },
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_after_confirm_branch_1"
+        },
+        "probability": 0.95
+      },
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_after_confirm_branch_2"
+        },
+        "probability": 0.05
+      },
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_decide_checkout_or_cancel_branch_1"
+        },
+        "probability": 0.9
+      },
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_decide_checkout_or_cancel_branch_2"
+        },
+        "probability": 0.1
+      }
+    ]
+  }
+}

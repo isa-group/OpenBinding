@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from __future__ import annotations
 
 import argparse
@@ -9,14 +7,14 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import requests
-
+from openbinding_gateway.v1.package import InstancePackage, load_package
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_INSTANCES_DIR = ROOT_DIR / "experimentation" / "instances"
-DEFAULT_REPORTS_DIR = ROOT_DIR / "experimentation" / "reports"
+DEFAULT_INSTANCES_DIR = ROOT_DIR / "icws" / "instances"
+DEFAULT_REPORTS_DIR = ROOT_DIR / "icws" / "reports"
 
 EXPECTED_BEHAVIOR_VALUES = {
     "FEASIBLE",
@@ -24,6 +22,16 @@ EXPECTED_BEHAVIOR_VALUES = {
     "UNKNOWN",
     "ANY_COMPLETED",
     "VALIDATION_ERROR",
+}
+
+ENGINE_MODES = {
+    "minizinc-csp": {"default": "exact-weighted"},
+    "random-search": {"default": "seeded"},
+    "many-heuristic": {"default": "pareto-sampling"},
+    "evolutionary-heuristics": {
+        "default": "elitist-genetic",
+        "PARETO": "pareto-genetic",
+    },
 }
 
 
@@ -34,7 +42,7 @@ class InstanceMeta:
     all_constraints_hard: bool
     has_soft_constraints: bool
     category: str
-    expected_by_engine: Dict[str, str] = field(default_factory=dict)
+    snapshot_id: str | None = None
 
 
 @dataclass
@@ -48,20 +56,20 @@ class CaseResult:
     expected_behavior: str
     passed_expectation: bool
     outcome: str
-    status_code: Optional[int] = None
-    job_id: Optional[str] = None
+    status_code: int | None = None
+    job_id: str | None = None
     poll_count: int = 0
     elapsed_seconds: float = 0.0
     reason: str = ""
-    feasibility: Optional[str] = None
-    violation_codes: List[str] = field(default_factory=list)
+    termination: str | None = None
+    violation_codes: list[str] = field(default_factory=list)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run all experimentation instances against active gateway solvers using "
-            "POST /v1/solve (async) and validate routing expectations."
+            "Run all BIM experimentation packages against advertised engine modes using "
+            "POST /v1/jobs and validate routing expectations."
         )
     )
     parser.add_argument(
@@ -78,7 +86,7 @@ def parse_args() -> argparse.Namespace:
         "--solve-timeout",
         type=int,
         default=900,
-        help="Read timeout in seconds for /v1/solve request (default: 900)",
+        help="Read timeout in seconds for /v1/jobs request (default: 900)",
     )
     parser.add_argument(
         "--max-poll-seconds",
@@ -132,37 +140,67 @@ def now_utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def load_instances(instances_dir: Path) -> List[InstanceMeta]:
+def _local_documents(
+    package: InstancePackage,
+    resources: dict[str, Any],
+    package_path: Path,
+    group: str,
+) -> list[dict[str, Any]]:
+    values = resources.get(group, {})
+    if not isinstance(values, dict):
+        raise TypeError(f"{package_path}: resource group {group!r} must be an object")
+    result: list[dict[str, Any]] = []
+    for resource_id, target in values.items():
+        if not isinstance(target, str):
+            raise TypeError(
+                f"{package_path}: runner requires local resource {resource_id!r}"
+            )
+        result.append(package.json(target))
+    return result
+
+
+def load_instances(instances_dir: Path) -> list[InstanceMeta]:
     if not instances_dir.exists() or not instances_dir.is_dir():
         raise FileNotFoundError(f"Instances directory not found: {instances_dir}")
 
-    files = sorted(instances_dir.glob("*.json"))
+    files = sorted(instances_dir.glob("*/instance.json"))
     if not files:
         raise RuntimeError(f"No JSON files found in {instances_dir}")
 
-    instances: List[InstanceMeta] = []
+    instances: list[InstanceMeta] = []
     for path in files:
-        with path.open("r", encoding="utf-8") as handle:
-            payload = json.load(handle)
+        package = load_package(path.parent)
+        payload = package.instance()
+        if payload.get("apiVersion") != "bim/v1" or payload.get("kind") != "Instance":
+            raise ValueError(f"{path}: expected a bim/v1 Instance")
+        resources = payload.get("spec", {}).get("resources", {})
+        if not isinstance(resources, dict):
+            raise TypeError(f"{path}: Instance.spec.resources must be a grouped object")
 
-        objective = str(payload.get("objective", {}).get("type", "")).upper()
-        constraints = payload.get("constraints", []) or []
-        expected_by_engine = _extract_expected_by_engine(payload)
+        optimizations = _local_documents(package, resources, path, "optimization")
+        if len(optimizations) != 1:
+            raise ValueError(f"{path}: exactly one Optimization is required")
+        optimization = optimizations[0]
+        constraint_documents = _local_documents(package, resources, path, "constraintSet")
+        objective = str(optimization.get("spec", {}).get("mode", "satisfy")).upper()
+        constraints = {
+            constraint_id: constraint
+            for document in constraint_documents
+            for constraint_id, constraint in document.get("spec", {}).get("constraints", {}).items()
+        }
         has_soft_constraints = any(
-            c.get("hard", True) is False
-            for c in constraints
+            c.get("enforcement", "hard") == "soft"
+            for c in constraints.values()
             if isinstance(c, dict)
         )
         all_constraints_hard = not has_soft_constraints
 
-        if objective == "MANY":
+        if objective == "PARETO":
             category = "many"
-        elif objective == "MONO" and all_constraints_hard:
+        elif objective in {"WEIGHTED", "LEXICOGRAPHIC", "SATISFY"} and all_constraints_hard:
             category = "mono_hard"
-        elif objective == "MONO":
+        elif objective in {"WEIGHTED", "LEXICOGRAPHIC", "SATISFY"}:
             category = "mono_soft"
-        elif objective == "MULTI":
-            category = "multi"
         else:
             category = "other"
 
@@ -173,75 +211,33 @@ def load_instances(instances_dir: Path) -> List[InstanceMeta]:
                 all_constraints_hard=all_constraints_hard,
                 has_soft_constraints=has_soft_constraints,
                 category=category,
-                expected_by_engine=expected_by_engine,
             )
         )
 
     return instances
 
 
-def _normalize_expected_behavior(value: Any) -> str:
-    if not isinstance(value, str):
-        return ""
-    normalized = value.strip().upper()
-    if normalized in EXPECTED_BEHAVIOR_VALUES:
-        return normalized
-    return ""
-
-
-def _extract_expected_by_engine(payload: Dict[str, Any]) -> Dict[str, str]:
-    metadata = payload.get("metadata")
-    if not isinstance(metadata, dict):
-        return {}
-
-    experiments = metadata.get("experiments")
-    if not isinstance(experiments, dict):
-        return {}
-
-    raw = experiments.get("expected_feasibility_by_engine")
-    if not isinstance(raw, dict):
-        return {}
-
-    out: Dict[str, str] = {}
-    for engine_id, behavior in raw.items():
-        if not isinstance(engine_id, str) or not engine_id.strip():
-            continue
-        normalized = _normalize_expected_behavior(behavior)
-        if normalized:
-            out[engine_id.strip()] = normalized
-    return out
-
-
 def expected_behavior_for_engine(engine_id: str, meta: InstanceMeta) -> str:
-    explicit = meta.expected_by_engine.get(engine_id)
-    if explicit:
-        return explicit
-
-    if meta.objective_type == "MULTI":
-        return "VALIDATION_ERROR"
-
-    if meta.objective_type == "MANY":
-        return "ANY_COMPLETED" if engine_id == "many-heuristic" else "VALIDATION_ERROR"
-
-    if meta.objective_type != "MONO":
-        return "VALIDATION_ERROR"
-
-    if not meta.all_constraints_hard:
-        return "ANY_COMPLETED" if engine_id == "random-search" else "VALIDATION_ERROR"
-
-    hard_rules = {
-        "minizinc-csp": "FEASIBLE",
-        "random-search": "ANY_COMPLETED",
-    }
-    resolved = hard_rules.get(engine_id)
-    if resolved:
-        return resolved
+    if engine_id in {"random-search", "evolutionary-heuristics"}:
+        return "ANY_COMPLETED"
+    if engine_id == "many-heuristic":
+        return "ANY_COMPLETED" if meta.objective_type == "PARETO" else "VALIDATION_ERROR"
+    if engine_id == "minizinc-csp":
+        compatible = meta.objective_type == "WEIGHTED" and meta.all_constraints_hard
+        return "ANY_COMPLETED" if compatible else "VALIDATION_ERROR"
 
     return "VALIDATION_ERROR"
 
 
 def expected_to_solve(engine_id: str, meta: InstanceMeta) -> bool:
     return expected_behavior_for_engine(engine_id, meta) != "VALIDATION_ERROR"
+
+
+def engine_mode(engine_id: str, meta: InstanceMeta) -> str:
+    modes = ENGINE_MODES.get(engine_id)
+    if modes is None:
+        raise ValueError(f"No benchmark mode configured for engine {engine_id!r}")
+    return modes.get(meta.objective_type, modes["default"])
 
 
 def sanitize_base_url(base_url: str) -> str:
@@ -253,31 +249,28 @@ def fetch_active_engines(
     base_url: str,
     connect_timeout: float,
     read_timeout: float,
-) -> List[str]:
+) -> list[str]:
     url = f"{sanitize_base_url(base_url)}/v1/engines"
     response = session.get(url, timeout=(connect_timeout, read_timeout))
     response.raise_for_status()
-    engines = response.json()
+    body = response.json()
+    engines = body.get("engines") if isinstance(body, dict) else None
     if not isinstance(engines, list):
-        raise RuntimeError("Unexpected /v1/engines response format: expected list")
+        raise TypeError("Unexpected /v1/engines response: expected an engines array")
 
-    active = [e.get("id") for e in engines if isinstance(e, dict) and e.get("active")]
-    active_ids = [eid for eid in active if isinstance(eid, str) and eid.strip()]
-    if not active_ids:
-        raise RuntimeError("No active engines found in /v1/engines")
-    return sorted(set(active_ids))
+    advertised = [e.get("id") for e in engines if isinstance(e, dict)]
+    engine_ids = [eid for eid in advertised if isinstance(eid, str) and eid.strip()]
+    if not engine_ids:
+        raise RuntimeError("No BIM engine modes are advertised by /v1/engines")
+    return sorted(set(engine_ids))
 
 
-def parse_validation_violations(resp_json: Dict[str, Any]) -> Tuple[bool, List[str], str]:
-    detail = resp_json.get("detail")
-    if not isinstance(detail, dict):
-        return False, [], "Missing or non-object 'detail' in 422 response"
-
-    violations = detail.get("violations")
+def parse_validation_violations(resp_json: dict[str, Any]) -> tuple[bool, list[str], str]:
+    violations = resp_json.get("diagnostics")
     if not isinstance(violations, list):
-        return False, [], "Missing or non-list 'detail.violations' in 422 response"
+        return False, [], "Missing or non-list 'diagnostics' in problem+json response"
 
-    codes: List[str] = []
+    codes: list[str] = []
     for violation in violations:
         if isinstance(violation, dict):
             code = violation.get("code")
@@ -295,7 +288,7 @@ def poll_job_until_terminal(
     poll_response_timeout: int,
     max_poll_seconds: int,
     poll_interval: float,
-) -> Tuple[str, Optional[Dict[str, Any]], int, str]:
+) -> tuple[str, dict[str, Any] | None, int, str]:
     deadline = time.monotonic() + max_poll_seconds
     polls = 0
     last_error = ""
@@ -336,45 +329,45 @@ def _mark_result(result: CaseResult, outcome: str, reason: str, passed: bool) ->
     result.passed_expectation = passed
 
 
-def _has_non_empty_binding(solutions: Any) -> bool:
+def _has_non_empty_decision(solutions: Any) -> bool:
     if not isinstance(solutions, list):
         return False
     for solution in solutions:
         if not isinstance(solution, dict):
             continue
-        binding = solution.get("binding") or {}
-        if isinstance(binding, dict) and len(binding) > 0:
+        decision = solution.get("decision") or {}
+        if isinstance(decision, dict) and decision.get("kind") == "binding" and decision.get("binding"):
             return True
     return False
 
 
-def _normalize_feasibility(value: Any) -> str:
+def _normalize_termination(value: Any) -> str:
     if isinstance(value, str) and value:
         return value.upper()
     return ""
 
 
-def _infer_feasibility_from_body(body: Dict[str, Any]) -> str:
+def _infer_termination_from_body(body: dict[str, Any]) -> str:
     result_obj = body.get("result") if isinstance(body, dict) else None
     if not isinstance(result_obj, dict):
         return "UNKNOWN"
 
-    feasibility = _normalize_feasibility(result_obj.get("feasibility"))
-    if feasibility:
-        return feasibility
+    termination = _normalize_termination(result_obj.get("termination"))
+    if termination:
+        return termination
 
-    if _has_non_empty_binding(result_obj.get("solutions", [])):
+    if _has_non_empty_decision(result_obj.get("solutions", [])):
         return "FEASIBLE"
 
     return "UNKNOWN"
 
 
-def _mark_expected_feasibility_match(result: CaseResult, feasibility: str) -> None:
-    if feasibility == "FEASIBLE":
+def _mark_expected_termination_match(result: CaseResult, termination: str) -> None:
+    if termination in {"OPTIMAL", "FEASIBLE"}:
         _mark_result(
             result,
             outcome="solved",
-            reason="Completed with expected FEASIBLE result",
+            reason=f"Completed with expected {termination} result",
             passed=True,
         )
         return
@@ -382,21 +375,21 @@ def _mark_expected_feasibility_match(result: CaseResult, feasibility: str) -> No
     _mark_result(
         result,
         outcome="expected_no_solution",
-        reason=f"Completed with expected {feasibility} result",
+        reason=f"Completed with expected {termination} result",
         passed=True,
     )
 
 
-def _mark_expected_feasibility_mismatch(
+def _mark_expected_termination_mismatch(
     result: CaseResult,
-    feasibility: str,
+    termination: str,
     expected_behavior: str,
 ) -> None:
     if result.engine_id == "minizinc-csp":
         _mark_result(
             result,
             outcome="no_solution",
-            reason=f"MiniZinc completed with {feasibility} (expected {expected_behavior})",
+            reason=f"MiniZinc completed with {termination} (expected {expected_behavior})",
             passed=False,
         )
         return
@@ -405,7 +398,7 @@ def _mark_expected_feasibility_mismatch(
         _mark_result(
             result,
             outcome="no_solution_tolerated",
-            reason=f"Completed with {feasibility} (expected {expected_behavior})",
+            reason=f"Completed with {termination} (expected {expected_behavior})",
             passed=False,
         )
         return
@@ -413,7 +406,7 @@ def _mark_expected_feasibility_mismatch(
     _mark_result(
         result,
         outcome="no_solution",
-        reason=f"Completed with {feasibility} (expected {expected_behavior})",
+        reason=f"Completed with {termination} (expected {expected_behavior})",
         passed=False,
     )
 
@@ -421,45 +414,45 @@ def _mark_expected_feasibility_mismatch(
 def _handle_completed_status(
     result: CaseResult,
     expected: bool,
-    body: Dict[str, Any],
+    body: dict[str, Any],
     expected_behavior: str,
 ) -> None:
-    feasibility = _infer_feasibility_from_body(body or {})
-    result.feasibility = feasibility
+    termination = _infer_termination_from_body(body or {})
+    result.termination = termination
 
     if not expected:
         _mark_result(
             result,
-            outcome="solved" if feasibility == "FEASIBLE" else "no_solution",
-            reason=f"Expected validation error (422), but job completed with {feasibility}",
+            outcome="solved" if termination in {"OPTIMAL", "FEASIBLE"} else "no_solution",
+            reason=f"Expected validation error (422), but job completed with {termination}",
             passed=False,
         )
         return
 
     if expected_behavior == "ANY_COMPLETED":
-        if feasibility == "FEASIBLE":
-            _mark_result(result, outcome="solved", reason="Completed with FEASIBLE result", passed=True)
+        if termination in {"OPTIMAL", "FEASIBLE"}:
+            _mark_result(result, outcome="solved", reason=f"Completed with {termination} result", passed=True)
             return
         _mark_result(
             result,
             outcome="no_solution_tolerated",
-            reason=f"Completed with {feasibility}; tolerated by expectation policy",
+            reason=f"Completed with {termination}; tolerated by expectation policy",
             passed=True,
         )
         return
 
     if expected_behavior in {"FEASIBLE", "INFEASIBLE", "UNKNOWN"}:
-        if feasibility == expected_behavior:
-            _mark_expected_feasibility_match(result, feasibility)
+        if termination == expected_behavior or (expected_behavior == "FEASIBLE" and termination == "OPTIMAL"):
+            _mark_expected_termination_match(result, termination)
             return
 
-        _mark_expected_feasibility_mismatch(result, feasibility, expected_behavior)
+        _mark_expected_termination_mismatch(result, termination, expected_behavior)
         return
 
-    _mark_expected_feasibility_mismatch(result, feasibility, expected_behavior)
+    _mark_expected_termination_mismatch(result, termination, expected_behavior)
 
 
-def _handle_422_case(result: CaseResult, body: Dict[str, Any], expected: bool) -> None:
+def _handle_422_case(result: CaseResult, body: dict[str, Any], expected: bool) -> None:
     has_valid_violations, codes, violation_error = parse_validation_violations(body)
     result.violation_codes = codes
 
@@ -494,7 +487,7 @@ def _handle_terminal_status(
     status: str,
     expected: bool,
     expected_behavior: str,
-    body: Optional[Dict[str, Any]] = None,
+    body: dict[str, Any] | None = None,
     error: str = "",
 ) -> None:
     if status == "completed":
@@ -577,6 +570,31 @@ def _handle_async_case(
     )
 
 
+def _ensure_snapshot(
+    session: requests.Session,
+    base_url: str,
+    instance_meta: InstanceMeta,
+    connect_timeout: float,
+    read_timeout: int,
+) -> str:
+    if instance_meta.snapshot_id:
+        return instance_meta.snapshot_id
+    archive = load_package(instance_meta.path.parent).to_zip()
+    response = session.post(
+        f"{sanitize_base_url(base_url)}/v1/instances",
+        data=archive,
+        headers={"Content-Type": "application/vnd.bim+zip"},
+        timeout=(connect_timeout, read_timeout),
+    )
+    response.raise_for_status()
+    body = response.json()
+    snapshot_id = body.get("id") if isinstance(body, dict) else None
+    if not isinstance(snapshot_id, str) or not snapshot_id:
+        raise ValueError("Snapshot response did not contain an id")
+    instance_meta.snapshot_id = snapshot_id
+    return snapshot_id
+
+
 def run_single_case(
     session: requests.Session,
     base_url: str,
@@ -591,18 +609,7 @@ def run_single_case(
     expected_behavior = expected_behavior_for_engine(engine_id, instance_meta)
     expected = expected_behavior != "VALIDATION_ERROR"
     start = time.monotonic()
-    instance_name = instance_meta.path.name
-
-    with instance_meta.path.open("r", encoding="utf-8") as handle:
-        instance_payload = json.load(handle)
-
-    request_payload = {
-        "engine_id": engine_id,
-        "instance": instance_payload,
-        "options": {},
-        "verbose": False,
-    }
-
+    instance_name = instance_meta.path.parent.name
     result = CaseResult(
         instance=instance_name,
         engine_id=engine_id,
@@ -616,8 +623,21 @@ def run_single_case(
     )
 
     try:
+        snapshot_id = _ensure_snapshot(
+            session=session,
+            base_url=base_url,
+            instance_meta=instance_meta,
+            connect_timeout=connect_timeout,
+            read_timeout=solve_timeout,
+        )
+        request_payload = {
+            "snapshot": snapshot_id,
+            "engine": engine_id,
+            "mode": engine_mode(engine_id, instance_meta),
+            "options": {},
+        }
         response = session.post(
-            f"{sanitize_base_url(base_url)}/v1/solve",
+            f"{sanitize_base_url(base_url)}/v1/jobs",
             json=request_payload,
             timeout=(connect_timeout, solve_timeout),
         )
@@ -632,7 +652,7 @@ def run_single_case(
         body = response.json()
 
         status = str(body.get("status", "")).lower()
-        job_id = body.get("job_id")
+        job_id = body.get("id")
         if isinstance(job_id, str):
             result.job_id = job_id
 
@@ -678,7 +698,7 @@ def run_single_case(
         _mark_result(result, outcome="network_error", reason=f"Network error: {exc}", passed=False)
     except ValueError as exc:
         _mark_result(result, outcome="parse_error", reason=f"JSON parse error: {exc}", passed=False)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - one failed case must not abort the campaign
         _mark_result(result, outcome="technical_error", reason=f"Unexpected error: {exc}", passed=False)
 
     result.elapsed_seconds = time.monotonic() - start
@@ -719,7 +739,7 @@ def print_progress(
 
 
 def format_seconds(seconds: float) -> str:
-    seconds = int(round(seconds))
+    seconds = round(seconds)
     h, rem = divmod(seconds, 3600)
     m, s = divmod(rem, 60)
     if h:
@@ -729,8 +749,8 @@ def format_seconds(seconds: float) -> str:
     return f"{s}s"
 
 
-def build_summary_tables(results: List[CaseResult]) -> str:
-    by_engine_category: Dict[Tuple[str, str], Dict[str, int]] = {}
+def build_summary_tables(results: list[CaseResult]) -> str:
+    by_engine_category: dict[tuple[str, str], dict[str, int]] = {}
     for result in results:
         key = (result.engine_id, result.category)
         if key not in by_engine_category:
@@ -770,7 +790,7 @@ def build_summary_tables(results: List[CaseResult]) -> str:
     return "\n".join(lines)
 
 
-def build_top_failures(results: List[CaseResult], limit: int = 8) -> List[CaseResult]:
+def build_top_failures(results: list[CaseResult], limit: int = 8) -> list[CaseResult]:
     failures = [r for r in results if not r.passed_expectation]
     failures.sort(key=lambda r: (-r.elapsed_seconds, r.instance, r.engine_id))
     return failures[:limit]
@@ -781,11 +801,11 @@ def write_reports(
     started_at: str,
     finished_at: str,
     base_url: str,
-    engines: List[str],
+    engines: list[str],
     instances_dir: Path,
-    results: List[CaseResult],
+    results: list[CaseResult],
     total_elapsed: float,
-) -> Tuple[Path, Path]:
+) -> tuple[Path, Path]:
     reports_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     json_path = reports_dir / f"run_experiments_{stamp}.json"
@@ -850,11 +870,11 @@ def write_reports(
 
 
 def print_final_report(
-    results: List[CaseResult],
+    results: list[CaseResult],
     started_at: str,
     finished_at: str,
     elapsed: float,
-    engines: List[str],
+    engines: list[str],
     json_report_path: Path,
     md_report_path: Path,
     use_color: bool,
@@ -924,7 +944,7 @@ def resolve_engines(
     args: argparse.Namespace,
     session: requests.Session,
     base_url: str,
-) -> List[str]:
+) -> list[str]:
     if args.engines.strip():
         engines = sorted({e.strip() for e in args.engines.split(",") if e.strip()})
         if not engines:
@@ -956,12 +976,12 @@ def execute_cases(
     args: argparse.Namespace,
     session: requests.Session,
     base_url: str,
-    instances: List[InstanceMeta],
-    engines: List[str],
+    instances: list[InstanceMeta],
+    engines: list[str],
     total_cases: int,
     use_color: bool,
-) -> Tuple[List[CaseResult], bool]:
-    results: List[CaseResult] = []
+) -> tuple[list[CaseResult], bool]:
+    results: list[CaseResult] = []
     completed = 0
     passed = 0
     failed = 0
@@ -1029,7 +1049,7 @@ def main() -> int:
 
     try:
         instances = load_instances(instances_dir)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - CLI boundary reports malformed corpora
         print(f"Failed to load instances: {exc}", file=sys.stderr)
         return 2
 
@@ -1038,7 +1058,7 @@ def main() -> int:
 
     try:
         engines = resolve_engines(args=args, session=session, base_url=base_url)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - CLI boundary reports discovery failures
         print(f"Failed to resolve engines: {exc}", file=sys.stderr)
         return 2
 

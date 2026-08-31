@@ -1,0 +1,803 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "pautasso2009_restful_ecommerce_mono_one_soft_catalog"
+  },
+  "spec": {
+    "candidates": {
+      "c_shopA_create_order": {
+        "provides": "service/t_create_order",
+        "metrics": {
+          "latency_ms": 105,
+          "cost_usd": 0.0006,
+          "availability": 0.997,
+          "reliability": 0.995,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_a"
+        }
+      },
+      "c_shopB_create_order": {
+        "provides": "service/t_create_order",
+        "metrics": {
+          "latency_ms": 130,
+          "cost_usd": 0.0004,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_b"
+        }
+      },
+      "c_shopA_add_item": {
+        "provides": "service/t_add_item",
+        "metrics": {
+          "latency_ms": 135,
+          "cost_usd": 0.0008,
+          "availability": 0.997,
+          "reliability": 0.995,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_a"
+        }
+      },
+      "c_shopB_add_item": {
+        "provides": "service/t_add_item",
+        "metrics": {
+          "latency_ms": 160,
+          "cost_usd": 0.0006,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_b"
+        }
+      },
+      "c_shopA_remove_item": {
+        "provides": "service/t_remove_item",
+        "metrics": {
+          "latency_ms": 85,
+          "cost_usd": 0.0005,
+          "availability": 0.997,
+          "reliability": 0.995,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_a"
+        }
+      },
+      "c_shopB_remove_item": {
+        "provides": "service/t_remove_item",
+        "metrics": {
+          "latency_ms": 100,
+          "cost_usd": 0.0003,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_b"
+        }
+      },
+      "c_shopA_get_amount": {
+        "provides": "service/t_get_amount",
+        "metrics": {
+          "latency_ms": 55,
+          "cost_usd": 0.00025,
+          "availability": 0.998,
+          "reliability": 0.996,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_a"
+        }
+      },
+      "c_shopB_get_amount": {
+        "provides": "service/t_get_amount",
+        "metrics": {
+          "latency_ms": 75,
+          "cost_usd": 0.00018,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_b"
+        }
+      },
+      "c_shopA_checkout": {
+        "provides": "service/t_checkout",
+        "metrics": {
+          "latency_ms": 150,
+          "cost_usd": 0.0012,
+          "availability": 0.996,
+          "reliability": 0.9940000000000001,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_a"
+        }
+      },
+      "c_shopB_checkout": {
+        "provides": "service/t_checkout",
+        "metrics": {
+          "latency_ms": 185,
+          "cost_usd": 0.001,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_b"
+        }
+      },
+      "c_shopA_list_confirmed": {
+        "provides": "service/t_list_confirmed",
+        "metrics": {
+          "latency_ms": 70,
+          "cost_usd": 0.00025,
+          "availability": 0.998,
+          "reliability": 0.996,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_a"
+        }
+      },
+      "c_shopB_list_confirmed": {
+        "provides": "service/t_list_confirmed",
+        "metrics": {
+          "latency_ms": 90,
+          "cost_usd": 0.0002,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_b"
+        }
+      },
+      "c_shopA_ship_order": {
+        "provides": "service/t_ship_order",
+        "metrics": {
+          "latency_ms": 480,
+          "cost_usd": 0.05,
+          "availability": 0.995,
+          "reliability": 0.993,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_a"
+        }
+      },
+      "c_shopB_ship_order": {
+        "provides": "service/t_ship_order",
+        "metrics": {
+          "latency_ms": 520,
+          "cost_usd": 0.045,
+          "availability": 0.998,
+          "reliability": 0.996,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_b"
+        }
+      },
+      "c_shopA_update_shipment": {
+        "provides": "service/t_update_shipment",
+        "metrics": {
+          "latency_ms": 95,
+          "cost_usd": 0.0006,
+          "availability": 0.997,
+          "reliability": 0.995,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_a"
+        }
+      },
+      "c_shopB_update_shipment": {
+        "provides": "service/t_update_shipment",
+        "metrics": {
+          "latency_ms": 110,
+          "cost_usd": 0.00045,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_b"
+        }
+      },
+      "c_shopA_cancel_order": {
+        "provides": "service/t_cancel_order",
+        "metrics": {
+          "latency_ms": 85,
+          "cost_usd": 0.00035,
+          "availability": 0.998,
+          "reliability": 0.996,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_a"
+        }
+      },
+      "c_shopB_cancel_order": {
+        "provides": "service/t_cancel_order",
+        "metrics": {
+          "latency_ms": 95,
+          "cost_usd": 0.00025,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_b"
+        }
+      },
+      "c_catalogA_request_quote": {
+        "provides": "service/t_request_quote",
+        "metrics": {
+          "latency_ms": 120,
+          "cost_usd": 0.002,
+          "availability": 0.995,
+          "reliability": 0.993,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_catalog_a"
+        }
+      },
+      "c_catalogB_request_quote": {
+        "provides": "service/t_request_quote",
+        "metrics": {
+          "latency_ms": 210,
+          "cost_usd": 0.0015,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_catalog_b"
+        }
+      },
+      "c_catalogA_get_quote": {
+        "provides": "service/t_get_quote",
+        "metrics": {
+          "latency_ms": 85,
+          "cost_usd": 0.001,
+          "availability": 0.995,
+          "reliability": 0.993,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_catalog_a"
+        }
+      },
+      "c_catalogB_get_quote": {
+        "provides": "service/t_get_quote",
+        "metrics": {
+          "latency_ms": 155,
+          "cost_usd": 0.0007,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 4
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_catalog_b"
+        }
+      },
+      "c_paymentA_charge": {
+        "provides": "service/t_charge_payment",
+        "metrics": {
+          "latency_ms": 320,
+          "cost_usd": 0.02,
+          "availability": 0.997,
+          "reliability": 0.995,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_payment_a"
+        }
+      },
+      "c_paymentB_charge": {
+        "provides": "service/t_charge_payment",
+        "metrics": {
+          "latency_ms": 380,
+          "cost_usd": 0.017,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_payment_b"
+        }
+      },
+      "c_paymentA_refund": {
+        "provides": "service/t_refund_payment",
+        "metrics": {
+          "latency_ms": 240,
+          "cost_usd": 0.015,
+          "availability": 0.997,
+          "reliability": 0.995,
+          "security": 5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_payment_a"
+        }
+      },
+      "c_paymentB_refund": {
+        "provides": "service/t_refund_payment",
+        "metrics": {
+          "latency_ms": 290,
+          "cost_usd": 0.013,
+          "availability": 0.999,
+          "reliability": 0.997,
+          "security": 3
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_payment_b"
+        }
+      },
+      "t_create_order_gen_1": {
+        "provides": "service/t_create_order",
+        "metrics": {
+          "latency_ms": 105.45,
+          "cost_usd": 0.0,
+          "availability": 0.997768,
+          "reliability": 1.0,
+          "security": 4.95
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_request_quote_gen_1": {
+        "provides": "service/t_request_quote",
+        "metrics": {
+          "latency_ms": 118.92,
+          "cost_usd": 0.0,
+          "availability": 0.978049,
+          "reliability": 0.9778,
+          "security": 3.05
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_get_quote_gen_1": {
+        "provides": "service/t_get_quote",
+        "metrics": {
+          "latency_ms": 83.98,
+          "cost_usd": 0.0,
+          "availability": 0.990365,
+          "reliability": 1.0,
+          "security": 3.01
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_add_item_gen_1": {
+        "provides": "service/t_add_item",
+        "metrics": {
+          "latency_ms": 134.89,
+          "cost_usd": 0.0,
+          "availability": 0.98225,
+          "reliability": 0.991,
+          "security": 4.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_remove_item_gen_1": {
+        "provides": "service/t_remove_item",
+        "metrics": {
+          "latency_ms": 84.15,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_get_amount_gen_1": {
+        "provides": "service/t_get_amount",
+        "metrics": {
+          "latency_ms": 56.61,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9752,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_checkout_gen_1": {
+        "provides": "service/t_checkout",
+        "metrics": {
+          "latency_ms": 153.96,
+          "cost_usd": 0.0,
+          "availability": 0.978253,
+          "reliability": 0.9863,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_charge_payment_gen_1": {
+        "provides": "service/t_charge_payment",
+        "metrics": {
+          "latency_ms": 314.07,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 0.9933,
+          "security": 4.98
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_list_confirmed_gen_1": {
+        "provides": "service/t_list_confirmed",
+        "metrics": {
+          "latency_ms": 68.21,
+          "cost_usd": 0.0,
+          "availability": 0.978701,
+          "reliability": 0.9887999999999999,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_ship_order_gen_1": {
+        "provides": "service/t_ship_order",
+        "metrics": {
+          "latency_ms": 490.28,
+          "cost_usd": 0.05,
+          "availability": 0.992531,
+          "reliability": 0.9968,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_update_shipment_gen_1": {
+        "provides": "service/t_update_shipment",
+        "metrics": {
+          "latency_ms": 96.93,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9840000000000001,
+          "security": 4.89
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_cancel_order_gen_1": {
+        "provides": "service/t_cancel_order",
+        "metrics": {
+          "latency_ms": 85.97,
+          "cost_usd": 0.0,
+          "availability": 0.973053,
+          "reliability": 1.0,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_refund_payment_gen_1": {
+        "provides": "service/t_refund_payment",
+        "metrics": {
+          "latency_ms": 238.9,
+          "cost_usd": 0.02,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_shared"
+        }
+      },
+      "t_add_item_gen_2": {
+        "provides": "service/t_add_item",
+        "metrics": {
+          "latency_ms": 137.13,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9909,
+          "security": 4.99
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_cancel_order_gen_2": {
+        "provides": "service/t_cancel_order",
+        "metrics": {
+          "latency_ms": 85.58,
+          "cost_usd": 0.0,
+          "availability": 0.982691,
+          "reliability": 0.9994,
+          "security": 4.98
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_charge_payment_gen_2": {
+        "provides": "service/t_charge_payment",
+        "metrics": {
+          "latency_ms": 312.25,
+          "cost_usd": 0.02,
+          "availability": 0.994872,
+          "reliability": 1.0,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_checkout_gen_2": {
+        "provides": "service/t_checkout",
+        "metrics": {
+          "latency_ms": 150.74,
+          "cost_usd": 0.0,
+          "availability": 0.986441,
+          "reliability": 0.9797,
+          "security": 4.85
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      },
+      "t_create_order_gen_2": {
+        "provides": "service/t_create_order",
+        "metrics": {
+          "latency_ms": 107.0,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_5"
+        }
+      },
+      "t_get_amount_gen_2": {
+        "provides": "service/t_get_amount",
+        "metrics": {
+          "latency_ms": 54.97,
+          "cost_usd": 0.0,
+          "availability": 0.971809,
+          "reliability": 0.9712999999999999,
+          "security": 4.89
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_a"
+        }
+      },
+      "t_get_quote_gen_2": {
+        "provides": "service/t_get_quote",
+        "metrics": {
+          "latency_ms": 86.25,
+          "cost_usd": 0.0,
+          "availability": 0.966728,
+          "reliability": 0.997,
+          "security": 2.97
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_shop_b"
+        }
+      },
+      "t_list_confirmed_gen_2": {
+        "provides": "service/t_list_confirmed",
+        "metrics": {
+          "latency_ms": 69.94,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 4.9
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_catalog_a"
+        }
+      },
+      "t_refund_payment_gen_2": {
+        "provides": "service/t_refund_payment",
+        "metrics": {
+          "latency_ms": 235.75,
+          "cost_usd": 0.02,
+          "availability": 0.994872,
+          "reliability": 0.9742000000000001,
+          "security": 4.9
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_catalog_b"
+        }
+      },
+      "t_remove_item_gen_2": {
+        "provides": "service/t_remove_item",
+        "metrics": {
+          "latency_ms": 87.12,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 1.0,
+          "security": 5.0
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_payment_a"
+        }
+      },
+      "t_request_quote_gen_2": {
+        "provides": "service/t_request_quote",
+        "metrics": {
+          "latency_ms": 119.55,
+          "cost_usd": 0.0,
+          "availability": 0.999266,
+          "reliability": 0.986,
+          "security": 2.95
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_payment_b"
+        }
+      },
+      "t_ship_order_gen_2": {
+        "provides": "service/t_ship_order",
+        "metrics": {
+          "latency_ms": 467.79,
+          "cost_usd": 0.05,
+          "availability": 1.0,
+          "reliability": 0.9658,
+          "security": 4.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_1"
+        }
+      },
+      "t_update_shipment_gen_2": {
+        "provides": "service/t_update_shipment",
+        "metrics": {
+          "latency_ms": 95.36,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9738,
+          "security": 4.88
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_2"
+        }
+      },
+      "t_add_item_gen_3": {
+        "provides": "service/t_add_item",
+        "metrics": {
+          "latency_ms": 138.77,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9918,
+          "security": 4.94
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_3"
+        }
+      },
+      "t_cancel_order_gen_3": {
+        "provides": "service/t_cancel_order",
+        "metrics": {
+          "latency_ms": 82.62,
+          "cost_usd": 0.0,
+          "availability": 1.0,
+          "reliability": 0.9823999999999999,
+          "security": 4.98
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "p_gen_4"
+        }
+      }
+    },
+    "providers": {
+      "p_shop_a": {},
+      "p_shop_b": {},
+      "p_catalog_a": {},
+      "p_catalog_b": {},
+      "p_payment_a": {},
+      "p_payment_b": {},
+      "p_gen_shared": {},
+      "p_gen_1": {},
+      "p_gen_2": {},
+      "p_gen_3": {},
+      "p_gen_4": {},
+      "p_gen_5": {}
+    },
+    "metricBindings": {
+      "latency_ms": {
+        "resource": "application",
+        "id": "latency_ms"
+      },
+      "cost_usd": {
+        "resource": "application",
+        "id": "cost_usd"
+      },
+      "availability": {
+        "resource": "application",
+        "id": "availability"
+      },
+      "reliability": {
+        "resource": "application",
+        "id": "reliability"
+      },
+      "security": {
+        "resource": "application",
+        "id": "security"
+      }
+    }
+  }
+}

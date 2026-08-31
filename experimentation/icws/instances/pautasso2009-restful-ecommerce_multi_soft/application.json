@@ -1,0 +1,247 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "pautasso2009_restful_ecommerce_multi_soft_application"
+  },
+  "spec": {
+    "tasks": {
+      "t_create_order": "service/t_create_order",
+      "t_request_quote": "service/t_request_quote",
+      "t_get_quote": "service/t_get_quote",
+      "t_add_item": "service/t_add_item",
+      "t_remove_item": "service/t_remove_item",
+      "t_get_amount": "service/t_get_amount",
+      "t_checkout": "service/t_checkout",
+      "t_charge_payment": "service/t_charge_payment",
+      "t_list_confirmed": "service/t_list_confirmed",
+      "t_ship_order": "service/t_ship_order",
+      "t_update_shipment": "service/t_update_shipment",
+      "t_cancel_order": "service/t_cancel_order",
+      "t_refund_payment": "service/t_refund_payment"
+    },
+    "metrics": {
+      "latency_ms": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 5000
+        }
+      },
+      "cost_usd": {
+        "unit": "usd",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      },
+      "availability": {
+        "unit": "prob",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "product",
+          "parallel": "product",
+          "exclusive": "weightedSum",
+          "repeat": "power",
+          "selection": "product"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "reliability": {
+        "unit": "1",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "product",
+          "parallel": "product",
+          "exclusive": "weightedSum",
+          "repeat": "power",
+          "selection": "product"
+        },
+        "domain": {
+          "kind": "ratio",
+          "minimum": 0.0,
+          "maximum": 1.0
+        }
+      },
+      "security": {
+        "unit": "score",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "min",
+          "parallel": "min",
+          "exclusive": "weightedSum",
+          "repeat": "identity",
+          "selection": "min"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 1,
+          "maximum": 5
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "t_create_order"
+          }
+        },
+        {
+          "repeat": {
+            "body": {
+              "exclusive": [
+                {
+                  "id": "n_edit_action_branch_1",
+                  "flow": {
+                    "sequence": [
+                      {
+                        "task": {
+                          "resource": "application",
+                          "id": "t_request_quote"
+                        }
+                      },
+                      {
+                        "task": {
+                          "resource": "application",
+                          "id": "t_get_quote"
+                        }
+                      },
+                      {
+                        "task": {
+                          "resource": "application",
+                          "id": "t_add_item"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "n_edit_action_branch_2",
+                  "flow": {
+                    "task": {
+                      "resource": "application",
+                      "id": "t_remove_item"
+                    }
+                  }
+                },
+                {
+                  "id": "n_edit_action_branch_3",
+                  "flow": {
+                    "task": {
+                      "resource": "application",
+                      "id": "t_get_amount"
+                    }
+                  }
+                }
+              ]
+            },
+            "expectedCount": 3
+          }
+        },
+        {
+          "exclusive": [
+            {
+              "id": "n_decide_checkout_or_cancel_branch_1",
+              "flow": {
+                "sequence": [
+                  {
+                    "task": {
+                      "resource": "application",
+                      "id": "t_checkout"
+                    }
+                  },
+                  {
+                    "task": {
+                      "resource": "application",
+                      "id": "t_charge_payment"
+                    }
+                  },
+                  {
+                    "exclusive": [
+                      {
+                        "id": "n_after_confirm_branch_1",
+                        "flow": {
+                          "sequence": [
+                            {
+                              "task": {
+                                "resource": "application",
+                                "id": "t_list_confirmed"
+                              }
+                            },
+                            {
+                              "task": {
+                                "resource": "application",
+                                "id": "t_ship_order"
+                              }
+                            },
+                            {
+                              "task": {
+                                "resource": "application",
+                                "id": "t_update_shipment"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "n_after_confirm_branch_2",
+                        "flow": {
+                          "sequence": [
+                            {
+                              "task": {
+                                "resource": "application",
+                                "id": "t_cancel_order"
+                              }
+                            },
+                            {
+                              "task": {
+                                "resource": "application",
+                                "id": "t_refund_payment"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "n_decide_checkout_or_cancel_branch_2",
+              "flow": {
+                "task": {
+                  "resource": "application",
+                  "id": "t_cancel_order"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
