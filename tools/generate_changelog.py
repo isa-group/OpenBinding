@@ -72,6 +72,8 @@ def generate() -> dict[str, list[dict[str, object]]]:
         match = CONVENTIONAL.fullmatch(subject)
         if not match:
             continue
+        if match.group("scope") == "changelog":
+            continue
         title = match.group("title").rstrip(".")
         sentence = title[:1].upper() + title[1:]
         for track in tracks(match.group("scope") or "", paths):
