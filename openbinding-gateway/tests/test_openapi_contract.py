@@ -119,10 +119,17 @@ def test_authentication_and_role_requirements_are_explicit(document):
 
     public = {
         ("/health", "get"),
+        ("/health/live", "get"),
+        ("/health/ready", "get"),
         ("/v1/auth/register", "post"),
         ("/v1/auth/login", "post"),
         ("/v1/auth/refresh", "post"),
         ("/v1/auth/logout", "post"),
+        ("/v1/auth/password-reset/request", "post"),
+        ("/v1/auth/password-reset/complete", "post"),
+        ("/v1/auth/cas/start", "get"),
+        ("/v1/auth/cas/callback", "get"),
+        ("/v1/auth/cas/exchange", "post"),
         ("/v1/profiles", "get"),
         ("/v1/dialects", "get"),
         ("/v1/resources", "get"),
@@ -131,6 +138,14 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/examples", "get"),
         ("/v1/examples/{example_path}", "get"),
         ("/v1/pricing", "get"),
+        ("/v1/pricing/catalog", "get"),
+        ("/v1/pricing/current", "get"),
+        ("/v1/explore/projects", "get"),
+        ("/v1/explore/publications", "get"),
+        ("/v1/public/artifacts/{digest_value}", "get"),
+        ("/v1/public/case-revisions/{digest_value}", "get"),
+        ("/v1/public/resource-revisions/{digest_value}", "get"),
+        ("/v1/public/reports/{digest_value}", "get"),
         ("/v1/instances/validate", "post"),
     }
     for path, method, operation in operations(document):
@@ -158,8 +173,31 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/admin/users/{user_id}", "patch"),
         ("/v1/admin/users/{user_id}/plan", "post"),
         ("/v1/admin/users/{user_id}/usage", "get"),
+        ("/v1/admin/users/{user_id}/subscription", "get"),
+        ("/v1/admin/users/{user_id}/subscription", "post"),
         ("/v1/admin/users/{user_id}/api-keys/{key_id}", "delete"),
         ("/v1/admin/users/{user_id}/usage/resync", "post"),
+        ("/v1/admin/audit", "get"),
+        ("/v1/admin/maintenance/preview", "get"),
+        ("/v1/admin/maintenance/purge", "post"),
+        ("/v1/admin/maintenance/reconcile-jobs", "post"),
+        ("/v1/admin/maintenance/reconcile-contracts", "post"),
+        ("/v1/admin/moderation", "get"),
+        ("/v1/admin/overview", "get"),
+        ("/v1/admin/queues", "get"),
+        ("/v1/admin/pricing/validate", "post"),
+        ("/v1/admin/pricing/templates", "get"),
+        ("/v1/admin/pricing/control-room", "get"),
+        ("/v1/admin/pricing/sync", "post"),
+        ("/v1/admin/pricing/drafts", "post"),
+        ("/v1/admin/pricing/drafts/{source}/fork", "post"),
+        ("/v1/admin/pricing/publish", "post"),
+        ("/v1/admin/pricing/versions/{version}/preview", "get"),
+        ("/v1/admin/pricing/versions/{version}/deploy", "post"),
+        ("/v1/admin/pricing/versions/{version}/activate", "post"),
+        ("/v1/admin/pricing/versions/{version}/drain", "post"),
+        ("/v1/admin/pricing/versions/{version}/archive", "post"),
+        ("/v1/admin/pricing/drafts/{version}", "delete"),
         ("/v1/engine-registrations/{name}/approve", "post"),
         ("/v1/engine-registrations/{name}/reject", "post"),
     }
@@ -348,7 +386,8 @@ def test_the_instance_structure_is_in_the_document(document):
 
 
 def test_v1_surface_has_no_replaced_routes(document):
-    assert all(path.startswith("/v1") or path == "/health" for path in document["paths"])
+    health_paths = {"/health", "/health/live", "/health/ready"}
+    assert all(path.startswith("/v1") or path in health_paths for path in document["paths"])
 
 
 def test_no_method_and_path_is_registered_twice():

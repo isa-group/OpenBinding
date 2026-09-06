@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import pytest
 
+from _pricing import pricing_catalog
+
 
 async def register(client, details) -> dict:
     response = await client.post("/v1/auth/register", json=details)
@@ -24,7 +26,7 @@ async def login(client, details) -> dict:
     return response.json()
 
 
-async def test_a_new_account_starts_active_on_the_free_plan(api_client, registration):
+async def test_a_new_account_starts_active_on_the_basic_plan(api_client, registration):
     details = registration()
 
     profile = await register(api_client, details)
@@ -32,7 +34,7 @@ async def test_a_new_account_starts_active_on_the_free_plan(api_client, registra
     assert profile["username"] == details["username"]
     assert profile["role"] == "user"
     assert profile["is_active"] is True
-    assert profile["plan"] == "FREE"
+    assert profile["plan"] == pricing_catalog().default_plan
 
 
 async def test_registration_never_echoes_the_password(api_client, registration):

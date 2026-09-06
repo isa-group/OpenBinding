@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
+from _pricing import fake_pricing_gate, pricing_catalog
 from openbinding_gateway.core.settings import Settings
 from openbinding_gateway.db.bootstrap import (
     DEFAULT_ADMIN_PASSWORD,
@@ -37,11 +38,7 @@ async def test_an_empty_database_gets_an_administrator(db_session):
 
 
 async def test_an_administrator_is_seeded_on_the_plan_it_needs(db_session):
-    # The account that demonstrates the system and reproduces what users report
-    # should not be the first to run out of tasks. There is no payment gateway,
-    # so PRO costs nothing.
-    from openbinding_gateway.db.models import Plan
-
+    # Administration authority and commercial entitlements are independent.
     await seed_default_administrator(db_session)
     admin = (
         await db_session.execute(
@@ -49,7 +46,7 @@ async def test_an_administrator_is_seeded_on_the_plan_it_needs(db_session):
         )
     ).scalar_one()
 
-    assert admin.plan_cache is Plan.PRO
+    assert admin.plan_cache == pricing_catalog().default_plan
 
 
 async def test_the_seeded_password_is_the_documented_one(db_session):
@@ -71,7 +68,12 @@ async def test_seeding_is_refused_once_anybody_exists(db_session):
     # guessable password must never appear in an installation that is in use,
     # including one whose administrators were all deactivated.
     db_session.add(
-        User(username="someone", email="someone@example.org", password_hash="x")
+        User(
+            username="someone",
+            email="someone@example.org",
+            password_hash="x",
+            plan_cache=pricing_catalog().default_plan,
+        )
     )
     await db_session.flush()
 
@@ -101,7 +103,7 @@ async def test_the_seeded_email_survives_being_read_back_by_the_api(db_session):
         email=seeded.email,
         role=seeded.role.value,
         is_active=seeded.is_active,
-        plan=seeded.plan_cache.value,
+        plan=seeded.plan_cache,
         created_at=seeded.created_at,
         contract_pending=seeded.contract_pending,
         api_key_count=0,
@@ -134,7 +136,14 @@ async def test_a_configured_administrator_is_created(db_session):
 async def test_an_existing_account_is_promoted_rather_than_duplicated(db_session):
     # So somebody who registered normally can be given the role by restarting
     # with their username configured.
-    db_session.add(User(username="alice", email="alice@example.org", password_hash="x"))
+    db_session.add(
+        User(
+            username="alice",
+            email="alice@example.org",
+            password_hash="x",
+            plan_cache=pricing_catalog().default_plan,
+        )
+    )
     await db_session.flush()
 
     await ensure_administrator(db_session, configured(bootstrap_admin_username="alice"))
@@ -153,6 +162,7 @@ async def test_nothing_happens_once_an_administrator_exists(db_session):
             email="existing@example.org",
             password_hash="x",
             role=UserRole.ADMIN,
+            plan_cache=pricing_catalog().default_plan,
         )
     )
     await db_session.flush()
@@ -217,6 +227,13 @@ def test_starting_on_an_empty_database_produces_an_administrator(tmp_path, monke
     get_settings.cache_clear()
 
     from openbinding_gateway.main import app
+    from openbinding_gateway import space_client
+
+    monkeypatch.setattr(
+        space_client,
+        "build_gate",
+        lambda *_args, **_kwargs: fake_pricing_gate(),
+    )
 
     try:
         # Entering the client runs the lifespan, which is the thing under test.
@@ -258,7 +275,7 @@ async def test_a_pending_contract_is_settled_on_the_next_request(db_session):
     """
     from openbinding_gateway import space_client
     from openbinding_gateway.access.contracts import settle_pending_contract
-    from openbinding_gateway.space_client import FakePricingGate
+    from _pricing import fake_pricing_gate
 
     await seed_default_administrator(db_session)
     await db_session.flush()
@@ -269,7 +286,7 @@ async def test_a_pending_contract_is_settled_on_the_next_request(db_session):
     ).scalar_one()
     assert admin.contract_pending is True, "the seeded administrator owes a contract"
 
-    gate = FakePricingGate()
+    gate = fake_pricing_gate()
     space_client.set_gate(gate)
     try:
         await settle_pending_contract(admin, db_session)
@@ -285,7 +302,7 @@ async def test_settling_is_skipped_for_an_account_that_owes_nothing(db_session):
     # boolean rather than a call to a pricing service.
     from openbinding_gateway import space_client
     from openbinding_gateway.access.contracts import settle_pending_contract
-    from openbinding_gateway.space_client import FakePricingGate
+    from _pricing import fake_pricing_gate
 
     await seed_default_administrator(db_session)
     admin = (
@@ -295,7 +312,7 @@ async def test_settling_is_skipped_for_an_account_that_owes_nothing(db_session):
     ).scalar_one()
     admin.contract_pending = False
 
-    gate = FakePricingGate()
+    gate = fake_pricing_gate()
     space_client.set_gate(gate)
     try:
         await settle_pending_contract(admin, db_session)
@@ -309,7 +326,7 @@ async def test_an_account_stays_pending_while_space_is_still_down(db_session):
     # And the request it happened during must not fail because of it.
     from openbinding_gateway import space_client
     from openbinding_gateway.access.contracts import settle_pending_contract
-    from openbinding_gateway.space_client import FakePricingGate
+    from _pricing import fake_pricing_gate
 
     await seed_default_administrator(db_session)
     admin = (
@@ -318,7 +335,7 @@ async def test_an_account_stays_pending_while_space_is_still_down(db_session):
         )
     ).scalar_one()
 
-    gate = FakePricingGate()
+    gate = fake_pricing_gate()
     gate.unavailable = True
     space_client.set_gate(gate)
     try:

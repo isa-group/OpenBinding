@@ -1,23 +1,9 @@
 import type { LimitUsage } from '../api/auth';
-import { LIMIT_LABELS, MONTHLY_LIMITS } from './quota';
 import './QuotaBar.css';
 
-/**
- * The limits that are balances, in the words an account holder would use.
- *
- * Only these belong in a bar. The pricing also carries ceilings -
- * `maxTimeoutPerTaskLimit` and its kind - which bound one request and are
- * never consumed, so drawing them as "0 of 300 used" would say something
- * untrue about them.
- */
-function formatAmount(limitId: string, value: number): string {
-  if (limitId !== 'solverTimeLimit') {
-    return value.toLocaleString();
-  }
-  // Seconds are what the pricing counts, and hours are what people think in.
-  if (value >= 3600) return `${(value / 3600).toFixed(1)} h`;
-  if (value >= 60) return `${(value / 60).toFixed(1)} min`;
-  return `${value.toFixed(1)} s`;
+/** Render the identifier, unit, allowance and consumption returned by SPACE. */
+function formatAmount(value: number, unit?: string | null): string {
+  return `${value.toLocaleString()}${unit ? ` ${unit}` : ''}`;
 }
 
 function formatRenewal(renewsAt?: string | null): string | null {
@@ -36,7 +22,7 @@ function formatRenewal(renewsAt?: string | null): string | null {
  * is gone"; somebody deciding whether to start a long solve needs the number.
  */
 export function QuotaBar({ limit }: { limit: LimitUsage }) {
-  const label = LIMIT_LABELS[limit.limit_id] ?? limit.limit_id;
+  const label = limit.limit_id;
   const fraction = limit.limit > 0 ? Math.min(1, limit.used / limit.limit) : 0;
   const percent = Math.round(fraction * 100);
   const state = fraction >= 1 ? 'spent' : fraction >= 0.8 ? 'low' : 'fine';
@@ -47,8 +33,7 @@ export function QuotaBar({ limit }: { limit: LimitUsage }) {
       <div className="quota-head">
         <span className="quota-label">{label}</span>
         <span className="quota-figures">
-          {formatAmount(limit.limit_id, limit.used)} / {formatAmount(limit.limit_id, limit.limit)}
-          {MONTHLY_LIMITS.has(limit.limit_id) && <span className="quota-period"> this month</span>}
+          {formatAmount(limit.used, limit.unit)} / {formatAmount(limit.limit, limit.unit)}
         </span>
       </div>
 

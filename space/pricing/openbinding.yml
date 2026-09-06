@@ -1,316 +1,439 @@
-# OpenBinding's own pricing, in Pricing2Yaml.
-#
-# Not to be confused with `pricings/` at the repository root: those are the
-# AWS/Azure/GCloud iPricings that experiments read as candidate cost data. This
-# one describes OpenBinding as a service, and a SPACE instance enforces it.
-#
-# Two plans. FREE is free and every account starts on it, because registration
-# is open - an open door needs a meter behind it rather than a lock. PRO is
-# priced symbolically: there is no payment gateway, and an administrator
-# performs the upgrade as a contract novation in SPACE.
-#
-# Pricing2Yaml has no way to say "unlimited", and that is just as well: a limit
-# nobody can reach is still a limit worth having, because it is what stops a
-# runaway script from consuming a cluster. PRO's values are therefore very high
-# and finite.
-# The current Pricing2Yaml specification is 3.1 - the "supported value: 3.0"
-# in the published specification page is a documentation bug. This file says
-# 3.0 anyway, because the toolchain has not caught up: pricing4ts 0.10.3, which
-# SPACE 1.0.0 bundles, lists PRICING2YAML_VERSIONS as ["1.0","1.1","2.0","2.1",
-# "3.0"] and refuses anything newer outright. Nothing here uses 3.1 syntax, so
-# the declaration is the only thing to change once that version list grows.
-syntaxVersion: '3.0'
+# OpenBinding platform pricing, version 0.1.0.
+# Runtime YAML lives in SPHERE and SPACE; the gateway never reads this file.
+syntaxVersion: '3.1'
 saasName: openbinding
 version: 0.1.0
-createdAt: '2026-07-29'
+createdAt: '2026-09-01'
 currency: EUR
-
 billing:
   monthly: 1
-
-tags:
-  - Solving
-  - Analysis
-  - Access
+tags: [Authoring, Solving, Analysis, Collaboration, Federation, Reproducibility, Institutional]
 
 features:
-  analyze:
-    description: Validate modular instances and measure their complexity before solving.
+  authoring:
+    description: Author and validate BIM v1 and qos-binding/v1 packages.
+    tag: Authoring
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['authoring']
+  solve:
+    description: Execute local and evolutionary OpenBinding engines.
+    tag: Solving
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['solve'] && subscriptionContext['taskStarts'] < pricingContext['usageLimits']['taskStarts'] && subscriptionContext['concurrentJobs'] < pricingContext['usageLimits']['concurrentJobs']
+  federatedEngines:
+    description: Register exact federated engine revisions and execute them.
+    tag: Federation
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['federatedEngines'] && subscriptionContext['federatedTaskStarts'] < pricingContext['usageLimits']['federatedTaskStarts'] && subscriptionContext['concurrentJobs'] < pricingContext['usageLimits']['concurrentJobs']
+  apiAccess:
+    description: Use API keys with granular capabilities and boundaries.
+    tag: Collaboration
+    type: INTEGRATION
+    integrationType: API
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['apiAccess']
+  collaboration:
+    description: Work in organizations, projects, collections and reports.
+    tag: Collaboration
+    type: MANAGEMENT
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['collaboration']
+  studies:
+    description: Define and execute reproducible comparative binding studies.
     tag: Analysis
     type: DOMAIN
     valueType: BOOLEAN
     defaultValue: true
-    expression: >-
-      pricingContext['features']['analyze']
-
-  solve:
-    description: Submit an instance to a solver engine.
-    tag: Solving
-    type: DOMAIN
+    expression: pricingContext['features']['studies'] && subscriptionContext['studyRuns'] < pricingContext['usageLimits']['studyRuns']
+  advancedAnalytics:
+    description: Pareto, convergence, stability, feasibility and engine comparisons.
+    tag: Analysis
+    type: INFORMATION
     valueType: BOOLEAN
-    defaultValue: true
-    # Deliberately does not mention solverTimeLimit, even though solving spends
-    # it. SPACE requires a consumption figure for every limit an expression
-    # reads, and treats zero as "none given" - so a limit you want checked but
-    # not charged cannot be expressed here. Solver time is only knowable after
-    # the solve anyway: the gateway checks the headroom itself before
-    # dispatching and reports the real cost afterwards.
-    expression: >-
-      pricingContext['features']['solve'] && subscriptionContext['tasksLimit'] < pricingContext['usageLimits']['tasksLimit'] && subscriptionContext['concurrentTasksLimit'] < pricingContext['usageLimits']['concurrentTasksLimit']
-
-  apiAccess:
-    description: Call the gateway programmatically with a personal API key.
-    tag: Access
-    type: INTEGRATION
-    integrationType: API
-    valueType: BOOLEAN
-    defaultValue: true
-    expression: >-
-      pricingContext['features']['apiAccess'] && subscriptionContext['apiKeysLimit'] < pricingContext['usageLimits']['apiKeysLimit']
-
-  evolutionaryEngine:
-    description: Use the BIM v1 evolutionary engine's elitist or Pareto genetic modes.
-    tag: Solving
-    type: DOMAIN
-    valueType: BOOLEAN
-    # Available on every plan. The quotas below already bound what any engine
-    # can cost, so gating the most expensive one as well would restrict
-    # research without protecting anything. The machinery to gate it stays
-    # generic, so this is a one-line change if that ever stops being true.
-    defaultValue: true
-    expression: >-
-      pricingContext['features']['evolutionaryEngine']
-
-  federatedEngines:
-    description: Register and solve on your own solver, described by its OpenAPI document.
-    tag: Access
-    type: INTEGRATION
-    integrationType: API
-    valueType: BOOLEAN
-    defaultValue: true
-    expression: >-
-      pricingContext['features']['federatedEngines'] && subscriptionContext['federatedTasksLimit'] < pricingContext['usageLimits']['federatedTasksLimit'] && subscriptionContext['concurrentTasksLimit'] < pricingContext['usageLimits']['concurrentTasksLimit']
-
-  jobHistory:
-    description: Keep finished jobs and their results queryable.
-    tag: Solving
+    defaultValue: false
+    expression: pricingContext['features']['advancedAnalytics']
+  reproducibleExport:
+    description: Export content-addressed packages with checksums and provenance.
+    tag: Reproducibility
     type: INFORMATION
     valueType: BOOLEAN
     defaultValue: true
-    expression: >-
-      pricingContext['features']['jobHistory']
+    expression: pricingContext['features']['reproducibleExport']
+  publishing:
+    description: Freeze reports and publish reproducible binding results.
+    tag: Reproducibility
+    type: DOMAIN
+    valueType: BOOLEAN
+    defaultValue: true
+    expression: pricingContext['features']['publishing']
+  reproducibilityArchive:
+    description: Extended immutable archive and audit retention.
+    tag: Reproducibility
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    expression: pricingContext['features']['reproducibilityArchive']
+  institutionalBranding:
+    description: Compact Universidad de Sevilla identity in authenticated surfaces.
+    tag: Institutional
+    type: INFORMATION
+    valueType: BOOLEAN
+    defaultValue: false
+    expression: pricingContext['features']['institutionalBranding']
 
 usageLimits:
-  tasksLimit:
-    description: Solve jobs started per month on OpenBinding's own engines.
+  taskStarts:
+    description: Local solves started per actor and month.
     tag: Solving
     type: RENEWABLE
-    period:
-      value: 1
-      unit: MONTH
+    period: { value: 1, unit: MONTH }
     valueType: NUMERIC
-    defaultValue: 100
-    unit: task/month
-    linkedFeatures:
-      - solve
-
-  solverTimeLimit:
-    description: Solver wall-clock seconds consumed per month.
+    defaultValue: 10
+    unit: solve/month
+    linkedFeatures: [solve]
+  solverSeconds:
+    description: Solver wall-clock seconds consumed per actor and month.
     tag: Solving
     type: RENEWABLE
-    period:
-      value: 1
-      unit: MONTH
+    period: { value: 1, unit: MONTH }
     valueType: NUMERIC
-    defaultValue: 3600
+    defaultValue: 900
     unit: second/month
-    linkedFeatures:
-      - solve
-
-  federatedTasksLimit:
-    description: >-
-      Solve jobs started per month on a user's own federated engine. Counted
-      apart from tasksLimit because the computation happens on somebody else's
-      machine; what OpenBinding spends is a connection, not a CPU.
-    tag: Access
+    linkedFeatures: [solve]
+  federatedTaskStarts:
+    description: Federated solves started per actor and month.
+    tag: Federation
     type: RENEWABLE
-    period:
-      value: 1
-      unit: MONTH
+    period: { value: 1, unit: MONTH }
     valueType: NUMERIC
-    defaultValue: 200
-    unit: task/month
-    linkedFeatures:
-      - federatedEngines
-
-  concurrentTasksLimit:
-    description: Solve jobs running at the same time. Released when a job finishes.
+    defaultValue: 5
+    unit: solve/month
+    linkedFeatures: [federatedEngines]
+  concurrentJobs:
+    description: Jobs running at the same time for one actor.
     tag: Solving
     type: NON_RENEWABLE
     trackable: true
     valueType: NUMERIC
     defaultValue: 1
-    unit: task
-    linkedFeatures:
-      - solve
-      - federatedEngines
-
-  federatedEnginesLimit:
-    description: Federated engines registered at once.
-    tag: Access
+    unit: job
+    linkedFeatures: [solve, federatedEngines, studies]
+  federatedEngines:
+    description: Federated engine revisions available to one actor.
+    tag: Federation
     type: NON_RENEWABLE
     trackable: true
     valueType: NUMERIC
     defaultValue: 1
     unit: engine
-    linkedFeatures:
-      - federatedEngines
-
-  apiKeysLimit:
-    description: API keys in use at once.
-    tag: Access
+    linkedFeatures: [federatedEngines]
+  apiKeys:
+    description: Active API keys owned by one actor.
+    tag: Collaboration
     type: NON_RENEWABLE
     trackable: true
     valueType: NUMERIC
-    defaultValue: 2
+    defaultValue: 1
     unit: key
-    linkedFeatures:
-      - apiAccess
-
-  maxTimeoutPerTaskLimit:
-    description: >-
-      Longest solver budget a single job may ask for. A static ceiling rather
-      than a balance: asking for more is clamped down to this, not refused.
+    linkedFeatures: [apiAccess]
+  maxTimeoutSeconds:
+    description: Maximum wall-clock budget for one job.
     tag: Solving
     type: NON_RENEWABLE
     trackable: false
     valueType: NUMERIC
-    defaultValue: 300
+    defaultValue: 60
     unit: second
-    linkedFeatures:
-      - solve
-
-  maxIterationsLimit:
-    description: Ceiling for BIM v1 search-effort options (iterations, max_evaluations).
+    linkedFeatures: [solve, federatedEngines]
+  maxIterations:
+    description: Maximum search iterations or evaluations for one job.
     tag: Solving
     type: NON_RENEWABLE
     trackable: false
     valueType: NUMERIC
     defaultValue: 10000
     unit: iteration
-    linkedFeatures:
-      - solve
-
-  maxPayloadSizeLimit:
-    description: Largest instance payload accepted in one request.
+    linkedFeatures: [solve]
+  maxPayloadBytes:
+    description: Maximum BIM package size for one request.
+    tag: Authoring
+    type: NON_RENEWABLE
+    trackable: false
+    valueType: NUMERIC
+    defaultValue: 8388608
+    unit: byte
+    linkedFeatures: [authoring, solve]
+  maxInstanceComplexityLog10:
+    description: Maximum base-10 logarithm of the eligible binding search space.
     tag: Solving
     type: NON_RENEWABLE
     trackable: false
     valueType: NUMERIC
-    defaultValue: 16
-    unit: MB
-    linkedFeatures:
-      - solve
-      - analyze
-
-  jobHistoryRetentionLimit:
-    description: How long a finished job stays queryable.
-    tag: Solving
+    defaultValue: 9
+    unit: log10 combinations
+    linkedFeatures: [solve]
+  jobHistoryDays:
+    description: Retention of finished jobs and results.
+    tag: Reproducibility
     type: NON_RENEWABLE
     trackable: false
     valueType: NUMERIC
     defaultValue: 7
     unit: day
-    linkedFeatures:
-      - jobHistory
+    linkedFeatures: [reproducibleExport]
+  studyRuns:
+    description: Comparative study executions per actor and month.
+    tag: Analysis
+    type: RENEWABLE
+    period: { value: 1, unit: MONTH }
+    valueType: NUMERIC
+    defaultValue: 3
+    unit: run/month
+    linkedFeatures: [studies]
+  organizations:
+    description: Organizations sponsored across assigned subtrees.
+    tag: Collaboration
+    type: NON_RENEWABLE
+    trackable: true
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: organization
+    linkedFeatures: [collaboration]
+  members:
+    description: Unique members across sponsored organization subtrees.
+    tag: Collaboration
+    type: NON_RENEWABLE
+    trackable: true
+    valueType: NUMERIC
+    defaultValue: 2
+    unit: member
+    linkedFeatures: [collaboration]
+  projects:
+    description: Projects across sponsored organization subtrees.
+    tag: Collaboration
+    type: NON_RENEWABLE
+    trackable: true
+    valueType: NUMERIC
+    defaultValue: 3
+    unit: project
+    linkedFeatures: [collaboration]
+  privateProjects:
+    description: Private projects across sponsored organization subtrees.
+    tag: Collaboration
+    type: NON_RENEWABLE
+    trackable: true
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: project
+    linkedFeatures: [collaboration]
+  collections:
+    description: Curated collections across sponsored organization subtrees.
+    tag: Collaboration
+    type: NON_RENEWABLE
+    trackable: true
+    valueType: NUMERIC
+    defaultValue: 2
+    unit: collection
+    linkedFeatures: [collaboration]
+  studies:
+    description: Comparative study definitions across sponsored subtrees.
+    tag: Analysis
+    type: NON_RENEWABLE
+    trackable: true
+    valueType: NUMERIC
+    defaultValue: 1
+    unit: study
+    linkedFeatures: [studies]
+  storageBytes:
+    description: Content-addressed artifact storage across sponsored subtrees.
+    tag: Reproducibility
+    type: NON_RENEWABLE
+    trackable: true
+    valueType: NUMERIC
+    defaultValue: 104857600
+    unit: byte
+    linkedFeatures: [reproducibleExport]
 
-# Every plan spells its features out. The parser requires it - a plan without a
-# `features` map is rejected outright - and it reads better anyway: what a plan
-# grants is visible in the plan rather than inferred from defaults elsewhere.
 plans:
-  FREE:
-    description: >-
-      Free, and what every account starts on. Enough to evaluate OpenBinding and
-      to run small experiments end to end.
+  BASIC:
+    description: Free default plan for individual evaluation and small experiments.
+    price: 0.0
+    unit: user/month
+    features: &basicFeatures
+      authoring: { value: true }
+      solve: { value: true }
+      federatedEngines: { value: true }
+      apiAccess: { value: true }
+      collaboration: { value: true }
+      studies: { value: true }
+      reproducibleExport: { value: true }
+      publishing: { value: true }
+    usageLimits:
+      taskStarts: { value: 10 }
+      solverSeconds: { value: 900 }
+      federatedTaskStarts: { value: 5 }
+      concurrentJobs: { value: 1 }
+      federatedEngines: { value: 1 }
+      apiKeys: { value: 1 }
+      maxTimeoutSeconds: { value: 60 }
+      maxIterations: { value: 10000 }
+      maxPayloadBytes: { value: 8388608 }
+      maxInstanceComplexityLog10: { value: 9 }
+      jobHistoryDays: { value: 7 }
+      studyRuns: { value: 3 }
+      organizations: { value: 1 }
+      members: { value: 2 }
+      projects: { value: 3 }
+      privateProjects: { value: 1 }
+      collections: { value: 2 }
+      studies: { value: 1 }
+      storageBytes: { value: 104857600 }
+  ADVANCED:
+    description: Contact us / Institutional agreement. Advanced analytics and larger capacity.
+    price: Contact us / Institutional agreement
+    unit: user/month
+    features:
+      <<: *basicFeatures
+      advancedAnalytics: { value: true }
+    usageLimits:
+      taskStarts: { value: 25 }
+      solverSeconds: { value: 18000 }
+      federatedTaskStarts: { value: 10 }
+      concurrentJobs: { value: 2 }
+      federatedEngines: { value: 3 }
+      apiKeys: { value: 10 }
+      maxTimeoutSeconds: { value: 600 }
+      maxIterations: { value: 500000 }
+      maxPayloadBytes: { value: 67108864 }
+      maxInstanceComplexityLog10: { value: 15 }
+      jobHistoryDays: { value: 90 }
+      studyRuns: { value: 50 }
+      organizations: { value: 2 }
+      members: { value: 10 }
+      projects: { value: 25 }
+      privateProjects: { value: 15 }
+      collections: { value: 25 }
+      studies: { value: 10 }
+      storageBytes: { value: 1073741824 }
+  RESEARCH:
+    description: Free for verified Universidad de Sevilla CAS accounts, with institutional identity.
     price: 0.0
     unit: user/month
     features:
-      analyze:
-        value: true
-      solve:
-        value: true
-      apiAccess:
-        value: true
-      evolutionaryEngine:
-        value: true
-      federatedEngines:
-        value: true
-      jobHistory:
-        value: true
+      <<: *basicFeatures
+      advancedAnalytics: { value: true }
+      institutionalBranding: { value: true }
     usageLimits:
-      tasksLimit:
-        value: 100
-      solverTimeLimit:
-        value: 3600
-      federatedTasksLimit:
-        value: 200
-      concurrentTasksLimit:
-        value: 1
-      federatedEnginesLimit:
-        value: 1
-      apiKeysLimit:
-        value: 10
-      maxTimeoutPerTaskLimit:
-        value: 300
-      maxIterationsLimit:
-        value: 10000
-      maxPayloadSizeLimit:
-        value: 16
-      jobHistoryRetentionLimit:
-        value: 7
-
+      taskStarts: { value: 50 }
+      solverSeconds: { value: 30000 }
+      federatedTaskStarts: { value: 100 }
+      concurrentJobs: { value: 3 }
+      federatedEngines: { value: 5 }
+      apiKeys: { value: 25 }
+      maxTimeoutSeconds: { value: 900 }
+      maxIterations: { value: 1000000 }
+      maxPayloadBytes: { value: 134217728 }
+      maxInstanceComplexityLog10: { value: 20 }
+      jobHistoryDays: { value: 180 }
+      studyRuns: { value: 100 }
+      organizations: { value: 5 }
+      members: { value: 15 }
+      projects: { value: 50 }
+      privateProjects: { value: 30 }
+      collections: { value: 50 }
+      studies: { value: 25 }
+      storageBytes: { value: 5368709120 }
   PRO:
-    description: >-
-      For research workloads. There is no payment gateway: an administrator
-      performs the upgrade, so the price is a conversation rather than a number.
-    price: "Contact sales"
+    description: Contact us / Institutional agreement. High-capacity operation and federation.
+    price: Contact us / Institutional agreement
     unit: user/month
     features:
-      analyze:
-        value: true
-      solve:
-        value: true
-      apiAccess:
-        value: true
-      evolutionaryEngine:
-        value: true
-      federatedEngines:
-        value: true
-      jobHistory:
-        value: true
+      <<: *basicFeatures
+      advancedAnalytics: { value: true }
+      reproducibilityArchive: { value: true }
     usageLimits:
-      tasksLimit:
-        value: 100000
-      solverTimeLimit:
-        # ~277 hours a month. High enough never to be met in practice, finite
-        # so that a runaway script still stops.
-        value: 1000000
-      federatedTasksLimit:
-        value: 100000
-      concurrentTasksLimit:
-        value: 5
-      federatedEnginesLimit:
-        value: 10
-      apiKeysLimit:
-        value: .inf
-      maxTimeoutPerTaskLimit:
-        # Matches ENGINE_SOLVE_TIMEOUT_S: asking for longer than the gateway
-        # itself will wait would be a promise it cannot keep.
-        value: 1800
-      maxIterationsLimit:
-        value: 10000000
-      maxPayloadSizeLimit:
-        # Matches MAX_SOLVE_BODY_BYTES.
-        value: 512
-      jobHistoryRetentionLimit:
-        value: 90
+      taskStarts: { value: .inf }
+      solverSeconds: { value: 180000 }
+      federatedTaskStarts: { value: 1000 }
+      concurrentJobs: { value: 8 }
+      federatedEngines: { value: 20 }
+      apiKeys: { value: .inf }
+      maxTimeoutSeconds: { value: 1800 }
+      maxIterations: { value: 10000000 }
+      maxPayloadBytes: { value: 536870912 }
+      maxInstanceComplexityLog10: { value: 30 }
+      jobHistoryDays: { value: 365 }
+      studyRuns: { value: 1000 }
+      organizations: { value: 10 }
+      members: { value: 100 }
+      projects: { value: 500 }
+      privateProjects: { value: 500 }
+      collections: { value: 500 }
+      studies: { value: 250 }
+      storageBytes: { value: 21474836480 }
+
+addOns:
+  COMPUTE_PACK:
+    description: Adds 100 local solves, 7200 seconds and 250 federated solves.
+    availableFor: [ADVANCED, PRO]
+    price: Contact us
+    unit: pack/month
+    subscriptionConstraints: { minQuantity: 1, maxQuantity: 10, quantityStep: 1 }
+    usageLimitsExtensions:
+      taskStarts: { value: 100 }
+      solverSeconds: { value: 7200 }
+      federatedTaskStarts: { value: 250 }
+  COLLABORATION_PACK:
+    description: Adds 5 members, 10 projects and 5 private projects.
+    availableFor: [ADVANCED, PRO]
+    price: Contact us
+    unit: pack/month
+    subscriptionConstraints: { minQuantity: 1, maxQuantity: 10, quantityStep: 1 }
+    usageLimitsExtensions:
+      members: { value: 5 }
+      projects: { value: 10 }
+      privateProjects: { value: 5 }
+  STORAGE_PACK:
+    description: Adds 5 GB of artifact storage.
+    availableFor: [ADVANCED, PRO]
+    price: Contact us
+    unit: pack/month
+    subscriptionConstraints: { minQuantity: 1, maxQuantity: 20, quantityStep: 1 }
+    usageLimitsExtensions:
+      storageBytes: { value: 5368709120 }
+  FEDERATION_PACK:
+    description: Adds 2 engines and 500 federated solves.
+    availableFor: [PRO]
+    price: Contact us
+    unit: pack/month
+    subscriptionConstraints: { minQuantity: 1, maxQuantity: 10, quantityStep: 1 }
+    usageLimitsExtensions:
+      federatedEngines: { value: 2 }
+      federatedTaskStarts: { value: 500 }
+  CONCURRENCY_PACK:
+    description: Adds one concurrent job.
+    availableFor: [PRO]
+    price: Contact us
+    unit: pack/month
+    subscriptionConstraints: { minQuantity: 1, maxQuantity: 4, quantityStep: 1 }
+    usageLimitsExtensions:
+      concurrentJobs: { value: 1 }
+  REPRODUCIBILITY_ARCHIVE:
+    description: Enables archive/audit and 365-day retention.
+    availableFor: [ADVANCED]
+    price: Contact us
+    unit: account
+    subscriptionConstraints: { minQuantity: 1, maxQuantity: 1, quantityStep: 1 }
+    features:
+      reproducibilityArchive: { value: true }
+    usageLimitsExtensions:
+      jobHistoryDays: { value: 275 }

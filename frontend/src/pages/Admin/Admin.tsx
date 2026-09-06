@@ -1,14 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { retrievePricingFromYaml } from 'pricing4ts';
+import type { Pricing } from 'pricing4ts';
 import { apiClient, bimResourceKey } from '../../api/client';
-import type { AdminUserView, PlanName, UsageView } from '../../api/auth';
+import type {
+  AdminSubscriptionView,
+  AdminUserView,
+  ContractChangeReason,
+  UsageView,
+} from '../../api/auth';
 import type { EngineRegistrationReport, EngineRegistrationRevision } from '../../api/client';
 import { useAuth } from '../../contexts/auth';
 import { QuotaBar } from '../../components/QuotaBar';
-import { isBalance } from '../../components/quota';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
+import { AdminOperations } from './AdminOperations';
 import './Admin.css';
 
 const PAGE_SIZE = 25;
@@ -21,6 +28,13 @@ export function Admin() {
   const [search, setSearch] = useState('');
   const [inspecting, setInspecting] = useState<AdminUserView | null>(null);
   const [usage, setUsage] = useState<UsageView | null>(null);
+  const [subscription, setSubscription] = useState<AdminSubscriptionView | null>(null);
+  const [pricing, setPricing] = useState<Pricing | null>(null);
+  const [editingPlan, setEditingPlan] = useState('');
+  const [editingAddOns, setEditingAddOns] = useState<Record<string, number>>({});
+  const [changeReason, setChangeReason] = useState<ContractChangeReason>('administrative_decision');
+  const [changeDetail, setChangeDetail] = useState('');
+  const [contractBusy, setContractBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [registrations, setRegistrations] = useState<EngineRegistrationRevision[]>([]);
@@ -54,6 +68,41 @@ export function Admin() {
     void Promise.resolve().then(loadRegistrations);
   }, [loadRegistrations]);
 
+  useEffect(() => {
+    void apiClient.getPricingDocument()
+      .then((source) => setPricing(retrievePricingFromYaml(source)))
+      .catch(() => setError('The active iPricing could not be loaded. Contract editing is unavailable.'));
+  }, []);
+
+  const planOptions = Object.entries(pricing?.plans ?? {});
+  const addOnOptions = useMemo(
+    () => Object.entries(pricing?.addOns ?? {}).filter(([, addOn]) => addOn.availableFor.includes(editingPlan)),
+    [editingPlan, pricing],
+  );
+  const subscriptionIssues = useMemo(() => {
+    if (!pricing?.plans?.[editingPlan]) return ['Choose a plan from the active iPricing.'];
+    const selected = Object.fromEntries(Object.entries(editingAddOns).filter(([, quantity]) => quantity > 0));
+    const issues: string[] = [];
+    for (const [id, quantity] of Object.entries(selected)) {
+      const addOn = pricing.addOns?.[id];
+      if (!addOn || !addOn.availableFor.includes(editingPlan)) {
+        issues.push(`${id} is not available for ${editingPlan}.`);
+        continue;
+      }
+      const { minQuantity, maxQuantity, quantityStep } = addOn.subscriptionConstraints;
+      if (!Number.isInteger(quantity) || quantity < minQuantity || quantity > maxQuantity || (quantity - minQuantity) % quantityStep !== 0) {
+        issues.push(`${addOn.name} must be ${minQuantity}–${maxQuantity} in steps of ${quantityStep}.`);
+      }
+      for (const dependency of addOn.dependsOn ?? []) {
+        if (!selected[dependency]) issues.push(`${addOn.name} depends on ${pricing.addOns?.[dependency]?.name ?? dependency}.`);
+      }
+      for (const excluded of addOn.excludes ?? []) {
+        if (selected[excluded]) issues.push(`${addOn.name} excludes ${pricing.addOns?.[excluded]?.name ?? excluded}.`);
+      }
+    }
+    return [...new Set(issues)];
+  }, [editingAddOns, editingPlan, pricing]);
+
   const act = async (what: () => Promise<unknown>, done: string) => {
     setError(null);
     setNotice(null);
@@ -72,11 +121,45 @@ export function Admin() {
   const inspect = async (account: AdminUserView) => {
     setInspecting(account);
     setUsage(null);
+    setSubscription(null);
     try {
-      setUsage(await apiClient.adminGetUserUsage(account.id));
+      const [nextUsage, nextSubscription] = await Promise.all([
+        apiClient.adminGetUserUsage(account.id),
+        apiClient.adminGetSubscription(account.id),
+      ]);
+      setUsage(nextUsage);
+      setSubscription(nextSubscription);
+      setEditingPlan(pricing?.plans?.[nextSubscription.subscription.plan]
+        ? nextSubscription.subscription.plan
+        : Object.keys(pricing?.plans ?? {})[0] ?? nextSubscription.subscription.plan);
+      setEditingAddOns(nextSubscription.subscription.add_ons);
     } catch {
-      setError(`Usage for ${account.username} could not be read.`);
+      setError(`The contract for ${account.username} could not be read.`);
     }
+  };
+
+  const saveSubscription = async () => {
+    if (!inspecting) return;
+    setContractBusy(true); setError(null); setNotice(null);
+    try {
+      const result = await apiClient.adminUpdateSubscription(inspecting.id, {
+        plan: editingPlan,
+        add_ons: Object.fromEntries(Object.entries(editingAddOns).filter(([, quantity]) => quantity > 0)),
+        reason: changeReason,
+        ...(changeDetail.trim() ? { detail: changeDetail.trim() } : {}),
+      });
+      setSubscription(result);
+      setInspecting(result.user);
+      setEditingPlan(result.subscription.plan);
+      setEditingAddOns(result.subscription.add_ons);
+      setNotice(result.changed
+        ? `${result.user.username} now uses ${result.subscription.plan}; the account was notified.`
+        : 'No contract values changed, so no notification was sent.');
+      if (result.user.id === self?.id) await apiClient.getPricingToken();
+      await load();
+    } catch {
+      setError('The active iPricing or an institutional identity rule refused this subscription.');
+    } finally { setContractBusy(false); }
   };
 
   const inspectRegistration = async (registration: EngineRegistrationRevision) => {
@@ -104,6 +187,8 @@ export function Admin() {
 
         {error && <Alert type="error">{error}</Alert>}
         {notice && <Alert type="success">{notice}</Alert>}
+
+        <AdminOperations />
 
         <div className="admin-controls">
           <label className="admin-search">
@@ -148,19 +233,7 @@ export function Admin() {
                       </div>
                     </td>
                     <td>
-                      <select
-                        value={account.plan}
-                        aria-label={`Plan for ${account.username}`}
-                        onChange={(e) =>
-                          void act(
-                            () => apiClient.adminChangePlan(account.id, e.target.value as PlanName),
-                            `${account.username} moved to ${e.target.value}.`
-                          )
-                        }
-                      >
-                        <option value="FREE">FREE</option>
-                        <option value="PRO">PRO</option>
-                      </select>
+                      <Badge>{account.plan}</Badge>
                       {account.contract_pending && <Badge variant="warning">no contract</Badge>}
                     </td>
                     <td>
@@ -191,7 +264,7 @@ export function Admin() {
                     </td>
                     <td className="admin-actions">
                       <Button size="sm" variant="ghost" onClick={() => void inspect(account)}>
-                        Usage
+                        Contract
                       </Button>
                       <Button
                         size="sm"
@@ -329,17 +402,41 @@ export function Admin() {
         {inspecting && (
           <Card padding="lg" className="admin-usage">
             <div className="admin-usage-head">
-              <h2>{inspecting.username}</h2>
+              <div><span className="admin-contract-kicker">Contract & consumption</span><h2>{inspecting.username}</h2></div>
               <Button size="sm" variant="ghost" onClick={() => setInspecting(null)}>
                 Close
               </Button>
             </div>
 
-            {usage ? (
+            {usage && subscription ? (
               <>
+                <div className="admin-contract-layout">
+                  <form className="admin-contract-form" onSubmit={(event) => { event.preventDefault(); void saveSubscription(); }}>
+                    <label>Plan<select value={editingPlan} disabled={!pricing} onChange={(event) => {
+                      const plan = event.target.value;
+                      setEditingPlan(plan);
+                      setEditingAddOns((current) => Object.fromEntries(
+                        Object.entries(current).filter(([id]) => pricing?.addOns?.[id]?.availableFor.includes(plan)),
+                      ));
+                    }}>
+                      {!planOptions.length && <option value="">Active iPricing unavailable</option>}
+                      {planOptions.map(([id, plan]) => <option key={id} value={id} disabled={id === 'RESEARCH' && !inspecting.cas_verified}>{plan.name}{id === 'RESEARCH' && !inspecting.cas_verified ? ' · requires institutional identity' : ''}</option>)}
+                    </select></label>
+                    <fieldset><legend>Add-ons</legend>{addOnOptions.length ? addOnOptions.map(([id, addOn]) => {
+                      const { minQuantity, maxQuantity, quantityStep } = addOn.subscriptionConstraints;
+                      return <label key={id}>{addOn.name}<small>{addOn.description}</small><span><input aria-label={`${addOn.name} quantity`} type="number" min="0" max={maxQuantity} step={quantityStep} value={editingAddOns[id] ?? 0} onChange={(event) => setEditingAddOns((current) => ({ ...current, [id]: Number(event.target.value) }))} /><small>{minQuantity}–{maxQuantity} · step {quantityStep} · {addOn.unit}</small></span>{Boolean(addOn.dependsOn?.length) && <small>Requires {addOn.dependsOn!.join(', ')}</small>}{Boolean(addOn.excludes?.length) && <small>Excludes {addOn.excludes!.join(', ')}</small>}</label>;
+                    }) : <p>No add-ons are available for this plan.</p>}</fieldset>
+                    {subscriptionIssues.length > 0 && <ul className="admin-contract-issues">{subscriptionIssues.map((issue) => <li key={issue}>{issue}</li>)}</ul>}
+                    <label>Reason<select value={changeReason} onChange={(event) => setChangeReason(event.target.value as ContractChangeReason)}><option value="administrative_decision">Administrative decision</option><option value="institutional_agreement">Institutional agreement</option><option value="new_feature">New functionality</option><option value="retirement_or_discount">Retirement or discount</option></select></label>
+                    <label>Context <small>Included in the audit event and account notification</small><textarea rows={3} maxLength={1000} value={changeDetail} onChange={(event) => setChangeDetail(event.target.value)} /></label>
+                    <div className="admin-contract-meta"><span>Pricing {subscription.subscription.pricing_version}</span><span>Renews {subscription.subscription.renews_at ? new Date(subscription.subscription.renews_at).toLocaleString() : 'on demand'}</span></div>
+                    <Button type="submit" size="sm" disabled={contractBusy || subscriptionIssues.length > 0}>{contractBusy ? 'Updating…' : 'Update contract'}</Button>
+                  </form>
+                  <div className="admin-contract-summary"><strong>Current contract</strong><dl><div><dt>Plan</dt><dd>{subscription.subscription.plan}</dd></div>{Object.entries(subscription.subscription.add_ons).map(([name, quantity]) => <div key={name}><dt>{name}</dt><dd>× {quantity}</dd></div>)}<div><dt>US identity</dt><dd>{inspecting.cas_verified ? 'verified' : 'not linked'}</dd></div></dl><p>Changing LIVE pricing affects new contracts. This account remains pinned until renewal or an explicit novation here.</p></div>
+                </div>
                 <div className="admin-quotas">
-                  {usage.limits
-                    .filter((limit) => isBalance(limit.limit_id) && limit.limit > 0)
+                  {Object.values(usage.limits)
+                    .filter((limit) => limit.limit > 0)
                     .map((limit) => (
                       <QuotaBar key={limit.limit_id} limit={limit} />
                     ))}

@@ -12,11 +12,11 @@ import type { EngineCatalogEntry, JobHistory, JobStatus } from '../../api/client
 import { PricingUnavailableError } from '../../api/auth';
 import { useAuth } from '../../contexts/auth';
 import { QuotaBar } from '../../components/QuotaBar';
-import { isBalance } from '../../components/quota';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
+import { AccountServices } from './AccountServices';
 import './Account.css';
 
 interface PermissionOption {
@@ -33,6 +33,13 @@ const PERMISSION_OPTIONS: PermissionOption[] = [
   { value: 'instances:read', label: 'Read instances', description: 'Owned snapshots, source packages and IR.', group: 'Read' },
   { value: 'jobs:read', label: 'Read jobs', description: 'Owned jobs for the permitted Engines.', group: 'Read' },
   { value: 'engines:read', label: 'Read Engines', description: 'Catalog and deployment reports, filtered by Engine.', group: 'Read' },
+  { value: 'organizations:read', label: 'Read organizations', description: 'Organization trees, memberships and projects.', group: 'Read' },
+  { value: 'projects:read', label: 'Read projects', description: 'Cases, collections and immutable revisions.', group: 'Read' },
+  { value: 'studies:read', label: 'Read studies', description: 'Study definitions, runs, cells and analytics.', group: 'Read' },
+  { value: 'reports:read', label: 'Read reports', description: 'Draft and frozen project reports.', group: 'Read' },
+  { value: 'artifacts:read', label: 'Read artifacts', description: 'Authorized reproducibility artifacts.', group: 'Read' },
+  { value: 'notifications:read', label: 'Read notifications', description: 'The account inbox and delivery state.', group: 'Read' },
+  { value: 'pricing:read', label: 'Read pricing status', description: 'Active public pricing metadata.', group: 'Read' },
   { value: 'account:write', label: 'Write account', description: 'Change the account profile with its password.', group: 'Write' },
   { value: 'keys:write', label: 'Manage API keys', description: 'Create attenuated keys and revoke owned keys.', group: 'Write' },
   { value: 'instances:write', label: 'Write instances', description: 'Create owned instance snapshots.', group: 'Write' },
@@ -40,11 +47,17 @@ const PERMISSION_OPTIONS: PermissionOption[] = [
   { value: 'engines:execute', label: 'Execute Engines', description: 'Submit solves to only the permitted Engines.', group: 'Write' },
   { value: 'engines:register', label: 'Register Engines', description: 'Create Engines and manage private deployments.', group: 'Sensitive' },
   { value: 'engines:publish', label: 'Request publication', description: 'Submit owned Engine deployments for review.', group: 'Sensitive' },
+  { value: 'organizations:write', label: 'Manage organizations', description: 'Hierarchy, membership and invitations within the key boundary.', group: 'Write' },
+  { value: 'projects:write', label: 'Manage projects', description: 'Create cases, collections and revisions.', group: 'Write' },
+  { value: 'studies:write', label: 'Run studies', description: 'Create matrices, dispatch runs, cancel and retry cells.', group: 'Write' },
+  { value: 'reports:write', label: 'Publish reports', description: 'Create, freeze and publish reproducible reports.', group: 'Write' },
+  { value: 'artifacts:write', label: 'Manage artifacts', description: 'Create and expire project artifacts.', group: 'Write' },
   { value: 'extensions:register', label: 'Register extensions', description: 'Register Dialects and BIM resources.', group: 'Sensitive' },
   { value: 'engines:moderate', label: 'Moderate Engines', description: 'Review Engine publication requests.', group: 'Sensitive', adminOnly: true },
   { value: 'extensions:moderate', label: 'Moderate extensions', description: 'Approve Dialects and BIM resources.', group: 'Sensitive', adminOnly: true },
   { value: 'admin:accounts:read', label: 'Read accounts', description: 'Administrator account and usage views.', group: 'Sensitive', adminOnly: true },
   { value: 'admin:accounts:write', label: 'Administer accounts', description: 'Roles, plans, revocation and usage repair.', group: 'Sensitive', adminOnly: true },
+  { value: 'pricing:admin', label: 'Administer pricing', description: 'SPHERE and SPACE pricing lifecycle actions.', group: 'Sensitive', adminOnly: true },
 ];
 
 const ENGINE_LIMITED_PERMISSIONS = new Set<ApiKeyPermission>([
@@ -68,6 +81,12 @@ export function Account() {
   const [engines, setEngines] = useState<EngineCatalogEntry[]>([]);
   const [allEngines, setAllEngines] = useState(false);
   const [selectedEngines, setSelectedEngines] = useState<string[]>([]);
+  const [methods, setMethods] = useState<Array<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>>([]);
+  const [boundaryOrganizations, setBoundaryOrganizations] = useState('');
+  const [boundaryProjects, setBoundaryProjects] = useState('');
+  const [boundaryKinds, setBoundaryKinds] = useState('');
+  const [boundarySlugs, setBoundarySlugs] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<JobHistory | null>(null);
@@ -190,6 +209,12 @@ export function Account() {
       return;
     }
     try {
+      const split = (value: string) => value.split(',').map((item) => item.trim()).filter(Boolean);
+      const organizations = split(boundaryOrganizations);
+      const projects = split(boundaryProjects);
+      const resourceKinds = split(boundaryKinds);
+      const slugs = split(boundarySlugs);
+      const hasBoundary = methods.length + organizations.length + projects.length + resourceKinds.length + slugs.length > 0;
       const created = await apiClient.createApiKey({
         name: keyName.trim() || 'Untitled key',
         permissions,
@@ -201,12 +226,26 @@ export function Account() {
                 .filter((engine) => selectedEngines.includes(bimResourceKey(engine.ref)))
                 .map((engine) => engine.ref),
         },
+        ...(hasBoundary ? { boundary: {
+          ...(methods.length ? { methods } : {}),
+          ...(organizations.length ? { organizations } : {}),
+          ...(projects.length ? { projects } : {}),
+          ...(resourceKinds.length ? { resource_kinds: resourceKinds } : {}),
+          ...(slugs.length ? { slugs } : {}),
+        } } : {}),
+        ...(expiresAt ? { expires_at: new Date(expiresAt).toISOString() } : {}),
       });
       setMinted(created);
       setKeyName('');
       setPermissions([]);
       setAllEngines(false);
       setSelectedEngines([]);
+      setMethods([]);
+      setBoundaryOrganizations('');
+      setBoundaryProjects('');
+      setBoundaryKinds('');
+      setBoundarySlugs('');
+      setExpiresAt('');
       await loadKeys();
       await loadUsage();
     } catch {
@@ -223,6 +262,18 @@ export function Account() {
       await loadUsage();
     } catch {
       setError('That key could not be revoked.');
+    }
+  };
+
+  const rotateKey = async (keyId: string) => {
+    setError(null);
+    setNotice(null);
+    try {
+      setMinted(await apiClient.rotateApiKey(keyId));
+      await loadKeys();
+      setNotice('Key rotated. Copy the replacement now; the previous secret no longer works.');
+    } catch {
+      setError('That key could not be rotated.');
     }
   };
 
@@ -262,7 +313,7 @@ export function Account() {
               <dd>{user.email}</dd>
               <dt>Plan</dt>
               <dd>
-                <Badge variant={user.plan === 'PRO' ? 'accent' : 'default'}>{user.plan}</Badge>
+                <Badge>{user.plan}</Badge>
                 {usage?.contract_pending && (
                   <span className="account-pending">
                     {' '}
@@ -293,39 +344,38 @@ export function Account() {
             {usage && (
               <>
                 <div className="account-quotas">
-                  {usage.limits
-                    .filter((limit) => isBalance(limit.limit_id) && limit.limit > 0)
+                  {Object.values(usage.limits)
+                    .filter((limit) => limit.limit > 0)
                     .map((limit) => (
                       <QuotaBar key={limit.limit_id} limit={limit} />
                     ))}
                 </div>
 
-                <h3 className="account-subheading">Per request</h3>
+                <h3 className="account-subheading">Capabilities</h3>
                 <dl className="account-facts account-caps">
-                  <dt>Longest solver budget</dt>
-                  <dd>{usage.caps.max_timeout_s} s</dd>
-                  <dt>Largest instance</dt>
-                  <dd>{usage.caps.max_payload_mb} MB</dd>
-                  <dt>Largest instance complexity</dt>
-                  <dd>10^{usage.caps.max_instance_complexity_log10}</dd>
-                  <dt>Search effort ceiling</dt>
-                  <dd>{usage.caps.max_iterations.toLocaleString()} iterations/evaluations</dd>
+                  {Object.entries(usage.capabilities).map(([identifier, value]) => (
+                    <Fragment key={identifier}>
+                      <dt>{identifier}</dt>
+                      <dd>{value === null ? 'Unlimited' : value.toLocaleString()}</dd>
+                    </Fragment>
+                  ))}
                 </dl>
                 <p className="account-note">
-                  A request asking for more than these is reduced to them rather than refused,
-                  and the reduction is reported with the result.
+                  These identifiers and values come directly from your SPACE entitlement.
                 </p>
               </>
             )}
           </Card>
         </div>
 
+        <AccountServices user={user} refresh={refresh} />
+
         <Card padding="lg" className="account-keys">
           <h2>API keys</h2>
           <p className="account-note">
             Grants are immutable: revoke and replace a key to change them. Active keys:{' '}
             <strong>
-              {keys.length} / {usage?.caps.api_keys_limit ?? 'Unlimited'}
+              {keys.length} / {usage?.limits.apiKeys?.limit ?? usage?.capabilities.apiKeys ?? 'Unlimited'}
             </strong>
           </p>
 
@@ -428,6 +478,19 @@ export function Account() {
               )}
             </fieldset>
 
+            <details className="account-key-boundary">
+              <summary>Optional request boundary</summary>
+              <p>A boundary can only reduce these grants. Comma-separated values match exact organization/project IDs or slugs; leave a field empty for no additional restriction.</p>
+              <fieldset><legend>HTTP methods</legend><div>{(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const).map((method) => <label key={method}><input type="checkbox" checked={methods.includes(method)} onChange={() => setMethods((current) => current.includes(method) ? current.filter((item) => item !== method) : [...current, method])} />{method}</label>)}</div></fieldset>
+              <div className="account-boundary-grid">
+                <label>Organizations<input value={boundaryOrganizations} onChange={(event) => setBoundaryOrganizations(event.target.value)} placeholder="research-lab, platform-team" /></label>
+                <label>Projects<input value={boundaryProjects} onChange={(event) => setBoundaryProjects(event.target.value)} placeholder="benchmark-suite" /></label>
+                <label>Resource kinds<input value={boundaryKinds} onChange={(event) => setBoundaryKinds(event.target.value)} placeholder="case, study, report" /></label>
+                <label>Slugs<input value={boundarySlugs} onChange={(event) => setBoundarySlugs(event.target.value)} placeholder="latency-study" /></label>
+                <label>Expires at<input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
+              </div>
+            </details>
+
             <div className="account-key-submit">
               <span>{permissions.length} permission{permissions.length === 1 ? '' : 's'} selected</span>
               <Button type="submit" size="sm">
@@ -446,7 +509,9 @@ export function Account() {
                   <th>Prefix</th>
                   <th>Permissions</th>
                   <th>Engines</th>
+                  <th>Boundary</th>
                   <th>Created</th>
+                  <th>Expires</th>
                   <th>Last used</th>
                   <th />
                 </tr>
@@ -470,16 +535,19 @@ export function Account() {
                         ? 'All'
                         : `${key.engine_access.engines.length} selected`}
                     </td>
+                    <td>{key.boundary && Object.keys(key.boundary).length ? <div className="account-key-grants">{Object.entries(key.boundary).flatMap(([kind, values]) => (values ?? []).map((value) => <code key={`${kind}-${value}`}>{kind}:{value}</code>))}</div> : 'Unrestricted'}</td>
                     <td>{new Date(key.created_at).toLocaleDateString()}</td>
+                    <td>{key.expires_at ? new Date(key.expires_at).toLocaleString('en-GB') : 'never'}</td>
                     <td>
                       {key.last_used_at
                         ? new Date(key.last_used_at).toLocaleDateString()
                         : 'never'}
                     </td>
                     <td>
-                      <Button size="sm" variant="ghost" onClick={() => void revokeKey(key.id)}>
-                        Revoke
-                      </Button>
+                      <span className="account-actions">
+                        <Button size="sm" variant="ghost" onClick={() => void rotateKey(key.id)}>Rotate</Button>
+                        <Button size="sm" variant="ghost" onClick={() => void revokeKey(key.id)}>Revoke</Button>
+                      </span>
                     </td>
                   </tr>
                 ))}

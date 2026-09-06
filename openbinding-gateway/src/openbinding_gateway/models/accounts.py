@@ -7,6 +7,7 @@ identity, plans, keys, and job history without importing the language model.
 from __future__ import annotations
 
 import uuid
+import re
 from datetime import datetime
 from enum import Enum
 from typing import List, Literal, Optional
@@ -21,11 +22,6 @@ USERNAME_PATTERN = r"^[a-zA-Z0-9][a-zA-Z0-9._-]{2,63}$"
 class RoleName(str, Enum):
     USER = "user"
     ADMIN = "admin"
-
-
-class PlanName(str, Enum):
-    FREE = "FREE"
-    PRO = "PRO"
 
 
 class RegisterRequest(BaseModel):
@@ -66,14 +62,32 @@ class UserProfile(BaseModel):
     email: EmailStr
     role: RoleName
     is_active: bool
-    plan: PlanName = Field(
+    plan: str = Field(
         ...,
+        min_length=1,
+        max_length=128,
         description=(
             "Plan last seen on the SPACE contract. The contract itself decides what a "
             "request is allowed to do; this is what the interface displays."
         ),
     )
     created_at: datetime
+    cas_verified: bool = False
+    institutional_branding: bool = False
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetComplete(BaseModel):
+    token: str = Field(..., min_length=32)
+    new_password: str
+
+
+class AccountDeleteRequest(BaseModel):
+    confirmation: str = Field(..., description="Type the current username to confirm deletion.")
+    current_password: Optional[str] = None
 
 
 class UpdateProfileRequest(BaseModel):
@@ -123,6 +137,36 @@ class ApiKeyEngineAccess(BaseModel):
         return self
 
 
+class ApiKeyBoundary(BaseModel):
+    """Optional exact reductions applied in addition to capabilities and role."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    methods: Optional[List[Literal["GET", "POST", "PUT", "PATCH", "DELETE"]]] = None
+    organizations: Optional[List[str]] = Field(default=None, max_length=1000)
+    projects: Optional[List[str]] = Field(default=None, max_length=1000)
+    resource_kinds: Optional[List[str]] = Field(default=None, max_length=100)
+    slugs: Optional[List[str]] = Field(default=None, max_length=1000)
+
+    @model_validator(mode="after")
+    def unique_values(self):
+        for name in ("methods", "organizations", "projects", "resource_kinds", "slugs"):
+            values = getattr(self, name)
+            if values is not None and (not values or len(values) != len(set(values))):
+                raise ValueError(f"{name} must be a non-empty list without duplicates")
+        return self
+
+    def grants_shape(self) -> dict[str, list[str]]:
+        fields = {
+            "methods": self.methods,
+            "organizations": self.organizations,
+            "projects": self.projects,
+            "resourceKinds": self.resource_kinds,
+            "slugs": self.slugs,
+        }
+        return {key: list(value) for key, value in fields.items() if value is not None}
+
+
 class ApiKeySummary(BaseModel):
     """An API key as it can safely be shown: everything except the secret."""
 
@@ -133,8 +177,10 @@ class ApiKeySummary(BaseModel):
     prefix: str
     created_at: datetime
     last_used_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
     permissions: List[ApiKeyPermission]
     engine_access: ApiKeyEngineAccess
+    boundary: ApiKeyBoundary
 
 
 class CreateApiKeyRequest(BaseModel):
@@ -147,9 +193,15 @@ class CreateApiKeyRequest(BaseModel):
         description="Closed, immutable set of capabilities granted to this key.",
     )
     engine_access: ApiKeyEngineAccess
+    boundary: ApiKeyBoundary = Field(default_factory=ApiKeyBoundary)
+    expires_at: Optional[datetime] = Field(
+        default=None, description="Optional expiry. Rotation can replace the key before this instant."
+    )
 
     @model_validator(mode="after")
     def useful_and_unique(self):
+        if self.expires_at is not None and self.expires_at <= datetime.now(self.expires_at.tzinfo):
+            raise ValueError("expires_at must be in the future")
         if len(set(self.permissions)) != len(self.permissions):
             raise ValueError("permissions contains a duplicate")
         permission_values = {permission.value for permission in self.permissions}
@@ -192,24 +244,6 @@ class LimitUsageView(BaseModel):
     )
 
 
-class PlanCapsView(BaseModel):
-    """The ceilings a single request runs into, rather than a monthly balance."""
-
-    max_timeout_s: float = Field(..., description="Longest solver budget one job may ask for.")
-    max_iterations: int = Field(
-        ...,
-        description="Ceiling for BIM v1 search-effort options (iterations and max_evaluations).",
-    )
-    max_payload_mb: int = Field(..., description="Largest instance accepted in one request.")
-    max_instance_complexity_log10: float = Field(
-        ..., description="Largest instance complexity accepted, as log10 of eligibility combinations."
-    )
-    job_history_days: int = Field(..., description="How long finished jobs stay queryable.")
-    api_keys_limit: Optional[int] = Field(
-        default=None, description="How many live API keys the plan allows."
-    )
-
-
 class JobSummary(BaseModel):
     """One solve this account asked for.
 
@@ -236,11 +270,11 @@ class JobHistory(BaseModel):
 
     jobs: List[JobSummary]
     total: int = Field(..., description="How many are visible in total.")
-    retention_days: int = Field(
+    retention_days: Optional[float] = Field(
         ...,
         description=(
             "How far back this plan keeps them. Jobs older than this are not "
-            "returned, which is the jobHistoryRetentionLimit in the pricing."
+            "returned, as reported by SPACE for the canonical jobHistoryDays limit."
         ),
     )
 
@@ -253,13 +287,14 @@ class UsageView(BaseModel):
     things the interface shows.
     """
 
-    plan: PlanName
+    plan: str = Field(..., min_length=1, max_length=128)
     contract_pending: bool = Field(
         default=False,
         description="True when the account has no contract yet because the pricing service was unreachable.",
     )
-    caps: PlanCapsView
-    limits: List[LimitUsageView] = Field(default_factory=list)
+    features: dict[str, bool] = Field(default_factory=dict)
+    capabilities: dict[str, Optional[float]] = Field(default_factory=dict)
+    limits: dict[str, LimitUsageView] = Field(default_factory=dict)
 
 
 class PricingTokenView(BaseModel):
@@ -304,7 +339,50 @@ class UpdateUserRequest(BaseModel):
 
 
 class ChangePlanRequest(BaseModel):
-    plan: PlanName = Field(..., description="The plan to move this account onto.")
+    plan: str = Field(
+        ..., min_length=1, max_length=128,
+        pattern=r"^[A-Za-z][A-Za-z0-9._-]*$",
+        description="A plan identifier declared by the target pricing release.",
+    )
+
+
+class ChangeSubscriptionRequest(BaseModel):
+    """An audited manual agreement; OpenBinding has no checkout or fake payment."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    plan: str = Field(..., min_length=1, max_length=128, pattern=r"^[A-Za-z][A-Za-z0-9._-]*$")
+    add_ons: dict[str, int] = Field(default_factory=dict, max_length=256)
+    reason: Literal[
+        "new_feature",
+        "administrative_decision",
+        "institutional_agreement",
+        "retirement_or_discount",
+    ]
+    detail: Optional[str] = Field(default=None, max_length=1000)
+
+    @model_validator(mode="after")
+    def valid_agreement(self):
+        for name, quantity in self.add_ons.items():
+            if not re.fullmatch(r"[A-Za-z][A-Za-z0-9._-]{0,127}", name):
+                raise ValueError(f"invalid add-on identifier {name!r}")
+            if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 0:
+                raise ValueError(f"{name} quantity must be a non-negative integer")
+        self.add_ons = {name: quantity for name, quantity in self.add_ons.items() if quantity}
+        return self
+
+
+class ContractSubscriptionView(BaseModel):
+    plan: str = Field(..., min_length=1, max_length=128)
+    add_ons: dict[str, int]
+    pricing_version: str
+    renews_at: Optional[str] = None
+
+
+class AdminSubscriptionView(BaseModel):
+    user: AdminUserView
+    subscription: ContractSubscriptionView
+    changed: bool
 
 
 class UsageResyncResult(BaseModel):
@@ -316,7 +394,7 @@ class UsageResyncResult(BaseModel):
     than fixing it silently.
     """
 
-    plan: PlanName
+    plan: str = Field(..., min_length=1, max_length=128)
     slots_in_flight: int = Field(..., description="Jobs actually still running for this account.")
     slots_recorded: float = Field(..., description="What the pricing service had counted.")
     corrected_by: float = Field(..., description="The adjustment applied. Zero means no drift.")

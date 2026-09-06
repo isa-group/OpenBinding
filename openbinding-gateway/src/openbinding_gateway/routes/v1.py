@@ -18,16 +18,16 @@ from typing import Any, Mapping
 
 import jsonschema
 import yaml
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import space_client
 from ..access import metering
 from ..access.dependencies import optional_session, require_v1_admin, solve_caller
-from ..access.policy import clamp_options, solve_timeout_s
+from ..access.policy import clamp_options, payload_ceiling_bytes, solve_timeout_s
 from ..core.settings import get_settings
 from ..db import base as db_base
 from ..db.models import (
@@ -46,6 +46,7 @@ from ..db.models import (
     User,
     utcnow,
 )
+from ..job_dispatch import dispatch_persisted_job
 from ..security.apikeys import allows_engine
 from ..v1.canonical import canonical_json, digest, digest_bytes
 from ..v1.compiler import (
@@ -2583,22 +2584,6 @@ async def get_v1_schema(kind: str):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-@router.get(
-    "/pricing",
-    operation_id="getPricing",
-    summary="The pricing document enforced by this deployment",
-    tags=["Accounts"],
-    responses={404: {"description": "This deployment ships no pricing document."}},
-)
-async def get_pricing_document():
-    """Serve the non-BIM Pricing2Yaml contract used for plans and quotas."""
-
-    path = _MANIFEST_DIR.parents[3] / "space" / "pricing" / "openbinding.yml"
-    if not path.is_file():
-        return _problem(404, "not_found", "No pricing document on this server")
-    return Response(path.read_text(encoding="utf-8"), media_type="application/yaml")
-
-
 @router.get("/examples")
 async def list_examples() -> dict[str, Any]:
     root = _MANIFEST_DIR.parents[3] / "examples"
@@ -3595,11 +3580,24 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
         parsed = uuid.UUID(job_id)
     except ValueError:
         return
-    job = (await session.execute(select(Job).where(Job.id == parsed))).scalars().first()
+    claimed = await session.execute(
+        update(Job)
+        .where(Job.id == parsed, Job.state == JobState.QUEUED)
+        .values(state=JobState.RUNNING)
+        .returning(Job.id)
+    )
+    if claimed.first() is None:
+        return
+    job = await session.get(Job, parsed)
     if job is None:
         return
+    if job.cancellation_requested:
+        job.state = JobState.CANCELLED
+        job.finished_at = utcnow()
+        await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
+        await session.flush()
+        return
     started = time.monotonic()
-    job.state = JobState.RUNNING
     await session.flush()
     request = job.original_request or {}
     document = request.get("bindingProblem")
@@ -3736,6 +3734,16 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
     except RemoteEngineError as exc:
         await _fail_persisted_job(job, session, str(exc), started)
         return
+    await session.refresh(job)
+    if job.cancellation_requested:
+        job.state = JobState.CANCELLED
+        job.finished_at = utcnow()
+        await metering.settle(
+            space_client.get_gate(), session, job.id,
+            solver_seconds=max(0.0, time.monotonic() - started),
+        )
+        await session.flush()
+        return
     reevaluated = _reevaluate_result(
         problem,
         remote_result,
@@ -3765,7 +3773,7 @@ async def _run_persisted_job(job_id: str, request_session: AsyncSession | None =
         await _finish_persisted_job(job_id, request_session)
         return
     if not db_base.is_configured():
-        return
+        raise RuntimeError("A persisted job cannot run without an initialized database.")
     async with db_base.session_factory()() as session:
         await _finish_persisted_job(job_id, session)
         await session.commit()
@@ -3774,7 +3782,6 @@ async def _run_persisted_job(job_id: str, request_session: AsyncSession | None =
 @router.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
 async def create_job(
     request: Request,
-    background_tasks: BackgroundTasks,
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
@@ -3888,7 +3895,9 @@ async def create_job(
             caps = await space_client.get_gate().caps(caller.id)
         except space_client.PricingUnavailable as exc:
             return _problem(503, "pricing_unavailable", str(exc))
-        if body_size and body_size > caps.max_payload_mb * 1024 * 1024:
+        if body_size and body_size > payload_ceiling_bytes(
+            caps, 512 * 1024 * 1024
+        ):
             return _problem(413, "payload_too_large", "BIM package exceeds the caller plan limit")
         clamped = clamp_options(effective_options, caps)
         effective_options = clamped.options
@@ -4054,6 +4063,7 @@ async def create_job(
                     isinstance(registration, dict)
                     and _is_installed_builtin_registration(registration)
                 ),
+                session=session,
             )
         except space_client.PricingUnavailable as exc:
             return _problem(503, "pricing_unavailable", str(exc))
@@ -4101,7 +4111,7 @@ async def create_job(
             await metering.release(space_client.get_gate(), reservation)
             return _problem(409, "job_conflict", "job identity conflicted with another request")
         await session.commit()
-        background_tasks.add_task(_run_persisted_job, job_id, None if db_base.is_configured() else session)
+        await dispatch_persisted_job(job_id, None if db_base.is_configured() else session)
         return {"id": job_id, "status": "queued", "profile": profile["id"], "irDigest": problem.digest}
     if isinstance(registration, dict):
         transport = _registration_transport(
@@ -4127,7 +4137,7 @@ async def create_job(
         "provenance": provenance,
     }
     _JOBS[job_id] = job
-    background_tasks.add_task(_run_job, job_id)
+    asyncio.create_task(_run_job(job_id))
     return {"id": job_id, "status": "queued", "profile": profile["id"], "irDigest": problem.digest}
 
 

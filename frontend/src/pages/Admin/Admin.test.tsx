@@ -5,6 +5,7 @@ import type { UserProfile } from '../../api/auth';
 import type { EngineRegistrationRevision } from '../../api/client';
 import { AuthContext } from '../../contexts/auth';
 import { Admin } from './Admin';
+import pricingYaml from '../../../../space/pricing/openbinding.yml?raw';
 
 const api = vi.hoisted(() => ({
   adminListUsers: vi.fn(),
@@ -13,6 +14,11 @@ const api = vi.hoisted(() => ({
   getEngineRegistrationReport: vi.fn(),
   adminApproveEngineRegistration: vi.fn(),
   adminRejectEngineRegistration: vi.fn(),
+  adminOverview: vi.fn(),
+  adminQueues: vi.fn(),
+  adminAudit: vi.fn(),
+  adminMaintenancePreview: vi.fn(),
+  getPricingDocument: vi.fn(),
 }));
 
 vi.mock('../../api/client', async () => ({
@@ -55,6 +61,17 @@ describe('EngineRegistration administration', () => {
     });
     api.adminApproveEngineRegistration.mockResolvedValue(registration('alice', 'pending-foreign', 'published'));
     api.adminRejectEngineRegistration.mockResolvedValue(registration('alice', 'pending-foreign', 'rejected'));
+    api.adminOverview.mockResolvedValue({ counts: {}, jobs: {}, contracts: {}, recentAudit: [] });
+    api.adminQueues.mockResolvedValue({ counts: {}, oldestInFlight: [] });
+    api.adminAudit.mockResolvedValue({ events: [], total: 0, offset: 0, limit: 50 });
+    api.adminMaintenancePreview.mockResolvedValue({
+      expiredArtifacts: 0,
+      expiredApiKeys: 0,
+      terminalJobs: 0,
+      abandonedJobs: 0,
+      terminalJobCutoff: '2026-01-01T00:00:00Z',
+    });
+    api.getPricingDocument.mockResolvedValue(pricingYaml);
   });
 
   afterEach(() => {

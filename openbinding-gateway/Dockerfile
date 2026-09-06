@@ -17,21 +17,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 WORKDIR /app
 
 # Install dependencies
-COPY pyproject.toml .
-COPY src/ src/
+COPY openbinding-gateway/pyproject.toml .
+COPY openbinding-gateway/src/ src/
 RUN uv pip install --system ".[test]"
 
 # Migrations. Copied rather than relied on from the bind mount, so that an
 # image built for a deployment that does not mount the source still knows how
 # to bring its own schema up to date.
-COPY alembic.ini .
-COPY alembic/ alembic/
+COPY openbinding-gateway/alembic.ini .
+COPY openbinding-gateway/alembic/ alembic/
+
+# A deployable image owns the exact language contract it serves. Compose may
+# still mount these paths while developing, but Kubernetes needs no generated
+# ConfigMap or out-of-band copy step.
+COPY schemas/ schemas/
+COPY examples/ examples/
 
 # Add test runner script
 RUN echo '#!/bin/sh\npytest "$@"' > /usr/local/bin/test && \
     chmod +x /usr/local/bin/test
 
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY openbinding-gateway/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Expose port

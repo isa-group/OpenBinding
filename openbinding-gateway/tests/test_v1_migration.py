@@ -113,7 +113,9 @@ def test_v1_cutover_reports_exact_purge_and_preserves_accounts(tmp_path: Path) -
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         assert "federated_engines" not in tables
         assert connection.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] == 0
-        assert connection.execute("SELECT username, plan_cache FROM users").fetchall() == [("kept", "FREE")]
+        assert connection.execute("SELECT username, plan_cache FROM users").fetchall() == [
+            ("kept", "FREE")
+        ]
         stored_key = connection.execute(
             "SELECT name, prefix, grants FROM api_keys"
         ).fetchone()

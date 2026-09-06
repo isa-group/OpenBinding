@@ -32,11 +32,12 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Optional
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import base as db_base
-from ..db.models import Job, JobState, utcnow
+from ..db.models import Job, JobState, User, utcnow
+from ..core.settings import Settings
 from ..space_client import PricingGate, PricingUnavailable, Verdict
 
 logger = logging.getLogger(__name__)
@@ -49,8 +50,8 @@ SWEEP_INTERVAL_S = 60.0
 SETTLEMENT_GRACE_S = 120.0
 
 #: What a solve costs before anybody knows how long it took.
-TASK_COST = {"tasksLimit": 1, "concurrentTasksLimit": 1}
-FEDERATED_TASK_COST = {"federatedTasksLimit": 1, "concurrentTasksLimit": 1}
+TASK_COST = {"taskStarts": 1, "concurrentJobs": 1}
+FEDERATED_TASK_COST = {"federatedTaskStarts": 1, "concurrentJobs": 1}
 
 
 @dataclass(frozen=True)
@@ -66,16 +67,20 @@ class Reservation:
 
 
 async def reserve(
-    gate: PricingGate, user_id: uuid.UUID, *, federated: bool = False
+    gate: PricingGate,
+    user_id: uuid.UUID,
+    *,
+    federated: bool = False,
+    session: AsyncSession | None = None,
 ) -> tuple[Verdict, Optional[Reservation]]:
     """Ask whether another solve is allowed, and take what it costs up front.
 
-    Asking and taking are separate calls on purpose - see ``space_client`` -
-    which leaves a window where two requests both pass the check and both take
-    a slot. That is accepted: the alternative is a lock across a service the
-    gateway does not own, and the reconciler settles the drift. Solver time is
-    not taken here at all, because nobody knows yet how much there will be.
+    A request transaction locks the actor row before asking and taking, so two
+    gateway replicas cannot both consume the final slot. Solver time is not
+    taken here because nobody knows it until the Engine returns.
     """
+    if session is not None:
+        await session.execute(select(User.id).where(User.id == user_id).with_for_update())
     verdict = await gate.evaluate(user_id, "federatedEngines" if federated else "solve")
     if not verdict.allowed:
         return verdict, None
@@ -108,49 +113,29 @@ async def settle(
 ) -> bool:
     """Charge a finished solve for what it spent, exactly once.
 
-    Returns whether this caller was the one that settled it. Everything after
-    the compare-and-set runs only for that caller, so a job polled twice at
-    once is charged once.
+    Returns whether this caller was the one that settled it. The row lock keeps
+    concurrent callers out until SPACE has accepted the usage update; a SPACE
+    outage therefore leaves the job retryable instead of silently losing use.
     """
-    claimed = await session.execute(
-        update(Job)
-        .where(Job.id == job_id, Job.metered.is_(False))
-        .values(metered=True, concurrency_released=True, finished_at=utcnow())
-        .returning(Job.owner_id)
+    result = await session.execute(
+        select(Job).where(Job.id == job_id, Job.metered.is_(False)).with_for_update()
     )
-    row = claimed.first()
-    if row is None:
+    job = result.scalar_one_or_none()
+    if job is None:
         return False
 
-    owner_id = row[0]
-    settled_at = utcnow()
+    if job.owner_id is not None:
+        increments = {}
+        if solver_seconds > 0:
+            increments["solverSeconds"] = round(solver_seconds, 3)
+        if release_slot:
+            increments["concurrentJobs"] = -1
+        await gate.adjust_usage(job.owner_id, increments)
+
+    job.metered = True
+    job.concurrency_released = release_slot
+    job.finished_at = utcnow()
     await session.flush()
-
-    # The row is settled, but a copy the session loaded earlier still says
-    # otherwise and would report an unsettled job to whoever holds it. Its
-    # attributes are set to match rather than expired: expiring would make the
-    # next read lazy-load, and a lazy load in async SQLAlchemy has to be
-    # awaited - so it would fail wherever somebody merely reads the field.
-    stale = session.identity_map.get(session.identity_key(Job, job_id))
-    if stale is not None:
-        stale.metered = True
-        stale.concurrency_released = True
-        stale.finished_at = settled_at
-
-    if owner_id is None:
-        # A job from a gateway running without accounts. Nobody to charge.
-        return True
-
-    increments = {}
-    if solver_seconds > 0:
-        increments["solverTimeLimit"] = round(solver_seconds, 3)
-    if release_slot:
-        increments["concurrentTasksLimit"] = -1
-
-    try:
-        await gate.adjust_usage(owner_id, increments)
-    except PricingUnavailable:
-        logger.warning("Could not record the cost of job %s for %s", job_id, owner_id)
     return True
 
 
@@ -191,7 +176,11 @@ async def sweep_abandoned(gate: PricingGate, session: AsyncSession) -> int:
     return settled
 
 
-async def run_reconciler(gate: PricingGate, interval_s: float = SWEEP_INTERVAL_S) -> None:
+async def run_reconciler(
+    gate: PricingGate,
+    interval_s: float = SWEEP_INTERVAL_S,
+    settings: Settings | None = None,
+) -> None:
     """Sweep for abandoned jobs until cancelled. Started by the lifespan.
 
     Errors are logged and the loop continues: a reconciler that dies on a
@@ -205,9 +194,21 @@ async def run_reconciler(gate: PricingGate, interval_s: float = SWEEP_INTERVAL_S
                 continue
             async with db_base.session_factory()() as session:
                 settled = await sweep_abandoned(gate, session)
+                from .contracts import archive_drained_pricings, sweep_contract_renewals
+                from ..job_dispatch import redeliver_queued_jobs
+
+                redelivered = await redeliver_queued_jobs(session)
+                migrated = await sweep_contract_renewals(session)
+                archived = await archive_drained_pricings(session, settings) if settings else 0
                 await session.commit()
             if settled:
                 logger.info("Settled %d abandoned job(s)", settled)
+            if migrated:
+                logger.info("Migrated %d expired contract(s) to LIVE", migrated)
+            if archived:
+                logger.info("Archived %d drained pricing release(s)", archived)
+            if redelivered:
+                logger.info("Redelivered %d queued job(s)", redelivered)
         except asyncio.CancelledError:
             raise
         except Exception:

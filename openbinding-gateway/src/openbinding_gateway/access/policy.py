@@ -112,8 +112,18 @@ def clamp_options(options: Optional[Dict[str, Any]], caps: PlanCaps) -> ClampedO
     request their plan can honour.
     """
     clamped = dict(options or {})
-    warnings = _clamp(clamped, TIME_BUDGET_OPTIONS, caps.max_timeout_s * 1000, "milliseconds")
-    warnings += _clamp(clamped, EFFORT_OPTIONS, caps.max_iterations, "iterations")
+    timeout = caps.limit("maxTimeoutSeconds")
+    iterations = caps.limit("maxIterations")
+    warnings = _clamp(
+        clamped, TIME_BUDGET_OPTIONS,
+        float("inf") if timeout is None else timeout * 1000,
+        "milliseconds",
+    )
+    warnings += _clamp(
+        clamped, EFFORT_OPTIONS,
+        float("inf") if iterations is None else iterations,
+        "iterations",
+    )
     return ClampedOptions(options=clamped, warnings=warnings)
 
 
@@ -135,12 +145,18 @@ def solve_timeout_s(caps: PlanCaps, gateway_ceiling: float) -> float:
     receive the instance, solve, and answer - and only the middle part is what
     the budget describes.
     """
-    return min(gateway_ceiling, caps.max_timeout_s + 30.0)
+    timeout = caps.limit("maxTimeoutSeconds")
+    if timeout is None or timeout > gateway_ceiling:
+        raise ValueError("SPACE entitlement exceeds the configured technical timeout")
+    return timeout
 
 
 def payload_ceiling_bytes(caps: PlanCaps, gateway_ceiling: int) -> int:
     """The largest request body this caller may send."""
-    return min(gateway_ceiling, caps.max_payload_mb * 1024 * 1024)
+    payload = caps.limit("maxPayloadBytes")
+    if payload is None or payload > gateway_ceiling:
+        raise ValueError("SPACE entitlement exceeds the configured technical payload ceiling")
+    return int(payload)
 
 
 def instance_complexity_too_large(log10_cardinality: Optional[float], caps: PlanCaps) -> bool:
@@ -151,4 +167,5 @@ def instance_complexity_too_large(log10_cardinality: Optional[float], caps: Plan
     """
     if log10_cardinality is None:
         return False
-    return log10_cardinality > caps.max_instance_complexity_log10
+    ceiling = caps.limit("maxInstanceComplexityLog10")
+    return ceiling is not None and log10_cardinality > ceiling

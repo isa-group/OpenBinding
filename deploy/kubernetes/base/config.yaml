@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-config
+data:
+  APP_ENV: prod
+  SCHEMAS_DIR: /app/schemas
+  CORS_ALLOW_ORIGINS: https://openbinding.example.com
+  CORS_ALLOW_CREDENTIALS: "true"
+  JOB_DISPATCH_MODE: dramatiq
+  ARTIFACT_ROOT: /var/lib/openbinding/artifacts
+  PUBLIC_BASE_URL: https://openbinding.example.com
+  FRONTEND_URL: https://openbinding.example.com
+  CAS_ENABLED: "false"
+  CAS_ENVIRONMENT: production
+  CAS_STORE_BACKEND: redis
+  SPHERE_ENABLED: "false"
+  SPHERE_URL: https://sphere.score.us.es
+  SPACE_ENABLED: "false"
+  SPACE_FAIL_MODE: closed
+  FEDERATION_REQUIRE_HTTPS: "true"
+  ENGINE_MINIZINC_URL: http://engine-minizinc:3000
+  ENGINE_RANDOM_SEARCH_URL: http://engine-random-search:8080
+  ENGINE_MANY_HEURISTIC_URL: http://engine-many-heuristic:8080
+  ENGINE_EVOLUTIONARY_HEURISTICS_URL: http://engine-evolutionary-heuristics:8080
+  UVICORN_LOG_LEVEL: info
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-nginx
+data:
+  default.conf: |
+    server {
+      listen 8080;
+      server_name _;
+      root /usr/share/nginx/html;
+      index index.html;
+      client_max_body_size 512m;
+
+      access_log /dev/stdout;
+      error_log /dev/stderr warn;
+
+      add_header X-Content-Type-Options "nosniff" always;
+      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+      add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+      add_header Cross-Origin-Opener-Policy "same-origin" always;
+      add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self' https://sso.us.es https://ssopre.us.es; connect-src 'self'; img-src 'self' data: https:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:" always;
+
+      location = /healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "ok\n";
+      }
+
+      location = /api {
+        return 308 /api/;
+      }
+
+      location /api/ {
+        proxy_pass http://gateway:8000/;
+        proxy_http_version 1.1;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 1860s;
+        proxy_send_timeout 1860s;
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+
+      location / {
+        try_files $uri $uri/ /index.html;
+      }
+    }

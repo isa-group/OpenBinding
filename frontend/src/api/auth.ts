@@ -7,7 +7,6 @@
  */
 
 export type RoleName = 'user' | 'admin';
-export type PlanName = 'FREE' | 'PRO';
 export type ApiKeyPermission =
   | 'account:read'
   | 'account:write'
@@ -24,6 +23,19 @@ export type ApiKeyPermission =
   | 'engines:moderate'
   | 'extensions:register'
   | 'extensions:moderate'
+  | 'organizations:read'
+  | 'organizations:write'
+  | 'projects:read'
+  | 'projects:write'
+  | 'studies:read'
+  | 'studies:write'
+  | 'reports:read'
+  | 'reports:write'
+  | 'artifacts:read'
+  | 'artifacts:write'
+  | 'notifications:read'
+  | 'pricing:read'
+  | 'pricing:admin'
   | 'admin:accounts:read'
   | 'admin:accounts:write';
 
@@ -43,6 +55,14 @@ export interface CreateApiKeyRequest {
   name: string;
   permissions: ApiKeyPermission[];
   engine_access: ApiKeyEngineAccess;
+  boundary?: {
+    methods?: Array<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'>;
+    organizations?: string[];
+    projects?: string[];
+    resource_kinds?: string[];
+    slugs?: string[];
+  };
+  expires_at?: string | null;
 }
 
 export interface UserProfile {
@@ -51,8 +71,11 @@ export interface UserProfile {
   email: string;
   role: RoleName;
   is_active: boolean;
-  plan: PlanName;
+  plan: string;
   created_at: string;
+  /** Added by the collaborative platform; optional keeps older API fixtures compatible. */
+  cas_verified?: boolean;
+  institutional_branding?: boolean;
 }
 
 export interface TokenPair {
@@ -68,8 +91,10 @@ export interface ApiKeySummary {
   prefix: string;
   created_at: string;
   last_used_at?: string | null;
+  expires_at?: string | null;
   permissions: ApiKeyPermission[];
   engine_access: ApiKeyEngineAccess;
+  boundary?: CreateApiKeyRequest['boundary'];
 }
 
 /** The one response that ever carries the secret. It cannot be fetched again. */
@@ -86,22 +111,12 @@ export interface LimitUsage {
   renews_at?: string | null;
 }
 
-/** The ceilings that bound one request, rather than a monthly balance. */
-export interface PlanCaps {
-  max_timeout_s: number;
-  max_iterations: number;
-  max_payload_mb: number;
-  max_instance_complexity_log10: number;
-  job_history_days: number;
-  /** Ten on FREE; null means the PRO plan has no active-key ceiling. */
-  api_keys_limit: number | null;
-}
-
 export interface UsageView {
-  plan: PlanName;
+  plan: string;
   contract_pending: boolean;
-  caps: PlanCaps;
-  limits: LimitUsage[];
+  features: Record<string, boolean>;
+  capabilities: Record<string, number | null>;
+  limits: Record<string, LimitUsage>;
 }
 
 export interface AdminUserView extends UserProfile {
@@ -116,11 +131,102 @@ export interface AdminUserPage {
   limit: number;
 }
 
+export type ContractChangeReason =
+  | 'new_feature'
+  | 'administrative_decision'
+  | 'institutional_agreement'
+  | 'retirement_or_discount';
+
+export interface AdminSubscriptionView {
+  user: AdminUserView;
+  subscription: {
+    plan: string;
+    add_ons: Record<string, number>;
+    pricing_version: string;
+    renews_at: string | null;
+  };
+  changed: boolean;
+}
+
 export interface UsageResyncResult {
-  plan: PlanName;
+  plan: string;
   slots_in_flight: number;
   slots_recorded: number;
   corrected_by: number;
+}
+
+export interface ExternalIdentity {
+  id: string;
+  provider: 'us-cas' | string;
+  subject: string;
+  verifiedAt: string;
+}
+
+export interface Notification {
+  id: string;
+  kind: string;
+  subject: string;
+  body: string;
+  payload: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface NotificationPreferences {
+  inbox: boolean;
+  email_contract_changes: boolean;
+  email_invitations: boolean;
+  email_job_failures: boolean;
+}
+
+export interface AdminOverview {
+  counts: Record<string, number>;
+  jobs: Record<string, number>;
+  contracts: Record<string, number>;
+  recentAudit: Array<{
+    id: string;
+    action: string;
+    targetType: string;
+    targetId: string | null;
+    actorId: string | null;
+    createdAt: string;
+  }>;
+}
+
+export interface AdminAuditPage {
+  events: Array<{
+    id: string;
+    organizationId: string | null;
+    actorId: string | null;
+    action: string;
+    targetType: string;
+    targetId: string | null;
+    detail: Record<string, unknown>;
+    createdAt: string;
+  }>;
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+export interface AdminQueueStatus {
+  counts: Record<string, number>;
+  oldestInFlight: Array<{
+    id: string;
+    ownerId: string | null;
+    engine: string;
+    state: string;
+    createdAt: string;
+    budgetSeconds: number;
+  }>;
+}
+
+export interface MaintenancePreview {
+  expiredArtifacts: number;
+  expiredApiKeys: number;
+  terminalJobs: number;
+  abandonedJobs: number;
+  terminalJobCutoff: string;
 }
 
 /**

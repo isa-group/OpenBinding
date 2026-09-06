@@ -123,15 +123,15 @@ async def test_v1_snapshot_and_job_are_owner_scoped_and_persisted(
 async def test_persisted_job_is_committed_before_the_background_session(
     tmp_path, registration, monkeypatch
 ):
-    from fastapi import BackgroundTasks
     from httpx import ASGITransport, AsyncClient
 
     from openbinding_gateway import space_client
     from openbinding_gateway.db import base as db_base
     from openbinding_gateway.db.base import Base
     from openbinding_gateway.db.models import Job, JobState
+    from openbinding_gateway.job_dispatch import dispatch_persisted_job
     from openbinding_gateway.main import app
-    from openbinding_gateway.space_client import FakePricingGate
+    from _pricing import fake_pricing_gate
 
     async def solve(*args, **kwargs):
         return {
@@ -155,7 +155,7 @@ async def test_persisted_job_is_committed_before_the_background_session(
     try:
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
-        space_client.set_gate(FakePricingGate())
+        space_client.set_gate(fake_pricing_gate())
         app.dependency_overrides.clear()
 
         async with AsyncClient(
@@ -171,22 +171,20 @@ async def test_persisted_job_is_committed_before_the_background_session(
             request_sessions = []
             scheduled_after_commit = []
             get_session = db_base.get_session
-            add_task = BackgroundTasks.add_task
 
             async def observed_get_session():
                 async for session in get_session():
                     request_sessions.append(session)
                     yield session
 
-            def observed_add_task(self, function, *args, **kwargs):
-                if function is routes._run_persisted_job:
-                    scheduled_after_commit.append(
-                        bool(request_sessions) and not request_sessions[-1].in_transaction()
-                    )
-                return add_task(self, function, *args, **kwargs)
+            async def observed_dispatch(job_id, request_session=None):
+                scheduled_after_commit.append(
+                    bool(request_sessions) and not request_sessions[-1].in_transaction()
+                )
+                await dispatch_persisted_job(job_id, request_session)
 
             monkeypatch.setattr(db_base, "get_session", observed_get_session)
-            monkeypatch.setattr(BackgroundTasks, "add_task", observed_add_task)
+            monkeypatch.setattr(routes, "dispatch_persisted_job", observed_dispatch)
             response = await client.post(
                 "/v1/jobs",
                 headers=headers,

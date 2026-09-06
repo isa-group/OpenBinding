@@ -46,3 +46,9 @@ ENV HTTP_PROXY=$HTTP_PROXY \
 	no_proxy=$NO_PROXY
 
 COPY --from=build /app/dist /dist
+
+# A self-contained production image for Kubernetes. Compose keeps using the
+# prod-assets target because its edge nginx also serves examples and TLS.
+FROM nginx:1.27-alpine AS prod
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 8080

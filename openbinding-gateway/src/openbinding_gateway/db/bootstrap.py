@@ -25,9 +25,10 @@ import logging
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.settings import Settings
+from ..core.settings import Settings, get_settings
+from ..pricing_catalog import live_catalog
 from ..security.passwords import hash_password, password_complaint
-from .models import Plan, User, UserRole
+from .models import User, UserRole
 
 logger = logging.getLogger(__name__)
 
@@ -80,34 +81,30 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
     # Same reason as DEFAULT_ADMIN_EMAIL: a domain with no dot fails the
     # email validation every response model applies.
     email = (settings.bootstrap_admin_email or f"{username}@example.org").lower()
-    session.add(_administrator(username, email, password))
+    plan = (await live_catalog(session, settings)).default_plan
+    session.add(_administrator(username, email, password, plan))
     await session.flush()
     logger.info("Created the first administrator, '%s'", username)
     return True
 
 
-def _administrator(username: str, email: str, password: str) -> User:
-    """An administrator, on the plan an administrator needs.
-
-    PRO rather than FREE. An administrator is the account that demonstrates the
-    system, reproduces what a user reports and moves other people between
-    plans; putting it on the free tier means the person running the deployment
-    is the first to hit a hundred tasks a month. There is no payment gateway,
-    so this costs nothing and asks nobody.
-    """
+def _administrator(username: str, email: str, password: str, plan: str) -> User:
+    """An administrator on the catalog's free default plan."""
     return User(
         username=username,
         email=email,
         password_hash=hash_password(password),
         role=UserRole.ADMIN,
-        plan_cache=Plan.PRO,
+        plan_cache=plan,
         # No contract yet; the same reconciliation an ordinary registration
         # relies on will settle it, on this plan.
         contract_pending=True,
     )
 
 
-async def seed_default_administrator(session: AsyncSession) -> bool:
+async def seed_default_administrator(
+    session: AsyncSession, settings: Settings | None = None
+) -> bool:
     """Give an empty database one throwaway administrator. Returns whether it did.
 
     Only when there are **no accounts at all**, so this can never take over an
@@ -125,8 +122,9 @@ async def seed_default_administrator(session: AsyncSession) -> bool:
     if any_user:
         return False
 
-    session.add(
-        _administrator(DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD)
-    )
+    plan = (await live_catalog(session, settings or get_settings())).default_plan
+    session.add(_administrator(
+        DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, plan
+    ))
     await session.flush()
     return True

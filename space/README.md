@@ -1,160 +1,155 @@
-# SPACE: where OpenBinding's quotas actually live
+# SPACE runtime for OpenBinding
 
-OpenBinding does not decide what an account may do. A [SPACE](https://github.com/isa-group/space)
-instance does: it holds one contract per user, knows what each plan allows, and
-decrements usage as it is spent. The gateway asks, and enforces the answer.
+OpenBinding uses [SPACE](https://github.com/isa-group/space) for contracts,
+feature evaluation and usage accounting. It does not use SPACE as the source of
+the pricing document:
 
-This directory holds our side of that arrangement:
+1. SPHERE owns every immutable `OpenBinding/openbinding` pricing version.
+2. The OpenBinding control room validates a SPHERE URL and deploys that URL to
+   SPACE.
+3. SPACE pins contracts to a deployed version and records consumption.
+4. PostgreSQL stores only release metadata, audit records and the LIVE pointer.
 
-| Path | What it is |
+The API never mounts or reads `pricing/openbinding.yml`. That file is the
+reviewable source for the first `0.1.0` release and a CI fixture; the runtime
+copy is published to SPHERE and then fetched by SPACE.
+
+## Pinned versions
+
+| Component | Version |
 |---|---|
-| `pricing/openbinding.yml` | The pricing document, in Pricing2Yaml. Two plans, and every limit the gateway enforces. |
-| `bootstrap/bootstrap_space.py` | Registers the service and pricing with a running SPACE, and prints the key the gateway needs. |
-| `docker-compose.override.yml` | Attaches SPACE to a network the gateway can reach. |
-| `space-src/` | The SPACE checkout. Git-ignored; you clone it. |
+| SPACE | `v1.5.0`, commit `79aea10c9acff1d85e4931d09aa21d3a253d1ce1` |
+| `space-python-client` | `>=1.0,<2.0` (lock: `1.0.0`) |
+| Pricing2Yaml | `3.1` |
+| `pricing4ts` | `0.11.1` |
+| `pricing-renderer` | `0.1.0` |
 
-Not to be confused with `pricings/` at the repository root, which holds
-AWS/Azure/GCloud iPricings that experiments read as candidate cost data. Same
-language, unrelated purpose.
-
-## Running an instance
-
-SPACE ships its own compose file, and it is cloned rather than vendored: it is
-early-stage software whose services change between releases, and keeping it at
-arm's length means upstream can move without editing OpenBinding's compose. It
-also means SPACE can live on another host later by changing one URL.
+SPACE's `v1.5.0` tag still contains historical `version` fields (`1.0.0` in
+the root package and `0.1.0` in the API package). Verify the Git tag and commit,
+not those package fields. `VERSION` is the machine-readable pin and
+`prepare.sh` installs or verifies it without vendoring another repository.
 
 ```bash
-docker network create openbinding-space
-git clone https://github.com/isa-group/space.git space/space-src
-cd space/space-src && docker compose up -d
+./space/prepare.sh
+git -C space/space-src describe --tags --exact-match
+git -C space/space-src rev-parse HEAD
 ```
 
-The interface comes up at <http://localhost:5403>. The default credentials are
-`admin` / `space4all`.
+## Local stack
 
-**Change three things before this is anything but a local experiment.** SPACE
-signs every pricing token with `JWT_SECRET` and `JWT_SALT`, so leaving those at
-their shipped values lets anyone mint a token claiming any entitlement. And the
-default administrator password is in this file, and in SPACE's documentation,
-and now in your shell history.
+Copy `.env.example` to `.env` and set, at minimum:
 
-## Wiring it to the gateway
+```dotenv
+SPACE_ADMIN_PASSWORD=<random value>
+SPACE_DATABASE_ROOT_PASSWORD=<URL-safe random value>
+SPACE_JWT_SECRET=<at least 32 random bytes>
+SPACE_JWT_SALT=<independent random value>
+```
+
+Then start OpenBinding plus the optional SPACE profile:
 
 ```bash
-./space/connect.sh
+./space/prepare.sh
+docker compose --profile dev --profile space up -d --build
+docker compose --profile dev --profile space ps
 ```
 
-One command, idempotent, and the one to reach for after `docker compose up`,
-after changing the pricing, or whenever `/v1/users/me/usage` comes back with no
-limits. It creates the shared network if it is missing, checks that SPACE can
-reach its own database, registers or upgrades the pricing, finds or mints an
-organization key, writes `SPACE_*` into `.env` and restarts the gateway. The
-admin password is asked for only when a key has to be minted.
+The profile runs the SPACE 1.5 API, MongoDB and its Redis cache on the private
+`openbinding-space` network. The API is exposed only on
+`127.0.0.1:${SPACE_HOST_PORT:-5403}` for local bootstrap and smoke tests; no
+SPACE administration frontend is published. OpenBinding's authenticated
+pricing control room is the management surface. Use
+`bootstrap/bootstrap_space.py` once to mint the scoped server keys; pricing is
+then managed only through the control room and SPHERE, never uploaded from a
+local helper.
 
-It talks to SPACE from a throwaway container on `openbinding-space`, because
-SPACE publishes nothing on the host once it is wired this way - which is also
-how the gateway reaches it.
+The checkout is ignored by Git. `docker compose build space-server` builds it
+locally and stamps the `v1.5.0` tag and exact revision into OCI labels.
 
-Each step exists because it has silently gone wrong:
+## Keys and least privilege
 
-* **the network** — declared external by both projects, so neither owns it, and
-  absent on a fresh machine;
-* **the database check** — SPACE answers `401` when MongoDB is unreachable,
-  which reads as a wrong password while its healthcheck keeps passing
-  ([UPSTREAM.md §7](UPSTREAM.md));
-* **the pricing version** — a contract names the version it is written against.
-  When the plans were renamed and the registered pricing was not re-uploaded,
-  SPACE refused every contract and the Python client turned that 400 into a
-  silent `None` ([UPSTREAM.md §6](UPSTREAM.md)), so registration reported success
-  while producing accounts entitled to nothing.
+Create two different organization keys in SPACE's single OpenBinding
+administration organization:
 
-### Doing it by hand
+- `SPACE_API_KEY`: `MANAGEMENT`, used for evaluation, contracts, deployments
+  and availability changes.
+- `SPACE_DESTRUCTIVE_API_KEY`: `ALL`, used only when an administrator confirms
+  deletion of one archived SPACE pricing version.
 
-`space/bootstrap/bootstrap_space.py` is what `connect.sh` calls to mint the key.
-It authenticates, registers the `openbinding` service with
-`pricing/openbinding.yml`, and prints `SPACE_ENABLED`, `SPACE_URL` and
-`SPACE_API_KEY`. Running it twice is safe: an already-registered service is left
-alone - which is also why it will not upload a **changed** pricing, and why
-`connect.sh` compares versions itself.
+Never expose either key to the browser or to an OpenBinding user. The
+destructive key is optional until deletion is needed. Do not use an `ALL` key
+as `SPACE_API_KEY`.
 
-### Checking it worked
+For a disposable local environment only,
+`bootstrap/bootstrap_space.py` can authenticate to upstream SPACE and mint a
+`MANAGEMENT` key and, when requested, a separate `ALL` key. It never registers
+or uploads a pricing. Production and local pricing releases both go through
+SPHERE and the OpenBinding control room.
 
 ```bash
-curl -s localhost:8000/v1/users/me/usage -H "Authorization: Bearer $TOKEN"
+python space/bootstrap/bootstrap_space.py \
+  --url http://127.0.0.1:5403 \
+  --include-destructive-key
 ```
 
-Eleven limits means the gateway is reading entitlements from SPACE. An empty
-list means it fell back to running without one - with `SPACE_FAIL_MODE=open`
-that failure is deliberately quiet, so this is the thing to check.
+Set the resulting values in `.env` and restart the gateway and worker:
 
-That API key authenticates *the gateway* to SPACE. It is not an OpenBinding API
-key, it is not a user's, and it must never be handed to an account holder — it
-speaks for the service and can read every contract.
+```dotenv
+SPACE_ENABLED=true
+SPACE_URL=http://space-server:3000
+SPACE_API_KEY=<management organization key>
+SPACE_DESTRUCTIVE_API_KEY=<separate all-scope organization key>
+SPACE_FAIL_MODE=open
+```
 
-## Developing without it
+Use `SPACE_FAIL_MODE=closed` in production. A closed deployment refuses
+metered operations when SPACE cannot account for them; local development may
+remain open. The LIVE pricing version is resolved from OpenBinding's release
+metadata. `SPACE_PRICING_VERSION=0.1.0` is only the bootstrap fallback before a
+LIVE row exists.
 
-`SPACE_ENABLED=false` is the default, and the gateway runs a fake pricing gate
-instead. The fake keeps real balances rather than approving everything, so
-quotas are still enforced and still refuse — they just live in memory and reset
-when the process does. That is what the test suite runs against.
+## Pricing lifecycle
 
-## When SPACE is unreachable
+- A private SPHERE draft may be deployed to SPACE for authenticated preview.
+- Only a public SPHERE release may become LIVE for new contracts.
+- Existing contracts remain pinned until renewal, when OpenBinding novates them
+  before evaluation.
+- Old SPACE versions remain active while contracts reference them; otherwise
+  they can drain and be archived.
+- A draft can be deleted only after its SPACE preview is archived/removed.
+- Public SPHERE releases are immutable and are never deleted.
 
-`SPACE_FAIL_MODE` decides:
+The canonical `0.1.0` file has BASIC, ADVANCED, RESEARCH and PRO. RESEARCH has
+no add-ons and alone enables `institutionalBranding`. Add-ons are limited to
+the plan combinations in the file and all paid options use the textual price
+`Contact us / Institutional agreement`; there is no checkout or simulated
+payment.
 
-- `closed` (production default) refuses to solve. Handing out an unmetered
-  half-hour of solver time is worse than a temporary outage.
-- `open` (development default) lets the request through.
+Validate the document with the exact parser used by SPACE:
 
-Reads are gentler than writes: plan ceilings are cached, so a brief outage does
-not immediately stop work in progress.
+```bash
+cd frontend
+node -e "const fs=require('fs'); const p=require('pricing4ts').retrievePricingFromYaml(fs.readFileSync('../space/pricing/openbinding.yml','utf8')); console.log(p.syntaxVersion, p.version)"
+```
 
-## What was learned the hard way
+## Health, data and recovery
 
-The gateway talks to SPACE through `space-python-client`, its official client,
-wrapped by `openbinding_gateway.space_client.space`. Everything below was found
-by running a real SPACE 1.0.0 and being refused, and every one of them fails
-*quietly* — so they are worth re-checking whenever the pinned version moves.
+SPACE 1.5's `/api/v1/healthcheck` verifies MongoDB rather than only its HTTP
+listener. From the root Compose project:
 
-**The gateway needs a `MANAGEMENT` organization key.** Signing in as an
-administrator yields a *user* key (`usr_`), and a user key cannot register a
-service. `MANAGEMENT` covers registering the service, creating and novating
-contracts, and evaluating features; `ALL` additionally allows deleting them,
-which the gateway has no code to do. The bootstrap script mints the narrower
-one rather than handing over the `ALL` key every installation starts with.
+```bash
+docker compose --profile space exec -T space-server \
+  node -e "require('http').get('http://127.0.0.1:3000/api/v1/healthcheck',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+```
 
-**Every plan must spell its features out.** A plan that relies on inheriting
-the top-level `defaultValue`s is rejected outright — "the plan must be an
-object of type Plan".
+MongoDB owns contracts and must be backed up when SPACE is self-hosted. The
+Kubernetes overlay includes a daily `mongodump` CronJob and a manual restore
+template. SPACE Redis is a cache; SPHERE can repopulate immutable pricing
+files. OpenBinding's PostgreSQL and artifact backups remain separate.
 
-**A feature with no `expression` cannot be evaluated.** Expressions read
-`pricingContext` and `subscriptionContext`, and limit names inside them are
-unqualified.
+Never restore over a running SPACE API. Stop contract-changing traffic, restore
+MongoDB, verify the service/version catalogue and contracts, then run the
+OpenBinding reconciliation sweep before reopening metered operations.
 
-**Limit names are qualified in some places and plain in others.** Feature
-evaluation wants `openbinding-tasksLimit`; the body of a usage-level update
-wants `tasksLimit`, because the service is already the outer key. Get that
-backwards and SPACE accepts the request and changes nothing.
-
-**A contract records consumption, never allowances.** The limit lives in the
-pricing, resolved against the subscribed plan. Reading only the contract gives
-usage with nothing to compare it against — and reads as "no limit" rather than
-as an error. The gateway takes both from the pricing token, which is also
-exactly what the browser is given, so the interface and the gateway cannot
-disagree about what an account may do.
-
-**Consumption is recorded by the gateway, not by evaluation.** SPACE will apply
-an `expectedConsumption` while it evaluates, but it applies the limits
-concurrently, each a read-modify-write of the same contract — so with more than
-one limit involved the updates race and only one survives. Refusals are
-unaffected and correct; it is the writing that is unreliable. So the gateway
-asks with `evaluate` and spends with `PUT .../usageLevels`, which is a single
-atomic update. A related quirk: `expectedConsumption` treats `0` as "not
-provided", so a limit that should be checked but not charged cannot be
-expressed that way at all.
-
-Several of these are defects rather than design, and are written up with
-reproductions and suggested fixes in [UPSTREAM.md](UPSTREAM.md) so they can be
-reported. None of them is worked around by patching a dependency: both SPACE and
-its Python client run here unmodified.
+See `UPSTREAM.md` for the compatibility audit performed while moving from the
+old integration to SPACE 1.5.

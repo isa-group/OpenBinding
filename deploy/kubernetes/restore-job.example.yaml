@@ -1,0 +1,56 @@
+# Deliberately not part of any kustomization: restoring replaces database state.
+# Read deploy/kubernetes/README.md, set BACKUP_FILE to an existing file on the
+# backups PVC, scale gateway and worker down, and apply this manifest manually.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: openbinding-restore
+  namespace: openbinding
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: openbinding
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: restore
+          image: postgres:16-alpine
+          command: [sh, -ec]
+          args:
+            - test -f "/backups/${BACKUP_FILE}";
+              pg_restore --host=postgres --username=openbinding --dbname=openbinding
+              --clean --if-exists --no-owner --exit-on-error "/backups/${BACKUP_FILE}"
+          env:
+            - name: BACKUP_FILE
+              value: replace-with-openbinding-timestamp.dump
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: openbinding-secrets
+                  key: POSTGRES_PASSWORD
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: backups
+              mountPath: /backups
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: backups
+          persistentVolumeClaim:
+            claimName: backups
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi

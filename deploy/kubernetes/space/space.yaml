@@ -1,0 +1,220 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: space-mongodb
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: space-mongodb
+  ports:
+    - {name: mongo, port: 27017, targetPort: mongo}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: space-mongodb
+spec:
+  serviceName: space-mongodb
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: space-mongodb
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: space-mongodb
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: mongodb
+          image: mongo:7
+          ports:
+            - {name: mongo, containerPort: 27017}
+          env:
+            - {name: MONGO_INITDB_ROOT_USERNAME, value: openbinding}
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom: {secretKeyRef: {name: openbinding-secrets, key: SPACE_DATABASE_PASSWORD}}
+            - {name: MONGO_INITDB_DATABASE, value: space_db}
+          readinessProbe:
+            exec: {command: [mongosh, --quiet, --eval, "db.adminCommand('ping').ok"]}
+            initialDelaySeconds: 8
+            periodSeconds: 10
+          livenessProbe:
+            exec: {command: [mongosh, --quiet, --eval, "db.adminCommand('ping').ok"]}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: data, mountPath: /data/db}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 10Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: space-redis
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: space-redis
+  ports:
+    - {name: redis, port: 6379, targetPort: redis}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: space-redis
+spec:
+  serviceName: space-redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: space-redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: space-redis
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: redis
+          image: redis:7.4-alpine
+          args: [--appendonly, "yes", --requirepass, $(SPACE_REDIS_PASSWORD)]
+          ports:
+            - {name: redis, containerPort: 6379}
+          env:
+            - name: SPACE_REDIS_PASSWORD
+              valueFrom: {secretKeyRef: {name: openbinding-secrets, key: SPACE_REDIS_PASSWORD}}
+          readinessProbe:
+            exec: {command: [sh, -ec, 'redis-cli --no-auth-warning -a "$SPACE_REDIS_PASSWORD" ping | grep -qx PONG']}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            exec: {command: [sh, -ec, 'redis-cli --no-auth-warning -a "$SPACE_REDIS_PASSWORD" ping | grep -qx PONG']}
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {sizeLimit: 32Mi}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 5Gi}}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: space-statics
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 5Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: space-api
+spec:
+  selector:
+    app.kubernetes.io/name: space-api
+  ports:
+    - {name: http, port: 3000, targetPort: http}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: space-api
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: space-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: space-api
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: api
+          image: openbinding/space-api:1.5.0
+          ports:
+            - {name: http, containerPort: 3000}
+          env:
+            - {name: ENVIRONMENT, value: production}
+            - {name: ADMIN_USER, value: openbinding-admin}
+            - name: ADMIN_PASSWORD
+              valueFrom: {secretKeyRef: {name: openbinding-secrets, key: SPACE_ADMIN_PASSWORD}}
+            - name: SPACE_DATABASE_PASSWORD
+              valueFrom: {secretKeyRef: {name: openbinding-secrets, key: SPACE_DATABASE_PASSWORD}}
+            - {name: MONGO_URI, value: 'mongodb://openbinding:$(SPACE_DATABASE_PASSWORD)@space-mongodb:27017/space_db?authSource=admin'}
+            - name: SPACE_REDIS_PASSWORD
+              valueFrom: {secretKeyRef: {name: openbinding-secrets, key: SPACE_REDIS_PASSWORD}}
+            - {name: REDIS_URL, value: 'redis://:$(SPACE_REDIS_PASSWORD)@space-redis:6379'}
+            - name: JWT_SECRET
+              valueFrom: {secretKeyRef: {name: openbinding-secrets, key: SPACE_JWT_SECRET}}
+            - name: JWT_SALT
+              valueFrom: {secretKeyRef: {name: openbinding-secrets, key: SPACE_JWT_SALT}}
+            - {name: JWT_EXPIRATION, value: 1h}
+          startupProbe:
+            httpGet: {path: /api/v1/healthcheck, port: http}
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /api/v1/healthcheck, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /api/v1/healthcheck, port: http}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 200m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: statics, mountPath: /usr/src/server/public}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: statics
+          persistentVolumeClaim: {claimName: space-statics}
+        - name: tmp
+          emptyDir: {sizeLimit: 128Mi}

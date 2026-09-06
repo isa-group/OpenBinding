@@ -17,12 +17,19 @@ import pytest_asyncio
 
 from openbinding_gateway.access import metering
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
-from openbinding_gateway.space_client import FakePricingGate
+from openbinding_gateway.space_client import FakePricingGate, PricingUnavailable
+from _pricing import fake_pricing_gate, pricing_catalog
+
+CATALOG = pricing_catalog()
+TASKS = "taskStarts"
+FEDERATED_TASKS = "federatedTaskStarts"
+CONCURRENT = "concurrentJobs"
+SOLVER_TIME = "solverSeconds"
 
 
 @pytest.fixture
 def gate() -> FakePricingGate:
-    return FakePricingGate()
+    return fake_pricing_gate()
 
 
 @pytest_asyncio.fixture
@@ -32,6 +39,7 @@ async def owner(db_session) -> User:
         email=f"{uuid.uuid4().hex[:8]}@example.org",
         password_hash="not-a-real-hash",
         role=UserRole.USER,
+        plan_cache=CATALOG.default_plan,
     )
     db_session.add(user)
     await db_session.flush()
@@ -67,19 +75,19 @@ async def test_reserving_takes_a_task_and_a_slot(gate, owner):
     await metering.reserve(gate, owner.id)
 
     usage = await gate.usage(owner.id)
-    assert usage.limits["tasksLimit"].used == 1
-    assert usage.limits["concurrentTasksLimit"].used == 1
+    assert usage.limits[TASKS].used == 1
+    assert usage.limits[CONCURRENT].used == 1
 
 
 async def test_reserving_does_not_charge_solver_time(gate, owner):
     # Nobody knows how long a solve will take until it has taken it.
     await metering.reserve(gate, owner.id)
 
-    assert (await gate.usage(owner.id)).limits["solverTimeLimit"].used == 0
+    assert (await gate.usage(owner.id)).limits[SOLVER_TIME].used == 0
 
 
 async def test_an_exhausted_account_reserves_nothing(gate, owner):
-    gate.exhaust(owner.id, "tasksLimit")
+    gate.exhaust(owner.id, "taskStarts")
 
     verdict, reservation = await metering.reserve(gate, owner.id)
 
@@ -88,11 +96,11 @@ async def test_an_exhausted_account_reserves_nothing(gate, owner):
 
 
 async def test_a_refused_reservation_spends_nothing(gate, owner):
-    gate.exhaust(owner.id, "tasksLimit")
+    gate.exhaust(owner.id, "taskStarts")
 
     await metering.reserve(gate, owner.id)
 
-    assert (await gate.usage(owner.id)).limits["concurrentTasksLimit"].used == 0
+    assert (await gate.usage(owner.id)).limits[CONCURRENT].used == 0
 
 
 async def test_a_federated_solve_draws_on_its_own_allowance(gate, owner):
@@ -101,9 +109,9 @@ async def test_a_federated_solve_draws_on_its_own_allowance(gate, owner):
     await metering.reserve(gate, owner.id, federated=True)
 
     usage = await gate.usage(owner.id)
-    assert usage.limits["federatedTasksLimit"].used == 1
-    assert usage.limits["tasksLimit"].used == 0
-    assert usage.limits["concurrentTasksLimit"].used == 1
+    assert usage.limits[FEDERATED_TASKS].used == 1
+    assert usage.limits[TASKS].used == 0
+    assert usage.limits[CONCURRENT].used == 1
 
 
 async def test_releasing_gives_everything_back(gate, owner):
@@ -112,8 +120,8 @@ async def test_releasing_gives_everything_back(gate, owner):
     await metering.release(gate, reservation)
 
     usage = await gate.usage(owner.id)
-    assert usage.limits["tasksLimit"].used == 0
-    assert usage.limits["concurrentTasksLimit"].used == 0
+    assert usage.limits[TASKS].used == 0
+    assert usage.limits[CONCURRENT].used == 0
 
 
 async def test_releasing_nothing_is_harmless(gate):
@@ -140,8 +148,8 @@ async def test_settling_charges_the_time_and_frees_the_slot(gate, db_session, ow
 
     usage = await gate.usage(owner.id)
     assert settled is True
-    assert usage.limits["solverTimeLimit"].used == 12.5
-    assert usage.limits["concurrentTasksLimit"].used == 0
+    assert usage.limits[SOLVER_TIME].used == 12.5
+    assert usage.limits[CONCURRENT].used == 0
 
 
 async def test_a_job_is_settled_only_once(gate, db_session, owner):
@@ -154,7 +162,7 @@ async def test_a_job_is_settled_only_once(gate, db_session, owner):
     second = await metering.settle(gate, db_session, job.id, solver_seconds=10.0)
 
     assert (first, second) == (True, False)
-    assert (await gate.usage(owner.id)).limits["solverTimeLimit"].used == 10.0
+    assert (await gate.usage(owner.id)).limits[SOLVER_TIME].used == 10.0
 
 
 async def test_settling_marks_the_job(gate, db_session, owner):
@@ -174,7 +182,7 @@ async def test_a_solve_that_took_no_measurable_time_still_frees_its_slot(gate, d
 
     await metering.settle(gate, db_session, job.id, solver_seconds=0.0)
 
-    assert (await gate.usage(owner.id)).limits["concurrentTasksLimit"].used == 0
+    assert (await gate.usage(owner.id)).limits[CONCURRENT].used == 0
 
 
 async def test_an_unowned_job_is_settled_without_charging_anybody(gate, db_session):
@@ -204,7 +212,7 @@ async def test_a_job_past_its_budget_and_grace_is_settled(gate, db_session, owne
     settled = await metering.sweep_abandoned(gate, db_session)
 
     assert settled == 1
-    assert (await gate.usage(owner.id)).limits["concurrentTasksLimit"].used == 0
+    assert (await gate.usage(owner.id)).limits[CONCURRENT].used == 0
 
 
 async def test_an_abandoned_job_is_charged_for_the_budget_it_held(gate, db_session, owner):
@@ -214,7 +222,7 @@ async def test_an_abandoned_job_is_charged_for_the_budget_it_held(gate, db_sessi
 
     await metering.sweep_abandoned(gate, db_session)
 
-    assert (await gate.usage(owner.id)).limits["solverTimeLimit"].used == 60.0
+    assert (await gate.usage(owner.id)).limits[SOLVER_TIME].used == 60.0
 
 
 async def test_an_abandoned_job_is_marked_failed(gate, db_session, owner):
@@ -258,10 +266,14 @@ async def test_a_sweep_settles_every_stale_job_it_finds(gate, db_session, owner)
     assert await metering.sweep_abandoned(gate, db_session) == 3
 
 
-async def test_a_sweep_survives_the_pricing_service_being_down(gate, db_session, owner):
-    # The jobs still have to be marked settled, or the next sweep tries them
-    # again forever.
-    await a_job(db_session, owner, budget_s=1.0, age_s=metering.SETTLEMENT_GRACE_S + 10)
+async def test_a_space_outage_leaves_settlement_retryable(gate, db_session, owner):
+    job = await a_job(db_session, owner)
     gate.unavailable = True
 
-    assert await metering.sweep_abandoned(gate, db_session) == 1
+    with pytest.raises(PricingUnavailable):
+        await metering.settle(gate, db_session, job.id, solver_seconds=1.0)
+    assert job.metered is False
+
+    gate.unavailable = False
+    assert await metering.settle(gate, db_session, job.id, solver_seconds=1.0) is True
+    assert job.metered is True

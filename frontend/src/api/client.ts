@@ -2,11 +2,19 @@ import { config } from '../config';
 import { PricingUnavailableError, QuotaError } from './auth';
 import type {
   AdminUserPage,
+  AdminSubscriptionView,
   AdminUserView,
   ApiKeySummary,
+  AdminAuditPage,
+  AdminOverview,
+  AdminQueueStatus,
   CreateApiKeyRequest,
   CreatedApiKey,
-  PlanName,
+  ContractChangeReason,
+  ExternalIdentity,
+  MaintenancePreview,
+  Notification,
+  NotificationPreferences,
   RoleName,
   TokenPair,
   UsageResyncResult,
@@ -30,7 +38,7 @@ export interface JobSummary {
 export interface JobHistory {
   jobs: JobSummary[];
   total: number;
-  /** How far back this plan keeps them: jobHistoryRetentionLimit. */
+  /** How far back this contract keeps them: jobHistoryDays. */
   retention_days: number;
 }
 
@@ -354,6 +362,7 @@ export class HttpError extends Error {
 /** Where the session lives. Header-based rather than cookies: see AuthContext. */
 const ACCESS_TOKEN_KEY = 'openbinding-access-token';
 const REFRESH_TOKEN_KEY = 'openbinding-refresh-token';
+const PRICING_TOKEN_KEY = 'pricingToken';
 
 /**
  * Fired when a session ends without the user asking - a refresh token that was
@@ -409,6 +418,7 @@ export class ApiClient {
   clearTokens(): void {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(PRICING_TOKEN_KEY);
   }
 
   private authHeaders(): Record<string, string> {
@@ -493,7 +503,7 @@ export class ApiClient {
     return error;
   }
 
-  private async request<T>(
+  async request<T>(
     endpoint: string,
     options: RequestInit = {},
     timeoutMs?: number,
@@ -551,10 +561,11 @@ export class ApiClient {
     }
   }
 
-  private async requestText(
+  async requestText(
     endpoint: string,
     options: RequestInit = {},
-    timeoutMs?: number
+    timeoutMs?: number,
+    retryOnUnauthorized = true
   ): Promise<string> {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
@@ -564,13 +575,21 @@ export class ApiClient {
       const response = await fetch(url, {
         ...options,
         headers: {
+          ...this.authHeaders(),
           ...options.headers,
         },
         signal: controller.signal,
       });
 
+      if (response.status === 401 && retryOnUnauthorized && this.getAccessToken()) {
+        if (await this.refreshSession()) {
+          return this.requestText(endpoint, options, timeoutMs, false);
+        }
+        this.endSession();
+      }
+
       if (!response.ok) {
-        throw new HttpError(response.status, response.statusText);
+        throw await this.errorFor(response);
       }
 
       return response.text();
@@ -586,7 +605,11 @@ export class ApiClient {
     }
   }
 
-  private async requestBinary(endpoint: string, timeoutMs?: number): Promise<ArrayBuffer> {
+  async requestBinary(
+    endpoint: string,
+    timeoutMs?: number,
+    retryOnUnauthorized = true,
+  ): Promise<ArrayBuffer> {
     const controller = new AbortController();
     const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
     try {
@@ -594,6 +617,10 @@ export class ApiClient {
         headers: this.authHeaders(),
         signal: controller.signal,
       });
+      if (response.status === 401 && retryOnUnauthorized && this.getAccessToken()) {
+        if (await this.refreshSession()) return this.requestBinary(endpoint, timeoutMs, false);
+        this.endSession();
+      }
       if (!response.ok) throw await this.errorFor(response);
       return response.arrayBuffer();
     } finally {
@@ -634,6 +661,10 @@ export class ApiClient {
       headers: { 'Content-Type': 'application/vnd.bim+zip' },
       body: archive as unknown as BodyInit,
     });
+  }
+
+  async getBimSnapshotIr(snapshot: string): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>(`/v1/instances/${encodeURIComponent(snapshot)}/ir`);
   }
 
   async createBimJob(
@@ -784,6 +815,65 @@ export class ApiClient {
     });
   }
 
+  async requestPasswordReset(email: string): Promise<{ accepted: boolean; delivery: string; token?: string }> {
+    return this.request('/v1/auth/password-reset/request', {
+      method: 'POST', body: JSON.stringify({ email }),
+    });
+  }
+
+  async completePasswordReset(token: string, newPassword: string): Promise<void> {
+    await this.request('/v1/auth/password-reset/complete', {
+      method: 'POST', body: JSON.stringify({ token, new_password: newPassword }),
+    });
+  }
+
+  casStartUrl(mode: 'login' | 'link' = 'login'): string {
+    return `${this.baseUrl}/v1/auth/cas/start?mode=${mode}`;
+  }
+
+  async createCasLinkIntent(): Promise<string> {
+    const response = await this.request<{ url: string }>('/v1/auth/cas/link-intent', { method: 'POST' });
+    return response.url;
+  }
+
+  async exchangeCasCode(code: string): Promise<void> {
+    const tokens = await this.request<TokenPair>('/v1/auth/cas/exchange', {
+      method: 'POST', body: JSON.stringify({ code }),
+    });
+    this.setTokens(tokens);
+  }
+
+  async listOwnIdentities(): Promise<ExternalIdentity[]> {
+    return this.request('/v1/users/me/identities');
+  }
+
+  async unlinkOwnIdentity(identityId: string, confirmation?: string): Promise<void> {
+    const query = confirmation ? `?confirmation=${encodeURIComponent(confirmation)}` : '';
+    await this.request(`/v1/users/me/identities/${encodeURIComponent(identityId)}${query}`, { method: 'DELETE' });
+  }
+
+  async deleteOwnAccount(confirmation: string, currentPassword?: string): Promise<void> {
+    await this.request('/v1/users/me', {
+      method: 'DELETE', body: JSON.stringify({ confirmation, current_password: currentPassword || null }),
+    });
+  }
+
+  async listNotifications(unreadOnly = false): Promise<Notification[]> {
+    return this.request(`/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`);
+  }
+
+  async markNotificationRead(notificationId: string): Promise<Notification> {
+    return this.request(`/v1/notifications/${encodeURIComponent(notificationId)}/read`, { method: 'POST' });
+  }
+
+  async getNotificationPreferences(): Promise<NotificationPreferences> {
+    return this.request('/v1/notifications/preferences');
+  }
+
+  async updateNotificationPreferences(value: NotificationPreferences): Promise<NotificationPreferences> {
+    return this.request('/v1/notifications/preferences', { method: 'PUT', body: JSON.stringify(value) });
+  }
+
   async listApiKeys(): Promise<ApiKeySummary[]> {
     const body = await this.request<{ api_keys: ApiKeySummary[] }>('/v1/users/me/api-keys');
     return body.api_keys;
@@ -799,6 +889,10 @@ export class ApiClient {
 
   async revokeApiKey(keyId: string): Promise<void> {
     await this.request<void>(`/v1/users/me/api-keys/${keyId}`, { method: 'DELETE' });
+  }
+
+  async rotateApiKey(keyId: string): Promise<CreatedApiKey> {
+    return this.request<CreatedApiKey>(`/v1/users/me/api-keys/${keyId}/rotate`, { method: 'POST' });
   }
 
   async getOwnUsage(): Promise<UsageView> {
@@ -833,6 +927,7 @@ export class ApiClient {
   /** What the interface gates features with; the browser never sees SPACE. */
   async getPricingToken(): Promise<string> {
     const body = await this.request<{ pricing_token: string }>('/v1/users/me/pricing-token');
+    localStorage.setItem(PRICING_TOKEN_KEY, JSON.stringify(body.pricing_token));
     return body.pricing_token;
   }
 
@@ -861,11 +956,30 @@ export class ApiClient {
     });
   }
 
-  /** The novation. With no payment gateway, this is how anybody reaches PRO. */
-  async adminChangePlan(userId: string, plan: PlanName): Promise<AdminUserView> {
+  /** Apply an administrator-authorized SPACE contract novation. */
+  async adminChangePlan(userId: string, plan: string): Promise<AdminUserView> {
     return this.request<AdminUserView>(`/v1/admin/users/${userId}/plan`, {
       method: 'POST',
       body: JSON.stringify({ plan }),
+    });
+  }
+
+  async adminGetSubscription(userId: string): Promise<AdminSubscriptionView> {
+    return this.request<AdminSubscriptionView>(`/v1/admin/users/${userId}/subscription`);
+  }
+
+  async adminUpdateSubscription(
+    userId: string,
+    value: {
+      plan: string;
+      add_ons: Record<string, number>;
+      reason: ContractChangeReason;
+      detail?: string;
+    },
+  ): Promise<AdminSubscriptionView> {
+    return this.request<AdminSubscriptionView>(`/v1/admin/users/${userId}/subscription`, {
+      method: 'POST',
+      body: JSON.stringify(value),
     });
   }
 
@@ -882,6 +996,34 @@ export class ApiClient {
   async adminResyncUsage(userId: string): Promise<UsageResyncResult> {
     return this.request<UsageResyncResult>(`/v1/admin/users/${userId}/usage/resync`, {
       method: 'POST',
+    });
+  }
+
+  async adminOverview(): Promise<AdminOverview> {
+    return this.request('/v1/admin/overview');
+  }
+
+  async adminAudit(action?: string): Promise<AdminAuditPage> {
+    const query = action ? `?action=${encodeURIComponent(action)}` : '';
+    return this.request(`/v1/admin/audit${query}`);
+  }
+
+  async adminQueues(): Promise<AdminQueueStatus> {
+    return this.request('/v1/admin/queues');
+  }
+
+  async adminMaintenancePreview(retentionDays = 365): Promise<MaintenancePreview> {
+    return this.request(`/v1/admin/maintenance/preview?terminal_job_retention_days=${retentionDays}`);
+  }
+
+  async adminReconcileJobs(): Promise<{ settled: number }> {
+    return this.request('/v1/admin/maintenance/reconcile-jobs', { method: 'POST' });
+  }
+
+  async adminPurgeExpired(confirmation: string, retentionDays = 365): Promise<Record<string, number>> {
+    return this.request('/v1/admin/maintenance/purge', {
+      method: 'POST',
+      body: JSON.stringify({ confirmation, terminal_job_retention_days: retentionDays }),
     });
   }
 

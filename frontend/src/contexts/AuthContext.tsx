@@ -33,6 +33,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // A token that no longer identifies anybody is no session at all.
       apiClient.clearTokens();
       setUser(null);
+      return;
+    }
+    try {
+      await apiClient.getPricingToken();
+    } catch {
+      localStorage.removeItem('pricingToken');
     }
   }, []);
 

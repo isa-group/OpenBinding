@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 
 test('the dedicated pricing route renders the authoritative iPricing YAML', async ({ page }) => {
   const yaml = await readFile(resolve(process.cwd(), '../space/pricing/openbinding.yml'), 'utf8');
-  expect(yaml).toContain("syntaxVersion: '3.0'");
+  expect(yaml).toContain("syntaxVersion: '3.1'");
 
   await page.route('**/v1/pricing', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/yaml', body: yaml });

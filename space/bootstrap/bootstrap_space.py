@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""Put OpenBinding's pricing into a SPACE instance, and hand back a key for it.
+"""Mint the scoped SPACE keys used by OpenBinding's server-side control planes.
 
 Run once per environment, after SPACE is up and before the gateway is pointed
 at it:
 
     python space/bootstrap/bootstrap_space.py --url http://localhost:5403
 
-It is safe to run twice. A service that already exists is reported and left
-alone, so re-running after a partial failure finishes the job rather than
-undoing it.
+It never uploads pricing. Immutable Pricing2Yaml versions come from SPHERE and
+are deployed by OpenBinding's authenticated pricing control room.
 
 Three things about SPACE's authorisation model shape this script, and all three
 were learned by being refused by a running instance rather than from the
@@ -25,7 +24,7 @@ documentation:
   gateway has no code to do. So this mints a ``MANAGEMENT`` key rather than
   handing over the one that is already there.
 
-Written against SPACE 1.0.0. Pin the version you deploy.
+Written against the pinned SPACE v1.5.0 tag.
 """
 
 from __future__ import annotations
@@ -35,20 +34,17 @@ import getpass
 import json
 import os
 import sys
-from pathlib import Path
-from typing import Optional
 
 try:
     import httpx
 except ImportError:  # pragma: no cover - a setup problem, not a runtime one
     sys.exit("This script needs httpx: pip install httpx")
 
-PRICING_PATH = Path(__file__).resolve().parents[1] / "pricing" / "openbinding.yml"
-SERVICE_NAME = "openbinding"
 DEFAULT_URL = "http://localhost:5403"
 
 #: Least privilege that still covers everything the gateway does.
 GATEWAY_SCOPE = "MANAGEMENT"
+DESTRUCTIVE_SCOPE = "ALL"
 
 
 class BootstrapError(RuntimeError):
@@ -99,55 +95,35 @@ def default_organization(client: httpx.Client, base_url: str, user_key: str) -> 
     return organizations[0]
 
 
-def management_key(
-    client: httpx.Client, base_url: str, user_key: str, organization: dict
+def organization_key(
+    client: httpx.Client,
+    base_url: str,
+    user_key: str,
+    organization: dict,
+    scope: str,
 ) -> str:
-    """An organization key scoped to what the gateway does, minting one if needed."""
+    """Return or mint one organization key with the exact requested scope."""
     for key in organization.get("apiKeys") or []:
-        if key.get("scope") == GATEWAY_SCOPE:
+        if key.get("scope") == scope:
             return key["key"]
 
     response = client.post(
         f"{_api(base_url)}/organizations/{organization['id']}/api-keys",
         headers={"x-api-key": user_key},
-        json={"scope": GATEWAY_SCOPE},
+        json={"scope": scope},
     )
     if response.status_code >= 400:
-        raise _fail(response, f"mint a {GATEWAY_SCOPE} key")
+        raise _fail(response, f"mint an {scope} key")
 
     updated = response.json()
     for key in updated.get("apiKeys") or []:
-        if key.get("scope") == GATEWAY_SCOPE:
+        if key.get("scope") == scope:
             return key["key"]
-    raise BootstrapError(f"SPACE accepted the request but returned no {GATEWAY_SCOPE} key.")
-
-
-def service_exists(client: httpx.Client, base_url: str, org_key: str) -> bool:
-    response = client.get(
-        f"{_api(base_url)}/services/{SERVICE_NAME}", headers={"x-api-key": org_key}
-    )
-    return response.status_code == 200
-
-
-def create_service(client: httpx.Client, base_url: str, org_key: str) -> None:
-    """Register the service, uploading the pricing as the file SPACE expects.
-
-    A multipart upload rather than a JSON body, which is why this does not
-    simply POST the parsed document.
-    """
-    with open(PRICING_PATH, "rb") as handle:
-        response = client.post(
-            f"{_api(base_url)}/services",
-            headers={"x-api-key": org_key},
-            files={"pricing": (PRICING_PATH.name, handle, "application/yaml")},
-        )
-
-    if response.status_code >= 400:
-        raise _fail(response, "register the service")
+    raise BootstrapError(f"SPACE accepted the request but returned no {scope} key.")
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Register OpenBinding's pricing with SPACE.")
+    parser = argparse.ArgumentParser(description="Create OpenBinding's scoped SPACE keys.")
     parser.add_argument("--url", default=os.getenv("SPACE_URL", DEFAULT_URL))
     parser.add_argument("--username", default=os.getenv("SPACE_ADMIN_USER", "admin"))
     parser.add_argument(
@@ -155,15 +131,16 @@ def main() -> int:
         default=os.getenv("SPACE_ADMIN_PASSWORD"),
         help="Prompted for when not given. SPACE ships with a well-known default; change it.",
     )
+    parser.add_argument(
+        "--include-destructive-key",
+        action="store_true",
+        help="Also mint the separately stored ALL key used only for exact archived-version deletion.",
+    )
     arguments = parser.parse_args()
 
-    password: Optional[str] = arguments.password or getpass.getpass(
+    password: str | None = arguments.password or getpass.getpass(
         f"SPACE password for {arguments.username}: "
     )
-
-    if not PRICING_PATH.exists():
-        print(f"No pricing document at {PRICING_PATH}", file=sys.stderr)
-        return 1
 
     try:
         with httpx.Client(timeout=30.0) as client:
@@ -173,15 +150,17 @@ def main() -> int:
             organization = default_organization(client, arguments.url, user_key)
             print(f"Using organization '{organization.get('name')}'.")
 
-            org_key = management_key(client, arguments.url, user_key, organization)
+            org_key = organization_key(
+                client, arguments.url, user_key, organization, GATEWAY_SCOPE
+            )
             print(f"Organization key scoped {GATEWAY_SCOPE} ready.")
-
-            if service_exists(client, arguments.url, org_key):
-                print(f"Service '{SERVICE_NAME}' is already registered; leaving it alone.")
-            else:
-                print(f"Registering service '{SERVICE_NAME}' with {PRICING_PATH.name} ...")
-                create_service(client, arguments.url, org_key)
-                print("Registered.")
+            destructive_key = (
+                organization_key(
+                    client, arguments.url, user_key, organization, DESTRUCTIVE_SCOPE
+                )
+                if arguments.include_destructive_key
+                else None
+            )
     except BootstrapError as error:
         print(f"\n{error}", file=sys.stderr)
         return 1
@@ -193,8 +172,10 @@ def main() -> int:
     print("SPACE_ENABLED=true")
     print(f"SPACE_URL={arguments.url}")
     print(f"SPACE_API_KEY={org_key}")
+    if destructive_key:
+        print(f"SPACE_DESTRUCTIVE_API_KEY={destructive_key}")
     print(
-        f"\nThat key speaks for the service, with {GATEWAY_SCOPE} scope over the whole\n"
+        f"\nThe normal key has {GATEWAY_SCOPE} scope over the whole\n"
         "organization. It is not an OpenBinding API key and must never be given to\n"
         "an account holder: it can read every contract."
     )

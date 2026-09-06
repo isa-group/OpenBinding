@@ -144,10 +144,46 @@
   }
 }
 
+.pricing-entitlements {
+  max-width: 74rem;
+  margin: 0 auto clamp(5rem, 9vw, 8rem);
+}
+
+.pricing-entitlements > header {
+  max-width: 44rem;
+  margin-bottom: var(--space-6);
+}
+
+.pricing-entitlements h2 { margin: var(--space-3) 0; }
+.pricing-entitlements > header p { font-size: 0.8rem; }
+.pricing-entitlements > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); border-block: 1px solid var(--color-rule-strong); }
+.pricing-entitlements article { display: grid; align-content: start; gap: var(--space-2); min-height: 11rem; padding: var(--space-5); border-right: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+.pricing-entitlements article > span { color: var(--color-text-tertiary); font: 0.56rem var(--font-mono); text-transform: uppercase; }
+.pricing-entitlements article strong { font-size: 0.9rem; }
+.pricing-entitlements article p { font-size: 0.68rem; }
+.pricing-entitlements article small { width: fit-content; margin-top: auto; padding: 0.18rem 0.4rem; border: 1px solid var(--color-border); color: var(--color-text-tertiary); font: 0.56rem var(--font-mono); text-transform: uppercase; }
+.pricing-entitlements article small.is-enabled { border-color: var(--color-success); background: var(--color-success-bg); color: var(--color-success-text); }
+
 .pricing-behaviour {
   max-width: 74rem;
   margin: 0 auto;
 }
+
+.research-access-note {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.35fr) minmax(0, 1fr);
+  gap: clamp(1.5rem, 5vw, 4rem);
+  align-items: center;
+  margin-bottom: clamp(4rem, 8vw, 7rem);
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 1px solid color-mix(in srgb, #c8102e 38%, var(--color-border));
+  background: color-mix(in srgb, #c8102e 5%, var(--color-bg-elevated));
+}
+
+.research-access-note img { width: min(100%, 13rem); height: auto; }
+.research-access-note span { color: #c8102e; font: 700 0.62rem var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; }
+.research-access-note h2 { margin: 0.45rem 0 0.8rem; font-size: clamp(1.8rem, 3.2vw, 3rem); }
+.research-access-note p { max-width: 52rem; font-size: 0.8rem; }
 
 .pricing-behaviour > h2,
 .pricing-behaviour > p {
@@ -260,4 +296,6 @@
   .pricing-outcome-mark {
     margin-bottom: var(--space-6);
   }
+
+  .research-access-note { grid-template-columns: 1fr; }
 }

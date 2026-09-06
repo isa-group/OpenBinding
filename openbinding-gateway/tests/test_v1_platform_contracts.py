@@ -421,11 +421,16 @@ def test_structured_http_errors_preserve_their_problem_code() -> None:
 
 def test_pricing_contract_is_public_and_separate_from_bim_schemas() -> None:
     client = TestClient(app)
-    response = client.get("/v1/pricing")
+    from openbinding_gateway.routes.pricing import validate_pricing
 
-    assert response.status_code == 200
-    assert response.headers["content-type"].startswith("application/yaml")
-    assert "syntaxVersion:" in response.text
+    pricing = (REPO_ROOT / "space/pricing/openbinding.yml").read_bytes()
+    _, validation = validate_pricing(pricing, "0.1.0")
+    operation = app.openapi()["paths"]["/v1/pricing"]["get"]
+
+    assert validation.valid
+    assert operation["deprecated"] is True
+    assert not operation.get("security")
+    assert set(operation["responses"]["200"]["content"]) == {"application/yaml"}
     assert client.get("/v1/schemas/pricing").status_code == 404
 
 

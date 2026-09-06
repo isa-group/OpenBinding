@@ -13,19 +13,25 @@ and the one who loses is forced to sign in again.
 from __future__ import annotations
 
 import uuid
+import hashlib
+import secrets
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_user_by_identifier, session_dependency
 from ..core.settings import Settings, get_settings
-from ..db.models import Plan, RefreshToken, User, UserRole, utcnow
+from ..db.models import ApiKey, Notification, PasswordResetToken, RefreshToken, User, UserRole, utcnow
+from ..mailer import send_mail
 from ..models.accounts import (
     LoginRequest,
     LogoutRequest,
     RefreshRequest,
     RegisterRequest,
+    PasswordResetComplete,
+    PasswordResetRequest,
     TokenPair,
     UserProfile,
 )
@@ -44,6 +50,7 @@ from ..security.tokens import (
 )
 from .. import space_client
 from ..space_client import PricingUnavailable
+from ..pricing_catalog import PricingCatalogError, live_catalog
 
 router = APIRouter(prefix="/v1/auth", tags=["Authentication"])
 
@@ -66,7 +73,7 @@ def _profile(user: User) -> UserProfile:
         email=user.email,
         role=user.role.value,
         is_active=user.is_active,
-        plan=user.plan_cache.value,
+        plan=user.plan_cache,
         created_at=user.created_at,
     )
 
@@ -130,12 +137,22 @@ async def register(
             "That username or email is already in use.",
         )
 
+    try:
+        default_plan = (await live_catalog(session, settings)).default_plan
+    except PricingCatalogError as exc:
+        raise api_error(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "pricing_unavailable",
+            f"The active pricing cannot be resolved: {exc}",
+        ) from exc
+
     user = User(
         username=request.username,
         email=email,
         password_hash=hash_password(request.password),
+        password_enabled=True,
         role=UserRole.USER,
-        plan_cache=Plan.FREE,
+        plan_cache=default_plan,
         # The SPACE contract is created next, by the caller of this module.
         # Until it exists the account is usable but unmetered, and this flag
         # is what later reconciles it.
@@ -150,7 +167,14 @@ async def register(
     # time this user turns up. Losing the sign-up because a pricing service was
     # restarting would be a worse failure than a delayed contract.
     try:
-        await space_client.get_gate().create_contract(user.id, Plan.FREE.value, user.email)
+        from ..access.contracts import live_pricing_version
+
+        await space_client.get_gate().create_contract(
+            user.id,
+            default_plan,
+            user.email,
+            await live_pricing_version(session),
+        )
         user.contract_pending = False
     except PricingUnavailable:
         user.contract_pending = True
@@ -177,7 +201,7 @@ async def login(
     password_hash = user.password_hash if user else _DUMMY_HASH
     password_matches = verify_password(request.password, password_hash)
 
-    if user is None or not password_matches or not user.is_active:
+    if user is None or not password_matches or not user.is_active or not user.password_enabled:
         raise api_error(
             status.HTTP_401_UNAUTHORIZED,
             "invalid_credentials",
@@ -257,3 +281,79 @@ async def logout(
 #: An argon2 hash of nothing in particular, used to spend the same time on a
 #: login for an account that does not exist as on one that does.
 _DUMMY_HASH = hash_password("openbinding-timing-equalizer")
+
+
+@router.post(
+    "/password-reset/request",
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="requestPasswordReset",
+    summary="Request a one-time password reset",
+)
+async def request_password_reset(
+    payload: PasswordResetRequest,
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    user = await get_user_by_identifier(session, str(payload.email).lower())
+    response = {"accepted": True, "delivery": "email" if settings.smtp_url else "inbox"}
+    if user is None or not user.is_active:
+        return response
+    secret = secrets.token_urlsafe(32)
+    prefix = secrets.token_hex(6)
+    token = f"obr_{prefix}_{secret}"
+    session.add(PasswordResetToken(
+        user_id=user.id, token_prefix=f"obr_{prefix}",
+        token_hash=hashlib.sha256(token.encode()).hexdigest(),
+        expires_at=utcnow() + timedelta(minutes=30),
+    ))
+    session.add(Notification(
+        user_id=user.id, kind="password_reset", subject="Password reset requested",
+        body="A password reset was requested. It expires in 30 minutes.", payload={},
+    ))
+    reset_url = f"{settings.frontend_url.rstrip('/')}/reset-password?token={token}"
+    await send_mail(
+        settings, user.email, "Reset your OpenBinding password",
+        f"Use this single-use link within 30 minutes:\n\n{reset_url}\n",
+    )
+    if settings.expose_recovery_tokens:
+        response["token"] = token
+    return response
+
+
+@router.post(
+    "/password-reset/complete",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="completePasswordReset",
+    summary="Spend a reset token and set a password",
+)
+async def complete_password_reset(
+    payload: PasswordResetComplete,
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> None:
+    complaint = password_complaint(payload.new_password)
+    if complaint:
+        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "weak_password", complaint)
+    parts = payload.token.split("_", 2)
+    if len(parts) != 3 or parts[0] != "obr":
+        raise api_error(status.HTTP_401_UNAUTHORIZED, "reset_token_invalid", "Reset token is invalid or expired.")
+    stored = (await session.execute(select(PasswordResetToken).where(
+        PasswordResetToken.token_prefix == f"obr_{parts[1]}"
+    ))).scalars().first()
+    candidate = hashlib.sha256(payload.token.encode()).hexdigest()
+    valid = stored is not None and stored.used_at is None and stored.expires_at.replace(
+        tzinfo=stored.expires_at.tzinfo or utcnow().tzinfo
+    ) > utcnow() and secrets.compare_digest(candidate, stored.token_hash)
+    if not valid:
+        raise api_error(status.HTTP_401_UNAUTHORIZED, "reset_token_invalid", "Reset token is invalid or expired.")
+    user = await session.get(User, stored.user_id)
+    if user is None or not user.is_active:
+        raise api_error(status.HTTP_401_UNAUTHORIZED, "reset_token_invalid", "Reset token is invalid or expired.")
+    user.password_hash = hash_password(payload.new_password)
+    user.password_enabled = True
+    stored.used_at = utcnow()
+    await session.execute(RefreshToken.__table__.update().where(
+        RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None)
+    ).values(revoked_at=utcnow()))
+    await session.execute(ApiKey.__table__.update().where(
+        ApiKey.user_id == user.id, ApiKey.revoked_at.is_(None)
+    ).values(revoked_at=utcnow()))

@@ -10,18 +10,44 @@ from __future__ import annotations
 
 import pytest
 import pytest_asyncio
+import yaml
 
 from openbinding_gateway import space_client
-from openbinding_gateway.space_client import FakePricingGate
+from openbinding_gateway.pricing_catalog import PricingCatalog
+from _pricing import PRICING_YAML, caps_for, fake_pricing_gate, largest_plan, pricing_catalog
+
+CATALOG = pricing_catalog()
+DEFAULT_PLAN = CATALOG.default_plan
+LARGER_PLAN = largest_plan()
+TASKS = "taskStarts"
 
 
 @pytest_asyncio.fixture
 async def gate():
     """A pricing gate installed for the duration of one test."""
-    installed = FakePricingGate()
+    installed = fake_pricing_gate()
     space_client.set_gate(installed)
     yield installed
     space_client.set_gate(None)
+
+
+async def test_catalog_endpoint_returns_the_active_yaml_without_projection(api_client, gate):
+    document = yaml.safe_load(PRICING_YAML.read_bytes())
+    document["features"]["catalogMutation"] = {
+        "description": "Visible directly from the active document",
+        "type": "DOMAIN",
+        "valueType": "BOOLEAN",
+        "defaultValue": False,
+        "expression": "pricingContext['features']['catalogMutation']",
+    }
+    gate.catalog = PricingCatalog.parse(yaml.safe_dump(document).encode())
+
+    response = await api_client.get("/v1/pricing/catalog")
+
+    assert response.status_code == 200
+    assert response.json() == gate.catalog.public_view()
+    assert "catalogMutation" in response.json()["features"]
+    assert "openbinding" not in (response.json().get("custom") or {})
 
 
 async def account(client, registration) -> tuple[dict, dict]:
@@ -43,13 +69,13 @@ async def test_registering_puts_the_account_on_a_contract(api_client, registrati
     assert uuid.UUID(profile["id"]) in gate.contracts
 
 
-async def test_a_new_account_starts_on_the_free_plan(api_client, registration, gate):
+async def test_a_new_account_starts_on_the_basic_plan(api_client, registration, gate):
     _, headers = await account(api_client, registration)
 
     usage = await api_client.get("/v1/users/me/usage", headers=headers)
 
     assert usage.status_code == 200
-    assert usage.json()["plan"] == "FREE"
+    assert usage.json()["plan"] == DEFAULT_PLAN
 
 
 async def test_usage_reports_every_limit_with_what_is_left(api_client, registration, gate):
@@ -57,10 +83,10 @@ async def test_usage_reports_every_limit_with_what_is_left(api_client, registrat
 
     body = (await api_client.get("/v1/users/me/usage", headers=headers)).json()
 
-    limits = {limit["limit_id"]: limit for limit in body["limits"]}
-    assert "tasksLimit" in limits
-    assert limits["tasksLimit"]["used"] == 0
-    assert limits["tasksLimit"]["remaining"] == limits["tasksLimit"]["limit"]
+    limits = body["limits"]
+    assert TASKS in limits
+    assert limits[TASKS]["used"] == 0
+    assert limits[TASKS]["remaining"] == limits[TASKS]["limit"]
 
 
 async def test_usage_reports_the_ceilings_one_request_runs_into(api_client, registration, gate):
@@ -68,11 +94,11 @@ async def test_usage_reports_the_ceilings_one_request_runs_into(api_client, regi
     # they travel with the balances rather than in a second call.
     _, headers = await account(api_client, registration)
 
-    caps = (await api_client.get("/v1/users/me/usage", headers=headers)).json()["caps"]
+    capabilities = (
+        await api_client.get("/v1/users/me/usage", headers=headers)
+    ).json()["capabilities"]
 
-    assert caps["max_timeout_s"] > 0
-    assert caps["max_iterations"] > 0
-    assert caps["max_payload_mb"] > 0
+    assert capabilities == caps_for(DEFAULT_PLAN).http_view()["capabilities"]
 
 
 async def test_spending_shows_up_in_usage(api_client, registration, gate):
@@ -80,12 +106,12 @@ async def test_spending_shows_up_in_usage(api_client, registration, gate):
 
     import uuid
 
-    gate.spend(uuid.UUID(profile["id"]), "tasksLimit", 7)
+    gate.spend(uuid.UUID(profile["id"]), "taskStarts", 7)
     body = (await api_client.get("/v1/users/me/usage", headers=headers)).json()
 
-    limits = {limit["limit_id"]: limit for limit in body["limits"]}
-    assert limits["tasksLimit"]["used"] == 7
-    assert limits["tasksLimit"]["remaining"] == limits["tasksLimit"]["limit"] - 7
+    limits = body["limits"]
+    assert limits[TASKS]["used"] == 7
+    assert limits[TASKS]["remaining"] == limits[TASKS]["limit"] - 7
 
 
 async def test_moving_to_pro_raises_what_usage_reports(api_client, registration, gate):
@@ -93,12 +119,15 @@ async def test_moving_to_pro_raises_what_usage_reports(api_client, registration,
     import uuid
 
     before = (await api_client.get("/v1/users/me/usage", headers=headers)).json()
-    await gate.change_plan(uuid.UUID(profile["id"]), "PRO")
+    await gate.change_plan(uuid.UUID(profile["id"]), LARGER_PLAN)
     after = (await api_client.get("/v1/users/me/usage", headers=headers)).json()
 
-    assert before["plan"] == "FREE"
-    assert after["plan"] == "PRO"
-    assert after["caps"]["max_timeout_s"] > before["caps"]["max_timeout_s"]
+    assert before["plan"] == DEFAULT_PLAN
+    assert after["plan"] == LARGER_PLAN
+    assert (
+        after["capabilities"]["maxTimeoutSeconds"]
+        > before["capabilities"]["maxTimeoutSeconds"]
+    )
 
 
 async def test_usage_needs_an_account(api_client, gate):

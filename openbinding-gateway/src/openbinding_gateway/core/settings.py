@@ -36,6 +36,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    app_env: Literal["dev", "test", "prod"] = "dev"
+
     # -- Engines ---------------------------------------------------------
     # The defaults are the compose service names, so these only need setting
     # when the gateway runs outside the stack.
@@ -50,6 +52,10 @@ class Settings(BaseSettings):
     #: nginx has its own read timeout in front of this one; the two are meant
     #: to be kept in step, with nginx's the larger of the two.
     engine_solve_timeout_s: float = 1800.0
+    #: Absolute infrastructure guardrails, independent of any plan. Pricing
+    #: publication is rejected when it promises more than these values.
+    technical_max_payload_bytes: int = 512 * 1024 * 1024
+    pricing_document_max_bytes: int = 2 * 1024 * 1024
 
     # -- v1 schemas ------------------------------------------------------
     #: Directory holding the BIM v1 schemas and manifests.
@@ -87,10 +93,46 @@ class Settings(BaseSettings):
     space_url: Optional[str] = None
     space_api_key: Optional[str] = None
     space_timeout_ms: int = 5000
+    # Only a compatibility override for tooling. Runtime contracts always use
+    # the explicit LIVE release recorded in PostgreSQL.
+    space_pricing_version: Optional[str] = None
     #: What to do when SPACE cannot be reached. ``closed`` refuses to solve
     #: rather than hand out unaccounted compute; ``open`` lets the request
     #: through, which is what local development wants.
     space_fail_mode: Literal["open", "closed"] = "closed"
+    space_destructive_api_key: Optional[str] = None
+
+    # -- Durable jobs and artifacts -------------------------------------
+    redis_url: str = "redis://redis:6379/0"
+    job_dispatch_mode: Literal["inline", "dramatiq"] = "inline"
+    artifact_root: str = "/var/lib/openbinding/artifacts"
+    public_base_url: str = "http://localhost:8000"
+
+    # -- Universidad de Sevilla CAS ------------------------------------
+    cas_enabled: bool = False
+    cas_environment: Literal["production", "preproduction"] = "production"
+    cas_base_url: Optional[str] = None
+    frontend_url: str = "http://localhost:5173"
+    cas_state_ttl_s: int = 10 * 60
+    cas_exchange_ttl_s: int = 30
+    cas_store_backend: Literal["memory", "redis"] = "redis"
+    expose_recovery_tokens: bool = False
+
+    # -- SPHERE pricing source ------------------------------------------
+    sphere_enabled: bool = False
+    sphere_url: str = "https://sphere.score.us.es"
+    sphere_api_key: Optional[str] = None
+    sphere_organization_name: Literal["OpenBinding"] = "OpenBinding"
+    sphere_organization_id: Optional[str] = None
+    sphere_pricing_slug: Literal["openbinding"] = "openbinding"
+    sphere_timeout_s: float = 10.0
+
+    # -- Optional account notifications --------------------------------
+    smtp_url: Optional[str] = None
+    mail_from: Optional[str] = None
+
+    # -- Logging --------------------------------------------------------
+    log_level: str = "INFO"
 
     # -- Federated engines -----------------------------------------------
     #: Fernet key protecting the credentials users register alongside their
@@ -144,6 +186,16 @@ class Settings(BaseSettings):
             if configured:
                 urls[engine_id] = configured
         return urls
+
+    @property
+    def effective_cas_base_url(self) -> str:
+        if self.cas_base_url:
+            return self.cas_base_url.rstrip("/")
+        return (
+            "https://sso.us.es/CAS"
+            if self.cas_environment == "production"
+            else "https://ssopre.us.es/CAS"
+        )
 
 
 @lru_cache(maxsize=1)

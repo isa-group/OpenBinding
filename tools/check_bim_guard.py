@@ -11,6 +11,7 @@ EXPECTED_PACKAGES = 79
 THIRD_PARTY_DIRECTORY_NAMES = {
     ".git",
     ".pnpm-store",
+    "dist",
     "node_modules",
     ".venv",
 }

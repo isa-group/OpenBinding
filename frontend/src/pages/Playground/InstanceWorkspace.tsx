@@ -9,6 +9,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { packageFiles, unzipPackage, zipStore } from '../../utils/bimZip';
 import { loadDraft, saveDraft, type WorkspaceFiles } from '../../utils/workspaceDraft';
+import { sourceDiff, toYaml } from '../../utils/workspaceViews';
 import './Playground.css';
 
 const CodeEditor = lazy(() => import('../../components/CodeEditor/CodeEditor').then((module) => ({ default: module.CodeEditor })));
@@ -86,17 +87,26 @@ const DEFAULT_FILES: WorkspaceFiles = {
   'workflow.bpmn': DEFAULT_BPMN,
 };
 
-const WORKSPACE_TABS: Array<{ id: WorkspaceTab; label: string; bpmnOnly?: boolean }> = [
+const WORKSPACE_TABS: Array<{ id: WorkspaceTab; label: string; bpmnOnly?: boolean; jsonOnly?: boolean }> = [
   { id: 'resources', label: 'Resources' },
   { id: 'form', label: 'Form' },
-  { id: 'expert', label: 'Expert source' },
+  { id: 'expert', label: 'JSON source' },
+  { id: 'yaml', label: 'YAML view', jsonOnly: true },
   { id: 'workflow', label: 'Workflow JSON' },
   { id: 'bpmn', label: 'BPMN modeler', bpmnOnly: true },
   { id: 'bpmnXml', label: 'BPMN XML', bpmnOnly: true },
+  { id: 'ir', label: 'Compiled IR' },
+  { id: 'diff', label: 'Source diff' },
 ];
 
 type WorkspaceStatus = 'idle' | 'validating' | 'valid' | 'queued' | 'completed' | 'failed';
-type WorkspaceTab = 'resources' | 'form' | 'expert' | 'workflow' | 'bpmn' | 'bpmnXml';
+type WorkspaceTab = 'resources' | 'form' | 'expert' | 'yaml' | 'workflow' | 'bpmn' | 'bpmnXml' | 'ir' | 'diff';
+
+interface CompiledIr {
+  snapshot: string;
+  digest: string;
+  document: Record<string, unknown>;
+}
 
 interface ResourceEntry {
   id: string;
@@ -1715,6 +1725,9 @@ export function InstanceWorkspace() {
   const [editorSelection, setEditorSelection] = useState<{ anchor: number; head: number } | undefined>();
   const [hydrated, setHydrated] = useState(false);
   const [historyDepth, setHistoryDepth] = useState(0);
+  const [compiledIr, setCompiledIr] = useState<CompiledIr | null>(null);
+  const [irLoading, setIrLoading] = useState(false);
+  const [irError, setIrError] = useState<string | null>(null);
   const historyRef = useRef<WorkspaceFiles[]>([]);
   const baselineRef = useRef<WorkspaceFiles>(DEFAULT_FILES);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -1735,6 +1748,12 @@ export function InstanceWorkspace() {
   }));
   const selectedResource = resources.find((resource) => resource.path === selectedPath);
   const selectedKind = selectedPath === 'instance.json' ? 'Instance' : selectedResource?.kind || selectedDocument?.kind || 'Unknown';
+  const selectedYaml = useMemo(() => selectedDocument ? toYaml(selectedDocument) : null, [selectedDocument]);
+  const selectedDiff = useMemo(
+    () => sourceDiff(baselineRef.current[selectedPath] || '', files[selectedPath] || ''),
+    [files, selectedPath],
+  );
+  const selectedChanged = baselineRef.current[selectedPath] !== files[selectedPath];
   const progressIndex = status === 'completed' ? 4 : status === 'queued' ? 3 : status === 'valid' ? 2 : status === 'validating' ? 1 : 0;
   const exampleTransitionName = requestedExample ? `example-${requestedExample.replace(/[^a-z0-9]+/gi, '-')}` : undefined;
 
@@ -1786,6 +1805,8 @@ export function InstanceWorkspace() {
     setCompatibleModes([]);
     setSelectedMode('');
     setResult(null);
+    setCompiledIr(null);
+    setIrError(null);
     setDiagnostics([]);
     setStatus('idle');
   };
@@ -1801,6 +1822,8 @@ export function InstanceWorkspace() {
     setCompatibleModes([]);
     setSelectedMode('');
     setResult(null);
+    setCompiledIr(null);
+    setIrError(null);
   };
 
   const undoWorkspace = () => {
@@ -1815,6 +1838,8 @@ export function InstanceWorkspace() {
     setCompatibleModes([]);
     setSelectedMode('');
     setResult(null);
+    setCompiledIr(null);
+    setIrError(null);
   };
 
   const resetWorkspace = () => {
@@ -1831,12 +1856,15 @@ export function InstanceWorkspace() {
     setCompatibleModes([]);
     setSelectedMode('');
     setResult(null);
+    setCompiledIr(null);
+    setIrError(null);
   };
 
   const moveWorkspaceTab = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
-    const available = WORKSPACE_TABS.map((item, itemIndex) => ({ item, itemIndex })).filter(({ item }) => !item.bpmnOnly || Boolean(bpmnPath));
+    const available = WORKSPACE_TABS.map((item, itemIndex) => ({ item, itemIndex })).filter(({ item }) =>
+      (!item.bpmnOnly || Boolean(bpmnPath)) && (!item.jsonOnly || Boolean(selectedDocument)));
     const currentAvailableIndex = available.findIndex(({ itemIndex }) => itemIndex === index);
     const targetIndex = event.key === 'Home' ? 0 : event.key === 'End' ? available.length - 1 : (currentAvailableIndex + (event.key === 'ArrowRight' ? 1 : -1) + available.length) % available.length;
     const target = available[targetIndex];
@@ -1884,8 +1912,9 @@ export function InstanceWorkspace() {
     setStatus('queued');
     setDiagnostics([]);
     try {
-      const snapshot = await apiClient.createBimSnapshot(zipStore(packageFiles(files)));
-      const receipt = await apiClient.createBimJob(snapshot.id, mode.engine, mode.registration, mode.mode);
+      const snapshot = compiledIr ?? await apiClient.createBimSnapshot(zipStore(packageFiles(files)));
+      const snapshotId = 'snapshot' in snapshot ? snapshot.snapshot : snapshot.id;
+      const receipt = await apiClient.createBimJob(snapshotId, mode.engine, mode.registration, mode.mode);
       for (;;) {
         const job = await apiClient.getV1Job(receipt.id);
         if (job.status === 'completed') {
@@ -1899,6 +1928,20 @@ export function InstanceWorkspace() {
     } catch (error: unknown) {
       setStatus('failed');
       setDiagnostics(errorDiagnostics(error, 'job'));
+    }
+  };
+
+  const compileIr = async () => {
+    setIrLoading(true);
+    setIrError(null);
+    try {
+      const snapshot = await apiClient.createBimSnapshot(zipStore(packageFiles(files)));
+      const document = await apiClient.getBimSnapshotIr(snapshot.id);
+      setCompiledIr({ snapshot: snapshot.id, digest: snapshot.irDigest, document });
+    } catch (error: unknown) {
+      setIrError(error instanceof Error ? error.message : 'The current package could not be compiled.');
+    } finally {
+      setIrLoading(false);
     }
   };
 
@@ -2064,16 +2107,19 @@ export function InstanceWorkspace() {
               onClick={() => setTab(item.id)}
               onKeyDown={(event) => moveWorkspaceTab(event, index)}
               className={tab === item.id ? 'active' : ''}
-              disabled={item.bpmnOnly && !bpmnPath}
+              disabled={(item.bpmnOnly && !bpmnPath) || (item.jsonOnly && !selectedDocument)}
             >{item.label}</button>)}
           </div>
           <Card className="workspace-editor" padding="none">
             <section id="workspace-panel-resources" role="tabpanel" aria-labelledby="workspace-tab-resources" hidden={tab !== 'resources'} className="workspace-pane resource-overview"><div className="pane-heading"><span className="micro-label">Instance → Profile roles → resources</span><h2>Composable resources</h2><p>Application, candidate catalogs, constraint sets and optimization are independent source documents. RoutingOverlay, BPMN and Placement are typed resources in the application role; Placement is supplied by its installed Dialect.</p></div>{resources.map((resource) => <div className="resource-row" key={`${resource.role}/${resource.id}`}><strong>{resource.role}</strong><span>{resource.kind}</span><code>{resource.id}</code><code>{resource.path || (resource.registered ? registeredResourceLabel(resource.registered) : 'invalid target')}</code></div>)}</section>
-            <section id="workspace-panel-form" role="tabpanel" aria-labelledby="workspace-tab-form" hidden={tab !== 'form'} className="workspace-pane">{selectedDocument ? <CommonResourceForm document={selectedDocument} onChange={updateSelectedDocument} availablePaths={Object.keys(files).filter((path) => path !== 'instance.json' && /\.(?:json|bpmn|xml)$/i.test(path))} /> : <Alert type="error">{selectedPath} is not valid JSON. Repair it in expert source.</Alert>}</section>
-            <section id="workspace-panel-expert" role="tabpanel" aria-labelledby="workspace-tab-expert" hidden={tab !== 'expert'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">Exact source</span><h2>{selectedPath}</h2></div><Badge>{selectedDocument?.kind || (selectedPath.endsWith('.bpmn') ? 'BPMN' : 'text')}</Badge></div>{tab === 'expert' && <Suspense fallback={<EditorLoading />}><CodeEditor key={selectedPath} ariaLabel={`${selectedPath} expert source`} language={selectedPath.endsWith('.json') ? 'json' : selectedPath.endsWith('.bpmn') ? 'xml' : 'text'} value={files[selectedPath] || ''} selection={editorSelection} onChange={(value) => { setEditorSelection(undefined); updateWorkspace((current) => ({ ...current, [selectedPath]: value })); }} minHeight="600px" maxHeight="70vh" /></Suspense>}</section>
+            <section id="workspace-panel-form" role="tabpanel" aria-labelledby="workspace-tab-form" hidden={tab !== 'form'} className="workspace-pane">{selectedDocument ? <CommonResourceForm document={selectedDocument} onChange={updateSelectedDocument} availablePaths={Object.keys(files).filter((path) => path !== 'instance.json' && /\.(?:json|bpmn|xml)$/i.test(path))} /> : <Alert type="error">{selectedPath} is not valid JSON. Repair it in JSON source.</Alert>}</section>
+            <section id="workspace-panel-expert" role="tabpanel" aria-labelledby="workspace-tab-expert" hidden={tab !== 'expert'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">Exact package source</span><h2>{selectedPath}</h2></div><Badge>{selectedDocument?.kind || (selectedPath.endsWith('.bpmn') ? 'BPMN' : 'text')}</Badge></div>{tab === 'expert' && <Suspense fallback={<EditorLoading />}><CodeEditor key={selectedPath} ariaLabel={`${selectedPath} expert source`} language={selectedPath.endsWith('.json') ? 'json' : selectedPath.endsWith('.bpmn') ? 'xml' : 'text'} value={files[selectedPath] || ''} selection={editorSelection} onChange={(value) => { setEditorSelection(undefined); updateWorkspace((current) => ({ ...current, [selectedPath]: value })); }} minHeight="600px" maxHeight="70vh" /></Suspense>}</section>
+            <section id="workspace-panel-yaml" role="tabpanel" aria-labelledby="workspace-tab-yaml" hidden={tab !== 'yaml'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">YAML 1.2 projection</span><h2>{selectedPath}</h2></div><span>The canonical package remains JSON; this deterministic view is safe to copy into YAML-oriented tooling.</span></div>{tab === 'yaml' && selectedYaml ? <Suspense fallback={<EditorLoading />}><CodeEditor ariaLabel={`${selectedPath} YAML view`} language="text" value={selectedYaml} onChange={() => undefined} readOnly minHeight="600px" maxHeight="70vh" /></Suspense> : null}</section>
             <section id="workspace-panel-workflow" role="tabpanel" aria-labelledby="workspace-tab-workflow" hidden={tab !== 'workflow'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">qos-binding/v1 source</span><h2>Native workflow</h2></div><span>Compact structured blocks</span></div>{tab === 'workflow' && <Suspense fallback={<EditorLoading />}><CodeEditor ariaLabel="Workflow JSON" value={workflowText} onChange={updateWorkflow} minHeight="600px" maxHeight="70vh" /></Suspense>}</section>
             <section id="workspace-panel-bpmn" role="tabpanel" aria-labelledby="workspace-tab-bpmn" hidden={tab !== 'bpmn'} className="workspace-pane bpmn-pane">{tab === 'bpmn' ? (bpmnPath ? <Suspense fallback={<EditorLoading />}><BpmnModeler candidateXml={bpmnDraft} fallbackXml={files[bpmnPath]} focusElement={focusedBpmnElement} onValidXml={acceptBpmn} onError={(message) => { setDiagnostics((current) => [...current.filter((item) => item.code !== 'bpmn-editor'), { code: 'bpmn-editor', message }]); }} /></Suspense> : <Alert type="info">This Instance does not declare a BPMN resource.</Alert>) : null}</section>
             <section id="workspace-panel-bpmnXml" role="tabpanel" aria-labelledby="workspace-tab-bpmnXml" hidden={tab !== 'bpmnXml'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">omg/bpmn/2.0.2 source</span><h2>{bpmnPath || 'workflow.bpmn'}</h2></div><span>Only valid XML replaces the last valid diagram.</span></div>{tab === 'bpmnXml' && <Suspense fallback={<EditorLoading />}><CodeEditor ariaLabel="BPMN XML" language="xml" value={bpmnDraft} onChange={updateBpmnDraft} minHeight="600px" maxHeight="70vh" /></Suspense>}</section>
+            <section id="workspace-panel-ir" role="tabpanel" aria-labelledby="workspace-tab-ir" hidden={tab !== 'ir'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">Authoritative compiler output</span><h2>Binding problem IR</h2></div><Button variant="secondary" onClick={() => void compileIr()} disabled={irLoading}>{irLoading ? 'Compiling…' : compiledIr ? 'Recompile IR' : 'Compile IR'}</Button></div><div aria-live="polite">{irError && <Alert type="error">{irError}</Alert>}{compiledIr ? <><dl className="ir-provenance"><div><dt>Snapshot</dt><dd><code>{compiledIr.snapshot}</code></dd></div><div><dt>IR digest</dt><dd><code>{compiledIr.digest}</code></dd></div></dl><Suspense fallback={<EditorLoading />}><CodeEditor ariaLabel="Compiled binding problem IR" value={pretty(compiledIr.document)} onChange={() => undefined} readOnly minHeight="520px" maxHeight="65vh" /></Suspense></> : !irLoading && !irError ? <Alert type="info">Compile the current package to inspect the exact normalized IR sent to a compatible engine.</Alert> : null}</div></section>
+            <section id="workspace-panel-diff" role="tabpanel" aria-labelledby="workspace-tab-diff" hidden={tab !== 'diff'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">Current source against loaded baseline</span><h2>{selectedPath}</h2></div><Badge variant={selectedChanged ? 'accent' : 'success'}>{selectedChanged ? 'Modified' : 'Unchanged'}</Badge></div>{selectedChanged ? <pre className="source-diff" aria-label={`Changes to ${selectedPath}`}><code>{selectedDiff.map((line, index) => <span className={`diff-${line.kind}`} key={`${line.kind}-${index}`}><b aria-hidden="true">{line.kind === 'added' ? '+' : line.kind === 'removed' ? '−' : ' '}</b>{line.value || ' '}</span>)}</code></pre> : <Alert type="info">This resource matches the baseline loaded into the workbench.</Alert>}</section>
           </Card>
         </section>
 

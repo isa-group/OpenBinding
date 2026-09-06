@@ -14,23 +14,38 @@ from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from redis.asyncio import Redis
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import space_client
 from .access import metering
+from .access.dependencies import session_dependency
 from .core.settings import get_settings
+from .core.logging import configure_logging
 from .db import base as db_base
 from .db.bootstrap import (
-    DEFAULT_ADMIN_PASSWORD,
     DEFAULT_ADMIN_USERNAME,
     ensure_administrator,
     seed_default_administrator,
 )
+from .pricing_catalog import PricingCatalogError
 from .routes.admin import router as admin_router
+from .routes.artifacts import public_router as public_artifacts_router
+from .routes.artifacts import router as artifacts_router
 from .routes.auth import router as auth_router
+from .routes.cas import identity_router, router as cas_router
+from .routes.jobs import router as jobs_router
+from .routes.notifications import router as notifications_router
+from .routes.organizations import invitation_router, router as organizations_router
+from .routes.pricing import admin_router as pricing_admin_router
+from .routes.pricing import public_router as pricing_router
+from .routes.studies import public_router as public_studies_router
+from .routes.studies import router as studies_router
 from .routes.users import router as users_router
 from .routes.v1 import router as v1_router
 from .security.apikeys import (
@@ -41,29 +56,67 @@ from .security.apikeys import (
 
 load_dotenv()
 
+_startup_settings = get_settings()
+configure_logging(
+    level=_startup_settings.log_level,
+    secrets=(
+        _startup_settings.gateway_jwt_secret or "",
+        _startup_settings.space_api_key or "",
+        _startup_settings.space_destructive_api_key or "",
+        _startup_settings.sphere_api_key or "",
+        _startup_settings.bootstrap_admin_password or "",
+        _startup_settings.federation_secret_key or "",
+    ),
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
     if settings.database_url:
         db_base.init_engine(settings.database_url)
-    space_client.set_gate(space_client.build_gate(settings))
+
+    async def resolve_catalog(version: str):
+        if not settings.database_url:
+            raise PricingCatalogError("A database is required to resolve pricing metadata")
+        from .pricing_catalog import catalog_for_version
+
+        async with db_base.session_factory()() as catalog_session:
+            return await catalog_for_version(catalog_session, settings, version)
+
+    space_client.set_gate(
+        space_client.build_gate(
+            settings,
+            catalog_resolver=resolve_catalog if settings.database_url else None,
+        )
+    )
 
     if settings.database_url:
         async with db_base.session_factory()() as session:
-            configured = await ensure_administrator(session, settings)
-            if not configured and await seed_default_administrator(session):
+            try:
+                configured = await ensure_administrator(session, settings)
+                if (
+                    not configured
+                    and settings.app_env != "prod"
+                    and await seed_default_administrator(session)
+                ):
+                    logging.getLogger(__name__).warning(
+                        "No administrator existed, so bootstrap account '%s' was created. "
+                        "Sign in, create a real administrator, and delete the bootstrap account.",
+                        DEFAULT_ADMIN_USERNAME,
+                    )
+            except PricingCatalogError as error:
                 logging.getLogger(__name__).warning(
-                    "No administrator existed, so '%s' was created with the well-known "
-                    "password '%s'. Sign in, create a real administrator, and delete it.",
-                    DEFAULT_ADMIN_USERNAME,
-                    DEFAULT_ADMIN_PASSWORD,
+                    "Account bootstrap is waiting for an active SPHERE pricing: %s",
+                    error,
                 )
             await session.commit()
 
     reconciler = None
     if settings.database_url:
-        reconciler = asyncio.create_task(metering.run_reconciler(space_client.get_gate()))
+        reconciler = asyncio.create_task(
+            metering.run_reconciler(space_client.get_gate(), settings=settings)
+        )
     try:
         yield
     finally:
@@ -84,6 +137,15 @@ TAGS_METADATA = [
     {"name": "Authentication", "description": "Accounts and sessions."},
     {"name": "Users", "description": "Your account, keys and quotas."},
     {"name": "Administration", "description": "Account administration."},
+    {"name": "Organizations", "description": "Nested organizations, members and sponsors."},
+    {"name": "Projects", "description": "Collaborative projects and immutable binding cases."},
+    {"name": "Studies", "description": "Reproducible comparative studies, reports and publications."},
+    {"name": "Artifacts", "description": "Content-addressed artifacts and portable packages."},
+    {"name": "Jobs", "description": "Durable job lifecycle, retries and events."},
+    {"name": "Notifications", "description": "Account inbox and preferences."},
+    {"name": "Explore", "description": "Public projects, publications and immutable resources."},
+    {"name": "Pricing", "description": "The public LIVE pricing metadata and compatibility proxy."},
+    {"name": "Pricing Administration", "description": "SPHERE and SPACE pricing lifecycle control room."},
 ]
 
 app = FastAPI(
@@ -197,10 +259,53 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/health/live", tags=["Health"], operation_id="liveness", summary="Process liveness")
+async def liveness() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/health/ready", tags=["Health"], operation_id="readiness", summary="Required dependencies")
+async def readiness(
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+    runtime_settings=Depends(get_settings),
+) -> dict:
+    dependencies = {"database": "unavailable", "redis": "not-required"}
+    try:
+        await session.execute(text("SELECT 1"))
+        dependencies["database"] = "ok"
+        if runtime_settings.job_dispatch_mode == "dramatiq":
+            redis = Redis.from_url(runtime_settings.redis_url)
+            try:
+                await redis.ping()
+                dependencies["redis"] = "ok"
+            finally:
+                await redis.aclose()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "not_ready", "dependencies": dependencies},
+        ) from exc
+    dependencies["sphere"] = "configured" if runtime_settings.sphere_enabled else "disabled"
+    dependencies["space"] = "configured" if runtime_settings.space_enabled else "disabled"
+    return {"status": "ready", "dependencies": dependencies}
+
+
 app.include_router(v1_router)
 app.include_router(auth_router)
+app.include_router(cas_router)
 app.include_router(users_router)
+app.include_router(identity_router)
 app.include_router(admin_router)
+app.include_router(pricing_router)
+app.include_router(pricing_admin_router)
+app.include_router(organizations_router)
+app.include_router(invitation_router)
+app.include_router(studies_router)
+app.include_router(public_studies_router)
+app.include_router(artifacts_router)
+app.include_router(public_artifacts_router)
+app.include_router(jobs_router)
+app.include_router(notifications_router)
 
 
 _generated_openapi = app.openapi

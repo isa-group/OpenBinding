@@ -1,0 +1,26 @@
+{
+  "platform": [
+    {
+      "version": "0.1.0",
+      "date": "Unreleased",
+      "title": "OpenBinding platform",
+      "changes": []
+    }
+  ],
+  "bim": [
+    {
+      "version": "BIM v1",
+      "date": "Unreleased",
+      "title": "Binding language and engines",
+      "changes": []
+    }
+  ],
+  "documentation": [
+    {
+      "version": "0.1.0",
+      "date": "Unreleased",
+      "title": "OpenBinding documentation",
+      "changes": []
+    }
+  ]
+}

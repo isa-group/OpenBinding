@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PricingRenderer } from 'pricing-renderer/react';
+import { Default, ErrorFallback, Feature, Loading, On, feature } from 'pricing4react';
+import { retrievePricingFromYaml } from 'pricing4ts';
+import type { Pricing as PricingModel } from 'pricing4ts';
 import 'pricing-renderer/styles.css';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../contexts/auth';
@@ -16,18 +19,16 @@ import './Pricing.css';
  * so this page cannot drift from what is actually being charged: one document
  * decides what a solve may do and what this page says it may do.
  *
- * Rendering is `pricing-renderer`, which understands Pricing2Yaml properly -
- * billing periods, add-ons, plan comparison, formulas, tags. Hand-rolling a
- * comparison table would mean re-deciding all of that, badly, and then
- * maintaining it every time the pricing gains a field. What this page adds
- * around it is the part a table of numbers cannot say: what actually happens
- * when you reach one of these limits.
+ * `pricing4ts` parses the active document and `pricing-renderer` projects it.
+ * `pricing4react` reads the signed SPACE token for visual state only; the API
+ * independently enforces every operation.
  */
 export function Pricing() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [yaml, setYaml] = useState<string | null>(null);
+  const [pricing, setPricing] = useState<PricingModel | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -35,7 +36,11 @@ export function Pricing() {
     apiClient
       .getPricingDocument()
       .then((document) => {
-        if (!cancelled) setYaml(document);
+        const parsed = retrievePricingFromYaml(document);
+        if (!cancelled) {
+          setYaml(document);
+          setPricing(parsed);
+        }
       })
       .catch(() => {
         if (!cancelled) setError('The plans could not be loaded.');
@@ -52,9 +57,8 @@ export function Pricing() {
           <span className="pricing-eyebrow">Pricing</span>
           <h1>Solve as much as you need to</h1>
           <p>
-            Every account starts free, with an allowance that renews each month. Pro raises
-            every ceiling for research workloads. There is no payment gateway here: an
-            administrator moves an account between plans.
+            Plans, add-ons, features, limits, prices and selection rules below come directly
+            from the active iPricing. There is no second catalog embedded in this interface.
           </p>
 
           {user ? (
@@ -67,8 +71,8 @@ export function Pricing() {
           ) : (
             <div className="pricing-standing">
               <span>
-                <Link to="/register" viewTransition>Create an account</Link> to start on Free, or{' '}
-                <Link to="/playground" viewTransition>try the playground</Link> without one.
+                <Link to="/register" viewTransition>Create an account</Link> on the free plan, or{' '}
+                <Link to="/login" viewTransition>sign in</Link> to inspect your current access.
               </span>
             </div>
           )}
@@ -94,7 +98,36 @@ export function Pricing() {
           )}
         </div>
 
+        {user && pricing && (
+          <section className="pricing-entitlements" aria-labelledby="current-feature-access">
+            <header>
+              <span className="pricing-eyebrow">Signed feature state</span>
+              <h2 id="current-feature-access">Available to your account</h2>
+              <p>Visual state comes from your SPACE pricing token for this exact configuration.</p>
+            </header>
+            <div>
+              {Object.entries(pricing.features).map(([id, item]) => (
+                <article key={id}>
+                  <span>{item.tag ?? item.type}</span>
+                  <strong>{item.name}</strong>
+                  {item.description && <p>{item.description}</p>}
+                  <Feature expression={feature(`${pricing.saasName.toLowerCase()}-${id}`)}>
+                    <On><small className="is-enabled">Enabled</small></On>
+                    <Default><small>Not enabled</small></Default>
+                    <Loading><small aria-live="polite">Checking…</small></Loading>
+                    <ErrorFallback><small>Unavailable</small></ErrorFallback>
+                  </Feature>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="pricing-behaviour">
+          {pricing?.plans?.RESEARCH && <div className="research-access-note">
+            <img src="/brands/universidad-sevilla.svg" alt="Universidad de Sevilla" />
+            <div><span>Institutional access</span><h2>RESEARCH, verified at sign-in</h2><p>{pricing.plans.RESEARCH.description}</p></div>
+          </div>}
           <h2>What happens when you reach a limit</h2>
           <p>
             Three things, and which one depends on whether the limit is something you asked
@@ -145,7 +178,8 @@ export function Pricing() {
             <a href="https://github.com/isa-group/space" target="_blank" rel="noopener noreferrer">
               SPACE
             </a>{' '}
-            rather than by the gateway itself, from the same pricing this page renders.
+            rather than by the gateway itself, from the same immutable SPHERE pricing this page renders.
+            Add-on availability and subscription constraints are read from that document as well.
           </p>
         </section>
       </div>

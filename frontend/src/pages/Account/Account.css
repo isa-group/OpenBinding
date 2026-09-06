@@ -133,6 +133,270 @@
   font-size: 0.73rem;
 }
 
+.account-services {
+  margin: var(--space-10) 0;
+  padding-top: var(--space-7);
+  border-top: 1px solid var(--color-rule-strong);
+}
+
+.account-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+.account-section-heading span,
+.account-section-heading small,
+.account-service-grid header span {
+  color: var(--color-text-tertiary);
+  font: 0.6rem var(--font-mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.account-section-heading h2 {
+  margin: var(--space-1) 0 0;
+}
+
+.account-service-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--color-rule-strong);
+}
+
+.account-service-grid > .card {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--color-bg-elevated);
+}
+
+.account-service-grid > .card:nth-child(even) {
+  border-left: 1px solid var(--color-border);
+}
+
+.account-service-grid > .card:nth-child(n + 3) {
+  border-top: 1px solid var(--color-border);
+}
+
+.account-service-grid header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.account-service-grid header > svg {
+  width: 1.15rem;
+  color: var(--color-dialect);
+}
+
+.account-service-grid header > div {
+  display: grid;
+  gap: 0.15rem;
+  margin-right: auto;
+}
+
+.account-service-grid h3 {
+  font-size: 1.25rem;
+}
+
+.account-service-grid form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.account-service-grid form > label {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--color-text-tertiary);
+  font: 0.6rem var(--font-mono);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.account-service-grid form label small {
+  font: inherit;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.account-service-grid input:not([type="checkbox"]) {
+  min-width: 0;
+  min-height: 2.7rem;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font: 0.76rem var(--font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.account-service-grid form > .btn {
+  justify-self: start;
+}
+
+.account-service-grid p {
+  color: var(--color-text-secondary);
+  font-size: 0.73rem;
+  line-height: 1.6;
+}
+
+.institution-status {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border-block: 1px solid var(--color-border);
+  background: linear-gradient(90deg, var(--color-dialect-subtle), transparent);
+}
+
+.institution-status > svg {
+  width: 1rem;
+  color: var(--color-dialect);
+}
+
+.institution-status > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.institution-status strong {
+  font-size: 0.74rem;
+}
+
+.institution-status code {
+  overflow: hidden;
+  color: var(--color-text-tertiary);
+  font-size: 0.62rem;
+  text-overflow: ellipsis;
+}
+
+.identity-unlink {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.identity-unlink > div {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.notification-ledger {
+  max-height: 19rem;
+  overflow: auto;
+  border-top: 1px solid var(--color-border);
+}
+
+.notification-ledger article {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.notification-ledger button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 0.45rem minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.notification-ledger button > span {
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-top: 0.35rem;
+  border-radius: 50%;
+  background: var(--color-border-hover);
+}
+
+.notification-ledger .is-unread button > span {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 0.25rem var(--color-accent-subtle);
+}
+
+.notification-ledger button > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.notification-ledger strong {
+  font-size: 0.72rem;
+}
+
+.notification-ledger p {
+  margin: 0;
+  font-size: 0.68rem;
+}
+
+.notification-ledger small {
+  color: var(--color-text-tertiary);
+  font: 0.56rem var(--font-mono);
+}
+
+.notification-preferences {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.notification-preferences > strong {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+  font-size: 0.7rem;
+}
+
+.notification-preferences > strong svg {
+  width: 0.85rem;
+}
+
+.notification-preferences > label {
+  display: flex !important;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--space-2) !important;
+  color: var(--color-text-secondary) !important;
+  font: 0.68rem var(--font-sans) !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.account-danger-card {
+  background: linear-gradient(125deg, var(--color-error-bg), var(--color-bg-elevated)) !important;
+}
+
+.account-danger-card header > svg {
+  color: var(--color-error);
+}
+
+.account-danger-card details {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.account-danger-card summary {
+  color: var(--color-error-text);
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-danger-card details form {
+  margin-top: var(--space-4);
+}
+
 .account-keys,
 .account-history {
   overflow-x: auto;
@@ -256,6 +520,79 @@
   padding: 0 var(--space-4);
   border: 1px solid var(--color-border);
   background: var(--color-bg-secondary);
+}
+
+.account-key-boundary {
+  max-width: 74rem;
+  border-block: 1px solid var(--color-border);
+  padding: var(--space-3) 0;
+}
+
+.account-key-boundary summary {
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-key-boundary > p {
+  max-width: 52rem;
+  margin: var(--space-3) 0;
+  color: var(--color-text-tertiary);
+  font-size: 0.68rem;
+}
+
+.account-key-boundary fieldset {
+  margin: var(--space-4) 0;
+  padding: 0;
+  border: 0;
+}
+
+.account-key-boundary legend,
+.account-boundary-grid label {
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.account-key-boundary fieldset > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.account-key-boundary fieldset label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  font: 0.62rem var(--font-mono);
+}
+
+.account-boundary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.account-boundary-grid label {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.account-boundary-grid input {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font: 0.72rem var(--font-sans);
+  text-transform: none;
 }
 
 .account-key-submit {
@@ -411,6 +748,22 @@
     border-top: 1px solid var(--color-border);
     border-left: 0;
   }
+
+  .account-boundary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-service-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-service-grid > .card:nth-child(even) {
+    border-left: 0;
+  }
+
+  .account-service-grid > .card + .card {
+    border-top: 1px solid var(--color-border);
+  }
 }
 
 @media (max-width: 560px) {
@@ -421,5 +774,11 @@
   .account-key-submit {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .account-section-heading {
+    align-items: start;
+    flex-direction: column;
+    gap: var(--space-1);
   }
 }

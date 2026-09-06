@@ -1,0 +1,12 @@
+*
+!openbinding-gateway/
+!openbinding-gateway/**
+!schemas/
+!schemas/**
+!examples/
+!examples/**
+
+**/.git
+**/.venv
+**/__pycache__
+**/*.pyc

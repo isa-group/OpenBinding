@@ -53,6 +53,19 @@ class ApiKeyPermission(str, Enum):
     ENGINES_MODERATE = "engines:moderate"
     EXTENSIONS_REGISTER = "extensions:register"
     EXTENSIONS_MODERATE = "extensions:moderate"
+    ORGANIZATIONS_READ = "organizations:read"
+    ORGANIZATIONS_WRITE = "organizations:write"
+    PROJECTS_READ = "projects:read"
+    PROJECTS_WRITE = "projects:write"
+    STUDIES_READ = "studies:read"
+    STUDIES_WRITE = "studies:write"
+    REPORTS_READ = "reports:read"
+    REPORTS_WRITE = "reports:write"
+    ARTIFACTS_READ = "artifacts:read"
+    ARTIFACTS_WRITE = "artifacts:write"
+    NOTIFICATIONS_READ = "notifications:read"
+    PRICING_READ = "pricing:read"
+    PRICING_ADMIN = "pricing:admin"
     ADMIN_ACCOUNTS_READ = "admin:accounts:read"
     ADMIN_ACCOUNTS_WRITE = "admin:accounts:write"
 
@@ -64,6 +77,7 @@ ADMIN_PERMISSIONS = frozenset(
         ApiKeyPermission.EXTENSIONS_MODERATE.value,
         ApiKeyPermission.ADMIN_ACCOUNTS_READ.value,
         ApiKeyPermission.ADMIN_ACCOUNTS_WRITE.value,
+        ApiKeyPermission.PRICING_ADMIN.value,
     }
 )
 ENGINE_LIMITED_PERMISSIONS = frozenset(
@@ -75,6 +89,8 @@ ENGINE_LIMITED_PERMISSIONS = frozenset(
         ApiKeyPermission.ENGINES_MODERATE.value,
         ApiKeyPermission.INSTANCES_ANALYZE.value,
         ApiKeyPermission.JOBS_READ.value,
+        ApiKeyPermission.STUDIES_READ.value,
+        ApiKeyPermission.STUDIES_WRITE.value,
     }
 )
 ENGINE_REF_FIELDS = ("namespace", "name", "version", "digest")
@@ -132,12 +148,19 @@ def matches(credential: str, stored_hash: str) -> bool:
     return hmac.compare_digest(hash_key(credential), stored_hash)
 
 
+BOUNDARY_FIELDS = ("methods", "organizations", "projects", "resourceKinds", "slugs")
+
+
 def grants_document(
-    permissions: list[str], *, all_engines: bool, engines: list[Mapping[str, str]]
+    permissions: list[str],
+    *,
+    all_engines: bool,
+    engines: list[Mapping[str, str]],
+    boundary: Mapping[str, list[str]] | None = None,
 ) -> dict[str, Any]:
     """Return the one canonical JSON shape stored beside a key."""
 
-    return {
+    document = {
         "permissions": sorted(set(permissions)),
         "allEngines": bool(all_engines),
         "engines": [
@@ -145,6 +168,106 @@ def grants_document(
             for reference in engines
         ],
     }
+    if boundary:
+        document["boundary"] = {
+            field: sorted(set(str(value) for value in boundary.get(field, [])))
+            for field in BOUNDARY_FIELDS
+            if boundary.get(field) is not None
+        }
+    return document
+
+
+def boundary_of(api_key: Any) -> dict[str, frozenset[str]] | None:
+    """Optional exact request boundary; malformed restrictions deny all."""
+
+    grants = getattr(api_key, "grants", None)
+    if not isinstance(grants, Mapping):
+        return {}
+    if "boundary" not in grants:
+        return None
+    boundary = grants.get("boundary")
+    if not isinstance(boundary, Mapping) or set(boundary) - set(BOUNDARY_FIELDS):
+        return {}
+    parsed: dict[str, frozenset[str]] = {}
+    for field, values in boundary.items():
+        if not isinstance(values, list) or not all(isinstance(value, str) and value for value in values):
+            return {}
+        parsed[str(field)] = frozenset(values)
+    return parsed
+
+
+def boundary_is_subset(
+    child: Mapping[str, list[str]], parent: dict[str, frozenset[str]] | None
+) -> bool:
+    """A child key may narrow an inherited boundary, never remove it."""
+
+    if parent is None:
+        return True
+    for field, allowed in parent.items():
+        requested = child.get(field)
+        if requested is None or not set(requested) <= allowed:
+            return False
+    return True
+
+
+def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any], path: str) -> bool:
+    """Apply optional method/entity restrictions after capability checks."""
+
+    boundary = boundary_of(api_key)
+    if boundary is None:
+        return True
+    if boundary == {}:
+        return False
+    methods = boundary.get("methods")
+    if methods is not None and method.upper() not in methods:
+        return False
+    aliases = {
+        "organizations": ("org", "organization", "organization_id", "org_id"),
+        "projects": ("project", "project_id"),
+        "slugs": ("slug", "case", "collection", "study", "report", "publication", "resource"),
+    }
+    for field, names in aliases.items():
+        allowed = boundary.get(field)
+        if allowed is None:
+            continue
+        values = {str(path_params[name]) for name in names if name in path_params}
+        if values and not values <= allowed:
+            return False
+    kinds = boundary.get("resourceKinds")
+    if kinds is not None:
+        aliases = {
+            "organizations": {"organization", "organizations"},
+            "members": {"member", "members"},
+            "invitations": {"invitation", "invitations"},
+            "projects": {"project", "projects"},
+            "cases": {"case", "cases"},
+            "resources": {"resource", "resources"},
+            "collections": {"collection", "collections"},
+            "studies": {"study", "studies"},
+            "runs": {"run", "runs"},
+            "cells": {"cell", "cells"},
+            "reports": {"report", "reports"},
+            "publications": {"publication", "publications"},
+            "artifacts": {"artifact", "artifacts"},
+            "jobs": {"job", "jobs"},
+            "instances": {"instance", "instances"},
+            "engines": {"engine", "engines"},
+            "engine-registrations": {"engine-registration", "engine-registrations"},
+            "dialects": {"dialect", "dialects"},
+            "profiles": {"profile", "profiles"},
+            "pricing": {"pricing"},
+            "notifications": {"notification", "notifications"},
+        }
+        # The last fixed collection in FastAPI's route template is the most
+        # specific resource. Thus `/projects/{project}/cases` is a case
+        # request, not a project request merely because it passes through one.
+        target = next(
+            (aliases[segment] for segment in reversed(path.split("/")) if segment in aliases),
+            frozenset(),
+        )
+        if not target or not target & kinds:
+            return False
+    return True
 
 
 def permissions_of(api_key: Any) -> frozenset[str]:
@@ -227,6 +350,8 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET"
             else {ApiKeyPermission.KEYS_WRITE.value}
         )
+    if path == "/v1/auth/cas/link-intent":
+        return frozenset({ApiKeyPermission.ACCOUNT_WRITE.value})
     if path.startswith("/v1/users/me/jobs"):
         return frozenset({ApiKeyPermission.JOBS_READ.value})
     if path.startswith("/v1/users/me"):
@@ -236,11 +361,49 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             else {ApiKeyPermission.ACCOUNT_WRITE.value}
         )
     if path.startswith("/v1/admin"):
+        if path.startswith("/v1/admin/pricing"):
+            return frozenset({ApiKeyPermission.PRICING_ADMIN.value})
         return frozenset(
             {ApiKeyPermission.ADMIN_ACCOUNTS_READ.value}
             if method == "GET"
             else {ApiKeyPermission.ADMIN_ACCOUNTS_WRITE.value}
         )
+    if "/projects" in path:
+        if any(token in path for token in ("/studies", "/runs")):
+            return frozenset(
+                {ApiKeyPermission.STUDIES_READ.value}
+                if method == "GET"
+                else {ApiKeyPermission.STUDIES_WRITE.value}
+            )
+        if any(token in path for token in ("/reports", "/publications")):
+            return frozenset(
+                {ApiKeyPermission.REPORTS_READ.value}
+                if method == "GET"
+                else {ApiKeyPermission.REPORTS_WRITE.value}
+            )
+        if "/artifacts" in path:
+            return frozenset(
+                {ApiKeyPermission.ARTIFACTS_READ.value}
+                if method == "GET"
+                else {ApiKeyPermission.ARTIFACTS_WRITE.value}
+            )
+        return frozenset(
+            {ApiKeyPermission.PROJECTS_READ.value}
+            if method == "GET"
+            else {ApiKeyPermission.PROJECTS_WRITE.value}
+        )
+    if path.startswith("/v1/organizations"):
+        return frozenset(
+            {ApiKeyPermission.ORGANIZATIONS_READ.value}
+            if method == "GET"
+            else {ApiKeyPermission.ORGANIZATIONS_WRITE.value}
+        )
+    if path.startswith("/v1/invitations"):
+        return frozenset({ApiKeyPermission.ORGANIZATIONS_WRITE.value})
+    if path.startswith("/v1/notifications"):
+        return frozenset({ApiKeyPermission.NOTIFICATIONS_READ.value})
+    if path.startswith("/v1/pricing"):
+        return frozenset({ApiKeyPermission.PRICING_READ.value})
     if path.endswith("/approve") or path.endswith("/reject"):
         if path.startswith("/v1/engine-registrations"):
             return frozenset({ApiKeyPermission.ENGINES_MODERATE.value})

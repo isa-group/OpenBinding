@@ -11,17 +11,16 @@ when it does ``SpacePricingGate`` changes and nothing else does.
 
 One thing the protocol is deliberate about: **asking and spending are separate
 calls**. ``evaluate`` answers whether something may happen and changes nothing;
-``adjust_usage`` records what it cost. That is partly because the cost of a
-solve is unknown until it is over, and partly because SPACE's own
-consume-while-evaluating path loses updates when more than one limit is
-involved - so the gateway keeps its own accounts. See ``space.py``.
+``adjust_usage`` records what it cost, in SPACE. The gateway keeps job audit
+state but no second commercial balance.
 """
 
 from __future__ import annotations
 
+import math
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, Optional, Protocol, runtime_checkable
 
 #: The service name this pricing is registered under in SPACE. Feature
 #: identifiers are ``<service>-<feature>``, lower-cased on the service half.
@@ -40,34 +39,35 @@ def feature_id(feature: str) -> str:
 
 @dataclass(frozen=True)
 class PlanCaps:
-    """The static ceilings a plan imposes, as the gateway needs them.
+    """Entitlements resolved by SPACE for one exact Pricing2Yaml contract."""
 
-    These are the limits that bound a single request rather than a month's
-    worth: how long one solve may run, how large an instance may be. They are
-    read before a solve and never decremented, which is why they are separated
-    from the usage levels below.
-    """
-
-    plan: str = "FREE"
-    max_timeout_s: float = 300.0
-    max_iterations: int = 10_000
-    max_payload_mb: int = 16
-    max_instance_complexity_log10: float = 9.0
-    job_history_days: int = 7
-    #: How many live API keys a plan allows. Counted against this database
-    #: rather than metered in SPACE: a key is a row here, so the live count is
-    #: a fact the gateway already holds.
-    api_keys_limit: Optional[int] = 10
+    plan: str
     features: Dict[str, bool] = field(default_factory=dict)
+    limits: Dict[str, float] = field(default_factory=dict)
 
-    def allows(self, feature: str) -> bool:
-        """Whether the plan includes a feature. Unknown features are allowed.
+    def allows(self, identifier: str) -> bool:
+        """Unknown identifiers and absent token values fail closed."""
+        return self.features.get(identifier, False)
 
-        An unknown feature is one the pricing does not model, and refusing
-        those would mean every new endpoint is denied until the pricing is
-        republished. Anything meant to be gated has to be in the pricing.
+    def limit(self, identifier: str) -> Optional[float]:
+        """Return an allowance in the canonical iPricing unit.
+
+        Missing token values are zero (fail closed); infinity is ``None``.
         """
-        return self.features.get(feature, True)
+        if identifier not in self.limits:
+            return 0.0
+        value = float(self.limits[identifier])
+        return None if not math.isfinite(value) else value
+
+    def http_view(self) -> dict[str, Any]:
+        return {
+            "plan": self.plan,
+            "features": dict(self.features),
+            "limits": dict(self.limits),
+            "capabilities": {
+                identifier: self.limit(identifier) for identifier in self.limits
+            },
+        }
 
 
 @dataclass(frozen=True)
@@ -89,6 +89,16 @@ class LimitUsage:
 class UsageSnapshot:
     plan: str
     limits: Dict[str, LimitUsage] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class SubscriptionSnapshot:
+    """The immutable pricing selection currently pinned to one contract."""
+
+    plan: str
+    pricing_version: str
+    add_ons: Dict[str, int] = field(default_factory=dict)
+    renews_at: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -140,11 +150,37 @@ class PricingGate(Protocol):
     async def usage(self, user_id: uuid.UUID) -> UsageSnapshot:
         """What this user has spent, for display."""
 
-    async def create_contract(self, user_id: uuid.UUID, plan: str, email: str) -> None:
+    async def create_contract(
+        self,
+        user_id: uuid.UUID,
+        plan: str,
+        email: str,
+        pricing_version: Optional[str] = None,
+    ) -> None:
         """Put a newly registered account on a plan."""
 
-    async def change_plan(self, user_id: uuid.UUID, plan: str) -> None:
+    async def change_plan(
+        self, user_id: uuid.UUID, plan: str, pricing_version: Optional[str] = None
+    ) -> None:
         """Move an account to another plan. SPACE calls this a novation."""
+
+    async def subscription(self, user_id: uuid.UUID) -> SubscriptionSnapshot:
+        """Read the plan, add-ons and pricing version pinned to a contract."""
+
+    async def change_subscription(
+        self,
+        user_id: uuid.UUID,
+        plan: str,
+        add_ons: Dict[str, int],
+        pricing_version: Optional[str] = None,
+    ) -> SubscriptionSnapshot:
+        """Novate a plan/add-on selection against an explicit pricing release."""
+
+    async def migrate_due_contract(self, user_id: uuid.UUID, pricing_version: str) -> bool:
+        """Move an expired contract to ``pricing_version`` before SPACE renews it."""
 
     async def pricing_token(self, user_id: uuid.UUID) -> str:
         """A signed token the browser evaluates features against locally."""
+
+    async def remove_contract(self, user_id: uuid.UUID) -> None:
+        """Remove the contract after an account deletion."""

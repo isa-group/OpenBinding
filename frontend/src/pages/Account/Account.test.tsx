@@ -13,6 +13,9 @@ const api = vi.hoisted(() => ({
   createApiKey: vi.fn(),
   revokeApiKey: vi.fn(),
   getJobStatus: vi.fn(),
+  listOwnIdentities: vi.fn(),
+  listNotifications: vi.fn(),
+  getNotificationPreferences: vi.fn(),
 }));
 
 const auth = vi.hoisted(() => ({
@@ -58,19 +61,21 @@ describe('granular API-key creation', () => {
     api.getOwnUsage.mockResolvedValue({
       plan: 'FREE',
       contract_pending: false,
-      caps: {
-        max_timeout_s: 300,
-        max_iterations: 10_000,
-        max_payload_mb: 16,
-        max_instance_complexity_log10: 9,
-        job_history_days: 7,
-        api_keys_limit: 10,
-      },
-      limits: [],
+      features: { solve: true },
+      capabilities: { maxTimeoutSeconds: 300, maxPayloadBytes: 16_777_216 },
+      limits: {},
     });
     api.listApiKeys.mockResolvedValue([]);
     api.listOwnJobs.mockResolvedValue({ jobs: [], total: 0, retention_days: 7 });
     api.getEngines.mockResolvedValue([engine]);
+    api.listOwnIdentities.mockResolvedValue([]);
+    api.listNotifications.mockResolvedValue([]);
+    api.getNotificationPreferences.mockResolvedValue({
+      inbox: true,
+      email_contract_changes: true,
+      email_invitations: true,
+      email_job_failures: false,
+    });
     api.createApiKey.mockResolvedValue({
       id: 'key-id',
       name: 'automation',
@@ -110,4 +115,3 @@ describe('granular API-key creation', () => {
     expect(api.createApiKey).not.toHaveBeenCalled();
   });
 });
-

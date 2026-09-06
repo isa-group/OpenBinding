@@ -52,11 +52,6 @@ class UserRole(str, enum.Enum):
     ADMIN = "admin"
 
 
-class Plan(str, enum.Enum):
-    FREE = "FREE"
-    PRO = "PRO"
-
-
 def _enum_column(python_enum, default, length: int = 16):
     return mapped_column(
         Enum(
@@ -84,12 +79,14 @@ class User(Base):
     #: Stored lower-cased, so that logging in is not a guessing game about case.
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    preferences: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
     role: Mapped[UserRole] = _enum_column(UserRole, UserRole.USER)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     #: Display cache of the SPACE contract; see the module docstring.
-    plan_cache: Mapped[Plan] = _enum_column(Plan, Plan.FREE)
+    plan_cache: Mapped[str] = mapped_column(String(128), nullable=False)
     contract_pending: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     created_at: Mapped[datetime] = mapped_column(
@@ -138,13 +135,24 @@ class ApiKey(Base):
     )
     #: Written at most once a minute; an audit hint, not an access log.
     last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    rotated_from_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     user: Mapped[User] = relationship(back_populates="api_keys")
 
     @property
     def is_active(self) -> bool:
-        return self.revoked_at is None
+        if self.revoked_at is not None:
+            return False
+        if self.expires_at is None:
+            return True
+        expires_at = self.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        return expires_at > utcnow()
 
 
 class JobState(str, enum.Enum):
@@ -152,6 +160,7 @@ class JobState(str, enum.Enum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class Job(Base):
@@ -215,6 +224,19 @@ class Job(Base):
     requested_budget_s: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     metered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     concurrency_released: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    cancellation_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    retry_of_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    billing_sponsor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now(), index=True
@@ -436,3 +458,38 @@ class JobProvenance(Base):
     document: Mapped[dict] = mapped_column(JSON, nullable=False)
     digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
+
+
+# Re-exporting these keeps one stable import location for persistence models,
+# while the platform domain remains readable in its own module.
+from .platform_models import (  # noqa: E402,F401
+    Artifact,
+    AuthIdentity,
+    AuditEvent,
+    BindingCase,
+    BindingCaseRevision,
+    Collection,
+    CollectionItem,
+    CollectionRevision,
+    Notification,
+    Organization,
+    OrganizationInvitation,
+    OrganizationMembership,
+    OrganizationRole,
+    Project,
+    ProjectResource,
+    ProjectResourceRevision,
+    PricingRelease,
+    PricingSphereState,
+    PricingSpaceState,
+    Publication,
+    Report,
+    ReportState,
+    RunState,
+    Study,
+    StudyCell,
+    StudyRun,
+    StudyState,
+    Visibility,
+    PasswordResetToken,
+)

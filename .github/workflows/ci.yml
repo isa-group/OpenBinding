@@ -117,6 +117,16 @@ jobs:
       - name: Validate Docker Compose configuration
         run: docker compose config
 
+      - name: Set up kubectl for manifest rendering
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.31.0
+
+      - name: Render the base and SPACE Kubernetes manifests
+        run: |
+          kubectl kustomize deploy/kubernetes > /tmp/openbinding-kubernetes.yaml
+          kubectl kustomize deploy/kubernetes/overlays/with-space > /tmp/openbinding-kubernetes-with-space.yaml
+
       - name: Build and start services
         run: docker compose up --build -d --wait gateway-dev engine-multi-heuristic
 
@@ -170,6 +180,9 @@ jobs:
       - name: Type-check and build frontend
         working-directory: frontend
         run: pnpm build
+
+      - name: Check generated changelog
+        run: python3 tools/generate_changelog.py --check
 
       - name: Install Playwright Chromium
         working-directory: frontend

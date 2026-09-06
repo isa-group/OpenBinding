@@ -28,6 +28,7 @@ from ..models.errors import api_error
 from ..security.apikeys import (
     ApiKeyPermission,
     authenticated_api_key,
+    allows_request,
     looks_like_api_key,
     matches,
     permissions_of,
@@ -35,7 +36,7 @@ from ..security.apikeys import (
     required_permissions,
 )
 from ..security.tokens import TokenError, bearer_token, read_access_token
-from .contracts import settle_pending_contract
+from .contracts import reconcile_contract_renewal, settle_pending_contract
 
 #: What an unauthenticated caller is told to send.
 _AUTHENTICATE_CHALLENGE = {"WWW-Authenticate": 'Bearer realm="openbinding"'}
@@ -230,11 +231,23 @@ def _authorize_api_key(request: Request, user: User) -> None:
             required_permissions=sorted(required),
             missing_permissions=missing,
         )
+    if not allows_request(
+        api_key,
+        method=request.method,
+        path_params=request.path_params,
+        path=_route_path(request),
+    ):
+        raise api_error(
+            status.HTTP_403_FORBIDDEN,
+            "api_key_boundary",
+            "This API key is restricted from the requested method or resource.",
+        )
 
 
 async def get_optional_user(
     request: Request,
     session: Optional[AsyncSession] = Depends(optional_session, scope="function"),
+    settings: Settings = Depends(get_settings),
 ) -> Optional[User]:
     """The caller, when there is one. Visitors get ``None``, not an error.
 
@@ -250,7 +263,7 @@ async def get_optional_user(
     if not credential:
         return None
 
-    user = await _user_for_credential(credential, session, get_settings())
+    user = await _user_for_credential(credential, session, settings)
     if user is None or not user.is_active:
         return None
     _authorize_api_key(request, user)
@@ -262,6 +275,7 @@ async def get_current_user(
     bearer: Annotated[HTTPAuthorizationCredentials | None, Security(_BEARER_AUTH)],
     api_key: Annotated[str | None, Security(_API_KEY_AUTH)],
     session: AsyncSession = Depends(session_dependency, scope="function"),
+    settings: Settings = Depends(get_settings),
 ) -> User:
     """The caller, or a refusal.
 
@@ -278,7 +292,7 @@ async def get_current_user(
             headers=_AUTHENTICATE_CHALLENGE,
         )
 
-    user = await _user_for_credential(credential, session, get_settings())
+    user = await _user_for_credential(credential, session, settings)
     if user is None or not user.is_active:
         raise api_error(
             status.HTTP_401_UNAUTHORIZED,
@@ -292,6 +306,7 @@ async def get_current_user(
     # An account registered while SPACE was unreachable owes a contract, and
     # nothing else ever settles it. Doing it here is what the flag was for.
     await settle_pending_contract(user, session)
+    await reconcile_contract_renewal(user, session)
     return user
 
 
@@ -300,6 +315,7 @@ async def solve_caller(
     bearer: Annotated[HTTPAuthorizationCredentials | None, Security(_BEARER_AUTH)],
     api_key: Annotated[str | None, Security(_API_KEY_AUTH)],
     session: Optional[AsyncSession] = Depends(optional_session, scope="function"),
+    settings: Settings = Depends(get_settings),
 ) -> User:
     """The authenticated account allowed to use an Engine.
 
@@ -317,7 +333,6 @@ async def solve_caller(
         require_accounts()
         raise AssertionError("require_accounts() must refuse an unconfigured gateway")
 
-    settings = get_settings()
     credential = _credential(request, bearer, api_key)
 
     if not credential:
@@ -338,6 +353,7 @@ async def solve_caller(
         )
     _authorize_api_key(request, user)
     await settle_pending_contract(user, session)
+    await reconcile_contract_renewal(user, session)
     return user
 
 

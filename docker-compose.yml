@@ -1,12 +1,12 @@
 x-proxy-build-args: &proxy-build-args
   HTTP_PROXY: ${HTTP_PROXY_ARG:-}
   HTTPS_PROXY: ${HTTPS_PROXY_ARG:-}
-  NO_PROXY: ${NO_PROXY_ARG:-localhost,127.0.0.1,gateway,gateway-dev,engine-minizinc,engine-random-search,engine-many-heuristic,engine-multi-heuristic,engine-evolutionary-heuristics,frontend-dev,frontend-prod,nginx,nginx-dev}
+  NO_PROXY: ${NO_PROXY_ARG:-localhost,127.0.0.1,postgres,redis,gateway,gateway-dev,worker,worker-dev,space-server,space-mongodb,space-redis,engine-minizinc,engine-random-search,engine-many-heuristic,engine-multi-heuristic,engine-evolutionary-heuristics,frontend-dev,frontend-prod,nginx,nginx-dev}
 
 services:
   postgres:
     image: postgres:16-alpine
-    profiles: ["dev", "prod"]
+    profiles: ["dev", "prod", "db-tools"]
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-openbinding}
       - POSTGRES_USER=${POSTGRES_USER:-openbinding}
@@ -21,21 +21,106 @@ services:
       retries: 5
       start_period: 10s
 
+  redis:
+    image: redis:7.4-alpine
+    profiles: ["dev", "prod"]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # SPACE v1.5 is optional because it owns a separate Mongo database. Point
+  # SPACE_SOURCE_DIR at a v1.5.0 checkout, then enable the `space` profile.
+  space-mongodb:
+    image: mongo:7.0.16
+    profiles: ["space"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${SPACE_DATABASE_ROOT_USERNAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${SPACE_DATABASE_ROOT_PASSWORD:-}
+      MONGO_INITDB_DATABASE: ${SPACE_DATABASE_NAME:-space_db}
+    volumes:
+      - space_mongodb:/data/db
+    networks: [space]
+    healthcheck:
+      test: ["CMD", "mongosh", "--username", "${SPACE_DATABASE_ROOT_USERNAME:-root}", "--password", "${SPACE_DATABASE_ROOT_PASSWORD:-}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  space-redis:
+    image: redis:7.4-alpine
+    profiles: ["space"]
+    volumes:
+      - space_redisdata:/data
+    networks: [space]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  space-server:
+    build:
+      context: ${SPACE_SOURCE_DIR:-./space/space-src}/api
+      dockerfile: ./docker/local/Dockerfile
+      args:
+        <<: *proxy-build-args
+    profiles: ["space"]
+    # Local bootstrap and smoke tests only. Production uses the Kubernetes
+    # service or an external SPACE URL; this listener is never public.
+    ports:
+      - "127.0.0.1:${SPACE_HOST_PORT:-5403}:3000"
+    labels:
+      org.opencontainers.image.version: "1.5.0"
+      org.opencontainers.image.revision: "79aea10c9acff1d85e4931d09aa21d3a253d1ce1"
+      org.opencontainers.image.source: "https://github.com/isa-group/space"
+    environment:
+      ENVIRONMENT: production
+      ADMIN_USER: ${SPACE_ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${SPACE_ADMIN_PASSWORD:-}
+      ADMIN_ORG_NAME: OpenBinding
+      SPACE_DATABASE_ROOT_PASSWORD: ${SPACE_DATABASE_ROOT_PASSWORD:-}
+      MONGO_URI: mongodb://${SPACE_DATABASE_ROOT_USERNAME:-root}:${SPACE_DATABASE_ROOT_PASSWORD:-}@space-mongodb:27017/${SPACE_DATABASE_NAME:-space_db}?authSource=admin
+      REDIS_URL: redis://space-redis:6379
+      JWT_SECRET: ${SPACE_JWT_SECRET:-}
+      JWT_SALT: ${SPACE_JWT_SALT:-}
+      JWT_EXPIRATION: ${SPACE_JWT_EXPIRATION:-1h}
+    command:
+      - sh
+      - -ec
+      - >-
+        test -n "$$ADMIN_PASSWORD" && test -n "$$JWT_SECRET" && test -n "$$JWT_SALT" &&
+        test -n "$$SPACE_DATABASE_ROOT_PASSWORD" ||
+        { echo 'SPACE_ADMIN_PASSWORD, SPACE_DATABASE_ROOT_PASSWORD, SPACE_JWT_SECRET and SPACE_JWT_SALT are required' >&2; exit 1; };
+        exec node dist/index.js
+    volumes:
+      - space_statics:/usr/src/server/public
+    networks: [space]
+    depends_on:
+      space-mongodb:
+        condition: service_healthy
+      space-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/api/v1/healthcheck',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
   gateway:
     build:
-      context: ./openbinding-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: openbinding-gateway/Dockerfile
       args:
         <<: *proxy-build-args
     profiles: ["prod"]
     volumes:
-      - ./schemas:/app/schemas
-      # The pricing document is served by GET /v1/pricing and rendered
-      # by the interface's plans page, and it lives outside the gateway's own
-      # directory - so without this it is simply not in the image.
-      - ./space/pricing:/app/space/pricing:ro
-      - ./openbinding-gateway:/app
-      - ./examples:/app/examples:ro
+      - artifacts:/var/lib/openbinding/artifacts
     environment:
       - APP_ENV=prod
       - SCHEMAS_DIR=/app/schemas
@@ -48,8 +133,22 @@ services:
       - SPACE_ENABLED=${SPACE_ENABLED:-false}
       - SPACE_URL=${SPACE_URL:-http://space-server:3000}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
+      - SPACE_DESTRUCTIVE_API_KEY=${SPACE_DESTRUCTIVE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
       - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-closed}
+      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - REDIS_URL=redis://redis:6379/0
+      - JOB_DISPATCH_MODE=dramatiq
+      - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-https://openbinding.score.us.es}
+      - SPHERE_ENABLED=${SPHERE_ENABLED:-false}
+      - SPHERE_URL=${SPHERE_URL:-https://sphere.score.us.es}
+      - SPHERE_API_KEY=${SPHERE_API_KEY:-}
+      - SPHERE_ORGANIZATION_ID=${SPHERE_ORGANIZATION_ID:-}
+      - CAS_ENABLED=${CAS_ENABLED:-false}
+      - CAS_ENVIRONMENT=${CAS_ENVIRONMENT:-production}
+      - CAS_STORE_BACKEND=redis
+      - FRONTEND_URL=${FRONTEND_URL:-https://openbinding.score.us.es}
       - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
       - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-true}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
@@ -60,13 +159,15 @@ services:
       - default
       - space
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 10s
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       engine-minizinc:
         condition: service_healthy
@@ -79,8 +180,8 @@ services:
 
   gateway-dev:
     build:
-      context: ./openbinding-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: openbinding-gateway/Dockerfile
       args:
         <<: *proxy-build-args
     profiles: ["dev"]
@@ -88,10 +189,6 @@ services:
       - "8000:8000"
     volumes:
       - ./schemas:/app/schemas
-      # The pricing document is served by GET /v1/pricing and rendered
-      # by the interface's plans page, and it lives outside the gateway's own
-      # directory - so without this it is simply not in the image.
-      - ./space/pricing:/app/space/pricing:ro
       - ./openbinding-gateway:/app
       - ./examples:/app/examples:ro
       - ./docs:/app/docs:ro
@@ -102,6 +199,7 @@ services:
       # deliberately not mounted or committed.
       - ./experimentation:/app/experimentation:ro
       - ./pricings:/app/pricings:ro
+      - artifacts:/var/lib/openbinding/artifacts
     environment:
       - APP_ENV=dev
       - OPENBINDING_REPO_ROOT=/app
@@ -117,8 +215,22 @@ services:
       - SPACE_ENABLED=${SPACE_ENABLED:-false}
       - SPACE_URL=${SPACE_URL:-http://space-server:3000}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
+      - SPACE_DESTRUCTIVE_API_KEY=${SPACE_DESTRUCTIVE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
       - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-open}
+      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - REDIS_URL=redis://redis:6379/0
+      - JOB_DISPATCH_MODE=dramatiq
+      - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:8000}
+      - SPHERE_ENABLED=${SPHERE_ENABLED:-false}
+      - SPHERE_URL=${SPHERE_URL:-https://sphere.score.us.es}
+      - SPHERE_API_KEY=${SPHERE_API_KEY:-}
+      - SPHERE_ORGANIZATION_ID=${SPHERE_ORGANIZATION_ID:-}
+      - CAS_ENABLED=${CAS_ENABLED:-false}
+      - CAS_ENVIRONMENT=${CAS_ENVIRONMENT:-preproduction}
+      - CAS_STORE_BACKEND=redis
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
       - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
       - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-false}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
@@ -129,13 +241,15 @@ services:
       - default
       - space
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 10s
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       engine-minizinc:
         condition: service_healthy
@@ -144,6 +258,108 @@ services:
       engine-many-heuristic:
         condition: service_healthy
       engine-evolutionary-heuristics:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: openbinding-gateway/Dockerfile
+      args:
+        <<: *proxy-build-args
+    profiles: ["prod"]
+    entrypoint: []
+    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "4"]
+    volumes:
+      - artifacts:/var/lib/openbinding/artifacts
+    environment:
+      - SCHEMAS_DIR=/app/schemas
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
+      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET before starting the prod profile}
+      - REDIS_URL=redis://redis:6379/0
+      - JOB_DISPATCH_MODE=dramatiq
+      - SPACE_ENABLED=${SPACE_ENABLED:-false}
+      - SPACE_URL=${SPACE_URL:-http://space-server:3000}
+      - SPACE_API_KEY=${SPACE_API_KEY:-}
+      - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
+      - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-closed}
+      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
+      - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-true}
+      - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
+      - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
+      - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
+      - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
+    networks:
+      - default
+      - space
+    depends_on:
+      gateway:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  worker-dev:
+    build:
+      context: .
+      dockerfile: openbinding-gateway/Dockerfile
+      args:
+        <<: *proxy-build-args
+    profiles: ["dev"]
+    entrypoint: []
+    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "2"]
+    volumes:
+      - ./schemas:/app/schemas:ro
+      - ./openbinding-gateway:/app
+      - artifacts:/var/lib/openbinding/artifacts
+    environment:
+      - SCHEMAS_DIR=/app/schemas
+      - PYTHONPATH=/app/src
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
+      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:-development-secret-do-not-use-in-production}
+      - REDIS_URL=redis://redis:6379/0
+      - JOB_DISPATCH_MODE=dramatiq
+      - SPACE_ENABLED=${SPACE_ENABLED:-false}
+      - SPACE_URL=${SPACE_URL:-http://space-server:3000}
+      - SPACE_API_KEY=${SPACE_API_KEY:-}
+      - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
+      - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-open}
+      - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
+      - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-false}
+      - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
+      - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
+      - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
+      - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
+    networks:
+      - default
+      - space
+    depends_on:
+      gateway-dev:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  adminer:
+    image: adminer:5
+    profiles: ["db-tools"]
+    ports:
+      - "127.0.0.1:8082:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
         condition: service_healthy
 
   engine-minizinc:
@@ -327,21 +543,15 @@ services:
       start_period: 10s
 
 volumes:
+  artifacts:
   frontend_dist:
   pgdata:
+  redisdata:
+  space_mongodb:
+  space_redisdata:
+  space_statics:
 
 networks:
   default:
-  # Where the SPACE instance lives. External because neither project owns it:
-  # SPACE's own override joins the same network from the other side, and both
-  # expect it to have been created once, by hand:
-  #
-  #     docker network create openbinding-space
-  #
-  # Nothing is published on the host - the gateway reaches SPACE at
-  # http://space-server:3000, the API container itself rather than the nginx in
-  # front of it, so a gateway that can start does not depend on a proxy it does
-  # not own being healthy.
   space:
     name: openbinding-space
-    external: true

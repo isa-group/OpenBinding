@@ -1,146 +1,91 @@
 #!/usr/bin/env bash
-# Bring up everything: SPACE, the gateway, the engines, the interface.
+# Start the complete OpenBinding stack. SPACE is opt-in because a fresh
+# checkout has no SPHERE organization key or published pricing yet.
 #
-#     ./up.sh
-#
-# One command, from nothing, idempotent. Run it again after pulling, after
-# changing the pricing, or whenever something looks disconnected.
-#
-# It is one script rather than a page of instructions because the order matters
-# and three of the steps have silently gone wrong before: the shared network
-# has to exist before either stack starts, SPACE's own database has to be up
-# before SPACE means anything, and the pricing registered in SPACE has to match
-# the one in this repository or every contract is refused - by a client that
-# reports the refusal as success.
-#
-#   PROFILE=prod ./up.sh      the production profile instead of dev
-#   ./up.sh --no-space        the gateway alone, without pricing enforcement
+#   ./up.sh                 OpenBinding; contract operations wait for active pricing
+#   ./up.sh --with-space    also run the pinned SPACE 1.5 services
+#   PROFILE=prod ./up.sh    production Compose profile
 set -euo pipefail
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$REPO"
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$repo"
 
-PROFILE="${PROFILE:-${COMPOSE_PROFILES:-dev}}"
-NETWORK="${SPACE_NETWORK:-openbinding-space}"
-SPACE_DIR="$REPO/space/space-src/docker/local"
-WITH_SPACE=1
-[ "${1:-}" = "--no-space" ] && WITH_SPACE=0
+profile="${PROFILE:-${COMPOSE_PROFILES:-dev}}"
+with_space=0
+case "${1:-}" in
+  "") ;;
+  --with-space) with_space=1 ;;
+  --no-space) ;; # retained for compatibility with the previous helper
+  *) printf 'Usage: %s [--with-space|--no-space]\n' "$0" >&2; exit 2 ;;
+esac
 
-say()  { printf '\n\033[1m▸ %s\033[0m\n' "$*"; }
+say() { printf '\n\033[1m▸ %s\033[0m\n' "$*"; }
 note() { printf '  %s\n' "$*"; }
-die()  { printf '\033[31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
+die() { printf '\033[31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 
-# -- Configuration ---------------------------------------------------------
+set_env() {
+  local name="$1" value="$2" temporary
+  temporary="$(mktemp "${TMPDIR:-/tmp}/openbinding-env.XXXXXX")"
+  awk -F= -v key="$name" '$1 != key { print }' .env > "$temporary"
+  printf '%s=%s\n' "$name" "$value" >> "$temporary"
+  mv "$temporary" .env
+}
+
+ensure_secret() {
+  local name="$1" current
+  current="$(sed -n "s/^${name}=//p" .env | tail -1)"
+  if [ -z "$current" ]; then
+    set_env "$name" "$(openssl rand -hex 32)"
+  fi
+}
 
 say "Configuration"
 if [ ! -f .env ]; then
-  # Secrets that must not be guessable, generated once and kept out of git.
-  {
-    echo "COMPOSE_PROFILES=$PROFILE"
-    echo "POSTGRES_DB=openbinding"
-    echo "POSTGRES_USER=openbinding"
-    echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
-    echo "GATEWAY_JWT_SECRET=$(openssl rand -hex 32)"
-    echo "FEDERATION_SECRET_KEY=$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' 2>/dev/null || openssl rand -base64 32)"
-  } > .env
-  note "wrote .env with fresh secrets."
+  cp .env.example .env
+  note "created .env from the documented template."
 else
-  note ".env is there; leaving it alone."
+  note ".env already exists; preserving its values."
 fi
+ensure_secret POSTGRES_PASSWORD
+ensure_secret GATEWAY_JWT_SECRET
 
-# SPACE signs every pricing token with these. Left at the shipped defaults,
-# anyone who has read SPACE's repository can mint a token claiming anything.
-for name in SPACE_JWT_SECRET SPACE_JWT_SALT SPACE_ADMIN_PASSWORD; do
-  grep -q "^$name=" .env || echo "$name=$(openssl rand -hex 24)" >> .env
-done
-set -a; . ./.env; set +a
-
-# -- The shared network ----------------------------------------------------
-
-say "Shared network"
-if docker network inspect "$NETWORK" >/dev/null 2>&1; then
-  note "$NETWORK is there."
-else
-  docker network create "$NETWORK" >/dev/null
-  note "created $NETWORK."
-fi
-
-# -- SPACE -----------------------------------------------------------------
-
-if [ "$WITH_SPACE" = 1 ]; then
-  say "SPACE"
-  [ -d "$SPACE_DIR" ] || die "space/space-src is missing. Clone it:
-    git clone https://github.com/isa-group/space.git space/space-src"
-
-  (cd "$SPACE_DIR" && docker compose -f docker-compose.yml \
-      -f ../../../docker-compose.override.yml up -d >/dev/null)
-  note "containers up."
-
-  # Its API answers before its database does, and answers 401 rather than 503
-  # while it waits - so this waits for the database rather than for the port.
-  note "waiting for its database ..."
+if [ "$with_space" -eq 1 ]; then
+  ensure_secret SPACE_ADMIN_PASSWORD
+  ensure_secret SPACE_DATABASE_ROOT_PASSWORD
+  ensure_secret SPACE_JWT_SECRET
+  ensure_secret SPACE_JWT_SALT
+  say "SPACE 1.5"
+  ./space/prepare.sh
+  docker compose --profile space up -d --build space-mongodb space-redis space-server
   for _ in $(seq 1 60); do
-    body="$(docker run --rm -i --network "$NETWORK" curlimages/curl:latest \
-      -s -m 5 http://space-server:3000/api/v1/services 2>/dev/null || true)"
-    case "$body" in
-      *"buffering timed out"*|"") sleep 2 ;;
-      *) break ;;
-    esac
+    curl -fsS -m 3 "http://127.0.0.1:${SPACE_HOST_PORT:-5403}/api/v1/healthcheck" >/dev/null 2>&1 && break
+    sleep 2
   done
-  case "${body:-}" in
-    *"buffering timed out"*|"") die "SPACE never reached its database. Try: docker logs space-server" ;;
-  esac
-  note "SPACE is answering, database included."
+  curl -fsS -m 5 "http://127.0.0.1:${SPACE_HOST_PORT:-5403}/api/v1/healthcheck" >/dev/null 2>&1 \
+    || die "SPACE did not become healthy; inspect: docker compose logs space-server"
+  note "SPACE is healthy on loopback."
 fi
-
-# -- OpenBinding -----------------------------------------------------------
 
 say "OpenBinding"
-docker compose --profile "$PROFILE" up -d --build >/dev/null
-note "gateway, engines, database and interface up."
+docker compose --profile "$profile" up -d --build
 
-# -- Connecting the two ----------------------------------------------------
-
-if [ "$WITH_SPACE" = 1 ]; then
-  say "Connecting the gateway to SPACE"
-  COMPOSE_PROFILE="$PROFILE" ./space/connect.sh 2>&1 | sed 's/^/  /'
-fi
-
-# -- Proving it ------------------------------------------------------------
-
-say "Checking"
-GATEWAY="http://localhost:8000"
-for _ in $(seq 1 45); do
-  curl -fsS -m 3 "$GATEWAY/health" >/dev/null 2>&1 && break
+gateway="http://localhost:8000"
+say "Readiness"
+for _ in $(seq 1 60); do
+  curl -fsS -m 3 "$gateway/health/ready" >/dev/null 2>&1 && break
   sleep 2
 done
-curl -fsS -m 5 "$GATEWAY/health" >/dev/null 2>&1 || die "the gateway is not answering on :8000."
-note "gateway healthy."
+curl -fsS -m 5 "$gateway/health/ready" >/dev/null 2>&1 \
+  || die "the gateway is not ready; inspect: docker compose logs gateway-${profile}"
+note "gateway, worker, engines and interface are ready."
 
-TOKEN="$(curl -fsS -m 10 -X POST "$GATEWAY/v1/auth/login" \
-  -H 'Content-Type: application/json' \
-  -d '{"username_or_email":"admin","password":"4dm1n"}' 2>/dev/null \
-  | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])' 2>/dev/null || true)"
-
-[ -n "$TOKEN" ] || die "the seeded administrator could not sign in."
-note "signed in as admin."
-
-if [ "$WITH_SPACE" = 1 ]; then
-  LIMITS="$(curl -fsS -m 10 "$GATEWAY/v1/users/me/usage" -H "Authorization: Bearer $TOKEN" \
-    | python3 -c 'import sys,json; print(len(json.load(sys.stdin).get("limits") or []))' 2>/dev/null || echo 0)"
-  if [ "$LIMITS" -gt 0 ]; then
-    note "reading $LIMITS quota limits from SPACE."
-  else
-    die "the gateway is up but reading no quotas from SPACE. Try: ./space/connect.sh"
-  fi
+if [ "$with_space" -eq 1 ] && ! grep -Eq '^SPACE_API_KEY=.+$' .env; then
+  note "SPACE has no gateway key yet. Mint both scoped keys with:"
+  note "python space/bootstrap/bootstrap_space.py --url http://127.0.0.1:${SPACE_HOST_PORT:-5403} --include-destructive-key"
+  note "Put its output in .env, enable SPACE, restart gateway/worker, then publish and deploy 0.1.0 from the pricing control room."
 fi
 
 printf '\n\033[32m✓ Ready.\033[0m\n'
-echo "  Interface   http://localhost$([ "$PROFILE" = dev ] && echo ':5173')"
-echo "  API         $GATEWAY/docs"
-echo "  Sign in     admin / 4dm1n on the PRO plan."
-echo "              Create a real administrator and delete this one."
-if [ "$WITH_SPACE" = 1 ]; then
-  echo "  SPACE       http://localhost:5403"
-  echo "              admin / the SPACE_ADMIN_PASSWORD in .env"
-fi
+note "Interface   http://localhost$([ "$profile" = dev ] && printf ':5173')"
+note "API         $gateway/docs"
+note "Database UI docker compose --profile db-tools up -d adminer (127.0.0.1:8082)"

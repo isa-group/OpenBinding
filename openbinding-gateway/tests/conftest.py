@@ -41,6 +41,17 @@ def micro_placement_instance():
     return micro_instance()
 
 
+@pytest.fixture(autouse=True)
+def pricing_catalog_gate():
+    """Every test gets an explicit catalog-backed SPACE substitute."""
+    from _pricing import fake_pricing_gate
+    from openbinding_gateway import space_client
+
+    space_client.set_gate(fake_pricing_gate())
+    yield
+    space_client.set_gate(None)
+
+
 @pytest_asyncio.fixture
 async def db_session():
     """A session against a database that exists only for this test.

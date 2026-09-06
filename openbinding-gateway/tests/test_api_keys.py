@@ -9,13 +9,16 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import timedelta
 
 import pytest
 import pytest_asyncio
 
 from openbinding_gateway.security import apikeys
+from openbinding_gateway.db.models import ApiKey, utcnow
 
 from _repo import REPO_ROOT
+from _pricing import largest_plan
 
 
 async def account(client, registration) -> tuple[dict, str]:
@@ -37,8 +40,10 @@ def key_payload(
     permissions=None,
     all_engines=True,
     engines=None,
+    boundary=None,
+    expires_at=None,
 ) -> dict:
-    return {
+    payload = {
         "name": name,
         "permissions": permissions or ["account:read"],
         "engine_access": {
@@ -46,6 +51,11 @@ def key_payload(
             "engines": engines or [],
         },
     }
+    if boundary is not None:
+        payload["boundary"] = boundary
+    if expires_at is not None:
+        payload["expires_at"] = expires_at
+    return payload
 
 
 async def mint_key(
@@ -56,6 +66,8 @@ async def mint_key(
     permissions=None,
     all_engines=True,
     engines=None,
+    boundary=None,
+    expires_at=None,
 ) -> dict:
     response = await client.post(
         "/v1/users/me/api-keys",
@@ -65,6 +77,8 @@ async def mint_key(
             permissions=permissions,
             all_engines=all_engines,
             engines=engines,
+            boundary=boundary,
+            expires_at=expires_at,
         ),
     )
     assert response.status_code == 201, response.text
@@ -234,43 +248,36 @@ async def test_minting_a_key_needs_an_account(api_client):
 @pytest_asyncio.fixture
 async def gate():
     from openbinding_gateway import space_client
-    from openbinding_gateway.space_client import FakePricingGate
+    from _pricing import fake_pricing_gate
 
-    installed = FakePricingGate()
+    installed = fake_pricing_gate()
     space_client.set_gate(installed)
     yield installed
     space_client.set_gate(None)
 
 
 async def test_the_plan_bounds_how_many_keys_you_may_hold(api_client, registration, gate):
-    """apiKeysLimit was in the pricing and nothing read it.
-
-    Ten on the free plan and unlimited on PRO, counted from active rows in the
-    gateway database.
-    """
+    """The active SPACE entitlement bounds active keys."""
     _, token = await account(api_client, registration)
-    for number in range(10):
-        await mint_key(api_client, token, f"key {number}")
+    await mint_key(api_client, token, "only BASIC key")
 
     refused = await api_client.post(
         "/v1/users/me/api-keys",
         headers={"Authorization": f"Bearer {token}"},
-        json=key_payload("eleven"),
+        json=key_payload("second"),
     )
 
     assert refused.status_code == 402
     detail = refused.json()["detail"]
     assert detail["code"] == "quota_exceeded"
-    assert detail["quota"]["limit_id"] == "apiKeysLimit"
-    assert detail["quota"]["limit"] == 10
+    assert detail["quota"]["limit_id"] == "apiKeys"
+    assert detail["quota"]["limit"] == 1
 
 
 async def test_revoking_one_frees_the_allowance(api_client, registration, gate):
     # The count is of *live* keys, so a revoked one is not held against you.
     _, token = await account(api_client, registration)
     first = await mint_key(api_client, token, "one")
-    for number in range(1, 10):
-        await mint_key(api_client, token, f"key {number}")
 
     await api_client.delete(
         f"/v1/users/me/api-keys/{first['id']}",
@@ -287,9 +294,8 @@ async def test_revoking_one_frees_the_allowance(api_client, registration, gate):
 
 async def test_a_larger_plan_allows_more(api_client, registration, gate):
     import uuid as _uuid
-
     profile, token = await account(api_client, registration)
-    gate.plans[_uuid.UUID(profile["id"])] = "PRO"
+    gate.plans[_uuid.UUID(profile["id"])] = largest_plan()
 
     for n in range(12):
         assert (
@@ -301,11 +307,10 @@ async def test_a_larger_plan_allows_more(api_client, registration, gate):
         ).status_code == 201
 
 
-async def test_keys_can_still_be_minted_while_the_pricing_service_is_down(
+async def test_key_creation_fails_closed_while_the_pricing_service_is_down(
     api_client, registration, gate
 ):
-    # Locking somebody out of their own account because SPACE is restarting is
-    # a bigger harm than one key over an allowance.
+    # Without authoritative caps, the gateway cannot safely mint another key.
     _, token = await account(api_client, registration)
     gate.unavailable = True
 
@@ -315,7 +320,8 @@ async def test_keys_can_still_be_minted_while_the_pricing_service_is_down(
         json=key_payload("while it is down"),
     )
 
-    assert created.status_code == 201
+    assert created.status_code == 503
+    assert created.json()["detail"]["code"] == "pricing_unavailable"
 
 
 # -- Granular authorization -------------------------------------------------
@@ -340,6 +346,133 @@ async def test_a_key_without_the_route_permission_is_refused(api_client, registr
     assert detail["missing_permissions"] == ["account:read"]
 
 
+async def test_method_organization_project_and_slug_boundaries_all_reduce_access(
+    api_client, registration
+):
+    _, token = await account(api_client, registration)
+    session_headers = {"Authorization": f"Bearer {token}"}
+    organization = await api_client.post(
+        "/v1/organizations",
+        headers=session_headers,
+        json={"slug": "bounded-org", "name": "Bounded organization"},
+    )
+    first = await api_client.post(
+        "/v1/organizations/bounded-org/projects",
+        headers=session_headers,
+        json={"slug": "allowed", "name": "Allowed", "visibility": "private"},
+    )
+    second = await api_client.post(
+        "/v1/organizations/bounded-org/projects",
+        headers=session_headers,
+        json={"slug": "denied", "name": "Denied", "visibility": "public"},
+    )
+    assert organization.status_code == first.status_code == second.status_code == 201
+    key = await mint_key(
+        api_client,
+        token,
+        permissions=["projects:read", "projects:write"],
+        boundary={
+            "methods": ["GET"],
+            "organizations": ["bounded-org"],
+            "projects": ["allowed"],
+            "resource_kinds": ["projects"],
+            "slugs": ["allowed"],
+        },
+    )
+    key_headers = {"X-API-Key": key["secret"]}
+
+    allowed = await api_client.get(
+        "/v1/organizations/bounded-org/projects/allowed", headers=key_headers
+    )
+    wrong_method = await api_client.patch(
+        "/v1/organizations/bounded-org/projects/allowed",
+        headers=key_headers,
+        json={"name": "Changed"},
+    )
+    denied_response = await api_client.get(
+        "/v1/organizations/bounded-org/projects/denied", headers=key_headers
+    )
+    wrong_kind = await api_client.get(
+        "/v1/organizations/bounded-org/projects/allowed/cases", headers=key_headers
+    )
+
+    assert allowed.status_code == 200
+    assert wrong_method.status_code == 403
+    assert wrong_method.json()["detail"]["code"] == "api_key_boundary"
+    assert denied_response.status_code == 403
+    assert denied_response.json()["detail"]["code"] == "api_key_boundary"
+    assert wrong_kind.status_code == 403
+    assert wrong_kind.json()["detail"]["code"] == "api_key_boundary"
+
+
+async def test_rotation_preserves_authority_and_revokes_the_old_secret(
+    api_client, registration
+):
+    _, token = await account(api_client, registration)
+    headers = {"Authorization": f"Bearer {token}"}
+    original = await mint_key(
+        api_client,
+        token,
+        permissions=["account:read"],
+        boundary={"methods": ["GET"]},
+    )
+    rotated = await api_client.post(
+        f"/v1/users/me/api-keys/{original['id']}/rotate", headers=headers
+    )
+
+    old_call = await api_client.get(
+        "/v1/users/me", headers={"X-API-Key": original["secret"]}
+    )
+    new_call = await api_client.get(
+        "/v1/users/me", headers={"X-API-Key": rotated.json()["secret"]}
+    )
+
+    assert rotated.status_code == 200, rotated.text
+    assert rotated.json()["boundary"]["methods"] == ["GET"]
+    assert old_call.status_code == 401
+    assert new_call.status_code == 200
+
+
+async def test_expired_keys_fail_closed(api_client, db_session, registration):
+    _, token = await account(api_client, registration)
+    created = await mint_key(
+        api_client,
+        token,
+        expires_at=(utcnow() + timedelta(hours=1)).isoformat(),
+    )
+    stored = await db_session.get(ApiKey, uuid.UUID(created["id"]))
+    stored.expires_at = utcnow() - timedelta(seconds=1)
+    await db_session.flush()
+
+    response = await api_client.get(
+        "/v1/users/me", headers={"X-API-Key": created["secret"]}
+    )
+    assert response.status_code == 401
+
+
+async def test_a_key_cannot_remove_its_own_resource_boundary(api_client, registration):
+    _, token = await account(api_client, registration)
+    parent = await mint_key(
+        api_client,
+        token,
+        permissions=["keys:write", "projects:read"],
+        boundary={"organizations": ["bounded-org"]},
+    )
+
+    response = await api_client.post(
+        "/v1/users/me/api-keys",
+        headers={"X-API-Key": parent["secret"]},
+        json=key_payload(
+            "attempted escalation",
+            permissions=["projects:read"],
+            boundary={},
+        ),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "api_key_escalation"
+
+
 @pytest.mark.parametrize(
     "permission",
     [
@@ -350,6 +483,8 @@ async def test_a_key_without_the_route_permission_is_refused(api_client, registr
         "engines:moderate",
         "instances:analyze",
         "jobs:read",
+        "studies:read",
+        "studies:write",
     ],
 )
 async def test_engine_permissions_require_an_explicit_engine_boundary(
@@ -428,6 +563,9 @@ async def test_selected_engine_key_cannot_create_an_unselected_revision(
         "/v1/engines",
         headers={"X-API-Key": limited["secret"]},
         json=candidate,
+    )
+    await api_client.delete(
+        f"/v1/users/me/api-keys/{limited['id']}", headers=session_headers
     )
     unrestricted = await mint_key(
         api_client,
