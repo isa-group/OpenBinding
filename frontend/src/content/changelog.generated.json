@@ -2,9 +2,11 @@
   "platform": [
     {
       "version": "0.1.0",
-      "date": "Unreleased",
+      "date": "2026-09-06",
       "title": "OpenBinding platform",
-      "changes": []
+      "changes": [
+        "Add collaborative binding analysis platform"
+      ]
     }
   ],
   "bim": [
@@ -18,9 +20,11 @@
   "documentation": [
     {
       "version": "0.1.0",
-      "date": "Unreleased",
+      "date": "2026-09-06",
       "title": "OpenBinding documentation",
-      "changes": []
+      "changes": [
+        "Add collaborative binding analysis platform"
+      ]
     }
   ]
 }
