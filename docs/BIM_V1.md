@@ -19,18 +19,37 @@ template protocol, party negotiation, agreement lifecycle, monitoring, or
 runtime guarantee enforcement. It borrows an architectural principle, not a
 wire protocol.
 
+Open the [interactive BIM v1 architecture map](diagrams/bim-v1-architecture.html) to explore package boundaries, lowering, and the engine contract.
+
 ## The container boundary
 
 ```mermaid
-flowchart TB
-  I["Instance<br/>apiVersion bim/v1"] -->|"selects"| P["Profile<br/>roles, cardinalities, IR, vocabularies"]
-  I -->|"indexes resources by Profile role"| R["Independent source resources"]
-  D["Compatible Dialects"] -->|"declare resource types<br/>or inline extension points"| R
-  D -->|"schema + adapter + IR features"| A["Installed lowering boundary"]
-  P --> A
-  R --> A
-  A --> O["Profile-declared output IR"]
-  O --> E["Engine selected by IR feature compatibility"]
+flowchart LR
+  subgraph Package["BIM package"]
+    I["Instance<br/><small>apiVersion bim/v1</small>"]
+    R["Independent source resources<br/><small>role-indexed files</small>"]
+  end
+  subgraph Contracts["Installed contracts"]
+    P["Profile<br/><small>roles · cardinalities · vocabularies</small>"]
+    D["Compatible Dialects<br/><small>resource types · extensions</small>"]
+  end
+  subgraph Lowering["Trusted lowering boundary"]
+    A["Resolve + validate + adapt"]
+    O["Profile-declared<br/>output IR"]
+  end
+  E["Engine selected by<br/>IR feature compatibility"]
+  I -->|"selects"| P
+  I -->|"indexes"| R
+  D -->|"extends"| R
+  P & D & R --> A --> O --> E
+  classDef package fill:#eff6ff,stroke:#2563eb,color:#172554
+  classDef contract fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
+  classDef boundary fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+  classDef engine fill:#ecfdf5,stroke:#059669,color:#064e3b
+  class I,R package
+  class P,D contract
+  class A,O boundary
+  class E engine
 ```
 
 The BIM core owns only the reusable mechanics:

@@ -18,17 +18,36 @@ The platform deliberately keeps those layers separate:
 - Universidad de Sevilla CAS accounts receive the `RESEARCH` contract and a
   compact institutional mark. No identity is ever linked by email alone.
 
+See the [interactive BIM v1 architecture map](docs/diagrams/bim-v1-architecture.html) for the package, compilation, and engine boundaries.
+
 ## BIM v1 at a glance
 
 ```mermaid
 flowchart LR
-  I["Instance<br/>profile + resource index"] --> P["Installed Profile<br/>roles + output contract"]
-  I --> D["Installed Dialects<br/>domain sublanguages"]
-  P --> C["Profile adapter"]
-  D --> C
-  C --> IR["BindingProblem IR"]
-  IR --> E["Compatible Engine mode"]
-  E --> R["Canonical decision + evaluation"]
+  subgraph Source["Package boundary"]
+    I["Instance<br/><small>profile + resource index</small>"]
+    R["Source resources<br/><small>application · catalog · constraints</small>"]
+  end
+  subgraph Compile["Installed compilation boundary"]
+    P["Profile<br/><small>roles · cardinalities · output</small>"]
+    D["Compatible Dialects<br/><small>types · schemas · extensions</small>"]
+    C["Profile adapter<br/><small>resolve → lower → validate</small>"]
+  end
+  subgraph Execute["Engine boundary"]
+    IR["BindingProblem IR<br/><small>one canonical contract</small>"]
+    E["Exact compatible<br/>Engine revision"]
+    V["Canonical reevaluation<br/><small>decision + evidence</small>"]
+  end
+  I --> P
+  I --> R
+  P & D & R --> C
+  C --> IR --> E --> V
+  classDef package fill:#eff6ff,stroke:#2563eb,color:#172554
+  classDef compile fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
+  classDef execute fill:#ecfdf5,stroke:#059669,color:#064e3b
+  class I,R package
+  class P,D,C compile
+  class IR,E,V execute
 ```
 
 BIM follows the architectural idea that makes
