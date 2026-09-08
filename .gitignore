@@ -227,3 +227,6 @@ space/space-src/
 # Clones of third-party repositories, kept here only to prepare upstream pull
 # requests. They are somebody else's history and must never enter ours.
 /upstream/
+
+# Runtime content-addressed artifact store
+.artifacts/
