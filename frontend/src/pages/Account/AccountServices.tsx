@@ -107,7 +107,22 @@ export function AccountServices({ user, refresh }: { user: UserProfile; refresh:
     try {
       const read = await apiClient.markNotificationRead(notification.id);
       setNotifications((current) => current.map((item) => item.id === read.id ? read : item));
+      window.dispatchEvent(new CustomEvent('openbinding:notifications-updated'));
     } catch { setError('That notification could not be marked as read.'); }
+    finally { setBusy(null); }
+  };
+
+  const markAllRead = async () => {
+    if (unread === 0) return;
+    setBusy('read-all'); setError(null);
+    try {
+      const updated = await apiClient.markAllNotificationsRead();
+      const updatedMap = new Map(updated.map((item) => [item.id, item]));
+      setNotifications((current) =>
+        current.map((item) => updatedMap.get(item.id) || { ...item, read_at: item.read_at || new Date().toISOString() })
+      );
+      window.dispatchEvent(new CustomEvent('openbinding:notifications-updated'));
+    } catch { setError('Could not mark all notifications as read.'); }
     finally { setBusy(null); }
   };
 
@@ -171,7 +186,22 @@ export function AccountServices({ user, refresh }: { user: UserProfile; refresh:
       </Card>
 
       <Card padding="lg" className="account-notification-card">
-        <header><Bell aria-hidden="true" /><div><span>Inbox</span><h3>Notifications</h3></div>{unread > 0 && <Badge variant="accent">{unread} new</Badge>}</header>
+        <header>
+          <Bell aria-hidden="true" />
+          <div><span>Inbox · Retained 7 days</span><h3>Notifications</h3></div>
+          {unread > 0 && <Badge variant="accent">{unread} new</Badge>}
+          {unread > 0 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => void markAllRead()}
+              disabled={busy === 'read-all'}
+            >
+              Mark all read
+            </Button>
+          )}
+        </header>
         <div className="notification-ledger">
           {notifications.slice(0, 8).map((notification) => <article key={notification.id} className={notification.read_at ? '' : 'is-unread'}>
             <button type="button" onClick={() => void markRead(notification)} disabled={Boolean(notification.read_at) || busy === notification.id} aria-label={notification.read_at ? `${notification.subject}, read` : `Mark ${notification.subject} as read`}>

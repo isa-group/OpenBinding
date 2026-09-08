@@ -2,7 +2,8 @@ import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState, type CSSPr
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, FileArchive, History, RotateCcw, ShieldCheck, Waypoints } from 'lucide-react';
 import { Liquid } from 'liquid-gooey';
-import { apiClient, type BimResourceRef } from '../../api/client';
+import { apiClient, type BimAnalysisData, type BimResourceRef } from '../../api/client';
+import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Alert } from '../../components/ui/Alert';
@@ -99,7 +100,7 @@ const WORKSPACE_TABS: Array<{ id: WorkspaceTab; label: string; bpmnOnly?: boolea
   { id: 'diff', label: 'Source diff' },
 ];
 
-type WorkspaceStatus = 'idle' | 'validating' | 'valid' | 'queued' | 'completed' | 'failed';
+type WorkspaceStatus = 'idle' | 'validating' | 'valid' | 'queued' | 'running' | 'completed' | 'failed';
 type WorkspaceTab = 'resources' | 'form' | 'expert' | 'yaml' | 'workflow' | 'bpmn' | 'bpmnXml' | 'ir' | 'diff';
 
 interface CompiledIr {
@@ -1402,10 +1403,10 @@ function RoutingOverlayForm({ spec, updateSpec }: { spec: BimSpecDocument; updat
         <label className={`choice-card ${explicit ? 'is-selected' : ''}`}><input type="radio" name="routing-mode" value="explicit" checked={explicit} onChange={() => setMode('explicit')} /><span><strong>Explicit ledger</strong><small>Every routed branch receives a declared decimal probability.</small></span></label>
       </div>
     </FormSection>
-    {explicit && <FormSection eyebrow="Probability ledger" title="Branch entries" description="Targets are exclusive branch ids (or BPMN sequenceFlow ids). Analyze verifies every XOR independently." count={entries.length}>
+    {explicit && <FormSection eyebrow="Probability ledger" title="Branch entries" description="Targets are exclusive branch ids (or BPMN sequenceFlow ids). Validate verifies every XOR independently." count={entries.length}>
       <div className={`routing-balance ${balanced ? 'is-balanced' : 'is-open'}`}>
         <div><span>Listed total</span><strong>Σ {total.toFixed(3)}</strong></div>
-        <p>{balanced ? 'The listed entries form one complete probability distribution.' : 'This total is not one. That can be valid only when entries span multiple XOR groups; Analyze checks each group.'}</p>
+        <p>{balanced ? 'The listed entries form one complete probability distribution.' : 'This total is not one. That can be valid only when entries span multiple XOR groups; Validate checks each group.'}</p>
       </div>
       <div className="form-card-list form-card-list-compact">{entries.map((entry, index) => <FormCard
         key={index}
@@ -1694,16 +1695,16 @@ function DecisionView({ decision }: { decision: BindingDecision | undefined }) {
   return <pre>{JSON.stringify(decision, null, 2)}</pre>;
 }
 
-async function workspaceFromArchive(archive: ArrayBuffer): Promise<{ files: WorkspaceFiles; response: Awaited<ReturnType<typeof apiClient.analyzeBimPackage>> }> {
+async function workspaceFromArchive(archive: ArrayBuffer): Promise<{ files: WorkspaceFiles; response: Awaited<ReturnType<typeof apiClient.validateBimPackage>> }> {
   const candidateFiles = await unzipPackage(archive);
   const candidateRoot = parseJson(candidateFiles['instance.json']);
   if (candidateRoot?.apiVersion !== 'bim/v1' || candidateRoot?.kind !== 'Instance') {
     throw new Error('The package root must be a bim/v1 Instance.');
   }
   const canonicalFiles = packageFiles(candidateFiles);
-  const response = await apiClient.analyzeBimPackage(zipStore(canonicalFiles));
+  const response = await apiClient.validateBimPackage(zipStore(canonicalFiles));
   if (!response.valid) {
-    const error = new Error('The BIM package did not pass analysis.') as Error & { diagnostics: Diagnostic[] };
+    const error = new Error('The BIM package did not pass validation.') as Error & { diagnostics: Diagnostic[] };
     error.diagnostics = (response.diagnostics || []) as Diagnostic[];
     throw error;
   }
@@ -1718,6 +1719,7 @@ export function InstanceWorkspace() {
   const [result, setResult] = useState<BindingResult | null>(null);
   const [compatibleModes, setCompatibleModes] = useState<CompatibleMode[]>([]);
   const [selectedMode, setSelectedMode] = useState('');
+  const [analysisData, setAnalysisData] = useState<BimAnalysisData | null>(null);
   const [examples, setExamples] = useState<string[]>([]);
   const [tab, setTab] = useState<WorkspaceTab>('resources');
   const [bpmnDraft, setBpmnDraft] = useState(DEFAULT_BPMN);
@@ -1770,6 +1772,7 @@ export function InstanceWorkspace() {
           setBpmnDraft(nextBpmn ? prepared.files[nextBpmn] : DEFAULT_BPMN);
           const modes = modesFromAnalysis(prepared.response);
           setCompatibleModes(modes);
+          setAnalysisData(prepared.response.analysis || null);
           setSelectedMode(modes[0] ? executionKey(modes[0]) : '');
           setStatus('valid');
         } catch (reason: unknown) {
@@ -1878,9 +1881,10 @@ export function InstanceWorkspace() {
     setDiagnostics([]);
     setResult(null);
     try {
-      const response = await apiClient.analyzeBimPackage(zipStore(packageFiles(candidateFiles)));
+      const response = await apiClient.validateBimPackage(zipStore(packageFiles(candidateFiles)));
       const modes = modesFromAnalysis(response);
       setCompatibleModes(modes);
+      setAnalysisData(response.analysis || null);
       setSelectedMode((current) => modes.some((item) => executionKey(item) === current)
         ? current
         : modes[0] ? executionKey(modes[0]) : '');
@@ -1917,12 +1921,21 @@ export function InstanceWorkspace() {
       const receipt = await apiClient.createBimJob(snapshotId, mode.engine, mode.registration, mode.mode);
       for (;;) {
         const job = await apiClient.getV1Job(receipt.id);
+        if (job.status === 'running') {
+          setStatus('running');
+        }
         if (job.status === 'completed') {
           setResult(isRecord(job.result) ? job.result as BindingResult : null);
           setStatus('completed');
           return;
         }
-        if (job.status === 'failed') throw new Error(job.error || 'Job failed');
+        if (job.status === 'failed') {
+          const detail =
+            isRecord(job.result) && typeof job.result.error === 'string'
+              ? job.result.error
+              : (job.error || 'Job failed');
+          throw new Error(detail);
+        }
         await new Promise((resolve) => window.setTimeout(resolve, 500));
       }
     } catch (error: unknown) {
@@ -1952,6 +1965,7 @@ export function InstanceWorkspace() {
       replaceWorkspace(prepared.files);
       const modes = modesFromAnalysis(prepared.response);
       setCompatibleModes(modes);
+      setAnalysisData(prepared.response.analysis || null);
       if (modes[0]) setSelectedMode(executionKey(modes[0]));
       setStatus('valid');
     } catch (error: unknown) {
@@ -2058,7 +2072,7 @@ export function InstanceWorkspace() {
             <Button variant="secondary" onClick={exportPackage}>Export .bim.zip</Button>
           </div>
           <Liquid className="workspace-run-cluster" blur={5} contrast={20} fill="var(--color-accent)" shadow="0 8px 18px rgba(92,38,20,.18)" filterPadding={16}>
-            <Liquid.Item transition="snappy"><Button className="liquid-run-action" onClick={() => { void analyze(); }} disabled={status === 'validating'}>{status === 'validating' ? 'Analyzing…' : 'Analyze'}</Button></Liquid.Item>
+            <Liquid.Item transition="snappy"><Button className="liquid-run-action" onClick={() => { void analyze(); }} disabled={status === 'validating'}>{status === 'validating' ? 'Validating…' : 'Validate'}</Button></Liquid.Item>
             <Liquid.Item x={status === 'valid' || status === 'completed' ? -3 : 0} transition="snappy"><Button className="liquid-run-action" variant="primary" onClick={() => { void run(); }} disabled={status === 'queued'}>{status === 'queued' ? 'Running…' : 'Solve'}</Button></Liquid.Item>
           </Liquid>
         </div>
@@ -2067,7 +2081,7 @@ export function InstanceWorkspace() {
       <ol className="workspace-progress" aria-label="BIM package lifecycle">
         {[
           ['Compose', 'Edit source resources'],
-          ['Analyze', 'Validate and compile'],
+          ['Validate', 'Validate and compile'],
           ['Match', 'Find exact compatible modes'],
           ['Solve', 'Send compiled IR'],
           ['Verify', 'Reevaluate the decision'],
@@ -2075,8 +2089,11 @@ export function InstanceWorkspace() {
       </ol>
 
       <div className="workspace-toolbar">
-        <label><span>Compatible engine mode</span><select aria-label="Compatible engine mode" value={selectedMode} onChange={(event) => setSelectedMode(event.target.value)} disabled={!compatibleModes.length}><option value="">Analyze to select…</option>{compatibleModes.map((item) => { const value = executionKey(item); return <option key={value} value={value}>{item.engine.name} · {item.mode} · {item.registration.name}@{item.registration.version}</option>; })}</select></label>
+        <label><span>Compatible engine mode</span><select aria-label="Compatible engine mode" value={selectedMode} onChange={(event) => setSelectedMode(event.target.value)} disabled={!compatibleModes.length}><option value="">Validate to select…</option>{compatibleModes.map((item) => { const value = executionKey(item); return <option key={value} value={value}>{item.engine.name} · {item.mode} · {item.registration.name}@{item.registration.version}</option>; })}</select></label>
         <div className="workspace-toolbar-explanation"><Waypoints aria-hidden="true" /><p>Analysis returns exact <strong>Engine + Registration + mode</strong> pins after Profile, IR, features and limits match.</p></div>
+        {analysisData?.bindingSpace && (
+          <BindingSpaceBadge cardinality={analysisData.bindingSpace} />
+        )}
         <div className="workspace-status" aria-live="polite"><span>Package state</span><Badge variant={status === 'failed' ? 'error' : status === 'completed' || status === 'valid' ? 'success' : 'default'}>{status}</Badge></div>
       </div>
 
@@ -2118,7 +2135,7 @@ export function InstanceWorkspace() {
             <section id="workspace-panel-workflow" role="tabpanel" aria-labelledby="workspace-tab-workflow" hidden={tab !== 'workflow'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">qos-binding/v1 source</span><h2>Native workflow</h2></div><span>Compact structured blocks</span></div>{tab === 'workflow' && <Suspense fallback={<EditorLoading />}><CodeEditor ariaLabel="Workflow JSON" value={workflowText} onChange={updateWorkflow} minHeight="600px" maxHeight="70vh" /></Suspense>}</section>
             <section id="workspace-panel-bpmn" role="tabpanel" aria-labelledby="workspace-tab-bpmn" hidden={tab !== 'bpmn'} className="workspace-pane bpmn-pane">{tab === 'bpmn' ? (bpmnPath ? <Suspense fallback={<EditorLoading />}><BpmnModeler candidateXml={bpmnDraft} fallbackXml={files[bpmnPath]} focusElement={focusedBpmnElement} onValidXml={acceptBpmn} onError={(message) => { setDiagnostics((current) => [...current.filter((item) => item.code !== 'bpmn-editor'), { code: 'bpmn-editor', message }]); }} /></Suspense> : <Alert type="info">This Instance does not declare a BPMN resource.</Alert>) : null}</section>
             <section id="workspace-panel-bpmnXml" role="tabpanel" aria-labelledby="workspace-tab-bpmnXml" hidden={tab !== 'bpmnXml'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">omg/bpmn/2.0.2 source</span><h2>{bpmnPath || 'workflow.bpmn'}</h2></div><span>Only valid XML replaces the last valid diagram.</span></div>{tab === 'bpmnXml' && <Suspense fallback={<EditorLoading />}><CodeEditor ariaLabel="BPMN XML" language="xml" value={bpmnDraft} onChange={updateBpmnDraft} minHeight="600px" maxHeight="70vh" /></Suspense>}</section>
-            <section id="workspace-panel-ir" role="tabpanel" aria-labelledby="workspace-tab-ir" hidden={tab !== 'ir'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">Authoritative compiler output</span><h2>Binding problem IR</h2></div><Button variant="secondary" onClick={() => void compileIr()} disabled={irLoading}>{irLoading ? 'Compiling…' : compiledIr ? 'Recompile IR' : 'Compile IR'}</Button></div><div aria-live="polite">{irError && <Alert type="error">{irError}</Alert>}{compiledIr ? <><dl className="ir-provenance"><div><dt>Snapshot</dt><dd><code>{compiledIr.snapshot}</code></dd></div><div><dt>IR digest</dt><dd><code>{compiledIr.digest}</code></dd></div></dl><Suspense fallback={<EditorLoading />}><CodeEditor ariaLabel="Compiled binding problem IR" value={pretty(compiledIr.document)} onChange={() => undefined} readOnly minHeight="520px" maxHeight="65vh" /></Suspense></> : !irLoading && !irError ? <Alert type="info">Compile the current package to inspect the exact normalized IR sent to a compatible engine.</Alert> : null}</div></section>
+            <section id="workspace-panel-ir" role="tabpanel" aria-labelledby="workspace-tab-ir" hidden={tab !== 'ir'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">Authoritative compiler output</span><h2>Binding problem IR</h2></div><Button variant="secondary" onClick={() => void compileIr()} disabled={irLoading}>{irLoading ? 'Compiling…' : compiledIr ? 'Recompile IR' : 'Compile IR'}</Button></div><div aria-live="polite">{irError && <Alert type="error">{irError}</Alert>}{compiledIr ? <><dl className="ir-provenance"><div><dt>Snapshot</dt><dd><code>{compiledIr.snapshot}</code></dd></div><div><dt>IR digest</dt><dd><code>{compiledIr.digest}</code></dd></div>{analysisData?.bindingSpace && <div><dt>Binding space</dt><dd><BindingSpaceBadge cardinality={analysisData.bindingSpace} /></dd></div>}</dl><Suspense fallback={<EditorLoading />}><CodeEditor ariaLabel="Compiled binding problem IR" value={pretty(compiledIr.document)} onChange={() => undefined} readOnly minHeight="520px" maxHeight="65vh" /></Suspense></> : !irLoading && !irError ? <Alert type="info">Compile the current package to inspect the exact normalized IR sent to a compatible engine.</Alert> : null}</div></section>
             <section id="workspace-panel-diff" role="tabpanel" aria-labelledby="workspace-tab-diff" hidden={tab !== 'diff'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">Current source against loaded baseline</span><h2>{selectedPath}</h2></div><Badge variant={selectedChanged ? 'accent' : 'success'}>{selectedChanged ? 'Modified' : 'Unchanged'}</Badge></div>{selectedChanged ? <pre className="source-diff" aria-label={`Changes to ${selectedPath}`}><code>{selectedDiff.map((line, index) => <span className={`diff-${line.kind}`} key={`${line.kind}-${index}`}><b aria-hidden="true">{line.kind === 'added' ? '+' : line.kind === 'removed' ? '−' : ' '}</b>{line.value || ' '}</span>)}</code></pre> : <Alert type="info">This resource matches the baseline loaded into the workbench.</Alert>}</section>
           </Card>
         </section>
@@ -2126,9 +2143,15 @@ export function InstanceWorkspace() {
         <aside className="feedback-rail" aria-label="Package feedback">
           <section className={`feedback-state state-${status}`}>
             <span className="micro-label">Immediate feedback</span>
-            <div><i className="status-dot" /><h2>{status === 'failed' ? 'Needs attention' : status === 'completed' ? 'Decision verified' : status === 'valid' ? 'Package compiled' : status === 'queued' ? 'Engine is running' : status === 'validating' ? 'Compiling package' : 'Unanalyzed changes'}</h2></div>
-            <p>{status === 'idle' ? 'Edit freely, then Analyze to validate schemas, roles and semantics before selecting a solver.' : status === 'valid' ? `${compatibleModes.length} exact compatible execution path${compatibleModes.length === 1 ? '' : 's'} found.` : status === 'completed' ? 'The gateway has reevaluated the returned binding.' : status === 'failed' ? `${diagnostics.length} diagnostic${diagnostics.length === 1 ? '' : 's'} available below.` : 'The current operation does not block editing other local source.'}</p>
+            <div><i className="status-dot" /><h2>{status === 'failed' ? 'Needs attention' : status === 'completed' ? 'Decision verified' : status === 'valid' ? 'Package compiled' : status === 'queued' ? 'Engine is running' : status === 'validating' ? 'Compiling package' : 'Unvalidated changes'}</h2></div>
+            <p>{status === 'idle' ? 'Edit freely, then Validate to check schemas, roles and semantics before selecting a solver.' : status === 'valid' ? `${compatibleModes.length} exact compatible execution path${compatibleModes.length === 1 ? '' : 's'} found.` : status === 'completed' ? 'The gateway has reevaluated the returned binding.' : status === 'failed' ? `${diagnostics.length} diagnostic${diagnostics.length === 1 ? '' : 's'} available below.` : 'The current operation does not block editing other local source.'}</p>
           </section>
+          {analysisData?.bindingSpace && (
+            <section className="feedback-binding-space">
+              <span className="micro-label">Combinatorial Complexity</span>
+              <BindingSpaceBadge cardinality={analysisData.bindingSpace} variant="card" />
+            </section>
+          )}
           <section className="feedback-selection">
             <span className="micro-label">Selected source</span>
             <h3>{selectedKind}</h3>
@@ -2138,7 +2161,7 @@ export function InstanceWorkspace() {
           </section>
           <section className="feedback-compatibility">
             <span className="micro-label">Compatible execution paths</span>
-            {compatibleModes.length ? <ul>{compatibleModes.slice(0, 4).map((item) => <li key={executionKey(item)} className={executionKey(item) === selectedMode ? 'is-selected' : ''}><strong>{item.engine.name} · {item.mode}</strong><small>{item.registration.namespace}/{item.registration.name}@{item.registration.version}</small></li>)}</ul> : <p>Analyze to compare the compiled IR against Engine mode selectors and Registration pins.</p>}
+            {compatibleModes.length ? <ul>{compatibleModes.slice(0, 4).map((item) => <li key={executionKey(item)} className={executionKey(item) === selectedMode ? 'is-selected' : ''}><strong>{item.engine.name} · {item.mode}</strong><small>{item.registration.namespace}/{item.registration.name}@{item.registration.version}</small></li>)}</ul> : <p>Validate to compare the compiled IR against Engine mode selectors and Registration pins.</p>}
             {compatibleModes.length > 4 && <small>+{compatibleModes.length - 4} more compatible paths</small>}
           </section>
           {diagnostics.length > 0 ? <Alert type="error"><h2>Diagnostics</h2><ul className="diagnostic-list">{diagnostics.map((item, index) => <li key={`${item.code}-${index}`}><button type="button" onClick={() => openDiagnostic(item)}><code>{item.code || 'diagnostic'}</code> {item.message || item.detail || JSON.stringify(item)} {(item.pointer || item.jsonPointer) && <small>{item.pointer || item.jsonPointer}</small>}</button></li>)}</ul></Alert> : <section className="feedback-trust"><ShieldCheck aria-hidden="true" /><p>Analysis and results stay authoritative: source and compiled artifacts are pinned separately, and engines never validate themselves.</p></section>}

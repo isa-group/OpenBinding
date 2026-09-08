@@ -29,7 +29,7 @@ function renderGuard(user: UserProfile | null, requireAdmin = false) {
       }}>
         <Routes>
           <Route path="/login" element={<h1>Sign in</h1>} />
-          <Route path="/account" element={<h1>Account</h1>} />
+          <Route path="/app/account" element={<h1>Account</h1>} />
           <Route path="/protected" element={<ProtectedRoute requireAdmin={requireAdmin}><h1>Protected content</h1></ProtectedRoute>} />
         </Routes>
       </AuthContext.Provider>

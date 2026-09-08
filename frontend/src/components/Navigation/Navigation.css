@@ -15,14 +15,21 @@
   backdrop-filter: blur(16px);
 }
 
+.brand-group {
+  display: flex;
+  align-items: stretch;
+  border-right: 0;
+}
+
 .brand-link {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 0 clamp(1rem, 2.5vw, 2rem);
-  border-right: 1px solid var(--color-border);
+  padding: 0 clamp(1rem, 2vw, 1.75rem);
+  border-right: 0;
   color: var(--color-text-primary);
   text-decoration: none;
+  transition: background-color var(--transition-fast);
 }
 
 .brand-link:hover { color: var(--color-text-primary); text-decoration: none; }
@@ -95,8 +102,26 @@
 @keyframes public-menu-in { from { opacity: 0; transform: translateY(-4px) scale(0.985); } }
 
 .nav-utilities { display: flex; align-items: center; gap: var(--space-1); padding: 0 clamp(0.65rem, 1.8vw, 1.4rem); border-left: 1px solid var(--color-border); }
-.institution-header-mark { display: grid; width: 2.55rem; height: 2.25rem; margin-right: var(--space-1); place-items: center; border-right: 1px solid var(--color-border); padding-right: var(--space-2); }
-.institution-header-mark img { display: block; width: 1.85rem; max-height: 1.8rem; object-fit: contain; }
+.institution-header-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-2);
+  margin-left: var(--space-2);
+  border-left: 0;
+  text-decoration: none;
+}
+.institution-header-mark img {
+  display: block;
+  width: auto;
+  height: 3.25rem;
+  max-height: 3.35rem;
+  object-fit: contain;
+  object-position: center;
+}
+[data-theme="dark"] .institution-header-mark img {
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.85));
+}
 .utility-link, .text-action, .account-link {
   padding: 0.45rem 0.55rem;
   border: 0;
@@ -126,8 +151,10 @@
 @media (max-width: 940px) {
   .navigation { grid-template-columns: auto 1fr auto; min-height: 3.75rem; }
   .desktop-primary, .nav-utilities { display: none; }
+  .brand-group { border-right: 0; }
   .brand-link { border-right: 0; }
   .brand-wordmark { display: inline; }
+  .institution-header-mark img { height: 2.75rem; max-height: 2.75rem; }
   .mobile-navigation { position: relative; display: block; grid-column: 3; }
   .mobile-navigation > summary { display: flex; height: 100%; align-items: center; gap: var(--space-2); padding: 0 var(--space-4); border-left: 1px solid var(--color-border); list-style: none; color: var(--color-text-primary); font-size: 0.78rem; font-weight: 700; cursor: pointer; }
   .mobile-navigation > summary::-webkit-details-marker { display: none; }
@@ -148,6 +175,9 @@
 }
 
 @media (max-width: 540px) {
+  .brand-link { padding: 0 var(--space-3); }
+  .institution-header-mark { padding: 0 var(--space-2); }
+  .institution-header-mark img { height: 2.35rem; max-height: 2.35rem; }
   .mobile-primary { grid-template-columns: 1fr; }
   .mobile-primary section, .mobile-primary section:nth-child(even) { border-right: 0; }
 }

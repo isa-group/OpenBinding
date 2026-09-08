@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/auth';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -12,13 +12,22 @@ import './Auth.css';
 const MIN_PASSWORD_LENGTH = 10;
 
 export function Register() {
-  const { register } = useAuth();
+  const { register, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      const from = (location.state as { from?: string } | null)?.from;
+      const target = from && from.startsWith('/app') ? from : '/app';
+      navigate(target, { replace: true, viewTransition: true });
+    }
+  }, [user, navigate, location.state]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -32,7 +41,10 @@ export function Register() {
     setBusy(true);
     try {
       await register({ username, email, password });
-      navigate('/account', { replace: true, viewTransition: true });
+      // Navigate directly to the platform workspace rather than public pages.
+      const from = (location.state as { from?: string } | null)?.from;
+      const target = from && from.startsWith('/app') ? from : '/app';
+      navigate(target, { replace: true, viewTransition: true });
     } catch (err) {
       if (err instanceof HttpError && err.status === 409) {
         setError('That username or email is already in use.');
@@ -116,7 +128,7 @@ export function Register() {
         </form>
 
         <p className="auth-footer">
-          Already have one? <Link to="/login" viewTransition>Sign in</Link>.
+          Already have one? <Link to="/login" state={location.state} viewTransition>Sign in</Link>.
         </p>
       </Card>
     </div>

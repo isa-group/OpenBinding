@@ -3,7 +3,42 @@
 .pricing-room-heading > div { max-width: 58rem; }
 .pricing-room-heading span, .release-timeline header span, .pricing-editor header span, .pricing-preview header span, .validation-console header span, .release-actions > header span { color: var(--color-accent); font: 700 0.6rem var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; }
 .pricing-room-heading h1 { margin: 0.35rem 0 0.8rem; }
-.pricing-room-heading > button, .release-identity button, .pricing-editor header button, .release-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; min-height: 2.5rem; padding: 0.55rem 0.8rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); color: var(--color-text-primary); font-size: 0.65rem; font-weight: 700; cursor: pointer; }
+.pricing-room-header-actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.space-console-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.95rem;
+  border: 1px solid var(--color-dialect);
+  border-radius: var(--radius-md);
+  background: var(--color-dialect-subtle, rgba(56, 189, 248, 0.12));
+  color: var(--color-dialect);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.space-console-btn:hover {
+  background: var(--color-dialect);
+  color: #fff;
+}
+.space-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+  color: var(--color-dialect);
+  font: 700 0.62rem var(--font-mono);
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+.space-card-link:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+.pricing-room-heading button, .release-identity button, .pricing-editor header button, .release-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; min-height: 2.5rem; padding: 0.55rem 0.8rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); color: var(--color-text-primary); font-size: 0.65rem; font-weight: 700; cursor: pointer; }
 .pricing-room-heading button svg, .release-identity button svg, .pricing-editor header button svg { width: 0.9rem; }
 .room-message { display: flex; align-items: center; gap: 0.7rem; max-width: 100rem; margin: 0 auto 1rem; padding: 0.8rem; border: 1px solid; font-size: 0.72rem; }
 .room-message svg { width: 1rem; }

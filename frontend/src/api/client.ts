@@ -21,6 +21,7 @@ import type {
   UsageView,
   UserProfile,
 } from './auth';
+import type { AdminErrorOverview, AdminErrorListResponse } from '../pages/Admin/types';
 
 /** One solve in an account's history. */
 export type Termination = 'OPTIMAL' | 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN';
@@ -329,10 +330,19 @@ export interface JobStatus {
   };
 }
 
+export interface BimAnalysisData {
+  tasks: number;
+  candidates: number;
+  constraints: number;
+  placement: boolean;
+  bindingSpace: string;
+}
+
 export interface BimAnalysisResponse extends Record<string, unknown> {
   valid: boolean;
   diagnostics?: Array<Record<string, unknown>>;
   compatibleModes?: BimCompatibleMode[];
+  analysis?: BimAnalysisData;
 }
 
 export interface BimCompatibleMode {
@@ -352,6 +362,8 @@ export class HttpError extends Error {
   code?: string;
   problem?: unknown;
   diagnostics?: unknown[];
+  concurrency?: { limit_id: string; limit: number; used: number };
+  retryAfter?: number;
 
   constructor(status: number, statusText: string) {
     super(`HTTP ${status}: ${statusText}`);
@@ -363,6 +375,24 @@ export class HttpError extends Error {
 const ACCESS_TOKEN_KEY = 'openbinding-access-token';
 const REFRESH_TOKEN_KEY = 'openbinding-refresh-token';
 const PRICING_TOKEN_KEY = 'pricingToken';
+
+/**
+ * Fired when a new pricing token is retrieved from the gateway so that
+ * SpaceTokenSync immediately updates TokenService across the UI.
+ */
+export const PRICING_TOKEN_UPDATED_EVENT = 'openbinding:pricing-token-updated';
+
+/** Helper to retrieve the active pricing token from localStorage safely. */
+export function getStoredPricingToken(): string | null {
+  const raw = localStorage.getItem(PRICING_TOKEN_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'string' ? parsed : raw;
+  } catch {
+    return raw;
+  }
+}
 
 /**
  * Fired when a session ends without the user asking - a refresh token that was
@@ -482,14 +512,37 @@ export class ApiClient {
     const problemObject = isRecord(problem) ? problem : undefined;
     const rawDetail = problemObject?.detail;
     const detail = isRecord(rawDetail) ? rawDetail : undefined;
-    const code = typeof detail?.code === 'string' ? detail.code : undefined;
+    const code =
+      (typeof detail?.code === 'string' ? detail.code : undefined) ??
+      (typeof problemObject?.title === 'string' ? problemObject.title : undefined);
     const message =
       (typeof detail?.error === 'string' ? detail.error : undefined) ??
+      (typeof detail?.message === 'string' ? detail.message : undefined) ??
       (typeof rawDetail === 'string' ? rawDetail : undefined) ??
       response.statusText;
 
+    const rawQuota = detail?.quota ?? problemObject?.quota;
     if (response.status === 402) {
-      return new QuotaError(code ?? 'quota_exceeded', message, quotaFromProblem(detail?.quota));
+      return new QuotaError(code ?? 'quota_exceeded', message, quotaFromProblem(rawQuota));
+    }
+    if (response.status === 429) {
+      const rawConcurrency = detail?.concurrency ?? problemObject?.concurrency;
+      const retryAfterHeader = response.headers.get('Retry-After');
+      const err = new HttpError(429, message);
+      err.code = code ?? 'concurrency_limit_exceeded';
+      err.problem = problem;
+      if (isRecord(rawConcurrency) && typeof rawConcurrency.limit_id === 'string' && typeof rawConcurrency.limit === 'number') {
+        err.concurrency = {
+          limit_id: rawConcurrency.limit_id,
+          limit: rawConcurrency.limit,
+          used: typeof rawConcurrency.used === 'number' ? rawConcurrency.used : 0,
+        };
+      }
+      if (retryAfterHeader) {
+        const parsed = parseInt(retryAfterHeader, 10);
+        if (!isNaN(parsed)) err.retryAfter = parsed;
+      }
+      return err;
     }
     if (response.status === 503 && code === 'pricing_unavailable') {
       return new PricingUnavailableError(message);
@@ -628,9 +681,24 @@ export class ApiClient {
     }
   }
 
-  async getEngines(): Promise<EngineCatalogEntry[]> {
-    const body = await this.request<{ engines: EngineCatalogEntry[] }>('/v1/engines');
+  async getPublicEngines(): Promise<EngineCatalogEntry[]> {
+    const body = await this.request<{ engines: EngineCatalogEntry[] }>('/v1/explore/engines');
     return body.engines || [];
+  }
+
+  async getEngines(publicOnly = false): Promise<EngineCatalogEntry[]> {
+    if (publicOnly) {
+      return this.getPublicEngines();
+    }
+    try {
+      const body = await this.request<{ engines: EngineCatalogEntry[] }>('/v1/engines');
+      return body.engines || [];
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 401) {
+        return this.getPublicEngines();
+      }
+      throw error;
+    }
   }
 
   async getProfiles(): Promise<BimProfile[]> {
@@ -647,12 +715,16 @@ export class ApiClient {
     return this.request<Record<string, unknown>>(`/v1/schemas/${encodeURIComponent(kind)}`);
   }
 
-  async analyzeBimPackage(archive: Uint8Array): Promise<BimAnalysisResponse> {
-    return this.request<BimAnalysisResponse>('/v1/analyze', {
+  async validateBimPackage(archive: Uint8Array): Promise<BimAnalysisResponse> {
+    return this.request<BimAnalysisResponse>('/v1/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/vnd.bim+zip' },
       body: archive as unknown as BodyInit,
     });
+  }
+
+  async analyzeBimPackage(archive: Uint8Array): Promise<BimAnalysisResponse> {
+    return this.validateBimPackage(archive);
   }
 
   async createBimSnapshot(archive: Uint8Array): Promise<{ id: string; irDigest: string }> {
@@ -859,7 +931,13 @@ export class ApiClient {
   }
 
   async listNotifications(unreadOnly = false): Promise<Notification[]> {
-    return this.request(`/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`);
+    const list = await this.request<Notification[]>(`/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`);
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return list.filter((item) => new Date(item.created_at).getTime() >= cutoff);
+  }
+
+  async markAllNotificationsRead(): Promise<Notification[]> {
+    return this.request('/v1/notifications/read-all', { method: 'POST' });
   }
 
   async markNotificationRead(notificationId: string): Promise<Notification> {
@@ -927,7 +1005,10 @@ export class ApiClient {
   /** What the interface gates features with; the browser never sees SPACE. */
   async getPricingToken(): Promise<string> {
     const body = await this.request<{ pricing_token: string }>('/v1/users/me/pricing-token');
-    localStorage.setItem(PRICING_TOKEN_KEY, JSON.stringify(body.pricing_token));
+    localStorage.setItem(PRICING_TOKEN_KEY, body.pricing_token);
+    window.dispatchEvent(
+      new CustomEvent(PRICING_TOKEN_UPDATED_EVENT, { detail: body.pricing_token })
+    );
     return body.pricing_token;
   }
 
@@ -1148,6 +1229,12 @@ export class ApiClient {
     }));
   }
 
+  async deleteEngineRegistration(ref: BimResourceRef): Promise<void> {
+    await this.request<void>(this.engineRegistrationEndpoint(ref), {
+      method: 'DELETE',
+    });
+  }
+
   async requestEngineRegistrationPublication(ref: BimResourceRef): Promise<EngineRegistrationRevision> {
     return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'publication-request'), {
       method: 'POST',
@@ -1181,6 +1268,32 @@ export class ApiClient {
     }));
   }
 
+  async adminErrorOverview(): Promise<AdminErrorOverview> {
+    return this.request<AdminErrorOverview>('/v1/admin/errors/overview');
+  }
+
+  async adminListErrors(params?: {
+    category?: string;
+    user_id?: string;
+    status_code?: number;
+    search?: string;
+    from_date?: string;
+    to_date?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<AdminErrorListResponse> {
+    const query = new URLSearchParams();
+    if (params?.category) query.set('category', params.category);
+    if (params?.user_id) query.set('user_id', params.user_id);
+    if (params?.status_code) query.set('status_code', String(params.status_code));
+    if (params?.search) query.set('search', params.search);
+    if (params?.from_date) query.set('from_date', params.from_date);
+    if (params?.to_date) query.set('to_date', params.to_date);
+    if (params?.limit !== undefined) query.set('limit', String(params.limit));
+    if (params?.offset !== undefined) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return this.request<AdminErrorListResponse>(`/v1/admin/errors${qs ? `?${qs}` : ''}`);
+  }
 }
 
 export const apiClient = new ApiClient();

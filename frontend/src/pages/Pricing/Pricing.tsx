@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PricingRenderer } from 'pricing-renderer/react';
-import { Default, ErrorFallback, Feature, Loading, On, feature } from 'pricing4react';
+import { Default, ErrorFallback, Feature, Loading, On } from 'space-react-client';
 import { retrievePricingFromYaml } from 'pricing4ts';
 import type { Pricing as PricingModel } from 'pricing4ts';
 import 'pricing-renderer/styles.css';
@@ -20,7 +20,7 @@ import './Pricing.css';
  * decides what a solve may do and what this page says it may do.
  *
  * `pricing4ts` parses the active document and `pricing-renderer` projects it.
- * `pricing4react` reads the signed SPACE token for visual state only; the API
+ * `space-react-client` reads the signed SPACE token for visual state only; the API
  * independently enforces every operation.
  */
 export function Pricing() {
@@ -65,7 +65,7 @@ export function Pricing() {
             <div className="pricing-standing">
               <span className="pricing-eyebrow">{user.plan}</span>
               <span>
-                You are on this plan. <Link to="/account" viewTransition>See what is left of it</Link>.
+                You are on this plan. <Link to="/app/account" viewTransition>See what is left of it</Link>.
               </span>
             </div>
           ) : (
@@ -90,7 +90,7 @@ export function Pricing() {
                 // Nothing to check out. Whoever is interested either needs an
                 // account first, or needs to ask an administrator.
                 event.preventDefault();
-                navigate(user ? '/account' : '/register', { viewTransition: true });
+                navigate(user ? '/app/account' : '/register', { viewTransition: true });
               }}
             />
           ) : (
@@ -111,7 +111,7 @@ export function Pricing() {
                   <span>{item.tag ?? item.type}</span>
                   <strong>{item.name}</strong>
                   {item.description && <p>{item.description}</p>}
-                  <Feature expression={feature(`${pricing.saasName.toLowerCase()}-${id}`)}>
+                  <Feature id={`${pricing.saasName.toLowerCase()}-${id}`}>
                     <On><small className="is-enabled">Enabled</small></On>
                     <Default><small>Not enabled</small></Default>
                     <Loading><small aria-live="polite">Checking…</small></Loading>
@@ -178,7 +178,10 @@ export function Pricing() {
             <a href="https://github.com/isa-group/space" target="_blank" rel="noopener noreferrer">
               SPACE
             </a>{' '}
-            rather than by the gateway itself, from the same immutable SPHERE pricing this page renders.
+            rather than by the gateway itself, from the same immutable{' '}
+            <a href="https://sphere.score.us.es/pricings/6a9d1aea93628b97bbf639d2/openbinding" target="_blank" rel="noopener noreferrer">
+              SPHERE pricing
+            </a>{' '}this page renders.
             Add-on availability and subscription constraints are read from that document as well.
           </p>
         </section>

@@ -23,7 +23,8 @@ function formatRenewal(renewsAt?: string | null): string | null {
  */
 export function QuotaBar({ limit }: { limit: LimitUsage }) {
   const label = limit.limit_id;
-  const fraction = limit.limit > 0 ? Math.min(1, limit.used / limit.limit) : 0;
+  const used = Math.max(0, limit.used);
+  const fraction = limit.limit > 0 ? Math.min(1, used / limit.limit) : 0;
   const percent = Math.round(fraction * 100);
   const state = fraction >= 1 ? 'spent' : fraction >= 0.8 ? 'low' : 'fine';
   const renewal = formatRenewal(limit.renews_at);
@@ -33,7 +34,7 @@ export function QuotaBar({ limit }: { limit: LimitUsage }) {
       <div className="quota-head">
         <span className="quota-label">{label}</span>
         <span className="quota-figures">
-          {formatAmount(limit.used, limit.unit)} / {formatAmount(limit.limit, limit.unit)}
+          {formatAmount(used, limit.unit)} / {formatAmount(limit.limit, limit.unit)}
         </span>
       </div>
 
@@ -41,7 +42,7 @@ export function QuotaBar({ limit }: { limit: LimitUsage }) {
         className="quota-track"
         role="meter"
         aria-label={label}
-        aria-valuenow={limit.used}
+        aria-valuenow={used}
         aria-valuemin={0}
         aria-valuemax={limit.limit}
       >

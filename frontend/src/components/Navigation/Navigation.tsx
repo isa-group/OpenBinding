@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, type SyntheticEvent } from 'react';
 import { ChevronDown, ExternalLink, Menu, Moon, Sun } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../../contexts/theme';
@@ -16,7 +16,7 @@ const navMenus = [
     ],
   },
   {
-    label: 'Tools',
+    label: 'About BIM',
     links: [
       { to: '/playground', label: 'BIM Workbench', description: 'Author, validate and solve' },
       { to: '/profiles', label: 'Profiles & dialects', description: 'Language extension points' },
@@ -43,24 +43,56 @@ export function Navigation() {
   const { theme, toggleTheme } = useTheme();
   const { user, isAdmin, signOut } = useAuth();
   const location = useLocation();
+  const navigation = useRef<HTMLElement>(null);
   const mobileMenu = useRef<HTMLDetailsElement>(null);
   const desktopMenus = useRef<HTMLDivElement>(null);
+  const isResearch = Boolean(user && (user.plan === 'RESEARCH' || user.institutional_branding));
   const isActive = (path: string) => path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
-  const closeDesktopMenus = () => desktopMenus.current?.querySelectorAll('details[open]').forEach((menu) => menu.removeAttribute('open'));
+  const closeNavigationMenus = (except?: HTMLDetailsElement) => navigation.current?.querySelectorAll<HTMLDetailsElement>('details[open]').forEach((menu) => {
+    if (menu !== except) menu.removeAttribute('open');
+  });
+  const closeDesktopMenus = () => closeNavigationMenus();
   const closeMobileMenu = () => mobileMenu.current?.removeAttribute('open');
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!navigation.current?.contains(event.target as Node)) closeNavigationMenus();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  });
+
+  const handleMenuToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
+    if (event.currentTarget.open) closeNavigationMenus(event.currentTarget);
+  };
+  const handleMenuClick = (event: SyntheticEvent<HTMLElement>) => {
+    const menu = event.currentTarget.parentElement;
+    if (menu instanceof HTMLDetailsElement && !menu.open) closeNavigationMenus(menu);
+  };
 
   return (
     <header className="site-header">
-      <nav className="navigation" aria-label="Primary navigation">
-        <Link to="/" viewTransition className="brand-link" aria-label={`${config.name} home`}>
-          <span className="brand-symbol" aria-hidden="true"><i /><i /><b /></span>
-          <span className="brand-wordmark"><strong>Open</strong>Binding</span>
-        </Link>
+      <nav ref={navigation} className="navigation" aria-label="Primary navigation">
+        <div className="brand-group">
+          <Link to="/" viewTransition className="brand-link" aria-label={`${config.name} home`}>
+            <span className="brand-symbol" aria-hidden="true"><i /><i /><b /></span>
+            <span className="brand-wordmark"><strong>Open</strong>Binding</span>
+            {isResearch && (
+              <span
+                className="institution-header-mark"
+                title="Cuenta institucional · Universidad de Sevilla"
+              >
+                <img src="/brands/us-fama.png" alt="Universidad de Sevilla" />
+              </span>
+            )}
+          </Link>
+        </div>
 
         <div ref={desktopMenus} className="desktop-primary">
           {navMenus.slice(0, 2).map((menu) => (
-            <details className="nav-menu" key={menu.label}>
-              <summary className={menu.links.some((link) => isActive(link.to)) ? 'is-active' : undefined}>
+            <details className="nav-menu" key={menu.label} onToggle={handleMenuToggle}>
+              <summary className={menu.links.some((link) => isActive(link.to)) ? 'is-active' : undefined} onClick={handleMenuClick}>
                 {menu.label}<ChevronDown aria-hidden="true" />
               </summary>
               <div className="nav-menu-panel">
@@ -79,8 +111,8 @@ export function Navigation() {
             </Link>
           ))}
 
-          <details className="nav-menu">
-            <summary className={navMenus[2].links.some((link) => isActive(link.to)) ? 'is-active' : undefined}>
+          <details className="nav-menu" onToggle={handleMenuToggle}>
+            <summary className={navMenus[2].links.some((link) => isActive(link.to)) ? 'is-active' : undefined} onClick={handleMenuClick}>
               Research<ChevronDown aria-hidden="true" />
             </summary>
             <div className="nav-menu-panel">
@@ -98,12 +130,11 @@ export function Navigation() {
         <div className="nav-utilities">
           {user ? (
             <>
-              {user.institutional_branding && <a className="institution-header-mark" href="https://www.us.es" target="_blank" rel="noreferrer" title="Cuenta institucional · Universidad de Sevilla"><img src="/brands/universidad-sevilla.svg" alt="Universidad de Sevilla" /></a>}
               <Link to="/app" viewTransition className="platform-link">Open platform</Link>
-              <Link to="/account" viewTransition className="account-link" title={`Signed in as ${user.username}`}>
+              <Link to="/app/account" viewTransition className="account-link" title={`Signed in as ${user.username}`}>
                 {user.username}<span>{user.plan}</span>
               </Link>
-              {isAdmin && <Link to="/admin" viewTransition className="utility-link">Admin</Link>}
+              {isAdmin && <Link to="/app/admin" viewTransition className="utility-link">Admin</Link>}
               <button type="button" className="text-action" onClick={() => void signOut()}>Sign out</button>
             </>
           ) : (
@@ -123,7 +154,7 @@ export function Navigation() {
           </button>
         </div>
 
-        <details ref={mobileMenu} className="mobile-navigation">
+        <details ref={mobileMenu} className="mobile-navigation" onToggle={handleMenuToggle}>
           <summary><Menu aria-hidden="true" /> <span>Navigate</span></summary>
           <div className="mobile-navigation-panel">
             <div className="mobile-primary">
@@ -144,10 +175,10 @@ export function Navigation() {
               <a href={`${config.apiBaseUrl}/docs`} target="_blank" rel="noreferrer">API reference <ExternalLink aria-hidden="true" /></a>
               {user ? (
                 <>
-                  {user.institutional_branding && <a className="mobile-institution-mark" href="https://www.us.es" target="_blank" rel="noreferrer"><img src="/brands/universidad-sevilla.svg" alt="Cuenta institucional · Universidad de Sevilla" /></a>}
+                  {isResearch && <a className="mobile-institution-mark" href="https://www.us.es" target="_blank" rel="noreferrer"><img src="/brands/universidad-sevilla.svg" alt="Cuenta institucional · Universidad de Sevilla" /></a>}
                   <Link to="/app" viewTransition onClick={closeMobileMenu}>Open platform</Link>
-                  <Link to="/account" viewTransition onClick={closeMobileMenu}>{user.username} · {user.plan}</Link>
-                  {isAdmin && <Link to="/admin" viewTransition onClick={closeMobileMenu}>Admin</Link>}
+                  <Link to="/app/account" viewTransition onClick={closeMobileMenu}>{user.username} · {user.plan}</Link>
+                  {isAdmin && <Link to="/app/admin" viewTransition onClick={closeMobileMenu}>Admin</Link>}
                   <button type="button" onClick={() => { closeMobileMenu(); void signOut(); }}>Sign out</button>
                 </>
               ) : (

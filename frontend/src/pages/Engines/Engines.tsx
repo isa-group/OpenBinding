@@ -97,7 +97,7 @@ export function Engines() {
   const loadEngines = () => {
     setLoading(true);
     setError(null);
-    void apiClient.getEngines()
+    void apiClient.getEngines(true)
       .then((data) => {
         setEngines(data);
         const first = data[0];
@@ -112,7 +112,7 @@ export function Engines() {
 
   useEffect(() => {
     let cancelled = false;
-    void apiClient.getEngines()
+    void apiClient.getEngines(true)
       .then((data) => {
         if (cancelled) return;
         setEngines(data);
@@ -221,7 +221,7 @@ export function Engines() {
             BIM Engine revisions are portable, immutable declarations. Each mode targets one Profile and IR,
             selects supported feature values, sets ceilings and states guarantees independently of its algorithm name.
           </p>
-          <div className="engine-intro-actions"><Link to="/engines/new" viewTransition>Register an Engine <ArrowRight aria-hidden="true" /></Link><Link to="/playground" viewTransition>Analyze a package</Link></div>
+          <div className="engine-intro-actions"><Link to="/engines/new" viewTransition>Register an Engine <ArrowRight aria-hidden="true" /></Link><Link to="/playground" viewTransition>Validate a package</Link></div>
         </div>
       </header>
 
@@ -431,8 +431,8 @@ export function Engines() {
 
       <section className="engine-next">
         <span className="section-label">Compatibility in practice</span>
-        <h2>Analysis compiles the package first, then returns exact Engine + Registration + mode triples.</h2>
-        <Link to="/examples" viewTransition>Choose a package to analyze <ArrowRight aria-hidden="true" /></Link>
+        <h2>Validation compiles the package first, then returns exact Engine + Registration + mode triples.</h2>
+        <Link to="/examples" viewTransition>Choose a package to validate <ArrowRight aria-hidden="true" /></Link>
       </section>
     </div>
   );

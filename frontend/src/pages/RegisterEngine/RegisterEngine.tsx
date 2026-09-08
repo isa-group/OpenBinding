@@ -251,7 +251,7 @@ export function RegisterEngine() {
               <Button onClick={submit} disabled={busy}>
                 {busy ? 'Saving privately…' : registerDeployment ? 'Save private Engine and deployment' : 'Save private Engine'}
               </Button>
-              <Button variant="ghost" onClick={() => navigate('/engines', { viewTransition: true })} disabled={busy}>Cancel</Button>
+              <Button variant="ghost" onClick={() => navigate('/app/engines', { viewTransition: true })} disabled={busy}>Cancel</Button>
             </div>
           </Card>
         ) : (
@@ -275,7 +275,7 @@ export function RegisterEngine() {
               <p>Activate it from My deployments. Administrators will only see it after you request publication.</p>
             </div>}
             <div className="wizard-actions">
-              <Button onClick={() => navigate('/engines', { viewTransition: true })}>Manage deployments</Button>
+              <Button onClick={() => navigate('/app/engines', { viewTransition: true })}>Manage deployments</Button>
               <Button variant="secondary" onClick={() => setResult(null)}>Register another revision</Button>
             </div>
           </Card>

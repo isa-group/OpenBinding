@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { DragEvent, FormEvent } from 'react';
 import {
   Activity, Archive, CheckCircle2, CircleDot, Cloud, CloudCog, Copy,
-  GitBranch, LoaderCircle, LockKeyhole, Play, RefreshCw, Rocket, ShieldAlert,
+  ExternalLink, GitBranch, LoaderCircle, LockKeyhole, Play, RefreshCw, Rocket, ShieldAlert,
   Trash2, Upload, XCircle,
 } from 'lucide-react';
 import { retrievePricingFromYaml } from 'pricing4ts';
@@ -10,6 +10,7 @@ import { PricingRenderer } from 'pricing-renderer/react';
 import 'pricing-renderer/styles.css';
 import { platformApi } from '../../api/platform';
 import type { PricingControlRoom } from '../../api/platform';
+import { config } from '../../config';
 import { useTheme } from '../../contexts/theme';
 import './PricingControlRoom.css';
 
@@ -149,7 +150,17 @@ export function PricingControlRoomPage() {
   return <div className="pricing-room">
     <header className="pricing-room-heading">
       <div><span>Administrative control plane</span><h1>Pricing releases</h1><p>Prepare immutable drafts in SPHERE, validate their contract shape, deploy previews to SPACE and move the OpenBinding LIVE pointer deliberately.</p></div>
-      <button type="button" onClick={() => void mutate('sync', () => platformApi.syncPricing())} disabled={Boolean(busy)}><RefreshCw aria-hidden="true" />Sync metadata</button>
+      <div className="pricing-room-header-actions">
+        <a
+          href={config.spaceFrontendUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="space-console-btn"
+        >
+          Open SPACE Console <ExternalLink aria-hidden="true" style={{ width: 14, height: 14 }} />
+        </a>
+        <button type="button" onClick={() => void mutate('sync', () => platformApi.syncPricing())} disabled={Boolean(busy)}><RefreshCw aria-hidden="true" />Sync metadata</button>
+      </div>
     </header>
 
     {error && <div className="room-message is-error" role="alert"><XCircle aria-hidden="true" />{error}</div>}
@@ -157,7 +168,20 @@ export function PricingControlRoomPage() {
 
     <section className="control-health" aria-label="Pricing control plane health">
       <article><div><Cloud aria-hidden="true" /><span>SPHERE</span></div><strong className={room?.sphere.reachable ? 'is-up' : 'is-down'}>{room?.sphere.reachable ? 'Connected' : room?.sphere.enabled ? 'Unavailable' : 'Not configured'}</strong><small>OpenBinding / openbinding</small></article>
-      <article><div><CloudCog aria-hidden="true" /><span>SPACE 1.5</span></div><strong className={room?.space.reachable ? 'is-up' : 'is-down'}>{room?.space.reachable ? 'Connected' : room?.space.enabled ? 'Unavailable' : 'Not configured'}</strong><small>contracts and usage</small></article>
+      <article>
+        <div><CloudCog aria-hidden="true" /><span>SPACE 1.5</span></div>
+        <strong className={room?.space.reachable ? 'is-up' : 'is-down'}>{room?.space.reachable ? 'Connected' : room?.space.enabled ? 'Unavailable' : 'Not configured'}</strong>
+        <small>contracts and usage</small>
+        <a
+          href={config.spaceFrontendUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="space-card-link"
+          title="Open external SPACE service console"
+        >
+          Manage in SPACE <ExternalLink aria-hidden="true" style={{ width: 12, height: 12 }} />
+        </a>
+      </article>
       <article><div><Activity aria-hidden="true" /><span>LIVE</span></div><strong>{room?.live ?? 'No release'}</strong><small>new contracts only</small></article>
       <article><div><ShieldAlert aria-hidden="true" /><span>Divergence</span></div><strong>{(room?.divergence.onlyInSphere.length ?? 0) + (room?.divergence.onlyLocal.length ?? 0)}</strong><small>metadata differences</small></article>
     </section>

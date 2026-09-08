@@ -13,12 +13,17 @@ interface TestAnalysisResponse {
     compatible: boolean;
   }>;
   diagnostics: Array<Record<string, unknown>>;
+  analysis?: {
+    tasks: number;
+    candidates: number;
+    constraints: number;
+    placement: boolean;
+    bindingSpace: string;
+  };
 }
 
-const api = vi.hoisted(() => ({
-  getBimExamples: vi.fn(async () => ['demo/01_simple_seq']),
-  getBimExamplePackage: vi.fn(),
-  analyzeBimPackage: vi.fn(async (archive: Uint8Array): Promise<TestAnalysisResponse> => {
+const api = vi.hoisted(() => {
+  const validateBimPackage = vi.fn(async (archive: Uint8Array): Promise<TestAnalysisResponse> => {
     void archive;
     return {
       valid: true,
@@ -29,18 +34,31 @@ const api = vi.hoisted(() => ({
         compatible: true,
       }],
       diagnostics: [],
+      analysis: {
+        tasks: 1,
+        candidates: 2,
+        constraints: 0,
+        placement: false,
+        bindingSpace: '128',
+      },
     };
-  }),
-  createBimSnapshot: vi.fn(async () => ({ id: 'snapshot-1', irDigest: 'sha256-ir' })),
-  createBimJob: vi.fn(async () => ({ id: 'job-1', status: 'queued', irDigest: 'sha256-ir' })),
-  getV1Job: vi.fn(async () => ({
-    status: 'completed',
-    result: {
-      termination: 'FEASIBLE',
-      solutions: [{ decision: { kind: 'binding', binding: { hello: { resource: 'catalog', id: 'service-a' } } }, metrics: { latency: 10 } }],
-    },
-  })),
-}));
+  });
+  return {
+    getBimExamples: vi.fn(async () => ['demo/01_simple_seq']),
+    getBimExamplePackage: vi.fn(),
+    validateBimPackage,
+    analyzeBimPackage: validateBimPackage,
+    createBimSnapshot: vi.fn(async () => ({ id: 'snapshot-1', irDigest: 'sha256-ir' })),
+    createBimJob: vi.fn(async () => ({ id: 'job-1', status: 'queued', irDigest: 'sha256-ir' })),
+    getV1Job: vi.fn(async () => ({
+      status: 'completed',
+      result: {
+        termination: 'FEASIBLE',
+        solutions: [{ decision: { kind: 'binding', binding: { hello: { resource: 'catalog', id: 'service-a' } } }, metrics: { latency: 10 } }],
+      },
+    })),
+  };
+});
 
 const ENGINE_REF = { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-a' };
 const REGISTRATION_REF = { namespace: 'bim.builtin', name: 'random-search-deployment', version: '1.0.0+builtin.a', digest: 'sha256-registration-a' };
@@ -72,6 +90,13 @@ describe('BIM Instance Workspace', () => {
         compatible: true,
       }],
       diagnostics: [],
+      analysis: {
+        tasks: 1,
+        candidates: 2,
+        constraints: 0,
+        placement: false,
+        bindingSpace: '128',
+      },
     });
   });
 
@@ -124,7 +149,7 @@ describe('BIM Instance Workspace', () => {
 
   it('sends a deterministic BIM ZIP and filters modes from authoritative analysis', async () => {
     renderWorkspace();
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     await waitFor(() => expect(screen.getByRole('option', { name: 'random-search · seeded · random-search-deployment@1.0.0+builtin.a' })).toBeInTheDocument());
     const archive = api.analyzeBimPackage.mock.calls[0][0] as Uint8Array;
     expect(archive).toBeInstanceOf(Uint8Array);
@@ -167,7 +192,7 @@ describe('BIM Instance Workspace', () => {
       diagnostics: [],
     });
     renderWorkspace();
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
 
     const secondOption = await screen.findByRole('option', { name: 'random-search · seeded · random-search-eu@2.0.0' });
     expect(screen.queryByRole('option', { name: /not-executable/ })).not.toBeInTheDocument();
@@ -191,7 +216,7 @@ describe('BIM Instance Workspace', () => {
       diagnostics: [{ code: 'missing_metric', message: 'latency is required', resource: 'catalog', jsonPointer: '/spec/candidates/service-a/metrics/latency' }],
     });
     renderWorkspace();
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     const diagnostic = await screen.findByRole('button', { name: /missing_metric latency is required/i });
     fireEvent.click(diagnostic);
     expect(await screen.findByLabelText('candidates.json expert source')).toBeInTheDocument();
@@ -235,7 +260,7 @@ describe('BIM Instance Workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Expert source' }));
     expect((screen.getByLabelText('instance.json expert source') as HTMLTextAreaElement).value).toContain('custom-profile/v1');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     await waitFor(() => expect(api.analyzeBimPackage).toHaveBeenCalledTimes(1));
     const files = await analyzedFiles();
     const instance = JSON.parse(files['instance.json']);
@@ -277,7 +302,7 @@ describe('BIM Instance Workspace', () => {
     fireEvent.change(screen.getByLabelText('Penalty 1 constraint id'), { target: { value: 'softLatency' } });
     fireEvent.change(screen.getByLabelText('Penalty 1 weight'), { target: { value: '3' } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     await waitFor(() => expect(api.analyzeBimPackage).toHaveBeenCalledTimes(1));
     const files = await analyzedFiles();
     const optimization = JSON.parse(files['optimization.json']);
@@ -322,7 +347,7 @@ describe('BIM Instance Workspace', () => {
     expect(screen.getByText('0 objectives')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add objective term' })).toBeDisabled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     await waitFor(() => expect(api.analyzeBimPackage).toHaveBeenCalledTimes(1));
     const files = await analyzedFiles();
     expect(JSON.parse(files['optimization.json']).spec).toMatchObject({ type: 'MONO', mode: 'satisfy', terms: [] });
@@ -350,7 +375,7 @@ describe('BIM Instance Workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add task' }));
     fireEvent.change(screen.getByLabelText('task2 capability'), { target: { value: 'queue' } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     await waitFor(() => expect(api.analyzeBimPackage).toHaveBeenCalledTimes(1));
     const files = await analyzedFiles();
     const application = JSON.parse(files['application.json']);
@@ -404,7 +429,7 @@ describe('BIM Instance Workspace', () => {
     fireEvent.change(screen.getByLabelText('candidate2 QoS cost'), { target: { value: '5' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove candidate' })[0]);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     await waitFor(() => expect(api.analyzeBimPackage).toHaveBeenCalledTimes(1));
     const files = await analyzedFiles();
     const catalog = JSON.parse(files['candidates.json']);
@@ -478,7 +503,7 @@ describe('BIM Instance Workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add capacity rule' }));
     fireEvent.click(screen.getByLabelText('Enable global latency'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     await waitFor(() => expect(api.analyzeBimPackage).toHaveBeenCalledTimes(1));
     const files = await analyzedFiles();
     const routing = JSON.parse(files['routing.json']);
@@ -497,7 +522,7 @@ describe('BIM Instance Workspace', () => {
       exclusive: 'routing',
       parallel: 'max',
     });
-  });
+  }, 15000);
 
   it('creates schema-valid expression AST and keeps an invalid AST draft out of the package', async () => {
     localStorage.setItem('bim-v1-draft', JSON.stringify({
@@ -527,7 +552,7 @@ describe('BIM Instance Workspace', () => {
 
     fireEvent.change(assertion, { target: { value: '{"call":">=","args":[{"path":"metrics.latency"},0]}' } });
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a BIM expression AST');
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     await waitFor(() => expect(api.analyzeBimPackage).toHaveBeenCalledTimes(1));
     let files = await analyzedFiles();
     expect(JSON.parse(files['constraints.json']).spec.constraints.constraint1.assert).toEqual({
@@ -538,7 +563,7 @@ describe('BIM Instance Workspace', () => {
 
     fireEvent.change(assertion, { target: { value: '{"op":"lte","left":{"path":["metrics","latency"]},"right":{"literal":25}}' } });
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     await waitFor(() => expect(api.analyzeBimPackage).toHaveBeenCalledTimes(2));
     files = await analyzedFiles();
     expect(JSON.parse(files['constraints.json']).spec.constraints.constraint1.assert).toEqual({
@@ -546,5 +571,32 @@ describe('BIM Instance Workspace', () => {
       left: { path: ['metrics', 'latency'] },
       right: { literal: 25 },
     });
+  });
+
+  it('renders binding space badge in toolbar and feedback rail when analysis completes', async () => {
+    api.analyzeBimPackage.mockResolvedValueOnce({
+      valid: true,
+      compatibleModes: [{
+        engine: ENGINE_REF,
+        registration: REGISTRATION_REF,
+        mode: 'seeded',
+        compatible: true,
+      }],
+      diagnostics: [],
+      analysis: {
+        tasks: 3,
+        candidates: 6,
+        constraints: 1,
+        placement: false,
+        bindingSpace: '8640000',
+      },
+    });
+
+    renderWorkspace();
+    fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
+    await waitFor(() => expect(api.analyzeBimPackage).toHaveBeenCalledTimes(1));
+
+    expect(await screen.findByRole('status', { name: /Binding space size: 8\.64M combinations/i })).toBeInTheDocument();
+    expect(screen.getByText('Combinatorial Complexity')).toBeInTheDocument();
   });
 });

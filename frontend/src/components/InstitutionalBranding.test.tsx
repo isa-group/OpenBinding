@@ -34,7 +34,14 @@ describe('Universidad de Sevilla institutional branding', () => {
 
     const marks = screen.getAllByRole('img', { name: /Universidad de Sevilla/i });
     expect(marks).toHaveLength(2);
-    expect(marks.every((mark) => mark.getAttribute('src') === '/brands/universidad-sevilla.svg')).toBe(true);
+    expect(marks.every((mark) => /^\/brands\/(us-fama|universidad-sevilla)\.(png|svg)$/.test(mark.getAttribute('src') ?? ''))).toBe(true);
+  });
+
+  it('uses the Fama brand emblem for the top navigation bar', () => {
+    render(<MemoryRouter><Navigation /></MemoryRouter>);
+
+    const usImg = screen.getAllByRole('img', { name: /Universidad de Sevilla/i })[0];
+    expect(usImg.getAttribute('src')).toBe('/brands/us-fama.png');
   });
 
   it('keeps the institutional mark visible inside the authenticated platform shell', async () => {
@@ -42,6 +49,30 @@ describe('Universidad de Sevilla institutional branding', () => {
 
     await waitFor(() => expect(platform.organizations).toHaveBeenCalledOnce());
     expect(screen.getAllByRole('img', { name: 'Universidad de Sevilla' }).length).toBeGreaterThanOrEqual(2);
+    const platformBrandLink = screen.getByRole('link', { name: /OpenBinding home/i });
+    const usTopImg = platformBrandLink.querySelector('img[alt="Universidad de Sevilla"]');
+    expect(usTopImg).not.toBeNull();
+    expect(usTopImg?.getAttribute('src')).toBe('/brands/us-fama.png');
+  });
+
+  it('renders the US logo inside the same clickable brand button alongside OpenBinding for RESEARCH accounts', () => {
+    render(<MemoryRouter><Navigation /></MemoryRouter>);
+
+    const brandLink = screen.getByRole('link', { name: /OpenBinding home/i });
+    const usHeaderSpan = screen.getByTitle('Cuenta institucional · Universidad de Sevilla');
+    const usImg = screen.getByRole('img', { name: 'Universidad de Sevilla' });
+
+    expect(brandLink).toContainElement(usHeaderSpan);
+    expect(usHeaderSpan).toContainElement(usImg);
+    expect(brandLink.getAttribute('href')).toBe('/');
+  });
+
+  it('renders co-branding for accounts with plan RESEARCH even when institutional_branding is omitted', () => {
+    auth.user = { ...researchUser, plan: 'RESEARCH', institutional_branding: false };
+    render(<MemoryRouter><Navigation /></MemoryRouter>);
+
+    const marks = screen.getAllByRole('img', { name: /Universidad de Sevilla/i });
+    expect(marks).toHaveLength(2);
   });
 
   it('does not render co-branding when the contract does not grant it', () => {

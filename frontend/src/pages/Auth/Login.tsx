@@ -10,7 +10,7 @@ import { Alert } from '../../components/ui/Alert';
 import './Auth.css';
 
 export function Login() {
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [identifier, setIdentifier] = useState('');
@@ -19,15 +19,24 @@ export function Login() {
   const [busy, setBusy] = useState(false);
   const notice = (location.state as { notice?: string } | null)?.notice;
 
+  useEffect(() => {
+    if (user) {
+      const from = (location.state as { from?: string } | null)?.from;
+      const target = from && from.startsWith('/app') ? from : '/app';
+      navigate(target, { replace: true, viewTransition: true });
+    }
+  }, [user, navigate, location.state]);
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
     setBusy(true);
     try {
       await signIn(identifier, password);
-      // Back to whatever they were trying to reach, or the account page.
+      // Navigate directly to the platform workspace rather than public pages.
       const from = (location.state as { from?: string } | null)?.from;
-      navigate(from ?? '/account', { replace: true, viewTransition: true });
+      const target = from && from.startsWith('/app') ? from : '/app';
+      navigate(target, { replace: true, viewTransition: true });
     } catch {
       // The gateway answers the same way for a wrong password and an account
       // that does not exist, and so does this: saying which would tell an
@@ -92,7 +101,7 @@ export function Login() {
 
         <p className="auth-footer">
           <Link to="/password-reset" viewTransition>Forgot your password?</Link>
-          <span>No account? <Link to="/register" viewTransition>Create one</Link>.</span>
+          <span>No account? <Link to="/register" state={location.state} viewTransition>Create one</Link>.</span>
         </p>
       </Card>
     </div>
