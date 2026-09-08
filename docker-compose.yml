@@ -71,8 +71,8 @@ services:
       args:
         <<: *proxy-build-args
     profiles: ["space", "dev"]
-    # Local bootstrap and smoke tests only. Production uses the Kubernetes
-    # service or an external SPACE URL; this listener is never public.
+    # Local bootstrap and smoke tests. Production uses the Kubernetes service
+    # or an external SPACE URL; protect this all-interface listener at the host.
     ports:
       - "${SPACE_HOST_PORT:-5403}:3000"
     labels:
