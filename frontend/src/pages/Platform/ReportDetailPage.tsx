@@ -181,7 +181,7 @@ export function ReportDetailPage() {
       <div>
         <Link
           to={`/app/${org}/${projectSlug}/reports`}
-         
+
         >
           <ArrowLeft size={14} /> Back to Reports
         </Link>
@@ -204,7 +204,7 @@ export function ReportDetailPage() {
       <div>
         <Link
           to={`/app/${org}/${projectSlug}/reports`}
-         
+
         >
           <ArrowLeft size={14} /> Back to Reports
         </Link>
@@ -253,7 +253,7 @@ export function ReportDetailPage() {
                   type="button"
                   onClick={() => setActiveTab('edit')}
                   className="hash-badge"
-                 
+
                 >
                   <Edit3 size={13} /> Edit Draft
                 </button>
@@ -261,7 +261,7 @@ export function ReportDetailPage() {
                   type="button"
                   onClick={() => void handleFreezeReport()}
                   className="hash-badge"
-                 
+
                 >
                   <Lock size={13} /> Freeze Report
                 </button>
@@ -273,7 +273,7 @@ export function ReportDetailPage() {
                 type="button"
                 onClick={() => setShowPublishModal(true)}
                 className="hash-badge"
-               
+
               >
                 <Globe2 size={13} /> Publish to Explore
               </button>
@@ -284,7 +284,7 @@ export function ReportDetailPage() {
                 type="button"
                 onClick={() => void handleDeletePublication()}
                 className="hash-badge"
-               
+
                 title="Unpublish report"
               >
                 <Globe2 size={13} /> Unpublish
@@ -295,7 +295,7 @@ export function ReportDetailPage() {
               type="button"
               onClick={() => setShowDeleteConfirm(true)}
               className="hash-badge"
-             
+
             >
               <Trash2 size={13} /> Delete
             </button>
@@ -328,7 +328,7 @@ export function ReportDetailPage() {
             <Link
               to={`/explore`}
               className="hash-badge"
-             
+
             >
               <ExternalLink size={13} />
               Open in Explore Directory
@@ -441,7 +441,7 @@ export function ReportDetailPage() {
                 {report.study_run_id ? (
                   <Link
                     to={`/app/${org}/${projectSlug}/analytics`}
-                   
+
                   >
                     Run ID: {report.study_run_id.slice(0, 18)}…
                   </Link>
@@ -500,7 +500,7 @@ export function ReportDetailPage() {
                 navigator.clipboard.writeText(JSON.stringify(report.document, null, 2));
               }}
               className="hash-badge"
-             
+
             >
               <Copy size={12} /> Copy JSON
             </button>
@@ -536,7 +536,7 @@ export function ReportDetailPage() {
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
                 required
-               
+
               />
             </div>
 
@@ -582,7 +582,7 @@ export function ReportDetailPage() {
                   value={pubSlug}
                   onChange={(e) => setPubSlug(e.target.value)}
                   required
-                 
+
                 />
               </div>
 
@@ -593,7 +593,7 @@ export function ReportDetailPage() {
                   value={pubAuthors}
                   onChange={(e) => setPubAuthors(e.target.value)}
                   placeholder="e.g. Alice Researcher, Bob Engineer"
-                 
+
                 />
               </div>
 
@@ -604,7 +604,7 @@ export function ReportDetailPage() {
                   value={pubVenue}
                   onChange={(e) => setPubVenue(e.target.value)}
                   placeholder="e.g. IEEE Transactions on Services Computing"
-                 
+
                 />
               </div>
 
@@ -615,7 +615,7 @@ export function ReportDetailPage() {
                   value={pubDoi}
                   onChange={(e) => setPubDoi(e.target.value)}
                   placeholder="10.1109/TSC.2026.000000"
-                 
+
                 />
               </div>
 

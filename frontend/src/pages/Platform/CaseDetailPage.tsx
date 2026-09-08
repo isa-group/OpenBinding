@@ -451,7 +451,7 @@ export function CaseDetailPage() {
                   value={newRevSnapshotId}
                   onChange={(e) => setNewRevSnapshotId(e.target.value)}
                   placeholder="Optional executable snapshot UUID"
-                 
+
                 />
               </label>
 

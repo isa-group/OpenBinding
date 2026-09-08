@@ -757,4 +757,3 @@ async def test_cannot_delete_last_admin_who_authored_pricing_releases(
     )
     assert del_res.status_code == 409
     assert del_res.json()["detail"]["code"] == "last_pricing_admin"
-

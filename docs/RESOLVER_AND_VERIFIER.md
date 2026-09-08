@@ -1,6 +1,6 @@
 # Cryptographic Element Resolver & Digital Signature Verifier
 
-Status: **normative**.  
+Status: **normative**.
 Implemented in: `openbinding-gateway/src/openbinding_gateway/routes/resolve.py`, `frontend/src/pages/Platform/VerifierPage.tsx`.
 
 ---

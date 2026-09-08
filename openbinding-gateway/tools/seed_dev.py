@@ -166,20 +166,20 @@ async def clean_existing_data(session: AsyncSession) -> None:
     """Safely delete previously seeded entities in reverse foreign key order."""
     logger.info("Cleaning up previously seeded development entities...")
     usernames = [u["username"] for u in SEED_USERS]
-    
+
     # Identify seeded users
     users = (
         await session.execute(select(User).where(User.username.in_(usernames)))
     ).scalars().all()
     user_ids = [u.id for u in users]
-    
+
     # Identify seeded orgs
     org_slugs = ["score-group", "score-ai", "score-edge", "acme-corp", "acme-cloud"]
     orgs = (
         await session.execute(select(Organization).where(Organization.slug.in_(org_slugs)))
     ).scalars().all()
     org_ids = [o.id for o in orgs]
-    
+
     # Identify seeded projects
     projects = (
         await session.execute(select(Project).where(Project.organization_id.in_(org_ids)))
@@ -327,11 +327,11 @@ async def ensure_users(session: AsyncSession) -> dict[str, User]:
         username = entry["username"]
         email = entry["email"]
         role = entry["role"]
-        
+
         user = (
             await session.execute(select(User).where(User.username == username))
         ).scalars().first()
-        
+
         plan = entry.get("plan", "BASIC")
         if user is None:
             user = User(
@@ -356,7 +356,7 @@ async def ensure_users(session: AsyncSession) -> dict[str, User]:
             user.contract_pending = False
             await session.flush()
             logger.info("Updated existing user '%s' (plan: %s)", username, plan)
-        
+
         user_map[username] = user
 
         # Ensure API key
@@ -777,7 +777,7 @@ async def ensure_projects(
         org = orgs[spec["org"]]
         owner = users[spec["owner"]]
         slug = spec["slug"]
-        
+
         project = (
             await session.execute(
                 select(Project).where(Project.organization_id == org.id, Project.slug == slug)

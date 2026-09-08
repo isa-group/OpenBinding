@@ -278,7 +278,7 @@ export const CollectionDetailPage: React.FC = () => {
                             <Link
                               to={targetLink}
                               className="digest-copy-btn"
-                             
+
                             >
                               <ExternalLink size={12} /> Inspect
                             </Link>
