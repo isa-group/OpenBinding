@@ -37,7 +37,7 @@ services:
   # SPACE_SOURCE_DIR at a v1.5.0 checkout, then enable the `space` profile.
   space-mongodb:
     image: mongo:7.0.16
-    profiles: ["space"]
+    profiles: ["space", "dev"]
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${SPACE_DATABASE_ROOT_USERNAME:-root}
       MONGO_INITDB_ROOT_PASSWORD: ${SPACE_DATABASE_ROOT_PASSWORD:-}
@@ -47,13 +47,14 @@ services:
     networks: [space]
     healthcheck:
       test: ["CMD", "mongosh", "--username", "${SPACE_DATABASE_ROOT_USERNAME:-root}", "--password", "${SPACE_DATABASE_ROOT_PASSWORD:-}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
-      interval: 5s
-      timeout: 5s
+      interval: 10s
+      timeout: 15s
       retries: 10
+      start_period: 15s
 
   space-redis:
     image: redis:7.4-alpine
-    profiles: ["space"]
+    profiles: ["space", "dev"]
     volumes:
       - space_redisdata:/data
     networks: [space]
@@ -69,11 +70,11 @@ services:
       dockerfile: ./docker/local/Dockerfile
       args:
         <<: *proxy-build-args
-    profiles: ["space"]
+    profiles: ["space", "dev"]
     # Local bootstrap and smoke tests only. Production uses the Kubernetes
     # service or an external SPACE URL; this listener is never public.
     ports:
-      - "127.0.0.1:${SPACE_HOST_PORT:-5403}:3000"
+      - "${SPACE_HOST_PORT:-5403}:3000"
     labels:
       org.opencontainers.image.version: "1.5.0"
       org.opencontainers.image.revision: "79aea10c9acff1d85e4931d09aa21d3a253d1ce1"
@@ -111,6 +112,26 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+
+  space-frontend:
+    build:
+      context: ${SPACE_SOURCE_DIR:-./space/space-src}/frontend
+      dockerfile: ./docker/local/Dockerfile
+      args:
+        <<: *proxy-build-args
+        VITE_SPACE_BASE_URL: ${SPACE_CLIENT_BASE_URL:-http://localhost:5403/api/v1}
+    profiles: ["space", "dev"]
+    ports:
+      - "${SPACE_FRONTEND_HOST_PORT:-5174}:5050"
+    environment:
+      VITE_SPACE_BASE_URL: ${SPACE_CLIENT_BASE_URL:-http://localhost:5403/api/v1}
+    networks:
+      - space
+      - default
+    depends_on:
+      space-server:
+        condition: service_healthy
+
 
   gateway:
     build:
@@ -199,6 +220,7 @@ services:
       # deliberately not mounted or committed.
       - ./experimentation:/app/experimentation:ro
       - ./pricings:/app/pricings:ro
+      - ./space:/app/space:ro
       - artifacts:/var/lib/openbinding/artifacts
     environment:
       - APP_ENV=dev
@@ -289,6 +311,12 @@ services:
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
       - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
+      - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-https://openbinding.score.us.es}
+      - SPHERE_ENABLED=${SPHERE_ENABLED:-false}
+      - SPHERE_URL=${SPHERE_URL:-https://sphere.score.us.es}
+      - SPHERE_API_KEY=${SPHERE_API_KEY:-}
+      - SPHERE_ORGANIZATION_ID=${SPHERE_ORGANIZATION_ID:-}
     networks:
       - default
       - space
@@ -316,6 +344,8 @@ services:
     volumes:
       - ./schemas:/app/schemas:ro
       - ./openbinding-gateway:/app
+      - ./pricings:/app/pricings:ro
+      - ./space:/app/space:ro
       - artifacts:/var/lib/openbinding/artifacts
     environment:
       - SCHEMAS_DIR=/app/schemas
@@ -336,6 +366,12 @@ services:
       - ENGINE_RANDOM_SEARCH_URL=http://engine-random-search:8080
       - ENGINE_MANY_HEURISTIC_URL=http://engine-many-heuristic:8080
       - ENGINE_EVOLUTIONARY_HEURISTICS_URL=http://engine-evolutionary-heuristics:8080
+      - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:8000}
+      - SPHERE_ENABLED=${SPHERE_ENABLED:-false}
+      - SPHERE_URL=${SPHERE_URL:-https://sphere.score.us.es}
+      - SPHERE_API_KEY=${SPHERE_API_KEY:-}
+      - SPHERE_ORGANIZATION_ID=${SPHERE_ORGANIZATION_ID:-}
     networks:
       - default
       - space

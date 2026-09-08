@@ -54,14 +54,13 @@ docker compose --profile dev --profile space up -d --build
 docker compose --profile dev --profile space ps
 ```
 
-The profile runs the SPACE 1.5 API, MongoDB and its Redis cache on the private
-`openbinding-space` network. The API is exposed only on
-`127.0.0.1:${SPACE_HOST_PORT:-5403}` for local bootstrap and smoke tests; no
-SPACE administration frontend is published. OpenBinding's authenticated
-pricing control room is the management surface. Use
-`bootstrap/bootstrap_space.py` once to mint the scoped server keys; pricing is
-then managed only through the control room and SPHERE, never uploaded from a
-local helper.
+The profile runs the SPACE 1.5 API, MongoDB, Redis cache, and its administration
+frontend web UI on the `openbinding-space` network. The API is exposed on
+`127.0.0.1:${SPACE_HOST_PORT:-5403}` for local bootstrap and smoke tests, while the
+SPACE management frontend is published on `http://127.0.0.1:${SPACE_FRONTEND_HOST_PORT:-5174}`.
+OpenBinding's authenticated pricing control room includes direct links to this console.
+Use `bootstrap/bootstrap_space.py` once to mint the scoped server keys; pricing is
+then managed through the control room, SPHERE, or directly in the SPACE frontend.
 
 The checkout is ignored by Git. `docker compose build space-server` builds it
 locally and stamps the `v1.5.0` tag and exact revision into OCI labels.
