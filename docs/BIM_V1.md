@@ -103,8 +103,17 @@ composes as a `qos-binding-placement/v1` `Placement` resource in the
 `application` role; it does not change `Instance` or create a second package
 shape.
 
+Together, the workflow's service tasks and the candidate catalogs define the
+discrete solution space (the **Binding Space** $S$). For each service task $t$,
+the candidate set $E(t)$ yields a total combinatorial cardinality of
+$|S| = \prod_{t} |E(t)|$. The gateway compiler computes this cardinality and its
+logarithmic scale $\log_{10}(|S|)$ deterministically during analysis and job
+creation, enabling complexity enforcement before solver dispatch without
+altering the wire contracts of external engines.
+
 Each role group maps a package-wide resource id to either a local POSIX path or
 an immutable registered reference:
+
 
 ```json
 {

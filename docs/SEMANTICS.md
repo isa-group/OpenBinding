@@ -112,3 +112,31 @@ penalties are declared, ranks by their explicit penalty objective.
 The gateway reevaluates every engine decision with this model. `OPTIMAL`,
 `FEASIBLE`, `INFEASIBLE`, and `UNKNOWN` describe the evidence obtained by that
 run; an algorithm family alone never determines termination.
+
+## Binding space and combinatorial search space
+
+Let $T$ be the finite set of service tasks in the workflow and $E(t) \subseteq C$
+the non-empty eligibility set computed for each task $t \in T$. The discrete solution
+search space (referred to as the **Binding Space** $S$) is the Cartesian product of
+candidate assignment options across all service tasks:
+
+$$S = \prod_{t \in T} E(t)$$
+
+The cardinality of this space $|S|$ represents the total number of candidate combinations:
+
+$$|S| = \prod_{t \in T} |E(t)|$$
+
+When no service tasks are declared ($T = \emptyset$), the space is trivial ($|S| = 1$).
+If any task has empty eligibility ($|E(t)| = 0$), no valid binding can exist ($|S| = 0$).
+
+The order of magnitude is represented in logarithmic scale:
+
+$$\log_{10}(|S|) = \sum_{t \in T} \log_{10}(|E(t)|)$$
+
+The compilation pipeline calculates $|S|$ and $\log_{10}(|S|)$ directly in the
+gateway compiler (`compiler.py`). Solvers and engines receive the compiled canonical
+IR without wire-format alterations. To preserve exact precision regardless of scale,
+$|S|$ is always represented and transmitted as a numeric decimal string (e.g. `"8640000"`).
+In addition, $\log_{10}(|S|)$ is evaluated against subscription tier complexity quotas
+(`maxInstanceComplexityLog10`), rejecting oversized instances early with HTTP 402
+(`instance_complexity_too_large`).

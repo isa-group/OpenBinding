@@ -85,6 +85,25 @@ local emergency tool and binds only to loopback:
 docker compose --profile db-tools up -d adminer
 ```
 
+### Seeding development data
+
+To populate the database with a complete set of development entities (users, hierarchical organizations, projects, compiled BIM v1 cases, collections, real solver jobs, comparative studies, reports, publications, and API keys) for testing all platform features:
+
+```bash
+# Seed development data (idempotent: adds or updates without duplicating)
+./tools/seed_dev.sh
+
+# Or clean previously seeded entities and repopulate from scratch
+./tools/seed_dev.sh --reset
+
+# Directly through Docker Compose
+docker compose exec -T gateway-dev python tools/seed_dev.py --reset
+```
+
+All test accounts (`alice`, `bob`, `carol`, `david`, `elena`, `frank`) use password: `devpass123`.
+The administrator (`admin`) uses `devpass123` (or bootstrap password `4dm1n`).
+
+
 The gateway exposes `/v1/profiles`, `/v1/dialects`, `/v1/resources`,
 `/v1/engines`, `/v1/instances`, `/v1/jobs`, and
 `/v1/engine-registrations`. BIM source uploads are complete `.bim.zip`
@@ -94,9 +113,17 @@ errors use `application/problem+json` with source-located diagnostics.
 
 The React workbench is a single transactional `InstanceWorkspace` over the
 same package and compiler contracts used by API clients. Its surrounding
-platform shell adds the organization/project context, cases, resources,
-collections, studies, public Explore surfaces and the SPHERE/SPACE pricing
-control room.
+platform shell adds the organization/project context, onboarding for new
+accounts, cases, resources, collections, studies, public Explore surfaces,
+authenticated Engine management (`/app/engines`) with owner telemetry, and
+the SPHERE/SPACE pricing control room.
+
+### Scientific Provenance, Deep Inspection & Replication
+
+OpenBinding guarantees strict cryptographic immutability and provenance:
+- **In-browser ZIP Uncompression & Inspection**: Explore `.bim.zip` snapshots and artifact archives directly in the browser with directory trees and syntax-highlighted code inspection via CodeMirror.
+- **Dedicated Deep-Linked Views**: Full-page inspection and editing for Cases (`/cases/:caseSlug`), Snapshots (`/snapshots/:snapshotId`), Collections (`/collections/:collectionSlug`), Jobs (`/jobs/:jobId`), and Reports (`/reports/:reportSlug`).
+- **Cryptographic Provenance Verifier (`/app/verifier`)**: Audits SHA-256 canonical digests of cases, snapshots, collections, reports, and artifacts via `POST /v1/verifier/inspect`, certifying reproducibility and generating scientific citations (BibTeX, DOI, Markdown badges).
 
 ## Repository layout
 

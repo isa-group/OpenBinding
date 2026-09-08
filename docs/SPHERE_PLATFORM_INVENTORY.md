@@ -28,7 +28,7 @@ blindly copied from an unmerged branch.
 | Public shell, Explore and dashboards | Adapt | A binding observatory centred on projects, cases, studies, engines and reproducible activity |
 | Organizations and teams | Extend | Arbitrarily nested organizations, inherited roles, invitations, sponsors and unique-member accounting |
 | Pricings and immutable versions | Adapt twice | Immutable BIM/case revisions in the user platform; a single externally stored operational pricing lifecycle for administrators |
-| Public/private resources | Adapt | Project, case, artifact, report and publication visibility with authenticated private responses and immutable public digests |
+| Public/private resources | Adapt | Unified Resolver (`/v1/resolve/{kind}/{digest}`) with offset pagination and privacy guarantees (see [RESOLVER_AND_VERIFIER.md](RESOLVER_AND_VERIFIER.md)); project, case, artifact, report and publication visibility |
 | Collections | Redesign | Ordered, versioned curation of immutable references; collections never execute work |
 | Configuration-space analysis | Redesign | Feasibility, Pareto, convergence, objectives, runtime, stability and cross-engine comparison |
 | HARVEY assistant | Exclude/replace | Deterministic diagnostic actions and documentation links; no LLM dependency or fabricated result |
@@ -39,7 +39,7 @@ blindly copied from an unmerged branch.
 | Team, Research and Funding pages | Adapt | Verified people, publications, grants, projects and reproducibility links stored as reviewed Git data |
 | MongoDB | Exclude | PostgreSQL remains the only operational source of truth |
 | Local YAML storage | Limit | Import/export, fixtures and portable packages only; never the live operational pricing |
-| Public file URLs | Harden | Digest URLs with ETag/immutable cache for public artifacts; authorization + `no-store` for private content |
+| Public file URLs | Harden | Content resolution via `/v1/resolve/{kind}/{digest}/content` with ETag/immutable cache for public items and `private, no-store` for authenticated assets |
 | Direct database administration | Constrain | Local-only Adminer profile plus audited safe maintenance endpoints |
 | Simulated payment | Exclude | `Contact us / Institutional agreement`; no checkout or fictitious transactions |
 
