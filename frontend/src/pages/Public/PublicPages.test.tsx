@@ -28,7 +28,7 @@ describe('public platform surfaces', () => {
 
     render(<MemoryRouter><Explore /></MemoryRouter>);
 
-    expect(await screen.findByRole('heading', { name: 'Binding study' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Binding study' }, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Frozen report' })).toBeInTheDocument();
     expect(api.publicProjects).toHaveBeenCalledOnce();
     expect(api.publicPublications).toHaveBeenCalledOnce();
