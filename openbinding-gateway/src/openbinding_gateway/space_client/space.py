@@ -129,7 +129,17 @@ class SpacePricingGate:
 
         error = getattr(result, "error", None)
         reason = getattr(error, "message", None) or "Your plan does not allow this."
-        return Verdict.no(str(reason), _refused_limit(result))
+        renewal_dates: Dict[str, str] = {}
+        try:
+            contract = await self._contract(user_id)
+            if contract is not None:
+                renewal_dates = _renewal_dates(contract)
+        except Exception:
+            pass
+        return Verdict.no(
+            str(reason),
+            _refused_limit(result, renewal_dates=renewal_dates, catalog=catalog),
+        )
 
     async def revert(self, user_id: uuid.UUID, feature: str) -> None:
         """Give back what an evaluation took.
@@ -275,7 +285,7 @@ class SpacePricingGate:
                 name: LimitUsage(
                     limit_id=name,
                     limit=float(allowance),
-                    used=float(consumption.get(name, 0) or 0),
+                    used=max(0.0, float(consumption.get(name, 0) or 0)),
                     unit=(catalog.limit_definitions.get(name) or {}).get("unit"),
                     renews_at=renewals.get(name),
                 )
@@ -454,19 +464,42 @@ def _decode_claims(token: str) -> Optional[dict]:
         return None
 
 
-def _refused_limit(result: Any) -> Optional[LimitUsage]:
+def _refused_limit(
+    result: Any,
+    renewal_dates: Dict[str, str] | None = None,
+    catalog: Optional[PricingCatalog] = None,
+) -> Optional[LimitUsage]:
     """Which limit ran out, when the evaluation says so.
 
     Feature evaluation reports the allowance and consumption for every limit
     its expression reads, so a refusal can name the one that caused it rather
     than leaving the caller to guess.
+    Precedence: commercial quotas (taskStarts, studyRuns, etc.) are checked before
+    concurrency (concurrentJobs).
     """
     limits = _scoped(getattr(result, "limit", None) or {})
     used = _scoped(getattr(result, "used", None) or {})
+    exhausted: list[str] = []
     for name, allowance in limits.items():
         if allowance is not None and used.get(name, 0) >= allowance:
-            return LimitUsage(limit_id=name, limit=float(allowance), used=float(used[name]))
-    return None
+            exhausted.append(name)
+    if not exhausted:
+        return None
+    # Sort so commercial quotas come before concurrentJobs
+    exhausted.sort(key=lambda x: (1 if x == "concurrentJobs" else 0, x))
+    chosen_name = exhausted[0]
+    allowance = limits[chosen_name]
+    renews_at = (renewal_dates or {}).get(chosen_name)
+    unit = None
+    if catalog and chosen_name in catalog.limit_definitions:
+        unit = getattr(catalog.limit_definitions[chosen_name], "unit", None)
+    return LimitUsage(
+        limit_id=chosen_name,
+        limit=float(allowance),
+        used=float(used.get(chosen_name, 0)),
+        unit=unit,
+        renews_at=renews_at,
+    )
 
 
 def _plan_name(contract: Any) -> str:

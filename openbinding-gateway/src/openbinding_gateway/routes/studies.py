@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import uuid
 import re
+import math
 from collections.abc import Mapping
+from typing import Any
 
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import func, select
@@ -18,6 +20,7 @@ from ..db.models import (
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
+    BindingIRSnapshot,
     Collection,
     CollectionItem,
     CollectionRevision,
@@ -46,15 +49,18 @@ from ..models.platform import (
     CollectionItemInput,
     CollectionRevisionCreate,
     CollectionRevisionView,
+    CollectionUpdate,
     CollectionView,
     PublicationCreate,
     PublicationView,
     ReportCreate,
+    ReportUpdate,
     ReportView,
     StudyCellResult,
     StudyCellView,
     StudyCreate,
     StudyRunView,
+    StudyUpdate,
     StudyView,
 )
 from ..space_client import PricingUnavailable, get_gate
@@ -215,6 +221,75 @@ async def list_collection_revisions(
     return result
 
 
+@router.get(
+    "/collections/{collection}/revisions/{revision}",
+    response_model=CollectionRevisionView,
+    operation_id="getCollectionRevision",
+)
+async def get_collection_revision(
+    org: str,
+    project: str,
+    collection: str,
+    revision: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> CollectionRevisionView:
+    _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
+    found = await _collection(session, found_project.id, collection)
+
+    rev_row = None
+    if revision.isdigit():
+        rev_row = (await session.execute(
+            select(CollectionRevision).where(
+                CollectionRevision.collection_id == found.id,
+                CollectionRevision.revision == int(revision),
+            )
+        )).scalars().first()
+    if rev_row is None:
+        try:
+            parsed_uuid = uuid.UUID(revision)
+            rev_row = (await session.execute(
+                select(CollectionRevision).where(
+                    CollectionRevision.collection_id == found.id,
+                    CollectionRevision.id == parsed_uuid,
+                )
+            )).scalars().first()
+        except ValueError:
+            pass
+    if rev_row is None and revision.startswith("sha256-"):
+        rev_row = (await session.execute(
+            select(CollectionRevision).where(
+                CollectionRevision.collection_id == found.id,
+                CollectionRevision.digest == revision,
+            )
+        )).scalars().first()
+
+    if rev_row is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Collection revision not found.")
+
+    items = (await session.execute(
+        select(CollectionItem)
+        .where(CollectionItem.collection_revision_id == rev_row.id)
+        .order_by(CollectionItem.position)
+    )).scalars().all()
+
+    return CollectionRevisionView(
+        id=rev_row.id,
+        collection_id=rev_row.collection_id,
+        revision=rev_row.revision,
+        digest=rev_row.digest,
+        items=[
+            CollectionItemInput(
+                target_kind=item.target_kind,
+                target_digest=item.target_digest,
+                target_ref=item.target_ref,
+            )
+            for item in items
+        ],
+        created_at=rev_row.created_at,
+    )
+
+
 @router.post("/collections/{collection}/revisions", response_model=CollectionRevisionView, status_code=201, operation_id="createCollectionRevision")
 async def create_collection_revision(
     org: str, project: str, collection: str, payload: CollectionRevisionCreate,
@@ -259,6 +334,64 @@ async def create_collection_revision(
         id=revision.id, collection_id=revision.collection_id, revision=revision.revision,
         digest=revision.digest, items=payload.items, created_at=revision.created_at,
     )
+
+
+@router.get(
+    "/collections/{collection}",
+    response_model=CollectionView,
+    operation_id="getCollection",
+)
+async def get_collection(
+    org: str,
+    project: str,
+    collection: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> CollectionView:
+    _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
+    found = await _collection(session, found_project.id, collection)
+    return _collection_view(found)
+
+
+@router.patch("/collections/{collection}", response_model=CollectionView, operation_id="updateCollection")
+async def update_collection(
+    org: str, project: str, collection: str, payload: CollectionUpdate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> CollectionView:
+    organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
+    found = await _collection(session, found_project.id, collection)
+    if payload.name is not None:
+        found.name = payload.name
+    if payload.description is not None:
+        found.description = payload.description
+    await session.flush()
+    _audit(session, user, "collection.updated", found, organization.id)
+    return _collection_view(found)
+
+
+@router.delete("/collections/{collection}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteCollection")
+async def delete_collection(
+    org: str, project: str, collection: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> None:
+    organization, found_project = await _context(session, org, project, user, OrganizationRole.ADMIN)
+    found = await _collection(session, found_project.id, collection)
+    rev_ids = (await session.execute(
+        select(CollectionRevision.id).where(CollectionRevision.collection_id == found.id)
+    )).scalars().all()
+    if rev_ids:
+        from sqlalchemy import delete as sa_delete
+        await session.execute(
+            sa_delete(CollectionItem).where(CollectionItem.collection_revision_id.in_(rev_ids))
+        )
+        await session.execute(
+            sa_delete(CollectionRevision).where(CollectionRevision.collection_id == found.id)
+        )
+    _audit(session, user, "collection.deleted", found, organization.id)
+    await session.delete(found)
+    await session.flush()
 
 
 def _study_engines_allowed(user: User, definition: Mapping) -> bool:
@@ -411,6 +544,43 @@ async def create_study(
     return _study_view(value)
 
 
+@router.patch("/studies/{study}", response_model=StudyView, operation_id="updateStudy")
+async def update_study(
+    org: str, project: str, study: str, payload: StudyUpdate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> StudyView:
+    organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
+    found = await _study(session, found_project.id, study, user)
+    if payload.name is not None:
+        found.name = payload.name
+    if payload.description is not None:
+        found.description = payload.description
+    await session.flush()
+    _audit(session, user, "study.updated", found, organization.id)
+    return _study_view(found)
+
+
+@router.delete("/studies/{study}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteStudy")
+async def delete_study(
+    org: str, project: str, study: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> None:
+    organization, found_project = await _context(session, org, project, user, OrganizationRole.ADMIN)
+    found = await _study(session, found_project.id, study, user)
+    runs = (await session.execute(
+        select(StudyRun).where(StudyRun.study_id == found.id)
+    )).scalars().all()
+    from sqlalchemy import delete as sa_delete
+    for run in runs:
+        await session.execute(sa_delete(StudyCell).where(StudyCell.study_run_id == run.id))
+        await session.delete(run)
+    _audit(session, user, "study.deleted", found, organization.id)
+    await session.delete(found)
+    await session.flush()
+
+
 @router.post("/studies/{study}/runs", response_model=StudyRunView, status_code=202, operation_id="runStudy")
 async def run_study(
     org: str, project: str, study: str,
@@ -424,7 +594,33 @@ async def run_study(
     except PricingUnavailable as exc:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
     if not verdict.allowed:
-        raise api_error(status.HTTP_429_TOO_MANY_REQUESTS, "quota_exhausted", verdict.reason or "Study-run quota exhausted.")
+        if verdict.limit is not None:
+            if verdict.limit.limit_id == "concurrentJobs":
+                raise api_error(
+                    status.HTTP_429_TOO_MANY_REQUESTS,
+                    "concurrency_limit_exceeded",
+                    verdict.reason or "Concurrency limit exceeded.",
+                    headers={"Retry-After": "15"},
+                    concurrency={"limit_id": "concurrentJobs", "limit": verdict.limit.limit, "used": verdict.limit.used},
+                )
+            else:
+                raise api_error(
+                    status.HTTP_402_PAYMENT_REQUIRED,
+                    "quota_exceeded",
+                    verdict.reason or "Study-run quota exhausted.",
+                    quota={
+                        "limit_id": verdict.limit.limit_id,
+                        "limit": verdict.limit.limit,
+                        "used": verdict.limit.used,
+                        "unit": verdict.limit.unit,
+                        "renews_at": verdict.limit.renews_at,
+                    },
+                )
+        raise api_error(
+            status.HTTP_403_FORBIDDEN,
+            "feature_not_entitled",
+            verdict.reason or "The current plan does not entitle studies.",
+        )
     definition = StudyCreate(
         slug=found.slug, name=found.name, description=found.description, definition=found.definition
     ).definition
@@ -455,6 +651,10 @@ async def run_study(
         try:
             await launch_study_cell(session, cell, user, organization, found_project.id)
         except StudyLaunchError as exc:
+            if exc.code in {"quota_exhausted", "concurrency_limit_exceeded"}:
+                # Concurrency limit reached; leave remaining cells queued to be picked up by _sync.
+                cell.state = RunState.QUEUED
+                break
             cell.state = RunState.FAILED
             cell.metrics = {
                 "status": "failed",
@@ -538,6 +738,33 @@ async def list_study_cells(
         fingerprint=cell.fingerprint, job_id=cell.job_id, state=cell.state.value,
         metrics=cell.metrics,
     ) for cell in cells]
+
+
+@router.get(
+    "/studies/{study}/runs/{run_id}/cells/{cell_id}",
+    response_model=StudyCellView,
+    operation_id="getStudyCell",
+)
+async def get_study_cell(
+    org: str, project: str, study: str, run_id: uuid.UUID, cell_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> StudyCellView:
+    _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
+    found_study = await _study(session, found_project.id, study, user)
+    run = await _run(session, found_study.id, run_id)
+    cell = (await session.execute(
+        select(StudyCell).where(StudyCell.id == cell_id, StudyCell.study_run_id == run.id)
+    )).scalars().first()
+    if cell is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Study cell not found.")
+    return StudyCellView(
+        id=cell.id, study_run_id=cell.study_run_id, ordinal=cell.ordinal,
+        binding_case_revision_id=cell.binding_case_revision_id,
+        engine_ref=cell.engine_ref, parameters=cell.parameters, seed=cell.seed,
+        fingerprint=cell.fingerprint, job_id=cell.job_id, state=cell.state.value,
+        metrics=cell.metrics,
+    )
 
 
 @router.post("/studies/{study}/runs/{run_id}/cancel", response_model=StudyRunView, operation_id="cancelStudyRun")
@@ -661,7 +888,96 @@ async def get_study_analytics(
     found_study = await _study(session, found_project.id, study, user)
     run = await _run(session, found_study.id, run_id)
     cells = (await session.execute(select(StudyCell).where(StudyCell.study_run_id == run.id).order_by(StudyCell.ordinal))).scalars().all()
-    return AnalyticsView(**aggregate_metrics([cell.metrics for cell in cells]))
+    metrics_data = aggregate_metrics([cell.metrics for cell in cells])
+
+    case_rev_ids = list({cell.binding_case_revision_id for cell in cells if cell.binding_case_revision_id})
+    if not case_rev_ids and found_study.definition and isinstance(found_study.definition, dict):
+        raw_ids = found_study.definition.get("case_revision_ids", [])
+        for item in raw_ids:
+            try:
+                case_rev_ids.append(uuid.UUID(str(item)))
+            except (ValueError, TypeError):
+                pass
+
+    binding_space_info = None
+    if case_rev_ids:
+        case_rows = (await session.execute(
+            select(BindingCaseRevision, BindingCase)
+            .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+            .where(BindingCaseRevision.id.in_(case_rev_ids))
+        )).all()
+
+        cases_detail = []
+        total_cardinality = 1
+        has_cardinality = False
+        all_breakdowns = {}
+        for rev, case in case_rows:
+            cardinality = None
+            breakdown = {}
+            if rev.source_snapshot_id:
+                ir_row = (await session.execute(
+                    select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == rev.source_snapshot_id)
+                )).scalars().first()
+                if ir_row and isinstance(ir_row.document, dict):
+                    spec = ir_row.document.get("spec", {})
+                    tasks = spec.get("application", {}).get("tasks", {})
+                    eligibility = spec.get("eligibility", {})
+                    if isinstance(tasks, dict) and isinstance(eligibility, dict):
+                        breakdown = {
+                            t: len(eligibility.get(t, []))
+                            for t, task_info in sorted(tasks.items())
+                            if isinstance(task_info, dict) and task_info.get("kind") == "service"
+                        }
+                        if breakdown:
+                            card = 1
+                            for c in breakdown.values():
+                                card *= c
+                            cardinality = card
+
+            if cardinality is None and isinstance(rev.document, dict):
+                spec = rev.document.get("spec", {})
+                tasks = spec.get("application", {}).get("tasks", [])
+                candidates = spec.get("candidates", [])
+                candidate_count = len(candidates) if isinstance(candidates, list) else len(candidates.keys()) if isinstance(candidates, dict) else 1
+                if isinstance(tasks, list):
+                    task_names = [t.get("id", f"task_{idx}") for idx, t in enumerate(tasks) if isinstance(t, dict)]
+                    breakdown = {t: max(1, candidate_count) for t in task_names}
+                    cardinality = (max(1, candidate_count)) ** len(task_names) if task_names else 1
+                elif isinstance(tasks, dict):
+                    breakdown = {t: max(1, candidate_count) for t in tasks}
+                    cardinality = (max(1, candidate_count)) ** len(tasks) if tasks else 1
+
+            if cardinality is not None:
+                has_cardinality = True
+                total_cardinality = max(total_cardinality, cardinality)
+                all_breakdowns.update(breakdown)
+                log10_val = math.log10(cardinality) if cardinality > 0 else 0.0
+                cases_detail.append({
+                    "id": str(case.id),
+                    "slug": case.slug,
+                    "name": case.name,
+                    "revision": rev.revision,
+                    "cardinality": str(cardinality),
+                    "log10": round(log10_val, 2),
+                    "tasks": len(breakdown),
+                    "breakdown": breakdown,
+                })
+
+        if has_cardinality:
+            log10_total = math.log10(total_cardinality) if total_cardinality > 0 else 0.0
+            primary_case = cases_detail[0] if cases_detail else None
+            binding_space_info = {
+                "cardinality": str(total_cardinality),
+                "log10": round(log10_total, 2),
+                "tasks": len(all_breakdowns),
+                "breakdown": all_breakdowns,
+                "case_slug": primary_case["slug"] if primary_case else None,
+                "case_name": primary_case["name"] if primary_case else None,
+                "revision": primary_case["revision"] if primary_case else None,
+                "cases": cases_detail,
+            }
+
+    return AnalyticsView(**metrics_data, binding_space=binding_space_info)
 
 
 def _report_view(value: Report) -> ReportView:
@@ -769,6 +1085,26 @@ async def list_reports(
     return [_report_view(row) for row in rows]
 
 
+@router.get("/reports/{report}", response_model=ReportView, operation_id="getReport")
+async def get_report(
+    org: str, project: str, report: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> ReportView:
+    _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
+    try:
+        parsed = uuid.UUID(report)
+    except ValueError:
+        parsed = None
+    value = (await session.execute(select(Report).where(
+        Report.project_id == found_project.id,
+        Report.id == parsed if parsed else Report.slug == report,
+    ))).scalars().first()
+    if value is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Report not found.")
+    return _report_view(value)
+
+
 @router.post("/reports", response_model=ReportView, status_code=201, operation_id="createReport")
 async def create_report(
     org: str, project: str, payload: ReportCreate,
@@ -831,6 +1167,59 @@ async def freeze_report(
     return _report_view(value)
 
 
+@router.patch("/reports/{report}", response_model=ReportView, operation_id="updateReport")
+async def update_report(
+    org: str, project: str, report: str, payload: ReportUpdate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> ReportView:
+    organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
+    try:
+        parsed = uuid.UUID(report)
+    except ValueError:
+        parsed = None
+    value = (await session.execute(select(Report).where(
+        Report.project_id == found_project.id,
+        Report.id == parsed if parsed else Report.slug == report,
+    ))).scalars().first()
+    if value is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Report not found.")
+    if value.state is ReportState.FROZEN:
+        raise api_error(status.HTTP_409_CONFLICT, "report_frozen", "Frozen reports are immutable and cannot be modified.")
+    if payload.title is not None:
+        value.title = payload.title
+    if payload.document is not None:
+        value.document = payload.document
+        value.digest = digest(payload.document)
+    await session.flush()
+    _audit(session, user, "report.updated", value, organization.id)
+    return _report_view(value)
+
+
+@router.delete("/reports/{report}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteReport")
+async def delete_report(
+    org: str, project: str, report: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> None:
+    organization, found_project = await _context(session, org, project, user, OrganizationRole.ADMIN)
+    try:
+        parsed = uuid.UUID(report)
+    except ValueError:
+        parsed = None
+    value = (await session.execute(select(Report).where(
+        Report.project_id == found_project.id,
+        Report.id == parsed if parsed else Report.slug == report,
+    ))).scalars().first()
+    if value is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Report not found.")
+    from sqlalchemy import delete as sa_delete
+    await session.execute(sa_delete(Publication).where(Publication.report_id == value.id))
+    _audit(session, user, "report.deleted", value, organization.id)
+    await session.delete(value)
+    await session.flush()
+
+
 @router.post("/publications", response_model=PublicationView, status_code=201, operation_id="publishReport")
 async def publish_report(
     org: str, project: str, payload: PublicationCreate,
@@ -880,6 +1269,28 @@ async def list_project_publications(
     return [PublicationView.model_validate(row, from_attributes=True) for row in rows]
 
 
+@router.delete("/publications/{publication}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deletePublication")
+async def delete_publication(
+    org: str, project: str, publication: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> None:
+    organization, found_project = await _context(session, org, project, user, OrganizationRole.ADMIN)
+    try:
+        parsed = uuid.UUID(publication)
+    except ValueError:
+        parsed = None
+    value = (await session.execute(select(Publication).where(
+        Publication.project_id == found_project.id,
+        Publication.id == parsed if parsed else Publication.slug == publication,
+    ))).scalars().first()
+    if value is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Publication not found.")
+    _audit(session, user, "publication.deleted", value, organization.id)
+    await session.delete(value)
+    await session.flush()
+
+
 @public_router.get("/projects", operation_id="explorePublicProjects")
 async def explore_projects(
     response: Response,
@@ -915,3 +1326,28 @@ async def explore_publications(
         "project": project.slug, "organization": organization.slug,
         "publishedAt": publication.published_at,
     } for publication, report, project, organization in rows]
+
+
+@public_router.get("/engines", operation_id="exploreEngines")
+async def explore_engines(
+    response: Response,
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=300"
+    from .v1 import _available_engine_documents, _engine_ref
+
+    engines = []
+    for document, namespace in await _available_engine_documents(session, caller=None):
+        reference = _engine_ref(document, namespace)
+        engines.append(
+            {
+                "id": reference["name"],
+                "name": reference["name"],
+                "namespace": reference["namespace"],
+                "version": reference["version"],
+                "digest": reference["digest"],
+                "ref": reference,
+                "modes": document.get("spec", {}).get("modes", []),
+            }
+        )
+    return {"engines": engines}

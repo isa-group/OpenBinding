@@ -30,6 +30,8 @@ def _view(job: Job) -> JobView:
         cancellation_requested=job.cancellation_requested,
         retry_of_id=job.retry_of_id, organization_id=job.organization_id,
         project_id=job.project_id, created_at=job.created_at, finished_at=job.finished_at,
+        result=job.result, termination=job.termination, options=job.options,
+        original_request=job.original_request, provenance=job.provenance,
     )
 
 
@@ -114,7 +116,33 @@ async def retry_job(
     except space_client.PricingUnavailable as exc:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
     if not verdict.allowed:
-        raise api_error(status.HTTP_429_TOO_MANY_REQUESTS, "quota_exhausted", verdict.reason or "Solve quota exhausted.")
+        if verdict.limit is not None:
+            if verdict.limit.limit_id == "concurrentJobs":
+                raise api_error(
+                    status.HTTP_429_TOO_MANY_REQUESTS,
+                    "concurrency_limit_exceeded",
+                    verdict.reason or "Concurrency limit exceeded.",
+                    headers={"Retry-After": "15"},
+                    concurrency={"limit_id": "concurrentJobs", "limit": verdict.limit.limit, "used": verdict.limit.used},
+                )
+            else:
+                raise api_error(
+                    status.HTTP_402_PAYMENT_REQUIRED,
+                    "quota_exceeded",
+                    verdict.reason or "Solve quota exhausted.",
+                    quota={
+                        "limit_id": verdict.limit.limit_id,
+                        "limit": verdict.limit.limit,
+                        "used": verdict.limit.used,
+                        "unit": verdict.limit.unit,
+                        "renews_at": verdict.limit.renews_at,
+                    },
+                )
+        raise api_error(
+            status.HTTP_403_FORBIDDEN,
+            "feature_not_entitled",
+            verdict.reason or "The current plan does not entitle this feature.",
+        )
     replacement = Job(
         owner_id=user.id, engine_id=original.engine_id, engine_job_id=str(uuid.uuid4()),
         service_url=original.service_url, state=JobState.QUEUED, verbose=original.verbose,

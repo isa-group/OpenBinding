@@ -481,7 +481,7 @@ async def test_a_key_cannot_remove_its_own_resource_boundary(api_client, registr
         "engines:register",
         "engines:publish",
         "engines:moderate",
-        "instances:analyze",
+        "instances:validate",
         "jobs:read",
         "studies:read",
         "studies:write",

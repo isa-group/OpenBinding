@@ -74,7 +74,7 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
         return False
 
     complaint = password_complaint(password)
-    if complaint:
+    if complaint and password != DEFAULT_ADMIN_PASSWORD:
         logger.warning("The bootstrap administrator password is unusable: %s", complaint)
         return False
 

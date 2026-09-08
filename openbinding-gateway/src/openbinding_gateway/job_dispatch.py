@@ -34,7 +34,21 @@ async def start_worker_runtime() -> None:
     if not settings.database_url:
         raise RuntimeError("Dramatiq workers require DATABASE_URL; queued jobs cannot run in memory.")
     db_base.init_engine(settings.database_url)
-    space_client.set_gate(space_client.build_gate(settings))
+
+    async def resolve_catalog(version: str):
+        if not settings.database_url:
+            raise RuntimeError("A database is required to resolve pricing metadata")
+        from .pricing_catalog import catalog_for_version
+
+        async with db_base.session_factory()() as catalog_session:
+            return await catalog_for_version(catalog_session, settings, version)
+
+    space_client.set_gate(
+        space_client.build_gate(
+            settings,
+            catalog_resolver=resolve_catalog if settings.database_url else None,
+        )
+    )
     try:
         async with db_base.session_factory()() as session:
             await session.execute(text("SELECT 1"))

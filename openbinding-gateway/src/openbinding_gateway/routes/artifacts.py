@@ -35,7 +35,6 @@ from ..db.models import (
     JobState,
     Organization,
     OrganizationRole,
-    Project,
     ProjectResource,
     ProjectResourceRevision,
     Publication,
@@ -55,7 +54,6 @@ from ..v1.canonical import CanonicalizationError, digest
 from ..v1.package import PackageError, strict_json_loads
 
 router = APIRouter(prefix="/v1/organizations/{org}/projects/{project}", tags=["Artifacts"])
-public_router = APIRouter(prefix="/v1/public", tags=["Explore"])
 
 
 def _portable_objects(container: dict, key: str, path: str) -> list[dict]:
@@ -260,119 +258,44 @@ async def download_artifact(
     artifact = (await session.execute(select(Artifact).where(
         Artifact.project_id == found_project.id, Artifact.digest == digest_value
     ))).scalars().first()
-    if artifact is None or not Path(artifact.storage_uri).is_file():
+    if artifact is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Artifact not found.")
+    storage_path = Path(artifact.storage_uri)
+    if not storage_path.is_file():
+        storage_path = _artifact_path(get_settings(), artifact.digest)
+        if not storage_path.is_file():
+            raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Artifact not found.")
     return FileResponse(
-        artifact.storage_uri, media_type=artifact.media_type,
+        str(storage_path), media_type=artifact.media_type,
         headers={"ETag": f'"{artifact.digest}"', "Cache-Control": "no-store"},
     )
 
 
-@public_router.get(
-    "/artifacts/{digest_value}",
-    operation_id="downloadPublicArtifact",
-    response_class=FileResponse,
-    responses={200: {"content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}}}},
-)
-async def download_public_artifact(
-    digest_value: str,
+@router.delete("/artifacts/{digest_value}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteArtifact")
+async def delete_artifact(
+    org: str, project: str, digest_value: str,
+    user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> Response:
+) -> None:
+    organization, found_project = await _context(session, org, project, user, OrganizationRole.ADMIN)
     artifact = (await session.execute(select(Artifact).where(
-        Artifact.digest == digest_value, Artifact.public.is_(True)
-    ).join(
-        Project, Project.id == Artifact.project_id
-    ).where(
-        Project.visibility == Visibility.PUBLIC
+        Artifact.project_id == found_project.id, Artifact.digest == digest_value
     ))).scalars().first()
-    if artifact is None or not Path(artifact.storage_uri).is_file():
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Public artifact not found.")
-    return FileResponse(
-        artifact.storage_uri, media_type=artifact.media_type,
-        headers={
-            "ETag": f'"{artifact.digest}"',
-            "Cache-Control": "public, max-age=31536000, immutable",
-            "Content-Security-Policy": "default-src 'none'; sandbox",
-        },
-    )
-
-
-def _immutable_json(document: dict, digest_value: str) -> Response:
-    return JSONResponse(
-        document,
-        headers={
-            "ETag": f'"{digest_value}"',
-            "Cache-Control": "public, max-age=31536000, immutable",
-            "Content-Security-Policy": "default-src 'none'; sandbox",
-        },
-    )
-
-
-@public_router.get(
-    "/case-revisions/{digest_value}",
-    operation_id="getPublicCaseRevision",
-    responses={200: {"content": {"application/json": {"schema": {"type": "object"}}}}},
-)
-async def public_case_revision(
-    digest_value: str,
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> Response:
-    row = (
-        await session.execute(
-            select(BindingCaseRevision)
-            .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
-            .join(Project, Project.id == BindingCase.project_id)
-            .where(BindingCaseRevision.digest == digest_value, Project.visibility == "public")
-        )
-    ).scalars().first()
-    if row is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Public case revision not found.")
-    return _immutable_json(row.document, row.digest)
-
-
-@public_router.get(
-    "/resource-revisions/{digest_value}",
-    operation_id="getPublicProjectResourceRevision",
-    responses={200: {"content": {"application/json": {"schema": {"type": "object"}}}}},
-)
-async def public_project_resource_revision(
-    digest_value: str,
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> Response:
-    row = (
-        await session.execute(
-            select(ProjectResourceRevision)
-            .join(ProjectResource, ProjectResource.id == ProjectResourceRevision.project_resource_id)
-            .join(Project, Project.id == ProjectResource.project_id)
-            .where(ProjectResourceRevision.digest == digest_value, Project.visibility == "public")
-        )
-    ).scalars().first()
-    if row is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Public resource revision not found.")
-    return _immutable_json(row.document, row.digest)
-
-
-@public_router.get(
-    "/reports/{digest_value}",
-    operation_id="getPublishedReportByDigest",
-    responses={200: {"content": {"application/json": {"schema": {"type": "object"}}}}},
-)
-async def published_report_by_digest(
-    digest_value: str,
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> Response:
-    row = (
-        await session.execute(
-            select(Report)
-            .join(Publication, Publication.report_id == Report.id)
-            .join(Project, Project.id == Publication.project_id)
-            .where(Report.digest == digest_value, Project.visibility == "public")
-        )
-    ).scalars().first()
-    if row is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Published report not found.")
-    return _immutable_json(row.document, row.digest)
-
+    if artifact is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Artifact not found.")
+    storage_path = Path(artifact.storage_uri)
+    session.add(AuditEvent(
+        organization_id=organization.id, actor_id=user.id, action="artifact.deleted",
+        target_type="Artifact", target_id=artifact.id, detail={"digest": digest_value},
+    ))
+    await session.delete(artifact)
+    await session.flush()
+    remaining = await session.scalar(select(func.count(Artifact.id)).where(Artifact.storage_uri == str(storage_path)))
+    if not remaining and storage_path.is_file():
+        try:
+            storage_path.unlink()
+        except OSError:
+            pass
 
 @router.get(
     "/package",

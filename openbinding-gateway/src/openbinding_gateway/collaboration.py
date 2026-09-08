@@ -78,8 +78,6 @@ async def descendant_ids(session: AsyncSession, organization_id: uuid.UUID) -> l
 async def effective_role(
     session: AsyncSession, organization_id: uuid.UUID, user: User
 ) -> OrganizationRole | None:
-    if user.is_admin:
-        return OrganizationRole.OWNER
     ancestors = await ancestor_ids(session, organization_id)
     if not ancestors:
         return None

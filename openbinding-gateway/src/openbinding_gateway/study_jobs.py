@@ -204,6 +204,27 @@ async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
     cell.state = state_map[job.state]
     if job.state in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
         cell.metrics = metrics_from_job(job, cell)
+        run_obj = await session.get(StudyRun, cell.study_run_id)
+        if run_obj and run_obj.state is not RunState.CANCELLED:
+            queued_cell = (
+                await session.execute(
+                    select(StudyCell)
+                    .where(
+                        StudyCell.study_run_id == run_obj.id,
+                        StudyCell.job_id.is_(None),
+                        StudyCell.state == RunState.QUEUED,
+                    )
+                    .order_by(StudyCell.ordinal)
+                )
+            ).scalars().first()
+            if queued_cell is not None:
+                user = await session.get(User, run_obj.created_by_id)
+                org = await session.get(Organization, job.organization_id)
+                if user and org and job.project_id:
+                    try:
+                        await launch_study_cell(session, queued_cell, user, org, job.project_id)
+                    except StudyLaunchError:
+                        pass
 
     run = await session.get(StudyRun, cell.study_run_id)
     if run is None or run.state is RunState.CANCELLED:

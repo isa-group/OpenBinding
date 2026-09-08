@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from openbinding_gateway import space_client
 from openbinding_gateway.collaboration import sponsor_usage
-from openbinding_gateway.db.models import Organization, User, UserRole
+from openbinding_gateway.db.models import Organization, Publication, Report, ReportState
 from _pricing import fake_pricing_gate, largest_plan
 
 LARGER_PLAN = largest_plan()
@@ -119,9 +119,6 @@ async def test_sponsor_transfer_validates_and_moves_the_whole_tree_atomically(
     owner_id = uuid.UUID(owner["id"])
     sponsor_id = uuid.UUID(sponsor["id"])
     platform_gate.plans[owner_id] = LARGER_PLAN
-    owner_row = await db_session.get(User, owner_id)
-    owner_row.role = UserRole.ADMIN
-    await db_session.flush()
     root, child = await tree(api_client, headers)
 
     refused = await api_client.patch(
@@ -208,3 +205,170 @@ async def test_project_resources_have_immutable_deduplicated_revisions(
     assert duplicate.json()["id"] == first.json()["id"]
     assert [row["revision"] for row in listed.json()] == [1, 2]
     assert first.json()["digest"].startswith("sha256-")
+
+
+async def test_delete_project_and_organization_lifecycle(
+    api_client, registration, platform_gate
+) -> None:
+    owner, owner_headers = await account(api_client, registration)
+    viewer, viewer_headers = await account(api_client, registration)
+    platform_gate.plans[uuid.UUID(owner["id"])] = LARGER_PLAN
+
+    org_res = await api_client.post(
+        "/v1/organizations",
+        headers=owner_headers,
+        json={"slug": f"lifecycle-{uuid.uuid4().hex[:8]}", "name": "Lifecycle Lab"},
+    )
+    org = org_res.json()
+
+    # Add viewer to org
+    await api_client.put(
+        f"/v1/organizations/{org['slug']}/members/{viewer['id']}",
+        headers=owner_headers,
+        json={"user_id": viewer["id"], "role": "VIEWER"},
+    )
+
+    # Create project
+    proj_res = await api_client.post(
+        f"/v1/organizations/{org['slug']}/projects",
+        headers=owner_headers,
+        json={"slug": "proj-lifecycle", "name": "Lifecycle Project", "visibility": "private"},
+    )
+    assert proj_res.status_code == 201
+
+    # Viewer cannot delete project
+    del_forbidden = await api_client.delete(
+        f"/v1/organizations/{org['slug']}/projects/proj-lifecycle",
+        headers=viewer_headers,
+    )
+    assert del_forbidden.status_code == 403
+
+    # Owner can delete project
+    del_ok = await api_client.delete(
+        f"/v1/organizations/{org['slug']}/projects/proj-lifecycle",
+        headers=owner_headers,
+    )
+    assert del_ok.status_code == 204
+
+    # Verify project is gone
+    get_proj = await api_client.get(
+        f"/v1/organizations/{org['slug']}/projects/proj-lifecycle",
+        headers=owner_headers,
+    )
+    assert get_proj.status_code == 404
+
+    # Viewer cannot delete organization
+    del_org_forbidden = await api_client.delete(
+        f"/v1/organizations/{org['slug']}",
+        headers=viewer_headers,
+    )
+    assert del_org_forbidden.status_code == 403
+
+    # Owner can delete organization
+    del_org_ok = await api_client.delete(
+        f"/v1/organizations/{org['slug']}",
+        headers=owner_headers,
+    )
+    assert del_org_ok.status_code == 204
+
+    # Verify org is gone
+    get_org = await api_client.get(
+        f"/v1/organizations/{org['slug']}",
+        headers=owner_headers,
+    )
+    assert get_org.status_code == 404
+
+
+async def test_cascaded_deletion_with_reports_publications_and_child_orgs(
+    api_client, registration, platform_gate, db_session
+):
+    owner, owner_headers = await account(api_client, registration)
+    platform_gate.plans[uuid.UUID(owner["id"])] = LARGER_PLAN
+    parent_slug = f"parent-org-{uuid.uuid4().hex[:8]}"
+    child_slug = f"child-org-{uuid.uuid4().hex[:8]}"
+
+    # 1. Create parent organization
+    p_res = await api_client.post(
+        "/v1/organizations",
+        headers=owner_headers,
+        json={"slug": parent_slug, "name": "Parent Org"},
+    )
+    assert p_res.status_code == 201
+    parent = p_res.json()
+
+    # 2. Create child organization
+    c_res = await api_client.post(
+        "/v1/organizations",
+        headers=owner_headers,
+        json={"slug": child_slug, "name": "Child Org", "parent_id": parent["id"]},
+    )
+    assert c_res.status_code == 201
+
+    # 3. Create project in child org
+    proj_res = await api_client.post(
+        f"/v1/organizations/{child_slug}/projects",
+        headers=owner_headers,
+        json={"slug": "nested-proj", "name": "Nested Project", "visibility": "public"},
+    )
+    assert proj_res.status_code == 201
+    proj_data = proj_res.json()
+
+    # 4. Create case in project
+    case_res = await api_client.post(
+        f"/v1/organizations/{child_slug}/projects/nested-proj/cases",
+        headers=owner_headers,
+        json={"slug": "case-1", "name": "Case One"},
+    )
+    assert case_res.status_code == 201
+
+    # 5. Create report in project
+    rep_res = await api_client.post(
+        f"/v1/organizations/{child_slug}/projects/nested-proj/reports",
+        headers=owner_headers,
+        json={
+            "slug": "report-1",
+            "title": "Initial Report",
+            "document": {"summary": "Execution report"},
+        },
+    )
+    assert rep_res.status_code == 201
+    report_data = rep_res.json()
+
+    # 6. Create publication for the report
+    report = await db_session.get(Report, uuid.UUID(report_data["id"]))
+    assert report is not None
+    report.state = ReportState.FROZEN
+    pub = Publication(
+        project_id=uuid.UUID(proj_data["id"]),
+        report_id=report.id,
+        slug="pub-1",
+        citation={"author": "Tester"},
+        published_by_id=uuid.UUID(owner["id"]),
+    )
+    db_session.add(pub)
+    await db_session.commit()
+
+    # 7. Delete the project directly and confirm 204
+    del_proj = await api_client.delete(
+        f"/v1/organizations/{child_slug}/projects/nested-proj",
+        headers=owner_headers,
+    )
+    assert del_proj.status_code == 204
+
+    # 8. Create another project and delete parent organization cascading to child
+    proj2_res = await api_client.post(
+        f"/v1/organizations/{child_slug}/projects",
+        headers=owner_headers,
+        json={"slug": "nested-proj-2", "name": "Nested Project 2", "visibility": "private"},
+    )
+    assert proj2_res.status_code == 201
+
+    del_parent = await api_client.delete(
+        f"/v1/organizations/{parent_slug}",
+        headers=owner_headers,
+    )
+    assert del_parent.status_code == 204
+
+    # Verify both parent and child are deleted
+    assert (await api_client.get(f"/v1/organizations/{parent_slug}", headers=owner_headers)).status_code == 404
+    assert (await api_client.get(f"/v1/organizations/{child_slug}", headers=owner_headers)).status_code == 404

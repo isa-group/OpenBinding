@@ -177,14 +177,25 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
         assert restored_resources.json()[0]["slug"] == "offers"
         assert restored_artifacts.json()[0]["public"] is False
 
+        public_case_res = await api_client.get(
+            f"/v1/resolve/case-revision/{case_revision.json()['digest']}"
+        )
+        assert public_case_res.status_code == 200
+        assert public_case_res.json()["verified"] is True
+        assert len(public_case_res.json()["locations"]) >= 1
+
         public_case = await api_client.get(
-            f"/v1/public/case-revisions/{case_revision.json()['digest']}"
+            f"/v1/resolve/case-revision/{case_revision.json()['digest']}/content"
         )
         public_resource = await api_client.get(
-            f"/v1/public/resource-revisions/{resource_revision.json()['digest']}"
+            f"/v1/resolve/resource-revision/{resource_revision.json()['digest']}/content"
         )
-        public_report = await api_client.get(f"/v1/public/reports/{frozen.json()['digest']}")
-        public_artifact = await api_client.get(f"/v1/public/artifacts/{artifact.json()['digest']}")
+        public_report = await api_client.get(
+            f"/v1/resolve/report/{frozen.json()['digest']}/content"
+        )
+        public_artifact = await api_client.get(
+            f"/v1/resolve/artifact/{artifact.json()['digest']}/content"
+        )
         for response in (public_case, public_resource, public_report, public_artifact):
             assert response.status_code == 200, response.text
             assert response.headers["cache-control"].endswith("immutable")

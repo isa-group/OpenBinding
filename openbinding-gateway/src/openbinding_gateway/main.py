@@ -34,9 +34,10 @@ from .db.bootstrap import (
     seed_default_administrator,
 )
 from .pricing_catalog import PricingCatalogError
+from .pricing_bootstrap import reconcile_pricing
 from .routes.admin import router as admin_router
-from .routes.artifacts import public_router as public_artifacts_router
 from .routes.artifacts import router as artifacts_router
+from .routes.resolve import router as resolve_router
 from .routes.auth import router as auth_router
 from .routes.cas import identity_router, router as cas_router
 from .routes.jobs import router as jobs_router
@@ -48,11 +49,13 @@ from .routes.studies import public_router as public_studies_router
 from .routes.studies import router as studies_router
 from .routes.users import router as users_router
 from .routes.v1 import router as v1_router
+from .routes.verifier import router as verifier_router
 from .security.apikeys import (
     ALL_PERMISSIONS,
     ENGINE_LIMITED_PERMISSIONS,
     required_permissions,
 )
+from .telemetry import ErrorTelemetryMiddleware
 
 load_dotenv()
 
@@ -111,6 +114,27 @@ async def lifespan(app: FastAPI):
                     error,
                 )
             await session.commit()
+
+        if settings.sphere_enabled:
+            async with db_base.session_factory()() as session:
+                from sqlalchemy import select
+
+                from .db.models import User, UserRole
+
+                administrator = await session.scalar(
+                    select(User).where(User.role == UserRole.ADMIN).limit(1)
+                )
+                if administrator is None:
+                    raise RuntimeError(
+                        "Pricing startup reconciliation requires an administrator account."
+                    )
+                try:
+                    await reconcile_pricing(session, settings, administrator)
+                except Exception as error:
+                    raise RuntimeError(
+                        f"Pricing startup reconciliation failed: {error}"
+                    ) from error
+                await session.commit()
 
     reconciler = None
     if settings.database_url:
@@ -172,7 +196,7 @@ _BIM_PATH_PREFIXES = (
     "/v1/engine-registrations",
     "/v1/resources",
     "/v1/instances",
-    "/v1/analyze",
+    "/v1/validate",
     "/v1/jobs",
 )
 
@@ -187,6 +211,7 @@ def _problem_response(
     detail: str,
     diagnostics: list[dict] | None = None,
     headers: dict[str, str] | None = None,
+    extra: dict | None = None,
 ) -> JSONResponse:
     body: dict = {
         "type": f"https://openbinding.dev/problems/{code}",
@@ -196,6 +221,8 @@ def _problem_response(
     }
     if diagnostics:
         body["diagnostics"] = diagnostics
+    if extra:
+        body.update(extra)
     return JSONResponse(
         body,
         status_code=status_code,
@@ -228,10 +255,14 @@ async def bim_http_error(request: Request, exc: HTTPException):
 
         return await http_exception_handler(request, exc)
     detail = exc.detail
+    extra = {}
     if isinstance(detail, dict):
         code = str(detail.get("code", "request_error"))
-        message = str(detail.get("message", code))
+        message = str(detail.get("message") or detail.get("error") or code)
         diagnostics = detail.get("diagnostics")
+        for k, v in detail.items():
+            if k not in ("code", "message", "error", "diagnostics"):
+                extra[k] = v
     else:
         code = "request_error"
         message = str(detail)
@@ -242,6 +273,7 @@ async def bim_http_error(request: Request, exc: HTTPException):
         message,
         diagnostics,
         headers=exc.headers,
+        extra=extra,
     )
 
 settings = get_settings()
@@ -252,6 +284,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(ErrorTelemetryMiddleware)
 
 
 @app.get("/health", tags=["Health"], operation_id="health", summary="Whether the gateway is up")
@@ -303,9 +336,10 @@ app.include_router(invitation_router)
 app.include_router(studies_router)
 app.include_router(public_studies_router)
 app.include_router(artifacts_router)
-app.include_router(public_artifacts_router)
+app.include_router(resolve_router)
 app.include_router(jobs_router)
 app.include_router(notifications_router)
+app.include_router(verifier_router)
 
 
 _generated_openapi = app.openapi
@@ -690,12 +724,13 @@ def openapi_with_security_contract() -> dict:
             **schemas["ValidationResult"]["properties"],
             "analysis": {
                 "type": "object",
-                "required": ["tasks", "candidates", "constraints", "placement"],
+                "required": ["tasks", "candidates", "constraints", "placement", "bindingSpace"],
                 "properties": {
                     "tasks": {"type": "integer", "minimum": 0},
                     "candidates": {"type": "integer", "minimum": 0},
                     "constraints": {"type": "integer", "minimum": 0},
                     "placement": {"type": "boolean"},
+                    "bindingSpace": {"type": "string", "pattern": "^[0-9]+$"},
                 },
                 "additionalProperties": False,
             },
@@ -1152,7 +1187,7 @@ def openapi_with_security_contract() -> dict:
     validation["responses"]["200"] = json_response(
         "ValidationResult", "Canonical validation and digest result."
     )
-    analysis = paths["/v1/analyze"]["post"]
+    analysis = paths["/v1/validate"]["post"]
     analysis["requestBody"] = package_body(
         "Portable BIM source package, or an exact snapshot owned by the caller.",
         json_component="SnapshotReference",
@@ -1277,7 +1312,9 @@ def openapi_with_security_contract() -> dict:
     add_problem(jobs["post"], 413, "The request exceeds the caller or transport size limit.")
     add_problem(jobs["post"], 415, "The request media type is not supported.")
     add_problem(jobs["post"], 422, "The package, selection, mode or options are invalid.")
-    add_problem(jobs["post"], 429, "The caller's solve quota or concurrency allowance is exhausted.")
+    add_problem(jobs["post"], 402, "The caller's periodic or volume solve quota is exhausted.")
+    add_problem(jobs["post"], 429, "The caller's concurrency slots are exhausted.")
+    add_problem(jobs["post"], 403, "The requested feature or engine is not entitled in the caller's plan.")
     app.openapi_schema = document
     return document
 

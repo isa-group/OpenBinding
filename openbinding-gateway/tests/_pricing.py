@@ -6,7 +6,20 @@ from pathlib import Path
 from openbinding_gateway.pricing_catalog import PricingCatalog
 from openbinding_gateway.space_client import FakePricingGate, PlanCaps
 
-PRICING_YAML = Path(__file__).resolve().parents[2] / "space/pricing/openbinding.yml"
+def _find_pricing_yaml() -> Path:
+    candidates = [
+        Path(__file__).resolve().parents[2] / "space/pricing/openbinding.yml",
+        Path(__file__).resolve().parents[1] / "space/pricing/openbinding.yml",
+        Path("/app/space/pricing/openbinding.yml"),
+        Path("/space/pricing/openbinding.yml"),
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[0]
+
+
+PRICING_YAML = _find_pricing_yaml()
 
 
 @lru_cache(maxsize=1)

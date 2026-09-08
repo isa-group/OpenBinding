@@ -44,7 +44,7 @@ class ApiKeyPermission(str, Enum):
     KEYS_WRITE = "keys:write"
     INSTANCES_READ = "instances:read"
     INSTANCES_WRITE = "instances:write"
-    INSTANCES_ANALYZE = "instances:analyze"
+    INSTANCES_VALIDATE = "instances:validate"
     JOBS_READ = "jobs:read"
     ENGINES_READ = "engines:read"
     ENGINES_EXECUTE = "engines:execute"
@@ -87,7 +87,7 @@ ENGINE_LIMITED_PERMISSIONS = frozenset(
         ApiKeyPermission.ENGINES_REGISTER.value,
         ApiKeyPermission.ENGINES_PUBLISH.value,
         ApiKeyPermission.ENGINES_MODERATE.value,
-        ApiKeyPermission.INSTANCES_ANALYZE.value,
+        ApiKeyPermission.INSTANCES_VALIDATE.value,
         ApiKeyPermission.JOBS_READ.value,
         ApiKeyPermission.STUDIES_READ.value,
         ApiKeyPermission.STUDIES_WRITE.value,
@@ -426,8 +426,8 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         if method == "GET":
             return frozenset({ApiKeyPermission.ENGINES_READ.value})
         return frozenset({ApiKeyPermission.ENGINES_REGISTER.value})
-    if path == "/v1/analyze":
-        return frozenset({ApiKeyPermission.INSTANCES_ANALYZE.value})
+    if path == "/v1/validate":
+        return frozenset({ApiKeyPermission.INSTANCES_VALIDATE.value})
     if path.startswith("/v1/instances"):
         return frozenset(
             {ApiKeyPermission.INSTANCES_READ.value}
@@ -440,4 +440,8 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET"
             else {ApiKeyPermission.ENGINES_EXECUTE.value}
         )
+    if path.startswith("/v1/verifier"):
+        return frozenset({ApiKeyPermission.INSTANCES_READ.value})
+    if path.startswith("/v1/snapshots"):
+        return frozenset({ApiKeyPermission.INSTANCES_READ.value})
     return frozenset()

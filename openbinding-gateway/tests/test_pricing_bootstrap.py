@@ -6,6 +6,7 @@ from openbinding_gateway.core.settings import Settings
 from openbinding_gateway.pricing_catalog import live_catalog
 from openbinding_gateway.space_client import FakePricingGate
 from openbinding_gateway.sphere_client import SpherePricingVersion
+from openbinding_gateway.pricing_bootstrap import latest_public_version
 from _pricing import PRICING_YAML, pricing_catalog
 
 
@@ -52,3 +53,28 @@ async def test_fresh_database_resolves_bootstrap_catalog_from_public_sphere_rele
 
     assert resolved.digest == canonical.digest
     assert resolved.default_plan == canonical.default_plan
+
+
+def test_latest_public_version_uses_numeric_semver_and_excludes_drafts():
+    versions = [
+        SpherePricingVersion(
+            version="10.0.0",
+            private=False,
+            yaml_url="https://sphere.example/static/pricings/openbinding/10.0.0.yaml",
+            organization_id="org-1",
+        ),
+        SpherePricingVersion(
+            version="2.20.0",
+            private=False,
+            yaml_url="https://sphere.example/static/pricings/openbinding/2.20.0.yaml",
+            organization_id="org-1",
+        ),
+        SpherePricingVersion(
+            version="99.0.0-draft.1",
+            private=True,
+            yaml_url="https://sphere.example/static/pricings/openbinding/99.0.0-draft.1.yaml",
+            organization_id="org-1",
+        ),
+    ]
+
+    assert latest_public_version(versions).version == "10.0.0"

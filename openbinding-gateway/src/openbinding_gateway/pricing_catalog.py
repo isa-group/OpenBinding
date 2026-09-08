@@ -427,7 +427,7 @@ async def catalog_for_version(
     *,
     injected: PricingCatalog | None = None,
 ) -> PricingCatalog:
-    """Load an exact release from SPHERE, caching only by verified digest."""
+    """Load an exact release from local disk or SPHERE, caching only by verified digest."""
     if injected is not None and injected.version == version:
         return injected
     release = await session.scalar(
@@ -440,6 +440,39 @@ async def catalog_for_version(
         if errors := cached.technical_errors(settings):
             raise PricingCatalogError(" ".join(errors))
         return cached
+
+    # Check local candidate pricing files before hitting SPHERE (e.g. offline/dev or worker container)
+    from pathlib import Path
+
+    candidates: list[Path] = []
+    root = getattr(settings, "openbinding_repo_root", None)
+    if root:
+        candidates.append(Path(root) / "space" / "pricing" / "openbinding.yml")
+    candidates.extend([
+        Path("/app/space/pricing/openbinding.yml"),
+        Path("/space/pricing/openbinding.yml"),
+        Path(__file__).resolve().parents[3] / "space" / "pricing" / "openbinding.yml",
+        Path(__file__).resolve().parents[2] / "space" / "pricing" / "openbinding.yml",
+    ])
+    for candidate in candidates:
+        if candidate.is_file():
+            try:
+                local_content = candidate.read_bytes()
+                if f"sha256-{hashlib.sha256(local_content).hexdigest()}" == release.digest:
+                    catalog = PricingCatalog.parse(local_content, expected_digest=release.digest)
+                    if catalog.version == version:
+                        if errors := catalog.technical_errors(settings):
+                            raise PricingCatalogError(" ".join(errors))
+                        _REMOTE_CACHE[release.digest] = catalog
+                        return catalog
+            except Exception:
+                pass
+
+    if not (settings.sphere_enabled and settings.sphere_api_key):
+        raise PricingCatalogError(
+            f"SPHERE is not configured and no local pricing file matched release {version!r} (digest: {release.digest})"
+        )
+
     client = SphereClient(settings)
     try:
         content = await client.content(version)
@@ -468,6 +501,27 @@ async def live_catalog(session: AsyncSession, settings: Settings) -> PricingCata
         return injected
     if version is None:
         bootstrap_version = settings.space_pricing_version
+        if settings.sphere_enabled and not bootstrap_version:
+            client = SphereClient(settings)
+            try:
+                stable_versions = [
+                    item
+                    for item in await client.list_versions()
+                    if not item.private
+                    and re.fullmatch(
+                        r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)",
+                        item.version,
+                    )
+                ]
+                if stable_versions:
+                    bootstrap_version = max(
+                        stable_versions,
+                        key=lambda item: tuple(int(part) for part in item.version.split(".")),
+                    ).version
+            except SphereError as exc:
+                raise PricingCatalogError(str(exc)) from exc
+            finally:
+                await client.aclose()
         if settings.sphere_enabled and bootstrap_version:
             client = SphereClient(settings)
             try:

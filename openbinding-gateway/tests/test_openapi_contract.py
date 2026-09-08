@@ -142,10 +142,9 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/pricing/current", "get"),
         ("/v1/explore/projects", "get"),
         ("/v1/explore/publications", "get"),
-        ("/v1/public/artifacts/{digest_value}", "get"),
-        ("/v1/public/case-revisions/{digest_value}", "get"),
-        ("/v1/public/resource-revisions/{digest_value}", "get"),
-        ("/v1/public/reports/{digest_value}", "get"),
+        ("/v1/explore/engines", "get"),
+        ("/v1/resolve/{kind}/{digest_value}", "get"),
+        ("/v1/resolve/{kind}/{digest_value}/content", "get"),
         ("/v1/instances/validate", "post"),
     }
     for path, method, operation in operations(document):
@@ -198,6 +197,9 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/admin/pricing/versions/{version}/drain", "post"),
         ("/v1/admin/pricing/versions/{version}/archive", "post"),
         ("/v1/admin/pricing/drafts/{version}", "delete"),
+        ("/v1/admin/organizations/{organization_id}/sponsor", "post"),
+        ("/v1/admin/errors/overview", "get"),
+        ("/v1/admin/errors", "get"),
         ("/v1/engine-registrations/{name}/approve", "post"),
         ("/v1/engine-registrations/{name}/reject", "post"),
     }
@@ -287,8 +289,8 @@ def test_binary_yaml_and_job_inputs_have_their_real_media_types(document):
     source = paths["/v1/instances/{snapshot_id}/source"]["get"]["responses"]["200"]["content"]
     assert set(example) == set(source) == {"application/vnd.bim+zip"}
 
-    analyze = paths["/v1/analyze"]["post"]["requestBody"]["content"]
-    assert {"application/vnd.bim+zip", "application/json"} <= set(analyze)
+    validate = paths["/v1/validate"]["post"]["requestBody"]["content"]
+    assert {"application/vnd.bim+zip", "application/json"} <= set(validate)
     jobs = paths["/v1/jobs"]["post"]
     assert {"application/vnd.bim+zip", "application/json", "multipart/form-data"} <= set(
         jobs["requestBody"]["content"]

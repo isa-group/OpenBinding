@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
+import logging
 import time
 import uuid
 from datetime import datetime, timezone
@@ -20,14 +21,14 @@ import jsonschema
 import yaml
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import or_, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import space_client
 from ..access import metering
 from ..access.dependencies import optional_session, require_v1_admin, solve_caller
-from ..access.policy import clamp_options, payload_ceiling_bytes, solve_timeout_s
+from ..access.policy import clamp_options, instance_complexity_too_large, payload_ceiling_bytes, solve_timeout_s
 from ..core.settings import get_settings
 from ..db import base as db_base
 from ..db.models import (
@@ -42,8 +43,10 @@ from ..db.models import (
     JobProvenance,
     JobState,
     ManifestPublication,
+    Notification,
     RegisteredResourceRevision,
     User,
+    UserRole,
     utcnow,
 )
 from ..job_dispatch import dispatch_persisted_job
@@ -77,6 +80,8 @@ from ..v1.package import (
 )
 from ..v1.remote import RemoteEngineError, RemoteRegistration, fetch_remote_document, solve_remote, validate_endpoint
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/v1", tags=["BIM v1"])
 
 _SNAPSHOTS: dict[str, dict[str, Any]] = {}
@@ -89,11 +94,20 @@ _ENGINE_PROTOCOL_PATH = _schema_root().parents[1] / "engine-contract.openapi.yam
 _BIM_ZIP_TYPES = {"application/zip", "application/octet-stream", "application/vnd.bim+zip", "application/x-bim+zip"}
 
 
-def _problem(status_code: int, code: str, detail: str, diagnostics: list[dict[str, Any]] | None = None) -> JSONResponse:
+def _problem(
+    status_code: int,
+    code: str,
+    detail: str,
+    diagnostics: list[dict[str, Any]] | None = None,
+    extra: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> JSONResponse:
     body: dict[str, Any] = {"type": f"https://openbinding.dev/problems/{code}", "title": code, "status": status_code, "detail": detail}
     if diagnostics:
         body["diagnostics"] = diagnostics
-    return JSONResponse(body, status_code=status_code, media_type="application/problem+json")
+    if extra:
+        body.update(extra)
+    return JSONResponse(body, status_code=status_code, media_type="application/problem+json", headers=headers)
 
 
 def _instance_identity(package: InstancePackage) -> str:
@@ -2125,6 +2139,9 @@ async def list_dialects(session: AsyncSession | None = Depends(optional_session,
     }
 
 
+SYSTEM_NAMESPACES = frozenset({"system", "openbinding"})
+
+
 @router.post("/dialects", status_code=status.HTTP_201_CREATED)
 async def publish_dialect(
     request: Request,
@@ -2158,7 +2175,10 @@ async def publish_dialect(
         if caller is None:
             return _problem(401, "unauthorized", "Publishing a Dialect requires an account")
         namespace = document["metadata"]["namespace"]
-        if not caller.is_admin and namespace != caller.username:
+        if caller.is_admin:
+            if namespace != caller.username and namespace not in SYSTEM_NAMESPACES:
+                return _problem(403, "forbidden", "Dialect namespace must match the caller or an official system namespace")
+        elif namespace != caller.username:
             return _problem(403, "forbidden", "Dialect namespace must match the caller")
         existing = (
             await session.execute(
@@ -2173,23 +2193,42 @@ async def publish_dialect(
             if existing.digest != revision_digest:
                 return _problem(409, "immutable_dialect", "Dialect revisions are immutable; publish a new version")
             return {"namespace": namespace, "name": name, "version": version, "digest": revision_digest, "status": existing.state}
+        state = "published" if (caller.is_admin and namespace in SYSTEM_NAMESPACES) else "pending_review"
         row = DialectRevision(
-                owner_id=caller.id,
-                namespace=namespace,
-                name=name,
-                version=version,
-                digest=revision_digest,
-                adapter_digest=adapter_digest,
-                document=document,
-                state="pending_review",
-            )
+            owner_id=caller.id,
+            namespace=namespace,
+            name=name,
+            version=version,
+            digest=revision_digest,
+            adapter_digest=adapter_digest,
+            document=document,
+            state=state,
+        )
         try:
             async with session.begin_nested():
                 session.add(row)
+                if state == "published":
+                    publication = (
+                        await session.execute(
+                            select(ManifestPublication).where(
+                                ManifestPublication.resource_kind == "Dialect",
+                                ManifestPublication.resource_digest == revision_digest,
+                            )
+                        )
+                    ).scalars().first()
+                    if publication is None:
+                        session.add(
+                            ManifestPublication(
+                                resource_kind="Dialect",
+                                resource_digest=revision_digest,
+                                publisher_id=caller.id,
+                                state="public",
+                            )
+                        )
                 await session.flush()
         except IntegrityError:
             return _problem(409, "immutable_dialect", "Dialect identity already exists with different content")
-        return {"namespace": namespace, "name": name, "version": version, "digest": revision_digest, "status": "pending_review"}
+        return {"namespace": namespace, "name": name, "version": version, "digest": revision_digest, "status": state}
     if not _installed_dialect_contract(document):
         return _problem(409, "adapter_not_installed", "Dialect does not match an installed adapter and schema contract")
     namespace = document["metadata"]["namespace"]
@@ -2258,8 +2297,12 @@ async def register_bim_resource(
     """Store an immutable BIM source resource; no executable adapter is accepted."""
     if session is not None and caller is None:
         return _problem(401, "unauthorized", "Registering a BIM resource requires an account")
-    if caller is not None and not caller.is_admin and namespace != caller.username:
-        return _problem(403, "forbidden", "Resource namespace must match the caller")
+    if caller is not None:
+        if caller.is_admin:
+            if namespace != caller.username and namespace not in SYSTEM_NAMESPACES:
+                return _problem(403, "forbidden", "Resource namespace must match the caller or an official system namespace")
+        elif namespace != caller.username:
+            return _problem(403, "forbidden", "Resource namespace must match the caller")
     content_type = (request.headers.get("content-type") or "").split(";", 1)[0].casefold()
     body = await request.body()
     if len(body) > MAX_EXPANDED:
@@ -2351,7 +2394,7 @@ async def register_bim_resource(
         )
     revision_digest = resource_digest(filename, content)
     key = (namespace, name, version, revision_digest)
-    state = "published" if caller is None or caller.is_admin else "pending_review"
+    state = "published" if (caller is None or (caller.is_admin and namespace in SYSTEM_NAMESPACES)) else "pending_review"
     if session is not None:
         existing = (
             await session.execute(
@@ -2390,6 +2433,24 @@ async def register_bim_resource(
         try:
             async with session.begin_nested():
                 session.add(row)
+                if state == "published":
+                    publication = (
+                        await session.execute(
+                            select(ManifestPublication).where(
+                                ManifestPublication.resource_kind == "RegisteredResource",
+                                ManifestPublication.resource_digest == revision_digest,
+                            )
+                        )
+                    ).scalars().first()
+                    if publication is None:
+                        session.add(
+                            ManifestPublication(
+                                resource_kind="RegisteredResource",
+                                resource_digest=revision_digest,
+                                publisher_id=caller.id,
+                                state="public",
+                            )
+                        )
                 await session.flush()
         except IntegrityError:
             return _problem(409, "immutable_resource", "resource identity already exists")
@@ -2650,6 +2711,54 @@ async def list_v1_engines(
     return {"engines": engines}
 
 
+@router.get("/engines/revisions")
+async def list_engine_revisions(
+    session: AsyncSession | None = Depends(optional_session, scope="function"),
+    caller: User = Depends(solve_caller),
+) -> dict[str, Any]:
+    revisions: list[dict[str, Any]] = []
+    if session is not None:
+        db_revs = (await session.execute(
+            select(EngineRevision).order_by(EngineRevision.namespace, EngineRevision.name, EngineRevision.version.desc())
+        )).scalars().all()
+        reg_rows = (await session.execute(
+            select(EngineRegistrationRevision)
+        )).scalars().all()
+        reg_by_engine_digest = {r.engine_digest: r for r in reg_rows}
+        reg_by_name = {(r.namespace, r.name, r.version): r for r in reg_rows}
+
+        for rev in db_revs:
+            reg = reg_by_engine_digest.get(rev.digest) or reg_by_name.get((rev.namespace, rev.name, rev.version))
+            revisions.append({
+                "id": str(rev.id),
+                "namespace": rev.namespace,
+                "name": rev.name,
+                "version": rev.version,
+                "digest": rev.digest,
+                "state": rev.state,
+                "createdAt": rev.created_at.isoformat() if rev.created_at else None,
+                "document": rev.document,
+                "registration": _registration_summary(reg) if reg else None,
+            })
+
+    if not revisions:
+        for doc, ns in await _available_engine_documents(session, caller):
+            ref = _engine_ref(doc, ns)
+            revisions.append({
+                "id": f"{ref['namespace']}:{ref['name']}:{ref['version']}",
+                "namespace": ref["namespace"],
+                "name": ref["name"],
+                "version": ref["version"],
+                "digest": ref["digest"],
+                "state": "published",
+                "createdAt": utcnow().isoformat(),
+                "document": doc,
+                "registration": None,
+            })
+
+    return {"revisions": revisions}
+
+
 @router.get("/engines/{name}")
 async def get_v1_engine(
     name: str,
@@ -2680,6 +2789,132 @@ async def get_v1_engine(
         )
     except HTTPException as exc:
         return _problem(exc.status_code, "not_found", str(exc.detail))
+
+
+@router.get("/engines/{namespace}/{name}/revisions/{version}")
+async def get_engine_revision_detail(
+    namespace: str,
+    name: str,
+    version: str,
+    session: AsyncSession | None = Depends(optional_session, scope="function"),
+    caller: User = Depends(solve_caller),
+) -> dict[str, Any]:
+    rev = None
+    reg = None
+    if session is not None:
+        rev = (await session.execute(
+            select(EngineRevision).where(
+                EngineRevision.namespace == namespace,
+                EngineRevision.name == name,
+                EngineRevision.version == version,
+            )
+        )).scalars().first()
+
+        reg = (await session.execute(
+            select(EngineRegistrationRevision).where(
+                EngineRegistrationRevision.namespace == namespace,
+                EngineRegistrationRevision.name == name,
+                EngineRegistrationRevision.version == version,
+            )
+        )).scalars().first()
+
+    if rev is None:
+        try:
+            doc = _manifest(name, namespace=namespace, version=version)
+            rev_digest = digest(doc)
+            return {
+                "namespace": namespace,
+                "name": name,
+                "version": version,
+                "digest": rev_digest,
+                "document": doc,
+                "state": "published",
+                "registration": None,
+            }
+        except HTTPException:
+            return _problem(404, "not_found", "Engine revision not found")
+
+    return {
+        "id": str(rev.id),
+        "namespace": rev.namespace,
+        "name": rev.name,
+        "version": rev.version,
+        "digest": rev.digest,
+        "state": rev.state,
+        "createdAt": rev.created_at.isoformat() if rev.created_at else None,
+        "document": rev.document,
+        "registration": {
+            "id": str(reg.id),
+            "manifestDigest": reg.manifest_digest,
+            "endpoint": reg.endpoint,
+            "protocolDigest": reg.protocol_digest,
+            "openapiDigest": reg.openapi_digest,
+            "openapiDocument": reg.openapi_document,
+            "verificationReport": reg.verification_report,
+            "verifiedAt": reg.verified_at.isoformat() if reg.verified_at else None,
+            "publicationStatus": reg.publication_status,
+            "isActive": reg.is_active,
+        } if reg else None,
+    }
+
+
+@router.get("/snapshots/{snapshot_id}")
+async def get_snapshot_detail(
+    snapshot_id: uuid.UUID,
+    caller: User = Depends(solve_caller),
+    session: AsyncSession = Depends(optional_session, scope="function"),
+) -> dict[str, Any]:
+    if session is None:
+        return _problem(503, "database_unavailable", "Snapshots require database")
+    snapshot = await session.get(InstanceSnapshot, snapshot_id)
+    if snapshot is None:
+        return _problem(404, "not_found", "Snapshot not found")
+    ir = (await session.execute(
+        select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id)
+    )).scalars().first()
+    return {
+        "id": str(snapshot.id),
+        "ownerId": str(snapshot.owner_id) if snapshot.owner_id else None,
+        "instanceDigest": snapshot.instance_digest,
+        "packageDigest": snapshot.package_digest,
+        "archiveSize": len(snapshot.source_archive) if snapshot.source_archive else 0,
+        "createdAt": snapshot.created_at.isoformat() if snapshot.created_at else None,
+        "ir": {
+            "id": str(ir.id),
+            "digest": ir.ir_digest,
+            "document": ir.document,
+            "sourceMap": ir.source_map,
+            "compilerVersion": ir.compiler_version,
+            "createdAt": ir.created_at.isoformat() if ir.created_at else None,
+        } if ir else None,
+    }
+
+
+@router.get(
+    "/snapshots/{snapshot_id}/archive",
+    operation_id="downloadSnapshotArchive",
+    response_class=Response,
+    responses={200: {"content": {"application/zip": {"schema": {"type": "string", "format": "binary"}}}}},
+)
+async def download_snapshot_archive(
+    snapshot_id: uuid.UUID,
+    caller: User = Depends(solve_caller),
+    session: AsyncSession = Depends(optional_session, scope="function"),
+) -> Response:
+    if session is None:
+        return _problem(503, "database_unavailable", "Snapshots require database")
+    snapshot = await session.get(InstanceSnapshot, snapshot_id)
+    if snapshot is None or not snapshot.source_archive:
+        return _problem(404, "not_found", "Snapshot archive not found")
+    return Response(
+        content=snapshot.source_archive,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="snapshot-{snapshot.id}.bim.zip"',
+            "ETag": f'"{snapshot.package_digest}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.post(
@@ -3046,6 +3281,30 @@ async def _verify_registration_row(
     return None
 
 
+async def _notify_admins_of_engine_event(
+    session: AsyncSession,
+    kind: str,
+    subject: str,
+    body: str,
+    payload: dict[str, Any],
+) -> None:
+    admins = (
+        await session.execute(
+            select(User).where(User.role == UserRole.ADMIN, User.is_active.is_(True))
+        )
+    ).scalars().all()
+    for admin in admins:
+        session.add(
+            Notification(
+                user_id=admin.id,
+                kind=kind,
+                subject=subject,
+                body=body,
+                payload=payload,
+            )
+        )
+
+
 async def _change_registration(
     namespace: str,
     name: str,
@@ -3085,7 +3344,22 @@ async def _change_registration(
             return failure
         registration.is_active = True
     elif action == "deactivate":
+        was_published = registration.publication_status == "published"
         registration.is_active = False
+        if was_published:
+            await _notify_admins_of_engine_event(
+                session,
+                kind="engine.deactivated",
+                subject=f"Published engine paused: {registration.namespace}/{registration.name}",
+                body=f"The published federated engine {registration.namespace}/{registration.name}@{registration.version} has been paused by {caller.username}.",
+                payload={
+                    "namespace": registration.namespace,
+                    "name": registration.name,
+                    "version": registration.version,
+                    "digest": registration.manifest_digest,
+                    "actor": caller.username,
+                },
+            )
     elif action == "request_publication":
         if registration.publication_status == "published":
             return _registration_summary(registration)
@@ -3099,6 +3373,19 @@ async def _change_registration(
         if failure is not None:
             return failure
         registration.publication_status = "pending_review"
+        await _notify_admins_of_engine_event(
+            session,
+            kind="engine.publication_requested",
+            subject=f"Engine publication requested: {registration.namespace}/{registration.name}",
+            body=f"User {caller.username} has requested publication for engine registration {registration.namespace}/{registration.name}@{registration.version}.",
+            payload={
+                "namespace": registration.namespace,
+                "name": registration.name,
+                "version": registration.version,
+                "digest": registration.manifest_digest,
+                "actor": caller.username,
+            },
+        )
     elif action == "reject":
         registration.publication_status = "rejected"
     elif action == "approve":
@@ -3209,6 +3496,68 @@ async def request_engine_registration_publication(
 ):
     """Make a private registration visible to administrators for moderation."""
     return await _change_registration(namespace, name, version, manifest_digest, caller, session, action="request_publication")
+
+
+@router.delete("/engine-registrations/{name}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_engine_registration(
+    name: str,
+    namespace: str = Query(...),
+    version: str = Query(...),
+    manifest_digest: str = Query(..., alias="digest"),
+    caller: User = Depends(solve_caller),
+    session: AsyncSession | None = Depends(optional_session, scope="function"),
+):
+    if session is None:
+        return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
+    query = select(EngineRegistrationRevision).where(
+        EngineRegistrationRevision.namespace == namespace,
+        EngineRegistrationRevision.name == name,
+        EngineRegistrationRevision.version == version,
+        EngineRegistrationRevision.manifest_digest == manifest_digest,
+    )
+    if not caller.is_admin:
+        query = query.where(EngineRegistrationRevision.owner_id == caller.id)
+    registration = (await session.execute(query)).scalars().first()
+    if registration is None:
+        return _problem(404, "not_found", "Engine registration not found")
+
+    was_published = registration.publication_status == "published"
+
+    publication = (
+        await session.execute(
+            select(ManifestPublication).where(
+                ManifestPublication.resource_kind == "EngineRegistration",
+                ManifestPublication.resource_digest == registration.manifest_digest,
+            )
+        )
+    ).scalars().first()
+    if publication is not None:
+        await session.delete(publication)
+
+    if was_published:
+        await _notify_admins_of_engine_event(
+            session,
+            kind="engine.deregistered",
+            subject=f"Published engine deregistered: {registration.namespace}/{registration.name}",
+            body=f"The published federated engine {registration.namespace}/{registration.name}@{registration.version} has been deregistered by {caller.username}.",
+            payload={
+                "namespace": registration.namespace,
+                "name": registration.name,
+                "version": registration.version,
+                "digest": registration.manifest_digest,
+                "actor": caller.username,
+            },
+        )
+
+    await session.execute(
+        delete(EngineCredential).where(
+            EngineCredential.registration_id == registration.id
+        )
+    )
+    await session.delete(registration)
+    await session.flush()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 
 
 @router.get("/engine-registrations/{name}/report")
@@ -3337,7 +3686,7 @@ async def set_engine_registration_credential(
 
 
 @router.post("/instances/validate")
-async def validate_instance(
+async def validate_legacy_instance(
     request: Request,
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
@@ -3358,8 +3707,12 @@ async def validate_instance(
     }
 
 
-@router.post("/analyze")
-async def analyze_instance(
+@router.post(
+    "/validate",
+    operation_id="validateInstance",
+    summary="Validate a BIM package and find compatible engines",
+)
+async def validate_instance(
     request: Request,
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
@@ -3378,7 +3731,7 @@ async def analyze_instance(
                 return _problem(
                     422,
                     "snapshot_or_package_required",
-                    "BIM analysis accepts an exact snapshot reference or a .bim.zip upload",
+                    "BIM validation accepts an exact snapshot reference or a .bim.zip upload",
                 )
             if session is not None:
                 snapshot = await _owned_snapshot(snapshot_id, caller, session)
@@ -3395,6 +3748,17 @@ async def analyze_instance(
         return _problem(422, "invalid_request", str(exc))
     except HTTPException as exc:
         return _error_from_http(exc)
+    if caller is not None:
+        try:
+            caps = await space_client.get_gate().caps(caller.id)
+        except space_client.PricingUnavailable as exc:
+            return _problem(503, "pricing_unavailable", str(exc))
+        if instance_complexity_too_large(problem.binding_space_log10, caps):
+            return _problem(
+                402,
+                "instance_complexity_too_large",
+                "instance binding space exceeds the caller plan limit",
+            )
     spec = problem.document["spec"]
     candidate_count = _candidate_count(spec)
     compatible_modes = await _compatible_modes(problem, caller, session)
@@ -3410,6 +3774,7 @@ async def analyze_instance(
             "candidates": candidate_count,
             "constraints": len(spec.get("constraints", [])),
             "placement": bool(spec.get("placement")),
+            "bindingSpace": str(problem.binding_space_cardinality),
         },
         "compatibleModes": compatible_modes,
         "diagnostics": [],
@@ -3565,12 +3930,20 @@ async def _fail_persisted_job(
     }
     job.termination = "UNKNOWN"
     job.finished_at = utcnow()
-    await metering.settle(
-        space_client.get_gate(),
-        session,
-        job.id,
-        solver_seconds=max(0.0, time.monotonic() - started),
-    )
+    try:
+        await metering.settle(
+            space_client.get_gate(),
+            session,
+            job.id,
+            solver_seconds=max(0.0, time.monotonic() - started),
+        )
+    except Exception as exc:
+        logger.warning("Settlement failed while failing job %s: %s", job.id, exc)
+    from ..telemetry import record_job_failure
+    try:
+        await record_job_failure(session, job, message)
+    except Exception:
+        pass
     await session.flush()
 
 
@@ -3588,184 +3961,201 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
     )
     if claimed.first() is None:
         return
+    try:
+        await session.commit()
+    except Exception:
+        await session.flush()
+
     job = await session.get(Job, parsed)
     if job is None:
         return
     if job.cancellation_requested:
         job.state = JobState.CANCELLED
         job.finished_at = utcnow()
-        await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
+        try:
+            await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
+        except Exception as exc:
+            logger.warning("Metering settlement failed for cancelled job %s: %s", job.id, exc)
         await session.flush()
         return
     started = time.monotonic()
-    await session.flush()
-    request = job.original_request or {}
-    document = request.get("bindingProblem")
-    if not isinstance(document, dict):
-        await _fail_persisted_job(job, session, "persisted BindingProblem is missing", started)
-        return
-    problem = BindingProblem(
-        document=document,
-        digest=job.provenance.get("irDigest", digest(document)) if isinstance(job.provenance, dict) else digest(document),
-        source_map=document.get("spec", {}).get("sourceMap", {}) if isinstance(document.get("spec"), dict) else {},
-    )
-    mode_contract = _persisted_mode_contract(request.get("mode"))
-    if mode_contract is None:
-        await _fail_persisted_job(job, session, "Persisted Engine mode contract is invalid", started)
-        return
-    if not isinstance(job.options, dict):
-        await _fail_persisted_job(job, session, "Persisted Engine options must be an object", started)
-        return
-    provenance = job.provenance if isinstance(job.provenance, dict) else {}
-    engine_ref = provenance.get("engine")
-    manifest = await _persisted_engine_contract(
-        job.engine_id,
-        engine_ref,
-        mode_contract,
-        session,
-        job.owner_id,
-    )
-    if (
-        manifest is None
-        or provenance.get("engineDigest") != digest(manifest)
-        or provenance.get("mode") != mode_contract["id"]
-        or provenance.get("terminationGuarantees")
-        != mode_contract["terminationGuarantees"]
-    ):
-        await _fail_persisted_job(job, session, "Persisted Engine mode contract is inconsistent", started)
-        return
-    registration_ref = request.get("registration")
-    if (
-        not isinstance(registration_ref, dict)
-        or set(registration_ref) != {"namespace", "name", "version", "digest"}
-        or not all(isinstance(value, str) and value for value in registration_ref.values())
-    ):
-        await _fail_persisted_job(job, session, "Persisted EngineRegistration reference is invalid", started)
-        return
-
-    registration: EngineRegistrationRevision | dict[str, Any] | None = None
-    if registration_ref["namespace"] == "bim.builtin" and isinstance(engine_ref, dict):
-        registration = _installed_builtin_registration(
-            manifest,
-            get_settings().engine_urls.get(job.engine_id),
-            registration_ref,
+    try:
+        request = job.original_request or {}
+        document = request.get("bindingProblem")
+        if not isinstance(document, dict):
+            await _fail_persisted_job(job, session, "persisted BindingProblem is missing", started)
+            return
+        problem = BindingProblem(
+            document=document,
+            digest=job.provenance.get("irDigest", digest(document)) if isinstance(job.provenance, dict) else digest(document),
+            source_map=document.get("spec", {}).get("sourceMap", {}) if isinstance(document.get("spec"), dict) else {},
         )
-    if registration is None:
-        registration = (
-            await session.execute(
-                select(EngineRegistrationRevision).where(
-                    EngineRegistrationRevision.namespace == registration_ref["namespace"],
-                    EngineRegistrationRevision.name == registration_ref["name"],
-                    EngineRegistrationRevision.version == registration_ref["version"],
-                    EngineRegistrationRevision.manifest_digest == registration_ref["digest"],
-                    or_(
-                        (
-                            (EngineRegistrationRevision.owner_id == job.owner_id)
-                            & EngineRegistrationRevision.is_active.is_(True)
+        mode_contract = _persisted_mode_contract(request.get("mode"))
+        if mode_contract is None:
+            await _fail_persisted_job(job, session, "Persisted Engine mode contract is invalid", started)
+            return
+        if not isinstance(job.options, dict):
+            await _fail_persisted_job(job, session, "Persisted Engine options must be an object", started)
+            return
+        provenance = job.provenance if isinstance(job.provenance, dict) else {}
+        engine_ref = provenance.get("engine")
+        manifest = await _persisted_engine_contract(
+            job.engine_id,
+            engine_ref,
+            mode_contract,
+            session,
+            job.owner_id,
+        )
+        if (
+            manifest is None
+            or provenance.get("engineDigest") != digest(manifest)
+            or provenance.get("mode") != mode_contract["id"]
+            or provenance.get("terminationGuarantees")
+            != mode_contract["terminationGuarantees"]
+        ):
+            await _fail_persisted_job(job, session, "Persisted Engine mode contract is inconsistent", started)
+            return
+        registration_ref = request.get("registration")
+        if (
+            not isinstance(registration_ref, dict)
+            or set(registration_ref) != {"namespace", "name", "version", "digest"}
+            or not all(isinstance(value, str) and value for value in registration_ref.values())
+        ):
+            await _fail_persisted_job(job, session, "Persisted EngineRegistration reference is invalid", started)
+            return
+
+        registration: EngineRegistrationRevision | dict[str, Any] | None = None
+        if registration_ref["namespace"] == "bim.builtin" and isinstance(engine_ref, dict):
+            registration = _installed_builtin_registration(
+                manifest,
+                get_settings().engine_urls.get(job.engine_id),
+                registration_ref,
+            )
+        if registration is None:
+            registration = (
+                await session.execute(
+                    select(EngineRegistrationRevision).where(
+                        EngineRegistrationRevision.namespace == registration_ref["namespace"],
+                        EngineRegistrationRevision.name == registration_ref["name"],
+                        EngineRegistrationRevision.version == registration_ref["version"],
+                        EngineRegistrationRevision.manifest_digest == registration_ref["digest"],
+                        or_(
+                            (
+                                (EngineRegistrationRevision.owner_id == job.owner_id)
+                                & EngineRegistrationRevision.is_active.is_(True)
+                            ),
+                            (
+                                (EngineRegistrationRevision.owner_id != job.owner_id)
+                                & (
+                                    EngineRegistrationRevision.publication_status
+                                    == "published"
+                                )
+                            ),
                         ),
-                        (
-                            (EngineRegistrationRevision.owner_id != job.owner_id)
-                            & (
-                                EngineRegistrationRevision.publication_status
-                                == "published"
-                            )
-                        ),
-                    ),
+                    )
                 )
-            )
-        ).scalars().first()
-    if registration is None:
-        await _fail_persisted_job(job, session, "Engine registration is no longer active", started)
-        return
+            ).scalars().first()
+        if registration is None:
+            await _fail_persisted_job(job, session, "Engine registration is no longer active", started)
+            return
 
-    registered_engine_digest = (
-        registration.engine_digest
-        if isinstance(registration, EngineRegistrationRevision)
-        else registration.get("document", {}).get("spec", {}).get("engine", {}).get("digest")
-    )
-    if registered_engine_digest != provenance.get("engineDigest"):
-        await _fail_persisted_job(job, session, "Engine registration no longer pins the persisted Engine", started)
-        return
+        registered_engine_digest = (
+            registration.engine_digest
+            if isinstance(registration, EngineRegistrationRevision)
+            else registration.get("document", {}).get("spec", {}).get("engine", {}).get("digest")
+        )
+        if registered_engine_digest != provenance.get("engineDigest"):
+            await _fail_persisted_job(job, session, "Engine registration no longer pins the persisted Engine", started)
+            return
 
-    credential_value = None
-    if isinstance(registration, EngineRegistrationRevision):
         credential_value = None
-        credential_row = (
-            await session.execute(
-                select(EngineCredential).where(EngineCredential.registration_id == registration.id)
-            )
-        ).scalars().first()
-        if credential_row is not None:
-            from ..security.secrets import CredentialStore, SecretsUnavailable
+        if isinstance(registration, EngineRegistrationRevision):
+            credential_value = None
+            credential_row = (
+                await session.execute(
+                    select(EngineCredential).where(EngineCredential.registration_id == registration.id)
+                )
+            ).scalars().first()
+            if credential_row is not None:
+                from ..security.secrets import CredentialStore, SecretsUnavailable
 
+                try:
+                    credential_value = CredentialStore.from_settings(get_settings()).decrypt(credential_row.credential_encrypted)
+                except SecretsUnavailable as exc:
+                    await _fail_persisted_job(job, session, str(exc), started)
+                    return
+            transport = RemoteRegistration(
+                endpoint=registration.endpoint,
+                mappings=registration.mappings,
+                auth_scheme=registration.auth_scheme,
+                credential=credential_value,
+                allow_internal_http=not get_settings().federation_require_https,
+            )
+            protocol_digest = registration.protocol_digest
+        else:
             try:
-                credential_value = CredentialStore.from_settings(get_settings()).decrypt(credential_row.credential_encrypted)
-            except SecretsUnavailable as exc:
+                transport = _registration_transport(registration)
+            except RemoteEngineError as exc:
                 await _fail_persisted_job(job, session, str(exc), started)
                 return
-        transport = RemoteRegistration(
-            endpoint=registration.endpoint,
-            mappings=registration.mappings,
-            auth_scheme=registration.auth_scheme,
-            credential=credential_value,
-            allow_internal_http=not get_settings().federation_require_https,
-        )
-        protocol_digest = registration.protocol_digest
-    else:
+            protocol_digest = registration["document"]["spec"]["protocol"]["digest"]
+        if job.service_url != transport.endpoint:
+            await _fail_persisted_job(job, session, "Persisted EngineRegistration endpoint changed", started)
+            return
+        if provenance.get("registration") != registration_ref or provenance.get("protocolDigest") != protocol_digest:
+            await _fail_persisted_job(job, session, "Persisted EngineRegistration provenance is inconsistent", started)
+            return
         try:
-            transport = _registration_transport(registration)
+            remote_result = await solve_remote(
+                transport,
+                problem.document,
+                job.options,
+                timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
+            )
         except RemoteEngineError as exc:
             await _fail_persisted_job(job, session, str(exc), started)
             return
-        protocol_digest = registration["document"]["spec"]["protocol"]["digest"]
-    if job.service_url != transport.endpoint:
-        await _fail_persisted_job(job, session, "Persisted EngineRegistration endpoint changed", started)
-        return
-    if provenance.get("registration") != registration_ref or provenance.get("protocolDigest") != protocol_digest:
-        await _fail_persisted_job(job, session, "Persisted EngineRegistration provenance is inconsistent", started)
-        return
-    try:
-        remote_result = await solve_remote(
-            transport,
-            problem.document,
-            job.options,
-            timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
+        await session.refresh(job)
+        if job.cancellation_requested:
+            job.state = JobState.CANCELLED
+            job.finished_at = utcnow()
+            try:
+                await metering.settle(
+                    space_client.get_gate(), session, job.id,
+                    solver_seconds=max(0.0, time.monotonic() - started),
+                )
+            except Exception as exc:
+                logger.warning("Metering settlement failed for cancelled job %s: %s", job.id, exc)
+            await session.flush()
+            return
+        reevaluated = _reevaluate_result(
+            problem,
+            remote_result,
+            mode_contract["terminationGuarantees"],
         )
-    except RemoteEngineError as exc:
-        await _fail_persisted_job(job, session, str(exc), started)
-        return
-    await session.refresh(job)
-    if job.cancellation_requested:
-        job.state = JobState.CANCELLED
+        reevaluated["provenance"] = {
+            **provenance,
+            "registration": registration_ref,
+            "protocolDigest": protocol_digest,
+            "engineReported": remote_result.get("provenance", {}),
+        }
+        job.result = reevaluated
+        job.termination = reevaluated["termination"]
+        job.state = JobState.COMPLETED
         job.finished_at = utcnow()
-        await metering.settle(
-            space_client.get_gate(), session, job.id,
-            solver_seconds=max(0.0, time.monotonic() - started),
-        )
+        try:
+            await metering.settle(
+                space_client.get_gate(),
+                session,
+                job.id,
+                solver_seconds=time.monotonic() - started,
+            )
+        except Exception as exc:
+            logger.warning("Metering settlement failed for completed job %s: %s", job.id, exc)
         await session.flush()
-        return
-    reevaluated = _reevaluate_result(
-        problem,
-        remote_result,
-        mode_contract["terminationGuarantees"],
-    )
-    reevaluated["provenance"] = {
-        **provenance,
-        "registration": registration_ref,
-        "protocolDigest": protocol_digest,
-        "engineReported": remote_result.get("provenance", {}),
-    }
-    job.result = reevaluated
-    job.termination = reevaluated["termination"]
-    job.state = JobState.COMPLETED
-    job.finished_at = utcnow()
-    await metering.settle(
-        space_client.get_gate(),
-        session,
-        job.id,
-        solver_seconds=time.monotonic() - started,
-    )
-    await session.flush()
+    except Exception as exc:
+        logger.exception("Unexpected error executing persisted job %s: %s", job_id, exc)
+        await _fail_persisted_job(job, session, f"Execution failed: {exc}", started)
 
 
 async def _run_persisted_job(job_id: str, request_session: AsyncSession | None = None) -> None:
@@ -3775,8 +4165,39 @@ async def _run_persisted_job(job_id: str, request_session: AsyncSession | None =
     if not db_base.is_configured():
         raise RuntimeError("A persisted job cannot run without an initialized database.")
     async with db_base.session_factory()() as session:
-        await _finish_persisted_job(job_id, session)
-        await session.commit()
+        try:
+            await _finish_persisted_job(job_id, session)
+            await session.commit()
+        except Exception as exc:
+            await session.rollback()
+            logger.exception("Job execution failed unexpectedly for %s: %s", job_id, exc)
+            async with db_base.session_factory()() as fail_session:
+                try:
+                    parsed = uuid.UUID(job_id)
+                    failed_job = await fail_session.get(Job, parsed)
+                    if failed_job is not None and failed_job.state not in (
+                        JobState.COMPLETED,
+                        JobState.FAILED,
+                        JobState.CANCELLED,
+                    ):
+                        failed_job.state = JobState.FAILED
+                        failed_job.result = {
+                            "termination": "UNKNOWN",
+                            "solutions": [],
+                            "error": f"Internal execution error: {exc}",
+                            "provenance": failed_job.provenance or {},
+                        }
+                        failed_job.termination = "UNKNOWN"
+                        failed_job.finished_at = utcnow()
+                        from ..telemetry import record_job_failure
+                        try:
+                            await record_job_failure(fail_session, failed_job, str(exc))
+                        except Exception:
+                            pass
+                        await fail_session.commit()
+                except Exception:
+                    logger.exception("Failed to record failure for job %s", job_id)
+            raise
 
 
 @router.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
@@ -3899,6 +4320,12 @@ async def create_job(
             caps, 512 * 1024 * 1024
         ):
             return _problem(413, "payload_too_large", "BIM package exceeds the caller plan limit")
+        if instance_complexity_too_large(problem.binding_space_log10, caps):
+            return _problem(
+                402,
+                "instance_complexity_too_large",
+                "instance binding space exceeds the caller plan limit",
+            )
         clamped = clamp_options(effective_options, caps)
         effective_options = clamped.options
         option_warnings = [warning.model_dump(mode="json") for warning in clamped.warnings]
@@ -4068,7 +4495,35 @@ async def create_job(
         except space_client.PricingUnavailable as exc:
             return _problem(503, "pricing_unavailable", str(exc))
         if not verdict.allowed:
-            return _problem(429, "quota_exhausted", verdict.reason or "solve quota exhausted")
+            if verdict.limit is not None:
+                if verdict.limit.limit_id == "concurrentJobs":
+                    return _problem(
+                        429,
+                        "concurrency_limit_exceeded",
+                        verdict.reason or "Concurrency limit exceeded.",
+                        extra={"concurrency": {"limit_id": "concurrentJobs", "limit": verdict.limit.limit, "used": verdict.limit.used}},
+                        headers={"Retry-After": "15"},
+                    )
+                else:
+                    return _problem(
+                        402,
+                        "quota_exceeded",
+                        verdict.reason or "Solve quota exhausted.",
+                        extra={
+                            "quota": {
+                                "limit_id": verdict.limit.limit_id,
+                                "limit": verdict.limit.limit,
+                                "used": verdict.limit.used,
+                                "unit": verdict.limit.unit,
+                                "renews_at": verdict.limit.renews_at,
+                            }
+                        },
+                    )
+            return _problem(
+                403,
+                "feature_not_entitled",
+                verdict.reason or "The current plan does not entitle this feature.",
+            )
     if session is not None and caller is not None:
         try:
             async with session.begin_nested():
@@ -4095,7 +4550,13 @@ async def create_job(
             },
             options=effective_options,
             warnings=option_warnings,
-            instance_complexity={"instanceDigest": instance_hash, "resourceCount": len(portable.resource_digests), "tasks": task_count, "candidates": candidate_count},
+            instance_complexity={
+                "instanceDigest": instance_hash,
+                "resourceCount": len(portable.resource_digests),
+                "tasks": task_count,
+                "candidates": candidate_count,
+                "bindingSpace": str(problem.binding_space_cardinality),
+            },
             instance_snapshot_id=parsed_snapshot_id,
             provenance=provenance,
             idempotency_key=idempotency_key,
@@ -4154,6 +4615,8 @@ async def get_v1_job(
         result = {"id": job_id, "status": job.state.value, "provenance": job.provenance or {}}
         if job.result is not None:
             result["result"] = job.result
+            if isinstance(job.result, dict) and "error" in job.result:
+                result["error"] = job.result["error"]
         return result
     job = _JOBS.get(job_id)
     if not job:
@@ -4161,6 +4624,8 @@ async def get_v1_job(
     result = {"id": job_id, "status": job["status"], "provenance": job["provenance"]}
     if "result" in job:
         result["result"] = job["result"]
+        if isinstance(job["result"], dict) and "error" in job["result"]:
+            result["error"] = job["result"]["error"]
     return result
 
 

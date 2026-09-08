@@ -463,6 +463,7 @@ class JobProvenance(Base):
 # Re-exporting these keeps one stable import location for persistence models,
 # while the platform domain remains readable in its own module.
 from .platform_models import (  # noqa: E402,F401
+    ApiErrorEvent,
     Artifact,
     AuthIdentity,
     AuditEvent,

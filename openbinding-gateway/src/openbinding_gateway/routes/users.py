@@ -14,7 +14,7 @@ from ..db.models import (
     ApiKey, Artifact, AuthIdentity, BindingCase, BindingCaseRevision, Collection,
     CollectionItem, CollectionRevision, Job, Organization, OrganizationMembership,
     OrganizationRole, PricingRelease, Project, ProjectResource,
-    ProjectResourceRevision, Publication, Report, Study, StudyRun, User, utcnow,
+    ProjectResourceRevision, Publication, Report, Study, StudyRun, User, UserRole, utcnow,
 )
 from ..models.accounts import (
     ApiKeyList,
@@ -615,49 +615,172 @@ async def delete_own_account(
                 "Transfer or delete every organization for which this is the last owner.",
             )
 
-    replacement = (await session.execute(
-        select(User).where(User.id != user.id, User.is_active.is_(True)).order_by(User.is_admin.desc(), User.created_at)
-    )).scalars().first()
-    if replacement is None:
-        # The last account cannot own collaborative resources because that
-        # would also make it the last owner, checked above.
-        replacement_id = None
-    else:
-        replacement_id = replacement.id
+    org_owners: dict[uuid.UUID, uuid.UUID] = {}
+
+    async def get_org_owner(org_id: uuid.UUID) -> uuid.UUID | None:
+        if org_id not in org_owners:
+            owner = (await session.execute(
+                select(OrganizationMembership.user_id)
+                .where(
+                    OrganizationMembership.organization_id == org_id,
+                    OrganizationMembership.user_id != user.id,
+                    OrganizationMembership.role == OrganizationRole.OWNER,
+                )
+                .order_by(OrganizationMembership.created_at)
+            )).scalars().first()
+            if owner is not None:
+                org_owners[org_id] = owner
+        return org_owners.get(org_id)
+
+    async def require_org_owner(org_id: uuid.UUID) -> uuid.UUID:
+        owner = await get_org_owner(org_id)
+        if owner is None:
+            raise api_error(
+                status.HTTP_409_CONFLICT,
+                "organization_owner_required",
+                "Cannot delete account because one or more shared resources belong to an organization without another active OWNER.",
+            )
+        return owner
 
     sponsored = (await session.execute(select(Organization).where(
         Organization.billing_sponsor_user_id == user.id
     ))).scalars().all()
     for organization in sponsored:
-        next_owner = (await session.execute(select(OrganizationMembership).where(
-            OrganizationMembership.organization_id == organization.id,
-            OrganizationMembership.user_id != user.id,
-            OrganizationMembership.role == OrganizationRole.OWNER,
-        ).order_by(OrganizationMembership.created_at))).scalars().first()
+        next_owner = await get_org_owner(organization.id)
         if next_owner is None:
             raise api_error(status.HTTP_409_CONFLICT, "sponsor_transfer_required", "Transfer sponsorship before deleting this account.")
-        organization.billing_sponsor_user_id = next_owner.user_id
+        organization.billing_sponsor_user_id = next_owner
 
-    authored = (
-        (Organization, Organization.created_by_id),
-        (Project, Project.created_by_id),
-        (ProjectResource, ProjectResource.created_by_id),
-        (ProjectResourceRevision, ProjectResourceRevision.created_by_id),
-        (BindingCase, BindingCase.created_by_id),
-        (BindingCaseRevision, BindingCaseRevision.created_by_id),
-        (Collection, Collection.created_by_id),
-        (CollectionRevision, CollectionRevision.created_by_id),
-        (CollectionItem, CollectionItem.added_by_id),
-        (Study, Study.created_by_id),
-        (StudyRun, StudyRun.created_by_id),
-        (Report, Report.created_by_id),
-        (Publication, Publication.published_by_id),
-        (Artifact, Artifact.created_by_id),
-        (PricingRelease, PricingRelease.created_by_id),
-    )
-    if replacement_id is not None:
-        for model, column in authored:
-            await session.execute(update(model).where(column == user.id).values({column.key: replacement_id}))
+    # Reassign collaborative resources strictly to the corresponding organization's OWNER.
+    # Platform administrators never inherit private tenant resources unless they are legitimate owners.
+    orgs = (await session.execute(select(Organization).where(Organization.created_by_id == user.id))).scalars().all()
+    for org in orgs:
+        org.created_by_id = await require_org_owner(org.id)
+
+    projects = (await session.execute(select(Project).where(Project.created_by_id == user.id))).scalars().all()
+    for p in projects:
+        p.created_by_id = await require_org_owner(p.organization_id)
+
+    artifacts = (await session.execute(select(Artifact).where(Artifact.created_by_id == user.id))).scalars().all()
+    for a in artifacts:
+        a.created_by_id = await require_org_owner(a.organization_id)
+
+    proj_resources = (await session.execute(
+        select(ProjectResource, Project.organization_id)
+        .join(Project, Project.id == ProjectResource.project_id)
+        .where(ProjectResource.created_by_id == user.id)
+    )).all()
+    for pr, org_id in proj_resources:
+        pr.created_by_id = await require_org_owner(org_id)
+
+    resource_revs = (await session.execute(
+        select(ProjectResourceRevision, Project.organization_id)
+        .join(ProjectResource, ProjectResource.id == ProjectResourceRevision.project_resource_id)
+        .join(Project, Project.id == ProjectResource.project_id)
+        .where(ProjectResourceRevision.created_by_id == user.id)
+    )).all()
+    for prr, org_id in resource_revs:
+        prr.created_by_id = await require_org_owner(org_id)
+
+    binding_cases = (await session.execute(
+        select(BindingCase, Project.organization_id)
+        .join(Project, Project.id == BindingCase.project_id)
+        .where(BindingCase.created_by_id == user.id)
+    )).all()
+    for bc, org_id in binding_cases:
+        bc.created_by_id = await require_org_owner(org_id)
+
+    case_revs = (await session.execute(
+        select(BindingCaseRevision, Project.organization_id)
+        .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+        .join(Project, Project.id == BindingCase.project_id)
+        .where(BindingCaseRevision.created_by_id == user.id)
+    )).all()
+    for bcr, org_id in case_revs:
+        bcr.created_by_id = await require_org_owner(org_id)
+
+    collections = (await session.execute(
+        select(Collection, Project.organization_id)
+        .join(Project, Project.id == Collection.project_id)
+        .where(Collection.created_by_id == user.id)
+    )).all()
+    for col, org_id in collections:
+        col.created_by_id = await require_org_owner(org_id)
+
+    col_revs = (await session.execute(
+        select(CollectionRevision, Project.organization_id)
+        .join(Collection, Collection.id == CollectionRevision.collection_id)
+        .join(Project, Project.id == Collection.project_id)
+        .where(CollectionRevision.created_by_id == user.id)
+    )).all()
+    for cr, org_id in col_revs:
+        cr.created_by_id = await require_org_owner(org_id)
+
+    col_items = (await session.execute(
+        select(CollectionItem, Project.organization_id)
+        .join(CollectionRevision, CollectionRevision.id == CollectionItem.collection_revision_id)
+        .join(Collection, Collection.id == CollectionRevision.collection_id)
+        .join(Project, Project.id == Collection.project_id)
+        .where(CollectionItem.added_by_id == user.id)
+    )).all()
+    for ci, org_id in col_items:
+        ci.added_by_id = await require_org_owner(org_id)
+
+    studies = (await session.execute(
+        select(Study, Project.organization_id)
+        .join(Project, Project.id == Study.project_id)
+        .where(Study.created_by_id == user.id)
+    )).all()
+    for st, org_id in studies:
+        st.created_by_id = await require_org_owner(org_id)
+
+    study_runs = (await session.execute(
+        select(StudyRun, Project.organization_id)
+        .join(Study, Study.id == StudyRun.study_id)
+        .join(Project, Project.id == Study.project_id)
+        .where(StudyRun.created_by_id == user.id)
+    )).all()
+    for sr, org_id in study_runs:
+        sr.created_by_id = await require_org_owner(org_id)
+
+    reports = (await session.execute(
+        select(Report, Project.organization_id)
+        .join(Project, Project.id == Report.project_id)
+        .where(Report.created_by_id == user.id)
+    )).all()
+    for rep, org_id in reports:
+        rep.created_by_id = await require_org_owner(org_id)
+
+    publications = (await session.execute(
+        select(Publication, Project.organization_id)
+        .join(Project, Project.id == Publication.project_id)
+        .where(Publication.published_by_id == user.id)
+    )).all()
+    for pub, org_id in publications:
+        pub.published_by_id = await require_org_owner(org_id)
+
+    if user.is_admin:
+        replacement_admin = (await session.execute(
+            select(User)
+            .where(User.id != user.id, User.role == UserRole.ADMIN, User.is_active.is_(True))
+            .order_by(User.created_at)
+        )).scalars().first()
+        if replacement_admin is not None:
+            await session.execute(
+                update(PricingRelease)
+                .where(PricingRelease.created_by_id == user.id)
+                .values(created_by_id=replacement_admin.id)
+            )
+        else:
+            authored_pricing = await session.scalar(
+                select(func.count(PricingRelease.id)).where(PricingRelease.created_by_id == user.id)
+            )
+            if authored_pricing:
+                raise api_error(
+                    status.HTTP_409_CONFLICT,
+                    "last_pricing_admin",
+                    "Cannot delete the last administrator who authored pricing releases.",
+                )
 
     try:
         remove_contract = getattr(get_gate(), "remove_contract", None)

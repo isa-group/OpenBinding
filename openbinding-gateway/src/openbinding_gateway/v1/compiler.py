@@ -3289,7 +3289,40 @@ class CompiledProblem:
 
 @dataclass(frozen=True)
 class BindingProblem(CompiledProblem):
-    """Canonical BIM v1 engine input; no source files or URLs are retained."""
+    @property
+    def binding_space_breakdown(self) -> dict[str, int]:
+        """Candidate counts per service task from the canonical eligibility matrix."""
+        spec = self.document.get("spec", {})
+        tasks = spec.get("application", {}).get("tasks", {})
+        eligibility = spec.get("eligibility", {})
+        if not isinstance(tasks, dict) or not isinstance(eligibility, dict):
+            return {}
+        return {
+            task_id: len(eligibility.get(task_id, []))
+            for task_id, task in sorted(tasks.items())
+            if isinstance(task, dict) and task.get("kind") == "service"
+        }
+
+    @property
+    def binding_space_cardinality(self) -> int:
+        """Total unconstrained binding combinations product."""
+        breakdown = self.binding_space_breakdown
+        if not breakdown:
+            return 1
+        cardinality = 1
+        for count in breakdown.values():
+            cardinality *= count
+        return cardinality
+
+    @property
+    def binding_space_log10(self) -> float:
+        """Log10 order of magnitude of the binding search space."""
+        breakdown = self.binding_space_breakdown
+        if not breakdown:
+            return 0.0
+        if any(count == 0 for count in breakdown.values()):
+            return 0.0
+        return float(sum(math.log10(count) for count in breakdown.values()))
 
     def _candidate(self, reference: Mapping[str, Any]) -> dict[str, Any]:
         candidate = _lookup_candidate(self.document["spec"]["candidates"], reference)

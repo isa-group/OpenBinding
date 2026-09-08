@@ -1,6 +1,8 @@
 import copy
 import json
+import math
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
@@ -9,11 +11,14 @@ from sqlalchemy import select
 
 from _repo import REPO_ROOT
 
+from openbinding_gateway import space_client
 from openbinding_gateway.db.base import Base
 from openbinding_gateway.db.models import EngineRegistrationRevision, User, UserRole
 from openbinding_gateway.main import app
 from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.space_client import PlanCaps
 from openbinding_gateway.v1.canonical import digest
+from openbinding_gateway.v1.compiler import compile_instance
 from openbinding_gateway.v1.package import load_package
 
 
@@ -435,14 +440,14 @@ def test_pricing_contract_is_public_and_separate_from_bim_schemas() -> None:
 
 
 @pytest.mark.asyncio
-async def test_analyze_counts_candidates_and_reports_immutable_compatible_modes(
+async def test_validate_counts_candidates_and_reports_immutable_compatible_modes(
     api_client,
     registration,
 ) -> None:
     headers = await _account_headers(api_client, registration())
     package = load_package(EXAMPLE)
     response = await api_client.post(
-        "/v1/analyze",
+        "/v1/validate",
         content=package.to_zip(),
         headers={**headers, "Content-Type": "application/vnd.bim+zip"},
     )
@@ -453,6 +458,7 @@ async def test_analyze_counts_candidates_and_reports_immutable_compatible_modes(
         "candidates": 4,
         "constraints": 0,
         "placement": False,
+        "bindingSpace": "2",
     }
     assert any(item["compatible"] for item in payload["compatibleModes"])
     for item in payload["compatibleModes"]:
@@ -461,7 +467,7 @@ async def test_analyze_counts_candidates_and_reports_immutable_compatible_modes(
 
 
 @pytest.mark.asyncio
-async def test_analyze_enumerates_exact_visible_active_registrations_without_ambiguity(
+async def test_validate_enumerates_exact_visible_active_registrations_without_ambiguity(
     api_client,
     db_session,
     registration,
@@ -547,7 +553,7 @@ async def test_analyze_enumerates_exact_visible_active_registrations_without_amb
 
     package = load_package(EXAMPLE).to_zip()
     owner_analysis = await api_client.post(
-        "/v1/analyze",
+        "/v1/validate",
         headers={**headers, "Content-Type": "application/vnd.bim+zip"},
         content=package,
     )
@@ -566,7 +572,7 @@ async def test_analyze_enumerates_exact_visible_active_registrations_without_amb
     assert any(reference[0] == "bim.builtin" for reference in owner_refs)
 
     public_analysis = await api_client.post(
-        "/v1/analyze",
+        "/v1/validate",
         headers={**viewer_headers, "Content-Type": "application/vnd.bim+zip"},
         content=package,
     )
@@ -597,13 +603,13 @@ async def test_analyze_enumerates_exact_visible_active_registrations_without_amb
 
 
 @pytest.mark.asyncio
-async def test_analyze_rejects_the_removed_inline_instance_convenience_form(
+async def test_validate_rejects_the_removed_inline_instance_convenience_form(
     api_client,
     registration,
 ) -> None:
     headers = await _account_headers(api_client, registration())
     response = await api_client.post(
-        "/v1/analyze",
+        "/v1/validate",
         headers=headers,
         json={"instance": load_package(EXAMPLE).instance()},
     )
@@ -853,3 +859,40 @@ def test_gateway_rejects_incomplete_decisions_and_replaces_engine_evaluation() -
     assert valid["termination"] == "FEASIBLE"
     assert valid["solutions"][0]["metrics"] == {"latency": 7.0}
     assert valid["solutions"][0]["objectives"]["score"] == 7.0
+
+
+def test_binding_space_properties_on_binding_problem() -> None:
+    problem = compile_instance(load_package(EXAMPLE))
+    assert problem.binding_space_cardinality == 2
+    assert problem.binding_space_breakdown == {"t1": 2, "t2": 1, "t3": 1}
+    assert math.isclose(problem.binding_space_log10, math.log10(2), rel_tol=1e-5)
+
+
+@pytest.mark.asyncio
+async def test_validate_and_solve_refuse_instance_exceeding_plan_complexity(
+    api_client,
+    registration,
+    monkeypatch,
+) -> None:
+    headers = await _account_headers(api_client, registration())
+    package = load_package(EXAMPLE)
+    low_caps = PlanCaps(plan="micro", features={}, limits={"maxPayloadBytes": 10_000_000, "maxInstanceComplexityLog10": 0.1})
+    gate = space_client.get_gate()
+    monkeypatch.setattr(gate, "caps", AsyncMock(return_value=low_caps))
+
+    validate_resp = await api_client.post(
+        "/v1/validate",
+        content=package.to_zip(),
+        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
+    )
+    assert validate_resp.status_code == 402, validate_resp.text
+    assert validate_resp.json()["title"] == "instance_complexity_too_large"
+
+    job_resp = await api_client.post(
+        "/v1/jobs",
+        files={"package": ("package.zip", package.to_zip(), "application/zip")},
+        data={"engine": "bim.builtin/minizinc-csp", "mode": "exact-weighted"},
+        headers=headers,
+    )
+    assert job_resp.status_code == 402, job_resp.text
+    assert job_resp.json()["title"] == "instance_complexity_too_large"

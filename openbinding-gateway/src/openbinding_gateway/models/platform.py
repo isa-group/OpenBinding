@@ -123,6 +123,12 @@ class BindingCaseCreate(BaseModel):
     description: str = Field(default="", max_length=2000)
 
 
+class BindingCaseUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    description: Optional[str] = Field(default=None, max_length=2000)
+
+
 class BindingCaseView(BindingCaseCreate):
     id: uuid.UUID
     project_id: uuid.UUID
@@ -154,6 +160,13 @@ class ProjectResourceCreate(BaseModel):
     kind: str = Field(default="bim-resource", min_length=1, max_length=128)
 
 
+class ProjectResourceUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    kind: Optional[str] = Field(default=None, min_length=1, max_length=128)
+
+
 class ProjectResourceView(ProjectResourceCreate):
     id: uuid.UUID
     project_id: uuid.UUID
@@ -180,6 +193,12 @@ class CollectionCreate(BaseModel):
     slug: str = Field(..., pattern=SLUG)
     name: str = Field(..., min_length=1, max_length=160)
     description: str = Field(default="", max_length=2000)
+
+
+class CollectionUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    description: Optional[str] = Field(default=None, max_length=2000)
 
 
 class CollectionView(CollectionCreate):
@@ -263,6 +282,12 @@ class StudyCreate(BaseModel):
     definition: StudyDefinition
 
 
+class StudyUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    description: Optional[str] = Field(default=None, max_length=2000)
+
+
 class StudyView(StudyCreate):
     id: uuid.UUID
     project_id: uuid.UUID
@@ -308,6 +333,12 @@ class ReportCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=240)
     study_run_id: Optional[uuid.UUID] = None
     document: dict[str, Any]
+
+
+class ReportUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: Optional[str] = Field(default=None, min_length=1, max_length=240)
+    document: Optional[dict[str, Any]] = None
 
 
 class ReportView(BaseModel):
@@ -369,6 +400,21 @@ class JobView(BaseModel):
     project_id: Optional[uuid.UUID]
     created_at: datetime
     finished_at: Optional[datetime]
+    result: Optional[dict[str, Any]] = None
+    termination: Optional[str] = None
+    options: Optional[dict[str, Any]] = None
+    original_request: Optional[dict[str, Any]] = None
+    provenance: Optional[dict[str, Any]] = None
+
+
+class SnapshotView(BaseModel):
+    id: uuid.UUID
+    owner_id: Optional[uuid.UUID] = None
+    instance_digest: str
+    package_digest: str
+    archive_size: int
+    created_at: datetime
+    ir: Optional[dict[str, Any]] = None
 
 
 class AnalyticsView(BaseModel):
@@ -381,3 +427,97 @@ class AnalyticsView(BaseModel):
     runtimes_s: list[float]
     pareto: list[dict[str, Any]]
     stability: dict[str, Any]
+    binding_space: Optional[dict[str, Any]] = None
+
+
+class ReplicationCitation(BaseModel):
+    title: str
+    authors: list[str] = Field(default_factory=list)
+    year: int = 2026
+    doi: Optional[str] = None
+    venue: Optional[str] = None
+    url: Optional[str] = None
+    bibtex: str
+    markdown_badge: str
+
+
+class VerifierEntityMatch(BaseModel):
+    entity_type: str
+    id: str
+    slug: Optional[str] = None
+    title_or_name: Optional[str] = None
+    organization_slug: Optional[str] = None
+    project_slug: Optional[str] = None
+    revision: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+
+class VerifierInspectRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    digest: Optional[str] = None
+    kind: Optional[str] = None
+    document: Optional[Any] = None
+    entity_id: Optional[uuid.UUID] = None
+
+
+class VerifierInspectResponse(BaseModel):
+    status: Literal["verified", "computed", "mismatch", "not_found"]
+    digest: str
+    canonical_json: Optional[str] = None
+    matches: bool
+    verified_at: datetime
+    entities: list[VerifierEntityMatch] = Field(default_factory=list)
+    citation: Optional[ReplicationCitation] = None
+    detail: Optional[str] = None
+
+
+class ResolveOrganizationRef(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
+
+
+class ResolveProjectRef(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
+    visibility: str
+
+
+class ResolveAuthorRef(BaseModel):
+    id: uuid.UUID
+    username: Optional[str] = None
+    email: Optional[str] = None
+
+
+class ResolveLocation(BaseModel):
+    organization: Optional[ResolveOrganizationRef] = None
+    project: Optional[ResolveProjectRef] = None
+    element_id: str
+    slug: Optional[str] = None
+    version_or_revision: Optional[int | str] = None
+    created_at: Optional[datetime] = None
+    web_url: Optional[str] = None
+
+
+class ResolvePagination(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
+class ResolveResponse(BaseModel):
+    verified: bool
+    kind: str
+    digest: str
+    canonical_name: Optional[str] = None
+    media_type: str = "application/json"
+    size_bytes: Optional[int] = None
+    created_at: Optional[datetime] = None
+    author: Optional[ResolveAuthorRef] = None
+    document: Optional[Any] = None
+    content_url: str
+    locations: list[ResolveLocation] = Field(default_factory=list)
+    pagination: ResolvePagination
+    citation: Optional[ReplicationCitation] = None
