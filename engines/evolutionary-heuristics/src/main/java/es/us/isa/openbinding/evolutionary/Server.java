@@ -32,6 +32,8 @@ public final class Server {
         request.options(), "algorithm", "elitist-genetic"));
     provenance.addProperty("evaluations", result.evaluations);
     provenance.addProperty("elapsed_ms", result.elapsedMs);
+    provenance.add("trace", result.trace);
+    provenance.addProperty("trace_kind", "sampled-generation-incumbents");
     return EngineContract.json(EngineContract.response(
         result.solutions.isEmpty() ? "UNKNOWN" : "FEASIBLE", result.solutions, provenance));
   }
