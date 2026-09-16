@@ -10,6 +10,8 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
+from .artifacts import ArtifactUse
+
 SLUG = r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
 DIGEST = r"^sha256-[0-9a-f]{64}$"
 
@@ -140,6 +142,7 @@ class CaseRevisionCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     document: dict[str, Any]
     source_snapshot_id: Optional[uuid.UUID] = None
+    resources: list[ArtifactUse] = Field(default_factory=list)
 
 
 class CaseRevisionView(BaseModel):
@@ -244,12 +247,12 @@ class StudyDefinition(BaseModel):
     engines: list[dict[str, str]] = Field(..., min_length=1, max_length=50)
     parameter_sets: list[dict[str, Any]] = Field(default_factory=lambda: [{}], min_length=1, max_length=100)
     seeds: list[int] = Field(default_factory=lambda: [0], min_length=1, max_length=100)
-    collection_revision_id: Optional[uuid.UUID] = None
+    collection_version_id: Optional[uuid.UUID] = None
 
     @model_validator(mode="after")
     def bounded_matrix(self):
-        if not self.case_revision_ids and self.collection_revision_id is None:
-            raise ValueError("provide case_revision_ids or collection_revision_id")
+        if not self.case_revision_ids and self.collection_version_id is None:
+            raise ValueError("provide case_revision_ids or collection_version_id")
         if len(set(self.case_revision_ids)) != len(self.case_revision_ids):
             raise ValueError("case_revision_ids contains duplicates")
         if len(set(self.seeds)) != len(self.seeds):
@@ -274,21 +277,37 @@ class StudyDefinition(BaseModel):
         return self
 
 
-class StudyCreate(BaseModel):
+class StudyMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid")
     slug: str = Field(..., pattern=SLUG)
     name: str = Field(..., min_length=1, max_length=160)
     description: str = Field(default="", max_length=2000)
-    definition: StudyDefinition
+
+
+class StudyCreate(StudyMetadata):
+    definition: Optional[StudyDefinition] = None
+    definition_version_id: Optional[uuid.UUID] = None
+
+    @model_validator(mode="after")
+    def exact_definition_source(self):
+        if (self.definition is None) == (self.definition_version_id is None):
+            raise ValueError("Specify either definition or definition_version_id.")
+        return self
 
 
 class StudyUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    archived: Optional[bool] = None
+    definition_version_id: Optional[uuid.UUID] = None
     name: Optional[str] = Field(default=None, min_length=1, max_length=160)
     description: Optional[str] = Field(default=None, max_length=2000)
 
 
-class StudyView(StudyCreate):
+class StudyView(StudyMetadata):
+    definition: StudyDefinition
+    archived: bool
+    definition_artifact_id: uuid.UUID
+    definition_version_id: uuid.UUID
     id: uuid.UUID
     project_id: uuid.UUID
     state: str
@@ -297,6 +316,7 @@ class StudyView(StudyCreate):
 
 
 class StudyRunView(BaseModel):
+    definition_version_id: uuid.UUID
     id: uuid.UUID
     study_id: uuid.UUID
     run_number: int
@@ -337,11 +357,16 @@ class ReportCreate(BaseModel):
 
 class ReportUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    draft_revision: Optional[int] = Field(default=None, gt=0)
     title: Optional[str] = Field(default=None, min_length=1, max_length=240)
     document: Optional[dict[str, Any]] = None
 
 
 class ReportView(BaseModel):
+    artifact_id: uuid.UUID
+    version_id: Optional[uuid.UUID]
+    draft_id: Optional[uuid.UUID]
+    draft_revision: Optional[int]
     id: uuid.UUID
     project_id: uuid.UUID
     study_run_id: Optional[uuid.UUID]
@@ -355,12 +380,15 @@ class ReportView(BaseModel):
 
 class PublicationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    version_id: Optional[uuid.UUID] = None
     report_id: uuid.UUID
     slug: str = Field(..., pattern=SLUG)
     citation: dict[str, Any] = Field(default_factory=dict)
 
 
 class PublicationView(BaseModel):
+    version_id: uuid.UUID
+    withdrawn: bool
     id: uuid.UUID
     project_id: uuid.UUID
     report_id: uuid.UUID
@@ -369,7 +397,7 @@ class PublicationView(BaseModel):
     published_at: datetime
 
 
-class ArtifactView(BaseModel):
+class BlobView(BaseModel):
     id: uuid.UUID
     organization_id: uuid.UUID
     project_id: uuid.UUID

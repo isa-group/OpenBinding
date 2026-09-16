@@ -96,6 +96,7 @@ class WorkerRuntime(Middleware):
 
 
 def configure_broker() -> RedisBroker:
+    from .analysis_jobs import analyze_archive_message
     global _configured_url
     url = get_settings().redis_url
     actor = globals().get("run_persisted_job_message")
@@ -108,6 +109,8 @@ def configure_broker() -> RedisBroker:
     if actor is not None:
         actor.broker = broker
         broker.declare_actor(actor)
+    analyze_archive_message.broker = broker
+    broker.declare_actor(analyze_archive_message)
     _configured_url = url
     return broker
 

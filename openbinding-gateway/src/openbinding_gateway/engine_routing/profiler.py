@@ -70,7 +70,7 @@ class EngineProfiler:
         return EngineProfile(
             engine=engine,
             mode=eff_mode,
-            latency=min(features.T_budget, max(0.005, latency)),
+            latency=max(0.005, latency),
             quality=max(0.0, min(1.0, quality)),
             failure_risk=max(0.0, min(1.0, failure_risk)),
             credits=credits,

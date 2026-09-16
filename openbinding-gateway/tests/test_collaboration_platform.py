@@ -279,7 +279,7 @@ async def test_delete_project_and_organization_lifecycle(
     assert get_org.status_code == 404
 
 
-async def test_cascaded_deletion_with_reports_publications_and_child_orgs(
+async def test_sealed_reports_protect_project_and_organization_history(
     api_client, registration, platform_gate, db_session
 ):
     owner, owner_headers = await account(api_client, registration)
@@ -334,26 +334,28 @@ async def test_cascaded_deletion_with_reports_publications_and_child_orgs(
     assert rep_res.status_code == 201
     report_data = rep_res.json()
 
-    # 6. Create publication for the report
-    report = await db_session.get(Report, uuid.UUID(report_data["id"]))
-    assert report is not None
-    report.state = ReportState.FROZEN
-    pub = Publication(
-        project_id=uuid.UUID(proj_data["id"]),
-        report_id=report.id,
-        slug="pub-1",
-        citation={"author": "Tester"},
-        published_by_id=uuid.UUID(owner["id"]),
-    )
-    db_session.add(pub)
-    await db_session.commit()
+    # Seal real library content through the same path used by the application.
+    document = {'provenance': {
+        'study': {'reference': 'urn:test:editorial-study', 'digest': 'sha256-' + 'a' * 64},
+        'datasets': [{'reference': 'urn:test:external-dataset', 'digest': 'sha256-' + 'b' * 64}],
+        'software': [{'name': 'test', 'version': '1', 'digest': 'sha256-' + 'c' * 64}],
+        'bimVersion': 'bim/v1', 'engineRevisions': ['sha256-' + 'd' * 64], 'parameters': {},
+    }}
+    edited = await api_client.patch(f"/v1/organizations/{child_slug}/projects/nested-proj/reports/report-1",
+        headers=owner_headers, json={'document': document, 'draft_revision': report_data['draft_revision']})
+    assert edited.status_code == 200, edited.text
+    sealed = await api_client.post(f"/v1/organizations/{child_slug}/projects/nested-proj/reports/report-1/freeze", headers=owner_headers)
+    assert sealed.status_code == 200, sealed.text
+    published = await api_client.post(f"/v1/organizations/{child_slug}/projects/nested-proj/publications", headers=owner_headers,
+        json={'report_id': report_data['id'], 'version_id': sealed.json()['version_id'], 'slug': 'pub-1'})
+    assert published.status_code == 201, published.text
 
-    # 7. Delete the project directly and confirm 204
+    # 7. A project containing publication history cannot be deleted.
     del_proj = await api_client.delete(
         f"/v1/organizations/{child_slug}/projects/nested-proj",
         headers=owner_headers,
     )
-    assert del_proj.status_code == 204
+    assert del_proj.status_code == 409
 
     # 8. Create another project and delete parent organization cascading to child
     proj2_res = await api_client.post(
@@ -367,8 +369,8 @@ async def test_cascaded_deletion_with_reports_publications_and_child_orgs(
         f"/v1/organizations/{parent_slug}",
         headers=owner_headers,
     )
-    assert del_parent.status_code == 204
+    assert del_parent.status_code == 409
 
-    # Verify both parent and child are deleted
-    assert (await api_client.get(f"/v1/organizations/{parent_slug}", headers=owner_headers)).status_code == 404
-    assert (await api_client.get(f"/v1/organizations/{child_slug}", headers=owner_headers)).status_code == 404
+    # Both organizations retain the historical publication.
+    assert (await api_client.get(f"/v1/organizations/{parent_slug}", headers=owner_headers)).status_code == 200
+    assert (await api_client.get(f"/v1/organizations/{child_slug}", headers=owner_headers)).status_code == 200

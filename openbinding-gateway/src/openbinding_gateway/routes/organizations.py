@@ -10,6 +10,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.orm import defer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..collaboration import (
@@ -28,6 +29,9 @@ from ..collaboration import (
 )
 from ..db.models import (
     Artifact,
+    ArtifactVersion,
+    ProjectArtifact,
+    Blob,
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
@@ -80,6 +84,9 @@ from ..models.platform import (
 )
 from ..access.dependencies import get_current_user, session_dependency
 from ..v1.canonical import digest
+from ..artifacts import store_blob, version_content
+from ..v1.canonical import canonical_json, digest_bytes
+import json
 
 router = APIRouter(prefix="/v1/organizations", tags=["Organizations"])
 invitation_router = APIRouter(prefix="/v1/invitations", tags=["Organizations"])
@@ -230,6 +237,16 @@ async def update_organization(
 
 
 async def _cascade_delete_project(session: AsyncSession, project: Project) -> None:
+    if await session.scalar(select(Publication.id).where(Publication.project_id == project.id).limit(1)) or await session.scalar(select(Report.id).where(Report.project_id == project.id, Report.version_id.is_not(None)).limit(1)):
+        raise api_error(409, "historical_references", "A project with sealed reports or publications cannot be deleted.")
+    historical_run = await session.scalar(select(StudyRun.id).join(Study).where(
+        Study.project_id == project.id).limit(1))
+    if historical_run:
+        raise api_error(409, "historical_references", "A project with study runs cannot be deleted; archive its studies to retain their evidence.")
+    historical_case = await session.scalar(select(BindingCaseRevision.id).join(BindingCase).where(
+        BindingCase.project_id == project.id).limit(1))
+    if historical_case:
+        raise api_error(409, "historical_references", "A project with sealed case revisions cannot be deleted.")
     await session.execute(delete(Publication).where(Publication.project_id == project.id))
     await session.execute(delete(Report).where(Report.project_id == project.id))
 
@@ -257,6 +274,10 @@ async def _cascade_delete_project(session: AsyncSession, project: Project) -> No
         )
         await session.delete(r)
 
+    # Common library identities outlive a project; only the usage edge is
+    # removed when a project is deleted.
+    await session.execute(delete(ProjectArtifact).where(ProjectArtifact.project_id == project.id))
+
     collections = (
         await session.execute(
             select(Collection).where(Collection.project_id == project.id)
@@ -265,9 +286,6 @@ async def _cascade_delete_project(session: AsyncSession, project: Project) -> No
     for col in collections:
         await session.execute(
             delete(CollectionRevision).where(CollectionRevision.collection_id == col.id)
-        )
-        await session.execute(
-            delete(CollectionItem).where(CollectionItem.collection_id == col.id)
         )
         await session.delete(col)
 
@@ -287,7 +305,7 @@ async def _cascade_delete_project(session: AsyncSession, project: Project) -> No
             await session.delete(run)
         await session.delete(s)
 
-    await session.execute(delete(Artifact).where(Artifact.project_id == project.id))
+    await session.execute(delete(Blob).where(Blob.project_id == project.id))
     await session.execute(
         update(Job).where(Job.project_id == project.id).values(project_id=None)
     )
@@ -306,6 +324,10 @@ async def delete_organization(
 
     descendants = await descendant_ids(session, organization.id)
     unique_descendants = list(dict.fromkeys(descendants))
+    from ..db.models import Artifact, ArtifactVersion
+    if await session.scalar(select(ArtifactVersion.id).join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
+                            .where(Artifact.organization_id.in_(unique_descendants)).limit(1)):
+        raise api_error(409, 'historical_references', 'Organizations with sealed library history cannot be deleted.')
     for oid in unique_descendants:
         projects = (
             await session.execute(select(Project).where(Project.organization_id == oid))
@@ -321,8 +343,9 @@ async def delete_organization(
         await session.execute(
             delete(AuditEvent).where(AuditEvent.organization_id == oid)
         )
+        await session.execute(delete(Artifact).where(Artifact.organization_id == oid))
         await session.execute(
-            delete(Artifact).where(Artifact.organization_id == oid)
+            delete(Blob).where(Blob.organization_id == oid)
         )
         await session.execute(
             update(Job).where(Job.organization_id == oid).values(organization_id=None)
@@ -924,33 +947,59 @@ async def create_case_revision(
     organization = await _required_org(session, org)
     found_project = await require_project(session, organization, project, user, OrganizationRole.MEMBER)
     found_case = await _case(session, found_project.id, case)
-    if payload.source_snapshot_id is not None:
-        snapshot = await session.get(InstanceSnapshot, payload.source_snapshot_id)
+    from ..artifacts import materialize_case, case_composition_digest
+    from ..db.models import CaseArtifact
+    from ..models.artifacts import ArtifactUse
+    from pydantic import ValidationError
+    resources = payload.resources
+    spec = payload.document.get('spec', {})
+    if not resources and isinstance(spec, dict) and isinstance(spec.get('resources'), dict):
+        entries = [(role, alias, target) for role, group in spec['resources'].items()
+                   if isinstance(group, dict) for alias, target in group.items()]
+        if entries and all(isinstance(target, dict) and 'versionDigest' in target for _, _, target in entries):
+            try:
+                resources = [ArtifactUse(role=role, alias=alias, artifact=target,
+                    bindings=spec.get('bindings', {}).get(alias, {})) for role, alias, target in entries]
+            except (ValidationError, AttributeError) as exc:
+                raise api_error(422, 'invalid_composition', 'Invalid exact artifact references or alias bindings.') from exc
+    uses = []
+    source_document = payload.document
+    snapshot_id = payload.source_snapshot_id
+    if resources:
+        if snapshot_id is not None:
+            raise api_error(422, "ambiguous_source", "Select artifact resources or a source snapshot, not both.")
+        source_document, snapshot_id, uses = await materialize_case(session, user, organization, payload.document, resources)
+    snapshot = None
+    if snapshot_id is not None:
+        snapshot = await session.get(InstanceSnapshot, snapshot_id)
         if snapshot is None or snapshot.owner_id != user.id:
-            raise api_error(
-                status.HTTP_404_NOT_FOUND,
-                "not_found",
-                "Source snapshot not found.",
-            )
-    document_digest = digest(payload.document)
+            raise api_error(404, "not_found", "Source snapshot not found.")
+        if not uses and payload.document != snapshot.root_document:
+            raise api_error(422, "snapshot_document_mismatch", "The case document must match its source snapshot.")
+    document_digest = case_composition_digest(source_document, snapshot,
+        [use.model_dump(mode="json") for use, _ in uses])
+    await session.execute(
+        select(BindingCase.id)
+        .where(BindingCase.id == found_case.id)
+        .with_for_update()
+    )
     existing = (await session.execute(select(BindingCaseRevision).where(
         BindingCaseRevision.binding_case_id == found_case.id,
         BindingCaseRevision.digest == document_digest,
     ))).scalars().first()
     if existing is not None:
         return CaseRevisionView.model_validate(existing, from_attributes=True)
-    await session.execute(
-        select(BindingCase.id)
-        .where(BindingCase.id == found_case.id)
-        .with_for_update()
-    )
     latest = await session.scalar(select(func.max(BindingCaseRevision.revision)).where(BindingCaseRevision.binding_case_id == found_case.id))
     revision = BindingCaseRevision(
         binding_case_id=found_case.id, revision=int(latest or 0) + 1,
-        digest=document_digest, document=payload.document,
-        source_snapshot_id=payload.source_snapshot_id, created_by_id=user.id,
+        digest=document_digest, document=source_document,
+        source_snapshot_id=snapshot_id, created_by_id=user.id,
     )
     session.add(revision)
+    await session.flush()
+    for use, version in uses:
+        session.add(CaseArtifact(revision_id=revision.id, alias=use.alias, role=use.role,
+            version_id=version.id, bindings=use.bindings))
     await session.flush()
     _audit(session, user, "binding_case.revision.created", revision, organization.id, digest=document_digest)
     return CaseRevisionView.model_validate(revision, from_attributes=True)
@@ -987,12 +1036,7 @@ async def delete_case(
         select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id == found_case.id)
     )).scalars().all()
     if revisions:
-        await session.execute(
-            delete(StudyCell).where(StudyCell.binding_case_revision_id.in_(revisions))
-        )
-        await session.execute(
-            delete(BindingCaseRevision).where(BindingCaseRevision.binding_case_id == found_case.id)
-        )
+        raise api_error(409, "historical_references", "A case with sealed revisions cannot be deleted.")
     _audit(session, user, "binding_case.deleted", found_case, organization.id)
     await session.delete(found_case)
     await session.flush()
@@ -1013,14 +1057,44 @@ async def list_project_resources(
     found_project = await require_project(
         session, organization, project, user, OrganizationRole.VIEWER
     )
-    rows = (
-        await session.execute(
-            select(ProjectResource)
-            .where(ProjectResource.project_id == found_project.id)
-            .order_by(ProjectResource.name)
-        )
-    ).scalars().all()
-    return [ProjectResourceView.model_validate(row, from_attributes=True) for row in rows]
+    rows = (await session.scalars(select(Artifact).join(ProjectArtifact)
+        .where(ProjectArtifact.project_id == found_project.id)
+        .order_by(Artifact.display_name))).all()
+    return [_legacy_resource_view(row, found_project.id) for row in rows
+            if row.kind not in {"Application", "CandidateCatalog", "ConstraintSet",
+                                "ExecutionConfiguration", "AnalysisConfiguration",
+                                "Collection", "Study", "Report", "BindingDecision"}]
+
+
+def _legacy_resource_view(artifact: Artifact, project_id: uuid.UUID) -> dict:
+    """Compatibility DTO backed exclusively by the common artifact identity."""
+    return dict(id=artifact.id, project_id=project_id, slug=artifact.name,
+        name=artifact.display_name, description=artifact.description, kind=artifact.kind,
+        created_by_id=artifact.created_by_id, created_at=artifact.created_at)
+
+
+async def _legacy_resource_revision_view(session: AsyncSession, artifact: Artifact,
+                                         version: ArtifactVersion, project_id: uuid.UUID) -> dict:
+    content, media_type = await version_content(session, version)
+    try:
+        document = json.loads(content.decode()) if media_type == "application/json" else {"content": content.decode()}
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise api_error(409, "content_integrity", "Resource content is not valid JSON.") from exc
+    return dict(id=version.id, project_resource_id=artifact.id, revision=version.ordinal,
+        digest=version.content_digest, document=document, created_at=version.created_at)
+
+
+async def _legacy_artifact(session: AsyncSession, project_id: uuid.UUID, reference: str) -> Artifact:
+    try:
+        parsed = uuid.UUID(reference)
+    except ValueError:
+        parsed = None
+    row = (await session.execute(select(Artifact).join(ProjectArtifact)
+        .where(ProjectArtifact.project_id == project_id,
+               Artifact.id == parsed if parsed else Artifact.name == reference))).scalars().first()
+    if row is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project resource not found.")
+    return row
 
 
 @router.post(
@@ -1040,41 +1114,23 @@ async def create_project_resource(
     found_project = await require_project(
         session, organization, project, user, OrganizationRole.MEMBER
     )
-    duplicate = await session.scalar(
-        select(func.count(ProjectResource.id)).where(
-            ProjectResource.project_id == found_project.id,
-            ProjectResource.slug == payload.slug,
-        )
-    )
+    duplicate = await session.scalar(select(Artifact.id).where(
+        Artifact.organization_id == organization.id, Artifact.name == payload.slug))
     if duplicate:
         raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That resource slug is in use.")
-    resource = ProjectResource(
-        project_id=found_project.id, created_by_id=user.id, **payload.model_dump()
-    )
+    resource = Artifact(organization_id=organization.id, namespace=str(organization.id),
+        name=payload.slug, display_name=payload.name, description=payload.description,
+        kind=payload.kind, created_by_id=user.id)
     session.add(resource)
     await session.flush()
+    session.add(ProjectArtifact(project_id=found_project.id, artifact_id=resource.id))
+    await session.flush()
     _audit(session, user, "project_resource.created", resource, organization.id)
-    return ProjectResourceView.model_validate(resource, from_attributes=True)
+    return _legacy_resource_view(resource, found_project.id)
 
 
-async def _project_resource(
-    session: AsyncSession, project_id: uuid.UUID, reference: str
-) -> ProjectResource:
-    try:
-        parsed = uuid.UUID(reference)
-    except ValueError:
-        parsed = None
-    found = (
-        await session.execute(
-            select(ProjectResource).where(
-                ProjectResource.project_id == project_id,
-                ProjectResource.id == parsed if parsed else ProjectResource.slug == reference,
-            )
-        )
-    ).scalars().first()
-    if found is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project resource not found.")
-    return found
+async def _project_resource(session: AsyncSession, project_id: uuid.UUID, reference: str) -> Artifact:
+    return await _legacy_artifact(session, project_id, reference)
 
 
 @router.get(
@@ -1094,16 +1150,10 @@ async def list_project_resource_revisions(
         session, organization, project, user, OrganizationRole.VIEWER
     )
     found_resource = await _project_resource(session, found_project.id, resource)
-    rows = (
-        await session.execute(
-            select(ProjectResourceRevision)
-            .where(ProjectResourceRevision.project_resource_id == found_resource.id)
-            .order_by(ProjectResourceRevision.revision)
-        )
-    ).scalars().all()
-    return [
-        ProjectResourceRevisionView.model_validate(row, from_attributes=True) for row in rows
-    ]
+    rows = (await session.scalars(select(ArtifactVersion)
+        .where(ArtifactVersion.artifact_id == found_resource.id)
+        .order_by(ArtifactVersion.ordinal))).all()
+    return [await _legacy_resource_revision_view(session, found_resource, row, found_project.id) for row in rows]
 
 
 @router.get(
@@ -1127,34 +1177,25 @@ async def get_project_resource_revision(
 
     rev_row = None
     if revision.isdigit():
-        rev_row = (await session.execute(
-            select(ProjectResourceRevision).where(
-                ProjectResourceRevision.project_resource_id == found_resource.id,
-                ProjectResourceRevision.revision == int(revision),
-            )
-        )).scalars().first()
+        rev_row = await session.scalar(select(ArtifactVersion).where(
+            ArtifactVersion.artifact_id == found_resource.id,
+            ArtifactVersion.ordinal == int(revision)))
     if rev_row is None:
         try:
             parsed_uuid = uuid.UUID(revision)
-            rev_row = (await session.execute(
-                select(ProjectResourceRevision).where(
-                    ProjectResourceRevision.project_resource_id == found_resource.id,
-                    ProjectResourceRevision.id == parsed_uuid,
-                )
-            )).scalars().first()
+            rev_row = await session.scalar(select(ArtifactVersion).where(
+                ArtifactVersion.artifact_id == found_resource.id,
+                ArtifactVersion.id == parsed_uuid))
         except ValueError:
             pass
     if rev_row is None and revision.startswith("sha256-"):
-        rev_row = (await session.execute(
-            select(ProjectResourceRevision).where(
-                ProjectResourceRevision.project_resource_id == found_resource.id,
-                ProjectResourceRevision.digest == revision,
-            )
-        )).scalars().first()
+        rev_row = await session.scalar(select(ArtifactVersion).where(
+            ArtifactVersion.artifact_id == found_resource.id,
+            ArtifactVersion.content_digest == revision))
 
     if rev_row is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project resource revision not found.")
-    return ProjectResourceRevisionView.model_validate(rev_row, from_attributes=True)
+    return await _legacy_resource_revision_view(session, found_resource, rev_row, found_project.id)
 
 
 @router.post(
@@ -1177,33 +1218,26 @@ async def create_project_resource_revision(
     )
     found_resource = await _project_resource(session, found_project.id, resource)
     document_digest = digest(payload.document)
-    existing = (
-        await session.execute(
-            select(ProjectResourceRevision).where(
-                ProjectResourceRevision.project_resource_id == found_resource.id,
-                ProjectResourceRevision.digest == document_digest,
-            )
-        )
-    ).scalars().first()
+    existing = await session.scalar(select(ArtifactVersion).where(
+        ArtifactVersion.artifact_id == found_resource.id,
+        ArtifactVersion.content_digest == document_digest))
     if existing is not None:
-        return ProjectResourceRevisionView.model_validate(existing, from_attributes=True)
+        return await _legacy_resource_revision_view(session, found_resource, existing, found_project.id)
     await session.execute(
-        select(ProjectResource.id)
-        .where(ProjectResource.id == found_resource.id)
+        select(Artifact.id)
+        .where(Artifact.id == found_resource.id)
         .with_for_update()
     )
-    latest = await session.scalar(
-        select(func.max(ProjectResourceRevision.revision)).where(
-            ProjectResourceRevision.project_resource_id == found_resource.id
-        )
-    )
-    revision = ProjectResourceRevision(
-        project_resource_id=found_resource.id,
-        revision=int(latest or 0) + 1,
-        digest=document_digest,
-        document=payload.document,
-        created_by_id=user.id,
-    )
+    latest = await session.scalar(select(func.max(ArtifactVersion.ordinal)).where(ArtifactVersion.artifact_id == found_resource.id))
+    content = canonical_json(payload.document)
+    blob = await store_blob(session, found_resource, user, content, "application/json")
+    ordinal = int(latest or 0) + 1
+    manifest = {"apiVersion": "openbinding/artifact/v1", "kind": found_resource.kind,
+        "identity": {"namespace": found_resource.namespace, "name": found_resource.name, "version": str(ordinal)},
+        "contentDigest": document_digest, "mediaType": "application/json", "contracts": [], "dependencies": []}
+    revision = ArtifactVersion(artifact_id=found_resource.id, ordinal=ordinal, version=str(ordinal),
+        blob_id=blob.id, content_digest=document_digest, version_digest=digest(manifest),
+        manifest=manifest, created_by_id=user.id)
     session.add(revision)
     await session.flush()
     _audit(
@@ -1214,7 +1248,7 @@ async def create_project_resource_revision(
         organization.id,
         digest=document_digest,
     )
-    return ProjectResourceRevisionView.model_validate(revision, from_attributes=True)
+    return await _legacy_resource_revision_view(session, found_resource, revision, found_project.id)
 
 
 @router.get(
@@ -1234,7 +1268,7 @@ async def get_project_resource(
         session, organization, project, user, OrganizationRole.VIEWER
     )
     found_resource = await _project_resource(session, found_project.id, resource)
-    return ProjectResourceView.model_validate(found_resource, from_attributes=True)
+    return _legacy_resource_view(found_resource, found_project.id)
 
 
 @router.patch(
@@ -1251,14 +1285,14 @@ async def update_project_resource(
     found_project = await require_project(session, organization, project, user, OrganizationRole.MEMBER)
     found_resource = await _project_resource(session, found_project.id, resource)
     if payload.name is not None:
-        found_resource.name = payload.name
+        found_resource.display_name = payload.name
     if payload.description is not None:
         found_resource.description = payload.description
     if payload.kind is not None:
         found_resource.kind = payload.kind
     await session.flush()
     _audit(session, user, "project_resource.updated", found_resource, organization.id)
-    return ProjectResourceView.model_validate(found_resource, from_attributes=True)
+    return _legacy_resource_view(found_resource, found_project.id)
 
 
 @router.delete(
@@ -1274,13 +1308,10 @@ async def delete_project_resource(
     organization = await _required_org(session, org)
     found_project = await require_project(session, organization, project, user, OrganizationRole.ADMIN)
     found_resource = await _project_resource(session, found_project.id, resource)
-    await session.execute(
-        delete(ProjectResourceRevision).where(
-            ProjectResourceRevision.project_resource_id == found_resource.id
-        )
-    )
     _audit(session, user, "project_resource.deleted", found_resource, organization.id)
-    await session.delete(found_resource)
+    await session.execute(delete(ProjectArtifact).where(
+        ProjectArtifact.project_id == found_project.id,
+        ProjectArtifact.artifact_id == found_resource.id))
     await session.flush()
 
 
@@ -1291,22 +1322,28 @@ async def delete_project_resource(
 )
 async def list_project_jobs(
     org: str, project: str,
+    include_results: bool = True,
+    job_id: uuid.UUID | None = None,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[JobView]:
     organization = await _required_org(session, org)
     found_project = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
-    rows = (await session.execute(
-        select(Job).where(Job.project_id == found_project.id).order_by(Job.created_at.desc())
-    )).scalars().all()
+    query = select(Job).where(Job.project_id == found_project.id).order_by(Job.created_at.desc())
+    if job_id is not None:
+        query = query.where(Job.id == job_id)
+    if not include_results:
+        query = query.options(defer(Job.result), defer(Job.original_request), defer(Job.provenance))
+    rows = (await session.execute(query)).scalars().all()
     return [
         JobView(
             id=job.id, engine_id=job.engine_id, status=job.state.value,
             cancellation_requested=job.cancellation_requested,
             retry_of_id=job.retry_of_id, organization_id=job.organization_id,
             project_id=job.project_id, created_at=job.created_at, finished_at=job.finished_at,
-            result=job.result, termination=job.termination, options=job.options,
-            original_request=job.original_request, provenance=job.provenance,
+            result=job.result if include_results else None, termination=job.termination, options=job.options,
+            original_request=job.original_request if include_results else None,
+            provenance=job.provenance if include_results else None,
         )
         for job in rows
     ]

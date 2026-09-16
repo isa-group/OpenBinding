@@ -39,7 +39,7 @@ from ..core.settings import Settings, get_settings
 from ..db.models import (
     ApiErrorEvent,
     ApiKey,
-    Artifact,
+    Blob,
     AuditEvent,
     AuthIdentity,
     BindingCase,
@@ -112,8 +112,9 @@ def _aware(value):
 async def _maintenance_preview(session: AsyncSession, retention_days: int) -> dict:
     now = utcnow()
     cutoff = now - timedelta(days=retention_days)
+    from ..db.models import ArtifactVersion
     expired_artifacts = int(await session.scalar(
-        select(func.count(Artifact.id)).where(Artifact.expires_at.is_not(None), Artifact.expires_at <= now)
+        select(func.count(Blob.id)).where(Blob.expires_at.is_not(None), Blob.expires_at <= now, ~Blob.id.in_(select(ArtifactVersion.blob_id)))
     ) or 0)
     expired_keys = int(await session.scalar(
         select(func.count(ApiKey.id)).where(
@@ -197,7 +198,6 @@ async def list_users(
             )
         ).all()
     )
-
     views = []
     for user in users:
         try:
@@ -588,7 +588,7 @@ async def platform_overview(
         "collections": Collection,
         "studies": Study,
         "studyRuns": StudyRun,
-        "artifacts": Artifact,
+        "artifacts": Blob,
         "apiKeys": ApiKey,
         "pricingReleases": PricingRelease,
     }
@@ -814,17 +814,20 @@ async def purge_expired_data(
 ) -> dict:
     preview = await _maintenance_preview(session, request.terminal_job_retention_days)
     now = utcnow()
-    expired = (await session.execute(select(Artifact).where(
-        Artifact.expires_at.is_not(None), Artifact.expires_at <= now
+    from ..db.models import ArtifactVersion
+    expired = (await session.execute(select(Blob).where(
+        Blob.expires_at.is_not(None), Blob.expires_at <= now, ~Blob.id.in_(select(ArtifactVersion.blob_id))
     ))).scalars().all()
     root = Path(settings.artifact_root).resolve()
     removed_files = 0
     for artifact in expired:
         path = Path(artifact.storage_uri).resolve()
-        if path.is_relative_to(root) and path.is_file():
+        await session.delete(artifact)
+        await session.flush()
+        retained = await session.scalar(select(Blob.id).where(Blob.storage_uri == artifact.storage_uri).limit(1))
+        if not retained and path.is_relative_to(root) and path.is_file():
             path.unlink()
             removed_files += 1
-        await session.delete(artifact)
 
     await session.execute(
         ApiKey.__table__.update()
@@ -1067,3 +1070,139 @@ async def list_error_events(
         "limit": limit,
         "offset": offset,
     }
+
+
+class EngineRoutingMetricsResponse(BaseModel):
+    summary: dict[str, Any]
+    engines: dict[str, Any]
+
+
+class AdaptationObservationItem(BaseModel):
+    id: str
+    jobId: Optional[str] = None
+    adaptationLoopId: str
+    engineSelected: str
+    workloadFeatures: dict[str, Any]
+    candidateEvaluations: list[dict[str, Any]]
+    predictedMetrics: dict[str, Any]
+    actualMetrics: Optional[dict[str, Any]] = None
+    residuals: Optional[dict[str, Any]] = None
+    outcome: str
+    engineHealthSnapshot: Optional[dict[str, Any]] = None
+    createdAt: Optional[str] = None
+
+
+class EngineRoutingObservationsResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    observations: list[AdaptationObservationItem]
+
+
+class EngineRoutingRecalibrateResponse(BaseModel):
+    status: str
+    recalibratedAt: str
+    observationsProcessed: int
+    calibratedEngines: list[str]
+
+
+@router.get(
+    "/engine-routing/metrics",
+    response_model=EngineRoutingMetricsResponse,
+    summary="Retrieve engine routing runtime health metrics",
+    description="Returns autonomic health snapshots, observed failure rates, and active concurrency across candidate engines.",
+    operation_id="admin_engine_routing_metrics",
+)
+async def get_engine_routing_metrics() -> EngineRoutingMetricsResponse:
+    from ..engine_routing import get_health_monitor
+
+    monitor = get_health_monitor()
+    snapshots = monitor.get_all_snapshots()
+    healthy_count = sum(1 for s in snapshots.values() if s.get("healthStatus") == "HEALTHY")
+    degraded_count = sum(1 for s in snapshots.values() if s.get("healthStatus") == "DEGRADED")
+    active_total = sum(s.get("activeJobs", 0) for s in snapshots.values())
+
+    return EngineRoutingMetricsResponse(
+        summary={
+            "totalEngines": len(snapshots),
+            "healthyEngines": healthy_count,
+            "degradedEngines": degraded_count,
+            "activeJobs": active_total,
+        },
+        engines=snapshots,
+    )
+
+
+@router.get(
+    "/engine-routing/observations",
+    response_model=EngineRoutingObservationsResponse,
+    summary="List historical MAPE-K adaptation observations",
+    description="Returns paginated records of instance features, candidate evaluations, predicted metrics and actual execution telemetry.",
+    operation_id="admin_engine_routing_observations",
+)
+async def list_engine_routing_observations(
+    session: AsyncSession = Depends(session_dependency),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    engine: Optional[str] = Query(default=None),
+) -> EngineRoutingObservationsResponse:
+    from ..db.models import AdaptationObservation
+
+    query = select(AdaptationObservation)
+    count_query = select(func.count()).select_from(AdaptationObservation)
+
+    if engine:
+        query = query.where(AdaptationObservation.engine_selected == engine)
+        count_query = count_query.where(AdaptationObservation.engine_selected == engine)
+
+    total = (await session.scalar(count_query)) or 0
+    rows = await session.execute(
+        query.order_by(AdaptationObservation.created_at.desc()).offset(offset).limit(limit)
+    )
+    obs_list = rows.scalars().all()
+
+    items = [
+        AdaptationObservationItem(
+            id=str(obs.id),
+            jobId=str(obs.job_id) if obs.job_id else None,
+            adaptationLoopId=obs.adaptation_loop_id,
+            engineSelected=obs.engine_selected,
+            workloadFeatures=obs.workload_features or {},
+            candidateEvaluations=obs.candidate_evaluations or [],
+            predictedMetrics=obs.predicted_metrics or {},
+            actualMetrics=obs.actual_metrics,
+            residuals=obs.residuals,
+            outcome=obs.outcome,
+            engineHealthSnapshot=obs.engine_health_snapshot,
+            createdAt=obs.created_at.isoformat() if obs.created_at else None,
+        )
+        for obs in obs_list
+    ]
+
+    return EngineRoutingObservationsResponse(
+        total=total,
+        limit=limit,
+        offset=offset,
+        observations=items,
+    )
+
+
+@router.post(
+    "/engine-routing/recalibrate",
+    response_model=EngineRoutingRecalibrateResponse,
+    summary="Trigger model recalibration across historical observations",
+    description="Updates empirical confidence densities and predictive models using stored observations.",
+    operation_id="admin_engine_routing_recalibrate",
+)
+async def recalibrate_engine_routing(
+    session: AsyncSession = Depends(session_dependency),
+) -> EngineRoutingRecalibrateResponse:
+    from ..engine_routing import get_adaptation_manager
+
+    result = await get_adaptation_manager().recalibrate(session)
+    return EngineRoutingRecalibrateResponse(
+        status=result.get("status", "recalibrated"),
+        recalibratedAt=result.get("recalibratedAt", utcnow().isoformat()),
+        observationsProcessed=result.get("observationsProcessed", 0),
+        calibratedEngines=result.get("calibratedEngines", []),
+    )

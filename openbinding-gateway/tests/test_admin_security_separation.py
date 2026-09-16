@@ -34,7 +34,7 @@ def _optimization_document(name: str, version: str) -> dict:
 
 from openbinding_gateway.db.models import (
     ApiKey,
-    Artifact,
+    Blob,
     AuditEvent,
     BindingCase,
     Organization,
@@ -149,7 +149,7 @@ async def test_admin_cannot_download_private_artifacts(
     org_res = await api_client.post(
         "/v1/organizations",
         headers=owner_headers,
-        json={"slug": org_slug, "name": "Artifact Lab"},
+        json={"slug": org_slug, "name": "Blob Lab"},
     )
     assert org_res.status_code == 201
 
@@ -176,7 +176,7 @@ async def test_admin_cannot_download_private_artifacts(
     storage_file = tmp_path / "test_artifact.bin"
     storage_file.write_bytes(b'{"secret": "data"}')
 
-    artifact = Artifact(
+    artifact = Blob(
         organization_id=org_obj.id,
         project_id=proj_obj.id,
         digest=fake_digest,
@@ -191,7 +191,7 @@ async def test_admin_cannot_download_private_artifacts(
 
     # Owner can download
     owner_get = await api_client.get(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/artifacts/{fake_digest}",
+        f"/v1/organizations/{org_slug}/projects/{proj_slug}/blobs/{fake_digest}",
         headers=owner_headers,
     )
     assert owner_get.status_code == 200
@@ -199,7 +199,7 @@ async def test_admin_cannot_download_private_artifacts(
 
     # Admin is refused with 403
     admin_get = await api_client.get(
-        f"/v1/organizations/{org_slug}/projects/{proj_slug}/artifacts/{fake_digest}",
+        f"/v1/organizations/{org_slug}/projects/{proj_slug}/blobs/{fake_digest}",
         headers=admin_headers,
     )
     assert admin_get.status_code == 403

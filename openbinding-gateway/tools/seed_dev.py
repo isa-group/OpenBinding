@@ -94,7 +94,7 @@ from openbinding_gateway.db.models import (
     utcnow,
 )
 from openbinding_gateway.db.platform_models import (
-    Artifact,
+    Blob,
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
@@ -122,10 +122,11 @@ from openbinding_gateway.models.platform import StudyDefinition
 from openbinding_gateway.routes import v1 as routes_v1
 from openbinding_gateway.security.apikeys import ADMIN_PERMISSIONS, ALL_PERMISSIONS, hash_key
 from openbinding_gateway.security.passwords import hash_password
-from openbinding_gateway.studies import aggregate_metrics, expand_study
+from openbinding_gateway.studies import expand_study
 from openbinding_gateway.study_jobs import StudyLaunchError, launch_study_cell
 from openbinding_gateway.v1.canonical import digest
 from openbinding_gateway.v1.package import InstancePackage, load_package
+from seed_analysis import prepare_analysis_workspace
 
 logger = logging.getLogger("seed_dev")
 
@@ -163,161 +164,25 @@ def dev_api_key(username: str, suffix: str) -> tuple[str, str, str]:
 
 
 async def clean_existing_data(session: AsyncSession) -> None:
-    """Safely delete previously seeded entities in reverse foreign key order."""
-    logger.info("Cleaning up previously seeded development entities...")
-    usernames = [u["username"] for u in SEED_USERS]
-
-    # Identify seeded users
-    users = (
-        await session.execute(select(User).where(User.username.in_(usernames)))
-    ).scalars().all()
-    user_ids = [u.id for u in users]
-
-    # Identify seeded orgs
-    org_slugs = ["score-group", "score-ai", "score-edge", "acme-corp", "acme-cloud"]
-    orgs = (
-        await session.execute(select(Organization).where(Organization.slug.in_(org_slugs)))
-    ).scalars().all()
-    org_ids = [o.id for o in orgs]
-
-    # Identify seeded projects
-    projects = (
-        await session.execute(select(Project).where(Project.organization_id.in_(org_ids)))
-    ).scalars().all() if org_ids else []
-    project_ids = [p.id for p in projects]
-
-    # Delete dependent publications, reports and artifacts
-    if project_ids:
-        await session.execute(delete(Artifact).where(Artifact.project_id.in_(project_ids)))
-        await session.execute(delete(Publication).where(Publication.project_id.in_(project_ids)))
-        await session.execute(delete(Report).where(Report.project_id.in_(project_ids)))
-
-        # Studies, runs, cells
-        studies = (
-            await session.execute(select(Study).where(Study.project_id.in_(project_ids)))
-        ).scalars().all()
-        study_ids = [s.id for s in studies]
-        if study_ids:
-            runs = (
-                await session.execute(select(StudyRun).where(StudyRun.study_id.in_(study_ids)))
-            ).scalars().all()
-            run_ids = [r.id for r in runs]
-            if run_ids:
-                await session.execute(delete(StudyCell).where(StudyCell.study_run_id.in_(run_ids)))
-                await session.execute(delete(StudyRun).where(StudyRun.id.in_(run_ids)))
-            await session.execute(delete(Study).where(Study.id.in_(study_ids)))
-
-        # Collections
-        collections = (
-            await session.execute(select(Collection).where(Collection.project_id.in_(project_ids)))
-        ).scalars().all()
-        collection_ids = [c.id for c in collections]
-        if collection_ids:
-            col_revs = (
-                await session.execute(select(CollectionRevision).where(CollectionRevision.collection_id.in_(collection_ids)))
-            ).scalars().all()
-            col_rev_ids = [cr.id for cr in col_revs]
-            if col_rev_ids:
-                await session.execute(delete(CollectionItem).where(CollectionItem.collection_revision_id.in_(col_rev_ids)))
-                await session.execute(delete(CollectionRevision).where(CollectionRevision.id.in_(col_rev_ids)))
-            await session.execute(delete(Collection).where(Collection.id.in_(collection_ids)))
-
-        # Cases & Revisions
-        cases = (
-            await session.execute(select(BindingCase).where(BindingCase.project_id.in_(project_ids)))
-        ).scalars().all()
-        case_ids = [c.id for c in cases]
-        if case_ids:
-            await session.execute(delete(BindingCaseRevision).where(BindingCaseRevision.binding_case_id.in_(case_ids)))
-            await session.execute(delete(BindingCase).where(BindingCase.id.in_(case_ids)))
-
-        # Project Resources & Revisions
-        resources = (
-            await session.execute(select(ProjectResource).where(ProjectResource.project_id.in_(project_ids)))
-        ).scalars().all()
-        res_ids = [r.id for r in resources]
-        if res_ids:
-            await session.execute(delete(ProjectResourceRevision).where(ProjectResourceRevision.project_resource_id.in_(res_ids)))
-            await session.execute(delete(ProjectResource).where(ProjectResource.id.in_(res_ids)))
-
-    # Notifications & Audit
-    if user_ids:
-        await session.execute(delete(Notification).where(Notification.user_id.in_(user_ids)))
-        await session.execute(delete(ApiKey).where(ApiKey.user_id.in_(user_ids)))
-    if org_ids or user_ids:
-        query = delete(AuditEvent)
-        conditions = []
-        if org_ids:
-            conditions.append(AuditEvent.organization_id.in_(org_ids))
-        if user_ids:
-            conditions.append(AuditEvent.actor_id.in_(user_ids))
-        await session.execute(query.where(or_(*conditions)))
-
-    # Jobs & Snapshots
-    if org_ids or user_ids:
-        query = delete(Job)
-        conds = []
-        if org_ids:
-            conds.append(Job.organization_id.in_(org_ids))
-        if user_ids:
-            conds.append(Job.billing_sponsor_user_id.in_(user_ids))
-        await session.execute(query.where(or_(*conds)))
-    if user_ids:
-        await session.execute(delete(InstanceSnapshot).where(InstanceSnapshot.owner_id.in_(user_ids)))
-
-    # Engine Revisions & Registration Revisions
-    all_engine_names = [
-        "minizinc-csp",
-        "random-search",
-        "many-heuristic",
-        "evolutionary-heuristics",
-    ]
-    await session.execute(
-        delete(EngineRegistrationRevision).where(
-            EngineRegistrationRevision.name.in_(all_engine_names)
-        )
-    )
-    await session.execute(
-        delete(EngineRevision).where(
-            EngineRevision.name.in_(all_engine_names)
-        )
-    )
-
-    # Projects & Artifacts
-    if org_ids:
-        await session.execute(delete(Artifact).where(Artifact.organization_id.in_(org_ids)))
-        await session.execute(delete(Project).where(Project.organization_id.in_(org_ids)))
-        await session.execute(delete(OrganizationMembership).where(OrganizationMembership.organization_id.in_(org_ids)))
-
-        # Delete sub-orgs first (where parent_id is not null)
-        await session.execute(delete(Organization).where(Organization.id.in_(org_ids), Organization.parent_id.isnot(None)))
-        # Then parent orgs
-        await session.execute(delete(Organization).where(Organization.id.in_(org_ids)))
-
-    # Seed non-admin users
-    non_admin_usernames = [u["username"] for u in SEED_USERS if u["role"] != UserRole.ADMIN]
-    non_admin_users = (
-        await session.execute(select(User).where(User.username.in_(non_admin_usernames)))
-    ).scalars().all()
-    non_admin_ids = [u.id for u in non_admin_users]
-
-    # Try removing SPACE contracts if SPACE is enabled
-    try:
-        settings = get_settings()
-        if settings.space_enabled:
-            gate = space_client.get_gate()
-            for uid in non_admin_ids:
-                try:
-                    await gate.remove_contract(uid)
-                except Exception:
-                    pass
-    except Exception:
-        pass
-
-    await session.execute(delete(User).where(User.username.in_(non_admin_usernames)))
-
+    """Rebuild the local development database; sealed rows are never unsealed."""
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import text
+    bind = session.get_bind()
+    if get_settings().app_env == 'prod' or bind.url.host not in {None, 'localhost', '127.0.0.1', 'postgres'}:
+        raise RuntimeError('Development reset is restricted to a local OpenBinding database.')
     await session.commit()
-    logger.info("Cleaned previous seed data.")
+    session.expunge_all()
+    connection = await session.connection()
+    def rebuild(sync_connection):
+        db_base.Base.metadata.drop_all(sync_connection)
+        sync_connection.execute(text('DROP TABLE IF EXISTS alembic_version'))
+        config = Config(str(_gateway_root / 'alembic.ini'))
+        config.set_main_option('script_location', str(_gateway_root / 'alembic'))
+        config.attributes['connection'] = sync_connection
+        command.upgrade(config, 'head')
+    await connection.run_sync(rebuild)
+    await session.commit()
 
 
 async def ensure_users(session: AsyncSession) -> dict[str, User]:
@@ -833,6 +698,41 @@ async def load_and_persist_snapshots(
     return results
 
 
+async def ensure_library_composition(session, project, user, package, prefix):
+    """Use stable authored names across projects; never infer shared identity from bytes."""
+    from openbinding_gateway.artifacts import reference, validate_content, seal_draft, materialize_case
+    from openbinding_gateway.db.models import Artifact, ArtifactDraft, ArtifactVersion, ProjectArtifact
+    from openbinding_gateway.models.artifacts import DraftContent, ArtifactUse
+    from openbinding_gateway.v1.canonical import digest_bytes
+    organization = await session.get(Organization, project.organization_id)
+    uses = []
+    for role, resources in package.instance()['spec']['resources'].items():
+        for alias, path in resources.items():
+            content = package.json(path) if path.endswith('.json') else package.files[path].decode('utf-8')
+            kind = content['kind'] if isinstance(content, dict) else 'BPMN'
+            payload = DraftContent(content=content, media_type='application/json' if isinstance(content, dict) else 'application/vnd.omg.bpmn+xml')
+            raw, contracts = validate_content(kind, payload)
+            name = f'{prefix}-{alias}'
+            artifact = await session.scalar(select(Artifact).where(Artifact.organization_id == organization.id, Artifact.name == name))
+            if artifact is None:
+                artifact = Artifact(organization_id=organization.id, namespace=str(organization.id), name=name,
+                    display_name=f'{prefix} · {alias}', kind=kind, created_by_id=user.id)
+                session.add(artifact)
+                await session.flush()
+            candidates = (await session.scalars(select(ArtifactVersion).where(
+                ArtifactVersion.artifact_id == artifact.id, ArtifactVersion.content_digest == digest_bytes(raw)))).all()
+            version = next((item for item in candidates if item.manifest['contracts'] == contracts), None)
+            if version is None:
+                draft = ArtifactDraft(artifact_id=artifact.id, payload=payload.model_dump(mode='json'), created_by_id=user.id)
+                session.add(draft)
+                await session.flush()
+                version = await seal_draft(session, artifact, draft, 1, None, user)
+            if await session.get(ProjectArtifact, (project.id, artifact.id)) is None:
+                session.add(ProjectArtifact(project_id=project.id, artifact_id=artifact.id))
+            uses.append(ArtifactUse(role=role, alias=alias, artifact=reference(artifact, version)))
+    return await materialize_case(session, user, organization, package.instance(), uses)
+
+
 async def ensure_cases_and_collections(
     session: AsyncSession,
     project: Project,
@@ -871,8 +771,11 @@ async def ensure_cases_and_collections(
             await session.flush()
             logger.info("Created BindingCase '%s'", slug)
 
-        doc = package.json("instance.json")
-        doc_digest = digest(doc)
+        from openbinding_gateway.artifacts import case_composition_digest
+        from openbinding_gateway.db.models import CaseArtifact
+        doc, materialized_id, uses = await ensure_library_composition(session, project, user, package, sample_key)
+        snapshot = await session.get(InstanceSnapshot, materialized_id)
+        doc_digest = case_composition_digest(doc, snapshot, [use.model_dump(mode='json') for use, _ in uses])
 
         revision = (
             await session.execute(
@@ -886,7 +789,7 @@ async def ensure_cases_and_collections(
         if revision is None:
             revision = BindingCaseRevision(
                 binding_case_id=case.id,
-                revision=1,
+                revision=int(await session.scalar(select(func.max(BindingCaseRevision.revision)).where(BindingCaseRevision.binding_case_id == case.id)) or 0) + 1,
                 digest=doc_digest,
                 document=doc,
                 source_snapshot_id=snapshot.id,
@@ -894,324 +797,139 @@ async def ensure_cases_and_collections(
             )
             session.add(revision)
             await session.flush()
+            for use, version in uses:
+                session.add(CaseArtifact(revision_id=revision.id, role=use.role, alias=use.alias, version_id=version.id, bindings=use.bindings))
             logger.info("Created BindingCaseRevision #1 for '%s'", slug)
 
         case_map[slug] = (case, revision)
 
-        if slug == "simple-seq":
-            import copy
-            doc_v2 = copy.deepcopy(doc)
-            if "metadata" not in doc_v2:
-                doc_v2["metadata"] = {}
-            doc_v2["metadata"]["revision"] = 2
-            doc_v2["metadata"]["description"] = "Sequential pipeline with strict latency bounds (r2 with tightened budget)"
-            doc_v2_digest = digest(doc_v2)
-            rev_2 = (
-                await session.execute(
-                    select(BindingCaseRevision).where(
-                        BindingCaseRevision.binding_case_id == case.id,
-                        BindingCaseRevision.revision == 2,
-                    )
-                )
-            ).scalars().first()
-            if rev_2 is None:
-                rev_2 = BindingCaseRevision(
-                    binding_case_id=case.id,
-                    revision=2,
-                    digest=doc_v2_digest,
-                    document=doc_v2,
-                    source_snapshot_id=snapshot.id,
-                    created_by_id=user.id,
-                )
-                session.add(rev_2)
-                await session.flush()
-                logger.info("Created BindingCaseRevision #2 for '%s'", slug)
-
-    # Curated Collections
-    if "simple-seq" in case_map and "parallel-mesh" in case_map:
-        c_slug = "standard-benchmarks"
-        collection = (
-            await session.execute(
-                select(Collection).where(Collection.project_id == project.id, Collection.slug == c_slug)
-            )
-        ).scalars().first()
+    # Collection payload and FK consumers use the same exact revision references.
+    if 'simple-seq' in case_map and 'parallel-mesh' in case_map:
+        collection = await session.scalar(select(Collection).where(Collection.project_id == project.id, Collection.slug == 'standard-benchmarks'))
         if collection is None:
-            collection = Collection(
-                project_id=project.id,
-                slug=c_slug,
-                name="Standard BIM v1 Benchmark Suite",
-                description="Authoritative suite of basic control flow structures: sequential and parallel.",
-                created_by_id=user.id,
-            )
+            collection = Collection(project_id=project.id, slug='standard-benchmarks', name='Standard BIM v1 Benchmark Suite',
+                description='Sequential, parallel and multi-objective experiments.', created_by_id=user.id)
             session.add(collection)
             await session.flush()
-
-            col_rev = CollectionRevision(
-                collection_id=collection.id,
-                revision=1,
-                digest=digest([case_map["simple-seq"][1].digest, case_map["parallel-mesh"][1].digest]),
-                created_by_id=user.id,
-            )
-            session.add(col_rev)
-            await session.flush()
-
-            for pos, (key, (_, rev)) in enumerate([("simple-seq", case_map["simple-seq"]), ("parallel-mesh", case_map["parallel-mesh"])]):
-                session.add(
-                    CollectionItem(
-                        collection_revision_id=col_rev.id,
-                        position=pos,
-                        target_kind="case",
-                        target_digest=rev.digest,
-                        target_ref={"slug": key, "revision": rev.revision},
-                        added_by_id=user.id,
-                    )
-                )
-            await session.flush()
-            logger.info("Created Collection '%s' with 2 items", c_slug)
-
-            # Collection Revision 2
-            col_rev_2 = (
-                await session.execute(
-                    select(CollectionRevision).where(
-                        CollectionRevision.collection_id == collection.id,
-                        CollectionRevision.revision == 2,
-                    )
-                )
-            ).scalars().first()
-            if col_rev_2 is None:
-                rev2_target = rev_2 if 'rev_2' in locals() else case_map["simple-seq"][1]
-                col_rev_2 = CollectionRevision(
-                    collection_id=collection.id,
-                    revision=2,
-                    digest=digest([case_map["simple-seq"][1].digest, rev2_target.digest, case_map["parallel-mesh"][1].digest]),
-                    created_by_id=user.id,
-                )
-                session.add(col_rev_2)
+        editions = [['simple-seq', 'parallel-mesh']]
+        if 'multi-objective' in case_map:
+            editions.append(['simple-seq', 'multi-objective', 'parallel-mesh'])
+        for ordinal, keys in enumerate(editions, 1):
+            items = [dict(target_kind='case', target_digest=case_map[key][1].digest,
+                target_ref={'caseRevisionId': str(case_map[key][1].id)}) for key in keys]
+            content_digest = digest(items)
+            revision = await session.scalar(select(CollectionRevision).where(CollectionRevision.collection_id == collection.id,
+                CollectionRevision.digest == content_digest))
+            if revision is None:
+                next_ordinal = int(await session.scalar(select(func.max(CollectionRevision.revision)).where(CollectionRevision.collection_id == collection.id)) or 0) + 1
+                revision = CollectionRevision(collection_id=collection.id, revision=next_ordinal, digest=content_digest, created_by_id=user.id)
+                session.add(revision)
                 await session.flush()
-                items_r2 = [
-                    (0, "simple-seq", case_map["simple-seq"][1]),
-                    (1, "simple-seq", rev2_target),
-                    (2, "parallel-mesh", case_map["parallel-mesh"][1]),
-                ]
-                for pos, key, r in items_r2:
-                    session.add(
-                        CollectionItem(
-                            collection_revision_id=col_rev_2.id,
-                            position=pos,
-                            target_kind="case",
-                            target_digest=r.digest,
-                            target_ref={"slug": key, "revision": r.revision},
-                            added_by_id=user.id,
-                        )
-                    )
+                for position, item in enumerate(items):
+                    session.add(CollectionItem(collection_revision_id=revision.id, position=position, added_by_id=user.id, **item))
                 await session.flush()
-                logger.info("Created CollectionRevision #2 for '%s'", c_slug)
 
     return case_map
 
 
-async def ensure_project_resources(
-    session: AsyncSession,
-    project_map: dict[str, Project],
-    users: dict[str, User],
-) -> dict[str, tuple[ProjectResource, list[ProjectResourceRevision]]]:
-    """Seed reusable project resources (candidate catalogs, constraints, optimization profiles) with immutable revisions."""
-    alice = users["alice"]
-    bob = users["bob"]
-    qos_project = project_map.get("score-ai/qos-placement")
-    fog_project = project_map.get("score-edge/fog-latency-benchmark")
-    stock_project = project_map.get("acme-cloud/stock-trading-pipeline")
-
-    resource_specs = []
-
-    if qos_project:
-        # Resource 1: Candidate Catalog with 2 revisions
-        doc_catalog_v1 = {
-            "apiVersion": "qos-binding/v1",
-            "kind": "CandidateCatalog",
-            "metadata": {
-                "name": "standard-cloud-candidates-v1",
-                "project": "qos-placement",
-            },
-            "spec": {
-                "candidates": {
-                    "aws-us-east-1a": {
-                        "provides": "service/compute",
-                        "provider": "AWS",
-                        "region": "us-east-1",
-                        "metrics": {"cost_per_hour": 0.096, "latency_ms": 12.0, "availability": 0.9995},
-                    },
-                    "gcp-us-central1": {
-                        "provides": "service/compute",
-                        "provider": "GCP",
-                        "region": "us-central1",
-                        "metrics": {"cost_per_hour": 0.088, "latency_ms": 18.0, "availability": 0.999},
-                    },
-                    "azure-eastus": {
-                        "provides": "service/compute",
-                        "provider": "Azure",
-                        "region": "eastus",
-                        "metrics": {"cost_per_hour": 0.092, "latency_ms": 15.0, "availability": 0.9992},
-                    },
-                    "aws-rds-postgres": {
-                        "provides": "service/database",
-                        "provider": "AWS",
-                        "region": "us-east-1",
-                        "metrics": {"cost_per_hour": 0.25, "latency_ms": 8.0, "availability": 0.9999},
-                    },
-                },
-                "metricBindings": {
-                    "cost": {"resource": "application", "id": "cost"},
-                    "latency": {"resource": "application", "id": "latency"},
-                },
-            },
-        }
-        doc_catalog_v2 = {
-            **doc_catalog_v1,
-            "metadata": {"name": "standard-cloud-candidates-v2", "project": "qos-placement"},
-            "spec": {
-                **doc_catalog_v1["spec"],
-                "candidates": {
-                    **doc_catalog_v1["spec"]["candidates"],
-                    "cloudflare-edge-worker": {
-                        "provides": "service/edge-compute",
-                        "provider": "Cloudflare",
-                        "region": "global-anycast",
-                        "metrics": {"cost_per_hour": 0.050, "latency_ms": 4.5, "availability": 0.9999},
-                    },
-                },
-            },
-        }
-
-        # Resource 2: Latency SLA Constraints
-        doc_constraints_v1 = {
-            "apiVersion": "qos-binding/v1",
-            "kind": "ConstraintSet",
-            "metadata": {"name": "sla-latency-constraints-v1", "project": "qos-placement"},
-            "spec": {
-                "rules": [
-                    {"id": "max-total-latency", "type": "upper_bound", "metric": "latency", "threshold": 150.0},
-                    {"id": "min-availability", "type": "lower_bound", "metric": "availability", "threshold": 0.999},
-                    {"id": "max-hourly-budget", "type": "upper_bound", "metric": "cost", "threshold": 2.50},
-                ]
-            },
-        }
-
-        # Resource 3: Multi-objective Optimization Weights
-        doc_opt_v1 = {
-            "apiVersion": "qos-binding/v1",
-            "kind": "Optimization",
-            "metadata": {"name": "balanced-cost-latency-weights-v1", "project": "qos-placement"},
-            "spec": {
-                "mode": "weighted",
-                "terms": [
-                    {"metric": {"resource": "application", "id": "cost"}, "weight": 0.6, "normalize": {"min": 0.0, "max": 10.0}},
-                    {"metric": {"resource": "application", "id": "latency"}, "weight": 0.4, "normalize": {"min": 0.0, "max": 500.0}},
-                ],
-            },
-        }
-
-        resource_specs.extend([
-            (qos_project, "standard-candidate-catalog", "Standard QoS Cloud Candidate Catalog", "Multi-cloud service offerings (AWS, GCP, Azure, Cloudflare) annotated with latency, cost, and availability metrics.", "CandidateCatalog", [doc_catalog_v1, doc_catalog_v2], alice),
-            (qos_project, "sla-latency-constraints", "High-Priority SLA Latency Constraint Set", "Enforces upper-bound end-to-end response times, hourly budget ceilings, and 99.9% availability.", "ConstraintSet", [doc_constraints_v1], alice),
-            (qos_project, "balanced-cost-latency-weights", "Balanced Cost vs Latency Optimization Profile", "Scalarization parameters and Pareto tradeoff weights (60% cost / 40% latency) for multi-objective solvers.", "Optimization", [doc_opt_v1], alice),
-        ])
-
-    if fog_project:
-        doc_fog_topology = {
-            "apiVersion": "qos-binding/v1",
-            "kind": "RoutingOverlay",
-            "metadata": {"name": "fog-topology-v1", "project": "fog-latency-benchmark"},
-            "spec": {
-                "nodes": ["edge-sensor-alpha", "fog-cluster-gateway", "central-cloud-hub"],
-                "links": [
-                    {"from": "edge-sensor-alpha", "to": "fog-cluster-gateway", "latency_ms": 3.2, "bandwidth_mbps": 1000},
-                    {"from": "fog-cluster-gateway", "to": "central-cloud-hub", "latency_ms": 28.5, "bandwidth_mbps": 10000},
-                ],
-            },
-        }
-        resource_specs.append(
-            (fog_project, "fog-node-topology", "Fog Infrastructure Topology Map", "Hierarchical mesh network graph defining propagation delays and bandwidth capacities between fog gateways and edge sensors.", "RoutingOverlay", [doc_fog_topology], alice)
-        )
-
-    if stock_project:
-        doc_stock_catalog = {
-            "apiVersion": "qos-binding/v1",
-            "kind": "CandidateCatalog",
-            "metadata": {"name": "financial-order-routing-v1", "project": "stock-trading-pipeline"},
-            "spec": {
-                "candidates": {
-                    "nyse-mah-colo": {
-                        "provides": "venue/equities",
-                        "provider": "Equinix-NY4",
-                        "metrics": {"tick_to_trade_us": 12.5, "jitter_us": 0.8, "cost_tier": "premium"},
-                    },
-                    "nasdaq-car-colo": {
-                        "provides": "venue/equities",
-                        "provider": "Equinix-NY11",
-                        "metrics": {"tick_to_trade_us": 14.2, "jitter_us": 1.1, "cost_tier": "standard"},
-                    },
-                },
-            },
-        }
-        resource_specs.append(
-            (stock_project, "financial-order-routing-catalog", "Ultra-Low Latency Exchange Candidate Catalog", "Colocated trading venue endpoints (NYSE, NASDAQ) with deterministic sub-millisecond execution constraints.", "CandidateCatalog", [doc_stock_catalog], bob)
-        )
-
-    created_map: dict[str, tuple[ProjectResource, list[ProjectResourceRevision]]] = {}
-
-    for proj, slug, name, desc, kind, doc_list, author in resource_specs:
-        resource = (
-            await session.execute(
-                select(ProjectResource).where(
-                    ProjectResource.project_id == proj.id,
-                    ProjectResource.slug == slug,
-                )
-            )
-        ).scalars().first()
-
-        if resource is None:
-            resource = ProjectResource(
-                project_id=proj.id,
-                slug=slug,
-                name=name,
-                description=desc,
-                kind=kind,
-                created_by_id=author.id,
-            )
-            session.add(resource)
+async def ensure_project_resources(session, project_map, users):
+    """Seed two consumers that independently pin versions of shared BIM inputs."""
+    from openbinding_gateway.artifacts import case_composition_digest, materialize_case, seal_draft
+    from openbinding_gateway.db.models import Artifact, ArtifactVersion, ArtifactDraft, CaseArtifact, ProjectArtifact
+    from openbinding_gateway.models.artifacts import DraftContent, PublishVersion
+    from openbinding_gateway.routes.library import publish_version
+    from openbinding_gateway.v1.canonical import canonical_json
+    source = load_package(_find_examples_dir() / 'demo' / '01_simple_seq')
+    root = source.instance()
+    root['spec']['resources']['constraintSet'] = {'constraints': 'constraints.json'}
+    constraints = dict(apiVersion='qos-binding/v1', kind='ConstraintSet', metadata={'name': 'shared-latency-bound'},
+        spec={'constraints': {'latency-sla': {'assert': 'metrics.latency <= 1000', 'enforcement': 'hard'}}})
+    files = {**source.files, 'instance.json': canonical_json(root), 'constraints.json': canonical_json(constraints)}
+    initial = InstancePackage(files)
+    first_uses = None
+    for index, key in enumerate(('score-ai/qos-placement', 'score-ai/smart-orchestration')):
+        project = project_map.get(key)
+        if not project:
+            continue
+        package = initial
+        if index:
+            catalog = initial.json('candidates.json')
+            catalog['spec']['candidates']['c1a']['metrics']['latency'] = 8
+            package = InstancePackage({**files, 'candidates.json': canonical_json(catalog)})
+        document, snapshot_id, uses = await ensure_library_composition(session, project, users['alice'], package, '01_simple_seq')
+        if first_uses is None:
+            first_uses = uses
+        case = await session.scalar(select(BindingCase).where(BindingCase.project_id == project.id, BindingCase.slug == 'shared-library-experiment'))
+        if case is None:
+            case = BindingCase(project_id=project.id, slug='shared-library-experiment', name='Shared resources experiment',
+                description='This project pins its own catalog version.', created_by_id=users['alice'].id)
+            session.add(case)
             await session.flush()
-            logger.info("Created ProjectResource '%s' (%s) in '%s'", slug, kind, proj.slug)
-
-        revisions: list[ProjectResourceRevision] = []
-        for idx, doc in enumerate(doc_list, start=1):
-            doc_digest = digest(doc)
-            rev = (
-                await session.execute(
-                    select(ProjectResourceRevision).where(
-                        ProjectResourceRevision.project_resource_id == resource.id,
-                        ProjectResourceRevision.digest == doc_digest,
-                    )
-                )
-            ).scalars().first()
-
-            if rev is None:
-                rev = ProjectResourceRevision(
-                    project_resource_id=resource.id,
-                    revision=idx,
-                    digest=doc_digest,
-                    document=doc,
-                    created_by_id=author.id,
-                )
-                session.add(rev)
+        snapshot = await session.get(InstanceSnapshot, snapshot_id)
+        composition = case_composition_digest(document, snapshot, [use.model_dump(mode='json') for use, _ in uses])
+        revision = await session.scalar(select(BindingCaseRevision).where(BindingCaseRevision.binding_case_id == case.id, BindingCaseRevision.digest == composition))
+        if revision is None:
+            ordinal = int(await session.scalar(select(func.max(BindingCaseRevision.revision)).where(BindingCaseRevision.binding_case_id == case.id)) or 0) + 1
+            revision = BindingCaseRevision(binding_case_id=case.id, revision=ordinal, document=document,
+                digest=composition, source_snapshot_id=snapshot_id, created_by_id=users['alice'].id)
+            session.add(revision)
+            await session.flush()
+            for use, version in uses:
+                session.add(CaseArtifact(revision_id=revision.id, alias=use.alias, role=use.role, version_id=version.id, bindings=use.bindings))
+    if first_uses:
+        for _, version in first_uses:
+            await publish_version(version.artifact_id, version.id,
+                PublishVersion(citation={'title': 'Shared sequential benchmark inputs'}), users['alice'], session)
+        await session.flush()
+        # A second organization consumes the public releases, not copies.
+        consumer = project_map.get('acme-cloud/stock-trading-pipeline')
+        if consumer:
+            organization = await session.get(Organization, consumer.organization_id)
+            document, snapshot_id, uses = await materialize_case(session, users['elena'], organization, root, [use for use, _ in first_uses])
+            case = await session.scalar(select(BindingCase).where(BindingCase.project_id == consumer.id, BindingCase.slug == 'public-library-experiment'))
+            if case is None:
+                case = BindingCase(project_id=consumer.id, slug='public-library-experiment', name='Public shared resources',
+                    description='Consumes exact public versions owned by another organization.', created_by_id=users['elena'].id)
+                session.add(case)
                 await session.flush()
-                logger.info("  Attached Revision r%d (%s) to '%s'", idx, doc_digest[:18], slug)
-            revisions.append(rev)
-
-        created_map[f"{proj.slug}/{slug}"] = (resource, revisions)
-
+            snapshot = await session.get(InstanceSnapshot, snapshot_id)
+            composition = case_composition_digest(document, snapshot, [use.model_dump(mode='json') for use, _ in uses])
+            if await session.scalar(select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id == case.id, BindingCaseRevision.digest == composition)) is None:
+                ordinal = int(await session.scalar(select(func.max(BindingCaseRevision.revision)).where(BindingCaseRevision.binding_case_id == case.id)) or 0) + 1
+                revision = BindingCaseRevision(binding_case_id=case.id, revision=ordinal, document=document,
+                    digest=composition, source_snapshot_id=snapshot_id, created_by_id=users['elena'].id)
+                session.add(revision)
+                await session.flush()
+                for use, version in uses:
+                    session.add(CaseArtifact(revision_id=revision.id, alias=use.alias, role=use.role, version_id=version.id, bindings=use.bindings))
+            for _, version in uses:
+                if await session.get(ProjectArtifact, (consumer.id, version.artifact_id)) is None:
+                    session.add(ProjectArtifact(project_id=consumer.id, artifact_id=version.artifact_id))
+    primary = project_map.get('score-ai/qos-placement')
+    if primary:
+        config = await session.scalar(select(Artifact).where(Artifact.organization_id == primary.organization_id, Artifact.name == 'shared-seeded-search'))
+        if config is None:
+            config = Artifact(organization_id=primary.organization_id, namespace=str(primary.organization_id), name='shared-seeded-search',
+                display_name='Shared reproducible search settings', kind='ExecutionConfiguration', created_by_id=users['alice'].id)
+            session.add(config)
+            await session.flush()
+        content = {'engine': routes_v1._engine_ref(routes_v1._manifest('random-search')), 'mode': 'seeded',
+                   'options': {'iterations': 100, 'seed': 7}}
+        if await session.scalar(select(ArtifactVersion.id).where(ArtifactVersion.artifact_id == config.id, ArtifactVersion.content_digest == digest(content))) is None:
+            draft = ArtifactDraft(artifact_id=config.id, payload=DraftContent(content=content).model_dump(mode='json'), created_by_id=users['alice'].id)
+            session.add(draft)
+            await session.flush()
+            await seal_draft(session, config, draft, 1, None, users['alice'])
+        for key in ('score-ai/qos-placement', 'score-ai/smart-orchestration'):
+            consumer = project_map.get(key)
+            if consumer and await session.get(ProjectArtifact, (consumer.id, config.id)) is None:
+                session.add(ProjectArtifact(project_id=consumer.id, artifact_id=config.id))
+    result = {}
+    for artifact in await session.scalars(select(Artifact).where(Artifact.name.like('01_simple_seq-%'))):
+        result[artifact.name] = (artifact, (await session.scalars(select(ArtifactVersion).where(
+            ArtifactVersion.artifact_id == artifact.id).order_by(ArtifactVersion.ordinal))).all())
     await session.commit()
-    return created_map
+    return result
 
 
 async def execute_real_studies(
@@ -1221,333 +939,79 @@ async def execute_real_studies(
     user: User,
     case_map: dict[str, tuple[BindingCase, BindingCaseRevision]],
 ) -> list[tuple[Study, StudyRun]]:
-    """Create comparative studies, dispatch cells, and execute solve jobs."""
-    from openbinding_gateway.job_dispatch import _execute
+    """Dispatch bounded studies once; the production worker advances their cells."""
+    from openbinding_gateway.v1.compiler import compiler_bundle_digest
 
-    # Resolve engine manifests
     engine_refs = []
-    for engine_name in ["minizinc-csp", "random-search"]:
+    for name in ("minizinc-csp", "random-search"):
         try:
-            m = routes_v1._manifest(engine_name)
-            ref = {
-                "namespace": m.get("metadata", {}).get("namespace", "bim.builtin"),
-                "name": engine_name,
-                "version": m.get("metadata", {}).get("version", "1.0.0"),
-                "digest": digest(m),
-            }
-            engine_refs.append(ref)
+            manifest = routes_v1._manifest(name)
+            engine_refs.append({**{key: manifest["metadata"][key] for key in ("namespace", "name", "version")},
+                                "digest": digest(manifest)})
         except Exception as exc:
-            logger.warning("Engine '%s' manifest could not be resolved: %s", engine_name, exc)
-
+            logger.warning("Live study coverage gap for %s: %s", name, exc)
     if not engine_refs:
-        logger.error("No valid engines found for study execution!")
         return []
 
-    executed_studies: list[tuple[Study, StudyRun]] = []
-
-    # STUDY 1: Exact vs Heuristic
-    if "simple-seq" in case_map:
-        study_slug = "exact-vs-heuristic"
-        study = (
-            await session.execute(
-                select(Study).where(Study.project_id == project.id, Study.slug == study_slug)
-            )
-        ).scalars().first()
-
-        _, rev = case_map["simple-seq"]
-        study_def = StudyDefinition(
-            case_revision_ids=[rev.id],
-            engines=engine_refs,
-            parameter_sets=[{"time_budget_ms": 5000}],
-            seeds=[42, 101],
-        )
-
+    completed = []
+    scenarios = [
+        ("simple-seq", "exact-vs-heuristic", "Exact MiniZinc vs Seeded Random Search Benchmark", [42, 101]),
+        ("parallel-mesh", "parallel-scaling-study", "Parallel Workflow Scalability Study", [42]),
+    ]
+    for case_key, slug, name, seeds in scenarios:
+        if case_key not in case_map:
+            continue
+        definition = StudyDefinition(case_revision_ids=[case_map[case_key][1].id], engines=engine_refs,
+                                     parameter_sets=[{"time_budget_ms": 5000}], seeds=seeds)
+        study = (await session.execute(select(Study).where(Study.project_id == project.id, Study.slug == slug))).scalars().first()
+        from openbinding_gateway.studies import seal_study_definition
+        version = await seal_study_definition(session, project, user, name, definition,
+            current=study.definition_version if study else None)
         if study is None:
-            study = Study(
-                project_id=project.id,
-                slug=study_slug,
-                name="Exact MiniZinc vs Seeded Random Search Benchmark",
-                description="Comparative study quantifying optimality, runtime and convergence between exact CP and heuristic random search.",
-                definition=study_def.model_dump(mode="json"),
-                state=StudyState.READY,
-                created_by_id=user.id,
-            )
+            study = Study(project_id=project.id, slug=slug, name=name, definition_version=version,
+                          state=StudyState.READY, created_by_id=user.id)
             session.add(study)
-            await session.flush()
-            logger.info("Created Study '%s'", study_slug)
         else:
-            study.definition = study_def.model_dump(mode="json")
-            await session.flush()
-
-        # Run 1: Launch and execute cells
-        existing_run = (
-            await session.execute(
-                select(StudyRun).where(StudyRun.study_id == study.id, StudyRun.run_number == 1)
-            )
-        ).scalars().first()
-
-        if existing_run is None:
-            expanded = expand_study(study_def)
-            matrix_digest = digest([cell["fingerprint"] for cell in expanded])
-            run = StudyRun(
-                study_id=study.id,
-                run_number=1,
-                state=RunState.QUEUED,
-                matrix_digest=matrix_digest,
-                summary={"cells": len(expanded)},
-                created_by_id=user.id,
-            )
+            study.definition_version = version
+        await session.flush()
+        expanded = expand_study(definition)
+        identity = digest({"matrix": expanded, "generator": 3, "evaluator": compiler_bundle_digest()})
+        runs = (await session.execute(select(StudyRun).where(StudyRun.study_id == study.id))).scalars().all()
+        run = next((r for r in runs if (r.summary or {}).get("seedScenarioDigest") == identity), None)
+        if run is None:
+            run = StudyRun(study_id=study.id, definition_version_id=study.definition_version_id, run_number=1+max((r.run_number for r in runs), default=0),
+                           state=RunState.QUEUED, matrix_digest=digest([item["fingerprint"] for item in expanded]),
+                           summary={"cells": len(expanded), "seedScenarioDigest": identity}, created_by_id=user.id)
             session.add(run)
             await session.flush()
-
-            cells: list[StudyCell] = []
-            for item in expanded:
-                cell = StudyCell(
-                    study_run_id=run.id,
-                    ordinal=item["ordinal"],
-                    binding_case_revision_id=uuid.UUID(item["caseRevisionId"]),
-                    engine_ref=item["engine"],
-                    parameters=item["parameters"],
-                    seed=item["seed"],
-                    fingerprint=item["fingerprint"],
-                    state=RunState.QUEUED,
-                )
-                session.add(cell)
-                cells.append(cell)
+            cells = [StudyCell(study_run_id=run.id, ordinal=item["ordinal"],
+                               binding_case_revision_id=uuid.UUID(item["caseRevisionId"]), engine_ref=item["engine"],
+                               parameters=item["parameters"], seed=item["seed"], fingerprint=item["fingerprint"],
+                               state=RunState.QUEUED) for item in expanded]
+            session.add_all(cells)
             await session.flush()
-
-            logger.info("Launching %d study cells for '%s'...", len(cells), study_slug)
-            for cell in cells:
-                try:
-                    job = await launch_study_cell(session, cell, user, org, project.id)
-                    await session.commit()
-
-                    # Execute the persisted job
-                    logger.info("Executing job %s for cell ordinal %d...", job.id, cell.ordinal)
-                    try:
-                        await _execute(str(job.id))
-                        await session.refresh(cell)
-                        logger.info("Job %s executed: state=%s", job.id, cell.state.value)
-                    except Exception as exec_err:
-                        logger.warning("Real execution for job %s encountered: %s", job.id, exec_err)
-
-                    # Refresh to obtain genuine solver results propagated from job sync
-                    await session.refresh(cell)
-                    logger.info("Job %s result for cell %d: state=%s, metrics=%s", job.id, cell.ordinal, cell.state.value, cell.metrics)
-                except StudyLaunchError as exc:
-                    logger.warning("Study cell launch error: %s", exc)
-                    cell.state = RunState.FAILED
-                    cell.metrics = {"status": "failed", "code": exc.code, "detail": exc.detail}
-                    await session.commit()
-
-            # Refresh and aggregate run summary
-            refreshed_cells = (
-                await session.execute(
-                    select(StudyCell).where(StudyCell.study_run_id == run.id).order_by(StudyCell.ordinal)
-                )
-            ).scalars().all()
-
-            cell_metrics = [c.metrics for c in refreshed_cells if c.metrics]
-            if cell_metrics:
-                run.summary = aggregate_metrics(cell_metrics)
-                terminal = {RunState.COMPLETED, RunState.FAILED, RunState.CANCELLED}
-                if all(c.state in terminal for c in refreshed_cells):
-                    run.state = (
-                        RunState.COMPLETED
-                        if all(c.state is RunState.COMPLETED for c in refreshed_cells)
-                        else RunState.PARTIAL
-                    )
-                    run.finished_at = utcnow()
+            # One coordinator: sync_study_job dispatches later cells. Launching them here too races its worker.
+            try:
+                await launch_study_cell(session, cells[0], user, org, project.id)
                 await session.commit()
-                logger.info("StudyRun #1 finished with state: %s", run.state.value)
-
-            executed_studies.append((study, run))
-        else:
-            executed_studies.append((study, existing_run))
-
-        # Run 2: In-progress / Queued run
-        existing_run_2 = (
-            await session.execute(
-                select(StudyRun).where(StudyRun.study_id == study.id, StudyRun.run_number == 2)
-            )
-        ).scalars().first()
-        if existing_run_2 is None:
-            expanded = expand_study(study_def)
-            run2 = StudyRun(
-                study_id=study.id,
-                run_number=2,
-                state=RunState.RUNNING,
-                matrix_digest=digest([c["fingerprint"] for c in expanded]),
-                summary={"cells": len(expanded), "completed": 1, "running": 1, "queued": len(expanded) - 2},
-                created_by_id=user.id,
-            )
-            session.add(run2)
-            await session.flush()
-            for idx, item in enumerate(expanded):
-                st = RunState.COMPLETED if idx == 0 else (RunState.RUNNING if idx == 1 else RunState.QUEUED)
-                m = {"status": "completed", "feasible": True, "runtimeSeconds": 0.42} if idx == 0 else {}
-                session.add(
-                    StudyCell(
-                        study_run_id=run2.id,
-                        ordinal=item["ordinal"],
-                        binding_case_revision_id=uuid.UUID(item["caseRevisionId"]),
-                        engine_ref=item["engine"],
-                        parameters=item["parameters"],
-                        seed=item["seed"],
-                        fingerprint=item["fingerprint"] + "-run2",
-                        state=st,
-                        metrics=m,
-                    )
-                )
-            await session.commit()
-            logger.info("Created in-progress StudyRun #2 for '%s'", study_slug)
-
-        # Run 3: Run with a retryable failed cell
-        existing_run_3 = (
-            await session.execute(
-                select(StudyRun).where(StudyRun.study_id == study.id, StudyRun.run_number == 3)
-            )
-        ).scalars().first()
-        if existing_run_3 is None:
-            expanded = expand_study(study_def)
-            run3 = StudyRun(
-                study_id=study.id,
-                run_number=3,
-                state=RunState.PARTIAL,
-                matrix_digest=digest([c["fingerprint"] + "-run3" for c in expanded]),
-                summary={"cells": len(expanded), "completed": len(expanded) - 1, "failed": 1},
-                created_by_id=user.id,
-            )
-            session.add(run3)
-            await session.flush()
-            for idx, item in enumerate(expanded):
-                if idx == 0:
-                    st = RunState.FAILED
-                    m = {
-                        "status": "failed",
-                        "code": "timeout_or_solver_memory_limit",
-                        "detail": "Transient solver memory limit exceeded during search phase. Cell is eligible for retry.",
-                        "feasible": False,
-                    }
-                else:
-                    st = RunState.COMPLETED
-                    m = {
-                        "status": "completed",
-                        "feasible": True,
-                        "termination": "OPTIMAL",
-                        "objectives": {"cost": 41.2 + idx * 3, "latency": 105.0 - idx * 5},
-                        "runtimeSeconds": 0.45 + idx * 0.1,
-                    }
-                session.add(
-                    StudyCell(
-                        study_run_id=run3.id,
-                        ordinal=item["ordinal"],
-                        binding_case_revision_id=uuid.UUID(item["caseRevisionId"]),
-                        engine_ref=item["engine"],
-                        parameters=item["parameters"],
-                        seed=item["seed"],
-                        fingerprint=item["fingerprint"] + "-run3",
-                        state=st,
-                        metrics=m,
-                    )
-                )
-            await session.commit()
-            logger.info("Created StudyRun #3 (with retryable failed cell) for '%s'", study_slug)
-
-    # STUDY 2: Parallel Scalability Study
-    if "parallel-mesh" in case_map:
-        study2_slug = "parallel-scaling-study"
-        _, rev = case_map["parallel-mesh"]
-        study2_def = StudyDefinition(
-            case_revision_ids=[rev.id],
-            engines=engine_refs[:1],
-            parameter_sets=[{"time_budget_ms": 3000}, {"time_budget_ms": 8000}],
-            seeds=[7, 99],
-        )
-        study2 = (
-            await session.execute(
-                select(Study).where(Study.project_id == project.id, Study.slug == study2_slug)
-            )
-        ).scalars().first()
-        if study2 is None:
-            study2 = Study(
-                project_id=project.id,
-                slug=study2_slug,
-                name="Parallel Workflow Scalability Study",
-                description="Exploration of synchronization and aggregated QoS costs in parallel mesh topologies.",
-                definition=study2_def.model_dump(mode="json"),
-                state=StudyState.READY,
-                created_by_id=user.id,
-            )
-            session.add(study2)
-            await session.flush()
-
-            # Execute run 1
-            expanded = expand_study(study2_def)
-            run_p = StudyRun(
-                study_id=study2.id,
-                run_number=1,
-                state=RunState.QUEUED,
-                matrix_digest=digest([c["fingerprint"] for c in expanded]),
-                summary={"cells": len(expanded)},
-                created_by_id=user.id,
-            )
-            session.add(run_p)
-            await session.flush()
-            for item in expanded:
-                c = StudyCell(
-                    study_run_id=run_p.id,
-                    ordinal=item["ordinal"],
-                    binding_case_revision_id=uuid.UUID(item["caseRevisionId"]),
-                    engine_ref=item["engine"],
-                    parameters=item["parameters"],
-                    seed=item["seed"],
-                    fingerprint=item["fingerprint"],
-                    state=RunState.QUEUED,
-                )
-                session.add(c)
-                await session.flush()
-                try:
-                    j = await launch_study_cell(session, c, user, org, project.id)
-                    await session.commit()
-                    try:
-                        await _execute(str(j.id))
-                    except Exception:
-                        pass
-                except Exception:
-                    pass
-            # Refresh and aggregate Study 2 summary
-            refreshed_c2 = (
-                await session.execute(
-                    select(StudyCell).where(StudyCell.study_run_id == run_p.id).order_by(StudyCell.ordinal)
-                )
-            ).scalars().all()
-            c2_metrics = [c.metrics for c in refreshed_c2 if c.metrics]
-            if c2_metrics:
-                run_p.summary = aggregate_metrics(c2_metrics)
-                terminal = {RunState.COMPLETED, RunState.FAILED, RunState.CANCELLED}
-                if all(c.state in terminal for c in refreshed_c2):
-                    run_p.state = (
-                        RunState.COMPLETED
-                        if all(c.state is RunState.COMPLETED for c in refreshed_c2)
-                        else RunState.PARTIAL
-                    )
-                    run_p.finished_at = utcnow()
+            except StudyLaunchError as exc:
+                cells[0].state = RunState.FAILED
+                cells[0].metrics = {"status": "failed", "code": exc.code, "detail": exc.detail}
+                run.state = RunState.PARTIAL
                 await session.commit()
-            executed_studies.append((study2, run_p))
-            logger.info("Executed Parallel Scalability Study run (state=%s)", run_p.state.value)
+                logger.warning("Live study coverage gap for %s: %s", slug, exc)
         else:
-            study2.definition = study2_def.model_dump(mode="json")
-            await session.flush()
-            existing_run_p = (
-                await session.execute(
-                    select(StudyRun).where(StudyRun.study_id == study2.id, StudyRun.run_number == 1)
-                )
-            ).scalars().first()
-            if existing_run_p:
-                executed_studies.append((study2, existing_run_p))
-
-    return executed_studies
+            await session.commit()
+            logger.info("Reusing study %s run %d", slug, run.run_number)
+        deadline = asyncio.get_running_loop().time() + 180
+        while run.state in {RunState.QUEUED, RunState.RUNNING} and asyncio.get_running_loop().time() < deadline:
+            await session.commit()
+            await asyncio.sleep(1)
+            await session.refresh(run)
+        if run.state is not RunState.COMPLETED:
+            logger.warning("Live study coverage gap: %s run %d is %s (worker required)", slug, run.run_number, run.state.value)
+        completed.append((study, run))
+    return completed
 
 
 async def ensure_standalone_jobs(
@@ -1555,244 +1019,49 @@ async def ensure_standalone_jobs(
     org: Organization,
     project: Project,
     user: User,
-    snapshots: dict[str, InstanceSnapshot] | None = None,
+    snapshots: dict[str, tuple[InstancePackage, InstanceSnapshot] | InstanceSnapshot] | None = None,
     all_states: bool = False,
 ) -> list[Job]:
-    """Create standalone solve jobs in the jobs table for testing workbench and admin listings."""
+    """Execute bounded real jobs; unchanged scenarios reuse their persisted outcomes."""
     from openbinding_gateway.job_dispatch import _execute
     from openbinding_gateway.study_jobs import _job_request, _response_payload
+    from openbinding_gateway.v1.compiler import compiler_bundle_digest
 
-    jobs: list[Job] = []
-    existing = (await session.execute(select(Job).where(Job.project_id == project.id, Job.state == JobState.COMPLETED))).scalars().first()
-    if existing is not None:
-        return [existing]
-
-    snap = None
-    if snapshots:
-        snap = snapshots.get("01_simple_seq") or snapshots.get("simple-seq")
-        if not snap and len(snapshots) > 0:
-            snap = next(iter(snapshots.values()))
-
-    if snap is not None:
-        # 1. Execute genuine MiniZinc solve job against the live engine container
+    snap = (snapshots or {}).get("01_simple_seq") or next(iter((snapshots or {}).values()), None)
+    if isinstance(snap, tuple):
+        snap = snap[1]
+    if snap is None:
+        logger.warning("Live-job coverage gap: no input snapshot; no solver outcome was manufactured")
+        return []
+    jobs = []
+    scenarios = [("minizinc-csp", "exact-weighted", {"time_budget_ms": 10000, "solver": "gecode"}),
+                 ("random-search", "seeded", {"iterations": 128, "seed": 42})]
+    for engine, mode, options in scenarios:
         try:
-            m_mzn = routes_v1._manifest("minizinc-csp")
-            payload1 = {
-                "snapshot": snap.id,
-                "engine": {
-                    "namespace": m_mzn.get("metadata", {}).get("namespace", "bim.builtin"),
-                    "name": "minizinc-csp",
-                    "version": m_mzn.get("metadata", {}).get("version", "1.0.0"),
-                    "digest": digest(m_mzn),
-                },
-                "mode": "exact-weighted",
-                "options": {"time_budget_ms": 10000, "solver": "gecode"},
-            }
-            resp1 = _response_payload(await routes_v1.create_job(_job_request(payload1), caller=user, session=session))
-            job1 = await session.get(Job, uuid.UUID(str(resp1["id"])))
-            if job1:
-                job1.organization_id = org.id
-                job1.project_id = project.id
-                job1.billing_sponsor_user_id = org.billing_sponsor_user_id
-                await session.commit()
-                await _execute(str(job1.id))
-                await session.refresh(job1)
-                jobs.append(job1)
-                logger.info("Executed genuine MiniZinc job %s: state=%s, termination=%s", job1.id, job1.state.value, job1.termination)
+            manifest = routes_v1._manifest(engine)
+            ref = {"namespace": manifest["metadata"]["namespace"], "name": engine,
+                   "version": manifest["metadata"]["version"], "digest": digest(manifest)}
+            identity = digest({"generator": 2, "package": snap.package_digest, "evaluator": compiler_bundle_digest(),
+                               "engine": ref, "mode": mode, "options": options})
+            key = f"development-live-{project.id}-{identity}"
+            existing = (await session.execute(select(Job).where(Job.owner_id == user.id, Job.idempotency_key == key))).scalars().first()
+            if existing is not None:
+                jobs.append(existing)
+                logger.info("Reused live scenario %s: %s (%s)", engine, existing.id, existing.state.value)
+                continue
+            request = _job_request({"snapshot": str(snap.id), "engine": ref, "mode": mode, "options": options})
+            request.scope["headers"].append((b"idempotency-key", key.encode()))
+            response = _response_payload(await routes_v1.create_job(request, caller=user, session=session))
+            job = await session.get(Job, uuid.UUID(str(response["id"])))
+            job.organization_id, job.project_id = org.id, project.id
+            job.billing_sponsor_user_id = org.billing_sponsor_user_id
+            await session.commit()
+            await _execute(str(job.id))
+            await session.refresh(job)
+            jobs.append(job)
+            logger.info("Live scenario %s: %s (%s, %s)", engine, job.id, job.state.value, job.termination)
         except Exception as exc:
-            logger.warning("Could not execute live MiniZinc job: %s", exc)
-
-        # 2. Running job (Random Search)
-        try:
-            m_rs = routes_v1._manifest("random-search")
-            payload2 = {
-                "snapshot": snap.id,
-                "engine": {
-                    "namespace": m_rs.get("metadata", {}).get("namespace", "bim.builtin"),
-                    "name": "random-search",
-                    "version": m_rs.get("metadata", {}).get("version", "1.0.0"),
-                    "digest": digest(m_rs),
-                },
-                "mode": "seeded",
-                "options": {"iterations": 10000, "seed": 42},
-            }
-            resp2 = _response_payload(await routes_v1.create_job(_job_request(payload2), caller=user, session=session))
-            job2 = await session.get(Job, uuid.UUID(str(resp2["id"])))
-            if job2:
-                job2.organization_id = org.id
-                job2.project_id = project.id
-                job2.billing_sponsor_user_id = org.billing_sponsor_user_id
-                job2.state = JobState.RUNNING
-                job2.result = {
-                    "logs": "[INFO] Random Search solver active on engine-random-search:8080. Iteration 450/10000...",
-                }
-                await session.commit()
-                jobs.append(job2)
-        except Exception as exc:
-            logger.warning("Could not create running Random Search job: %s", exc)
-
-        if all_states:
-            # 3. Queued job
-            try:
-                m_mzn = routes_v1._manifest("minizinc-csp")
-                payload3 = {
-                    "snapshot": snap.id,
-                    "engine": {
-                        "namespace": m_mzn.get("metadata", {}).get("namespace", "bim.builtin"),
-                        "name": "minizinc-csp",
-                        "version": m_mzn.get("metadata", {}).get("version", "1.0.0"),
-                        "digest": digest(m_mzn),
-                    },
-                    "mode": "exact-weighted",
-                    "options": {"time_budget_ms": 15000, "solver": "gecode"},
-                }
-                resp3 = _response_payload(await routes_v1.create_job(_job_request(payload3), caller=user, session=session))
-                job3 = await session.get(Job, uuid.UUID(str(resp3["id"])))
-                if job3:
-                    job3.organization_id = org.id
-                    job3.project_id = project.id
-                    job3.billing_sponsor_user_id = org.billing_sponsor_user_id
-                    job3.state = JobState.QUEUED
-                    job3.result = {"logs": "[INFO] Job enqueued in durable scheduler waiting for worker allocation..."}
-                    await session.commit()
-                    jobs.append(job3)
-            except Exception as exc:
-                logger.warning("Could not create queued job: %s", exc)
-
-            # 4. Failed job
-            try:
-                m_rs = routes_v1._manifest("random-search")
-                payload4 = {
-                    "snapshot": snap.id,
-                    "engine": {
-                        "namespace": m_rs.get("metadata", {}).get("namespace", "bim.builtin"),
-                        "name": "random-search",
-                        "version": m_rs.get("metadata", {}).get("version", "1.0.0"),
-                        "digest": digest(m_rs),
-                    },
-                    "mode": "seeded",
-                    "options": {"iterations": 50000, "seed": 999, "time_budget_ms": 1},
-                }
-                resp4 = _response_payload(await routes_v1.create_job(_job_request(payload4), caller=user, session=session))
-                job4 = await session.get(Job, uuid.UUID(str(resp4["id"])))
-                if job4:
-                    job4.organization_id = org.id
-                    job4.project_id = project.id
-                    job4.billing_sponsor_user_id = org.billing_sponsor_user_id
-                    job4.state = JobState.FAILED
-                    job4.termination = "UNKNOWN"
-                    job4.result = {
-                        "status": "failed",
-                        "code": "timeout_or_solver_memory_limit",
-                        "error": "Time budget of 1ms expired during search phase.",
-                        "logs": "[INFO] Started Random Search...\n[ERROR] Execution aborted: time budget exceeded.",
-                    }
-                    job4.finished_at = utcnow()
-                    await session.commit()
-                    jobs.append(job4)
-            except Exception as exc:
-                logger.warning("Could not create failed job: %s", exc)
-
-    if not jobs:
-        # Fallback for headless unit tests when no snapshot is provided
-        job1 = Job(
-            organization_id=org.id,
-            project_id=project.id,
-            billing_sponsor_user_id=org.billing_sponsor_user_id,
-            owner_id=user.id,
-            engine_id="minizinc-csp",
-            engine_job_id=f"engine-job-{uuid.uuid4().hex[:12]}",
-            service_url="http://engine-minizinc:3000",
-            state=JobState.COMPLETED,
-            termination="OPTIMAL",
-            options={"time_budget_ms": 10000, "solver": "gecode"},
-            result={
-                "termination": "OPTIMAL",
-                "solutions": [{
-                    "decision": {
-                        "kind": "binding",
-                        "binding": {
-                            "t1": {"resource": "catalog", "id": "c1a"},
-                            "t2": {"resource": "catalog", "id": "c2a"},
-                        }
-                    },
-                    "objectives": {"cost": 42.5, "latency": 110.0}
-                }],
-                "provenance": {"solver": "gecode", "engine": "minizinc-csp@1.0.0"},
-                "logs": "[2026-09-07T10:00:00Z] Initializing Gecode solver backend...\n[2026-09-07T10:00:00Z] Flattening MiniZinc model subset: bim-subset/v1\n[2026-09-07T10:00:00Z] Constraints propagation: 14 variables, 28 constraints\n[2026-09-07T10:00:01Z] Solution #1: cost=48.0 latency=125.0\n[2026-09-07T10:00:01Z] Solution #2 (OPTIMAL): cost=42.5 latency=110.0\n[2026-09-07T10:00:01Z] Search complete. Optimal solution proven.",
-            },
-            created_at=utcnow(),
-            finished_at=utcnow(),
-            metered=True,
-            concurrency_released=True,
-        )
-        session.add(job1)
-
-        job2 = Job(
-            organization_id=org.id,
-            project_id=project.id,
-            billing_sponsor_user_id=org.billing_sponsor_user_id,
-            owner_id=user.id,
-            engine_id="random-search",
-            engine_job_id=f"engine-job-{uuid.uuid4().hex[:12]}",
-            service_url="http://engine-random-search:8080",
-            state=JobState.RUNNING,
-            options={"iterations": 10000, "seed": 42},
-            result={
-                "logs": "[2026-09-07T10:05:00Z] Started Random Search engine v1.0.0...\n[2026-09-07T10:05:01Z] Generating candidate bindings in batch 100...\n[2026-09-07T10:05:02Z] Current incumbent: cost=49.1 latency=125.0\n[2026-09-07T10:05:03Z] Executing iteration batch 450/10000...",
-            },
-            created_at=utcnow(),
-            metered=True,
-            concurrency_released=True,
-        )
-        session.add(job2)
-        jobs.extend([job1, job2])
-
-        if all_states:
-            job3 = Job(
-                organization_id=org.id,
-                project_id=project.id,
-                billing_sponsor_user_id=org.billing_sponsor_user_id,
-                owner_id=user.id,
-                engine_id="minizinc-csp",
-                engine_job_id=f"engine-job-{uuid.uuid4().hex[:12]}",
-                service_url="http://engine-minizinc:3000",
-                state=JobState.QUEUED,
-                options={"time_budget_ms": 15000, "solver": "chuffed"},
-                result={"logs": "[2026-09-07T10:10:00Z] Enqueued in scheduler waiting for worker allocation..."},
-                created_at=utcnow(),
-                metered=True,
-                concurrency_released=True,
-            )
-            session.add(job3)
-
-            job4 = Job(
-                organization_id=org.id,
-                project_id=project.id,
-                billing_sponsor_user_id=org.billing_sponsor_user_id,
-                owner_id=user.id,
-                engine_id="random-search",
-                engine_job_id=f"engine-job-{uuid.uuid4().hex[:12]}",
-                service_url="http://engine-random-search:8080",
-                state=JobState.FAILED,
-                termination="UNKNOWN",
-                options={"iterations": 50000, "seed": 999},
-                result={
-                    "status": "failed",
-                    "code": "resource_exhausted",
-                    "error": "Solver container exceeded allocated memory limit during multi-threaded exploration.",
-                    "logs": "[2026-09-07T09:30:00Z] Starting parallel random exploration with 8 workers...\n[2026-09-07T09:30:05Z] Worker pool memory allocation reached 512MB threshold.\n[2026-09-07T09:30:06Z] FATAL: Out of memory in worker #3. Job failed with exit status 137.\n[2026-09-07T09:30:06Z] Eligible for retry with reduced iteration count or increased budget.",
-                },
-                created_at=utcnow(),
-                finished_at=utcnow(),
-                metered=True,
-                concurrency_released=True,
-            )
-            session.add(job4)
-            jobs.extend([job3, job4])
-
-        await session.flush()
-    logger.info("Created %d standalone jobs for project '%s'", len(jobs), project.slug)
+            logger.warning("Live-job coverage gap for %s: %s", engine, exc)
     return jobs
 
 
@@ -1803,6 +1072,7 @@ async def ensure_reports_and_publications(
     executed_studies: list[tuple[Study, StudyRun]],
 ) -> None:
     """Create frozen reports, public citations, and draft working documents."""
+    from openbinding_gateway.db.models import ArtifactVersion
     study_run_id = executed_studies[0][1].id if executed_studies else None
 
     # Report 1: Frozen Report linked to StudyRun 1
@@ -1813,80 +1083,80 @@ async def ensure_reports_and_publications(
         )
     ).scalars().first()
 
-    report_doc = {
-        "schema": "bim/v1/report",
-        "metadata": {
-            "title": "Reproducible QoS-Aware Service Binding: Empirical Benchmark Report",
-            "date": "2026-09-01T12:00:00Z",
-            "author": user.username,
-            "project": project.slug,
-        },
-        "study": {
-            "slug": "exact-vs-heuristic",
-            "run_number": 1,
-            "comparison": "Exact MiniZinc CP vs Seeded Random Search",
-        },
-        "summary": {
-            "total_cells": 4,
-            "optimal_solutions": 2,
-            "mean_exact_runtime_ms": 101.0,
-            "mean_heuristic_runtime_ms": 407.5,
-            "conclusion": "Exact CP achieves optimal Pareto placement in <= 104ms, while Random Search provides scalable approximations.",
-        },
-        "provenance": {
-            "study": {
-                "runId": str(study_run_id) if study_run_id else "00000000-0000-0000-0000-000000000000",
-                "matrixDigest": executed_studies[0][1].matrix_digest if executed_studies else "sha256-" + "0" * 64,
-            },
-            "datasets": [{"reference": "simple-seq", "digest": "sha256-" + "a" * 64}],
-            "software": [{"name": "gecode", "version": "6.3.0", "digest": "sha256-" + "b" * 64}],
-            "bimVersion": "bim/v1",
-            "engineRevisions": [{"name": "minizinc-csp", "version": "1.0.0", "digest": "sha256-" + "c" * 64}],
-            "parameters": {"time_budget_ms": 5000},
-        },
-    }
+    report_doc = {'title': 'Benchmark report draft', 'status': 'awaiting-execution',
+                  'summary': 'Execute the benchmark study before sealing this report.'}
+    if study_run_id:
+        from openbinding_gateway.studies import definition_from_version
+        run = executed_studies[0][1]
+        definition = definition_from_version(await session.get(ArtifactVersion, run.definition_version_id))
+        source_cases = (await session.scalars(select(BindingCaseRevision).where(
+            BindingCaseRevision.id.in_([uuid.UUID(identity) for identity in definition['case_revision_ids']])))).all()
+        source_snapshots = [await session.get(InstanceSnapshot, case.source_snapshot_id) for case in source_cases]
+        report_doc = {'schema': 'bim/v1/report', 'metadata': {'title': 'Executed binding benchmark', 'author': user.username},
+            'summary': dict(run.summary), 'provenance': {
+                'study': {'runId': str(run.id), 'matrixDigest': run.matrix_digest},
+                'datasets': [{'reference': str(case.id), 'digest': case.digest} for case in source_cases],
+                'software': [{'name': 'binding-compilation', 'version': 'bim/v1', 'digest': snapshot.compilation_digest}
+                             for snapshot in source_snapshots if snapshot],
+                'bimVersion': 'bim/v1', 'engineRevisions': definition['engines'],
+                'parameters': {'sets': definition['parameter_sets'], 'seeds': definition['seeds']},
+            }}
 
+    from openbinding_gateway.reports import create_report_context, seal_report, new_report_draft
     if rep1 is None:
-        rep1 = Report(
-            project_id=project.id,
-            study_run_id=study_run_id,
-            slug=report_slug,
+        rep1 = await create_report_context(session, project, user, slug=report_slug,
             title="Reproducible QoS-Aware Service Binding: Empirical Benchmark Report",
-            document=report_doc,
-            digest=digest(report_doc),
-            state=ReportState.FROZEN,
-            created_by_id=user.id,
-        )
-        session.add(rep1)
-        await session.flush()
-        logger.info("Created Frozen Report '%s'", report_slug)
+            document=report_doc, study_run_id=study_run_id)
+    if study_run_id and rep1.state is ReportState.DRAFT:
+        # A prior seed without engines leaves a draft which a later live seed can finish.
+        rep1.study_run_id = study_run_id
+        rep1.draft.payload = {**rep1.draft.payload, 'content': report_doc}
+        rep1.draft.revision += 1
+        await seal_report(session, rep1, user)
 
-        # Publication on Explore
+    if study_run_id and rep1.state is ReportState.FROZEN:
+        from openbinding_gateway.routes.library import publish_version
+        from openbinding_gateway.routes.studies import publish_report, delete_publication
+        from openbinding_gateway.models.artifacts import PublishVersion
+        from openbinding_gateway.models.platform import PublicationCreate
+        from openbinding_gateway.db.models import CaseArtifact
+        organization = await session.get(Organization, project.organization_id)
+        definition_version = await session.get(ArtifactVersion, executed_studies[0][1].definition_version_id)
+        for case in source_cases:
+            for resource_id in await session.scalars(select(CaseArtifact.version_id).where(CaseArtifact.revision_id == case.id)):
+                resource = await session.get(ArtifactVersion, resource_id)
+                await publish_version(resource.artifact_id, resource.id,
+                    PublishVersion(citation={'title': 'Benchmark input'}), user, session)
+        await publish_version(definition_version.artifact_id, definition_version.id,
+            PublishVersion(citation={'title': 'Executed benchmark definition'}), user, session)
+        versions = (await session.scalars(select(ArtifactVersion)
+            .where(ArtifactVersion.artifact_id == rep1.artifact_id).order_by(ArtifactVersion.ordinal))).all()
+        first = versions[0]
         pub_slug = "qos-placement-paper"
-        pub = (
-            await session.execute(
-                select(Publication).where(Publication.project_id == project.id, Publication.slug == pub_slug)
-            )
-        ).scalars().first()
+        pub = await session.scalar(select(Publication).where(
+            Publication.project_id == project.id, Publication.slug == pub_slug))
         if pub is None:
-            citation = {
-                "title": "Reproducible QoS-Aware Service Binding and Placement: An Empirical Benchmark",
-                "authors": ["Alice Researcher", "Bob Engineer", "David Scientist"],
-                "venue": "IEEE Transactions on Services Computing (Preprint)",
-                "year": 2026,
-                "doi": "10.1109/TSC.2026.9942001",
-                "artifacts_url": f"https://openbinding.score.us.es/explore/{project.slug}/{pub_slug}",
-            }
-            pub = Publication(
-                project_id=project.id,
-                report_id=rep1.id,
-                slug=pub_slug,
-                citation=citation,
-                published_by_id=user.id,
-            )
-            session.add(pub)
-            await session.flush()
-            logger.info("Created Public Publication '%s'", pub_slug)
+            await publish_report(organization.slug, project.slug,
+                PublicationCreate(report_id=rep1.id, version_id=first.id, slug=pub_slug,
+                    citation={'title': 'Executed binding benchmark', 'authors': [user.username],
+                              'venue': 'OpenBinding development scenario', 'year': 2026}), user, session)
+            pub = await session.scalar(select(Publication).where(
+                Publication.project_id == project.id, Publication.slug == pub_slug))
+        if len(versions) == 1:
+            draft = await new_report_draft(session, rep1, user)
+            draft.payload = {**draft.payload, 'content': {**rep1.document,
+                'editorialNote': 'Second edition: evidence and measured results are unchanged.'}}
+            draft.revision += 1
+            await seal_report(session, rep1, user)
+        second_slug = pub_slug + '-v2'
+        if await session.scalar(select(Publication.id).where(
+                Publication.project_id == project.id, Publication.slug == second_slug)) is None:
+            await publish_report(organization.slug, project.slug,
+                PublicationCreate(report_id=rep1.id, version_id=rep1.version_id, slug=second_slug,
+                    citation={'title': 'Executed binding benchmark — second edition',
+                              'authors': [user.username], 'year': 2026}), user, session)
+        if not pub.withdrawn:
+            await delete_publication(organization.slug, project.slug, pub_slug, user, session)
 
     # Report 2: Draft report
     draft_slug = "parallel-scaling-notes"
@@ -1915,18 +1185,11 @@ async def ensure_reports_and_publications(
             ],
             "status": "draft",
         }
-        session.add(
-            Report(
-                project_id=project.id,
-                study_run_id=executed_studies[1][1].id if len(executed_studies) > 1 else None,
-                slug=draft_slug,
-                title="Parallel Scaling Working Notes (Draft)",
-                document=draft_doc,
-                digest=digest(draft_doc),
-                state=ReportState.DRAFT,
-                created_by_id=user.id,
-            )
-        )
+        from openbinding_gateway.reports import create_report_context
+        await create_report_context(session, project, user, slug=draft_slug,
+            title="Parallel Scaling Working Notes (Draft)", document=draft_doc,
+            study_run_id=executed_studies[1][1].id if len(executed_studies) > 1 else None)
+
         await session.flush()
         logger.info("Created Draft Report '%s'", draft_slug)
 
@@ -1947,7 +1210,7 @@ async def ensure_artifacts(
     org_map: dict[str, Organization],
     project_map: dict[str, Project],
     users: dict[str, User],
-) -> list[Artifact]:
+) -> list[Blob]:
     """Seed content-addressed artifacts on disk and in database."""
     settings = get_settings()
     alice = users["alice"]
@@ -2065,7 +1328,7 @@ async def ensure_artifacts(
         )
         artifact_specs.append((stock_proj, stock_zip_data, "application/zip", True, "stock-trading-reproducibility.zip"))
 
-    created_artifacts: list[Artifact] = []
+    created_artifacts: list[Blob] = []
 
     for proj, raw_bytes, media_type, is_public, display_name in artifact_specs:
         digest_hex = hashlib.sha256(raw_bytes).hexdigest()
@@ -2083,12 +1346,12 @@ async def ensure_artifacts(
 
         existing = (
             await session.execute(
-                select(Artifact).where(Artifact.project_id == proj.id, Artifact.digest == digest_value)
+                select(Blob).where(Blob.project_id == proj.id, Blob.digest == digest_value)
             )
         ).scalars().first()
 
         if existing is None:
-            artifact = Artifact(
+            artifact = Blob(
                 organization_id=proj.organization_id,
                 project_id=proj.id,
                 digest=digest_value,
@@ -2105,13 +1368,13 @@ async def ensure_artifacts(
                     organization_id=proj.organization_id,
                     actor_id=alice.id,
                     action="artifact.uploaded",
-                    target_type="Artifact",
+                    target_type="Blob",
                     target_id=artifact.id,
                     detail={"digest": digest_value, "media_type": media_type, "size_bytes": len(raw_bytes), "name": display_name},
                 )
             )
             created_artifacts.append(artifact)
-            logger.info("Created Artifact '%s' (%s, %d bytes) in '%s'", display_name, digest_value[:20] + "...", len(raw_bytes), proj.slug)
+            logger.info("Created Blob '%s' (%s, %d bytes) in '%s'", display_name, digest_value[:20] + "...", len(raw_bytes), proj.slug)
         else:
             created_artifacts.append(existing)
 
@@ -2202,6 +1465,7 @@ def print_summary_banner(users: dict[str, User]) -> None:
     print("        ├── Resources: standard-candidate-catalog (2 revs), sla-latency-constraints, balanced-cost-latency-weights")
     print("        ├── Collection: standard-benchmarks")
     print("        ├── Studies: exact-vs-heuristic (Real Runs & Jobs), parallel-scaling-study")
+    print("        ├── Analysis: binding-analysis-gallery (canonical diagnostic archives and draft decisions; not solver benchmarks)")
     print("        ├── Artifacts: benchmark datasets, execution traces, reproducibility package")
     print("        ├── Report: qos-placement-2026-report (Frozen)")
     print("        └── Publication: qos-placement-paper (Visible in /explore)")
@@ -2218,7 +1482,7 @@ def print_summary_banner(users: dict[str, User]) -> None:
     print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/users/me/pricing-token")
     print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/projects/qos-placement/resources")
     print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/projects/qos-placement/studies")
-    print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/projects/qos-placement/artifacts")
+    print(f"    curl -H 'x-api-key: {alice_key}' http://localhost:8000/v1/organizations/score-ai/projects/qos-placement/blobs")
     print("    curl http://localhost:8000/v1/explore/projects")
     print("\n  [Universal Cryptographic Resolver & Verifier]")
     print("    GET /v1/resolve/artifact/{digest}            (Metadata, locations, and provenance)")
@@ -2230,10 +1494,17 @@ def print_summary_banner(users: dict[str, User]) -> None:
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Seed OpenBinding database with development data.")
-    parser.add_argument("--reset", action="store_true", help="Clean up existing dev data before seeding.")
+    parser.add_argument("--reset", action="store_true", help="Rebuild all local OpenBinding development tables before seeding (never SPHERE or SPACE).")
+    parser.add_argument("--analysis-only", action="store_true", help="Add the analysis gallery to existing development users/projects without running engines or reseeding other data.")
+    parser.add_argument("--analysis-full", action="store_true", help="Opt in to live jobs and 1,000/10,000/100,000 unique-binding analysis archives.")
+    parser.add_argument("--analysis-manifest", type=Path, default=Path("tools/analysis-manifest.json"), help="Write source, report, task and verification coverage links.")
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging.")
     parser.add_argument("--force-prod", action="store_true", help="Bypass production environment safety guard.")
     args = parser.parse_args()
+    if args.analysis_only and args.analysis_full:
+        parser.error("--analysis-only and --analysis-full are mutually exclusive")
+    if args.analysis_only and args.reset:
+        parser.error("--analysis-only cannot be combined with --reset")
 
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.basicConfig(level=log_level, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -2263,6 +1534,16 @@ async def main() -> int:
 
     try:
         async with db_base.session_factory()() as session:
+            if args.analysis_only:
+                user = (await session.execute(select(User).where(User.username == "alice"))).scalars().first()
+                org = (await session.execute(select(Organization).where(Organization.slug == "score-ai"))).scalars().first()
+                project = None if org is None else (await session.execute(select(Project).where(Project.organization_id == org.id, Project.slug == "qos-placement"))).scalars().first()
+                if user is None or org is None or project is None:
+                    raise ValueError("Run the normal development seeder once before --analysis-only")
+                await prepare_analysis_workspace(session, org, project, user, examples_dir, manifest_path=args.analysis_manifest)
+                await session.commit()
+                logger.info("Analysis gallery ready: /app/score-ai/qos-placement/analytics (sign in as alice)")
+                return 0
             if args.reset:
                 await clean_existing_data(session)
 
@@ -2292,10 +1573,12 @@ async def main() -> int:
             await ensure_project_resources(session, project_map, user_map)
 
             # 6. Standalone solve jobs
-            await ensure_standalone_jobs(session, org_map["score-ai"], qos_project, user_map["alice"], snapshots=snapshots, all_states=True)
+            live_jobs = await ensure_standalone_jobs(session, org_map["score-ai"], qos_project, user_map["alice"], snapshots=snapshots, all_states=True)
 
             # 7. Studies & Real Job Executions
             executed_studies = await execute_real_studies(session, org_map["score-ai"], qos_project, user_map["alice"], case_map)
+
+            await prepare_analysis_workspace(session, org_map["score-ai"], qos_project, user_map["alice"], examples_dir, full=args.analysis_full, manifest_path=args.analysis_manifest, live_jobs=live_jobs, study_runs=executed_studies)
 
             # 8. Reports & Publications
             await ensure_reports_and_publications(session, qos_project, user_map["alice"], executed_studies)

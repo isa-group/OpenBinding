@@ -14,6 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..access.dependencies import get_current_user, session_dependency
 from ..db.models import (
     Artifact,
+    ArtifactVersion,
+    ProjectArtifact,
+    Blob,
     BindingCase,
     BindingCaseRevision,
     Collection,
@@ -44,7 +47,7 @@ def _build_citation(
     digest_val: str,
     raw_doc: Any | None = None,
 ) -> ReplicationCitation:
-    title = "Reproducible Service Binding Artifact"
+    title = "Reproducible Service Binding Blob"
     slug = "openbinding-artifact"
     authors = ["OpenBinding Research Group"]
     year = 2026
@@ -140,6 +143,20 @@ async def _search_matching_entities(
         )
 
     # 3. CollectionRevision
+    common_collections = (await session.execute(select(ArtifactVersion, Artifact)
+        .join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
+        .where(Artifact.kind == "Collection", ArtifactVersion.content_digest == digest_val))).all()
+    for version, artifact in common_collections:
+        project = await session.scalar(select(Project).join(ProjectArtifact,
+            ProjectArtifact.project_id == Project.id).where(ProjectArtifact.artifact_id == artifact.id).limit(1))
+        organization = await session.get(Organization, artifact.organization_id)
+        matches.append(VerifierEntityMatch(entity_type="collection", id=str(version.id), slug=artifact.name,
+            title_or_name=f"{artifact.display_name} (r{version.ordinal})",
+            organization_slug=organization.slug if organization else None,
+            project_slug=project.slug if project else None, revision=version.ordinal,
+            created_at=version.created_at))
+
+    # Historical rows are retained for old imported packages.
     col_rows = (
         await session.execute(
             select(CollectionRevision, Collection, Project, Organization)
@@ -167,9 +184,10 @@ async def _search_matching_entities(
     rep_rows = (
         await session.execute(
             select(Report, Project, Organization)
+            .join(ArtifactVersion, ArtifactVersion.artifact_id == Report.artifact_id)
             .join(Project, Project.id == Report.project_id)
             .join(Organization, Organization.id == Project.organization_id)
-            .where(Report.digest == digest_val)
+            .where(ArtifactVersion.content_digest == digest_val)
         )
     ).all()
     for rep, proj, org in rep_rows:
@@ -185,13 +203,13 @@ async def _search_matching_entities(
             )
         )
 
-    # 5. Artifact
+    # 5. Blob
     art_rows = (
         await session.execute(
-            select(Artifact, Project, Organization)
-            .outerjoin(Project, Project.id == Artifact.project_id)
-            .outerjoin(Organization, Organization.id == Artifact.organization_id)
-            .where(Artifact.digest == digest_val)
+            select(Blob, Project, Organization)
+            .outerjoin(Project, Project.id == Blob.project_id)
+            .outerjoin(Organization, Organization.id == Blob.organization_id)
+            .where(Blob.digest == digest_val)
         )
     ).all()
     for art, proj, org in art_rows:
@@ -199,7 +217,7 @@ async def _search_matching_entities(
             VerifierEntityMatch(
                 entity_type="artifact",
                 id=str(art.id),
-                title_or_name=f"Artifact ({art.media_type}, {art.size_bytes} B)",
+                title_or_name=f"Blob ({art.media_type}, {art.size_bytes} B)",
                 organization_slug=org.slug if org else None,
                 project_slug=proj.slug if proj else None,
                 created_at=art.created_at,

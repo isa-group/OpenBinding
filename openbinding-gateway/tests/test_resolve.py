@@ -222,7 +222,7 @@ async def test_resolve_digest_tolerance_and_invalid_kind(
     org, proj = await create_project(api_client, alice_headers, visibility="public")
     artifact_bytes = b"sample reproducible binary payload\n"
     art_resp = await api_client.post(
-        f"/v1/organizations/{org}/projects/{proj}/artifacts?public=true",
+        f"/v1/organizations/{org}/projects/{proj}/blobs?public=true",
         headers={**alice_headers, "Content-Type": "text/plain"},
         content=artifact_bytes,
     )

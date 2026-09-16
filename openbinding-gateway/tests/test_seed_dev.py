@@ -14,17 +14,15 @@ _tools_dir = str(Path(__file__).resolve().parents[1] / "tools")
 if _tools_dir not in sys.path:
     sys.path.insert(0, _tools_dir)
 
-from openbinding_gateway.db.models import ApiKey, EngineRegistrationRevision, EngineRevision, Job, JobState, User, UserRole
+from openbinding_gateway.db.models import Artifact, ArtifactVersion, ApiKey, EngineRegistrationRevision, EngineRevision, Job, JobState, User, UserRole
 from openbinding_gateway.db.platform_models import (
-    Artifact,
+    Blob,
     AuditEvent,
     Collection,
     Notification,
     Organization,
     OrganizationMembership,
     OrganizationRole,
-    ProjectResource,
-    ProjectResourceRevision,
     Publication,
     Report,
     Visibility,
@@ -51,6 +49,69 @@ from seed_dev import (
 def test_seed_zip_is_byte_for_byte_deterministic():
     entries = [("README.md", "seed"), ("data.json", b"{}")]
     assert _deterministic_zip(entries) == _deterministic_zip(entries)
+
+
+async def test_live_report_seed_upgrades_drafts_and_preserves_two_editions(
+    api_client, db_session, registration, monkeypatch
+):
+    from test_studies_platform import _headers, EXAMPLE
+    from _pricing import fake_pricing_gate, largest_plan
+    from openbinding_gateway import space_client
+    from openbinding_gateway.core.settings import get_settings
+    from openbinding_gateway.routes import v1 as routes
+    from openbinding_gateway.db.models import Project, InstanceSnapshot, Study, StudyRun
+    from openbinding_gateway.v1.package import load_package
+    import uuid
+
+    async def solve(*args, **kwargs):
+        return {'termination': 'FEASIBLE', 'solutions': [{'decision': {'kind': 'binding', 'binding': {
+            't1': {'resource': 'catalog', 'id': 'c1a'}, 't2': {'resource': 'catalog', 'id': 'c2a'},
+            't3': {'resource': 'catalog', 'id': 'c3a'}}}}]}
+
+    previous = space_client.get_gate()
+    gate = fake_pricing_gate()
+    space_client.set_gate(gate)
+    try:
+        monkeypatch.setattr(get_settings(), 'job_dispatch_mode', 'inline')
+        monkeypatch.setattr(routes, 'solve_remote', solve)
+        headers = await _headers(api_client, registration)
+        profile = (await api_client.get('/v1/users/me', headers=headers)).json()
+        user = await db_session.get(User, uuid.UUID(profile['id']))
+        gate.plans[user.id] = largest_plan()
+        await api_client.post('/v1/organizations', headers=headers, json={'slug': 'seed-live', 'name': 'Seed live'})
+        response = await api_client.post('/v1/organizations/seed-live/projects', headers=headers,
+            json={'slug': 'benchmark', 'name': 'Benchmark', 'visibility': 'public'})
+        project = await db_session.get(Project, uuid.UUID(response.json()['id']))
+        await ensure_reports_and_publications(db_session, project, user, [])
+        package = load_package(EXAMPLE)
+        response = await api_client.post('/v1/instances', headers={**headers, 'Content-Type': 'application/vnd.bim+zip'}, content=package.to_zip())
+        snapshot = await db_session.get(InstanceSnapshot, uuid.UUID(response.json()['id']))
+        cases = await ensure_cases_and_collections(db_session, project, user, {'01_simple_seq': (package, snapshot)})
+        base = '/v1/organizations/seed-live/projects/benchmark'
+        response = await api_client.post(base + '/studies', headers=headers, json={
+            'slug': 'benchmark', 'name': 'Benchmark', 'definition': {
+                'case_revision_ids': [str(cases['simple-seq'][1].id)],
+                'engines': [{**routes._engine_ref(routes._manifest('random-search')), 'mode': 'seeded'}],
+                'parameter_sets': [{'iterations': 1}], 'seeds': [1]}})
+        assert response.status_code == 201, response.text
+        study = await db_session.get(Study, uuid.UUID(response.json()['id']))
+        response = await api_client.post(base + '/studies/benchmark/runs', headers=headers)
+        assert response.status_code == 202, response.text
+        run = await db_session.get(StudyRun, uuid.UUID(response.json()['id']))
+        await ensure_reports_and_publications(db_session, project, user, [(study, run)])
+        report = await db_session.scalar(select(Report).where(Report.project_id == project.id, Report.slug == 'qos-placement-2026-report'))
+        versions = (await db_session.scalars(select(ArtifactVersion).where(ArtifactVersion.artifact_id == report.artifact_id))).all()
+        assert len(versions) == 2
+        original = {version.id: version.version_digest for version in versions}
+        await ensure_reports_and_publications(db_session, project, user, [(study, run)])
+        versions = (await db_session.scalars(select(ArtifactVersion).where(ArtifactVersion.artifact_id == report.artifact_id))).all()
+        assert {version.id: version.version_digest for version in versions} == original
+        publications = (await db_session.scalars(select(Publication).where(Publication.report_id == report.id).order_by(Publication.slug))).all()
+        assert len(publications) == 2
+        assert [publication.withdrawn for publication in publications] == [True, False]
+        assert len({publication.version_id for publication in publications}) == 2
+    finally:
+        space_client.set_gate(previous)
 
 
 @pytest.mark.asyncio
@@ -126,35 +187,47 @@ async def test_seed_dev_lifecycle(db_session):
     db_regs = (await db_session.execute(select(EngineRegistrationRevision))).scalars().all()
     assert len(db_regs) >= 2
 
-    # Standalone jobs with all 4 states
+    # Without a real input snapshot, the seeder must not manufacture solver jobs.
     jobs = await ensure_standalone_jobs(db_session, orgs["score-ai"], qos_proj, users["alice"], all_states=True)
-    assert len(jobs) == 4
-    job_states = {j.state for j in jobs}
-    assert job_states == {JobState.COMPLETED, JobState.RUNNING, JobState.QUEUED, JobState.FAILED}
-    db_jobs = (await db_session.execute(select(Job))).scalars().all()
-    assert len(db_jobs) >= 4
+    assert jobs == []
+    assert not (await db_session.scalars(select(Job))).all()
 
     # 5. Reports & Publications
     await ensure_reports_and_publications(db_session, qos_proj, users["alice"], [])
     reports = (await db_session.execute(select(Report))).scalars().all()
     assert len(reports) >= 2
     frozen_reports = [r for r in reports if r.state.value == "frozen"]
-    assert len(frozen_reports) == 1
+    assert frozen_reports == []  # No fabricated terminal evidence when studies were not executed.
 
     pubs = (await db_session.execute(select(Publication))).scalars().all()
-    assert len(pubs) == 1
-    assert pubs[0].slug == "qos-placement-paper"
+    assert pubs == []
 
     # 6. Reusable Project Resources & Revisions
     res_map = await ensure_project_resources(db_session, projects, users)
     assert len(res_map) >= 3
-    assert "qos-placement/standard-candidate-catalog" in res_map
-    cat_res, cat_revs = res_map["qos-placement/standard-candidate-catalog"]
+    assert "01_simple_seq-catalog" in res_map
+    cat_res, cat_revs = res_map["01_simple_seq-catalog"]
     assert cat_res.kind == "CandidateCatalog"
     assert len(cat_revs) == 2
-    db_resources = (await db_session.execute(select(ProjectResource))).scalars().all()
+    before_versions = len((await db_session.scalars(select(ArtifactVersion))).all())
+    await ensure_project_resources(db_session, projects, users)
+    assert len((await db_session.scalars(select(ArtifactVersion))).all()) == before_versions
+    from openbinding_gateway.db.models import ProjectArtifact, BindingCase, BindingCaseRevision, CaseArtifact
+    from openbinding_gateway.artifacts import can_read
+    config = await db_session.scalar(select(Artifact).where(Artifact.name == 'shared-seeded-search'))
+    assert config.kind == 'ExecutionConfiguration'
+    assert len((await db_session.scalars(select(ProjectArtifact).where(ProjectArtifact.artifact_id == config.id))).all()) == 2
+    assert not await can_read(db_session, config, users['elena'])
+    public_case = await db_session.scalar(select(BindingCase).where(BindingCase.slug == 'public-library-experiment'))
+    assert public_case.project_id == projects['acme-cloud/stock-trading-pipeline'].id
+    consumed = (await db_session.scalars(select(CaseArtifact.version_id)
+        .join(BindingCaseRevision, BindingCaseRevision.id == CaseArtifact.revision_id)
+        .where(BindingCaseRevision.binding_case_id == public_case.id))).all()
+    assert cat_revs[0].id in consumed
+    assert cat_revs[1].id not in consumed
+    db_resources = (await db_session.execute(select(Artifact))).scalars().all()
     assert len(db_resources) >= 3
-    db_revs = (await db_session.execute(select(ProjectResourceRevision))).scalars().all()
+    db_revs = (await db_session.execute(select(ArtifactVersion))).scalars().all()
     assert len(db_revs) >= 4
 
     # 7. Artifacts
@@ -163,7 +236,7 @@ async def test_seed_dev_lifecycle(db_session):
     for art in artifacts:
         assert art.digest.startswith("sha256-")
         assert art.size_bytes > 0
-    db_artifacts = (await db_session.execute(select(Artifact))).scalars().all()
+    db_artifacts = (await db_session.execute(select(Blob))).scalars().all()
     assert len(db_artifacts) >= 3
 
     # 8. Notifications & Audit
@@ -190,13 +263,13 @@ async def test_seed_dev_lifecycle(db_session):
     remaining_regs = (await db_session.execute(select(EngineRegistrationRevision))).scalars().all()
     assert len(remaining_regs) == 0
 
-    remaining_artifacts = (await db_session.execute(select(Artifact))).scalars().all()
+    remaining_artifacts = (await db_session.execute(select(Blob))).scalars().all()
     assert len(remaining_artifacts) == 0
 
-    remaining_resources = (await db_session.execute(select(ProjectResource))).scalars().all()
+    remaining_resources = (await db_session.execute(select(Artifact))).scalars().all()
     assert len(remaining_resources) == 0
 
-    remaining_revisions = (await db_session.execute(select(ProjectResourceRevision))).scalars().all()
+    remaining_revisions = (await db_session.execute(select(ArtifactVersion))).scalars().all()
     assert len(remaining_revisions) == 0
 
     remaining_orgs = (await db_session.execute(select(Organization))).scalars().all()

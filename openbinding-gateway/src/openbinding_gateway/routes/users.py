@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
-    ApiKey, Artifact, AuthIdentity, BindingCase, BindingCaseRevision, Collection,
+    ApiKey, Blob, AuthIdentity, Artifact, ArtifactVersion, ArtifactDraft, ArtifactPublication, BindingCase, BindingCaseRevision, Collection,
     CollectionItem, CollectionRevision, Job, Organization, OrganizationMembership,
     OrganizationRole, PricingRelease, Project, ProjectResource,
     ProjectResourceRevision, Publication, Report, Study, StudyRun, User, UserRole, utcnow,
@@ -661,9 +661,31 @@ async def delete_own_account(
     for p in projects:
         p.created_by_id = await require_org_owner(p.organization_id)
 
-    artifacts = (await session.execute(select(Artifact).where(Artifact.created_by_id == user.id))).scalars().all()
+    artifacts = (await session.execute(select(Blob).where(Blob.created_by_id == user.id))).scalars().all()
     for a in artifacts:
         a.created_by_id = await require_org_owner(a.organization_id)
+
+    library_artifacts = (await session.execute(select(Artifact, Organization.id)
+        .join(Organization, Organization.id == Artifact.organization_id)
+        .where(Artifact.created_by_id == user.id))).all()
+    for artifact, org_id in library_artifacts:
+        artifact.created_by_id = await require_org_owner(org_id)
+    library_versions = (await session.execute(select(ArtifactVersion, Artifact.organization_id)
+        .join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
+        .where(ArtifactVersion.created_by_id == user.id))).all()
+    for version, org_id in library_versions:
+        version.created_by_id = await require_org_owner(org_id)
+    library_drafts = (await session.execute(select(ArtifactDraft, Artifact.organization_id)
+        .join(Artifact, Artifact.id == ArtifactDraft.artifact_id)
+        .where(ArtifactDraft.created_by_id == user.id))).all()
+    for draft, org_id in library_drafts:
+        draft.created_by_id = await require_org_owner(org_id)
+    publications = (await session.execute(select(ArtifactPublication, Artifact.organization_id)
+        .join(ArtifactVersion, ArtifactVersion.id == ArtifactPublication.version_id)
+        .join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
+        .where(ArtifactPublication.published_by_id == user.id))).all()
+    for publication, org_id in publications:
+        publication.published_by_id = await require_org_owner(org_id)
 
     proj_resources = (await session.execute(
         select(ProjectResource, Project.organization_id)

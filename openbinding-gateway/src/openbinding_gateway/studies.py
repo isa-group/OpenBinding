@@ -57,7 +57,6 @@ def aggregate_metrics(metrics: list[dict[str, Any]]) -> dict[str, Any]:
     objectives: dict[str, list[float]] = defaultdict(list)
     runtimes = []
     feasible = infeasible = failed = 0
-    points = []
     by_engine: dict[str, list[tuple[float, ...]]] = defaultdict(list)
     for metric in metrics:
         status = metric.get("status")
@@ -75,7 +74,6 @@ def aggregate_metrics(metrics: list[dict[str, Any]]) -> dict[str, Any]:
         if isinstance(values, dict) and values:
             point = {str(key): float(value) for key, value in values.items() if isinstance(value, (int, float))}
             if point:
-                points.append(point)
                 for key, value in point.items():
                     objectives[key].append(value)
                 engine = str(metric.get("engine", "unknown"))
@@ -96,6 +94,72 @@ def aggregate_metrics(metrics: list[dict[str, Any]]) -> dict[str, Any]:
         "infeasible": infeasible,
         "objective_distributions": {key: sorted(values) for key, values in sorted(objectives.items())},
         "runtimes_s": sorted(runtimes),
-        "pareto": nondominated(points),
+        "pareto": [],
+        "paretoStatus": "unavailable: study cells may use incompatible models; open a compatible binding archive",
         "stability": stability,
     }
+
+
+async def seal_study_definition(session, project, user, name, definition, *, current=None, analysis_fixture=False):
+    """Persist the sole authoritative definition in the organization library."""
+    import uuid
+    from sqlalchemy import select
+    from .artifacts import seal_draft, reference
+    from .db.models import Artifact, ArtifactDraft, ArtifactVersion, BindingCaseRevision, ProjectArtifact
+    from .models.artifacts import DraftContent
+    from .routes.v1 import _engine_mode
+    from .v1.canonical import digest
+
+    definition = StudyDefinition.model_validate(definition)
+    dependencies = []
+    if analysis_fixture:
+        content = {'apiVersion': 'openbinding/analysis-gallery/v1', 'definition': definition.model_dump(mode='json')}
+        kind = 'Dataset'
+    else:
+        cases = []
+        for case_id in definition.case_revision_ids:
+            case = await session.get(BindingCaseRevision, case_id)
+            if case is None:
+                from .models.errors import api_error
+                raise api_error(422, 'missing_case_revision', 'The study case revision is unavailable.')
+            cases.append({'caseRevisionId': str(case.id), 'compositionDigest': case.digest})
+        engines = []
+        for engine in definition.engines:
+            _, mode, _ = await _engine_mode(engine['name'], engine.get('mode'), definition.parameter_sets[0], session, caller=user,
+                namespace=engine['namespace'], version=engine['version'], manifest_digest=engine['digest'])
+            engines.append({**engine, 'mode': mode['id']})
+        content = {'apiVersion': 'openbinding/study/v1', 'cases': cases, 'engines': engines,
+                   'parameter_sets': definition.parameter_sets, 'seeds': definition.seeds}
+        kind = 'Study'
+        if definition.collection_version_id:
+            collection = await session.get(ArtifactVersion, definition.collection_version_id)
+            source = await session.get(Artifact, collection.artifact_id)
+            content['collection'] = reference(source, collection)
+            dependencies.append(content['collection'])
+    if current and current.content_digest == digest(content):
+        return current
+    artifact = await session.get(Artifact, current.artifact_id) if current else None
+    if artifact is None:
+        artifact = Artifact(organization_id=project.organization_id, namespace=str(project.organization_id),
+            name='study-' + uuid.uuid4().hex, display_name=name, kind=kind, created_by_id=user.id)
+        session.add(artifact)
+        await session.flush()
+    draft = ArtifactDraft(artifact_id=artifact.id, based_on_id=current.id if current else None,
+        payload=DraftContent(content=content, dependencies=dependencies).model_dump(mode='json'), created_by_id=user.id)
+    session.add(draft)
+    await session.flush()
+    version = await seal_draft(session, artifact, draft, 1, None, user)
+    if await session.get(ProjectArtifact, (project.id, artifact.id)) is None:
+        session.add(ProjectArtifact(project_id=project.id, artifact_id=artifact.id))
+        await session.flush()
+    return version
+
+
+def definition_from_version(version) -> dict:
+    from .artifacts import verified_version_content
+    from .models.artifacts import StudyArtifactContent
+    from .v1.package import strict_json_loads
+    document = strict_json_loads(verified_version_content(version, version.blob)[0])
+    if document.get('apiVersion') == 'openbinding/analysis-gallery/v1':
+        return document['definition']
+    return StudyArtifactContent.model_validate(document).definition().model_dump(mode='json')

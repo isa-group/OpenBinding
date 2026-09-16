@@ -17,6 +17,10 @@ from ..collaboration import descendant_ids
 from ..core.settings import Settings, get_settings
 from ..db.models import (
     Artifact,
+    ArtifactPublication,
+    ArtifactVersion,
+    ProjectArtifact,
+    Blob,
     BindingCase,
     BindingCaseRevision,
     BindingIRSnapshot,
@@ -35,6 +39,7 @@ from ..db.models import (
     User,
     Visibility,
 )
+from ..artifacts import can_read, version_content, reference
 from ..models.errors import api_error
 from ..models.platform import (
     ReplicationCitation,
@@ -231,59 +236,48 @@ async def resolve_element(
 
     # 2. resource-revision
     if kind_slug == "resource-revision":
-        query = (
-            select(ProjectResourceRevision, ProjectResource, Project, Organization, User)
-            .join(ProjectResource, ProjectResource.id == ProjectResourceRevision.project_resource_id)
-            .join(Project, Project.id == ProjectResource.project_id)
-            .join(Organization, Organization.id == Project.organization_id)
-            .outerjoin(User, User.id == ProjectResourceRevision.created_by_id)
-            .where(ProjectResourceRevision.digest == norm_digest)
-        )
-        if user is None:
-            query = query.where(Project.visibility == Visibility.PUBLIC)
-        elif not user.is_admin:
-            query = query.where(or_(Project.visibility == Visibility.PUBLIC, Organization.id.in_(accessible_orgs)))
-
-        rows = (await session.execute(query.order_by(ProjectResourceRevision.created_at.desc()))).all()
+        query = select(ArtifactVersion, Artifact, Organization).join(
+            Artifact, Artifact.id == ArtifactVersion.artifact_id).join(
+            Organization, Organization.id == Artifact.organization_id).where(
+            ArtifactVersion.content_digest == norm_digest)
+        rows = []
+        for version, artifact, organization in (await session.execute(query.order_by(ArtifactVersion.created_at.desc()))).all():
+            project_public = await session.scalar(select(Project.id).join(ProjectArtifact,
+                ProjectArtifact.project_id == Project.id).where(ProjectArtifact.artifact_id == artifact.id,
+                Project.visibility == Visibility.PUBLIC).limit(1))
+            if await can_read(session, artifact, user, version) or (user is None and project_public):
+                rows.append((version, artifact, organization))
         if not rows:
             raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Element not found.")
 
-        primary_rev, primary_res, primary_proj, primary_org, primary_author = rows[0]
-        all_locations = [
-            ResolveLocation(
-                organization=ResolveOrganizationRef(id=org.id, slug=org.slug, name=org.name),
-                project=ResolveProjectRef(id=proj.id, slug=proj.slug, name=proj.name, visibility=proj.visibility.value),
-                element_id=str(rev.id),
-                slug=res.slug,
-                version_or_revision=rev.revision,
-                created_at=rev.created_at,
-                web_url=f"/app/{org.slug}/{proj.slug}/resources/{res.slug}",
-            )
-            for rev, res, proj, org, _ in rows
-        ]
-
-        doc = primary_rev.document
-        doc_bytes = json.dumps(doc).encode("utf-8")
-        author_ref = (
-            ResolveAuthorRef(id=primary_author.id, username=primary_author.username, email=primary_author.email)
-            if primary_author
-            else None
-        )
+        primary_rev, primary_res, primary_org = rows[0]
+        projects = (await session.execute(select(Project).join(ProjectArtifact,
+            ProjectArtifact.project_id == Project.id).where(ProjectArtifact.artifact_id == primary_res.id))).scalars().all()
+        all_locations = [ResolveLocation(
+            organization=ResolveOrganizationRef(id=primary_org.id, slug=primary_org.slug, name=primary_org.name),
+            project=ResolveProjectRef(id=proj.id, slug=proj.slug, name=proj.name, visibility=proj.visibility.value),
+            element_id=str(primary_rev.id), slug=primary_res.name, version_or_revision=primary_rev.ordinal,
+            created_at=primary_rev.created_at, web_url=f"/app/{primary_org.slug}/{proj.slug}/resources/{primary_res.name}")
+            for proj in projects]
+        content, media_type = await version_content(session, primary_rev)
+        doc = json.loads(content.decode()) if media_type == "application/json" else {"content": content.decode()}
+        doc_bytes = content
+        author = await session.get(User, primary_rev.created_by_id)
+        author_ref = ResolveAuthorRef(id=author.id, username=author.username, email=author.email) if author else None
         citation = _build_citation(
-            title=f"{primary_res.name} (Rev #{primary_rev.revision})",
-            slug=primary_res.slug,
+            title=f"{primary_res.display_name} (Rev #{primary_rev.ordinal})", slug=primary_res.name,
             digest_val=norm_digest,
             org_slug=primary_org.slug,
-            proj_slug=primary_proj.slug,
-            authors=[primary_author.username] if primary_author else None,
+            proj_slug=projects[0].slug if projects else None,
+            authors=[author.username] if author else None,
         )
 
         return ResolveResponse(
             verified=True,
             kind="resource-revision",
             digest=norm_digest,
-            canonical_name=f"{primary_res.name} (Rev #{primary_rev.revision})",
-            media_type="application/json",
+            canonical_name=f"{primary_res.display_name} (Rev #{primary_rev.ordinal})",
+            media_type=media_type,
             size_bytes=len(doc_bytes),
             created_at=primary_rev.created_at,
             author=author_ref,
@@ -298,6 +292,35 @@ async def resolve_element(
 
     # 3. collection-revision
     if kind_slug == "collection-revision":
+        common = []
+        for version, artifact, organization in (await session.execute(select(ArtifactVersion, Artifact, Organization)
+            .join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
+            .join(Organization, Organization.id == Artifact.organization_id)
+            .where(Artifact.kind == "Collection", ArtifactVersion.content_digest == norm_digest))).all():
+            if await can_read(session, artifact, user, version):
+                common.append((version, artifact, organization))
+        if common:
+            version, artifact, organization = common[0]
+            content, media_type = await version_content(session, version)
+            projects = (await session.scalars(select(Project).join(ProjectArtifact,
+                ProjectArtifact.project_id == Project.id).where(ProjectArtifact.artifact_id == artifact.id))).all()
+            locations = [ResolveLocation(
+                organization=ResolveOrganizationRef(id=organization.id, slug=organization.slug, name=organization.name),
+                project=ResolveProjectRef(id=project.id, slug=project.slug, name=project.name, visibility=project.visibility.value),
+                element_id=str(version.id), slug=artifact.name, version_or_revision=version.ordinal,
+                created_at=version.created_at, web_url=f"/app/{organization.slug}/{project.slug}/collections/{artifact.name}")
+                for project in projects]
+            author = await session.get(User, version.created_by_id)
+            return ResolveResponse(verified=True, kind="collection-revision", digest=norm_digest,
+                canonical_name=f"{artifact.display_name} (Rev #{version.ordinal})", media_type=media_type,
+                size_bytes=len(content), created_at=version.created_at,
+                author=ResolveAuthorRef(id=author.id, username=author.username, email=author.email) if author else None,
+                document=json.loads(content.decode()) if media_type == "application/json" else {"content": content.decode()},
+                content_url=f"/v1/resolve/collection-revision/{norm_digest}/content", locations=locations[offset:offset+limit],
+                pagination=ResolvePagination(total=len(locations), limit=limit, offset=offset, has_more=offset+limit < len(locations)),
+                citation=_build_citation(title=f"{artifact.display_name} (Rev #{version.ordinal})", slug=artifact.name,
+                    digest_val=norm_digest, org_slug=organization.slug, proj_slug=projects[0].slug if projects else None,
+                    authors=[author.username] if author else None))
         query = (
             select(CollectionRevision, Collection, Project, Organization, User)
             .join(Collection, Collection.id == CollectionRevision.collection_id)
@@ -364,36 +387,36 @@ async def resolve_element(
     # 4. report
     if kind_slug == "report":
         query = (
-            select(Report, Project, Organization, User)
+            select(Report, Project, Organization, User, ArtifactVersion)
+            .join(ArtifactVersion, ArtifactVersion.artifact_id == Report.artifact_id)
             .join(Project, Project.id == Report.project_id)
             .join(Organization, Organization.id == Project.organization_id)
             .outerjoin(User, User.id == Report.created_by_id)
-            .where(Report.digest == norm_digest)
+            .where(ArtifactVersion.content_digest == norm_digest)
         )
-        if user is None:
-            query = query.where(Project.visibility == Visibility.PUBLIC)
-        elif not user.is_admin:
-            query = query.where(or_(Project.visibility == Visibility.PUBLIC, Organization.id.in_(accessible_orgs)))
-
-        rows = (await session.execute(query.order_by(Report.created_at.desc()))).all()
+        candidates = (await session.execute(query.order_by(ArtifactVersion.created_at.desc()))).all()
+        rows = []
+        for row in candidates:
+            if await can_read(session, await session.get(Artifact, row[4].artifact_id), user, row[4]):
+                rows.append(row)
         if not rows:
             raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Element not found.")
 
-        primary_rep, primary_proj, primary_org, primary_author = rows[0]
+        primary_rep, primary_proj, primary_org, primary_author, primary_version = rows[0]
         all_locations = [
             ResolveLocation(
                 organization=ResolveOrganizationRef(id=org.id, slug=org.slug, name=org.name),
                 project=ResolveProjectRef(id=proj.id, slug=proj.slug, name=proj.name, visibility=proj.visibility.value),
                 element_id=str(rep.id),
                 slug=rep.slug,
-                version_or_revision=rep.state.value,
+                version_or_revision=version.version,
                 created_at=rep.created_at,
-                web_url=f"/app/{org.slug}/{proj.slug}/reports/{rep.slug}",
+                web_url=f"/app/{org.slug}/library?artifact={rep.artifact_id}&version={version.id}",
             )
-            for rep, proj, org, _ in rows
+            for rep, proj, org, _, version in rows
         ]
 
-        doc = primary_rep.document
+        doc = json.loads((await version_content(session, primary_version))[0])
         doc_bytes = json.dumps(doc).encode("utf-8")
         author_ref = (
             ResolveAuthorRef(id=primary_author.id, username=primary_author.username, email=primary_author.email)
@@ -430,23 +453,23 @@ async def resolve_element(
     # 5. artifact
     if kind_slug == "artifact":
         query = (
-            select(Artifact, Project, Organization, User)
-            .join(Project, Project.id == Artifact.project_id)
+            select(Blob, Project, Organization, User)
+            .join(Project, Project.id == Blob.project_id)
             .join(Organization, Organization.id == Project.organization_id)
-            .outerjoin(User, User.id == Artifact.created_by_id)
-            .where(Artifact.digest == norm_digest)
+            .outerjoin(User, User.id == Blob.created_by_id)
+            .where(Blob.digest == norm_digest)
         )
         if user is None:
-            query = query.where(Artifact.public.is_(True), Project.visibility == Visibility.PUBLIC)
+            query = query.where(Blob.public.is_(True), Project.visibility == Visibility.PUBLIC)
         elif not user.is_admin:
             query = query.where(
                 or_(
-                    (Artifact.public.is_(True) & (Project.visibility == Visibility.PUBLIC)),
+                    (Blob.public.is_(True) & (Project.visibility == Visibility.PUBLIC)),
                     Organization.id.in_(accessible_orgs),
                 )
             )
 
-        rows = (await session.execute(query.order_by(Artifact.created_at.desc()))).all()
+        rows = (await session.execute(query.order_by(Blob.created_at.desc()))).all()
         if not rows:
             raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Element not found.")
 
@@ -470,7 +493,7 @@ async def resolve_element(
             else None
         )
         citation = _build_citation(
-            title=f"Binary Artifact ({primary_art.media_type})",
+            title=f"Binary Blob ({primary_art.media_type})",
             slug=f"artifact-{primary_art.digest[7:19]}",
             digest_val=norm_digest,
             org_slug=primary_org.slug,
@@ -482,7 +505,7 @@ async def resolve_element(
             verified=True,
             kind="artifact",
             digest=norm_digest,
-            canonical_name=f"Artifact ({primary_art.media_type}, {primary_art.size_bytes} B)",
+            canonical_name=f"Blob ({primary_art.media_type}, {primary_art.size_bytes} B)",
             media_type=primary_art.media_type,
             size_bytes=primary_art.size_bytes,
             created_at=primary_art.created_at,
@@ -811,33 +834,45 @@ async def resolve_element_content(
 
     # 2. resource-revision
     if kind_slug == "resource-revision":
-        query = (
-            select(ProjectResourceRevision, Project)
-            .join(ProjectResource, ProjectResource.id == ProjectResourceRevision.project_resource_id)
-            .join(Project, Project.id == ProjectResource.project_id)
-            .where(ProjectResourceRevision.digest == norm_digest)
-        )
-        if user is None:
-            query = query.where(Project.visibility == Visibility.PUBLIC)
-        elif not user.is_admin:
-            query = query.where(or_(Project.visibility == Visibility.PUBLIC, Project.organization_id.in_(accessible_orgs)))
-        row = (await session.execute(query)).first()
+        query = select(ArtifactVersion, Artifact).join(
+            Artifact, Artifact.id == ArtifactVersion.artifact_id).where(
+            ArtifactVersion.content_digest == norm_digest)
+        row = None
+        for candidate in (await session.execute(query.order_by(ArtifactVersion.created_at.desc()))).all():
+            project_public = await session.scalar(select(Project.id).join(ProjectArtifact,
+                ProjectArtifact.project_id == Project.id).where(ProjectArtifact.artifact_id == candidate[1].id,
+                Project.visibility == Visibility.PUBLIC).limit(1))
+            if await can_read(session, candidate[1], user, candidate[0]) or (user is None and project_public):
+                row = candidate
+                break
         if row is None:
             raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Element not found.")
-        rev, proj = row
-        is_pub = proj.visibility == Visibility.PUBLIC
+        rev, artifact = row
+        content, media_type = await version_content(session, rev)
+        is_pub = await session.get(ArtifactPublication, rev.id) is not None or bool(await session.scalar(
+            select(Project.id).join(ProjectArtifact, ProjectArtifact.project_id == Project.id).where(
+                ProjectArtifact.artifact_id == artifact.id, Project.visibility == Visibility.PUBLIC).limit(1)))
         cache_hdr = "public, max-age=31536000, immutable" if is_pub else "private, no-cache"
-        return JSONResponse(
-            rev.document,
-            headers={
-                "ETag": f'"{norm_digest}"',
-                "Cache-Control": cache_hdr,
-                "Content-Security-Policy": "default-src 'none'; sandbox",
-            },
-        )
+        headers = {"ETag": f'"{norm_digest}"', "Cache-Control": cache_hdr,
+                   "Content-Security-Policy": "default-src 'none'; sandbox"}
+        if media_type == "application/json":
+            return JSONResponse(json.loads(content.decode()), headers=headers)
+        return Response(content, media_type=media_type, headers=headers)
 
     # 3. collection-revision
     if kind_slug == "collection-revision":
+        for version, artifact in (await session.execute(select(ArtifactVersion, Artifact).join(
+            Artifact, Artifact.id == ArtifactVersion.artifact_id).where(
+            Artifact.kind == "Collection", ArtifactVersion.content_digest == norm_digest))).all():
+            if await can_read(session, artifact, user, version):
+                content, media_type = await version_content(session, version)
+                public = await session.get(ArtifactPublication, version.id) is not None
+                headers = {"ETag": f'"{norm_digest}"',
+                           "Cache-Control": "public, max-age=31536000, immutable" if public else "private, no-cache",
+                           "Content-Security-Policy": "default-src 'none'; sandbox"}
+                if media_type == "application/json":
+                    return JSONResponse(json.loads(content.decode()), headers=headers)
+                return Response(content, media_type=media_type, headers=headers)
         query = (
             select(CollectionRevision, Project)
             .join(Collection, Collection.id == CollectionRevision.collection_id)
@@ -863,37 +898,28 @@ async def resolve_element_content(
             },
         )
 
-    # 4. report
+    # Reports resolve historical library versions, never the current draft.
     if kind_slug == "report":
-        query = select(Report, Project).join(Project, Project.id == Report.project_id).where(Report.digest == norm_digest)
-        if user is None:
-            query = query.where(Project.visibility == Visibility.PUBLIC)
-        elif not user.is_admin:
-            query = query.where(or_(Project.visibility == Visibility.PUBLIC, Project.organization_id.in_(accessible_orgs)))
-        row = (await session.execute(query)).first()
-        if row is None:
-            raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Element not found.")
-        rep, proj = row
-        is_pub = proj.visibility == Visibility.PUBLIC
-        cache_hdr = "public, max-age=31536000, immutable" if is_pub else "private, no-cache"
-        return JSONResponse(
-            rep.document,
-            headers={
-                "ETag": f'"{norm_digest}"',
-                "Cache-Control": cache_hdr,
-                "Content-Security-Policy": "default-src 'none'; sandbox",
-            },
-        )
+        candidates = (await session.execute(select(Artifact, ArtifactVersion).join(ArtifactVersion,
+            ArtifactVersion.artifact_id == Artifact.id).where(Artifact.kind == 'Report',
+            ArtifactVersion.content_digest == norm_digest))).all()
+        for artifact, version in candidates:
+            if await can_read(session, artifact, user, version):
+                public = await session.get(ArtifactPublication, version.id) is not None
+                return Response((await version_content(session, version))[0], media_type='application/json',
+                    headers={'ETag': f'"{norm_digest}"', 'Cache-Control': 'public, max-age=31536000, immutable' if public else 'private, no-cache',
+                             'Content-Security-Policy': "default-src 'none'; sandbox"})
+        raise api_error(404, 'not_found', 'Element not found.')
 
     # 5. artifact
     if kind_slug == "artifact":
-        query = select(Artifact, Project).join(Project, Project.id == Artifact.project_id).where(Artifact.digest == norm_digest)
+        query = select(Blob, Project).join(Project, Project.id == Blob.project_id).where(Blob.digest == norm_digest)
         if user is None:
-            query = query.where(Artifact.public.is_(True), Project.visibility == Visibility.PUBLIC)
+            query = query.where(Blob.public.is_(True), Project.visibility == Visibility.PUBLIC)
         elif not user.is_admin:
             query = query.where(
                 or_(
-                    (Artifact.public.is_(True) & (Project.visibility == Visibility.PUBLIC)),
+                    (Blob.public.is_(True) & (Project.visibility == Visibility.PUBLIC)),
                     Project.organization_id.in_(accessible_orgs),
                 )
             )

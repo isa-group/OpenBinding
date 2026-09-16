@@ -36,6 +36,7 @@ from .db.bootstrap import (
 from .pricing_catalog import PricingCatalogError
 from .pricing_bootstrap import reconcile_pricing
 from .routes.admin import router as admin_router
+from .routes.analysis import router as analysis_router
 from .routes.artifacts import router as artifacts_router
 from .routes.resolve import router as resolve_router
 from .routes.auth import router as auth_router
@@ -50,6 +51,7 @@ from .routes.studies import router as studies_router
 from .routes.users import router as users_router
 from .routes.v1 import router as v1_router
 from .routes.verifier import router as verifier_router
+from .routes.generator import router as generator_router
 from .security.apikeys import (
     ALL_PERMISSIONS,
     ENGINE_LIMITED_PERMISSIONS,
@@ -324,6 +326,7 @@ async def readiness(
 
 
 app.include_router(v1_router)
+app.include_router(analysis_router)
 app.include_router(auth_router)
 app.include_router(cas_router)
 app.include_router(users_router)
@@ -335,11 +338,14 @@ app.include_router(organizations_router)
 app.include_router(invitation_router)
 app.include_router(studies_router)
 app.include_router(public_studies_router)
+from .routes.library import router as library_router
+app.include_router(library_router)
 app.include_router(artifacts_router)
 app.include_router(resolve_router)
 app.include_router(jobs_router)
 app.include_router(notifications_router)
 app.include_router(verifier_router)
+app.include_router(generator_router)
 
 
 _generated_openapi = app.openapi
@@ -367,6 +373,13 @@ def openapi_with_security_contract() -> dict:
     )
     document["x-api-key-permissions"] = list(ALL_PERMISSIONS)
     schemas = document["components"]["schemas"]
+    from .models.artifacts import StudyArtifactContent, CollectionArtifactContent
+    document['x-artifact-content-schemas'] = {}
+    for kind, model in [('Study', StudyArtifactContent), ('Collection', CollectionArtifactContent)]:
+        content_schema = model.model_json_schema(ref_template='#/components/schemas/{model}')
+        schemas.update(content_schema.pop('$defs', {}))
+        schemas[model.__name__] = content_schema
+        document['x-artifact-content-schemas'][kind] = {'$ref': '#/components/schemas/' + model.__name__}
     schema_root = Path(settings.schemas_dir)
     if not schema_root.is_dir():
         schema_root = Path(__file__).resolve().parents[3] / "schemas"
@@ -776,8 +789,12 @@ def openapi_with_security_contract() -> dict:
     schemas["JobRequest"] = {
         "type": "object",
         "required": ["snapshot"],
+        "not": {"required": ["configuration"], "anyOf": [
+            {"required": [field]} for field in ("engine", "registration", "mode", "options")
+        ]},
         "properties": {
             "snapshot": {"type": "string", "format": "uuid"},
+            "configuration": {"$ref": "#/components/schemas/ArtifactRef"},
             "engine": {
                 "oneOf": [
                     {"type": "string"},

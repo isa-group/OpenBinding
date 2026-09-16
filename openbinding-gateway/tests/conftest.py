@@ -59,6 +59,31 @@ def clean_mock_env(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def reset_routing_state():
+    try:
+        from openbinding_gateway.engine_routing import (
+            get_discrepancy_analyzer,
+            get_health_monitor,
+        )
+
+        get_health_monitor().reset()
+        get_discrepancy_analyzer().reset()
+    except ImportError:
+        pass
+    yield
+    try:
+        from openbinding_gateway.engine_routing import (
+            get_discrepancy_analyzer,
+            get_health_monitor,
+        )
+
+        get_health_monitor().reset()
+        get_discrepancy_analyzer().reset()
+    except ImportError:
+        pass
+
+
+@pytest.fixture(autouse=True)
 def pricing_catalog_gate():
     """Every test gets an explicit catalog-backed SPACE substitute."""
     from _pricing import fake_pricing_gate
@@ -70,7 +95,7 @@ def pricing_catalog_gate():
 
 
 @pytest_asyncio.fixture
-async def db_session():
+async def db_session(tmp_path, monkeypatch):
     """A session against a database that exists only for this test.
 
     SQLite in memory by default rather than a Postgres container: the models
@@ -86,6 +111,8 @@ async def db_session():
 
     from openbinding_gateway.db.base import Base
 
+    from openbinding_gateway.core.settings import get_settings
+    monkeypatch.setattr(get_settings(), "artifact_root", str(tmp_path / "blobs"))
     url = os.environ.get("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
     engine = create_async_engine(url)
     async with engine.begin() as connection:

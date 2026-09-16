@@ -24,7 +24,7 @@ def test_v1_migration_creates_resources_and_preserves_account_tables(tmp_path: P
     assert completed.returncode == 0, completed.stdout + completed.stderr
     with sqlite3.connect(database) as connection:
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        assert {"users", "api_keys", "v1_instance_snapshots", "v1_instance_resources", "v1_binding_ir", "v1_engine_revisions", "v1_engine_registration_revisions"} <= tables
+        assert {"users", "api_keys", "v1_instance_snapshots", "v1_instance_resources", "v1_binding_ir", "v1_engine_revisions", "v1_engine_registration_revisions", "v1_engine_profile_surrogates"} <= tables
         columns = {row[1] for row in connection.execute("PRAGMA table_info(jobs)")}
         assert {
             "instance_complexity",
@@ -60,6 +60,13 @@ def test_v1_migration_creates_resources_and_preserves_account_tables(tmp_path: P
             row[1] for row in connection.execute("PRAGMA table_info(api_keys)")
         }
         assert "grants" in api_key_columns
+        study_columns = {row[1] for row in connection.execute("PRAGMA table_info(studies)")}
+        assert {"definition_version_id", "archived"} <= study_columns
+        assert "definition" not in study_columns
+        run_columns = {row[1] for row in connection.execute("PRAGMA table_info(study_runs)")}
+        assert "definition_version_id" in run_columns
+        triggers = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='trigger'")}
+        assert {"protect_study_runs", "retain_study_runs", "protect_study_cells", "retain_study_cells"} <= triggers
 
 
 def test_v1_cutover_reports_exact_purge_and_preserves_accounts(tmp_path: Path) -> None:

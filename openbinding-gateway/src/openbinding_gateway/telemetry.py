@@ -13,7 +13,7 @@ import uuid
 from typing import Any, Optional, Tuple
 
 import jwt
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .db import base as db_base
@@ -87,9 +87,6 @@ def categorize_error(status_code: int, code: str) -> str:
 
 async def _get_db_session() -> Tuple[Optional[AsyncSession], bool]:
     """Retrieve an async session from either engine pool or test dependency override."""
-    if db_base.is_configured():
-        return db_base.session_factory()(), True
-
     try:
         from .access.dependencies import session_dependency
         from .main import app
@@ -98,13 +95,15 @@ async def _get_db_session() -> Tuple[Optional[AsyncSession], bool]:
         if override:
             gen = override()
             s = await anext(gen)
-            engine = getattr(s, "bind", None)
-            if engine is not None:
-                factory = async_sessionmaker(engine, expire_on_commit=False)
-                return factory(), True
+            # An overridden request may keep its rows uncommitted (notably
+            # transactional tests). A second connection would block on their
+            # foreign keys. Borrow the override without committing or closing it.
+            return s, False
     except Exception:
         pass
 
+    if db_base.is_configured():
+        return db_base.session_factory()(), True
     return None, False
 
 
@@ -162,6 +161,8 @@ async def record_api_error(
 
     try:
         db_session.add(event)
+        if not should_close:
+            return event
         await db_session.commit()
         return event
     except Exception as exc:

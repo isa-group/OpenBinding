@@ -132,6 +132,11 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/auth/cas/exchange", "post"),
         ("/v1/profiles", "get"),
         ("/v1/dialects", "get"),
+        ("/v1/artifacts/{artifact_id}", "get"),
+        ("/v1/artifacts/{artifact_id}/versions", "get"),
+        ("/v1/artifacts/{artifact_id}/versions/{version_id}", "get"),
+        ("/v1/artifacts/{artifact_id}/versions/{version_id}/content", "get"),
+        ("/v1/artifacts/resolve", "post"),
         ("/v1/resources", "get"),
         ("/v1/resources/{name}", "get"),
         ("/v1/schemas/{kind}", "get"),
@@ -146,6 +151,10 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/resolve/{kind}/{digest_value}", "get"),
         ("/v1/resolve/{kind}/{digest_value}/content", "get"),
         ("/v1/instances/validate", "post"),
+        ("/v1/generator/instances", "post"),
+        ("/v1/generator/corpus", "post"),
+        ("/v1/generator/convert-legacy", "post"),
+        ("/v1/generator/calibrate-engine", "post"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:
@@ -200,6 +209,9 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/admin/organizations/{organization_id}/sponsor", "post"),
         ("/v1/admin/errors/overview", "get"),
         ("/v1/admin/errors", "get"),
+        ("/v1/admin/engine-routing/metrics", "get"),
+        ("/v1/admin/engine-routing/observations", "get"),
+        ("/v1/admin/engine-routing/recalibrate", "post"),
         ("/v1/engine-registrations/{name}/approve", "post"),
         ("/v1/engine-registrations/{name}/reject", "post"),
     }
@@ -384,6 +396,7 @@ def test_the_instance_structure_is_in_the_document(document):
     assert target["oneOf"] == [
         {"$ref": "#/$defs/localPath"},
         {"$ref": "#/$defs/registeredRef"},
+        {"$ref": "#/$defs/artifactRef"},
     ]
 
 

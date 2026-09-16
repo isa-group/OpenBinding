@@ -129,7 +129,7 @@ async def launch_study_cell(
         )
     try:
         package = load_package(source.source_archive)
-        problem = await v1._compile_resolved(package, session)
+        problem = await v1._snapshot_problem(source, session)
     except (HTTPException, PackageError, RuntimeError) as exc:
         raise StudyLaunchError("invalid_case_revision", str(exc)) from exc
 
@@ -241,7 +241,10 @@ async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
             else RunState.PARTIAL
         )
         run.finished_at = utcnow()
+        identity = (run.summary or {}).get("seedScenarioDigest")
         run.summary = aggregate_metrics([value.metrics for value in cells])
+        if identity is not None:
+            run.summary = {**run.summary, "seedScenarioDigest": identity}
     elif any(value.state is RunState.RUNNING for value in cells):
         run.state = RunState.RUNNING
     else:

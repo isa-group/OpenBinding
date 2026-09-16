@@ -19,6 +19,7 @@ from typing import Any, Mapping
 
 import jsonschema
 import yaml
+from ..models.analysis import NeighborhoodResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import delete, or_, select, update
@@ -59,6 +60,7 @@ from ..v1.compiler import (
     compile_instance,
     compiler_bundle_digest,
     _dialect_descriptor,
+    _profile_descriptor,
     _dialect_type_matches,
     _dialect_xml_type_matches,
     _resource_schema_diagnostics,
@@ -678,11 +680,14 @@ def _manifest(
     namespace: str | None = None,
     version: str | None = None,
     manifest_digest: str | None = None,
+    allow_internal: bool = False,
 ) -> dict[str, Any]:
     candidates = []
     path = _MANIFEST_DIR / f"{name}.json"
     try:
         builtin = json.loads(path.read_text(encoding="utf-8"))
+        if not allow_internal and builtin.get("metadata", {}).get("internal", False):
+            raise HTTPException(status_code=404, detail=f"Unknown v1 engine: {name}")
         builtin_namespace = builtin.get("metadata", {}).get("namespace")
         builtin_version = builtin.get("metadata", {}).get("version")
         if (
@@ -1308,7 +1313,10 @@ async def _available_engine_documents(
 ) -> list[tuple[dict[str, Any], str | None]]:
     documents: list[tuple[dict[str, Any], str | None]] = []
     for path in sorted(_MANIFEST_DIR.glob("*.json")):
-        documents.append((json.loads(path.read_text(encoding="utf-8")), "bim.builtin"))
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        if doc.get("metadata", {}).get("internal", False):
+            continue
+        documents.append((doc, "bim.builtin"))
     if session is not None:
         query = select(EngineRevision)
         if caller is None:
@@ -1325,7 +1333,11 @@ async def _available_engine_documents(
                 query.order_by(EngineRevision.name, EngineRevision.created_at.desc())
             )
         ).scalars().all()
-        documents.extend((revision.document, revision.namespace) for revision in revisions)
+        documents.extend(
+            (revision.document, revision.namespace)
+            for revision in revisions
+            if not revision.document.get("metadata", {}).get("internal", False)
+        )
     unique: dict[tuple[str, str, str, str], tuple[dict[str, Any], str | None]] = {}
     for document, namespace in documents:
         reference = _engine_ref(document, namespace)
@@ -1542,9 +1554,21 @@ def _registered_keys(package: InstancePackage) -> set[tuple[str, str, str, str]]
 async def _installed_registered_resources(
     package: InstancePackage,
     session: AsyncSession | None,
+    caller: User | None = None,
 ) -> dict[tuple[str, str, str, str], RegisteredResource]:
+    library_resources = {}
+    if session is not None:
+        from ..artifacts import resolve_version, version_content
+        from ..models.artifacts import ArtifactRef
+        for group in package.instance().get("spec", {}).get("resources", {}).values():
+            for target in group.values() if isinstance(group, dict) else []:
+                if isinstance(target, dict) and "versionDigest" in target:
+                    _, version = await resolve_version(session, ArtifactRef.model_validate(target), caller)
+                    content, media_type = await version_content(session, version)
+                    key = tuple(target[field] for field in ("namespace", "name", "version", "versionDigest"))
+                    library_resources[key] = RegisteredResource(content, media_type, version.manifest)
     keys = _registered_keys(package)
-    resolved = {key: value for key, value in _CUSTOM_RESOURCES.items() if key in keys}
+    resolved = {**library_resources, **{key: value for key, value in _CUSTOM_RESOURCES.items() if key in keys}}
     if not keys or session is None:
         return resolved
     digests = {key[3] for key in keys}
@@ -1566,8 +1590,9 @@ async def _installed_registered_resources(
 async def _compile_resolved(
     package: InstancePackage,
     session: AsyncSession | None,
+    caller: User | None = None,
 ) -> BindingProblem:
-    return _compile(package, await _installed_registered_resources(package, session))
+    return _compile(package, await _installed_registered_resources(package, session, caller))
 
 
 def _snapshot_payload(package: InstancePackage, problem: BindingProblem) -> dict[str, Any]:
@@ -1642,9 +1667,15 @@ async def _persist_snapshot(
     instance = portable.instance()
     instance_hash = _instance_identity(package)
     package_hash = digest_bytes(archive)
+    from ..v1.compiler import compiler_bundle_digest
+    compilation_hash = digest({"packageDigest": package_hash,
+        "profile": problem.document.get("spec", {}).get("profile"),
+        "dialects": problem.document.get("spec", {}).get("dialects", []),
+        "compilerDigest": compiler_bundle_digest()})
     owner_id = caller.id if caller else None
     query = select(InstanceSnapshot).where(
         InstanceSnapshot.package_digest == package_hash,
+        InstanceSnapshot.compilation_digest == compilation_hash,
         InstanceSnapshot.owner_id == owner_id,
     )
     existing = (await session.execute(query)).scalars().first()
@@ -1659,13 +1690,22 @@ async def _persist_snapshot(
         root_document=portable.json("instance.json"),
         resource_digests=_source_resource_digests(problem),
         source_archive=archive,
+        compilation_digest=compilation_hash,
     )
-    session.add(snapshot)
-    await session.flush()
+    try:
+        async with session.begin_nested():
+            session.add(snapshot)
+            await session.flush()
+    except IntegrityError:
+        existing = await session.scalar(query)
+        if existing is not None:
+            return str(existing.id)
+        raise
+
 
     resources = instance.get("spec", {}).get("resources", {})
     manifest = problem.document.get("spec", {}).get("instance", {}).get("resources", {})
-    installed_registered = await _installed_registered_resources(portable, session)
+    installed_registered = await _installed_registered_resources(portable, session, caller)
     for role, group in resources.items() if isinstance(resources, dict) else []:
         if not isinstance(group, dict):
             continue
@@ -1690,14 +1730,14 @@ async def _persist_snapshot(
             elif registered is not None:
                 key = tuple(
                     registered.get(field, "")
-                    for field in ("namespace", "name", "version", "digest")
+                    for field in ("namespace", "name", "version", "versionDigest" if "versionDigest" in registered else "digest")
                 )
                 resolved = installed_registered.get(key)
                 if resolved is None:
                     raise RuntimeError("compiled registered resource is no longer published locally")
                 content = resolved.content
                 media_type = resolved.media_type
-                resource_digest = registered["digest"]
+                resource_digest = resolved.version_manifest["contentDigest"] if resolved.version_manifest else registered["digest"]
                 document = None
                 if media_type == "application/json":
                     parsed = strict_json_loads(content)
@@ -1720,7 +1760,7 @@ async def _persist_snapshot(
                     registered_namespace=registered.get("namespace") if registered else None,
                     registered_name=registered.get("name") if registered else None,
                     registered_version=registered.get("version") if registered else None,
-                    registered_digest=registered.get("digest") if registered else None,
+                    registered_digest=registered.get("versionDigest", registered.get("digest")) if registered else None,
                     media_type=media_type,
                     document=document,
                     content=content,
@@ -1739,23 +1779,51 @@ async def _persist_snapshot(
     return str(snapshot.id)
 
 
+async def _snapshot_problem(snapshot: InstanceSnapshot, session: AsyncSession) -> BindingProblem:
+    """A snapshot is already compiled. Never reinterpret it using current sources."""
+    ir = await session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))
+    if ir is None:
+        raise HTTPException(409, detail={"code": "snapshot_ir_missing", "message": "Snapshot IR is unavailable"})
+    if ir.document.get('apiVersion') != 'bim/v1' or ir.document.get('kind') != 'BindingProblem':
+        raise HTTPException(422, detail={"code": "execution_capability_unavailable", "message": "This output has no installed execution evaluator"})
+    semantic = json.loads(json.dumps(ir.document))
+    semantic.pop('metadata', None)
+    for key in ('instance', 'dialects', 'sourceMap'):
+        semantic.get('spec', {}).pop(key, None)
+    if digest(semantic) != ir.ir_digest:
+        raise HTTPException(409, detail={"code": "snapshot_ir_integrity", "message": "Stored IR does not match its semantic digest"})
+    spec = ir.document.get("spec", {})
+    profile = spec.get("profile", {})
+    if profile not in [_profile_descriptor(item) for item in installed_profile_manifests()]:
+        raise HTTPException(409, detail={"code": "contract_not_installed", "message": "The exact snapshot Profile is not installed"})
+    available = [_dialect_descriptor(item) for item in installed_dialect_manifests()]
+    if any(item not in available for item in spec.get("dialects", [])):
+        raise HTTPException(409, detail={"code": "contract_not_installed", "message": "An exact snapshot Dialect is not installed"})
+    return BindingProblem(document=ir.document, digest=ir.ir_digest, source_map=ir.source_map)
+
+
 async def _owned_snapshot(snapshot_id: str, caller: User | None, session: AsyncSession | None):
-    if session is None:
+    if session is None or caller is None:
         return None
     try:
-        parsed = uuid.UUID(snapshot_id)
+        parsed = uuid.UUID(str(snapshot_id))
     except ValueError:
         return None
-    if caller is None:
-        return None
-    return (
-        await session.execute(
-            select(InstanceSnapshot).where(
-                InstanceSnapshot.id == parsed,
-                InstanceSnapshot.owner_id == caller.id,
-            )
-        )
-    ).scalars().first()
+    snapshot = await session.get(InstanceSnapshot, parsed)
+    if snapshot is None or snapshot.owner_id == caller.id:
+        return snapshot
+    # Sharing a case grants organization members access to its fixed inputs.
+    # Project visibility alone never exposes private resource dependencies.
+    from ..db.models import BindingCase, BindingCaseRevision, Project
+    from ..collaboration import effective_role
+    organizations = (await session.scalars(select(Project.organization_id).join(
+        BindingCase, BindingCase.project_id == Project.id).join(
+        BindingCaseRevision, BindingCaseRevision.binding_case_id == BindingCase.id).where(
+        BindingCaseRevision.source_snapshot_id == snapshot.id).distinct())).all()
+    for organization_id in organizations:
+        if await effective_role(session, organization_id, caller):
+            return snapshot
+    return None
 
 
 async def _owned_job(job_id: str, caller: User | None, session: AsyncSession | None):
@@ -2866,7 +2934,7 @@ async def get_snapshot_detail(
 ) -> dict[str, Any]:
     if session is None:
         return _problem(503, "database_unavailable", "Snapshots require database")
-    snapshot = await session.get(InstanceSnapshot, snapshot_id)
+    snapshot = await _owned_snapshot(str(snapshot_id), caller, session)
     if snapshot is None:
         return _problem(404, "not_found", "Snapshot not found")
     ir = (await session.execute(
@@ -2903,7 +2971,7 @@ async def download_snapshot_archive(
 ) -> Response:
     if session is None:
         return _problem(503, "database_unavailable", "Snapshots require database")
-    snapshot = await session.get(InstanceSnapshot, snapshot_id)
+    snapshot = await _owned_snapshot(str(snapshot_id), caller, session)
     if snapshot is None or not snapshot.source_archive:
         return _problem(404, "not_found", "Snapshot archive not found")
     return Response(
@@ -3743,7 +3811,7 @@ async def validate_instance(
                 if snapshot is None:
                     return _problem(404, "not_found", "Snapshot not found")
                 package = snapshot["package"]
-        problem = await _compile_resolved(package, session)
+        problem = await _compile_resolved(package, session, caller)
     except PackageError as exc:
         return _problem(422, "invalid_request", str(exc))
     except HTTPException as exc:
@@ -3789,7 +3857,7 @@ async def create_snapshot(
 ):
     try:
         package = await _read_package(request)
-        problem = await _compile_resolved(package, session)
+        problem = await _compile_resolved(package, session, caller)
     except HTTPException as exc:
         return _error_from_http(exc)
     snapshot_id = await _persist_snapshot(package, problem, caller, session)
@@ -3944,6 +4012,41 @@ async def _fail_persisted_job(
         await record_job_failure(session, job, message)
     except Exception:
         pass
+
+    # Record MAPE-K failure observation if this was an auto-routed job
+    prov = job.provenance or {}
+    routing_admin = prov.get("engineRoutingAdmin")
+    if isinstance(routing_admin, dict) and "adaptationLoopId" in routing_admin:
+        try:
+            from ..engine_routing import get_adaptation_manager
+
+            adaptation_loop_id = routing_admin["adaptationLoopId"]
+            features_dict = routing_admin.get("workloadFeatures", {})
+            predicted = routing_admin.get("candidateEvaluations", [])
+            pred_for_selected = next(
+                (c.get("predicted", {}) for c in predicted if c.get("engine") == job.engine_id),
+                {},
+            )
+            actual_latency = max(0.0, time.monotonic() - started)
+            actual_credits = int(prov.get("engineRouting", {}).get("creditsCost", 1))
+
+            await get_adaptation_manager().observe_execution(
+                adaptation_loop_id=adaptation_loop_id,
+                engine=job.engine_id,
+                features_dict=features_dict,
+                predicted_metrics=pred_for_selected,
+                actual_latency=actual_latency,
+                actual_quality=0.0,
+                actual_credits=actual_credits,
+                outcome="failed",
+                candidate_evaluations=predicted,
+                engine_health_snapshot=routing_admin.get("engineHealthSnapshot"),
+                job_id=job.id,
+                session=session,
+            )
+        except Exception as obs_exc:
+            logger.warning("Failed to record adaptation observation for failed job %s: %s", job.id, obs_exc)
+
     await session.flush()
 
 
@@ -4113,8 +4216,48 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
                 timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
             )
         except RemoteEngineError as exc:
-            await _fail_persisted_job(job, session, str(exc), started)
-            return
+            fallback_engine = provenance.get("engineRoutingAdmin", {}).get("fallbackEngine")
+            if fallback_engine and fallback_engine != job.engine_id:
+                logger.info(
+                    "Primary engine %s failed (%s); activating planned fallback to %s",
+                    job.engine_id,
+                    exc,
+                    fallback_engine,
+                )
+                try:
+                    fallback_path = _MANIFEST_DIR / f"{fallback_engine}.json"
+                    fallback_endpoint = get_settings().engine_urls.get(fallback_engine)
+                    if fallback_path.is_file() and fallback_endpoint:
+                        fallback_manifest = json.loads(fallback_path.read_text(encoding="utf-8"))
+                        fallback_reg = _builtin_engine_registration(fallback_manifest, fallback_endpoint)
+                        fallback_transport = _registration_transport(fallback_reg)
+                        remote_result = await solve_remote(
+                            fallback_transport,
+                            problem.document,
+                            job.options,
+                            timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
+                        )
+                        job.engine_id = fallback_engine
+                        provenance["fallbackActivated"] = True
+                        provenance["fallbackEngine"] = fallback_engine
+                        if "engineRouting" in provenance and isinstance(provenance["engineRouting"], dict):
+                            provenance["engineRouting"]["selectedEngine"] = fallback_engine
+                            provenance["engineRouting"]["fallbackActivated"] = True
+                    else:
+                        await _fail_persisted_job(job, session, str(exc), started)
+                        return
+                except Exception as fb_exc:
+                    logger.warning("Fallback engine %s failed as well: %s", fallback_engine, fb_exc)
+                    await _fail_persisted_job(
+                        job,
+                        session,
+                        f"Primary engine ({exc}) and fallback ({fb_exc}) both failed",
+                        started,
+                    )
+                    return
+            else:
+                await _fail_persisted_job(job, session, str(exc), started)
+                return
         await session.refresh(job)
         if job.cancellation_requested:
             job.state = JobState.CANCELLED
@@ -4133,16 +4276,61 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
             remote_result,
             mode_contract["terminationGuarantees"],
         )
-        reevaluated["provenance"] = {
+        job.provenance = {
             **provenance,
             "registration": registration_ref,
             "protocolDigest": protocol_digest,
             "engineReported": remote_result.get("provenance", {}),
         }
+        reevaluated["provenance"] = job.provenance
         job.result = reevaluated
         job.termination = reevaluated["termination"]
         job.state = JobState.COMPLETED
         job.finished_at = utcnow()
+        routing_admin = provenance.get("engineRoutingAdmin")
+        if isinstance(routing_admin, dict) and "adaptationLoopId" in routing_admin:
+            try:
+                from ..engine_routing import get_adaptation_manager
+
+                adaptation_loop_id = routing_admin["adaptationLoopId"]
+                features_dict = routing_admin.get("workloadFeatures", {})
+                predicted = routing_admin.get("candidateEvaluations", [])
+                pred_for_selected = next(
+                    (c.get("predicted", {}) for c in predicted if c.get("engine") == job.engine_id),
+                    {},
+                )
+                actual_latency = max(0.0, time.monotonic() - started)
+                solutions = reevaluated.get("solutions") or []
+                if not solutions or reevaluated.get("termination") not in ("OPTIMAL", "FEASIBLE"):
+                    actual_quality = 0.0
+                else:
+                    raw_score = solutions[0].get("objectives", {}).get("score")
+                    try:
+                        score_float = float(raw_score) if raw_score is not None else 1.0
+                        if 0.0 <= score_float <= 1.0:
+                            actual_quality = score_float
+                        else:
+                            actual_quality = 1.0 if score_float <= 0 else max(0.0, min(1.0, 1.0 / (1.0 + score_float)))
+                    except (ValueError, TypeError):
+                        actual_quality = 0.5
+                actual_credits = int(provenance.get("engineRouting", {}).get("creditsCost", 1))
+
+                await get_adaptation_manager().observe_execution(
+                    adaptation_loop_id=adaptation_loop_id,
+                    engine=job.engine_id,
+                    features_dict=features_dict,
+                    predicted_metrics=pred_for_selected,
+                    actual_latency=actual_latency,
+                    actual_quality=actual_quality,
+                    actual_credits=actual_credits,
+                    outcome=job.termination or "completed",
+                    candidate_evaluations=predicted,
+                    engine_health_snapshot=routing_admin.get("engineHealthSnapshot"),
+                    job_id=job.id,
+                    session=session,
+                )
+            except Exception as exc:
+                logger.warning("Failed to record adaptation observation for job %s: %s", job.id, exc)
         try:
             await metering.settle(
                 space_client.get_gate(),
@@ -4214,6 +4402,9 @@ async def create_job(
             "Idempotency-Key must contain between 1 and 255 characters",
         )
     body_size = 0
+    pinned_problem = None
+    configuration_version = None
+    configuration_ref = None
     try:
         content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
         if content_type.startswith("multipart/form-data"):
@@ -4235,18 +4426,37 @@ async def create_job(
             payload = strict_json_loads(body)
             snapshot_id = payload.get("snapshot") if isinstance(payload, dict) else None
             if snapshot_id:
-                allowed_fields = {"snapshot", "engine", "registration", "mode", "options"}
+                allowed_fields = {"snapshot", "engine", "registration", "mode", "options", "configuration"}
                 if set(payload) - allowed_fields:
                     return _problem(
                         422,
                         "invalid_request_fields",
                         "job request contains fields outside the BIM v1 job contract",
                     )
+                if 'configuration' in payload:
+                    if session is None or caller is None:
+                        return _problem(401, 'unauthorized', 'Selecting a library execution configuration requires an account.')
+                    if set(payload) & {'engine', 'registration', 'mode', 'options'}:
+                        return _problem(422, 'ambiguous_configuration', 'Select a configuration version or inline execution settings, not both.')
+                    from ..artifacts import resolve_version, reference, version_content
+                    from ..models.artifacts import ArtifactRef
+                    from pydantic import ValidationError
+                    try:
+                        selected = ArtifactRef.model_validate(payload['configuration'])
+                    except ValidationError as exc:
+                        return _problem(422, 'invalid_configuration', str(exc))
+                    configuration_artifact, configuration_version = await resolve_version(session, selected, caller)
+                    if configuration_artifact.kind != 'ExecutionConfiguration':
+                        return _problem(422, 'invalid_configuration', 'Select an ExecutionConfiguration version.')
+                    configuration_ref = reference(configuration_artifact, configuration_version)
+                    settings_document = strict_json_loads((await version_content(session, configuration_version))[0])
+                    payload = {**payload, **settings_document}
                 if session is not None:
                     snapshot = await _owned_snapshot(snapshot_id, caller, session)
                     if snapshot is None:
                         return _problem(404, "not_found", "Snapshot not found")
                     package = load_package(snapshot.source_archive)
+                    pinned_problem = await _snapshot_problem(snapshot, session)
                 else:
                     snapshot = _SNAPSHOTS.get(snapshot_id)
                     if not snapshot:
@@ -4258,14 +4468,31 @@ async def create_job(
                     "snapshot_or_package_required",
                     "BIM v1 jobs accept an existing snapshot or a ZIP package upload",
                 )
-        problem = await _compile_resolved(package, session)
+        problem = pinned_problem or await _compile_resolved(package, session, caller)
     except PackageError as exc:
         return _problem(422, "invalid_request", str(exc))
     except HTTPException as exc:
         return _error_from_http(exc)
     job_id = str(uuid.uuid4())
     engine_selector = payload.get("engine", "random-search") if isinstance(payload, dict) else "random-search"
-    if isinstance(engine_selector, dict):
+    routing_plan = None
+    if engine_selector == "auto":
+        from ..engine_routing import get_adaptation_manager
+
+        meta_router_url = get_settings().engine_urls.get("meta-router-csp")
+        routing_plan = await get_adaptation_manager().plan_routing(
+            problem=problem,
+            options=payload.get("options") if isinstance(payload, dict) else {},
+            service_url=meta_router_url,
+        )
+        engine = routing_plan.selected_engine
+        engine_namespace = engine_version = requested_engine_digest = None
+        requested_mode = (
+            payload.get("mode")
+            if (isinstance(payload, dict) and payload.get("mode"))
+            else routing_plan.selected_mode
+        )
+    elif isinstance(engine_selector, dict):
         engine = engine_selector.get("name")
         engine_namespace = engine_selector.get("namespace")
         engine_version = engine_selector.get("version")
@@ -4279,9 +4506,11 @@ async def create_job(
                 "invalid_engine",
                 "engine references require namespace, name, version and digest",
             )
+        requested_mode = payload.get("mode") if isinstance(payload, dict) else None
     else:
         engine = engine_selector
         engine_namespace = engine_version = requested_engine_digest = None
+        requested_mode = payload.get("mode") if isinstance(payload, dict) else None
     if not isinstance(engine, str) or not engine:
         return _problem(422, "invalid_engine", "engine must be a name or immutable reference")
     if not isinstance(engine_selector, dict) and not (_MANIFEST_DIR / f"{engine}.json").is_file():
@@ -4290,12 +4519,13 @@ async def create_job(
             "immutable_engine_required",
             "non-built-in engines must be selected by namespace, name, version and digest",
         )
-    requested_mode = payload.get("mode") if isinstance(payload, dict) else None
+    raw_engine_options = payload.get("options", {}) if isinstance(payload, dict) else {}
+    filtered_engine_options = {k: v for k, v in raw_engine_options.items() if k != "routing"} if isinstance(raw_engine_options, dict) else raw_engine_options
     try:
         manifest, selected_mode, effective_options = await _engine_mode(
             engine,
             requested_mode,
-            payload.get("options", {}) if isinstance(payload, dict) else {},
+            filtered_engine_options,
             session,
             caller=caller,
             namespace=engine_namespace,
@@ -4402,6 +4632,8 @@ async def create_job(
     dialects = problem.document["spec"]["dialects"]
     adapters = [item["adapter"] for item in dialects if isinstance(item, dict) and isinstance(item.get("adapter"), dict)]
     request_fingerprint = digest({
+        "configuration": configuration_ref,
+        "requestedOptions": raw_engine_options,
         "packageDigest": package_hash,
         "fileDigests": portable.resource_digests,
         "resourceDigests": _source_resource_digests(problem),
@@ -4480,6 +4712,12 @@ async def create_job(
         "warnings": option_warnings,
         "terminationGuarantees": mode_contract["terminationGuarantees"],
     }
+    if routing_plan is not None:
+        provenance["engineRouting"] = routing_plan.provenance_user
+        provenance["engineRoutingAdmin"] = routing_plan.provenance_admin
+    provenance['requestedOptions'] = raw_engine_options
+    if configuration_ref:
+        provenance['configuration'] = configuration_ref
     reservation = None
     if caller is not None:
         try:
@@ -4490,6 +4728,8 @@ async def create_job(
                     isinstance(registration, dict)
                     and _is_installed_builtin_registration(registration)
                 ),
+                capacity_units=routing_plan.credits_cost if routing_plan else None,
+                engine_name=engine,
                 session=session,
             )
         except space_client.PricingUnavailable as exc:
@@ -4558,6 +4798,7 @@ async def create_job(
                 "bindingSpace": str(problem.binding_space_cardinality),
             },
             instance_snapshot_id=parsed_snapshot_id,
+            configuration_version_id=configuration_version.id if configuration_version else None,
             provenance=provenance,
             idempotency_key=idempotency_key,
             idempotency_fingerprint=request_fingerprint,
@@ -4612,7 +4853,10 @@ async def get_v1_job(
         job = await _owned_job(job_id, caller, session)
         if job is None:
             return _problem(404, "not_found", "Job not found")
-        result = {"id": job_id, "status": job.state.value, "provenance": job.provenance or {}}
+        prov = dict(job.provenance or {})
+        if caller is None or getattr(caller, "role", None) != UserRole.ADMIN:
+            prov.pop("engineRoutingAdmin", None)
+        result = {"id": job_id, "status": job.state.value, "provenance": prov}
         if job.result is not None:
             result["result"] = job.result
             if isinstance(job.result, dict) and "error" in job.result:
@@ -4621,12 +4865,70 @@ async def get_v1_job(
     job = _JOBS.get(job_id)
     if not job:
         return _problem(404, "not_found", "Job not found")
-    result = {"id": job_id, "status": job["status"], "provenance": job["provenance"]}
+    prov = dict(job.get("provenance") or {})
+    if caller is None or getattr(caller, "role", None) != UserRole.ADMIN:
+        prov.pop("engineRoutingAdmin", None)
+    result = {"id": job_id, "status": job["status"], "provenance": prov}
     if "result" in job:
         result["result"] = job["result"]
         if isinstance(job["result"], dict) and "error" in job["result"]:
             result["error"] = job["result"]["error"]
     return result
+
+
+# A per-process bound protects the evaluator pool. No Engine or solver job is dispatched.
+_ANALYSIS_SLOTS = asyncio.Semaphore(2)
+
+
+@router.get(
+    "/jobs/{job_id}/analysis/neighborhood",
+    response_model=NeighborhoodResponse,
+    summary="Evaluate bounded one-task binding alternatives",
+    description="Owner-scoped counterfactual evaluation against the pinned job IR. "
+                "At most 128 eligible substitutions, with a cooperative two-second budget between evaluations. "
+                "Does not invoke an Engine, mutate the job, or claim global optimality.",
+)
+async def get_v1_job_neighborhood(
+    job_id: str,
+    solution_index: int = Query(0, ge=0),
+    task: str | None = Query(None, max_length=256),
+    limit: int = Query(64, ge=1, le=128),
+    caller: User | None = Depends(solve_caller),
+    session: AsyncSession | None = Depends(optional_session, scope="function"),
+):
+    from starlette.concurrency import run_in_threadpool
+    from ..v1.analysis import analyze_neighborhood
+
+    job = await _owned_job(job_id, caller, session)
+    if job is None:
+        return _problem(404, "not_found", "Job not found")
+    solutions = (job.result or {}).get("solutions", [])
+    if not isinstance(solutions, list) or solution_index >= len(solutions):
+        return _problem(422, "invalid_solution", "Selected returned solution does not exist")
+    decision = solutions[solution_index].get("decision", {})
+    if decision.get("kind") != "binding" or not isinstance(decision.get("binding"), dict):
+        return _problem(422, "unsupported_decision", "Analysis requires a canonical binding decision")
+    document = (job.original_request or {}).get("bindingProblem")
+    ir_digest = (job.provenance or {}).get("irDigest")
+    if not isinstance(document, dict) and job.instance_snapshot_id is not None:
+        ir = (await session.execute(select(BindingIRSnapshot).where(
+            BindingIRSnapshot.snapshot_id == job.instance_snapshot_id
+        ))).scalars().first()
+        if ir is not None:
+            if ir_digest and ir_digest != ir.ir_digest:
+                return _problem(409, "analysis_unavailable", "Job and snapshot IR identities disagree")
+            document, ir_digest = ir.document, ir.ir_digest
+    if not isinstance(document, dict) or document.get("kind") != "BindingProblem":
+        return _problem(409, "analysis_unavailable", "The pinned BindingProblem is unavailable")
+    if _ANALYSIS_SLOTS.locked():
+        return _problem(429, "analysis_busy", "The analysis evaluator is busy; retry shortly")
+    problem = BindingProblem(document=document, digest=ir_digest or digest(document), source_map={})
+    async with _ANALYSIS_SLOTS:
+        try:
+            result = await run_in_threadpool(analyze_neighborhood, problem, decision["binding"], task=task, limit=limit)
+        except (ValueError, ArithmeticError) as exc:
+            return _problem(422, "analysis_invalid", str(exc)[:300])
+    return {"jobId": job_id, "solutionIndex": solution_index, **result}
 
 
 @router.get("/jobs/{job_id}/ir")
@@ -4640,6 +4942,14 @@ async def get_v1_job_ir(
         if job is None:
             return _problem(404, "not_found", "Job not found")
         document = (job.original_request or {}).get("bindingProblem")
+        if not isinstance(document, dict) and job.instance_snapshot_id is not None:
+            ir = (await session.execute(select(BindingIRSnapshot).where(
+                BindingIRSnapshot.snapshot_id == job.instance_snapshot_id
+            ))).scalars().first()
+            if ir is not None:
+                if (job.provenance or {}).get("irDigest") not in (None, ir.ir_digest):
+                    return _problem(409, "analysis_unavailable", "Job and snapshot IR identities disagree")
+                document = ir.document
     else:
         job = _JOBS.get(job_id)
         if job is None:

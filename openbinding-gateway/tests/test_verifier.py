@@ -143,7 +143,7 @@ async def test_verifier_inspect_registered_entity(api_client, registration, veri
 async def test_verifier_inspect_file(api_client, registration, verifier_gate):
     headers = await _auth_headers(api_client, registration, verifier_gate, username=f"user-{uuid.uuid4().hex[:6]}")
 
-    file_bytes = b"OpenBinding Reproducibility Artifact Archive Package"
+    file_bytes = b"OpenBinding Reproducibility Blob Archive Package"
     file_digest = "sha256-" + pytest.importorskip("hashlib").sha256(file_bytes).hexdigest()
 
     resp = await api_client.post(

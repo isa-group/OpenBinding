@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db.models import (
-    Artifact,
+    Blob,
     Collection,
     Organization,
     OrganizationMembership,
@@ -203,8 +203,8 @@ async def organization_usage(
     )
     storage_bytes = int(
         await session.scalar(
-            select(func.coalesce(func.sum(Artifact.size_bytes), 0)).where(
-                Artifact.organization_id.in_(ids)
+            select(func.coalesce(func.sum(Blob.size_bytes), 0)).where(
+                Blob.organization_id.in_(ids)
             )
         )
         or 0
