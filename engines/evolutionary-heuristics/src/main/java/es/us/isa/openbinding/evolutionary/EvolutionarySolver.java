@@ -1,6 +1,7 @@
 package es.us.isa.openbinding.evolutionary;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 import es.us.isa.openbinding.core.BindingProblem;
 import es.us.isa.openbinding.core.CanonicalEvaluator;
 import es.us.isa.openbinding.core.EngineContract;
@@ -24,10 +25,12 @@ final class EvolutionarySolver {
     final List<CanonicalEvaluator.Evaluation> solutions;
     final long evaluations;
     final long elapsedMs;
-    Result(List<CanonicalEvaluator.Evaluation> solutions, long evaluations, long elapsedMs) {
+    final JsonArray trace;
+    Result(List<CanonicalEvaluator.Evaluation> solutions, long evaluations, long elapsedMs, JsonArray trace) {
       this.solutions = solutions;
       this.evaluations = evaluations;
       this.elapsedMs = elapsedMs;
+      this.trace = trace;
     }
   }
 
@@ -70,6 +73,10 @@ final class EvolutionarySolver {
 
     List<CanonicalEvaluator.Evaluation> archive = new ArrayList<CanonicalEvaluator.Evaluation>();
     CanonicalEvaluator.Evaluation best = null;
+    JsonArray trace = new JsonArray();
+    int generation = 0;
+    // At most 512 evenly spaced incumbent checkpoints, plus the final checkpoint.
+    int traceStride = Math.max(1, (int) Math.ceil((double) maxEvaluations / populationSize / 512));
     long evaluations = 0;
     long started = System.nanoTime();
     while (evaluations < maxEvaluations && !expired(started, timeBudgetMs, evaluations)) {
@@ -85,6 +92,10 @@ final class EvolutionarySolver {
         }
       }
       if (scored.isEmpty()) break;
+      generation++;
+      if (generation == 1 || generation % traceStride == 0) {
+        recordIncumbent(trace, best, evaluations, generation, started);
+      }
       scored.sort(evaluator.comparator());
       List<Map<String, BindingProblem.Ref>> next = new ArrayList<Map<String, BindingProblem.Ref>>();
       // Elitism keeps the best ten percent.  Remaining children come from
@@ -112,7 +123,23 @@ final class EvolutionarySolver {
       population = next;
     }
     if (!"pareto-genetic".equals(algorithm) && best != null) archive.add(best);
-    return new Result(archive, evaluations, (System.nanoTime() - started) / 1000000L);
+    if (trace.size() == 0 || trace.get(trace.size() - 1).getAsJsonObject().get("eval_index").getAsLong() != evaluations) {
+      recordIncumbent(trace, best, evaluations, generation, started);
+    }
+    return new Result(archive, evaluations, (System.nanoTime() - started) / 1000000L, trace);
+  }
+
+  private static void recordIncumbent(JsonArray trace, CanonicalEvaluator.Evaluation best,
+      long evaluations, int generation, long started) {
+    // Vector preferences have no scalar fitness; never collapse Pareto or lexicographic scores.
+    if (best == null || !best.objectives().get("score").isJsonPrimitive()) return;
+    JsonObject event = new JsonObject();
+    event.addProperty("eval_index", evaluations);
+    event.addProperty("generation", generation);
+    event.addProperty("elapsed_ms", (System.nanoTime() - started) / 1000000L);
+    event.add("best_objective", best.objectives().get("score"));
+    event.addProperty("feasible", true);
+    trace.add(event);
   }
 
   private static Map<String, BindingProblem.Ref> randomDecision(BindingProblem problem,

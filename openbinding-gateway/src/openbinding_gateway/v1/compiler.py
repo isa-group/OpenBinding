@@ -7,6 +7,8 @@ import math
 import os
 import re
 from copy import deepcopy
+from contextvars import ContextVar
+from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import Decimal
 from functools import lru_cache
@@ -59,7 +61,26 @@ def _schema_root() -> Path:
     return Path(__file__).parents[4] / "schemas" / "bim" / "v1"
 
 
-def installed_profile_manifests() -> list[dict[str, Any]]:
+def _builtin_release(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Give each complete built-in contract a stable, content-pinned SemVer.
+
+    Build metadata distinguishes exact releases without claiming a compatibility
+    ordering. Base32 retains all 256 hash bits within the 64-character version
+    column. Neither the compiler nor schema bytes can change under one label.
+    """
+    from base64 import b32encode
+
+    def suffix(value: str) -> str:
+        return b32encode(bytes.fromhex(value.removeprefix('sha256-'))).decode('ascii').rstrip('=').lower()
+
+    adapter = manifest['spec']['adapter']
+    adapter['version'] = adapter['version'].split('+', 1)[0] + '+' + suffix(adapter['binaryDigest'])
+    manifest['metadata']['version'] = manifest['metadata']['version'].split('+', 1)[0]
+    manifest['metadata']['version'] += '+' + suffix(digest(manifest))
+    return manifest
+
+
+def _all_profile_manifests() -> list[dict[str, Any]]:
     """Return immutable container profiles backed by deployed local adapters.
 
     Profiles own role/cardinality, output-IR and capability vocabularies.  None
@@ -177,7 +198,7 @@ def installed_profile_manifests() -> list[dict[str, Any]]:
             },
         }
     ]
-    return [*builtins, *_ADDITIONAL_INSTALLED_PROFILES.values()]
+    return [*map(_builtin_release, builtins), *deepcopy(list(_ADDITIONAL_INSTALLED_PROFILES.values()))]
 
 
 def manifest_id(manifest: Mapping[str, Any]) -> str:
@@ -252,7 +273,7 @@ def _profile_output_key(
     )
 
 
-def installed_dialect_manifests() -> list[dict[str, Any]]:
+def _all_dialect_manifests() -> list[dict[str, Any]]:
     """Return immutable sublanguage contracts backed by local adapters.
 
     A published manifest is not an adapter installer.  Extending BIM therefore
@@ -363,7 +384,42 @@ def installed_dialect_manifests() -> list[dict[str, Any]]:
             },
         },
     ]
-    return [*builtins, *_ADDITIONAL_INSTALLED_DIALECTS.values()]
+    return [*map(_builtin_release, builtins), *deepcopy(list(_ADDITIONAL_INSTALLED_DIALECTS.values()))]
+
+
+_SELECTED_CONTRACTS: ContextVar[dict | None] = ContextVar("bim_contracts", default=None)
+_RESOURCE_VALIDATORS_BY_DIGEST: dict[str, Any] = {}
+
+
+def manifest_reference(manifest: Mapping[str, Any]) -> dict[str, str]:
+    return {**{field: manifest["metadata"][field] for field in ("namespace", "name", "version")},
+            "digest": digest(manifest)}
+
+
+def installed_profile_manifests() -> list[dict[str, Any]]:
+    values = _all_profile_manifests()
+    selected = _SELECTED_CONTRACTS.get()
+    return [item for item in values if manifest_reference(item) == selected["profile"]] if selected else values
+
+
+def installed_dialect_manifests() -> list[dict[str, Any]]:
+    values = _all_dialect_manifests()
+    selected = _SELECTED_CONTRACTS.get()
+    return [item for item in values if manifest_reference(item) in selected["dialects"]] if selected else values
+
+
+@contextmanager
+def selected_contracts(contracts: dict | None):
+    if contracts is not None:
+        available = [manifest_reference(item) for item in _all_profile_manifests()]
+        dialects = [manifest_reference(item) for item in _all_dialect_manifests()]
+        if contracts.get("profile") not in available or any(item not in dialects for item in contracts.get("dialects", [])):
+            raise CompileError([_diag("contract_not_installed", "An exact pinned contract is not installed", "instance.json", "/spec/contracts")])
+    token = _SELECTED_CONTRACTS.set(contracts)
+    try:
+        yield
+    finally:
+        _SELECTED_CONTRACTS.reset(token)
 
 
 def _dialect_descriptor(manifest: Mapping[str, Any]) -> dict[str, Any]:
@@ -516,7 +572,7 @@ def _profile_output_validator(
     """Resolve the exact locally installed output schema for one Profile."""
 
     try:
-        builtin = installed_profile_manifests()[0]
+        builtin = _all_profile_manifests()[0]
         if digest(manifest) == digest(builtin):
             schema_path = _schema_root() / "binding-problem.schema.json"
             if digest_bytes(schema_path.read_bytes()) != manifest["spec"]["output"]["schemaDigest"]:
@@ -616,14 +672,20 @@ _ADDITIONAL_RESOURCE_SCHEMA_VALIDATORS: dict[
 ] = {}
 
 
-@lru_cache(maxsize=None)
 def _resource_schema_validator(
     api_version: str,
     kind: str,
     media_type: str,
+    dialects: list[dict] | None = None,
 ) -> jsonschema.Draft202012Validator | None:
     """Resolve validators by full sublanguage identity, never by kind alone."""
 
+    matches = _dialect_type_matches(installed_dialect_manifests() if dialects is None else dialects, api_version, kind, media_type)
+    if len(matches) != 1:
+        return None
+    schema_digest = matches[0][1]["schemaDigest"]
+    if schema_digest in _RESOURCE_VALIDATORS_BY_DIGEST:
+        return _RESOURCE_VALIDATORS_BY_DIGEST[schema_digest]
     filename = _INSTALLED_JSON_RESOURCE_SCHEMAS.get((api_version, kind, media_type))
     if filename is None:
         return _ADDITIONAL_RESOURCE_SCHEMA_VALIDATORS.get((api_version, kind, media_type))
@@ -641,8 +703,9 @@ def _resource_schema_diagnostics(
     kind: str,
     media_type: str,
     resource: str,
+    dialects: list[dict] | None = None,
 ) -> list[CompileDiagnostic]:
-    validator = _resource_schema_validator(api_version, kind, media_type)
+    validator = _resource_schema_validator(api_version, kind, media_type, dialects)
     if validator is None:
         return [_diag(
             "schema_unavailable",
@@ -1085,6 +1148,7 @@ class RegisteredResource:
 
     content: bytes
     media_type: str
+    version_manifest: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -1317,6 +1381,42 @@ def _dialect_xml_type_matches(
     ]
 
 
+def _bound_document(document: dict, schema: dict, bindings: Mapping[str, str]) -> dict:
+    """Remap only schema-declared resource references; keep source bytes intact."""
+    result = deepcopy(document)
+    references: set[tuple] = set()
+
+    def visit(value, rule, path=()):
+        if not isinstance(rule, dict):
+            return
+        if "$ref" in rule and rule["$ref"].startswith("#/"):
+            target = schema
+            for part in rule["$ref"][2:].split("/"):
+                target = target[part.replace("~1", "/").replace("~0", "~")]
+            visit(value, target, path)
+            return
+        if isinstance(value, dict):
+            if set(rule.get("properties", {})) == {"resource", "id"} and set(value) == {"resource", "id"}:
+                references.add(path)
+            for key, child in value.items():
+                child_rule = rule.get("properties", {}).get(key, rule.get("additionalProperties", {}))
+                visit(child, child_rule, (*path, key))
+        elif isinstance(value, list):
+            for index, child in enumerate(value):
+                visit(child, rule.get("items", {}), (*path, index))
+        for keyword in ("oneOf", "anyOf", "allOf"):
+            for alternative in rule.get(keyword, []):
+                visit(value, alternative, path)
+
+    visit(document, schema)
+    for path in references:
+        value = result
+        for part in path:
+            value = value[part]
+        value["resource"] = bindings.get(value["resource"], value["resource"])
+    return result
+
+
 def _resource_index(
     package: InstancePackage,
     profile: Mapping[str, Any],
@@ -1398,14 +1498,15 @@ def _resource_index(
             registered: dict[str, str] | None = None
             resolved: RegisteredResource | None = None
             if isinstance(target, dict):
-                if not all(isinstance(target.get(key), str) for key in ("namespace", "name", "version", "digest")):
+                digest_key = "versionDigest" if "versionDigest" in target else "digest"
+                if not all(isinstance(target.get(key), str) for key in ("namespace", "name", "version", digest_key)):
                     continue
-                registered = {key: str(target[key]) for key in ("namespace", "name", "version", "digest")}
+                registered = {key: str(target[key]) for key in ("namespace", "name", "version", digest_key)}
                 key = (
                     registered["namespace"],
                     registered["name"],
                     registered["version"],
-                    registered["digest"],
+                    registered[digest_key],
                 )
                 resolved = registry.get(key)
                 if resolved is None:
@@ -1424,10 +1525,16 @@ def _resource_index(
                 except PackageError as exc:
                     diagnostics.append(_diag("registered_resource", str(exc), "instance.json", pointer))
                     continue
-                if actual_digest != registered["digest"]:
+                expected_digest = registered[digest_key]
+                if digest_key == "versionDigest":
+                    if not resolved.version_manifest or digest(resolved.version_manifest) != expected_digest:
+                        diagnostics.append(_diag("version_digest", "Artifact version manifest does not match its pin", "instance.json", pointer))
+                        continue
+                    expected_digest = resolved.version_manifest["contentDigest"]
+                if actual_digest != expected_digest:
                     diagnostics.append(_diag(
                         "registered_digest",
-                        f"registered resource digest is {actual_digest}, not pinned {registered['digest']}",
+                        f"registered resource digest is {actual_digest}, not pinned {expected_digest}",
                         "instance.json",
                         pointer,
                     ))
@@ -1511,7 +1618,7 @@ def _resource_index(
                     if not isinstance(api_version, str) or not isinstance(kind, str):
                         diagnostics.append(_diag("resource_identity", "resource requires string apiVersion and kind", path, "/"))
                         continue
-                    if registered is not None:
+                    if registered is not None and "digest" in registered:
                         metadata = document.get("metadata", {})
                         if metadata.get("name") != registered["name"] or metadata.get("version") != registered["version"]:
                             diagnostics.append(_diag(
@@ -1606,6 +1713,11 @@ def _resource_index(
                     kind,
                     used_extension_dialects,
                 )
+            bindings = instance.get("spec", {}).get("bindings", {}).get(resource_id, {})
+            if bindings and not is_xml:
+                validator = _resource_schema_validator(api_version, kind, media_type)
+                if validator is not None:
+                    document = _bound_document(document, validator.schema, bindings)
             resource = _Resource(
                 id=resource_id,
                 role=role,
@@ -3289,7 +3401,40 @@ class CompiledProblem:
 
 @dataclass(frozen=True)
 class BindingProblem(CompiledProblem):
-    """Canonical BIM v1 engine input; no source files or URLs are retained."""
+    @property
+    def binding_space_breakdown(self) -> dict[str, int]:
+        """Candidate counts per service task from the canonical eligibility matrix."""
+        spec = self.document.get("spec", {})
+        tasks = spec.get("application", {}).get("tasks", {})
+        eligibility = spec.get("eligibility", {})
+        if not isinstance(tasks, dict) or not isinstance(eligibility, dict):
+            return {}
+        return {
+            task_id: len(eligibility.get(task_id, []))
+            for task_id, task in sorted(tasks.items())
+            if isinstance(task, dict) and task.get("kind") == "service"
+        }
+
+    @property
+    def binding_space_cardinality(self) -> int:
+        """Total unconstrained binding combinations product."""
+        breakdown = self.binding_space_breakdown
+        if not breakdown:
+            return 1
+        cardinality = 1
+        for count in breakdown.values():
+            cardinality *= count
+        return cardinality
+
+    @property
+    def binding_space_log10(self) -> float:
+        """Log10 order of magnitude of the binding search space."""
+        breakdown = self.binding_space_breakdown
+        if not breakdown:
+            return 0.0
+        if any(count == 0 for count in breakdown.values()):
+            return 0.0
+        return float(sum(math.log10(count) for count in breakdown.values()))
 
     def _candidate(self, reference: Mapping[str, Any]) -> dict[str, Any]:
         candidate = _lookup_candidate(self.document["spec"]["candidates"], reference)
@@ -4157,8 +4302,7 @@ def install_profile_contract(
     )
     if not callable(adapter):
         raise ValueError("Profile adapter must be callable")
-    existing_ids = {manifest_id(item) for item in installed_profile_manifests()}
-    if manifest_id(manifest) in existing_ids:
+    if any(tuple(item["metadata"][k] for k in ("namespace", "name", "version")) == tuple(metadata[k] for k in ("namespace", "name", "version")) for item in _all_profile_manifests()):
         raise ValueError(f"Profile id {manifest_id(manifest)!r} is already installed")
     if adapter_key in _PROFILE_ADAPTERS:
         raise ValueError("Profile adapter descriptor is already installed for another contract")
@@ -4167,7 +4311,7 @@ def install_profile_contract(
     if digest(output_schema) != manifest["spec"]["output"]["schemaDigest"]:
         raise ValueError("installed Profile output schema does not match schemaDigest")
     jsonschema.Draft202012Validator.check_schema(dict(output_schema))
-    _ADDITIONAL_INSTALLED_PROFILES[identity] = manifest
+    _ADDITIONAL_INSTALLED_PROFILES[identity] = deepcopy(manifest)
     _PROFILE_ADAPTERS[adapter_key] = adapter
     _PROFILE_OUTPUT_VALIDATORS[_profile_output_key(manifest)] = (
         jsonschema.Draft202012Validator(dict(output_schema))
@@ -4283,11 +4427,12 @@ def install_dialect_contract(
         str(metadata["version"]),
         digest(manifest),
     )
-    if manifest_id(manifest) in {manifest_id(item) for item in installed_dialect_manifests()}:
+    if any(tuple(item["metadata"][k] for k in ("namespace", "name", "version")) == key[:3] for item in _all_dialect_manifests()):
         raise ValueError(f"Dialect id {manifest_id(manifest)!r} is already installed")
-    _ADDITIONAL_INSTALLED_DIALECTS[key] = manifest
+    _ADDITIONAL_INSTALLED_DIALECTS[key] = deepcopy(manifest)
     for identity, schema in resource_schemas.items():
         _ADDITIONAL_RESOURCE_SCHEMA_VALIDATORS[identity] = jsonschema.Draft202012Validator(dict(schema))
+        _RESOURCE_VALIDATORS_BY_DIGEST[digest(schema)] = jsonschema.Draft202012Validator(dict(schema))
         _DIALECT_RESOURCE_LOWERERS[
             _dialect_resource_lowerer_key(manifest, *identity)
         ] = resource_lowerers[identity]
@@ -4298,7 +4443,6 @@ def install_dialect_contract(
         _DIALECT_EXTENSION_LOWERERS[
             _dialect_extension_lowerer_key(manifest, *identity)
         ] = extension_lowerers[identity]
-    _resource_schema_validator.cache_clear()
     installed_framework_diagnostics.cache_clear()
 
 
@@ -4342,7 +4486,6 @@ def uninstall_dialect_contract(manifest: Mapping[str, Any]) -> None:
             _dialect_extension_lowerer_key(manifest, *identity),
             None,
         )
-    _resource_schema_validator.cache_clear()
     installed_framework_diagnostics.cache_clear()
 
 
@@ -4444,13 +4587,13 @@ def _validated_profile_output(
     return value
 
 
-def compile_instance(
+def _compile_instance_selected(
     package: InstancePackage,
     registered_resources: Mapping[tuple[str, str, str, str], RegisteredResource] | None = None,
 ) -> CompiledProblem:
     """Resolve the BIM container profile and dispatch to its installed adapter."""
 
-    framework_errors = installed_framework_diagnostics()
+    framework_errors = installed_framework_diagnostics.__wrapped__() if _SELECTED_CONTRACTS.get() else installed_framework_diagnostics()
     if framework_errors:
         raise CompileError([
             _diag("installed_framework", message, "instance.json", "/spec/profile")
@@ -4535,3 +4678,9 @@ def compile_instance(
                 "/spec/profile",
             )])
     return first
+
+
+def compile_instance(package: InstancePackage, registered_resources=None) -> CompiledProblem:
+    """Resolve all compilation against one immutable, task-local contract set."""
+    with selected_contracts(package.instance().get("spec", {}).get("contracts")):
+        return _compile_instance_selected(package, registered_resources)

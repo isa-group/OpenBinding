@@ -25,8 +25,10 @@ export function CommandPalette({ organization, project, isAdmin }: CommandPalett
     { label: 'Binding analysis', detail: 'Pareto, feasibility, runtime and stability', href: `${root}/analytics`, group: 'Project', disabled: !project },
     { label: 'Reports', detail: 'Freeze and publish reproducible evidence', href: `${root}/reports`, group: 'Project', disabled: !project },
     { label: 'Organization settings', detail: 'Hierarchy, roles and invitations', href: organization ? `/app/${organization.slug}/settings` : '/app', group: 'Workspace', disabled: !organization },
+    { label: 'Account settings', detail: 'Quotas, API keys and subscriptions', href: '/app/account', group: 'Workspace' },
     { label: 'Explore public work', detail: 'Projects and publications', href: '/explore', group: 'Discover' },
-    { label: 'BIM specification', detail: 'Schemas, profiles and extension points', href: '/schemas', group: 'Discover' },
+    { label: 'Replication studio', detail: 'Cryptographic provenance, resolver and citation verification', href: '/app/verifier', group: 'System' },
+    { label: 'Platform administration', detail: 'Users, queues and system health', href: '/app/admin', group: 'Administration', disabled: !isAdmin },
     { label: 'Pricing control room', detail: 'SPHERE and SPACE lifecycle', href: '/app/admin/pricing', group: 'Administration', disabled: !isAdmin },
   ], [isAdmin, organization, project, root]);
   const visible = commands.filter((command) => !command.disabled && `${command.label} ${command.detail} ${command.group}`.toLowerCase().includes(query.trim().toLowerCase()));

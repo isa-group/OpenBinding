@@ -1,0 +1,279 @@
+/* BindingSpaceBadge.css - Dynamic visual styles and effects for Binding Space */
+
+.binding-space-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  background: var(--color-bg-elevated, #161b22);
+  border: 1px solid var(--color-border, #30363d);
+  cursor: help;
+  user-select: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.binding-space-badge:hover,
+.binding-space-badge:focus-visible {
+  transform: translateY(-1px);
+  outline: none;
+}
+
+/* Tier-specific colors and glow effects */
+.binding-space-badge.tier-micro {
+  --tier-color: #10b981;
+  --tier-bg: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.binding-space-badge.tier-small {
+  --tier-color: #06b6d4;
+  --tier-bg: rgba(6, 182, 212, 0.08);
+  border-color: rgba(6, 182, 212, 0.3);
+}
+
+.binding-space-badge.tier-medium {
+  --tier-color: #3b82f6;
+  --tier-bg: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.binding-space-badge.tier-large {
+  --tier-color: #8b5cf6;
+  --tier-bg: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.35);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
+}
+
+.binding-space-badge.tier-massive {
+  --tier-color: #f59e0b;
+  --tier-bg: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.2);
+  animation: pulse-massive 3s infinite ease-in-out;
+}
+
+@keyframes pulse-massive {
+  0%, 100% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.15); }
+  50% { box-shadow: 0 0 18px rgba(245, 158, 11, 0.35); }
+}
+
+.binding-space-badge:hover {
+  border-color: var(--tier-color);
+  box-shadow: 0 0 14px var(--tier-bg);
+}
+
+.binding-space-icon {
+  display: flex;
+  align-items: center;
+  color: var(--tier-color);
+}
+
+.binding-space-icon svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.binding-space-label {
+  color: var(--color-text-tertiary, #8b949e);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.binding-space-value {
+  color: var(--color-text-primary, #f0f6fc);
+  font-weight: 700;
+}
+
+/* Mini combinatorial magnitude dots */
+.binding-space-meter {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  margin-left: 0.25rem;
+}
+
+.binding-space-meter-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-border, #30363d);
+  transition: all 0.2s ease;
+}
+
+.binding-space-meter-dot.is-active {
+  background: var(--tier-color);
+  box-shadow: 0 0 4px var(--tier-color);
+}
+
+/* Card variant (larger for metrics rail / overview) */
+.binding-space-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-elevated, #161b22);
+  border: 1px solid var(--color-border, #30363d);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: visible;
+}
+
+.binding-space-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--tier-color, #3b82f6);
+  border-top-left-radius: 9px;
+  border-bottom-left-radius: 9px;
+}
+
+.binding-space-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.binding-space-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.binding-space-card-title {
+  font-size: 0.65rem;
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  color: var(--color-text-tertiary, #8b949e);
+  letter-spacing: 0.05em;
+}
+
+.binding-space-card-val {
+  font-size: 1.25rem;
+  font-family: var(--font-display, inherit);
+  font-weight: 700;
+  color: var(--color-text-primary, #f0f6fc);
+}
+
+.binding-space-card-desc {
+  font-size: 0.7rem;
+  color: var(--color-text-secondary, #c9d1d9);
+}
+
+/* Interactive Floating Tooltip */
+.binding-space-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  bottom: auto;
+  right: 0;
+  left: auto;
+  transform: translateY(-4px);
+  min-width: 240px;
+  max-width: 340px;
+  padding: 0.65rem 0.85rem;
+  background: var(--color-bg-elevated, #161b22);
+  border: 1px solid var(--color-border, #30363d);
+  border-radius: 8px;
+  box-shadow: var(--shadow-xl, 0 12px 32px rgba(0, 0, 0, 0.45));
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+  z-index: 99999;
+  text-align: left;
+}
+
+.binding-space-badge:hover .binding-space-tooltip,
+.binding-space-badge:focus-visible .binding-space-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.binding-space-card .binding-space-tooltip {
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  transform: translateY(-4px);
+  box-sizing: border-box;
+}
+
+.binding-space-card:hover .binding-space-tooltip,
+.binding-space-card:focus-visible .binding-space-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.binding-space-tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.binding-space-tooltip-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--tier-color, #3b82f6);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.binding-space-tooltip-tier {
+  font-size: 0.6rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--tier-bg);
+  color: var(--tier-color);
+  font-weight: 600;
+}
+
+.binding-space-tooltip-exact {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  word-break: break-all;
+  margin-bottom: 0.25rem;
+}
+
+.binding-space-tooltip-info {
+  font-size: 0.68rem;
+  color: #8b949e;
+  line-height: 1.35;
+}
+
+[data-theme="light"] .binding-space-tooltip {
+  background: var(--color-bg-elevated, #ffffff);
+  border-color: var(--color-border, #c9cdc6);
+  box-shadow: var(--shadow-lg, 0 10px 25px rgba(23, 33, 29, 0.12));
+}
+
+[data-theme="light"] .binding-space-tooltip-header {
+  border-bottom-color: var(--color-border, #c9cdc6);
+}
+
+[data-theme="light"] .binding-space-tooltip-exact {
+  color: var(--color-text-primary, #17211d);
+}
+
+[data-theme="light"] .binding-space-tooltip-info {
+  color: var(--color-text-secondary, #52605a);
+}

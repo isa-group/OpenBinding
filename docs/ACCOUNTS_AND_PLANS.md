@@ -100,14 +100,17 @@ access to recover.
 
 ## How a limit behaves
 
-Three outcomes, and which applies is a property of the thing being limited
-rather than a preference.
+Four outcomes, and which applies is a property of the thing being limited
+rather than an arbitrary preference.
 
 | Kind | Example | What happens |
 |---|---|---|
 | A budget you asked for | `time_budget_ms`, `iterations`, `max_evaluations` | **Reduced** to what the plan allows, with an `OPTION_CLAMPED` warning alongside the result |
-| An allowance you spend | monthly solver time, job count, concurrency | **Refused** with `402` until it renews, naming the limit and the renewal date |
-| A fact about the work | instance complexity | **Refused** with `402`, because there is no smaller version of an instance to run |
+| A periodic allowance you spend | monthly solver time, task starts, study runs, storage | **Refused** with `402 Payment Required` (`quota_exceeded`), naming the limit, allowance, current usage, and renewal date in a structured `quota` object (no `Retry-After` header) |
+| In-flight execution capacity | active simultaneous solves (`concurrentJobs`) | **Throttled** with `429 Too Many Requests` (`concurrency_limit_exceeded`), naming current and max slots in a structured `concurrency` object, with a `Retry-After: 15` header |
+| An unentitled capability | private federated engines, high-tier features, RBAC | **Refused** with `403 Forbidden` (`feature_not_entitled` or `forbidden`), because retrying without upgrading or authorization will never succeed |
+| A fact about the work | instance complexity (`maxInstanceComplexityLog10` evaluated against $\log_{10}(|S|)$ of the Binding Space) | **Refused** with `402 Payment Required` (`instance_complexity_too_large`), because there is no smaller version of an instance to run without upgrading |
+
 
 Clamping rather than refusing matters more than it sounds: defaults are applied
 before plan ceilings, so refusing an otherwise valid default could make a new
@@ -115,8 +118,9 @@ account's first request fail. Every reduction is reported, because a solve that
 quietly did a tenth of the work asked for would produce a worse answer with no
 explanation.
 
-`402` rather than `403` throughout: this is an allowance spent, not a permission
-missing, and only one of those is worth retrying next month.
+When both a periodic commercial quota and concurrency are saturated simultaneously,
+`402` takes precedence over `429`: telling a client to retry in 15 seconds when their
+monthly account balance is exhausted would be misleading and lead to wasted retries.
 
 ## Accounting
 

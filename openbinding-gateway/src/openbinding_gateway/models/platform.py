@@ -10,6 +10,8 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
+from .artifacts import ArtifactUse
+
 SLUG = r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
 DIGEST = r"^sha256-[0-9a-f]{64}$"
 
@@ -123,6 +125,12 @@ class BindingCaseCreate(BaseModel):
     description: str = Field(default="", max_length=2000)
 
 
+class BindingCaseUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    description: Optional[str] = Field(default=None, max_length=2000)
+
+
 class BindingCaseView(BindingCaseCreate):
     id: uuid.UUID
     project_id: uuid.UUID
@@ -134,6 +142,7 @@ class CaseRevisionCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     document: dict[str, Any]
     source_snapshot_id: Optional[uuid.UUID] = None
+    resources: list[ArtifactUse] = Field(default_factory=list)
 
 
 class CaseRevisionView(BaseModel):
@@ -152,6 +161,13 @@ class ProjectResourceCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=160)
     description: str = Field(default="", max_length=2000)
     kind: str = Field(default="bim-resource", min_length=1, max_length=128)
+
+
+class ProjectResourceUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    kind: Optional[str] = Field(default=None, min_length=1, max_length=128)
 
 
 class ProjectResourceView(ProjectResourceCreate):
@@ -180,6 +196,12 @@ class CollectionCreate(BaseModel):
     slug: str = Field(..., pattern=SLUG)
     name: str = Field(..., min_length=1, max_length=160)
     description: str = Field(default="", max_length=2000)
+
+
+class CollectionUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    description: Optional[str] = Field(default=None, max_length=2000)
 
 
 class CollectionView(CollectionCreate):
@@ -225,12 +247,12 @@ class StudyDefinition(BaseModel):
     engines: list[dict[str, str]] = Field(..., min_length=1, max_length=50)
     parameter_sets: list[dict[str, Any]] = Field(default_factory=lambda: [{}], min_length=1, max_length=100)
     seeds: list[int] = Field(default_factory=lambda: [0], min_length=1, max_length=100)
-    collection_revision_id: Optional[uuid.UUID] = None
+    collection_version_id: Optional[uuid.UUID] = None
 
     @model_validator(mode="after")
     def bounded_matrix(self):
-        if not self.case_revision_ids and self.collection_revision_id is None:
-            raise ValueError("provide case_revision_ids or collection_revision_id")
+        if not self.case_revision_ids and self.collection_version_id is None:
+            raise ValueError("provide case_revision_ids or collection_version_id")
         if len(set(self.case_revision_ids)) != len(self.case_revision_ids):
             raise ValueError("case_revision_ids contains duplicates")
         if len(set(self.seeds)) != len(self.seeds):
@@ -255,15 +277,37 @@ class StudyDefinition(BaseModel):
         return self
 
 
-class StudyCreate(BaseModel):
+class StudyMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid")
     slug: str = Field(..., pattern=SLUG)
     name: str = Field(..., min_length=1, max_length=160)
     description: str = Field(default="", max_length=2000)
+
+
+class StudyCreate(StudyMetadata):
+    definition: Optional[StudyDefinition] = None
+    definition_version_id: Optional[uuid.UUID] = None
+
+    @model_validator(mode="after")
+    def exact_definition_source(self):
+        if (self.definition is None) == (self.definition_version_id is None):
+            raise ValueError("Specify either definition or definition_version_id.")
+        return self
+
+
+class StudyUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    archived: Optional[bool] = None
+    definition_version_id: Optional[uuid.UUID] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=160)
+    description: Optional[str] = Field(default=None, max_length=2000)
+
+
+class StudyView(StudyMetadata):
     definition: StudyDefinition
-
-
-class StudyView(StudyCreate):
+    archived: bool
+    definition_artifact_id: uuid.UUID
+    definition_version_id: uuid.UUID
     id: uuid.UUID
     project_id: uuid.UUID
     state: str
@@ -272,6 +316,7 @@ class StudyView(StudyCreate):
 
 
 class StudyRunView(BaseModel):
+    definition_version_id: uuid.UUID
     id: uuid.UUID
     study_id: uuid.UUID
     run_number: int
@@ -310,7 +355,18 @@ class ReportCreate(BaseModel):
     document: dict[str, Any]
 
 
+class ReportUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    draft_revision: Optional[int] = Field(default=None, gt=0)
+    title: Optional[str] = Field(default=None, min_length=1, max_length=240)
+    document: Optional[dict[str, Any]] = None
+
+
 class ReportView(BaseModel):
+    artifact_id: uuid.UUID
+    version_id: Optional[uuid.UUID]
+    draft_id: Optional[uuid.UUID]
+    draft_revision: Optional[int]
     id: uuid.UUID
     project_id: uuid.UUID
     study_run_id: Optional[uuid.UUID]
@@ -324,12 +380,15 @@ class ReportView(BaseModel):
 
 class PublicationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    version_id: Optional[uuid.UUID] = None
     report_id: uuid.UUID
     slug: str = Field(..., pattern=SLUG)
     citation: dict[str, Any] = Field(default_factory=dict)
 
 
 class PublicationView(BaseModel):
+    version_id: uuid.UUID
+    withdrawn: bool
     id: uuid.UUID
     project_id: uuid.UUID
     report_id: uuid.UUID
@@ -338,7 +397,7 @@ class PublicationView(BaseModel):
     published_at: datetime
 
 
-class ArtifactView(BaseModel):
+class BlobView(BaseModel):
     id: uuid.UUID
     organization_id: uuid.UUID
     project_id: uuid.UUID
@@ -369,6 +428,21 @@ class JobView(BaseModel):
     project_id: Optional[uuid.UUID]
     created_at: datetime
     finished_at: Optional[datetime]
+    result: Optional[dict[str, Any]] = None
+    termination: Optional[str] = None
+    options: Optional[dict[str, Any]] = None
+    original_request: Optional[dict[str, Any]] = None
+    provenance: Optional[dict[str, Any]] = None
+
+
+class SnapshotView(BaseModel):
+    id: uuid.UUID
+    owner_id: Optional[uuid.UUID] = None
+    instance_digest: str
+    package_digest: str
+    archive_size: int
+    created_at: datetime
+    ir: Optional[dict[str, Any]] = None
 
 
 class AnalyticsView(BaseModel):
@@ -381,3 +455,97 @@ class AnalyticsView(BaseModel):
     runtimes_s: list[float]
     pareto: list[dict[str, Any]]
     stability: dict[str, Any]
+    binding_space: Optional[dict[str, Any]] = None
+
+
+class ReplicationCitation(BaseModel):
+    title: str
+    authors: list[str] = Field(default_factory=list)
+    year: int = 2026
+    doi: Optional[str] = None
+    venue: Optional[str] = None
+    url: Optional[str] = None
+    bibtex: str
+    markdown_badge: str
+
+
+class VerifierEntityMatch(BaseModel):
+    entity_type: str
+    id: str
+    slug: Optional[str] = None
+    title_or_name: Optional[str] = None
+    organization_slug: Optional[str] = None
+    project_slug: Optional[str] = None
+    revision: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+
+class VerifierInspectRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    digest: Optional[str] = None
+    kind: Optional[str] = None
+    document: Optional[Any] = None
+    entity_id: Optional[uuid.UUID] = None
+
+
+class VerifierInspectResponse(BaseModel):
+    status: Literal["verified", "computed", "mismatch", "not_found"]
+    digest: str
+    canonical_json: Optional[str] = None
+    matches: bool
+    verified_at: datetime
+    entities: list[VerifierEntityMatch] = Field(default_factory=list)
+    citation: Optional[ReplicationCitation] = None
+    detail: Optional[str] = None
+
+
+class ResolveOrganizationRef(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
+
+
+class ResolveProjectRef(BaseModel):
+    id: uuid.UUID
+    slug: str
+    name: str
+    visibility: str
+
+
+class ResolveAuthorRef(BaseModel):
+    id: uuid.UUID
+    username: Optional[str] = None
+    email: Optional[str] = None
+
+
+class ResolveLocation(BaseModel):
+    organization: Optional[ResolveOrganizationRef] = None
+    project: Optional[ResolveProjectRef] = None
+    element_id: str
+    slug: Optional[str] = None
+    version_or_revision: Optional[int | str] = None
+    created_at: Optional[datetime] = None
+    web_url: Optional[str] = None
+
+
+class ResolvePagination(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
+class ResolveResponse(BaseModel):
+    verified: bool
+    kind: str
+    digest: str
+    canonical_name: Optional[str] = None
+    media_type: str = "application/json"
+    size_bytes: Optional[int] = None
+    created_at: Optional[datetime] = None
+    author: Optional[ResolveAuthorRef] = None
+    document: Optional[Any] = None
+    content_url: str
+    locations: list[ResolveLocation] = Field(default_factory=list)
+    pagination: ResolvePagination
+    citation: Optional[ReplicationCitation] = None

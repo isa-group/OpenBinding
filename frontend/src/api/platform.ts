@@ -1,3 +1,4 @@
+import type { ArtifactUse } from './library';
 import { apiClient } from './client';
 
 export type Visibility = 'private' | 'public';
@@ -111,7 +112,7 @@ export interface CollectionRevision {
   created_at: string;
 }
 
-export interface Artifact {
+export interface StoredBlob {
   id: string;
   organization_id: string;
   project_id: string;
@@ -124,6 +125,10 @@ export interface Artifact {
 }
 
 export interface Report {
+  artifact_id: string;
+  version_id: string | null;
+  draft_id: string | null;
+  draft_revision: number | null;
   id: string;
   project_id: string;
   study_run_id: string | null;
@@ -136,6 +141,8 @@ export interface Report {
 }
 
 export interface Publication {
+  version_id: string;
+  withdrawn: boolean;
   id: string;
   project_id: string;
   report_id: string;
@@ -145,13 +152,17 @@ export interface Publication {
 }
 
 export interface Study {
+  archived: boolean;
   id: string;
+  definition_version_id: string;
+  definition_artifact_id: string;
   project_id: string;
   slug: string;
   name: string;
   description: string;
   definition: {
     case_revision_ids: string[];
+    collection_version_id?: string;
     engines: Array<Record<string, string>>;
     parameter_sets: Array<Record<string, unknown>>;
     seeds: number[];
@@ -163,6 +174,7 @@ export interface Study {
 
 export interface StudyRun {
   id: string;
+  definition_version_id: string;
   study_id: string;
   run_number: number;
   state: RunState;
@@ -187,6 +199,28 @@ export interface StudyCell {
   metrics: Record<string, unknown>;
 }
 
+export interface CaseComplexity {
+  id: string;
+  slug: string;
+  name: string;
+  revision: number;
+  cardinality: string;
+  log10: number;
+  tasks: number;
+  breakdown?: Record<string, number>;
+}
+
+export interface BindingSpaceAnalytics {
+  cardinality: string;
+  log10: number;
+  tasks: number;
+  breakdown?: Record<string, number>;
+  case_slug?: string | null;
+  case_name?: string | null;
+  revision?: number | null;
+  cases?: CaseComplexity[];
+}
+
 export interface Analytics {
   cells: number;
   completed: number;
@@ -197,6 +231,7 @@ export interface Analytics {
   runtimes_s: number[];
   pareto: Array<Record<string, number>>;
   stability: Record<string, { samples: number; distinct: number; repeatability: number }>;
+  binding_space?: BindingSpaceAnalytics | null;
 }
 
 export interface PricingRelease {
@@ -227,6 +262,70 @@ export interface PricingControlRoom {
   divergence: { onlyInSphere: string[]; onlyLocal: string[] };
 }
 
+export interface Job {
+  id: string;
+  engine_id: string;
+  status: 'queued' | 'running' | 'completed' | 'failed' | string;
+  cancellation_requested: boolean;
+  retry_of_id: string | null;
+  organization_id: string | null;
+  project_id: string | null;
+  created_at: string;
+  finished_at: string | null;
+  result?: {
+    termination?: string;
+    solutions?: Array<{
+      decision?: Record<string, unknown>;
+      objectives?: Record<string, number>;
+    }>;
+    provenance?: Record<string, unknown>;
+    logs?: string;
+    status?: string;
+    code?: string;
+    error?: string;
+    [key: string]: unknown;
+  } | null;
+  termination?: 'OPTIMAL' | 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN' | null;
+  options?: Record<string, unknown> | null;
+  original_request?: Record<string, unknown> | null;
+  provenance?: Record<string, unknown> | null;
+}
+
+export interface Snapshot {
+  id: string;
+  ownerId: string | null;
+  instanceDigest: string;
+  packageDigest: string;
+  archiveSize: number;
+  createdAt: string | null;
+  ir: {
+    id: string;
+    digest: string;
+    document: Record<string, unknown>;
+    sourceMap: Record<string, unknown> | null;
+    compilerVersion: string;
+    createdAt: string | null;
+  } | null;
+}
+
+export interface EngineRevision {
+  id: string;
+  namespace: string;
+  name: string;
+  version: string;
+  digest: string;
+  state: string;
+  createdAt: string | null;
+  document: Record<string, unknown>;
+  registration: {
+    id: string;
+    state: string;
+    endpointUrl?: string | null;
+    openapiSpec?: Record<string, unknown> | null;
+    verifiedAt?: string | null;
+  } | null;
+}
+
 const root = (org: string, project?: string) =>
   `/v1/organizations/${encodeURIComponent(org)}${project ? `/projects/${encodeURIComponent(project)}` : ''}`;
 
@@ -240,6 +339,8 @@ export const platformApi = {
     apiClient.request<Organization>(root(org), {
       method: 'PATCH', body: JSON.stringify(value),
     }),
+  deleteOrganization: (org: string) =>
+    apiClient.request<void>(root(org), { method: 'DELETE' }),
   members: (org: string) =>
     apiClient.request<OrganizationMember[]>(`${root(org)}/members`),
   updateMember: (org: string, userId: string, role: OrganizationRole) =>
@@ -261,13 +362,27 @@ export const platformApi = {
     apiClient.request<Project>(root(org, project), {
       method: 'PATCH', body: JSON.stringify(value),
     }),
+  deleteProject: (org: string, project: string) =>
+    apiClient.request<void>(root(org, project), { method: 'DELETE' }),
   cases: (org: string, project: string) =>
     apiClient.request<BindingCase[]>(`${root(org, project)}/cases`),
   createCase: (org: string, project: string, value: { slug: string; name: string; description: string }) =>
     apiClient.request<BindingCase>(`${root(org, project)}/cases`, {
       method: 'POST', body: JSON.stringify(value),
     }),
+  updateCase: (org: string, project: string, caseSlug: string, value: { name?: string; description?: string }) =>
+    apiClient.request<BindingCase>(`${root(org, project)}/cases/${encodeURIComponent(caseSlug)}`, {
+      method: 'PATCH', body: JSON.stringify(value),
+    }),
+  deleteCase: (org: string, project: string, caseSlug: string) =>
+    apiClient.request<void>(`${root(org, project)}/cases/${encodeURIComponent(caseSlug)}`, { method: 'DELETE' }),
+  case: (org: string, project: string, caseSlug: string) =>
+    apiClient.request<BindingCase>(`${root(org, project)}/cases/${encodeURIComponent(caseSlug)}`),
   revisions: (org: string, project: string, bindingCase: string) =>
+    apiClient.request<CaseRevision[]>(
+      `${root(org, project)}/cases/${encodeURIComponent(bindingCase)}/revisions`,
+    ),
+  caseRevisions: (org: string, project: string, bindingCase: string) =>
     apiClient.request<CaseRevision[]>(
       `${root(org, project)}/cases/${encodeURIComponent(bindingCase)}/revisions`,
     ),
@@ -276,12 +391,23 @@ export const platformApi = {
       `${root(org, project)}/cases/${encodeURIComponent(bindingCase)}/revisions`,
       { method: 'POST', body: JSON.stringify({ document, source_snapshot_id: source_snapshot_id ?? null }) },
     ),
+  createCaseRevision: (org: string, project: string, bindingCase: string, document: Record<string, unknown>, source_snapshot_id?: string | null, resources: ArtifactUse[] = []) =>
+    apiClient.request<CaseRevision>(
+      `${root(org, project)}/cases/${encodeURIComponent(bindingCase)}/revisions`,
+      { method: 'POST', body: JSON.stringify({ document, source_snapshot_id: source_snapshot_id ?? null, resources }) },
+    ),
   resources: (org: string, project: string) =>
     apiClient.request<ProjectResource[]>(`${root(org, project)}/resources`),
   createResource: (org: string, project: string, value: { slug: string; name: string; description: string; kind: string }) =>
     apiClient.request<ProjectResource>(`${root(org, project)}/resources`, {
       method: 'POST', body: JSON.stringify(value),
     }),
+  updateResource: (org: string, project: string, resourceSlug: string, value: { name?: string; description?: string; kind?: string }) =>
+    apiClient.request<ProjectResource>(`${root(org, project)}/resources/${encodeURIComponent(resourceSlug)}`, {
+      method: 'PATCH', body: JSON.stringify(value),
+    }),
+  deleteResource: (org: string, project: string, resourceSlug: string) =>
+    apiClient.request<void>(`${root(org, project)}/resources/${encodeURIComponent(resourceSlug)}`, { method: 'DELETE' }),
   resourceRevisions: (org: string, project: string, resource: string) =>
     apiClient.request<ProjectResourceRevision[]>(
       `${root(org, project)}/resources/${encodeURIComponent(resource)}/revisions`,
@@ -297,42 +423,78 @@ export const platformApi = {
     apiClient.request<Collection>(`${root(org, project)}/collections`, {
       method: 'POST', body: JSON.stringify(value),
     }),
+  updateCollection: (org: string, project: string, collection: string, value: { name?: string; description?: string }) =>
+    apiClient.request<Collection>(`${root(org, project)}/collections/${encodeURIComponent(collection)}`, {
+      method: 'PATCH', body: JSON.stringify(value),
+    }),
+  deleteCollection: (org: string, project: string, collection: string) =>
+    apiClient.request<void>(`${root(org, project)}/collections/${encodeURIComponent(collection)}`, { method: 'DELETE' }),
   collectionRevisions: (org: string, project: string, collection: string) =>
     apiClient.request<CollectionRevision[]>(`${root(org, project)}/collections/${encodeURIComponent(collection)}/revisions`),
   createCollectionRevision: (org: string, project: string, collection: string, items: CollectionItem[]) =>
     apiClient.request<CollectionRevision>(`${root(org, project)}/collections/${encodeURIComponent(collection)}/revisions`, {
       method: 'POST', body: JSON.stringify({ items }),
     }),
-  studies: (org: string, project: string) =>
-    apiClient.request<Study[]>(`${root(org, project)}/studies`),
-  createStudy: (org: string, project: string, value: Pick<Study, 'slug' | 'name' | 'description' | 'definition'>) =>
+  studies: (org: string, project: string, includeArchived = false) =>
+    apiClient.request<Study[]>(`${root(org, project)}/studies?include_archived=${includeArchived}`),
+  createStudy: (org: string, project: string, value: Pick<Study, 'slug' | 'name' | 'description'> & ({ definition: Study['definition'] } | { definition_version_id: string })) =>
     apiClient.request<Study>(`${root(org, project)}/studies`, {
       method: 'POST', body: JSON.stringify(value),
     }),
+  updateStudy: (org: string, project: string, study: string, value: { name?: string; description?: string; definition_version_id?: string; archived?: boolean }) =>
+    apiClient.request<Study>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, {
+      method: 'PATCH', body: JSON.stringify(value),
+    }),
+  deleteStudy: (org: string, project: string, study: string) =>
+    apiClient.request<void>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, { method: 'DELETE' }),
   reports: (org: string, project: string) =>
     apiClient.request<Report[]>(`${root(org, project)}/reports`),
   createReport: (org: string, project: string, value: { slug: string; title: string; study_run_id: string | null; document: Record<string, unknown> }) =>
     apiClient.request<Report>(`${root(org, project)}/reports`, {
       method: 'POST', body: JSON.stringify(value),
     }),
+  updateReport: (org: string, project: string, report: string, value: { title?: string; document?: Record<string, unknown>; draft_revision?: number }) =>
+    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}`, {
+      method: 'PATCH', body: JSON.stringify(value),
+    }),
+  deleteReport: (org: string, project: string, report: string) =>
+    apiClient.request<void>(`${root(org, project)}/reports/${encodeURIComponent(report)}`, { method: 'DELETE' }),
+  report: (org: string, project: string, reportSlug: string) =>
+    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(reportSlug)}`),
+  createReportDraft: (org: string, project: string, report: string) =>
+    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}/drafts`, { method: 'POST' }),
   freezeReport: (org: string, project: string, report: string) =>
     apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}/freeze`, { method: 'POST' }),
   publications: (org: string, project: string) =>
     apiClient.request<Publication[]>(`${root(org, project)}/publications`),
-  publishReport: (org: string, project: string, value: { report_id: string; slug: string; citation: Record<string, unknown> }) =>
+  publishReport: (org: string, project: string, value: { report_id: string; version_id?: string; slug: string; citation: Record<string, unknown> }) =>
     apiClient.request<Publication>(`${root(org, project)}/publications`, {
       method: 'POST', body: JSON.stringify(value),
     }),
+  deletePublication: (org: string, project: string, publication: string) =>
+    apiClient.request<void>(`${root(org, project)}/publications/${encodeURIComponent(publication)}`, { method: 'DELETE' }),
   artifacts: (org: string, project: string) =>
-    apiClient.request<Artifact[]>(`${root(org, project)}/artifacts`),
+    apiClient.request<StoredBlob[]>(`${root(org, project)}/blobs`),
   uploadArtifact: (org: string, project: string, file: File, makePublic: boolean) =>
-    apiClient.request<Artifact>(`${root(org, project)}/artifacts?public=${makePublic}`, {
+    apiClient.request<StoredBlob>(`${root(org, project)}/blobs?public=${makePublic}`, {
       method: 'POST',
       headers: { 'Content-Type': file.type || 'application/octet-stream' },
       body: file,
     }),
   downloadArtifact: (org: string, project: string, digest: string) =>
-    apiClient.requestBinary(`${root(org, project)}/artifacts/${encodeURIComponent(digest)}`),
+    apiClient.requestBinary(`${root(org, project)}/blobs/${encodeURIComponent(digest)}`),
+  deleteArtifact: (org: string, project: string, digest: string) =>
+    apiClient.request<void>(`${root(org, project)}/blobs/${encodeURIComponent(digest)}`, { method: 'DELETE' }),
+  projectJobs: (org: string, project: string, jobId?: string) =>
+    apiClient.request<Job[]>(`${root(org, project)}/jobs?${jobId ? `job_id=${encodeURIComponent(jobId)}` : 'include_results=false'}`),
+  snapshot: (id: string) =>
+    apiClient.request<Snapshot>(`/v1/snapshots/${encodeURIComponent(id)}`),
+  snapshotArchive: (id: string) =>
+    apiClient.requestBinary(`/v1/snapshots/${encodeURIComponent(id)}/archive`),
+  engineRevisions: () =>
+    apiClient.request<{ revisions: EngineRevision[] }>('/v1/engines/revisions'),
+  engineRevision: (namespace: string, name: string, version: string) =>
+    apiClient.request<EngineRevision>(`/v1/engines/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/revisions/${encodeURIComponent(version)}`),
   exportPackage: (org: string, project: string) =>
     apiClient.requestBinary(`${root(org, project)}/package`),
   importPackage: (org: string, project: string, file: File) =>
@@ -351,9 +513,9 @@ export const platformApi = {
     apiClient.request<Analytics>(
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${run}/analytics`,
     ),
-  runStudy: (org: string, project: string, study: string) =>
+  runStudy: (org: string, project: string, study: string, version: string) =>
     apiClient.request<StudyRun>(
-      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs`,
+      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs?definition_version_id=${encodeURIComponent(version)}`,
       { method: 'POST' },
     ),
   cancelStudyRun: (org: string, project: string, study: string, run: string) =>
@@ -410,4 +572,119 @@ export const platformApi = {
     `/v1/admin/pricing/drafts/${encodeURIComponent(version)}`,
     { method: 'DELETE', body: JSON.stringify({ confirmation: version }) },
   ),
+  inspectVerifier: (payload: VerifierInspectRequest) =>
+    apiClient.request<VerifierInspectResponse>('/v1/verifier/inspect', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  inspectVerifierFile: async (file: File | Blob, filename?: string) => {
+    const arrayBuffer = await file.arrayBuffer();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/octet-stream',
+    };
+    if (filename || ('name' in file && (file as File).name)) {
+      headers['X-Filename'] = filename || (file as File).name;
+    }
+    return apiClient.request<VerifierInspectResponse>('/v1/verifier/inspect-file', {
+      method: 'POST',
+      headers,
+      body: arrayBuffer,
+    });
+  },
+  resolveElement: (kind: string, digest: string, limit = 20, offset = 0) =>
+    apiClient.request<ResolveResponse>(
+      `/v1/resolve/${encodeURIComponent(kind)}/${encodeURIComponent(digest)}?limit=${limit}&offset=${offset}`,
+      { method: 'GET' }
+    ),
+  resolveContentUrl: (kind: string, digest: string) =>
+    `/v1/resolve/${encodeURIComponent(kind)}/${encodeURIComponent(digest)}/content`,
 };
+
+export interface ResolveOrganizationRef {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+export interface ResolveProjectRef {
+  id: string;
+  slug: string;
+  name: string;
+  visibility: string;
+}
+
+export interface ResolveAuthorRef {
+  id: string;
+  username?: string | null;
+  email?: string | null;
+}
+
+export interface ResolveLocation {
+  organization?: ResolveOrganizationRef | null;
+  project?: ResolveProjectRef | null;
+  element_id: string;
+  slug?: string | null;
+  version_or_revision?: string | number | null;
+  created_at?: string | null;
+  web_url?: string | null;
+}
+
+export interface ResolvePagination {
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
+export interface ResolveResponse {
+  verified: boolean;
+  kind: string;
+  digest: string;
+  canonical_name?: string | null;
+  media_type: string;
+  size_bytes?: number | null;
+  created_at?: string | null;
+  author?: ResolveAuthorRef | null;
+  document?: Record<string, unknown> | unknown[] | null;
+  content_url: string;
+  locations: ResolveLocation[];
+  pagination: ResolvePagination;
+  citation?: ReplicationCitation | null;
+}
+
+export interface ReplicationCitation {
+  title?: string;
+  authors?: string[];
+  year?: number;
+  doi?: string | null;
+  venue?: string | null;
+  url?: string | null;
+  bibtex: string;
+  markdown_badge: string;
+  uri?: string;
+}
+
+export interface VerifierEntityMatch {
+  kind: string;
+  identity: string;
+  slug?: string | null;
+  name?: string | null;
+  canonical_digest: string;
+  raw_sha256?: string | null;
+  verified_at: string;
+  replication_citation?: ReplicationCitation | null;
+}
+
+export interface VerifierInspectResponse {
+  verified: boolean;
+  computed_canonical_digest: string;
+  computed_raw_sha256?: string | null;
+  match?: VerifierEntityMatch | null;
+  detail: string;
+}
+
+export interface VerifierInspectRequest {
+  target_kind?: string;
+  target_digest?: string;
+  document?: Record<string, unknown> | unknown[];
+}

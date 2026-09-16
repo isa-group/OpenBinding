@@ -18,6 +18,7 @@ from openbinding_gateway.v1.compiler import (
     install_profile_contract,
     uninstall_dialect_contract,
     uninstall_profile_contract,
+    manifest_reference,
 )
 from openbinding_gateway.v1.canonical import digest
 from openbinding_gateway.v1.expressions import ExpressionError, compile_expression
@@ -593,6 +594,25 @@ def test_installed_profiles_and_dialects_form_a_closed_extensible_framework():
     assert list(_schema_validator("Dialect").iter_errors(extension_only)) == []
 
 
+def test_builtin_release_labels_pin_the_complete_contract_and_implementation(monkeypatch):
+    from openbinding_gateway.v1 import compiler
+    original = compiler.installed_profile_manifests()[0]
+    original_dialects = compiler.installed_dialect_manifests()
+    assert compiler.installed_profile_manifests()[0] == original
+    assert '+' in original['metadata']['version']
+    assert len(original['metadata']['version']) <= 64
+    assert compiler._builtin_release(deepcopy(original)) == original
+    schema_change = deepcopy(original)
+    schema_change['spec']['output']['schemaDigest'] = 'sha256-' + 'f' * 64
+    assert compiler._builtin_release(schema_change)['metadata']['version'] != original['metadata']['version']
+    monkeypatch.setattr(compiler, 'compiler_bundle_digest', lambda: 'sha256-' + 'd' * 64)
+    rebuilt = compiler.installed_profile_manifests()[0]
+    assert rebuilt['metadata']['version'] != original['metadata']['version']
+    assert rebuilt['spec']['adapter']['version'] != original['spec']['adapter']['version']
+    assert all(new['metadata']['version'] != old['metadata']['version']
+        for new, old in zip(compiler.installed_dialect_manifests(), original_dialects))
+
+
 def test_profile_adapter_pins_cannot_replace_or_uninstall_the_builtin_abi():
     relabelled = deepcopy(installed_profile_manifests()[0])
     relabelled["metadata"] = {
@@ -609,7 +629,8 @@ def test_profile_adapter_pins_cannot_replace_or_uninstall_the_builtin_abi():
     assert compile_instance(base_package()).document["spec"]["profile"]["id"] == "qos-binding/v1"
 
 
-def test_profile_adapter_receives_core_resolved_input_and_must_return_pinned_output():
+@pytest.mark.parametrize("coexist", [False, True])
+def test_profile_adapter_receives_core_resolved_input_and_must_return_pinned_output(coexist):
     output_schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -761,6 +782,8 @@ def test_profile_adapter_receives_core_resolved_input_and_must_return_pinned_out
                 "resources": {"terms": {"input": "input.json"}},
             },
         }
+        if coexist:
+            root["spec"]["contracts"] = {"profile": manifest_reference(profile), "dialects": [manifest_reference(dialect)]}
         files = {"instance.json": json.dumps(root).encode()}
         if include_input:
             files["input.json"] = json.dumps({
@@ -777,6 +800,14 @@ def test_profile_adapter_receives_core_resolved_input_and_must_return_pinned_out
         resource_schemas={identity: input_schema},
         resource_lowerers={identity: lambda document, _context: document["spec"]},
     )
+    profile2, dialect2 = deepcopy(profile), deepcopy(dialect)
+    if coexist:
+        for contract in (profile2, dialect2):
+            contract["metadata"]["version"] = "1.1.0"
+            contract["spec"]["adapter"]["version"] = "1.1.0"
+        install_profile_contract(profile2, adapter, output_schema=output_schema)
+        install_dialect_contract(dialect2, resource_schemas={identity: input_schema},
+                                 resource_lowerers={identity: lambda document, _context: document["spec"]})
     try:
         compiled = compile_instance(audit_package("valid"))
         assert compiled.document["spec"]["inputs"] == ["input"]
@@ -791,7 +822,16 @@ def test_profile_adapter_receives_core_resolved_input_and_must_return_pinned_out
 
         with pytest.raises(CompileError, match="different canonical outputs"):
             compile_instance(audit_package("nondeterministic"))
+        if coexist:
+            pinned = audit_package("other-version")
+            root = pinned.instance()
+            root["spec"]["contracts"] = {"profile": manifest_reference(profile2), "dialects": [manifest_reference(dialect2)]}
+            other = InstancePackage({**pinned.files, "instance.json": json.dumps(root).encode()})
+            assert compile_instance(other).document["spec"]["inputs"] == ["input"]
     finally:
+        if coexist:
+            uninstall_dialect_contract(dialect2)
+            uninstall_profile_contract(profile2)
         uninstall_dialect_contract(dialect)
         uninstall_profile_contract(profile)
 
@@ -1573,3 +1613,23 @@ def test_bpmn_rejects_conditions_outside_xor_and_dangling_flow_sources():
     value.files["workflow.bpmn"] = value.files["workflow.bpmn"].replace(b'sourceRef="start"', b'sourceRef="missing"', 1)
     with pytest.raises(CompileError, match="sourceRef targets unknown"):
         compile_instance(value)
+
+
+def test_contextual_aliases_rebind_declared_references_without_changing_bytes():
+    original = base_package()
+    files = dict(original.files)
+    root = original.instance()
+    application = root['spec']['resources']['application']
+    application['experiment-app'] = application.pop('app')
+    root['spec']['bindings'] = {
+        alias: {'app': 'experiment-app'}
+        for group in root['spec']['resources'].values() for alias in group
+    }
+    files['instance.json'] = json.dumps(root).encode()
+    rebound = InstancePackage(files)
+    compiled = compile_instance(rebound)
+    assert compiled.document['spec']['application']['resource'] == 'experiment-app'
+    assert compiled.document['spec']['application']['tasks'] == compile_instance(original).document['spec']['application']['tasks']
+    for path, content in original.files.items():
+        if path != 'instance.json':
+            assert rebound.files[path] == content

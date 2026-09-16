@@ -235,7 +235,7 @@
 .study-builder-options output { align-self: center; color: var(--color-text-tertiary); font: 0.58rem var(--font-mono); }
 .study-builder-options button { min-height: 2.6rem; padding: 0.7rem 1rem; border: 0; background: var(--color-accent); color: white; font-size: 0.67rem; font-weight: 700; cursor: pointer; }
 
-.analysis-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 0.75rem; }
+.analysis-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem; }
 .analysis-kpis article { display: grid; grid-template: auto auto / auto 1fr; gap: 0.3rem 0.7rem; padding: 1rem; border: 1px solid var(--color-border); background: var(--color-bg-elevated); }
 .analysis-kpis svg { width: 1rem; color: var(--color-dialect); }
 .analysis-kpis small { color: var(--color-text-tertiary); font: 0.58rem var(--font-mono); text-transform: uppercase; }
@@ -402,4 +402,175 @@
 @media (prefers-reduced-motion: reduce) {
   .pulse-path, .pulse-node circle:last-child { animation: none; }
   .platform-primary-action, .workspace-card { transition: none; }
+}
+
+/* Onboarding Zero-State Card */
+.platform-onboarding-card {
+  margin-block: var(--space-6);
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-bg-elevated) 0%, var(--color-bg-secondary) 100%);
+  box-shadow: var(--shadow-sm);
+}
+.onboarding-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+.onboarding-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--color-accent), var(--color-dialect));
+  color: #fff;
+  flex-shrink: 0;
+}
+.onboarding-icon svg {
+  width: 24px;
+  height: 24px;
+}
+.onboarding-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.onboarding-header p {
+  margin: 0.35rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.onboarding-concepts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+.concept-box {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+.concept-box h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.concept-box p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.onboarding-form {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-6);
+}
+.onboarding-form h3 {
+  margin: 0 0 var(--space-4);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.onboarding-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.onboarding-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.onboarding-form-grid input {
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+.onboarding-form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+/* Danger Zone Section */
+.danger-zone-section {
+  margin-top: 4rem;
+  padding: 1.5rem;
+  border: 1px solid var(--color-error, #ef4444);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-error, #ef4444) 6%, transparent);
+}
+.danger-zone-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.danger-zone-header svg {
+  color: var(--color-error, #ef4444);
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.danger-zone-header h2,
+.danger-zone-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-error, #ef4444);
+}
+.danger-zone-desc {
+  margin: 0 0 1.25rem;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.danger-zone-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--color-error, #ef4444);
+  border-radius: var(--radius-sm);
+  background: var(--color-error, #ef4444);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.btn-danger:hover {
+  opacity: 0.9;
+}
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.binding-space-panel {
+  overflow: visible !important;
 }

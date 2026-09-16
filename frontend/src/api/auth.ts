@@ -14,7 +14,7 @@ export type ApiKeyPermission =
   | 'keys:write'
   | 'instances:read'
   | 'instances:write'
-  | 'instances:analyze'
+  | 'instances:validate'
   | 'jobs:read'
   | 'engines:read'
   | 'engines:execute'

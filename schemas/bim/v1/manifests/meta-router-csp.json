@@ -1,0 +1,82 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Engine",
+  "metadata": {
+    "namespace": "bim.builtin",
+    "name": "meta-router-csp",
+    "version": "1.0.0",
+    "description": "Internal Meta-Router CSP Solver for Self-Adaptive Engine Selection",
+    "internal": true
+  },
+  "spec": {
+    "modes": [
+      {
+        "id": "meta-routing",
+        "profile": "qos-binding/v1",
+        "ir": {
+          "apiVersion": "bim/v1",
+          "kind": "BindingProblem"
+        },
+        "algorithm": "meta-router-csp",
+        "capabilities": {
+          "workflowNodes": {
+            "selector": "only",
+            "values": ["task"]
+          },
+          "aggregations": {
+            "selector": "only",
+            "values": ["selection.sum"]
+          },
+          "metricScopes": {
+            "selector": "only",
+            "values": ["selectedCandidate"]
+          },
+          "constraints": {
+            "selector": "only",
+            "values": ["hard.aggregate-bound"]
+          },
+          "optimization": {
+            "selector": "only",
+            "values": ["weighted"]
+          },
+          "objectiveTypes": {
+            "selector": "only",
+            "values": ["MONO"]
+          },
+          "expressions": {
+            "selector": "only",
+            "values": ["literal"]
+          },
+          "placement": {
+            "selector": "none"
+          },
+          "irExtensions": {
+            "selector": "none"
+          }
+        },
+        "optionsSchema": {
+          "type": "object",
+          "properties": {
+            "time_budget_ms": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000,
+              "default": 500
+            }
+          },
+          "additionalProperties": false
+        },
+        "limits": {
+          "maxTasks": 1,
+          "maxCandidates": 100,
+          "maxTimeBudgetMs": 5000
+        },
+        "guarantees": {
+          "termination": ["OPTIMAL", "FEASIBLE", "INFEASIBLE"],
+          "exact": true,
+          "deterministicWithoutTimeBudget": true
+        }
+      }
+    ]
+  }
+}

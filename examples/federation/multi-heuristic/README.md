@@ -48,21 +48,21 @@ curl -fsS -X POST "$gateway/v1/engine-registrations/multi-heuristic-deployment/a
   -H "Authorization: Bearer $admin_token" \
   --get \
   --data-urlencode 'namespace=admin' \
-  --data-urlencode 'version=1.0.0' \
+  --data-urlencode 'version=1.1.0' \
   --data-urlencode "digest=$registration_digest"
 
 curl -fsS -X POST "$gateway/v1/engine-registrations/multi-heuristic-deployment/publication-request" \
   -H "Authorization: Bearer $admin_token" \
   --get \
   --data-urlencode 'namespace=admin' \
-  --data-urlencode 'version=1.0.0' \
+  --data-urlencode 'version=1.1.0' \
   --data-urlencode "digest=$registration_digest"
 
 curl -fsS -X POST "$gateway/v1/engine-registrations/multi-heuristic-deployment/approve" \
   -H "Authorization: Bearer $admin_token" \
   --get \
   --data-urlencode 'namespace=admin' \
-  --data-urlencode 'version=1.0.0' \
+  --data-urlencode 'version=1.1.0' \
   --data-urlencode "digest=$registration_digest"
 ```
 
@@ -75,3 +75,6 @@ step; only then does an administrator receive it. Approval verifies it again,
 publishes both exact revisions, and makes the deployment available to every
 authenticated account. The owner may still deactivate or reactivate it for
 their own account without changing publication.
+
+Registration `1.1.0` pins the protocol that accepts exact artifact version references.
+The algorithm Engine remains `1.0.0`; its behavior has not changed.

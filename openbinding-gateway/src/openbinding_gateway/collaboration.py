@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db.models import (
-    Artifact,
+    Blob,
     Collection,
     Organization,
     OrganizationMembership,
@@ -78,8 +78,6 @@ async def descendant_ids(session: AsyncSession, organization_id: uuid.UUID) -> l
 async def effective_role(
     session: AsyncSession, organization_id: uuid.UUID, user: User
 ) -> OrganizationRole | None:
-    if user.is_admin:
-        return OrganizationRole.OWNER
     ancestors = await ancestor_ids(session, organization_id)
     if not ancestors:
         return None
@@ -205,8 +203,8 @@ async def organization_usage(
     )
     storage_bytes = int(
         await session.scalar(
-            select(func.coalesce(func.sum(Artifact.size_bytes), 0)).where(
-                Artifact.organization_id.in_(ids)
+            select(func.coalesce(func.sum(Blob.size_bytes), 0)).where(
+                Blob.organization_id.in_(ids)
             )
         )
         or 0

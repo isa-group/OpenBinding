@@ -31,6 +31,16 @@ describe('BIM v1 Engine API client', () => {
     vi.stubGlobal('fetch', fetchMock);
   });
 
+  it('executes an exact library configuration without inline settings', async () => {
+    const configuration = { namespace: 'lab', name: 'search', version: '2', versionDigest: DIGEST };
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'job', status: 'queued', irDigest: DIGEST }, 202));
+    await client.createConfiguredBimJob('snapshot', configuration);
+    const [url, request] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://gateway.example/v1/jobs');
+    expect(JSON.parse(String(request?.body))).toEqual({ snapshot: 'snapshot', configuration });
+    expect(new Headers(request?.headers).get('Idempotency-Key')).toBeTruthy();
+  });
+
   it('publishes the Engine resource itself, without a compatibility wrapper', async () => {
     const manifest: EngineManifest = {
       apiVersion: 'bim/v1',
@@ -145,5 +155,20 @@ describe('BIM v1 Engine API client', () => {
       'https://gateway.example/v1/schemas/Instance',
       'https://gateway.example/v1/schemas/EngineRegistration',
     ]);
+  });
+  it('propagates caller cancellation to the actual fetch', async () => {
+    const caller = new AbortController();
+    fetchMock.mockImplementation((_url, options) => new Promise((_resolve, reject) => {
+      options?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+    }));
+    const pending = client.getBindingNeighborhood('job', 0, '', 64, caller.signal);
+    caller.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock.mock.calls[0][1]?.signal?.aborted).toBe(true);
+  });
+
+  it('does not mistake a validation problem for neighborhood evidence', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: 'Selected task is invalid' }, 422));
+    await expect(client.getBindingNeighborhood('job', 0, 'unknown', 64)).rejects.toThrow('Selected task is invalid');
   });
 });

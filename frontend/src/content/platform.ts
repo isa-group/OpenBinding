@@ -49,7 +49,6 @@ export const relatedProjects = [
   { name: 'OpenBinding', kind: 'Core platform', period: 'Active', role: 'BIM language, execution, collaboration and reproducibility', url: 'https://github.com/isa-group/OpenBinding' },
   { name: 'SPHERE', kind: 'Reference platform', period: 'Active', role: 'Product and administration patterns adapted for binding analysis', url: 'https://github.com/SCORELabUS/SPHERE' },
   { name: 'SPACE', kind: 'Runtime dependency', period: 'v1.5', role: 'Contracts, plan configuration and usage enforcement', url: 'https://github.com/isa-group/SPACE' },
-  { name: 'Pricing4SaaS', kind: 'Research ecosystem', period: 'Active', role: 'Pricing2Yaml, validation and pricing-driven operation', url: 'https://github.com/isa-group' },
 ] as const;
 
 export const contributionTracks = [

@@ -138,7 +138,7 @@ def _assert_component(component: str, payload: dict) -> None:
         ("GET", "/v1/catalog"),
         ("GET", "/v1/engines"),
         ("GET", "/v1/engine-registrations"),
-        ("POST", "/v1/analyze"),
+        ("POST", "/v1/validate"),
         ("POST", "/v1/jobs"),
         ("POST", "/v1/engines"),
         ("POST", "/v1/engine-registrations"),
@@ -612,6 +612,21 @@ async def test_registration_owner_controls_private_and_public_access(
     )
     assert reactivated.status_code == 200, reactivated.text
     assert reactivated.json()["active"] is True
+
+    delete_resp = await api_client.delete(
+        f"/v1/engine-registrations/{name}",
+        params=reference,
+        headers=owner_headers,
+    )
+    assert delete_resp.status_code == 204
+
+    lookup_after_delete = await api_client.get(
+        f"/v1/engine-registrations/{name}",
+        params=reference,
+        headers=owner_headers,
+    )
+    assert lookup_after_delete.status_code == 404
+
 
 
 async def test_approvals_and_publications_do_not_cross_revision_digests(

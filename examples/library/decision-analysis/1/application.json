@@ -1,0 +1,70 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "18_analysis_constraints_application"
+  },
+  "spec": {
+    "tasks": {
+      "ingest": "service/analysis",
+      "publish": "service/analysis"
+    },
+    "metrics": {
+      "cost": {
+        "unit": "eur",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "latency": {
+        "unit": "ms",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": {
+          "sequence": "sum",
+          "parallel": "max",
+          "exclusive": "weightedSum",
+          "repeat": "scale",
+          "selection": "sum"
+        },
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "quality": {
+        "unit": "points",
+        "direction": "maximize",
+        "scope": "invocation",
+        "aggregation": "sum",
+        "domain": {
+          "kind": "real",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "workflow": {
+      "sequence": [
+        {
+          "task": {
+            "resource": "application",
+            "id": "ingest"
+          }
+        },
+        {
+          "task": {
+            "resource": "application",
+            "id": "publish"
+          }
+        }
+      ]
+    }
+  }
+}

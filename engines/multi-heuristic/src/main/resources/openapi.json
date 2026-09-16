@@ -2,10 +2,10 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Federated Multi-Heuristic BIM Engine",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "x-bim-protocol": "bim-engine/v1",
-  "x-bim-protocol-digest": "sha256-cd8ce3b00943aa625ba5de61c862e00c858e82dcd4f132592c9ca33db5deeecf",
+  "x-bim-protocol-digest": "sha256-8fd6a9e8c2294542a0338f3bcc4186f4832485ad83b58c609717c307ef58c0dd",
   "paths": {
     "/internal/v1/binding-problems": {
       "post": {

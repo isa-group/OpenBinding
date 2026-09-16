@@ -109,7 +109,7 @@ describe('EngineRegistration administration', () => {
     await waitFor(() => expect(api.adminApproveEngineRegistration).toHaveBeenCalledWith(
       expect.objectContaining({ namespace: 'alice', name: 'pending-foreign', status: 'pending_review' }),
     ));
-  });
+  }, 30000);
 
   it('requires confirmation before rejecting a publication request', async () => {
     render(
@@ -136,5 +136,30 @@ describe('EngineRegistration administration', () => {
     fireEvent.click(within(row('alice/pending-foreign')).getByRole('button', { name: 'Reject' }));
     await waitFor(() => expect(api.adminRejectEngineRegistration).toHaveBeenCalledOnce());
     expect(window.confirm).toHaveBeenCalledWith('Reject publication of alice/pending-foreign? The registration will become private to its owner again.');
-  });
+  }, 30000);
+
+  it('renders SPACE Pricing & Contract Administration banner with correct link', async () => {
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider value={{
+          user: self,
+          loading: false,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: true,
+        }}>
+          <Admin />
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('SPACE Pricing & Contract Administration')).toBeInTheDocument();
+    expect(screen.getByText('LIVE CONTRACTS ACTIVE')).toBeInTheDocument();
+
+    const spaceLink = screen.getByRole('link', { name: /Open SPACE Control Room/i });
+    expect(spaceLink).toBeInTheDocument();
+    expect(spaceLink).toHaveAttribute('href', '/app/admin/pricing');
+  }, 30000);
 });

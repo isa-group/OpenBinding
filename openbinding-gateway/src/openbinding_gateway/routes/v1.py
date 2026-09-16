@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
+import logging
 import time
 import uuid
 from datetime import datetime, timezone
@@ -18,16 +19,17 @@ from typing import Any, Mapping
 
 import jsonschema
 import yaml
+from ..models.analysis import NeighborhoodResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import or_, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import space_client
 from ..access import metering
 from ..access.dependencies import optional_session, require_v1_admin, solve_caller
-from ..access.policy import clamp_options, payload_ceiling_bytes, solve_timeout_s
+from ..access.policy import clamp_options, instance_complexity_too_large, payload_ceiling_bytes, solve_timeout_s
 from ..core.settings import get_settings
 from ..db import base as db_base
 from ..db.models import (
@@ -42,8 +44,10 @@ from ..db.models import (
     JobProvenance,
     JobState,
     ManifestPublication,
+    Notification,
     RegisteredResourceRevision,
     User,
+    UserRole,
     utcnow,
 )
 from ..job_dispatch import dispatch_persisted_job
@@ -56,6 +60,7 @@ from ..v1.compiler import (
     compile_instance,
     compiler_bundle_digest,
     _dialect_descriptor,
+    _profile_descriptor,
     _dialect_type_matches,
     _dialect_xml_type_matches,
     _resource_schema_diagnostics,
@@ -77,6 +82,8 @@ from ..v1.package import (
 )
 from ..v1.remote import RemoteEngineError, RemoteRegistration, fetch_remote_document, solve_remote, validate_endpoint
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/v1", tags=["BIM v1"])
 
 _SNAPSHOTS: dict[str, dict[str, Any]] = {}
@@ -89,11 +96,20 @@ _ENGINE_PROTOCOL_PATH = _schema_root().parents[1] / "engine-contract.openapi.yam
 _BIM_ZIP_TYPES = {"application/zip", "application/octet-stream", "application/vnd.bim+zip", "application/x-bim+zip"}
 
 
-def _problem(status_code: int, code: str, detail: str, diagnostics: list[dict[str, Any]] | None = None) -> JSONResponse:
+def _problem(
+    status_code: int,
+    code: str,
+    detail: str,
+    diagnostics: list[dict[str, Any]] | None = None,
+    extra: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> JSONResponse:
     body: dict[str, Any] = {"type": f"https://openbinding.dev/problems/{code}", "title": code, "status": status_code, "detail": detail}
     if diagnostics:
         body["diagnostics"] = diagnostics
-    return JSONResponse(body, status_code=status_code, media_type="application/problem+json")
+    if extra:
+        body.update(extra)
+    return JSONResponse(body, status_code=status_code, media_type="application/problem+json", headers=headers)
 
 
 def _instance_identity(package: InstancePackage) -> str:
@@ -664,11 +680,14 @@ def _manifest(
     namespace: str | None = None,
     version: str | None = None,
     manifest_digest: str | None = None,
+    allow_internal: bool = False,
 ) -> dict[str, Any]:
     candidates = []
     path = _MANIFEST_DIR / f"{name}.json"
     try:
         builtin = json.loads(path.read_text(encoding="utf-8"))
+        if not allow_internal and builtin.get("metadata", {}).get("internal", False):
+            raise HTTPException(status_code=404, detail=f"Unknown v1 engine: {name}")
         builtin_namespace = builtin.get("metadata", {}).get("namespace")
         builtin_version = builtin.get("metadata", {}).get("version")
         if (
@@ -1294,7 +1313,10 @@ async def _available_engine_documents(
 ) -> list[tuple[dict[str, Any], str | None]]:
     documents: list[tuple[dict[str, Any], str | None]] = []
     for path in sorted(_MANIFEST_DIR.glob("*.json")):
-        documents.append((json.loads(path.read_text(encoding="utf-8")), "bim.builtin"))
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        if doc.get("metadata", {}).get("internal", False):
+            continue
+        documents.append((doc, "bim.builtin"))
     if session is not None:
         query = select(EngineRevision)
         if caller is None:
@@ -1311,7 +1333,11 @@ async def _available_engine_documents(
                 query.order_by(EngineRevision.name, EngineRevision.created_at.desc())
             )
         ).scalars().all()
-        documents.extend((revision.document, revision.namespace) for revision in revisions)
+        documents.extend(
+            (revision.document, revision.namespace)
+            for revision in revisions
+            if not revision.document.get("metadata", {}).get("internal", False)
+        )
     unique: dict[tuple[str, str, str, str], tuple[dict[str, Any], str | None]] = {}
     for document, namespace in documents:
         reference = _engine_ref(document, namespace)
@@ -1528,9 +1554,21 @@ def _registered_keys(package: InstancePackage) -> set[tuple[str, str, str, str]]
 async def _installed_registered_resources(
     package: InstancePackage,
     session: AsyncSession | None,
+    caller: User | None = None,
 ) -> dict[tuple[str, str, str, str], RegisteredResource]:
+    library_resources = {}
+    if session is not None:
+        from ..artifacts import resolve_version, version_content
+        from ..models.artifacts import ArtifactRef
+        for group in package.instance().get("spec", {}).get("resources", {}).values():
+            for target in group.values() if isinstance(group, dict) else []:
+                if isinstance(target, dict) and "versionDigest" in target:
+                    _, version = await resolve_version(session, ArtifactRef.model_validate(target), caller)
+                    content, media_type = await version_content(session, version)
+                    key = tuple(target[field] for field in ("namespace", "name", "version", "versionDigest"))
+                    library_resources[key] = RegisteredResource(content, media_type, version.manifest)
     keys = _registered_keys(package)
-    resolved = {key: value for key, value in _CUSTOM_RESOURCES.items() if key in keys}
+    resolved = {**library_resources, **{key: value for key, value in _CUSTOM_RESOURCES.items() if key in keys}}
     if not keys or session is None:
         return resolved
     digests = {key[3] for key in keys}
@@ -1552,8 +1590,9 @@ async def _installed_registered_resources(
 async def _compile_resolved(
     package: InstancePackage,
     session: AsyncSession | None,
+    caller: User | None = None,
 ) -> BindingProblem:
-    return _compile(package, await _installed_registered_resources(package, session))
+    return _compile(package, await _installed_registered_resources(package, session, caller))
 
 
 def _snapshot_payload(package: InstancePackage, problem: BindingProblem) -> dict[str, Any]:
@@ -1628,9 +1667,15 @@ async def _persist_snapshot(
     instance = portable.instance()
     instance_hash = _instance_identity(package)
     package_hash = digest_bytes(archive)
+    from ..v1.compiler import compiler_bundle_digest
+    compilation_hash = digest({"packageDigest": package_hash,
+        "profile": problem.document.get("spec", {}).get("profile"),
+        "dialects": problem.document.get("spec", {}).get("dialects", []),
+        "compilerDigest": compiler_bundle_digest()})
     owner_id = caller.id if caller else None
     query = select(InstanceSnapshot).where(
         InstanceSnapshot.package_digest == package_hash,
+        InstanceSnapshot.compilation_digest == compilation_hash,
         InstanceSnapshot.owner_id == owner_id,
     )
     existing = (await session.execute(query)).scalars().first()
@@ -1645,13 +1690,22 @@ async def _persist_snapshot(
         root_document=portable.json("instance.json"),
         resource_digests=_source_resource_digests(problem),
         source_archive=archive,
+        compilation_digest=compilation_hash,
     )
-    session.add(snapshot)
-    await session.flush()
+    try:
+        async with session.begin_nested():
+            session.add(snapshot)
+            await session.flush()
+    except IntegrityError:
+        existing = await session.scalar(query)
+        if existing is not None:
+            return str(existing.id)
+        raise
+
 
     resources = instance.get("spec", {}).get("resources", {})
     manifest = problem.document.get("spec", {}).get("instance", {}).get("resources", {})
-    installed_registered = await _installed_registered_resources(portable, session)
+    installed_registered = await _installed_registered_resources(portable, session, caller)
     for role, group in resources.items() if isinstance(resources, dict) else []:
         if not isinstance(group, dict):
             continue
@@ -1676,14 +1730,14 @@ async def _persist_snapshot(
             elif registered is not None:
                 key = tuple(
                     registered.get(field, "")
-                    for field in ("namespace", "name", "version", "digest")
+                    for field in ("namespace", "name", "version", "versionDigest" if "versionDigest" in registered else "digest")
                 )
                 resolved = installed_registered.get(key)
                 if resolved is None:
                     raise RuntimeError("compiled registered resource is no longer published locally")
                 content = resolved.content
                 media_type = resolved.media_type
-                resource_digest = registered["digest"]
+                resource_digest = resolved.version_manifest["contentDigest"] if resolved.version_manifest else registered["digest"]
                 document = None
                 if media_type == "application/json":
                     parsed = strict_json_loads(content)
@@ -1706,7 +1760,7 @@ async def _persist_snapshot(
                     registered_namespace=registered.get("namespace") if registered else None,
                     registered_name=registered.get("name") if registered else None,
                     registered_version=registered.get("version") if registered else None,
-                    registered_digest=registered.get("digest") if registered else None,
+                    registered_digest=registered.get("versionDigest", registered.get("digest")) if registered else None,
                     media_type=media_type,
                     document=document,
                     content=content,
@@ -1725,23 +1779,51 @@ async def _persist_snapshot(
     return str(snapshot.id)
 
 
+async def _snapshot_problem(snapshot: InstanceSnapshot, session: AsyncSession) -> BindingProblem:
+    """A snapshot is already compiled. Never reinterpret it using current sources."""
+    ir = await session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))
+    if ir is None:
+        raise HTTPException(409, detail={"code": "snapshot_ir_missing", "message": "Snapshot IR is unavailable"})
+    if ir.document.get('apiVersion') != 'bim/v1' or ir.document.get('kind') != 'BindingProblem':
+        raise HTTPException(422, detail={"code": "execution_capability_unavailable", "message": "This output has no installed execution evaluator"})
+    semantic = json.loads(json.dumps(ir.document))
+    semantic.pop('metadata', None)
+    for key in ('instance', 'dialects', 'sourceMap'):
+        semantic.get('spec', {}).pop(key, None)
+    if digest(semantic) != ir.ir_digest:
+        raise HTTPException(409, detail={"code": "snapshot_ir_integrity", "message": "Stored IR does not match its semantic digest"})
+    spec = ir.document.get("spec", {})
+    profile = spec.get("profile", {})
+    if profile not in [_profile_descriptor(item) for item in installed_profile_manifests()]:
+        raise HTTPException(409, detail={"code": "contract_not_installed", "message": "The exact snapshot Profile is not installed"})
+    available = [_dialect_descriptor(item) for item in installed_dialect_manifests()]
+    if any(item not in available for item in spec.get("dialects", [])):
+        raise HTTPException(409, detail={"code": "contract_not_installed", "message": "An exact snapshot Dialect is not installed"})
+    return BindingProblem(document=ir.document, digest=ir.ir_digest, source_map=ir.source_map)
+
+
 async def _owned_snapshot(snapshot_id: str, caller: User | None, session: AsyncSession | None):
-    if session is None:
+    if session is None or caller is None:
         return None
     try:
-        parsed = uuid.UUID(snapshot_id)
+        parsed = uuid.UUID(str(snapshot_id))
     except ValueError:
         return None
-    if caller is None:
-        return None
-    return (
-        await session.execute(
-            select(InstanceSnapshot).where(
-                InstanceSnapshot.id == parsed,
-                InstanceSnapshot.owner_id == caller.id,
-            )
-        )
-    ).scalars().first()
+    snapshot = await session.get(InstanceSnapshot, parsed)
+    if snapshot is None or snapshot.owner_id == caller.id:
+        return snapshot
+    # Sharing a case grants organization members access to its fixed inputs.
+    # Project visibility alone never exposes private resource dependencies.
+    from ..db.models import BindingCase, BindingCaseRevision, Project
+    from ..collaboration import effective_role
+    organizations = (await session.scalars(select(Project.organization_id).join(
+        BindingCase, BindingCase.project_id == Project.id).join(
+        BindingCaseRevision, BindingCaseRevision.binding_case_id == BindingCase.id).where(
+        BindingCaseRevision.source_snapshot_id == snapshot.id).distinct())).all()
+    for organization_id in organizations:
+        if await effective_role(session, organization_id, caller):
+            return snapshot
+    return None
 
 
 async def _owned_job(job_id: str, caller: User | None, session: AsyncSession | None):
@@ -2125,6 +2207,9 @@ async def list_dialects(session: AsyncSession | None = Depends(optional_session,
     }
 
 
+SYSTEM_NAMESPACES = frozenset({"system", "openbinding"})
+
+
 @router.post("/dialects", status_code=status.HTTP_201_CREATED)
 async def publish_dialect(
     request: Request,
@@ -2158,7 +2243,10 @@ async def publish_dialect(
         if caller is None:
             return _problem(401, "unauthorized", "Publishing a Dialect requires an account")
         namespace = document["metadata"]["namespace"]
-        if not caller.is_admin and namespace != caller.username:
+        if caller.is_admin:
+            if namespace != caller.username and namespace not in SYSTEM_NAMESPACES:
+                return _problem(403, "forbidden", "Dialect namespace must match the caller or an official system namespace")
+        elif namespace != caller.username:
             return _problem(403, "forbidden", "Dialect namespace must match the caller")
         existing = (
             await session.execute(
@@ -2173,23 +2261,42 @@ async def publish_dialect(
             if existing.digest != revision_digest:
                 return _problem(409, "immutable_dialect", "Dialect revisions are immutable; publish a new version")
             return {"namespace": namespace, "name": name, "version": version, "digest": revision_digest, "status": existing.state}
+        state = "published" if (caller.is_admin and namespace in SYSTEM_NAMESPACES) else "pending_review"
         row = DialectRevision(
-                owner_id=caller.id,
-                namespace=namespace,
-                name=name,
-                version=version,
-                digest=revision_digest,
-                adapter_digest=adapter_digest,
-                document=document,
-                state="pending_review",
-            )
+            owner_id=caller.id,
+            namespace=namespace,
+            name=name,
+            version=version,
+            digest=revision_digest,
+            adapter_digest=adapter_digest,
+            document=document,
+            state=state,
+        )
         try:
             async with session.begin_nested():
                 session.add(row)
+                if state == "published":
+                    publication = (
+                        await session.execute(
+                            select(ManifestPublication).where(
+                                ManifestPublication.resource_kind == "Dialect",
+                                ManifestPublication.resource_digest == revision_digest,
+                            )
+                        )
+                    ).scalars().first()
+                    if publication is None:
+                        session.add(
+                            ManifestPublication(
+                                resource_kind="Dialect",
+                                resource_digest=revision_digest,
+                                publisher_id=caller.id,
+                                state="public",
+                            )
+                        )
                 await session.flush()
         except IntegrityError:
             return _problem(409, "immutable_dialect", "Dialect identity already exists with different content")
-        return {"namespace": namespace, "name": name, "version": version, "digest": revision_digest, "status": "pending_review"}
+        return {"namespace": namespace, "name": name, "version": version, "digest": revision_digest, "status": state}
     if not _installed_dialect_contract(document):
         return _problem(409, "adapter_not_installed", "Dialect does not match an installed adapter and schema contract")
     namespace = document["metadata"]["namespace"]
@@ -2258,8 +2365,12 @@ async def register_bim_resource(
     """Store an immutable BIM source resource; no executable adapter is accepted."""
     if session is not None and caller is None:
         return _problem(401, "unauthorized", "Registering a BIM resource requires an account")
-    if caller is not None and not caller.is_admin and namespace != caller.username:
-        return _problem(403, "forbidden", "Resource namespace must match the caller")
+    if caller is not None:
+        if caller.is_admin:
+            if namespace != caller.username and namespace not in SYSTEM_NAMESPACES:
+                return _problem(403, "forbidden", "Resource namespace must match the caller or an official system namespace")
+        elif namespace != caller.username:
+            return _problem(403, "forbidden", "Resource namespace must match the caller")
     content_type = (request.headers.get("content-type") or "").split(";", 1)[0].casefold()
     body = await request.body()
     if len(body) > MAX_EXPANDED:
@@ -2351,7 +2462,7 @@ async def register_bim_resource(
         )
     revision_digest = resource_digest(filename, content)
     key = (namespace, name, version, revision_digest)
-    state = "published" if caller is None or caller.is_admin else "pending_review"
+    state = "published" if (caller is None or (caller.is_admin and namespace in SYSTEM_NAMESPACES)) else "pending_review"
     if session is not None:
         existing = (
             await session.execute(
@@ -2390,6 +2501,24 @@ async def register_bim_resource(
         try:
             async with session.begin_nested():
                 session.add(row)
+                if state == "published":
+                    publication = (
+                        await session.execute(
+                            select(ManifestPublication).where(
+                                ManifestPublication.resource_kind == "RegisteredResource",
+                                ManifestPublication.resource_digest == revision_digest,
+                            )
+                        )
+                    ).scalars().first()
+                    if publication is None:
+                        session.add(
+                            ManifestPublication(
+                                resource_kind="RegisteredResource",
+                                resource_digest=revision_digest,
+                                publisher_id=caller.id,
+                                state="public",
+                            )
+                        )
                 await session.flush()
         except IntegrityError:
             return _problem(409, "immutable_resource", "resource identity already exists")
@@ -2650,6 +2779,54 @@ async def list_v1_engines(
     return {"engines": engines}
 
 
+@router.get("/engines/revisions")
+async def list_engine_revisions(
+    session: AsyncSession | None = Depends(optional_session, scope="function"),
+    caller: User = Depends(solve_caller),
+) -> dict[str, Any]:
+    revisions: list[dict[str, Any]] = []
+    if session is not None:
+        db_revs = (await session.execute(
+            select(EngineRevision).order_by(EngineRevision.namespace, EngineRevision.name, EngineRevision.version.desc())
+        )).scalars().all()
+        reg_rows = (await session.execute(
+            select(EngineRegistrationRevision)
+        )).scalars().all()
+        reg_by_engine_digest = {r.engine_digest: r for r in reg_rows}
+        reg_by_name = {(r.namespace, r.name, r.version): r for r in reg_rows}
+
+        for rev in db_revs:
+            reg = reg_by_engine_digest.get(rev.digest) or reg_by_name.get((rev.namespace, rev.name, rev.version))
+            revisions.append({
+                "id": str(rev.id),
+                "namespace": rev.namespace,
+                "name": rev.name,
+                "version": rev.version,
+                "digest": rev.digest,
+                "state": rev.state,
+                "createdAt": rev.created_at.isoformat() if rev.created_at else None,
+                "document": rev.document,
+                "registration": _registration_summary(reg) if reg else None,
+            })
+
+    if not revisions:
+        for doc, ns in await _available_engine_documents(session, caller):
+            ref = _engine_ref(doc, ns)
+            revisions.append({
+                "id": f"{ref['namespace']}:{ref['name']}:{ref['version']}",
+                "namespace": ref["namespace"],
+                "name": ref["name"],
+                "version": ref["version"],
+                "digest": ref["digest"],
+                "state": "published",
+                "createdAt": utcnow().isoformat(),
+                "document": doc,
+                "registration": None,
+            })
+
+    return {"revisions": revisions}
+
+
 @router.get("/engines/{name}")
 async def get_v1_engine(
     name: str,
@@ -2680,6 +2857,132 @@ async def get_v1_engine(
         )
     except HTTPException as exc:
         return _problem(exc.status_code, "not_found", str(exc.detail))
+
+
+@router.get("/engines/{namespace}/{name}/revisions/{version}")
+async def get_engine_revision_detail(
+    namespace: str,
+    name: str,
+    version: str,
+    session: AsyncSession | None = Depends(optional_session, scope="function"),
+    caller: User = Depends(solve_caller),
+) -> dict[str, Any]:
+    rev = None
+    reg = None
+    if session is not None:
+        rev = (await session.execute(
+            select(EngineRevision).where(
+                EngineRevision.namespace == namespace,
+                EngineRevision.name == name,
+                EngineRevision.version == version,
+            )
+        )).scalars().first()
+
+        reg = (await session.execute(
+            select(EngineRegistrationRevision).where(
+                EngineRegistrationRevision.namespace == namespace,
+                EngineRegistrationRevision.name == name,
+                EngineRegistrationRevision.version == version,
+            )
+        )).scalars().first()
+
+    if rev is None:
+        try:
+            doc = _manifest(name, namespace=namespace, version=version)
+            rev_digest = digest(doc)
+            return {
+                "namespace": namespace,
+                "name": name,
+                "version": version,
+                "digest": rev_digest,
+                "document": doc,
+                "state": "published",
+                "registration": None,
+            }
+        except HTTPException:
+            return _problem(404, "not_found", "Engine revision not found")
+
+    return {
+        "id": str(rev.id),
+        "namespace": rev.namespace,
+        "name": rev.name,
+        "version": rev.version,
+        "digest": rev.digest,
+        "state": rev.state,
+        "createdAt": rev.created_at.isoformat() if rev.created_at else None,
+        "document": rev.document,
+        "registration": {
+            "id": str(reg.id),
+            "manifestDigest": reg.manifest_digest,
+            "endpoint": reg.endpoint,
+            "protocolDigest": reg.protocol_digest,
+            "openapiDigest": reg.openapi_digest,
+            "openapiDocument": reg.openapi_document,
+            "verificationReport": reg.verification_report,
+            "verifiedAt": reg.verified_at.isoformat() if reg.verified_at else None,
+            "publicationStatus": reg.publication_status,
+            "isActive": reg.is_active,
+        } if reg else None,
+    }
+
+
+@router.get("/snapshots/{snapshot_id}")
+async def get_snapshot_detail(
+    snapshot_id: uuid.UUID,
+    caller: User = Depends(solve_caller),
+    session: AsyncSession = Depends(optional_session, scope="function"),
+) -> dict[str, Any]:
+    if session is None:
+        return _problem(503, "database_unavailable", "Snapshots require database")
+    snapshot = await _owned_snapshot(str(snapshot_id), caller, session)
+    if snapshot is None:
+        return _problem(404, "not_found", "Snapshot not found")
+    ir = (await session.execute(
+        select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id)
+    )).scalars().first()
+    return {
+        "id": str(snapshot.id),
+        "ownerId": str(snapshot.owner_id) if snapshot.owner_id else None,
+        "instanceDigest": snapshot.instance_digest,
+        "packageDigest": snapshot.package_digest,
+        "archiveSize": len(snapshot.source_archive) if snapshot.source_archive else 0,
+        "createdAt": snapshot.created_at.isoformat() if snapshot.created_at else None,
+        "ir": {
+            "id": str(ir.id),
+            "digest": ir.ir_digest,
+            "document": ir.document,
+            "sourceMap": ir.source_map,
+            "compilerVersion": ir.compiler_version,
+            "createdAt": ir.created_at.isoformat() if ir.created_at else None,
+        } if ir else None,
+    }
+
+
+@router.get(
+    "/snapshots/{snapshot_id}/archive",
+    operation_id="downloadSnapshotArchive",
+    response_class=Response,
+    responses={200: {"content": {"application/zip": {"schema": {"type": "string", "format": "binary"}}}}},
+)
+async def download_snapshot_archive(
+    snapshot_id: uuid.UUID,
+    caller: User = Depends(solve_caller),
+    session: AsyncSession = Depends(optional_session, scope="function"),
+) -> Response:
+    if session is None:
+        return _problem(503, "database_unavailable", "Snapshots require database")
+    snapshot = await _owned_snapshot(str(snapshot_id), caller, session)
+    if snapshot is None or not snapshot.source_archive:
+        return _problem(404, "not_found", "Snapshot archive not found")
+    return Response(
+        content=snapshot.source_archive,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="snapshot-{snapshot.id}.bim.zip"',
+            "ETag": f'"{snapshot.package_digest}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.post(
@@ -3046,6 +3349,30 @@ async def _verify_registration_row(
     return None
 
 
+async def _notify_admins_of_engine_event(
+    session: AsyncSession,
+    kind: str,
+    subject: str,
+    body: str,
+    payload: dict[str, Any],
+) -> None:
+    admins = (
+        await session.execute(
+            select(User).where(User.role == UserRole.ADMIN, User.is_active.is_(True))
+        )
+    ).scalars().all()
+    for admin in admins:
+        session.add(
+            Notification(
+                user_id=admin.id,
+                kind=kind,
+                subject=subject,
+                body=body,
+                payload=payload,
+            )
+        )
+
+
 async def _change_registration(
     namespace: str,
     name: str,
@@ -3085,7 +3412,22 @@ async def _change_registration(
             return failure
         registration.is_active = True
     elif action == "deactivate":
+        was_published = registration.publication_status == "published"
         registration.is_active = False
+        if was_published:
+            await _notify_admins_of_engine_event(
+                session,
+                kind="engine.deactivated",
+                subject=f"Published engine paused: {registration.namespace}/{registration.name}",
+                body=f"The published federated engine {registration.namespace}/{registration.name}@{registration.version} has been paused by {caller.username}.",
+                payload={
+                    "namespace": registration.namespace,
+                    "name": registration.name,
+                    "version": registration.version,
+                    "digest": registration.manifest_digest,
+                    "actor": caller.username,
+                },
+            )
     elif action == "request_publication":
         if registration.publication_status == "published":
             return _registration_summary(registration)
@@ -3099,6 +3441,19 @@ async def _change_registration(
         if failure is not None:
             return failure
         registration.publication_status = "pending_review"
+        await _notify_admins_of_engine_event(
+            session,
+            kind="engine.publication_requested",
+            subject=f"Engine publication requested: {registration.namespace}/{registration.name}",
+            body=f"User {caller.username} has requested publication for engine registration {registration.namespace}/{registration.name}@{registration.version}.",
+            payload={
+                "namespace": registration.namespace,
+                "name": registration.name,
+                "version": registration.version,
+                "digest": registration.manifest_digest,
+                "actor": caller.username,
+            },
+        )
     elif action == "reject":
         registration.publication_status = "rejected"
     elif action == "approve":
@@ -3209,6 +3564,68 @@ async def request_engine_registration_publication(
 ):
     """Make a private registration visible to administrators for moderation."""
     return await _change_registration(namespace, name, version, manifest_digest, caller, session, action="request_publication")
+
+
+@router.delete("/engine-registrations/{name}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_engine_registration(
+    name: str,
+    namespace: str = Query(...),
+    version: str = Query(...),
+    manifest_digest: str = Query(..., alias="digest"),
+    caller: User = Depends(solve_caller),
+    session: AsyncSession | None = Depends(optional_session, scope="function"),
+):
+    if session is None:
+        return _problem(503, "accounts_unavailable", "Engine registrations require the accounts database")
+    query = select(EngineRegistrationRevision).where(
+        EngineRegistrationRevision.namespace == namespace,
+        EngineRegistrationRevision.name == name,
+        EngineRegistrationRevision.version == version,
+        EngineRegistrationRevision.manifest_digest == manifest_digest,
+    )
+    if not caller.is_admin:
+        query = query.where(EngineRegistrationRevision.owner_id == caller.id)
+    registration = (await session.execute(query)).scalars().first()
+    if registration is None:
+        return _problem(404, "not_found", "Engine registration not found")
+
+    was_published = registration.publication_status == "published"
+
+    publication = (
+        await session.execute(
+            select(ManifestPublication).where(
+                ManifestPublication.resource_kind == "EngineRegistration",
+                ManifestPublication.resource_digest == registration.manifest_digest,
+            )
+        )
+    ).scalars().first()
+    if publication is not None:
+        await session.delete(publication)
+
+    if was_published:
+        await _notify_admins_of_engine_event(
+            session,
+            kind="engine.deregistered",
+            subject=f"Published engine deregistered: {registration.namespace}/{registration.name}",
+            body=f"The published federated engine {registration.namespace}/{registration.name}@{registration.version} has been deregistered by {caller.username}.",
+            payload={
+                "namespace": registration.namespace,
+                "name": registration.name,
+                "version": registration.version,
+                "digest": registration.manifest_digest,
+                "actor": caller.username,
+            },
+        )
+
+    await session.execute(
+        delete(EngineCredential).where(
+            EngineCredential.registration_id == registration.id
+        )
+    )
+    await session.delete(registration)
+    await session.flush()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 
 
 @router.get("/engine-registrations/{name}/report")
@@ -3337,7 +3754,7 @@ async def set_engine_registration_credential(
 
 
 @router.post("/instances/validate")
-async def validate_instance(
+async def validate_legacy_instance(
     request: Request,
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
@@ -3358,8 +3775,12 @@ async def validate_instance(
     }
 
 
-@router.post("/analyze")
-async def analyze_instance(
+@router.post(
+    "/validate",
+    operation_id="validateInstance",
+    summary="Validate a BIM package and find compatible engines",
+)
+async def validate_instance(
     request: Request,
     caller: User = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
@@ -3378,7 +3799,7 @@ async def analyze_instance(
                 return _problem(
                     422,
                     "snapshot_or_package_required",
-                    "BIM analysis accepts an exact snapshot reference or a .bim.zip upload",
+                    "BIM validation accepts an exact snapshot reference or a .bim.zip upload",
                 )
             if session is not None:
                 snapshot = await _owned_snapshot(snapshot_id, caller, session)
@@ -3390,11 +3811,22 @@ async def analyze_instance(
                 if snapshot is None:
                     return _problem(404, "not_found", "Snapshot not found")
                 package = snapshot["package"]
-        problem = await _compile_resolved(package, session)
+        problem = await _compile_resolved(package, session, caller)
     except PackageError as exc:
         return _problem(422, "invalid_request", str(exc))
     except HTTPException as exc:
         return _error_from_http(exc)
+    if caller is not None:
+        try:
+            caps = await space_client.get_gate().caps(caller.id)
+        except space_client.PricingUnavailable as exc:
+            return _problem(503, "pricing_unavailable", str(exc))
+        if instance_complexity_too_large(problem.binding_space_log10, caps):
+            return _problem(
+                402,
+                "instance_complexity_too_large",
+                "instance binding space exceeds the caller plan limit",
+            )
     spec = problem.document["spec"]
     candidate_count = _candidate_count(spec)
     compatible_modes = await _compatible_modes(problem, caller, session)
@@ -3410,6 +3842,7 @@ async def analyze_instance(
             "candidates": candidate_count,
             "constraints": len(spec.get("constraints", [])),
             "placement": bool(spec.get("placement")),
+            "bindingSpace": str(problem.binding_space_cardinality),
         },
         "compatibleModes": compatible_modes,
         "diagnostics": [],
@@ -3424,7 +3857,7 @@ async def create_snapshot(
 ):
     try:
         package = await _read_package(request)
-        problem = await _compile_resolved(package, session)
+        problem = await _compile_resolved(package, session, caller)
     except HTTPException as exc:
         return _error_from_http(exc)
     snapshot_id = await _persist_snapshot(package, problem, caller, session)
@@ -3565,12 +3998,55 @@ async def _fail_persisted_job(
     }
     job.termination = "UNKNOWN"
     job.finished_at = utcnow()
-    await metering.settle(
-        space_client.get_gate(),
-        session,
-        job.id,
-        solver_seconds=max(0.0, time.monotonic() - started),
-    )
+    try:
+        await metering.settle(
+            space_client.get_gate(),
+            session,
+            job.id,
+            solver_seconds=max(0.0, time.monotonic() - started),
+        )
+    except Exception as exc:
+        logger.warning("Settlement failed while failing job %s: %s", job.id, exc)
+    from ..telemetry import record_job_failure
+    try:
+        await record_job_failure(session, job, message)
+    except Exception:
+        pass
+
+    # Record MAPE-K failure observation if this was an auto-routed job
+    prov = job.provenance or {}
+    routing_admin = prov.get("engineRoutingAdmin")
+    if isinstance(routing_admin, dict) and "adaptationLoopId" in routing_admin:
+        try:
+            from ..engine_routing import get_adaptation_manager
+
+            adaptation_loop_id = routing_admin["adaptationLoopId"]
+            features_dict = routing_admin.get("workloadFeatures", {})
+            predicted = routing_admin.get("candidateEvaluations", [])
+            pred_for_selected = next(
+                (c.get("predicted", {}) for c in predicted if c.get("engine") == job.engine_id),
+                {},
+            )
+            actual_latency = max(0.0, time.monotonic() - started)
+            actual_credits = int(prov.get("engineRouting", {}).get("creditsCost", 1))
+
+            await get_adaptation_manager().observe_execution(
+                adaptation_loop_id=adaptation_loop_id,
+                engine=job.engine_id,
+                features_dict=features_dict,
+                predicted_metrics=pred_for_selected,
+                actual_latency=actual_latency,
+                actual_quality=0.0,
+                actual_credits=actual_credits,
+                outcome="failed",
+                candidate_evaluations=predicted,
+                engine_health_snapshot=routing_admin.get("engineHealthSnapshot"),
+                job_id=job.id,
+                session=session,
+            )
+        except Exception as obs_exc:
+            logger.warning("Failed to record adaptation observation for failed job %s: %s", job.id, obs_exc)
+
     await session.flush()
 
 
@@ -3588,184 +4064,286 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
     )
     if claimed.first() is None:
         return
+    try:
+        await session.commit()
+    except Exception:
+        await session.flush()
+
     job = await session.get(Job, parsed)
     if job is None:
         return
     if job.cancellation_requested:
         job.state = JobState.CANCELLED
         job.finished_at = utcnow()
-        await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
+        try:
+            await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
+        except Exception as exc:
+            logger.warning("Metering settlement failed for cancelled job %s: %s", job.id, exc)
         await session.flush()
         return
     started = time.monotonic()
-    await session.flush()
-    request = job.original_request or {}
-    document = request.get("bindingProblem")
-    if not isinstance(document, dict):
-        await _fail_persisted_job(job, session, "persisted BindingProblem is missing", started)
-        return
-    problem = BindingProblem(
-        document=document,
-        digest=job.provenance.get("irDigest", digest(document)) if isinstance(job.provenance, dict) else digest(document),
-        source_map=document.get("spec", {}).get("sourceMap", {}) if isinstance(document.get("spec"), dict) else {},
-    )
-    mode_contract = _persisted_mode_contract(request.get("mode"))
-    if mode_contract is None:
-        await _fail_persisted_job(job, session, "Persisted Engine mode contract is invalid", started)
-        return
-    if not isinstance(job.options, dict):
-        await _fail_persisted_job(job, session, "Persisted Engine options must be an object", started)
-        return
-    provenance = job.provenance if isinstance(job.provenance, dict) else {}
-    engine_ref = provenance.get("engine")
-    manifest = await _persisted_engine_contract(
-        job.engine_id,
-        engine_ref,
-        mode_contract,
-        session,
-        job.owner_id,
-    )
-    if (
-        manifest is None
-        or provenance.get("engineDigest") != digest(manifest)
-        or provenance.get("mode") != mode_contract["id"]
-        or provenance.get("terminationGuarantees")
-        != mode_contract["terminationGuarantees"]
-    ):
-        await _fail_persisted_job(job, session, "Persisted Engine mode contract is inconsistent", started)
-        return
-    registration_ref = request.get("registration")
-    if (
-        not isinstance(registration_ref, dict)
-        or set(registration_ref) != {"namespace", "name", "version", "digest"}
-        or not all(isinstance(value, str) and value for value in registration_ref.values())
-    ):
-        await _fail_persisted_job(job, session, "Persisted EngineRegistration reference is invalid", started)
-        return
-
-    registration: EngineRegistrationRevision | dict[str, Any] | None = None
-    if registration_ref["namespace"] == "bim.builtin" and isinstance(engine_ref, dict):
-        registration = _installed_builtin_registration(
-            manifest,
-            get_settings().engine_urls.get(job.engine_id),
-            registration_ref,
+    try:
+        request = job.original_request or {}
+        document = request.get("bindingProblem")
+        if not isinstance(document, dict):
+            await _fail_persisted_job(job, session, "persisted BindingProblem is missing", started)
+            return
+        problem = BindingProblem(
+            document=document,
+            digest=job.provenance.get("irDigest", digest(document)) if isinstance(job.provenance, dict) else digest(document),
+            source_map=document.get("spec", {}).get("sourceMap", {}) if isinstance(document.get("spec"), dict) else {},
         )
-    if registration is None:
-        registration = (
-            await session.execute(
-                select(EngineRegistrationRevision).where(
-                    EngineRegistrationRevision.namespace == registration_ref["namespace"],
-                    EngineRegistrationRevision.name == registration_ref["name"],
-                    EngineRegistrationRevision.version == registration_ref["version"],
-                    EngineRegistrationRevision.manifest_digest == registration_ref["digest"],
-                    or_(
-                        (
-                            (EngineRegistrationRevision.owner_id == job.owner_id)
-                            & EngineRegistrationRevision.is_active.is_(True)
+        mode_contract = _persisted_mode_contract(request.get("mode"))
+        if mode_contract is None:
+            await _fail_persisted_job(job, session, "Persisted Engine mode contract is invalid", started)
+            return
+        if not isinstance(job.options, dict):
+            await _fail_persisted_job(job, session, "Persisted Engine options must be an object", started)
+            return
+        provenance = job.provenance if isinstance(job.provenance, dict) else {}
+        engine_ref = provenance.get("engine")
+        manifest = await _persisted_engine_contract(
+            job.engine_id,
+            engine_ref,
+            mode_contract,
+            session,
+            job.owner_id,
+        )
+        if (
+            manifest is None
+            or provenance.get("engineDigest") != digest(manifest)
+            or provenance.get("mode") != mode_contract["id"]
+            or provenance.get("terminationGuarantees")
+            != mode_contract["terminationGuarantees"]
+        ):
+            await _fail_persisted_job(job, session, "Persisted Engine mode contract is inconsistent", started)
+            return
+        registration_ref = request.get("registration")
+        if (
+            not isinstance(registration_ref, dict)
+            or set(registration_ref) != {"namespace", "name", "version", "digest"}
+            or not all(isinstance(value, str) and value for value in registration_ref.values())
+        ):
+            await _fail_persisted_job(job, session, "Persisted EngineRegistration reference is invalid", started)
+            return
+
+        registration: EngineRegistrationRevision | dict[str, Any] | None = None
+        if registration_ref["namespace"] == "bim.builtin" and isinstance(engine_ref, dict):
+            registration = _installed_builtin_registration(
+                manifest,
+                get_settings().engine_urls.get(job.engine_id),
+                registration_ref,
+            )
+        if registration is None:
+            registration = (
+                await session.execute(
+                    select(EngineRegistrationRevision).where(
+                        EngineRegistrationRevision.namespace == registration_ref["namespace"],
+                        EngineRegistrationRevision.name == registration_ref["name"],
+                        EngineRegistrationRevision.version == registration_ref["version"],
+                        EngineRegistrationRevision.manifest_digest == registration_ref["digest"],
+                        or_(
+                            (
+                                (EngineRegistrationRevision.owner_id == job.owner_id)
+                                & EngineRegistrationRevision.is_active.is_(True)
+                            ),
+                            (
+                                (EngineRegistrationRevision.owner_id != job.owner_id)
+                                & (
+                                    EngineRegistrationRevision.publication_status
+                                    == "published"
+                                )
+                            ),
                         ),
-                        (
-                            (EngineRegistrationRevision.owner_id != job.owner_id)
-                            & (
-                                EngineRegistrationRevision.publication_status
-                                == "published"
-                            )
-                        ),
-                    ),
+                    )
                 )
-            )
-        ).scalars().first()
-    if registration is None:
-        await _fail_persisted_job(job, session, "Engine registration is no longer active", started)
-        return
+            ).scalars().first()
+        if registration is None:
+            await _fail_persisted_job(job, session, "Engine registration is no longer active", started)
+            return
 
-    registered_engine_digest = (
-        registration.engine_digest
-        if isinstance(registration, EngineRegistrationRevision)
-        else registration.get("document", {}).get("spec", {}).get("engine", {}).get("digest")
-    )
-    if registered_engine_digest != provenance.get("engineDigest"):
-        await _fail_persisted_job(job, session, "Engine registration no longer pins the persisted Engine", started)
-        return
+        registered_engine_digest = (
+            registration.engine_digest
+            if isinstance(registration, EngineRegistrationRevision)
+            else registration.get("document", {}).get("spec", {}).get("engine", {}).get("digest")
+        )
+        if registered_engine_digest != provenance.get("engineDigest"):
+            await _fail_persisted_job(job, session, "Engine registration no longer pins the persisted Engine", started)
+            return
 
-    credential_value = None
-    if isinstance(registration, EngineRegistrationRevision):
         credential_value = None
-        credential_row = (
-            await session.execute(
-                select(EngineCredential).where(EngineCredential.registration_id == registration.id)
-            )
-        ).scalars().first()
-        if credential_row is not None:
-            from ..security.secrets import CredentialStore, SecretsUnavailable
+        if isinstance(registration, EngineRegistrationRevision):
+            credential_value = None
+            credential_row = (
+                await session.execute(
+                    select(EngineCredential).where(EngineCredential.registration_id == registration.id)
+                )
+            ).scalars().first()
+            if credential_row is not None:
+                from ..security.secrets import CredentialStore, SecretsUnavailable
 
+                try:
+                    credential_value = CredentialStore.from_settings(get_settings()).decrypt(credential_row.credential_encrypted)
+                except SecretsUnavailable as exc:
+                    await _fail_persisted_job(job, session, str(exc), started)
+                    return
+            transport = RemoteRegistration(
+                endpoint=registration.endpoint,
+                mappings=registration.mappings,
+                auth_scheme=registration.auth_scheme,
+                credential=credential_value,
+                allow_internal_http=not get_settings().federation_require_https,
+            )
+            protocol_digest = registration.protocol_digest
+        else:
             try:
-                credential_value = CredentialStore.from_settings(get_settings()).decrypt(credential_row.credential_encrypted)
-            except SecretsUnavailable as exc:
+                transport = _registration_transport(registration)
+            except RemoteEngineError as exc:
                 await _fail_persisted_job(job, session, str(exc), started)
                 return
-        transport = RemoteRegistration(
-            endpoint=registration.endpoint,
-            mappings=registration.mappings,
-            auth_scheme=registration.auth_scheme,
-            credential=credential_value,
-            allow_internal_http=not get_settings().federation_require_https,
-        )
-        protocol_digest = registration.protocol_digest
-    else:
-        try:
-            transport = _registration_transport(registration)
-        except RemoteEngineError as exc:
-            await _fail_persisted_job(job, session, str(exc), started)
+            protocol_digest = registration["document"]["spec"]["protocol"]["digest"]
+        if job.service_url != transport.endpoint:
+            await _fail_persisted_job(job, session, "Persisted EngineRegistration endpoint changed", started)
             return
-        protocol_digest = registration["document"]["spec"]["protocol"]["digest"]
-    if job.service_url != transport.endpoint:
-        await _fail_persisted_job(job, session, "Persisted EngineRegistration endpoint changed", started)
-        return
-    if provenance.get("registration") != registration_ref or provenance.get("protocolDigest") != protocol_digest:
-        await _fail_persisted_job(job, session, "Persisted EngineRegistration provenance is inconsistent", started)
-        return
-    try:
-        remote_result = await solve_remote(
-            transport,
-            problem.document,
-            job.options,
-            timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
+        if provenance.get("registration") != registration_ref or provenance.get("protocolDigest") != protocol_digest:
+            await _fail_persisted_job(job, session, "Persisted EngineRegistration provenance is inconsistent", started)
+            return
+        try:
+            remote_result = await solve_remote(
+                transport,
+                problem.document,
+                job.options,
+                timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
+            )
+        except RemoteEngineError as exc:
+            fallback_engine = provenance.get("engineRoutingAdmin", {}).get("fallbackEngine")
+            if fallback_engine and fallback_engine != job.engine_id:
+                logger.info(
+                    "Primary engine %s failed (%s); activating planned fallback to %s",
+                    job.engine_id,
+                    exc,
+                    fallback_engine,
+                )
+                try:
+                    fallback_path = _MANIFEST_DIR / f"{fallback_engine}.json"
+                    fallback_endpoint = get_settings().engine_urls.get(fallback_engine)
+                    if fallback_path.is_file() and fallback_endpoint:
+                        fallback_manifest = json.loads(fallback_path.read_text(encoding="utf-8"))
+                        fallback_reg = _builtin_engine_registration(fallback_manifest, fallback_endpoint)
+                        fallback_transport = _registration_transport(fallback_reg)
+                        remote_result = await solve_remote(
+                            fallback_transport,
+                            problem.document,
+                            job.options,
+                            timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
+                        )
+                        job.engine_id = fallback_engine
+                        provenance["fallbackActivated"] = True
+                        provenance["fallbackEngine"] = fallback_engine
+                        if "engineRouting" in provenance and isinstance(provenance["engineRouting"], dict):
+                            provenance["engineRouting"]["selectedEngine"] = fallback_engine
+                            provenance["engineRouting"]["fallbackActivated"] = True
+                    else:
+                        await _fail_persisted_job(job, session, str(exc), started)
+                        return
+                except Exception as fb_exc:
+                    logger.warning("Fallback engine %s failed as well: %s", fallback_engine, fb_exc)
+                    await _fail_persisted_job(
+                        job,
+                        session,
+                        f"Primary engine ({exc}) and fallback ({fb_exc}) both failed",
+                        started,
+                    )
+                    return
+            else:
+                await _fail_persisted_job(job, session, str(exc), started)
+                return
+        await session.refresh(job)
+        if job.cancellation_requested:
+            job.state = JobState.CANCELLED
+            job.finished_at = utcnow()
+            try:
+                await metering.settle(
+                    space_client.get_gate(), session, job.id,
+                    solver_seconds=max(0.0, time.monotonic() - started),
+                )
+            except Exception as exc:
+                logger.warning("Metering settlement failed for cancelled job %s: %s", job.id, exc)
+            await session.flush()
+            return
+        reevaluated = _reevaluate_result(
+            problem,
+            remote_result,
+            mode_contract["terminationGuarantees"],
         )
-    except RemoteEngineError as exc:
-        await _fail_persisted_job(job, session, str(exc), started)
-        return
-    await session.refresh(job)
-    if job.cancellation_requested:
-        job.state = JobState.CANCELLED
+        job.provenance = {
+            **provenance,
+            "registration": registration_ref,
+            "protocolDigest": protocol_digest,
+            "engineReported": remote_result.get("provenance", {}),
+        }
+        reevaluated["provenance"] = job.provenance
+        job.result = reevaluated
+        job.termination = reevaluated["termination"]
+        job.state = JobState.COMPLETED
         job.finished_at = utcnow()
-        await metering.settle(
-            space_client.get_gate(), session, job.id,
-            solver_seconds=max(0.0, time.monotonic() - started),
-        )
+        routing_admin = provenance.get("engineRoutingAdmin")
+        if isinstance(routing_admin, dict) and "adaptationLoopId" in routing_admin:
+            try:
+                from ..engine_routing import get_adaptation_manager
+
+                adaptation_loop_id = routing_admin["adaptationLoopId"]
+                features_dict = routing_admin.get("workloadFeatures", {})
+                predicted = routing_admin.get("candidateEvaluations", [])
+                pred_for_selected = next(
+                    (c.get("predicted", {}) for c in predicted if c.get("engine") == job.engine_id),
+                    {},
+                )
+                actual_latency = max(0.0, time.monotonic() - started)
+                solutions = reevaluated.get("solutions") or []
+                if not solutions or reevaluated.get("termination") not in ("OPTIMAL", "FEASIBLE"):
+                    actual_quality = 0.0
+                else:
+                    raw_score = solutions[0].get("objectives", {}).get("score")
+                    try:
+                        score_float = float(raw_score) if raw_score is not None else 1.0
+                        if 0.0 <= score_float <= 1.0:
+                            actual_quality = score_float
+                        else:
+                            actual_quality = 1.0 if score_float <= 0 else max(0.0, min(1.0, 1.0 / (1.0 + score_float)))
+                    except (ValueError, TypeError):
+                        actual_quality = 0.5
+                actual_credits = int(provenance.get("engineRouting", {}).get("creditsCost", 1))
+
+                await get_adaptation_manager().observe_execution(
+                    adaptation_loop_id=adaptation_loop_id,
+                    engine=job.engine_id,
+                    features_dict=features_dict,
+                    predicted_metrics=pred_for_selected,
+                    actual_latency=actual_latency,
+                    actual_quality=actual_quality,
+                    actual_credits=actual_credits,
+                    outcome=job.termination or "completed",
+                    candidate_evaluations=predicted,
+                    engine_health_snapshot=routing_admin.get("engineHealthSnapshot"),
+                    job_id=job.id,
+                    session=session,
+                )
+            except Exception as exc:
+                logger.warning("Failed to record adaptation observation for job %s: %s", job.id, exc)
+        try:
+            await metering.settle(
+                space_client.get_gate(),
+                session,
+                job.id,
+                solver_seconds=time.monotonic() - started,
+            )
+        except Exception as exc:
+            logger.warning("Metering settlement failed for completed job %s: %s", job.id, exc)
         await session.flush()
-        return
-    reevaluated = _reevaluate_result(
-        problem,
-        remote_result,
-        mode_contract["terminationGuarantees"],
-    )
-    reevaluated["provenance"] = {
-        **provenance,
-        "registration": registration_ref,
-        "protocolDigest": protocol_digest,
-        "engineReported": remote_result.get("provenance", {}),
-    }
-    job.result = reevaluated
-    job.termination = reevaluated["termination"]
-    job.state = JobState.COMPLETED
-    job.finished_at = utcnow()
-    await metering.settle(
-        space_client.get_gate(),
-        session,
-        job.id,
-        solver_seconds=time.monotonic() - started,
-    )
-    await session.flush()
+    except Exception as exc:
+        logger.exception("Unexpected error executing persisted job %s: %s", job_id, exc)
+        await _fail_persisted_job(job, session, f"Execution failed: {exc}", started)
 
 
 async def _run_persisted_job(job_id: str, request_session: AsyncSession | None = None) -> None:
@@ -3775,8 +4353,39 @@ async def _run_persisted_job(job_id: str, request_session: AsyncSession | None =
     if not db_base.is_configured():
         raise RuntimeError("A persisted job cannot run without an initialized database.")
     async with db_base.session_factory()() as session:
-        await _finish_persisted_job(job_id, session)
-        await session.commit()
+        try:
+            await _finish_persisted_job(job_id, session)
+            await session.commit()
+        except Exception as exc:
+            await session.rollback()
+            logger.exception("Job execution failed unexpectedly for %s: %s", job_id, exc)
+            async with db_base.session_factory()() as fail_session:
+                try:
+                    parsed = uuid.UUID(job_id)
+                    failed_job = await fail_session.get(Job, parsed)
+                    if failed_job is not None and failed_job.state not in (
+                        JobState.COMPLETED,
+                        JobState.FAILED,
+                        JobState.CANCELLED,
+                    ):
+                        failed_job.state = JobState.FAILED
+                        failed_job.result = {
+                            "termination": "UNKNOWN",
+                            "solutions": [],
+                            "error": f"Internal execution error: {exc}",
+                            "provenance": failed_job.provenance or {},
+                        }
+                        failed_job.termination = "UNKNOWN"
+                        failed_job.finished_at = utcnow()
+                        from ..telemetry import record_job_failure
+                        try:
+                            await record_job_failure(fail_session, failed_job, str(exc))
+                        except Exception:
+                            pass
+                        await fail_session.commit()
+                except Exception:
+                    logger.exception("Failed to record failure for job %s", job_id)
+            raise
 
 
 @router.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
@@ -3793,6 +4402,9 @@ async def create_job(
             "Idempotency-Key must contain between 1 and 255 characters",
         )
     body_size = 0
+    pinned_problem = None
+    configuration_version = None
+    configuration_ref = None
     try:
         content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
         if content_type.startswith("multipart/form-data"):
@@ -3814,18 +4426,37 @@ async def create_job(
             payload = strict_json_loads(body)
             snapshot_id = payload.get("snapshot") if isinstance(payload, dict) else None
             if snapshot_id:
-                allowed_fields = {"snapshot", "engine", "registration", "mode", "options"}
+                allowed_fields = {"snapshot", "engine", "registration", "mode", "options", "configuration"}
                 if set(payload) - allowed_fields:
                     return _problem(
                         422,
                         "invalid_request_fields",
                         "job request contains fields outside the BIM v1 job contract",
                     )
+                if 'configuration' in payload:
+                    if session is None or caller is None:
+                        return _problem(401, 'unauthorized', 'Selecting a library execution configuration requires an account.')
+                    if set(payload) & {'engine', 'registration', 'mode', 'options'}:
+                        return _problem(422, 'ambiguous_configuration', 'Select a configuration version or inline execution settings, not both.')
+                    from ..artifacts import resolve_version, reference, version_content
+                    from ..models.artifacts import ArtifactRef
+                    from pydantic import ValidationError
+                    try:
+                        selected = ArtifactRef.model_validate(payload['configuration'])
+                    except ValidationError as exc:
+                        return _problem(422, 'invalid_configuration', str(exc))
+                    configuration_artifact, configuration_version = await resolve_version(session, selected, caller)
+                    if configuration_artifact.kind != 'ExecutionConfiguration':
+                        return _problem(422, 'invalid_configuration', 'Select an ExecutionConfiguration version.')
+                    configuration_ref = reference(configuration_artifact, configuration_version)
+                    settings_document = strict_json_loads((await version_content(session, configuration_version))[0])
+                    payload = {**payload, **settings_document}
                 if session is not None:
                     snapshot = await _owned_snapshot(snapshot_id, caller, session)
                     if snapshot is None:
                         return _problem(404, "not_found", "Snapshot not found")
                     package = load_package(snapshot.source_archive)
+                    pinned_problem = await _snapshot_problem(snapshot, session)
                 else:
                     snapshot = _SNAPSHOTS.get(snapshot_id)
                     if not snapshot:
@@ -3837,14 +4468,31 @@ async def create_job(
                     "snapshot_or_package_required",
                     "BIM v1 jobs accept an existing snapshot or a ZIP package upload",
                 )
-        problem = await _compile_resolved(package, session)
+        problem = pinned_problem or await _compile_resolved(package, session, caller)
     except PackageError as exc:
         return _problem(422, "invalid_request", str(exc))
     except HTTPException as exc:
         return _error_from_http(exc)
     job_id = str(uuid.uuid4())
     engine_selector = payload.get("engine", "random-search") if isinstance(payload, dict) else "random-search"
-    if isinstance(engine_selector, dict):
+    routing_plan = None
+    if engine_selector == "auto":
+        from ..engine_routing import get_adaptation_manager
+
+        meta_router_url = get_settings().engine_urls.get("meta-router-csp")
+        routing_plan = await get_adaptation_manager().plan_routing(
+            problem=problem,
+            options=payload.get("options") if isinstance(payload, dict) else {},
+            service_url=meta_router_url,
+        )
+        engine = routing_plan.selected_engine
+        engine_namespace = engine_version = requested_engine_digest = None
+        requested_mode = (
+            payload.get("mode")
+            if (isinstance(payload, dict) and payload.get("mode"))
+            else routing_plan.selected_mode
+        )
+    elif isinstance(engine_selector, dict):
         engine = engine_selector.get("name")
         engine_namespace = engine_selector.get("namespace")
         engine_version = engine_selector.get("version")
@@ -3858,9 +4506,11 @@ async def create_job(
                 "invalid_engine",
                 "engine references require namespace, name, version and digest",
             )
+        requested_mode = payload.get("mode") if isinstance(payload, dict) else None
     else:
         engine = engine_selector
         engine_namespace = engine_version = requested_engine_digest = None
+        requested_mode = payload.get("mode") if isinstance(payload, dict) else None
     if not isinstance(engine, str) or not engine:
         return _problem(422, "invalid_engine", "engine must be a name or immutable reference")
     if not isinstance(engine_selector, dict) and not (_MANIFEST_DIR / f"{engine}.json").is_file():
@@ -3869,12 +4519,13 @@ async def create_job(
             "immutable_engine_required",
             "non-built-in engines must be selected by namespace, name, version and digest",
         )
-    requested_mode = payload.get("mode") if isinstance(payload, dict) else None
+    raw_engine_options = payload.get("options", {}) if isinstance(payload, dict) else {}
+    filtered_engine_options = {k: v for k, v in raw_engine_options.items() if k != "routing"} if isinstance(raw_engine_options, dict) else raw_engine_options
     try:
         manifest, selected_mode, effective_options = await _engine_mode(
             engine,
             requested_mode,
-            payload.get("options", {}) if isinstance(payload, dict) else {},
+            filtered_engine_options,
             session,
             caller=caller,
             namespace=engine_namespace,
@@ -3899,6 +4550,12 @@ async def create_job(
             caps, 512 * 1024 * 1024
         ):
             return _problem(413, "payload_too_large", "BIM package exceeds the caller plan limit")
+        if instance_complexity_too_large(problem.binding_space_log10, caps):
+            return _problem(
+                402,
+                "instance_complexity_too_large",
+                "instance binding space exceeds the caller plan limit",
+            )
         clamped = clamp_options(effective_options, caps)
         effective_options = clamped.options
         option_warnings = [warning.model_dump(mode="json") for warning in clamped.warnings]
@@ -3975,6 +4632,8 @@ async def create_job(
     dialects = problem.document["spec"]["dialects"]
     adapters = [item["adapter"] for item in dialects if isinstance(item, dict) and isinstance(item.get("adapter"), dict)]
     request_fingerprint = digest({
+        "configuration": configuration_ref,
+        "requestedOptions": raw_engine_options,
         "packageDigest": package_hash,
         "fileDigests": portable.resource_digests,
         "resourceDigests": _source_resource_digests(problem),
@@ -4053,6 +4712,12 @@ async def create_job(
         "warnings": option_warnings,
         "terminationGuarantees": mode_contract["terminationGuarantees"],
     }
+    if routing_plan is not None:
+        provenance["engineRouting"] = routing_plan.provenance_user
+        provenance["engineRoutingAdmin"] = routing_plan.provenance_admin
+    provenance['requestedOptions'] = raw_engine_options
+    if configuration_ref:
+        provenance['configuration'] = configuration_ref
     reservation = None
     if caller is not None:
         try:
@@ -4063,12 +4728,42 @@ async def create_job(
                     isinstance(registration, dict)
                     and _is_installed_builtin_registration(registration)
                 ),
+                capacity_units=routing_plan.credits_cost if routing_plan else None,
+                engine_name=engine,
                 session=session,
             )
         except space_client.PricingUnavailable as exc:
             return _problem(503, "pricing_unavailable", str(exc))
         if not verdict.allowed:
-            return _problem(429, "quota_exhausted", verdict.reason or "solve quota exhausted")
+            if verdict.limit is not None:
+                if verdict.limit.limit_id == "concurrentJobs":
+                    return _problem(
+                        429,
+                        "concurrency_limit_exceeded",
+                        verdict.reason or "Concurrency limit exceeded.",
+                        extra={"concurrency": {"limit_id": "concurrentJobs", "limit": verdict.limit.limit, "used": verdict.limit.used}},
+                        headers={"Retry-After": "15"},
+                    )
+                else:
+                    return _problem(
+                        402,
+                        "quota_exceeded",
+                        verdict.reason or "Solve quota exhausted.",
+                        extra={
+                            "quota": {
+                                "limit_id": verdict.limit.limit_id,
+                                "limit": verdict.limit.limit,
+                                "used": verdict.limit.used,
+                                "unit": verdict.limit.unit,
+                                "renews_at": verdict.limit.renews_at,
+                            }
+                        },
+                    )
+            return _problem(
+                403,
+                "feature_not_entitled",
+                verdict.reason or "The current plan does not entitle this feature.",
+            )
     if session is not None and caller is not None:
         try:
             async with session.begin_nested():
@@ -4095,8 +4790,15 @@ async def create_job(
             },
             options=effective_options,
             warnings=option_warnings,
-            instance_complexity={"instanceDigest": instance_hash, "resourceCount": len(portable.resource_digests), "tasks": task_count, "candidates": candidate_count},
+            instance_complexity={
+                "instanceDigest": instance_hash,
+                "resourceCount": len(portable.resource_digests),
+                "tasks": task_count,
+                "candidates": candidate_count,
+                "bindingSpace": str(problem.binding_space_cardinality),
+            },
             instance_snapshot_id=parsed_snapshot_id,
+            configuration_version_id=configuration_version.id if configuration_version else None,
             provenance=provenance,
             idempotency_key=idempotency_key,
             idempotency_fingerprint=request_fingerprint,
@@ -4151,17 +4853,82 @@ async def get_v1_job(
         job = await _owned_job(job_id, caller, session)
         if job is None:
             return _problem(404, "not_found", "Job not found")
-        result = {"id": job_id, "status": job.state.value, "provenance": job.provenance or {}}
+        prov = dict(job.provenance or {})
+        if caller is None or getattr(caller, "role", None) != UserRole.ADMIN:
+            prov.pop("engineRoutingAdmin", None)
+        result = {"id": job_id, "status": job.state.value, "provenance": prov}
         if job.result is not None:
             result["result"] = job.result
+            if isinstance(job.result, dict) and "error" in job.result:
+                result["error"] = job.result["error"]
         return result
     job = _JOBS.get(job_id)
     if not job:
         return _problem(404, "not_found", "Job not found")
-    result = {"id": job_id, "status": job["status"], "provenance": job["provenance"]}
+    prov = dict(job.get("provenance") or {})
+    if caller is None or getattr(caller, "role", None) != UserRole.ADMIN:
+        prov.pop("engineRoutingAdmin", None)
+    result = {"id": job_id, "status": job["status"], "provenance": prov}
     if "result" in job:
         result["result"] = job["result"]
+        if isinstance(job["result"], dict) and "error" in job["result"]:
+            result["error"] = job["result"]["error"]
     return result
+
+
+# A per-process bound protects the evaluator pool. No Engine or solver job is dispatched.
+_ANALYSIS_SLOTS = asyncio.Semaphore(2)
+
+
+@router.get(
+    "/jobs/{job_id}/analysis/neighborhood",
+    response_model=NeighborhoodResponse,
+    summary="Evaluate bounded one-task binding alternatives",
+    description="Owner-scoped counterfactual evaluation against the pinned job IR. "
+                "At most 128 eligible substitutions, with a cooperative two-second budget between evaluations. "
+                "Does not invoke an Engine, mutate the job, or claim global optimality.",
+)
+async def get_v1_job_neighborhood(
+    job_id: str,
+    solution_index: int = Query(0, ge=0),
+    task: str | None = Query(None, max_length=256),
+    limit: int = Query(64, ge=1, le=128),
+    caller: User | None = Depends(solve_caller),
+    session: AsyncSession | None = Depends(optional_session, scope="function"),
+):
+    from starlette.concurrency import run_in_threadpool
+    from ..v1.analysis import analyze_neighborhood
+
+    job = await _owned_job(job_id, caller, session)
+    if job is None:
+        return _problem(404, "not_found", "Job not found")
+    solutions = (job.result or {}).get("solutions", [])
+    if not isinstance(solutions, list) or solution_index >= len(solutions):
+        return _problem(422, "invalid_solution", "Selected returned solution does not exist")
+    decision = solutions[solution_index].get("decision", {})
+    if decision.get("kind") != "binding" or not isinstance(decision.get("binding"), dict):
+        return _problem(422, "unsupported_decision", "Analysis requires a canonical binding decision")
+    document = (job.original_request or {}).get("bindingProblem")
+    ir_digest = (job.provenance or {}).get("irDigest")
+    if not isinstance(document, dict) and job.instance_snapshot_id is not None:
+        ir = (await session.execute(select(BindingIRSnapshot).where(
+            BindingIRSnapshot.snapshot_id == job.instance_snapshot_id
+        ))).scalars().first()
+        if ir is not None:
+            if ir_digest and ir_digest != ir.ir_digest:
+                return _problem(409, "analysis_unavailable", "Job and snapshot IR identities disagree")
+            document, ir_digest = ir.document, ir.ir_digest
+    if not isinstance(document, dict) or document.get("kind") != "BindingProblem":
+        return _problem(409, "analysis_unavailable", "The pinned BindingProblem is unavailable")
+    if _ANALYSIS_SLOTS.locked():
+        return _problem(429, "analysis_busy", "The analysis evaluator is busy; retry shortly")
+    problem = BindingProblem(document=document, digest=ir_digest or digest(document), source_map={})
+    async with _ANALYSIS_SLOTS:
+        try:
+            result = await run_in_threadpool(analyze_neighborhood, problem, decision["binding"], task=task, limit=limit)
+        except (ValueError, ArithmeticError) as exc:
+            return _problem(422, "analysis_invalid", str(exc)[:300])
+    return {"jobId": job_id, "solutionIndex": solution_index, **result}
 
 
 @router.get("/jobs/{job_id}/ir")
@@ -4175,6 +4942,14 @@ async def get_v1_job_ir(
         if job is None:
             return _problem(404, "not_found", "Job not found")
         document = (job.original_request or {}).get("bindingProblem")
+        if not isinstance(document, dict) and job.instance_snapshot_id is not None:
+            ir = (await session.execute(select(BindingIRSnapshot).where(
+                BindingIRSnapshot.snapshot_id == job.instance_snapshot_id
+            ))).scalars().first()
+            if ir is not None:
+                if (job.provenance or {}).get("irDigest") not in (None, ir.ir_digest):
+                    return _problem(409, "analysis_unavailable", "Job and snapshot IR identities disagree")
+                document = ir.document
     else:
         job = _JOBS.get(job_id)
         if job is None:

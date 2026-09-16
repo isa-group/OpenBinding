@@ -25,7 +25,7 @@ from sqlalchemy import (
     Uuid,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
 
@@ -394,7 +394,15 @@ class Study(Base):
     slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     description: Mapped[str] = mapped_column(String(2000), nullable=False, default="")
-    definition: Mapped[dict] = mapped_column(JSON, nullable=False)
+    definition_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifact_versions.id", ondelete="RESTRICT"), nullable=False, index=True)
+    definition_version: Mapped["ArtifactVersion"] = relationship("ArtifactVersion", foreign_keys=[definition_version_id], lazy="joined")
+
+    @property
+    def definition(self) -> dict:
+        from ..studies import definition_from_version
+        return definition_from_version(self.definition_version)
+
+    archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     state: Mapped[StudyState] = enum_column(StudyState, StudyState.DRAFT)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
@@ -418,6 +426,7 @@ class StudyRun(Base):
     study_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("studies.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    definition_version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifact_versions.id", ondelete="RESTRICT"), nullable=False, index=True)
     run_number: Mapped[int] = mapped_column(Integer, nullable=False)
     state: Mapped[RunState] = enum_column(RunState, RunState.QUEUED)
     matrix_digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
@@ -467,12 +476,29 @@ class Report(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
     study_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("study_runs.id", ondelete="SET NULL"), nullable=True, index=True
+        ForeignKey("study_runs.id", ondelete="RESTRICT"), nullable=True, index=True
     )
     slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(240), nullable=False)
-    document: Mapped[dict] = mapped_column(JSON, nullable=False)
-    digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    artifact_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifacts.id", ondelete="RESTRICT"), nullable=False, index=True)
+    draft_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("artifact_drafts.id", ondelete="RESTRICT"), nullable=True)
+    version_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("artifact_versions.id", ondelete="RESTRICT"), nullable=True, index=True)
+    draft: Mapped[Optional["ArtifactDraft"]] = relationship("ArtifactDraft", foreign_keys=[draft_id], lazy="joined")
+    version: Mapped[Optional["ArtifactVersion"]] = relationship("ArtifactVersion", foreign_keys=[version_id], lazy="joined")
+
+    @property
+    def document(self) -> dict:
+        if self.draft is not None and self.draft.sealed_version_id is None:
+            return self.draft.payload['content']
+        from ..artifacts import verified_version_content
+        from ..v1.package import strict_json_loads
+        return strict_json_loads(verified_version_content(self.version, self.version.blob)[0])
+
+    @property
+    def digest(self) -> str:
+        from ..v1.canonical import digest
+        return digest(self.document)
+
     state: Mapped[ReportState] = enum_column(ReportState, ReportState.DRAFT)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
@@ -486,7 +512,7 @@ class Publication(Base):
     __tablename__ = "publications"
     __table_args__ = (
         UniqueConstraint("project_id", "slug", name="uq_publication_project_slug"),
-        UniqueConstraint("report_id", name="uq_publication_report"),
+        UniqueConstraint("report_id", "version_id", name="uq_publication_report_version"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -494,8 +520,11 @@ class Publication(Base):
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
     )
     report_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("reports.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("reports.id", ondelete="RESTRICT"), nullable=False, index=True
     )
+    version_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("artifact_versions.id", ondelete="RESTRICT"), nullable=False, index=True)
+    version: Mapped["ArtifactVersion"] = relationship("ArtifactVersion", foreign_keys=[version_id], lazy="joined")
+    withdrawn: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     slug: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     citation: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     published_by_id: Mapped[uuid.UUID] = mapped_column(
@@ -506,16 +535,16 @@ class Publication(Base):
     )
 
 
-class Artifact(Base):
-    __tablename__ = "artifacts"
+class Blob(Base):
+    __tablename__ = "blobs"
     __table_args__ = (UniqueConstraint("project_id", "digest", name="uq_artifact_project_digest"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("organizations.id", ondelete="RESTRICT"), nullable=False, index=True
     )
-    project_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("projects.id", ondelete="RESTRICT"), nullable=True, index=True
     )
     digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     media_type: Mapped[str] = mapped_column(String(160), nullable=False)
@@ -603,4 +632,25 @@ class PricingRelease(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
+    )
+
+
+class ApiErrorEvent(Base):
+    __tablename__ = "api_error_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid, nullable=True, index=True
+    )
+    status_code: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    category: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    error_code: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    endpoint: Mapped[str] = mapped_column(String(256), nullable=False)
+    http_method: Mapped[str] = mapped_column(String(10), nullable=False)
+    detail: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now(), index=True
     )

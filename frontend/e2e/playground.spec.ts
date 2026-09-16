@@ -97,7 +97,7 @@ test('a guided example opens its package directly in Playground', async ({ page 
     headers: { 'access-control-allow-origin': '*' },
     body: importedPackage('guided-example'),
   }));
-  await page.route('**/v1/analyze', (route) => fulfillJson(route, VALID_ANALYSIS));
+  await page.route('**/v1/validate', (route) => fulfillJson(route, VALID_ANALYSIS));
 
   await page.goto('/examples');
   await page.getByRole('link', { name: 'Open package' }).first().click();
@@ -108,7 +108,7 @@ test('a guided example opens its package directly in Playground', async ({ page 
 });
 
 test('BIM workspace analyzes and selects only compatible modes', async ({ page }) => {
-  await page.route('**/v1/analyze', async (route) => {
+  await page.route('**/v1/validate', async (route) => {
     expect(route.request().headers()['content-type']).toContain('application/vnd.bim+zip');
     expect(Array.from(route.request().postDataBuffer()?.subarray(0, 4) || [])).toEqual([0x50, 0x4b, 0x03, 0x04]);
     await fulfillJson(route, VALID_ANALYSIS);
@@ -134,7 +134,7 @@ test('BIM workspace analyzes and selects only compatible modes', async ({ page }
 
 test('a rejected BIM ZIP import is atomic and preserves the last valid workspace', async ({ page }) => {
   let analysisCalls = 0;
-  await page.route('**/v1/analyze', async (route) => {
+  await page.route('**/v1/validate', async (route) => {
     analysisCalls += 1;
     await fulfillJson(route, analysisCalls === 1 ? VALID_ANALYSIS : {
       valid: false,
@@ -174,7 +174,7 @@ test('invalid BPMN XML reports a diagnostic without replacing the last valid sou
 });
 
 test('BPMN and JSON diagnostics navigate to the exact editor target', async ({ page }) => {
-  await page.route('**/v1/analyze', (route) => fulfillJson(route, {
+  await page.route('**/v1/validate', (route) => fulfillJson(route, {
     valid: false,
     compatibleModes: [],
     diagnostics: [{
@@ -207,7 +207,7 @@ test('BPMN and JSON diagnostics navigate to the exact editor target', async ({ p
 
 test('Solve analyzes, snapshots, queues, polls, and renders the authoritative decision', async ({ page }) => {
   let polls = 0;
-  await page.route('**/v1/analyze', (route) => fulfillJson(route, VALID_ANALYSIS));
+  await page.route('**/v1/validate', (route) => fulfillJson(route, VALID_ANALYSIS));
   await page.route('**/v1/instances', async (route) => {
     expect(route.request().method()).toBe('POST');
     expect(Array.from(route.request().postDataBuffer()?.subarray(0, 4) || [])).toEqual([0x50, 0x4b, 0x03, 0x04]);
@@ -252,7 +252,7 @@ test('Solve analyzes, snapshots, queues, polls, and renders the authoritative de
 });
 
 test('exported BIM ZIP imports back with the same canonical workspace content', async ({ page }) => {
-  await page.route('**/v1/analyze', (route) => fulfillJson(route, VALID_ANALYSIS));
+  await page.route('**/v1/validate', (route) => fulfillJson(route, VALID_ANALYSIS));
   await page.goto('/playground');
   const name = await workspaceName(page);
   await name.fill('roundtrip-workspace');
@@ -282,4 +282,35 @@ test('exported BIM ZIP imports back with the same canonical workspace content', 
   const secondPath = await secondDownload.path();
   expect(secondPath).not.toBeNull();
   expect(await readFile(secondPath!)).toEqual(exported);
+});
+
+test('binding analysis links canonical candidates and fits mobile', async ({ page }) => {
+  test.setTimeout(90000);
+  await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 'analysis-test-token'));
+  await page.route('**/v1/users/me', route => fulfillJson(route, { id: 'analysis-user', username: 'researcher', email: 'test@example.invalid', role: 'user', is_active: true, plan: 'FREE', created_at: '2026-01-01' }));
+  await page.route('**/v1/users/me/pricing-token', route => fulfillJson(route, { pricing_token: '' }));
+  await page.route('**/v1/validate', route => fulfillJson(route, VALID_ANALYSIS));
+  await page.route('**/v1/instances', route => fulfillJson(route, { id: 'analysis-snapshot' }, 201));
+  await page.route('**/v1/jobs', route => fulfillJson(route, { id: 'analysis-job', status: 'queued' }, 202));
+  await page.route('**/v1/jobs/analysis-job', route => fulfillJson(route, {
+    id: 'analysis-job', status: 'completed', result: { termination: 'FEASIBLE', solutions: [[0, 1], [1, 0], [.4, .4]].map((values, i) => ({
+      decision: { kind: 'binding', binding: { hello: { resource: 'catalog', id: `candidate-${i}` } } },
+      metrics: { latency: values[0], cost: values[1] },
+      objectives: { mode: 'pareto', penalty: 0, score: [...values, 0], components: values.map((value, j) => ({ metric: { resource: 'application', id: j ? 'cost' : 'latency' }, value, loss: value, weight: 1 })) },
+      violations: [], penalties: [],
+    })) },
+  }));
+  await page.route('**/v1/jobs/analysis-job/ir', route => fulfillJson(route, {
+    kind: 'BindingProblem', spec: {
+      optimization: { terms: ['latency', 'cost'].map(id => ({ metric: { resource: 'application', id }, direction: 'minimize' })) },
+      constraints: [{ ref: { resource: 'rules', id: 'joint-budget' }, when: { kind: 'literal', value: true }, enforcement: 'hard', assert: {
+        kind: 'compare', op: 'lte', left: { kind: 'arithmetic', op: 'add', left: { kind: 'path', segments: ['metrics', 'latency'] }, right: { kind: 'path', segments: ['metrics', 'cost'] } }, right: { kind: 'literal', value: 1.1 },
+      } }],
+    },
+  }));
+  await page.goto('/playground');
+  await page.getByRole('button', { name: 'Solve' }).click();
+  const summary = page.getByRole('region', { name: 'Binding analysis' });
+  await expect(summary).toBeVisible();
+  await expect(summary.getByRole('link', { name: 'Open analysis' })).toHaveAttribute('href', '/app/analysis?job=analysis-job');
 });

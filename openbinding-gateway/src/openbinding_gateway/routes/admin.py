@@ -16,22 +16,30 @@ administration screen is a client of this API like any other.
 from __future__ import annotations
 
 import uuid
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access import metering
 from ..access.contracts import sweep_contract_renewals
 from ..access.dependencies import require_admin, session_dependency
+from ..collaboration import (
+    descendant_ids,
+    effective_role,
+    enforce_sponsor_usage,
+    organization_usage,
+    sponsor_organization_ids,
+)
 from ..core.settings import Settings, get_settings
 from ..db.models import (
+    ApiErrorEvent,
     ApiKey,
-    Artifact,
+    Blob,
     AuditEvent,
     AuthIdentity,
     BindingCase,
@@ -74,6 +82,7 @@ from ..models.errors import (
     UNAVAILABLE_RESPONSE,
     api_error,
 )
+from ..models.platform import OrganizationView
 from ..space_client import PricingUnavailable, get_gate
 from ..pricing_catalog import PricingCatalogError, live_catalog
 from ..mailer import send_mail
@@ -91,6 +100,7 @@ class MaintenancePurgeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     confirmation: Literal["PURGE EXPIRED"]
     terminal_job_retention_days: int = Field(default=365, ge=7, le=3650)
+    error_retention_days: Optional[int] = Field(default=90, ge=1, le=3650)
 
 
 def _aware(value):
@@ -102,8 +112,9 @@ def _aware(value):
 async def _maintenance_preview(session: AsyncSession, retention_days: int) -> dict:
     now = utcnow()
     cutoff = now - timedelta(days=retention_days)
+    from ..db.models import ArtifactVersion
     expired_artifacts = int(await session.scalar(
-        select(func.count(Artifact.id)).where(Artifact.expires_at.is_not(None), Artifact.expires_at <= now)
+        select(func.count(Blob.id)).where(Blob.expires_at.is_not(None), Blob.expires_at <= now, ~Blob.id.in_(select(ArtifactVersion.blob_id)))
     ) or 0)
     expired_keys = int(await session.scalar(
         select(func.count(ApiKey.id)).where(
@@ -187,7 +198,6 @@ async def list_users(
             )
         ).all()
     )
-
     views = []
     for user in users:
         try:
@@ -578,7 +588,7 @@ async def platform_overview(
         "collections": Collection,
         "studies": Study,
         "studyRuns": StudyRun,
-        "artifacts": Artifact,
+        "artifacts": Blob,
         "apiKeys": ApiKey,
         "pricingReleases": PricingRelease,
     }
@@ -593,7 +603,10 @@ async def platform_overview(
         select(User.plan_cache, func.count(User.id)).group_by(User.plan_cache)
     )).all())
     latest_audit = (await session.execute(
-        select(AuditEvent).order_by(AuditEvent.created_at.desc()).limit(8)
+        select(AuditEvent)
+        .where(AuditEvent.organization_id.is_(None))
+        .order_by(AuditEvent.created_at.desc())
+        .limit(8)
     )).scalars().all()
     return {
         "counts": counts,
@@ -616,16 +629,13 @@ async def platform_overview(
 @router.get("/audit", operation_id="adminListAuditEvents")
 async def list_audit_events(
     action: str | None = None,
-    organization_id: uuid.UUID | None = None,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> dict:
-    conditions = []
+    conditions = [AuditEvent.organization_id.is_(None)]
     if action:
         conditions.append(AuditEvent.action == action)
-    if organization_id:
-        conditions.append(AuditEvent.organization_id == organization_id)
     total = int(await session.scalar(
         select(func.count(AuditEvent.id)).where(*conditions)
     ) or 0)
@@ -640,7 +650,7 @@ async def list_audit_events(
         "events": [
             {
                 "id": str(item.id),
-                "organizationId": str(item.organization_id) if item.organization_id else None,
+                "organizationId": None,
                 "actorId": str(item.actor_id) if item.actor_id else None,
                 "action": item.action,
                 "targetType": item.target_type,
@@ -654,6 +664,76 @@ async def list_audit_events(
         "offset": offset,
         "limit": limit,
     }
+
+
+class AdminSponsorTransferRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    billing_sponsor_user_id: uuid.UUID
+
+
+@router.post(
+    "/organizations/{organization_id}/sponsor",
+    response_model=OrganizationView,
+    operation_id="adminTransferOrganizationSponsor",
+    summary="Transfer billing sponsorship of an organization and its subtree",
+    responses={
+        404: NOT_FOUND_RESPONSE,
+        422: {"description": "The sponsor account is not acceptable."},
+        503: UNAVAILABLE_RESPONSE,
+    },
+)
+async def admin_transfer_organization_sponsor(
+    organization_id: uuid.UUID,
+    payload: AdminSponsorTransferRequest,
+    administrator: User = Depends(require_admin),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> OrganizationView:
+    organization = await session.get(Organization, organization_id)
+    if organization is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Organization not found.")
+
+    sponsor = await session.get(User, payload.billing_sponsor_user_id)
+    if sponsor is None or not sponsor.is_active:
+        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_sponsor", "Sponsor must be active.")
+
+    await session.execute(select(User.id).where(User.id == sponsor.id).with_for_update())
+    subtree = set(await descendant_ids(session, organization.id))
+    sponsored = set(await sponsor_organization_ids(session, sponsor.id))
+    hypothetical = await organization_usage(session, subtree | sponsored)
+    await enforce_sponsor_usage(session, sponsor, hypothetical)
+
+    previous_sponsor_id = organization.billing_sponsor_user_id
+    await session.execute(
+        update(Organization)
+        .where(Organization.id.in_(subtree))
+        .values(billing_sponsor_user_id=sponsor.id)
+    )
+    organization.billing_sponsor_user_id = sponsor.id
+
+    session.add(
+        AuditEvent(
+            organization_id=organization.id,
+            actor_id=administrator.id,
+            action="organization.sponsor_transferred",
+            target_type="Organization",
+            target_id=organization.id,
+            detail={
+                "previous_sponsor_user_id": str(previous_sponsor_id),
+                "new_sponsor_user_id": str(sponsor.id),
+            },
+        )
+    )
+    await session.flush()
+    role = await effective_role(session, organization.id, administrator)
+    return OrganizationView(
+        id=organization.id,
+        slug=organization.slug,
+        name=organization.name,
+        parent_id=organization.parent_id,
+        billing_sponsor_user_id=organization.billing_sponsor_user_id,
+        effective_role=role.value if role else None,
+        created_at=organization.created_at,
+    )
 
 
 @router.get("/queues", operation_id="adminQueueStatus")
@@ -734,17 +814,20 @@ async def purge_expired_data(
 ) -> dict:
     preview = await _maintenance_preview(session, request.terminal_job_retention_days)
     now = utcnow()
-    expired = (await session.execute(select(Artifact).where(
-        Artifact.expires_at.is_not(None), Artifact.expires_at <= now
+    from ..db.models import ArtifactVersion
+    expired = (await session.execute(select(Blob).where(
+        Blob.expires_at.is_not(None), Blob.expires_at <= now, ~Blob.id.in_(select(ArtifactVersion.blob_id))
     ))).scalars().all()
     root = Path(settings.artifact_root).resolve()
     removed_files = 0
     for artifact in expired:
         path = Path(artifact.storage_uri).resolve()
-        if path.is_relative_to(root) and path.is_file():
+        await session.delete(artifact)
+        await session.flush()
+        retained = await session.scalar(select(Blob.id).where(Blob.storage_uri == artifact.storage_uri).limit(1))
+        if not retained and path.is_relative_to(root) and path.is_file():
             path.unlink()
             removed_files += 1
-        await session.delete(artifact)
 
     await session.execute(
         ApiKey.__table__.update()
@@ -759,15 +842,367 @@ async def purge_expired_data(
         Job.finished_at <= cutoff,
         Job.id.not_in(study_job_ids),
     ))
+    cutoff_errors = now - timedelta(days=request.error_retention_days or 90)
+    deleted_errors = await session.execute(delete(ApiErrorEvent).where(
+        ApiErrorEvent.created_at <= cutoff_errors
+    ))
     session.add(AuditEvent(
         actor_id=administrator.id,
         action="maintenance.expired.purged",
         target_type="Platform",
         detail={**preview, "artifactFilesRemoved": removed_files},
     ))
-    return {
+    res = {
         "artifacts": len(expired),
         "artifactFiles": removed_files,
         "apiKeys": preview["expiredApiKeys"],
         "jobs": deleted_jobs.rowcount or 0,
     }
+    if "error_retention_days" in request.model_fields_set:
+        res["errorEvents"] = deleted_errors.rowcount or 0
+    return res
+
+
+@router.get("/errors/overview", operation_id="adminErrorOverview")
+async def get_error_overview(
+    administrator: User = Depends(require_admin),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> dict:
+    now = utcnow()
+    since = now - timedelta(hours=24)
+
+    total_errors = int(await session.scalar(
+        select(func.count(ApiErrorEvent.id)).where(ApiErrorEvent.created_at >= since)
+    ) or 0)
+
+    cat_rows = (await session.execute(
+        select(ApiErrorEvent.category, func.count(ApiErrorEvent.id))
+        .where(ApiErrorEvent.created_at >= since)
+        .group_by(ApiErrorEvent.category)
+    )).all()
+    by_category = {str(cat): int(count) for cat, count in cat_rows}
+
+    status_rows = (await session.execute(
+        select(ApiErrorEvent.status_code, func.count(ApiErrorEvent.id))
+        .where(ApiErrorEvent.created_at >= since)
+        .group_by(ApiErrorEvent.status_code)
+    )).all()
+    by_status_code = {str(status): int(count) for status, count in status_rows}
+
+    top_users_query = (
+        select(
+            ApiErrorEvent.user_id,
+            func.count(ApiErrorEvent.id).label("cnt"),
+            func.max(ApiErrorEvent.created_at).label("last_seen"),
+        )
+        .where(
+            ApiErrorEvent.created_at >= since,
+            ApiErrorEvent.category.in_(["pricing_quota", "concurrency"]),
+            ApiErrorEvent.user_id.is_not(None),
+        )
+        .group_by(ApiErrorEvent.user_id)
+        .order_by(func.count(ApiErrorEvent.id).desc())
+        .limit(10)
+    )
+    top_users_rows = (await session.execute(top_users_query)).all()
+    user_ids = [row.user_id for row in top_users_rows if row.user_id]
+    user_map = {}
+    if user_ids:
+        users = (await session.execute(select(User).where(User.id.in_(user_ids)))).scalars().all()
+        user_map = {u.id: u.email for u in users}
+
+    top_users_quota = []
+    for row in top_users_rows:
+        top_users_quota.append({
+            "userId": str(row.user_id),
+            "email": user_map.get(row.user_id),
+            "errorCount": int(row.cnt),
+            "lastSeen": row.last_seen.isoformat() if row.last_seen else None,
+        })
+
+    solver_query = (
+        select(
+            ApiErrorEvent.endpoint,
+            func.count(ApiErrorEvent.id).label("cnt"),
+            func.max(ApiErrorEvent.created_at).label("last_seen"),
+        )
+        .where(
+            ApiErrorEvent.created_at >= since,
+            ApiErrorEvent.category == "solver_failure",
+        )
+        .group_by(ApiErrorEvent.endpoint)
+        .order_by(func.count(ApiErrorEvent.id).desc())
+        .limit(10)
+    )
+    solver_rows = (await session.execute(solver_query)).all()
+    top_solvers_failed = []
+    for row in solver_rows:
+        top_solvers_failed.append({
+            "engine": row.endpoint,
+            "failureCount": int(row.cnt),
+            "lastSeen": row.last_seen.isoformat() if row.last_seen else None,
+        })
+
+    events_timeline = (await session.execute(
+        select(ApiErrorEvent.category, ApiErrorEvent.created_at)
+        .where(ApiErrorEvent.created_at >= since)
+        .order_by(ApiErrorEvent.created_at.asc())
+    )).all()
+
+    buckets: dict[str, dict[str, Any]] = {}
+    for i in range(24):
+        slot_time = (since + timedelta(hours=i)).replace(minute=0, second=0, microsecond=0)
+        key = slot_time.isoformat()
+        buckets[key] = {
+            "timestamp": key,
+            "quota": 0,
+            "concurrency": 0,
+            "solver": 0,
+            "system": 0,
+            "validation": 0,
+        }
+
+    for cat, ts in events_timeline:
+        if ts is not None:
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            slot_key = ts.replace(minute=0, second=0, microsecond=0).isoformat()
+            if slot_key in buckets:
+                if cat == "pricing_quota":
+                    buckets[slot_key]["quota"] += 1
+                elif cat == "concurrency":
+                    buckets[slot_key]["concurrency"] += 1
+                elif cat == "solver_failure":
+                    buckets[slot_key]["solver"] += 1
+                elif cat == "system_bug":
+                    buckets[slot_key]["system"] += 1
+                elif cat == "validation":
+                    buckets[slot_key]["validation"] += 1
+
+    return {
+        "total_errors_24h": total_errors,
+        "by_category_24h": by_category,
+        "by_status_code_24h": by_status_code,
+        "top_users_quota": top_users_quota,
+        "top_solvers_failed": top_solvers_failed,
+        "timeline": list(buckets.values()),
+    }
+
+
+@router.get("/errors", operation_id="adminListErrors")
+async def list_error_events(
+    category: Optional[str] = None,
+    user_id: Optional[uuid.UUID] = None,
+    status_code: Optional[int] = None,
+    search: Optional[str] = None,
+    from_date: Optional[datetime] = None,
+    to_date: Optional[datetime] = None,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    administrator: User = Depends(require_admin),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> dict:
+    stmt = select(ApiErrorEvent)
+    count_stmt = select(func.count(ApiErrorEvent.id))
+
+    filters = []
+    if category:
+        filters.append(ApiErrorEvent.category == category)
+    if user_id:
+        filters.append(ApiErrorEvent.user_id == user_id)
+    if status_code:
+        filters.append(ApiErrorEvent.status_code == status_code)
+    if from_date:
+        filters.append(ApiErrorEvent.created_at >= from_date)
+    if to_date:
+        filters.append(ApiErrorEvent.created_at <= to_date)
+    if search:
+        search_pattern = f"%{search}%"
+        filters.append(
+            ApiErrorEvent.error_code.ilike(search_pattern)
+            | ApiErrorEvent.endpoint.ilike(search_pattern)
+        )
+
+    if filters:
+        stmt = stmt.where(*filters)
+        count_stmt = count_stmt.where(*filters)
+
+    total = int(await session.scalar(count_stmt) or 0)
+    events = (
+        await session.execute(
+            stmt.order_by(ApiErrorEvent.created_at.desc()).offset(offset).limit(limit)
+        )
+    ).scalars().all()
+
+    user_ids = {e.user_id for e in events if e.user_id}
+    user_map = {}
+    if user_ids:
+        users = (await session.execute(select(User).where(User.id.in_(user_ids)))).scalars().all()
+        user_map = {u.id: (u.email, u.username) for u in users}
+
+    items = []
+    for e in events:
+        user_info = user_map.get(e.user_id) if e.user_id else None
+        items.append({
+            "id": str(e.id),
+            "user_id": str(e.user_id) if e.user_id else None,
+            "userId": str(e.user_id) if e.user_id else None,
+            "user_email": user_info[0] if user_info else None,
+            "userEmail": user_info[0] if user_info else None,
+            "organization_id": str(e.organization_id) if e.organization_id else None,
+            "organizationId": str(e.organization_id) if e.organization_id else None,
+            "status_code": e.status_code,
+            "statusCode": e.status_code,
+            "category": e.category,
+            "error_code": e.error_code,
+            "errorCode": e.error_code,
+            "endpoint": e.endpoint,
+            "http_method": e.http_method,
+            "httpMethod": e.http_method,
+            "detail": e.detail,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+            "createdAt": e.created_at.isoformat() if e.created_at else None,
+        })
+
+    return {
+        "items": items,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+class EngineRoutingMetricsResponse(BaseModel):
+    summary: dict[str, Any]
+    engines: dict[str, Any]
+
+
+class AdaptationObservationItem(BaseModel):
+    id: str
+    jobId: Optional[str] = None
+    adaptationLoopId: str
+    engineSelected: str
+    workloadFeatures: dict[str, Any]
+    candidateEvaluations: list[dict[str, Any]]
+    predictedMetrics: dict[str, Any]
+    actualMetrics: Optional[dict[str, Any]] = None
+    residuals: Optional[dict[str, Any]] = None
+    outcome: str
+    engineHealthSnapshot: Optional[dict[str, Any]] = None
+    createdAt: Optional[str] = None
+
+
+class EngineRoutingObservationsResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    observations: list[AdaptationObservationItem]
+
+
+class EngineRoutingRecalibrateResponse(BaseModel):
+    status: str
+    recalibratedAt: str
+    observationsProcessed: int
+    calibratedEngines: list[str]
+
+
+@router.get(
+    "/engine-routing/metrics",
+    response_model=EngineRoutingMetricsResponse,
+    summary="Retrieve engine routing runtime health metrics",
+    description="Returns autonomic health snapshots, observed failure rates, and active concurrency across candidate engines.",
+    operation_id="admin_engine_routing_metrics",
+)
+async def get_engine_routing_metrics() -> EngineRoutingMetricsResponse:
+    from ..engine_routing import get_health_monitor
+
+    monitor = get_health_monitor()
+    snapshots = monitor.get_all_snapshots()
+    healthy_count = sum(1 for s in snapshots.values() if s.get("healthStatus") == "HEALTHY")
+    degraded_count = sum(1 for s in snapshots.values() if s.get("healthStatus") == "DEGRADED")
+    active_total = sum(s.get("activeJobs", 0) for s in snapshots.values())
+
+    return EngineRoutingMetricsResponse(
+        summary={
+            "totalEngines": len(snapshots),
+            "healthyEngines": healthy_count,
+            "degradedEngines": degraded_count,
+            "activeJobs": active_total,
+        },
+        engines=snapshots,
+    )
+
+
+@router.get(
+    "/engine-routing/observations",
+    response_model=EngineRoutingObservationsResponse,
+    summary="List historical MAPE-K adaptation observations",
+    description="Returns paginated records of instance features, candidate evaluations, predicted metrics and actual execution telemetry.",
+    operation_id="admin_engine_routing_observations",
+)
+async def list_engine_routing_observations(
+    session: AsyncSession = Depends(session_dependency),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    engine: Optional[str] = Query(default=None),
+) -> EngineRoutingObservationsResponse:
+    from ..db.models import AdaptationObservation
+
+    query = select(AdaptationObservation)
+    count_query = select(func.count()).select_from(AdaptationObservation)
+
+    if engine:
+        query = query.where(AdaptationObservation.engine_selected == engine)
+        count_query = count_query.where(AdaptationObservation.engine_selected == engine)
+
+    total = (await session.scalar(count_query)) or 0
+    rows = await session.execute(
+        query.order_by(AdaptationObservation.created_at.desc()).offset(offset).limit(limit)
+    )
+    obs_list = rows.scalars().all()
+
+    items = [
+        AdaptationObservationItem(
+            id=str(obs.id),
+            jobId=str(obs.job_id) if obs.job_id else None,
+            adaptationLoopId=obs.adaptation_loop_id,
+            engineSelected=obs.engine_selected,
+            workloadFeatures=obs.workload_features or {},
+            candidateEvaluations=obs.candidate_evaluations or [],
+            predictedMetrics=obs.predicted_metrics or {},
+            actualMetrics=obs.actual_metrics,
+            residuals=obs.residuals,
+            outcome=obs.outcome,
+            engineHealthSnapshot=obs.engine_health_snapshot,
+            createdAt=obs.created_at.isoformat() if obs.created_at else None,
+        )
+        for obs in obs_list
+    ]
+
+    return EngineRoutingObservationsResponse(
+        total=total,
+        limit=limit,
+        offset=offset,
+        observations=items,
+    )
+
+
+@router.post(
+    "/engine-routing/recalibrate",
+    response_model=EngineRoutingRecalibrateResponse,
+    summary="Trigger model recalibration across historical observations",
+    description="Updates empirical confidence densities and predictive models using stored observations.",
+    operation_id="admin_engine_routing_recalibrate",
+)
+async def recalibrate_engine_routing(
+    session: AsyncSession = Depends(session_dependency),
+) -> EngineRoutingRecalibrateResponse:
+    from ..engine_routing import get_adaptation_manager
+
+    result = await get_adaptation_manager().recalibrate(session)
+    return EngineRoutingRecalibrateResponse(
+        status=result.get("status", "recalibrated"),
+        recalibratedAt=result.get("recalibratedAt", utcnow().isoformat()),
+        observationsProcessed=result.get("observationsProcessed", 0),
+        calibratedEngines=result.get("calibratedEngines", []),
+    )

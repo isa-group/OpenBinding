@@ -179,7 +179,7 @@ def _solve(
     options: dict,
 ) -> dict:
     analysis = client.post(
-        "/v1/analyze", headers=headers, json={"snapshot": snapshot["id"]}
+        "/v1/validate", headers=headers, json={"snapshot": snapshot["id"]}
     )
     assert analysis.status_code == 200, analysis.text
     matches = [

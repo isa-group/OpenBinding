@@ -1,8 +1,21 @@
+import { useContext } from 'react';
+import { AuthContext } from '../../contexts/auth';
+import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysis';
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Check, FileArchive, History, RotateCcw, ShieldCheck, Waypoints } from 'lucide-react';
+import { Link, useOutletContext } from 'react-router-dom';
+import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
+import { platformApi } from '../../api/platform';
+import { ArtifactVersionPicker } from '../../components/Artifacts/ArtifactVersionPicker';
+import type { ArtifactVersion } from '../../api/library';
+import { ArrowRight, Check, Compass, FileArchive, History, RotateCcw, ShieldCheck, Sliders, Wand2, Waypoints } from 'lucide-react';
 import { Liquid } from 'liquid-gooey';
-import { apiClient, type BimResourceRef } from '../../api/client';
+import {
+  apiClient,
+  type BimAnalysisData,
+  type BimResourceRef,
+  type EngineRoutingUserProvenance,
+} from '../../api/client';
+import { BindingSpaceBadge } from '../../components/BindingSpaceBadge/BindingSpaceBadge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Alert } from '../../components/ui/Alert';
@@ -10,6 +23,7 @@ import { Badge } from '../../components/ui/Badge';
 import { packageFiles, unzipPackage, zipStore } from '../../utils/bimZip';
 import { loadDraft, saveDraft, type WorkspaceFiles } from '../../utils/workspaceDraft';
 import { sourceDiff, toYaml } from '../../utils/workspaceViews';
+import { InstanceGeneratorModal } from './InstanceGeneratorModal';
 import './Playground.css';
 
 const CodeEditor = lazy(() => import('../../components/CodeEditor/CodeEditor').then((module) => ({ default: module.CodeEditor })));
@@ -99,7 +113,7 @@ const WORKSPACE_TABS: Array<{ id: WorkspaceTab; label: string; bpmnOnly?: boolea
   { id: 'diff', label: 'Source diff' },
 ];
 
-type WorkspaceStatus = 'idle' | 'validating' | 'valid' | 'queued' | 'completed' | 'failed';
+type WorkspaceStatus = 'idle' | 'validating' | 'valid' | 'queued' | 'running' | 'completed' | 'failed';
 type WorkspaceTab = 'resources' | 'form' | 'expert' | 'yaml' | 'workflow' | 'bpmn' | 'bpmnXml' | 'ir' | 'diff';
 
 interface CompiledIr {
@@ -122,7 +136,8 @@ interface RegisteredResourceRef {
   namespace: string;
   name: string;
   version: string;
-  digest: string;
+  digest?: string;
+  versionDigest?: string;
 }
 
 const RESOURCE_ROLE_LABELS: Record<string, string> = {
@@ -355,7 +370,7 @@ function isRegisteredResourceRef(value: unknown): value is RegisteredResourceRef
     && typeof value.namespace === 'string'
     && typeof value.name === 'string'
     && typeof value.version === 'string'
-    && typeof value.digest === 'string';
+    && (typeof value.digest === 'string' || typeof value.versionDigest === 'string');
 }
 
 function kindForLocalResource(path: string, files: WorkspaceFiles): string {
@@ -946,7 +961,7 @@ function InstanceForm({ spec, updateSpec, availablePaths }: { spec: BimSpecDocum
           <label>Namespace<input aria-label={`${role}/${id} namespace`} value={registered.namespace} onChange={(event) => replaceEntry(role, id, role, id, { ...registered, namespace: event.target.value })} /></label>
           <label>Name<input aria-label={`${role}/${id} registered name`} value={registered.name} onChange={(event) => replaceEntry(role, id, role, id, { ...registered, name: event.target.value })} /></label>
           <label>Version<input aria-label={`${role}/${id} registered version`} value={registered.version} onChange={(event) => replaceEntry(role, id, role, id, { ...registered, version: event.target.value })} /></label>
-          <label className="form-field-wide">SHA-256 digest<input aria-label={`${role}/${id} digest`} value={registered.digest} onChange={(event) => replaceEntry(role, id, role, id, { ...registered, digest: event.target.value })} /></label>
+          <label className="form-field-wide">SHA-256 digest<input aria-label={`${role}/${id} digest`} value={registered.versionDigest || registered.digest || ''} onChange={(event) => replaceEntry(role, id, role, id, { ...registered, [registered.versionDigest ? 'versionDigest' : 'digest']: event.target.value })} /></label>
         </div>}
       </FormCard>;
     })}</div>
@@ -1402,10 +1417,10 @@ function RoutingOverlayForm({ spec, updateSpec }: { spec: BimSpecDocument; updat
         <label className={`choice-card ${explicit ? 'is-selected' : ''}`}><input type="radio" name="routing-mode" value="explicit" checked={explicit} onChange={() => setMode('explicit')} /><span><strong>Explicit ledger</strong><small>Every routed branch receives a declared decimal probability.</small></span></label>
       </div>
     </FormSection>
-    {explicit && <FormSection eyebrow="Probability ledger" title="Branch entries" description="Targets are exclusive branch ids (or BPMN sequenceFlow ids). Analyze verifies every XOR independently." count={entries.length}>
+    {explicit && <FormSection eyebrow="Probability ledger" title="Branch entries" description="Targets are exclusive branch ids (or BPMN sequenceFlow ids). Validate verifies every XOR independently." count={entries.length}>
       <div className={`routing-balance ${balanced ? 'is-balanced' : 'is-open'}`}>
         <div><span>Listed total</span><strong>Σ {total.toFixed(3)}</strong></div>
-        <p>{balanced ? 'The listed entries form one complete probability distribution.' : 'This total is not one. That can be valid only when entries span multiple XOR groups; Analyze checks each group.'}</p>
+        <p>{balanced ? 'The listed entries form one complete probability distribution.' : 'This total is not one. That can be valid only when entries span multiple XOR groups; Validate checks each group.'}</p>
       </div>
       <div className="form-card-list form-card-list-compact">{entries.map((entry, index) => <FormCard
         key={index}
@@ -1656,31 +1671,31 @@ function SpecificResourceForm({ document, onChange, availablePaths }: CommonReso
   const spec = document.spec || {};
   const updateSpec = (nextSpec: BimSpecDocument) => onChange({ ...document, spec: nextSpec });
 
-  if (document.kind === 'Application') {
+  if (document.apiVersion === 'qos-binding/v1' && document.kind === 'Application') {
     return <ApplicationForm spec={spec} updateSpec={updateSpec} />;
   }
 
-  if (document.kind === 'CandidateCatalog') {
+  if (document.apiVersion === 'qos-binding/v1' && document.kind === 'CandidateCatalog') {
     return <CandidateCatalogForm spec={spec} updateSpec={updateSpec} />;
   }
 
-  if (document.kind === 'ConstraintSet') {
+  if (document.apiVersion === 'qos-binding/v1' && document.kind === 'ConstraintSet') {
     return <ConstraintSetForm spec={spec} updateSpec={updateSpec} />;
   }
 
-  if (document.kind === 'Optimization') {
+  if (document.apiVersion === 'qos-binding/v1' && document.kind === 'Optimization') {
     return <OptimizationForm spec={spec} updateSpec={updateSpec} />;
   }
 
-  if (document.kind === 'RoutingOverlay') {
+  if (document.apiVersion === 'qos-binding/v1' && document.kind === 'RoutingOverlay') {
     return <RoutingOverlayForm spec={spec} updateSpec={updateSpec} />;
   }
 
-  if (document.kind === 'Placement') {
+  if (document.apiVersion === 'qos-binding-placement/v1' && document.kind === 'Placement') {
     return <PlacementForm spec={spec} updateSpec={updateSpec} />;
   }
 
-  if (document.kind === 'Instance') {
+  if (document.apiVersion === 'bim/v1' && document.kind === 'Instance') {
     return <InstanceForm spec={spec} updateSpec={updateSpec} availablePaths={availablePaths} />;
   }
 
@@ -1694,16 +1709,16 @@ function DecisionView({ decision }: { decision: BindingDecision | undefined }) {
   return <pre>{JSON.stringify(decision, null, 2)}</pre>;
 }
 
-async function workspaceFromArchive(archive: ArrayBuffer): Promise<{ files: WorkspaceFiles; response: Awaited<ReturnType<typeof apiClient.analyzeBimPackage>> }> {
+async function workspaceFromArchive(archive: ArrayBuffer): Promise<{ files: WorkspaceFiles; response: Awaited<ReturnType<typeof apiClient.validateBimPackage>> }> {
   const candidateFiles = await unzipPackage(archive);
   const candidateRoot = parseJson(candidateFiles['instance.json']);
   if (candidateRoot?.apiVersion !== 'bim/v1' || candidateRoot?.kind !== 'Instance') {
     throw new Error('The package root must be a bim/v1 Instance.');
   }
   const canonicalFiles = packageFiles(candidateFiles);
-  const response = await apiClient.analyzeBimPackage(zipStore(canonicalFiles));
+  const response = await apiClient.validateBimPackage(zipStore(canonicalFiles));
   if (!response.valid) {
-    const error = new Error('The BIM package did not pass analysis.') as Error & { diagnostics: Diagnostic[] };
+    const error = new Error('The BIM package did not pass validation.') as Error & { diagnostics: Diagnostic[] };
     error.diagnostics = (response.diagnostics || []) as Diagnostic[];
     throw error;
   }
@@ -1711,19 +1726,39 @@ async function workspaceFromArchive(archive: ArrayBuffer): Promise<{ files: Work
 }
 
 export function InstanceWorkspace() {
+  const auth = useContext(AuthContext);
+  const platform = useOutletContext<PlatformOutletContext | null>();
+  const caseRef = new URLSearchParams(window.location.search).get('case');
+  const revisionRef = new URLSearchParams(window.location.search).get('revision');
+  const orgSlug = platform?.organization?.slug;
+  const projectSlug = platform?.project?.slug;
+  const draftScope = `${auth?.user?.id || 'anonymous'}:${window.location.pathname}:${new URLSearchParams(window.location.search).get('case') || ''}:${new URLSearchParams(window.location.search).get('revision') || ''}`;
   const [files, setFiles] = useState<WorkspaceFiles>(DEFAULT_FILES);
   const [selectedPath, setSelectedPath] = useState('instance.json');
   const [status, setStatus] = useState<WorkspaceStatus>('idle');
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [result, setResult] = useState<BindingResult | null>(null);
+  const [resultJobId, setResultJobId] = useState<string>();
   const [compatibleModes, setCompatibleModes] = useState<CompatibleMode[]>([]);
   const [selectedMode, setSelectedMode] = useState('');
+  const [showGeneratorModal, setShowGeneratorModal] = useState(false);
+  const [autoRoutingProfile, setAutoRoutingProfile] = useState<'balanced' | 'quality_first' | 'latency_first' | 'cost_first'>('balanced');
+  const [autoRoutingMaxCredits, setAutoRoutingMaxCredits] = useState<number>(40);
+  const [autoRoutingMinQuality, setAutoRoutingMinQuality] = useState<number>(0.85);
+  const [autoRoutingMaxFailureRisk, setAutoRoutingMaxFailureRisk] = useState<number>(0.3);
+  const [autoRoutingRequireExact, setAutoRoutingRequireExact] = useState<boolean>(false);
+  const [autoRoutingAllowFallback, setAutoRoutingAllowFallback] = useState<boolean>(true);
+  const [showRoutingPolicy, setShowRoutingPolicy] = useState<boolean>(false);
+  const [routingProvenance, setRoutingProvenance] = useState<EngineRoutingUserProvenance | null>(null);
+  const [executionConfiguration, setExecutionConfiguration] = useState<ArtifactVersion | null>(null);
+  useEffect(() => { setExecutionConfiguration(null); }, [orgSlug]);
+  const [analysisData, setAnalysisData] = useState<BimAnalysisData | null>(null);
   const [examples, setExamples] = useState<string[]>([]);
   const [tab, setTab] = useState<WorkspaceTab>('resources');
   const [bpmnDraft, setBpmnDraft] = useState(DEFAULT_BPMN);
   const [focusedBpmnElement, setFocusedBpmnElement] = useState<string | null>(null);
   const [editorSelection, setEditorSelection] = useState<{ anchor: number; head: number } | undefined>();
-  const [hydrated, setHydrated] = useState(false);
+  const [hydratedScope, setHydratedScope] = useState<string | null>(null);
   const [historyDepth, setHistoryDepth] = useState(0);
   const [compiledIr, setCompiledIr] = useState<CompiledIr | null>(null);
   const [irLoading, setIrLoading] = useState(false);
@@ -1758,41 +1793,64 @@ export function InstanceWorkspace() {
   const exampleTransitionName = requestedExample ? `example-${requestedExample.replace(/[^a-z0-9]+/gi, '-')}` : undefined;
 
   useEffect(() => {
+    let active = true;
+    setHydratedScope(null);
     void (async () => {
       if (requestedExample) {
         try {
           setStatus('validating');
           const archive = await apiClient.getBimExamplePackage(requestedExample);
           const prepared = await workspaceFromArchive(archive);
+          if (!active) return;
           setFiles(prepared.files);
           baselineRef.current = prepared.files;
           const nextBpmn = Object.keys(prepared.files).find((path) => path.endsWith('.bpmn'));
           setBpmnDraft(nextBpmn ? prepared.files[nextBpmn] : DEFAULT_BPMN);
           const modes = modesFromAnalysis(prepared.response);
           setCompatibleModes(modes);
+          setAnalysisData(prepared.response.analysis || null);
           setSelectedMode(modes[0] ? executionKey(modes[0]) : '');
           setStatus('valid');
         } catch (reason: unknown) {
+          if (!active) return;
           setStatus('failed');
           setDiagnostics(errorDiagnostics(reason, 'example'));
         }
       } else {
-        const draft = await loadDraft();
-        if (draft && parseJson(draft['instance.json'])?.apiVersion === 'bim/v1') {
+        let saved = await loadDraft(draftScope);
+        if (!saved && caseRef && revisionRef && orgSlug && projectSlug) {
+          try {
+            const revisions = await platformApi.caseRevisions(orgSlug, projectSlug, caseRef);
+            const revision = revisions.find(item => item.id === revisionRef);
+            if (!revision) throw new Error('The selected case revision is unavailable.');
+            const spec = revision.document.spec as { resources?: Record<string, Record<string, unknown>> } | undefined;
+            const exact = Object.values(spec?.resources || {}).every(group => Object.values(group).every(target => isRegisteredResourceRef(target)));
+            saved = exact ? { 'instance.json': pretty(revision.document) } : revision.source_snapshot_id
+              ? await unzipPackage(await platformApi.snapshotArchive(revision.source_snapshot_id))
+              : { 'instance.json': pretty(revision.document) };
+          } catch (reason) {
+            if (active) { setStatus('failed'); setDiagnostics(errorDiagnostics(reason, 'case')); }
+            return;
+          }
+        }
+        if (!active) return;
+        const draft = saved && parseJson(saved['instance.json'])?.apiVersion === 'bim/v1' ? saved : DEFAULT_FILES;
+        {
           setFiles(draft);
           baselineRef.current = draft;
           const path = Object.keys(draft).find((item) => item.endsWith('.bpmn'));
           if (path) setBpmnDraft(draft[path]);
         }
       }
-      setHydrated(true);
+      if (active) setHydratedScope(draftScope);
     })();
-    void apiClient.getBimExamples().then(setExamples).catch(() => setExamples([]));
-  }, [requestedExample]);
+    void apiClient.getBimExamples().then(value => { if (active) setExamples(value); }).catch(() => { if (active) setExamples([]); });
+    return () => { active = false; };
+  }, [requestedExample, draftScope, caseRef, revisionRef, orgSlug, projectSlug]);
 
   useEffect(() => {
-    if (hydrated) void saveDraft(files);
-  }, [files, hydrated]);
+    if (hydratedScope === draftScope) void saveDraft(files, draftScope).catch(reason => setDiagnostics(errorDiagnostics(reason, 'draft')));
+  }, [files, hydratedScope, draftScope]);
 
   const replaceWorkspace = (nextFiles: WorkspaceFiles) => {
     historyRef.current = [...historyRef.current.slice(-39), files];
@@ -1856,8 +1914,29 @@ export function InstanceWorkspace() {
     setCompatibleModes([]);
     setSelectedMode('');
     setResult(null);
+    setRoutingProvenance(null);
     setCompiledIr(null);
     setIrError(null);
+  };
+
+  const handleLoadGeneratedInstance = (newFiles: WorkspaceFiles) => {
+    historyRef.current = [...historyRef.current.slice(-39), files];
+    setHistoryDepth(historyRef.current.length);
+    baselineRef.current = newFiles;
+    setFiles(newFiles);
+    const newBpmn = Object.keys(newFiles).find((path) => path.endsWith('.bpmn'));
+    setBpmnDraft(newBpmn ? newFiles[newBpmn] : DEFAULT_BPMN);
+    setSelectedPath('instance.json');
+    setTab('resources');
+    setStatus('idle');
+    setDiagnostics([]);
+    setCompatibleModes([]);
+    setSelectedMode('auto');
+    setResult(null);
+    setRoutingProvenance(null);
+    setCompiledIr(null);
+    setIrError(null);
+    void analyze(newFiles);
   };
 
   const moveWorkspaceTab = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -1878,10 +1957,11 @@ export function InstanceWorkspace() {
     setDiagnostics([]);
     setResult(null);
     try {
-      const response = await apiClient.analyzeBimPackage(zipStore(packageFiles(candidateFiles)));
+      const response = await apiClient.validateBimPackage(zipStore(packageFiles(candidateFiles)));
       const modes = modesFromAnalysis(response);
       setCompatibleModes(modes);
-      setSelectedMode((current) => modes.some((item) => executionKey(item) === current)
+      setAnalysisData(response.analysis || null);
+      setSelectedMode((current) => current === 'auto' ? 'auto' : modes.some((item) => executionKey(item) === current)
         ? current
         : modes[0] ? executionKey(modes[0]) : '');
       setStatus(response.valid ? 'valid' : 'failed');
@@ -1895,8 +1975,9 @@ export function InstanceWorkspace() {
   };
 
   const run = async () => {
+    const isAutoRouter = selectedMode === 'auto';
     let mode = selectedCompatibility;
-    if (!mode) {
+    if (!mode && !executionConfiguration && !isAutoRouter) {
       try {
         const analysis = await analyze();
         mode = modesFromAnalysis(analysis)[0];
@@ -1904,25 +1985,55 @@ export function InstanceWorkspace() {
         return;
       }
     }
-    if (!mode) {
+    if (!mode && !executionConfiguration && !isAutoRouter) {
       setStatus('failed');
       setDiagnostics([{ code: 'engine', message: 'No engine mode is compatible with this BIM instance.' }]);
       return;
     }
     setStatus('queued');
     setDiagnostics([]);
+    setRoutingProvenance(null);
     try {
       const snapshot = compiledIr ?? await apiClient.createBimSnapshot(zipStore(packageFiles(files)));
       const snapshotId = 'snapshot' in snapshot ? snapshot.snapshot : snapshot.id;
-      const receipt = await apiClient.createBimJob(snapshotId, mode.engine, mode.registration, mode.mode);
+      const receipt = isAutoRouter
+        ? await apiClient.createAutoRouterBimJob(snapshotId, {
+            strategy: 'auto',
+            profile: autoRoutingProfile,
+            hardConstraints: {
+              maxCredits: autoRoutingMaxCredits,
+              minQuality: autoRoutingMinQuality,
+              maxFailureRisk: autoRoutingMaxFailureRisk,
+              requireExact: autoRoutingRequireExact,
+            },
+            adaptation: {
+              allowFallback: autoRoutingAllowFallback,
+            },
+          })
+        : executionConfiguration
+        ? await apiClient.createConfiguredBimJob(snapshotId, executionConfiguration.ref)
+        : await apiClient.createBimJob(snapshotId, mode!.engine, mode!.registration, mode!.mode);
       for (;;) {
         const job = await apiClient.getV1Job(receipt.id);
+        if (job.status === 'running') {
+          setStatus('running');
+        }
         if (job.status === 'completed') {
+          setResultJobId(receipt.id);
+          if (isRecord(job.provenance) && isRecord(job.provenance.engineRouting)) {
+            setRoutingProvenance(job.provenance.engineRouting as unknown as EngineRoutingUserProvenance);
+          }
           setResult(isRecord(job.result) ? job.result as BindingResult : null);
           setStatus('completed');
           return;
         }
-        if (job.status === 'failed') throw new Error(job.error || 'Job failed');
+        if (job.status === 'failed') {
+          const detail =
+            isRecord(job.result) && typeof job.result.error === 'string'
+              ? job.result.error
+              : (job.error || 'Job failed');
+          throw new Error(detail);
+        }
         await new Promise((resolve) => window.setTimeout(resolve, 500));
       }
     } catch (error: unknown) {
@@ -1952,6 +2063,7 @@ export function InstanceWorkspace() {
       replaceWorkspace(prepared.files);
       const modes = modesFromAnalysis(prepared.response);
       setCompatibleModes(modes);
+      setAnalysisData(prepared.response.analysis || null);
       if (modes[0]) setSelectedMode(executionKey(modes[0]));
       setStatus('valid');
     } catch (error: unknown) {
@@ -2045,6 +2157,7 @@ export function InstanceWorkspace() {
           <span className="kicker">04 · Experiment with a complete package</span>
           <h1>BIM Instance Workspace</h1>
           <p>Compose Profile-directed resources, inspect exact source, compile, match an Engine mode and verify the result.</p>
+          {caseRef && <p>Case <strong>{caseRef}</strong> · revision <code>{revisionRef}</code></p>}
           {requestedExample && <span className="loaded-example"><Check aria-hidden="true" /> Loaded lesson <code>{requestedExample}</code></span>}
         </div>
         <div className="playground-actions">
@@ -2055,10 +2168,13 @@ export function InstanceWorkspace() {
           <div className="workspace-package-actions">
             <label><span className="sr-only">Load backend example</span><select aria-label="Load backend example" defaultValue="" onChange={(event) => { void loadExample(event.target.value); event.currentTarget.value = ''; }}><option value="">Load example…</option>{examples.map((path) => <option key={path} value={path}>{path}</option>)}</select></label>
             <label className="workspace-file-button"><FileArchive aria-hidden="true" /><span>Import .bim.zip</span><input className="sr-only" type="file" accept=".zip,.bim.zip,application/zip,application/vnd.bim+zip" onChange={(event) => { const file = event.target.files?.[0]; if (file) void file.arrayBuffer().then(importArchive); event.currentTarget.value = ''; }} /></label>
+            <Button variant="secondary" onClick={() => setShowGeneratorModal(true)} title="Synthesize a new QACO instance or import from legacy format">
+              <Wand2 aria-hidden="true" style={{ width: 14, height: 14, marginRight: '0.35rem' }} /> QACO Generator
+            </Button>
             <Button variant="secondary" onClick={exportPackage}>Export .bim.zip</Button>
           </div>
           <Liquid className="workspace-run-cluster" blur={5} contrast={20} fill="var(--color-accent)" shadow="0 8px 18px rgba(92,38,20,.18)" filterPadding={16}>
-            <Liquid.Item transition="snappy"><Button className="liquid-run-action" onClick={() => { void analyze(); }} disabled={status === 'validating'}>{status === 'validating' ? 'Analyzing…' : 'Analyze'}</Button></Liquid.Item>
+            <Liquid.Item transition="snappy"><Button className="liquid-run-action" onClick={() => { void analyze(); }} disabled={status === 'validating'}>{status === 'validating' ? 'Validating…' : 'Validate'}</Button></Liquid.Item>
             <Liquid.Item x={status === 'valid' || status === 'completed' ? -3 : 0} transition="snappy"><Button className="liquid-run-action" variant="primary" onClick={() => { void run(); }} disabled={status === 'queued'}>{status === 'queued' ? 'Running…' : 'Solve'}</Button></Liquid.Item>
           </Liquid>
         </div>
@@ -2067,7 +2183,7 @@ export function InstanceWorkspace() {
       <ol className="workspace-progress" aria-label="BIM package lifecycle">
         {[
           ['Compose', 'Edit source resources'],
-          ['Analyze', 'Validate and compile'],
+          ['Validate', 'Validate and compile'],
           ['Match', 'Find exact compatible modes'],
           ['Solve', 'Send compiled IR'],
           ['Verify', 'Reevaluate the decision'],
@@ -2075,8 +2191,65 @@ export function InstanceWorkspace() {
       </ol>
 
       <div className="workspace-toolbar">
-        <label><span>Compatible engine mode</span><select aria-label="Compatible engine mode" value={selectedMode} onChange={(event) => setSelectedMode(event.target.value)} disabled={!compatibleModes.length}><option value="">Analyze to select…</option>{compatibleModes.map((item) => { const value = executionKey(item); return <option key={value} value={value}>{item.engine.name} · {item.mode} · {item.registration.name}@{item.registration.version}</option>; })}</select></label>
+        {orgSlug && <fieldset><legend>Execution configuration (optional)</legend>
+          <ArtifactVersionPicker org={orgSlug} kind="ExecutionConfiguration" versionId={executionConfiguration?.id}
+            onSelect={(_, version) => setExecutionConfiguration(version)} />
+          {executionConfiguration && <><p>Using sealed configuration {executionConfiguration.ref.name}@{executionConfiguration.ref.version}.</p>
+            <button type="button" onClick={() => setExecutionConfiguration(null)}>Use engine selection instead</button></>}
+        </fieldset>}
+        <label><span>Compatible engine mode</span><select aria-label="Compatible engine mode" value={selectedMode} onChange={(event) => setSelectedMode(event.target.value)} disabled={(!compatibleModes.length && selectedMode !== 'auto') || Boolean(executionConfiguration)}><option value="">Validate to select…</option><option value="auto">✨ AutoRouter (Self-Adaptive MAPE-K)</option>{compatibleModes.map((item) => { const value = executionKey(item); return <option key={value} value={value}>{item.engine.name} · {item.mode} · {item.registration.name}@{item.registration.version}</option>; })}</select></label>
+        {selectedMode === 'auto' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', padding: '0.75rem', backgroundColor: 'var(--color-surface-subtle)', borderRadius: '6px', border: '1px solid var(--color-border)', marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, fontSize: '0.85rem' }}>
+                <Compass size={15} color="var(--color-primary)" />
+                <span>AutoRouter (MAPE-K) Policy Configuration</span>
+              </div>
+              <Button size="small" variant="secondary" onClick={() => setShowRoutingPolicy(!showRoutingPolicy)}>
+                <Sliders size={12} style={{ marginRight: '0.25rem' }} /> {showRoutingPolicy ? 'Hide Policies' : 'Configure Policies'}
+              </Button>
+            </div>
+            {showRoutingPolicy && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem', marginTop: '0.35rem', paddingTop: '0.5rem', borderTop: '1px solid var(--color-border)' }}>
+                <label style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <span>Optimization Profile</span>
+                  <select value={autoRoutingProfile} onChange={(e) => setAutoRoutingProfile(e.target.value as 'balanced' | 'quality_first' | 'latency_first' | 'cost_first')}>
+                    <option value="balanced">Balanced</option>
+                    <option value="quality_first">Quality First</option>
+                    <option value="latency_first">Latency First</option>
+                    <option value="cost_first">Cost First</option>
+                  </select>
+                </label>
+                <label style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <span>Max Credits: {autoRoutingMaxCredits} CU</span>
+                  <input type="number" min={1} max={100} value={autoRoutingMaxCredits} onChange={(e) => setAutoRoutingMaxCredits(parseInt(e.target.value, 10) || 40)} />
+                </label>
+                <label style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <span>Min Quality: {autoRoutingMinQuality.toFixed(2)}</span>
+                  <input type="range" min={0} max={1} step={0.05} value={autoRoutingMinQuality} onChange={(e) => setAutoRoutingMinQuality(parseFloat(e.target.value))} />
+                </label>
+                <label style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <span>Max Failure Risk: {autoRoutingMaxFailureRisk.toFixed(2)}</span>
+                  <input type="range" min={0} max={1} step={0.05} value={autoRoutingMaxFailureRisk} onChange={(e) => setAutoRoutingMaxFailureRisk(parseFloat(e.target.value))} />
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', justifyContent: 'center' }}>
+                  <label style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={autoRoutingRequireExact} onChange={(e) => setAutoRoutingRequireExact(e.target.checked)} />
+                    <span>Require Exact Solver</span>
+                  </label>
+                  <label style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={autoRoutingAllowFallback} onChange={(e) => setAutoRoutingAllowFallback(e.target.checked)} />
+                    <span>Allow Fallback Solver</span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <div className="workspace-toolbar-explanation"><Waypoints aria-hidden="true" /><p>Analysis returns exact <strong>Engine + Registration + mode</strong> pins after Profile, IR, features and limits match.</p></div>
+        {analysisData?.bindingSpace && (
+          <BindingSpaceBadge cardinality={analysisData.bindingSpace} />
+        )}
         <div className="workspace-status" aria-live="polite"><span>Package state</span><Badge variant={status === 'failed' ? 'error' : status === 'completed' || status === 'valid' ? 'success' : 'default'}>{status}</Badge></div>
       </div>
 
@@ -2118,7 +2291,7 @@ export function InstanceWorkspace() {
             <section id="workspace-panel-workflow" role="tabpanel" aria-labelledby="workspace-tab-workflow" hidden={tab !== 'workflow'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">qos-binding/v1 source</span><h2>Native workflow</h2></div><span>Compact structured blocks</span></div>{tab === 'workflow' && <Suspense fallback={<EditorLoading />}><CodeEditor ariaLabel="Workflow JSON" value={workflowText} onChange={updateWorkflow} minHeight="600px" maxHeight="70vh" /></Suspense>}</section>
             <section id="workspace-panel-bpmn" role="tabpanel" aria-labelledby="workspace-tab-bpmn" hidden={tab !== 'bpmn'} className="workspace-pane bpmn-pane">{tab === 'bpmn' ? (bpmnPath ? <Suspense fallback={<EditorLoading />}><BpmnModeler candidateXml={bpmnDraft} fallbackXml={files[bpmnPath]} focusElement={focusedBpmnElement} onValidXml={acceptBpmn} onError={(message) => { setDiagnostics((current) => [...current.filter((item) => item.code !== 'bpmn-editor'), { code: 'bpmn-editor', message }]); }} /></Suspense> : <Alert type="info">This Instance does not declare a BPMN resource.</Alert>) : null}</section>
             <section id="workspace-panel-bpmnXml" role="tabpanel" aria-labelledby="workspace-tab-bpmnXml" hidden={tab !== 'bpmnXml'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">omg/bpmn/2.0.2 source</span><h2>{bpmnPath || 'workflow.bpmn'}</h2></div><span>Only valid XML replaces the last valid diagram.</span></div>{tab === 'bpmnXml' && <Suspense fallback={<EditorLoading />}><CodeEditor ariaLabel="BPMN XML" language="xml" value={bpmnDraft} onChange={updateBpmnDraft} minHeight="600px" maxHeight="70vh" /></Suspense>}</section>
-            <section id="workspace-panel-ir" role="tabpanel" aria-labelledby="workspace-tab-ir" hidden={tab !== 'ir'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">Authoritative compiler output</span><h2>Binding problem IR</h2></div><Button variant="secondary" onClick={() => void compileIr()} disabled={irLoading}>{irLoading ? 'Compiling…' : compiledIr ? 'Recompile IR' : 'Compile IR'}</Button></div><div aria-live="polite">{irError && <Alert type="error">{irError}</Alert>}{compiledIr ? <><dl className="ir-provenance"><div><dt>Snapshot</dt><dd><code>{compiledIr.snapshot}</code></dd></div><div><dt>IR digest</dt><dd><code>{compiledIr.digest}</code></dd></div></dl><Suspense fallback={<EditorLoading />}><CodeEditor ariaLabel="Compiled binding problem IR" value={pretty(compiledIr.document)} onChange={() => undefined} readOnly minHeight="520px" maxHeight="65vh" /></Suspense></> : !irLoading && !irError ? <Alert type="info">Compile the current package to inspect the exact normalized IR sent to a compatible engine.</Alert> : null}</div></section>
+            <section id="workspace-panel-ir" role="tabpanel" aria-labelledby="workspace-tab-ir" hidden={tab !== 'ir'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">Authoritative compiler output</span><h2>Binding problem IR</h2></div><Button variant="secondary" onClick={() => void compileIr()} disabled={irLoading}>{irLoading ? 'Compiling…' : compiledIr ? 'Recompile IR' : 'Compile IR'}</Button></div><div aria-live="polite">{irError && <Alert type="error">{irError}</Alert>}{compiledIr ? <><dl className="ir-provenance"><div><dt>Snapshot</dt><dd><code>{compiledIr.snapshot}</code></dd></div><div><dt>IR digest</dt><dd><code>{compiledIr.digest}</code></dd></div>{analysisData?.bindingSpace && <div><dt>Binding space</dt><dd><BindingSpaceBadge cardinality={analysisData.bindingSpace} /></dd></div>}</dl><Suspense fallback={<EditorLoading />}><CodeEditor ariaLabel="Compiled binding problem IR" value={pretty(compiledIr.document)} onChange={() => undefined} readOnly minHeight="520px" maxHeight="65vh" /></Suspense></> : !irLoading && !irError ? <Alert type="info">Compile the current package to inspect the exact normalized IR sent to a compatible engine.</Alert> : null}</div></section>
             <section id="workspace-panel-diff" role="tabpanel" aria-labelledby="workspace-tab-diff" hidden={tab !== 'diff'} className="workspace-pane"><div className="editor-heading"><div><span className="micro-label">Current source against loaded baseline</span><h2>{selectedPath}</h2></div><Badge variant={selectedChanged ? 'accent' : 'success'}>{selectedChanged ? 'Modified' : 'Unchanged'}</Badge></div>{selectedChanged ? <pre className="source-diff" aria-label={`Changes to ${selectedPath}`}><code>{selectedDiff.map((line, index) => <span className={`diff-${line.kind}`} key={`${line.kind}-${index}`}><b aria-hidden="true">{line.kind === 'added' ? '+' : line.kind === 'removed' ? '−' : ' '}</b>{line.value || ' '}</span>)}</code></pre> : <Alert type="info">This resource matches the baseline loaded into the workbench.</Alert>}</section>
           </Card>
         </section>
@@ -2126,9 +2299,15 @@ export function InstanceWorkspace() {
         <aside className="feedback-rail" aria-label="Package feedback">
           <section className={`feedback-state state-${status}`}>
             <span className="micro-label">Immediate feedback</span>
-            <div><i className="status-dot" /><h2>{status === 'failed' ? 'Needs attention' : status === 'completed' ? 'Decision verified' : status === 'valid' ? 'Package compiled' : status === 'queued' ? 'Engine is running' : status === 'validating' ? 'Compiling package' : 'Unanalyzed changes'}</h2></div>
-            <p>{status === 'idle' ? 'Edit freely, then Analyze to validate schemas, roles and semantics before selecting a solver.' : status === 'valid' ? `${compatibleModes.length} exact compatible execution path${compatibleModes.length === 1 ? '' : 's'} found.` : status === 'completed' ? 'The gateway has reevaluated the returned binding.' : status === 'failed' ? `${diagnostics.length} diagnostic${diagnostics.length === 1 ? '' : 's'} available below.` : 'The current operation does not block editing other local source.'}</p>
+            <div><i className="status-dot" /><h2>{status === 'failed' ? 'Needs attention' : status === 'completed' ? 'Decision verified' : status === 'valid' ? 'Package compiled' : status === 'queued' ? 'Engine is running' : status === 'validating' ? 'Compiling package' : 'Unvalidated changes'}</h2></div>
+            <p>{status === 'idle' ? 'Edit freely, then Validate to check schemas, roles and semantics before selecting a solver.' : status === 'valid' ? `${compatibleModes.length} exact compatible execution path${compatibleModes.length === 1 ? '' : 's'} found.` : status === 'completed' ? 'The gateway has reevaluated the returned binding.' : status === 'failed' ? `${diagnostics.length} diagnostic${diagnostics.length === 1 ? '' : 's'} available below.` : 'The current operation does not block editing other local source.'}</p>
           </section>
+          {analysisData?.bindingSpace && (
+            <section className="feedback-binding-space">
+              <span className="micro-label">Combinatorial Complexity</span>
+              <BindingSpaceBadge cardinality={analysisData.bindingSpace} variant="card" />
+            </section>
+          )}
           <section className="feedback-selection">
             <span className="micro-label">Selected source</span>
             <h3>{selectedKind}</h3>
@@ -2138,14 +2317,41 @@ export function InstanceWorkspace() {
           </section>
           <section className="feedback-compatibility">
             <span className="micro-label">Compatible execution paths</span>
-            {compatibleModes.length ? <ul>{compatibleModes.slice(0, 4).map((item) => <li key={executionKey(item)} className={executionKey(item) === selectedMode ? 'is-selected' : ''}><strong>{item.engine.name} · {item.mode}</strong><small>{item.registration.namespace}/{item.registration.name}@{item.registration.version}</small></li>)}</ul> : <p>Analyze to compare the compiled IR against Engine mode selectors and Registration pins.</p>}
+            {compatibleModes.length ? <ul>{compatibleModes.slice(0, 4).map((item) => <li key={executionKey(item)} className={executionKey(item) === selectedMode ? 'is-selected' : ''}><strong>{item.engine.name} · {item.mode}</strong><small>{item.registration.namespace}/{item.registration.name}@{item.registration.version}</small></li>)}</ul> : <p>Validate to compare the compiled IR against Engine mode selectors and Registration pins.</p>}
             {compatibleModes.length > 4 && <small>+{compatibleModes.length - 4} more compatible paths</small>}
           </section>
           {diagnostics.length > 0 ? <Alert type="error"><h2>Diagnostics</h2><ul className="diagnostic-list">{diagnostics.map((item, index) => <li key={`${item.code}-${index}`}><button type="button" onClick={() => openDiagnostic(item)}><code>{item.code || 'diagnostic'}</code> {item.message || item.detail || JSON.stringify(item)} {(item.pointer || item.jsonPointer) && <small>{item.pointer || item.jsonPointer}</small>}</button></li>)}</ul></Alert> : <section className="feedback-trust"><ShieldCheck aria-hidden="true" /><p>Analysis and results stay authoritative: source and compiled artifacts are pinned separately, and engines never validate themselves.</p></section>}
         </aside>
       </div>
 
+      {routingProvenance && (
+        <Card style={{ margin: '1rem 0', padding: '1rem', borderLeft: '4px solid var(--color-primary)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Compass size={18} color="var(--color-primary)" />
+              <strong>AutoRouter Decision (MAPE-K):</strong>
+              <Badge variant="info">{routingProvenance.selectedEngine} · {routingProvenance.selectedMode}</Badge>
+              {routingProvenance.fallbackActivated && <Badge variant="warning">Fallback Activated</Badge>}
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+              <span>Utility: <strong>{routingProvenance.utilityScore != null ? routingProvenance.utilityScore.toFixed(3) : 'N/A'}</strong></span>
+              <span>Credits: <strong>{routingProvenance.creditsCost ?? 1} CU</strong></span>
+            </div>
+          </div>
+          <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+            {routingProvenance.adaptationReason}
+          </p>
+        </Card>
+      )}
+
+      {result && <BindingAnalysis result={result} jobId={resultJobId} />}
       {result && <section className="workspace-result-surface"><header><div><span className="micro-label">Gateway-reevaluated output</span><h2>Authoritative result</h2></div><p className="workspace-result-summary">{result.solutions?.length || 0} solution(s) · <strong>{result.termination || 'UNKNOWN'}</strong></p></header>{result.solutions?.map((solution, index) => <section className="workspace-decision" key={index}><div className="decision-heading"><Badge>{solution.decision?.kind || 'unknown'}</Badge><span>objectives: {JSON.stringify(solution.objectives || {})}</span></div><DecisionView decision={solution.decision} /><details><summary>Evaluation, penalties and violations</summary><pre>{JSON.stringify({ metrics: solution.metrics, objectives: solution.objectives, penalties: solution.penalties, violations: solution.violations, evaluation: solution.evaluation }, null, 2)}</pre></details></section>)}</section>}
+
+      <InstanceGeneratorModal
+        isOpen={showGeneratorModal}
+        onClose={() => setShowGeneratorModal(false)}
+        onLoadGeneratedFiles={handleLoadGeneratedInstance}
+      />
     </div>
   );
 }

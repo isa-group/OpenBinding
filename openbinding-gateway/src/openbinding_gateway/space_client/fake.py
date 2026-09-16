@@ -78,13 +78,30 @@ class FakePricingGate:
         if not features.get(feature_name, False):
             return Verdict.no(f"The current contract does not include {feature_name}.")
         consumed = self._consumed(user_id)
+        exhausted: list[tuple[str, float, float]] = []
         for limit_id in catalog.linked_limits.get(feature_name, ()):
             allowed = limits.get(limit_id, 0.0)
             if consumed.get(limit_id, 0.0) >= allowed:
-                return Verdict.no(
-                    f"{limit_id} is spent.",
-                    LimitUsage(limit_id, allowed, consumed.get(limit_id, 0.0)),
-                )
+                exhausted.append((limit_id, allowed, consumed.get(limit_id, 0.0)))
+        if exhausted:
+            exhausted.sort(key=lambda item: (1 if item[0] == "concurrentJobs" else 0, item[0]))
+            limit_id, allowed, used_val = exhausted[0]
+            unit = getattr(catalog.limit_definitions.get(limit_id), "unit", None) if limit_id in catalog.limit_definitions else None
+            renews_at = (
+                self.renews_at.get(user_id).isoformat()
+                if user_id in self.renews_at and self.renews_at[user_id] is not None
+                else None
+            )
+            return Verdict.no(
+                f"{limit_id} is spent.",
+                LimitUsage(
+                    limit_id=limit_id,
+                    limit=allowed,
+                    used=used_val,
+                    unit=unit,
+                    renews_at=renews_at,
+                ),
+            )
         return Verdict.yes()
 
     async def revert(self, user_id: uuid.UUID, feature: str) -> None:
@@ -115,7 +132,7 @@ class FakePricingGate:
                 name: LimitUsage(
                     name,
                     allowed,
-                    consumed.get(name, 0.0),
+                    max(0.0, float(consumed.get(name, 0.0) or 0.0)),
                     unit=(self._check_available().limit_definitions.get(name) or {}).get("unit"),
                 )
                 for name, allowed in limits.items()
@@ -194,8 +211,10 @@ class FakePricingGate:
             name: value if value != float("inf") else None
             for name, value in caps.limits.items()
         }
+        exp = int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp())
         claims = {
             "sub": str(user_id),
+            "exp": exp,
             "features": {
                 service + name: {"eval": value}
                 for name, value in caps.features.items()

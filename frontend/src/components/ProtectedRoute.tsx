@@ -31,7 +31,7 @@ export function ProtectedRoute({
   }
 
   if (requireAdmin && !isAdmin) {
-    return <Navigate to="/account" replace />;
+    return <Navigate to="/app/account" replace />;
   }
 
   return <>{children}</>;

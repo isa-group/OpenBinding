@@ -31,6 +31,7 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Integer,
     LargeBinary,
     String,
     UniqueConstraint,
@@ -212,6 +213,9 @@ class Job(Base):
     termination: Mapped[Optional[str]] = mapped_column(String(16), nullable=True, index=True)
     # v1 jobs pin the immutable source snapshot and every request identity so
     # a restart or a second replica can answer the same polling request.
+    configuration_version_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("artifact_versions.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
     instance_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("v1_instance_snapshots.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -242,6 +246,28 @@ class Job(Base):
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now(), index=True
     )
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AnalysisTask(Base):
+    """Durable archive computation, independent of solve jobs and metering."""
+
+    __tablename__ = "analysis_tasks"
+    __table_args__ = (UniqueConstraint("owner_id", "fingerprint", name="uq_analysis_tasks_owner_fingerprint"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    fingerprint: Mapped[str] = mapped_column(String(80), nullable=False)
+    revision: Mapped[str] = mapped_column(String(80), nullable=False)
+    request: Mapped[dict] = mapped_column(JSON, nullable=False)
+    state: Mapped[str] = mapped_column(String(16), default="queued", nullable=False, index=True)
+    progress: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    cancellation_requested: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    lease_token: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    error: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, server_default=func.now(), nullable=False)
 
 
 class RefreshToken(Base):
@@ -280,7 +306,7 @@ class InstanceSnapshot(Base):
     """Immutable v1 source index retained independently from a solve job."""
 
     __tablename__ = "v1_instance_snapshots"
-    __table_args__ = (UniqueConstraint("owner_id", "package_digest", name="uq_v1_snapshot_owner_package"),)
+    __table_args__ = (UniqueConstraint("owner_id", "package_digest", "compilation_digest", name="uq_v1_snapshot_owner_package"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
@@ -289,6 +315,7 @@ class InstanceSnapshot(Base):
     package_digest: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
     root_document: Mapped[dict] = mapped_column(JSON, nullable=False)
     resource_digests: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    compilation_digest: Mapped[str] = mapped_column(String(80), nullable=False, default="")
     source_archive: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
 
@@ -460,10 +487,61 @@ class JobProvenance(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
 
 
+class AdaptationObservation(Base):
+    """Knowledge base record for the MAPE-K autonomic loop.
+
+    Stores problem instance features, candidate evaluations, predicted metrics,
+    actual execution telemetry, residuals, and outcome.
+    """
+
+    __tablename__ = "v1_adaptation_observations"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    job_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    adaptation_loop_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    engine_selected: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    workload_features: Mapped[dict] = mapped_column(JSON, nullable=False)
+    candidate_evaluations: Mapped[list] = mapped_column(JSON, nullable=False)
+    predicted_metrics: Mapped[dict] = mapped_column(JSON, nullable=False)
+    actual_metrics: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    residuals: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False, default="completed")
+    engine_health_snapshot: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+
+
+class EngineProfileSurrogate(Base):
+    """Calibrated surrogate regression coefficients for federated / black-box engines."""
+
+    __tablename__ = "v1_engine_profile_surrogates"
+    __table_args__ = (
+        UniqueConstraint("engine", "mode", name="uq_v1_engine_surrogate_engine_mode"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    engine: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    mode: Mapped[str] = mapped_column(String(64), nullable=False, default="default")
+    latency_coefficients: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    quality_coefficients: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    failure_risk_coefficients: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    sample_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    r2_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    last_calibrated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    metadata_info: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+
+
 # Re-exporting these keeps one stable import location for persistence models,
 # while the platform domain remains readable in its own module.
 from .platform_models import (  # noqa: E402,F401
-    Artifact,
+    ApiErrorEvent,
+    Blob,
     AuthIdentity,
     AuditEvent,
     BindingCase,
@@ -492,4 +570,10 @@ from .platform_models import (  # noqa: E402,F401
     StudyState,
     Visibility,
     PasswordResetToken,
+)
+
+from .artifact_models import (  # noqa: E402,F401
+    ArtifactCaseReference, ArtifactEvidence,
+    Artifact, ArtifactVersion, ArtifactDraft, ArtifactDependency,
+    ArtifactPublication, ProjectArtifact, CaseArtifact,
 )

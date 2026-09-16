@@ -157,7 +157,7 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
         snapshot_body = snapshot.json()
 
         analysis = client.post(
-            "/v1/analyze",
+            "/v1/validate",
             headers=headers,
             json={"snapshot": snapshot_body["id"]},
         )

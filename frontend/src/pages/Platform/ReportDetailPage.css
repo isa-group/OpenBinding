@@ -1,0 +1,296 @@
+/* ReportDetailPage.css - OpenBinding Technical Design System */
+
+.report-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6, 1.5rem);
+  color: var(--color-text-primary);
+}
+
+.report-detail-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2, 0.4rem);
+  color: var(--color-accent);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: var(--space-2, 0.5rem);
+  transition: color 0.15s ease;
+}
+
+.report-detail-breadcrumb:hover {
+  color: var(--color-accent-hover, var(--color-accent));
+}
+
+.report-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-4, 1rem);
+  padding-bottom: var(--space-5, 1.25rem);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.report-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 0.5rem);
+}
+
+.report-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3, 0.75rem);
+}
+
+.report-title-row h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.5vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+.report-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3, 0.75rem);
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.report-detail-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2, 0.5rem);
+}
+
+.report-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2, 0.4rem);
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.report-action-btn:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-rule-strong);
+}
+
+.report-action-btn.is-primary {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-bg-primary);
+}
+
+.report-action-btn.is-primary:hover {
+  filter: brightness(1.1);
+}
+
+.report-action-btn.is-danger {
+  border-color: color-mix(in srgb, var(--color-error) 40%, var(--color-border));
+  color: var(--color-error);
+}
+
+.report-action-btn.is-danger:hover {
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+}
+
+/* Publication Banner */
+.report-pub-banner {
+  padding: var(--space-4, 1rem) var(--space-5, 1.25rem);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 6%, var(--color-bg-secondary));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3, 0.75rem);
+}
+
+.report-pub-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 0.75rem);
+}
+
+.report-pub-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.report-pub-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--color-text-primary);
+}
+
+.report-pub-venue {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.report-pub-doi {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-accent);
+}
+
+/* Main Content Panel */
+.report-main-panel {
+  padding: var(--space-5, 1.25rem);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 1rem);
+}
+
+.report-tabs {
+  display: flex;
+  gap: var(--space-2, 0.5rem);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-2, 0.5rem);
+}
+
+.report-tab-btn {
+  padding: 0.45rem 0.95rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 0.4rem);
+  transition: all 0.15s ease;
+}
+
+.report-tab-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.report-tab-btn.is-active {
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg-primary));
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* Editorial View */
+.report-editorial-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 1rem);
+}
+
+.report-abstract-card {
+  padding: var(--space-4, 1rem);
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--color-text-primary);
+}
+
+.report-editorial-section {
+  padding: var(--space-4, 1rem);
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 0.5rem);
+}
+
+.report-editorial-section h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.report-editorial-section p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
+
+/* Modals */
+.report-modal-card {
+  max-width: 600px;
+  width: 90%;
+  margin: auto;
+  padding: var(--space-6, 1.5rem);
+  margin-top: 8vh;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  box-shadow: var(--shadow-lg, 0 10px 25px rgba(0,0,0,0.2));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 1rem);
+}
+
+.report-modal-card h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.report-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 0.75rem);
+}
+
+.report-modal-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.report-modal-form input,
+.report-modal-form textarea {
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+}
+
+.report-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2, 0.5rem);
+  margin-top: var(--space-2, 0.5rem);
+}

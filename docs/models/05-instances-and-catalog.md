@@ -73,8 +73,8 @@ state do not alter either source metamodel.
 
 | Contract | Kind | Entry surface | Corpus evidence |
 | --- | --- | --- | --- |
-| `qos-binding/v1` | Profile | Roles and cardinalities for the complete binding problem | All 79 source packages |
-| `qos-binding/v1` | Dialect | Whole JSON resources for the five QoS-binding kinds | All 79 source packages |
+| `qos-binding/v1` | Profile | Roles and cardinalities for the complete binding problem | All 82 source packages |
+| `qos-binding/v1` | Dialect | Whole JSON resources for the five QoS-binding kinds | All 82 source packages |
 | `bpmn-workflow/v1` | Dialect | Whole BPMN 2.0.2 XML Application resource | `15_bpmn_complete` |
 | `qos-binding-placement/v1` | Dialect | Whole Placement JSON Application resource | Four Placement packages and both complete twins |
 
@@ -92,7 +92,7 @@ These five rows are derived from the four checked-in Engine manifests under
 [`schemas/bim/v1/manifests`](../../schemas/bim/v1/manifests/). They describe
 compatibility, not deployment availability.
 
-## Demo catalog — 17 packages
+## Demo catalog — 20 packages
 
 | Package | Primary coverage |
 | --- | --- |
@@ -113,6 +113,9 @@ compatibility, not deployment availability.
 | `14_shared_candidates` | Multi-capability candidates and selected-candidate scope |
 | `15_bpmn_complete` | Complete supported BPMN, constraints, routing, Placement |
 | `16_json_complete` | Native JSON semantic twin of package 15 |
+| `17_analysis_tradeoffs` | Enumerable cost/latency trade-offs and dominated alternatives |
+| `18_analysis_constraints` | Quality maximization with hard budget and soft latency constraints |
+| `19_analysis_journey` | Decision-analysis workflow over enumerable constrained alternatives |
 
 ### Feature matrix
 
@@ -140,7 +143,7 @@ compatibility, not deployment availability.
 
 Blank corpus cells are deliberate coverage gaps, not unsupported language
 features. The complete mode vocabulary remains visible here even where the
-current 79-package corpus has no dedicated instance.
+current 82-package corpus has no dedicated instance.
 
 ## Literature catalog — 6 packages
 
@@ -191,16 +194,22 @@ IR rather than source-specific syntax.
 
 | Source family | Packages |
 | --- | ---: |
-| Demos | 17 |
+| Demos | 20 |
 | Literature | 6 |
 | Placement | 4 |
 | ICWS matrix | 48 |
 | MiniZinc fixtures | 4 |
-| **Total compiled source corpus** | **79** |
+| **Total compiled source corpus** | **82** |
 
-`tools/check_bim_corpus.py --expected 79` discovers and compiles precisely
+`tools/check_bim_corpus.py --expected 82` discovers and compiles precisely
 these package directories. A count change is a documentation change as well as
 a corpus change.
+
+Seven explicitly shared resources are authored once in
+[`examples/library`](../../examples/library/README.md) and used by fourteen
+package files. `tools/build_shared_examples.py --check` detects divergent copies
+in CI. Packages remain complete for export and engine fixtures; common authoring
+does not require a live registry and does not merge unrelated resources by hash.
 
 ## Derived ICSOC instances — 105 artifacts
 

@@ -1,14 +1,17 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, CSSProperties } from 'react';
 import './Alert.css';
 
 interface AlertProps {
   type?: 'success' | 'warning' | 'error' | 'info';
+  variant?: 'success' | 'warning' | 'error' | 'info';
+  style?: CSSProperties;
   children: ReactNode;
   title?: string;
   onClose?: () => void;
 }
 
-export function Alert({ type = 'info', children, title, onClose }: AlertProps) {
+export function Alert({ type, variant, style, children, title, onClose }: AlertProps) {
+  type = type || variant || 'info';
   const icons = {
     success: '✓',
     warning: '⚠',
@@ -19,6 +22,7 @@ export function Alert({ type = 'info', children, title, onClose }: AlertProps) {
   return (
     <div
       className={`alert alert-${type}`}
+      style={style}
       role={type === 'error' || type === 'warning' ? 'alert' : 'status'}
     >
       <div className="alert-icon" aria-hidden="true">{icons[type]}</div>

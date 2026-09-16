@@ -368,3 +368,55 @@ async def test_registered_resource_requires_approval_and_resolves_exact_content(
     )
     assert fetched.status_code == 200
     assert fetched.json() == optimization
+
+
+async def test_jobs_pin_reusable_execution_configuration_without_mutating_it(
+    api_client, db_session, registration, monkeypatch
+):
+    from openbinding_gateway.db.models import Job, ArtifactVersion
+    from sqlalchemy import update
+    from sqlalchemy.exc import DBAPIError
+    import pytest
+
+    async def queued(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(routes, 'dispatch_persisted_job', queued)
+    headers = await _register_and_login(api_client, registration())
+    organization = await api_client.post('/v1/organizations', headers=headers,
+        json={'slug': 'configured-jobs', 'name': 'Configured jobs'})
+    assert organization.status_code == 201, organization.text
+    identity = await api_client.post('/v1/organizations/configured-jobs/library', headers=headers,
+        json={'name': 'search-settings', 'display_name': 'Search settings', 'kind': 'ExecutionConfiguration'})
+    artifact_id = identity.json()['id']
+    engine = routes._engine_ref(routes._manifest('random-search'))
+    content = {'engine': engine, 'mode': 'seeded', 'options': {'iterations': 100, 'seed': 7}}
+    draft = await api_client.post(f'/v1/artifacts/{artifact_id}/drafts', headers=headers, json={'content': content})
+    sealed = await api_client.post(f"/v1/artifacts/{artifact_id}/drafts/{draft.json()['id']}/seal", headers=headers, json={'revision': 1})
+    assert sealed.status_code == 201, sealed.text
+    config = sealed.json()
+    snapshot = await api_client.post('/v1/instances', headers=_zip_headers(headers), content=load_package(EXAMPLE).to_zip())
+    request = {'snapshot': snapshot.json()['id'], 'configuration': config['ref']}
+    _assert_component('JobRequest', request)
+    ambiguous = await api_client.post('/v1/jobs', headers=headers, json={**request, 'options': {}})
+    assert ambiguous.status_code == 422, ambiguous.text
+    response = await api_client.post('/v1/jobs', headers={**headers, 'Idempotency-Key': 'configuration-v1'}, json=request)
+    assert response.status_code == 202, response.text
+    job = await db_session.get(Job, uuid.UUID(response.json()['id']))
+    assert job.configuration_version_id == uuid.UUID(config['id'])
+    assert job.provenance['configuration'] == config['ref']
+    assert job.provenance['requestedOptions'] == content['options']
+    assert job.provenance['options'] == job.options
+    pinned = job.configuration_version_id
+    draft2 = await api_client.post(f'/v1/artifacts/{artifact_id}/drafts', headers=headers,
+        json={'content': {**content, 'options': {'iterations': 200, 'seed': 9}}, 'based_on_id': config['id']})
+    sealed2 = await api_client.post(f"/v1/artifacts/{artifact_id}/drafts/{draft2.json()['id']}/seal", headers=headers, json={'revision': 1})
+    assert sealed2.status_code == 201, sealed2.text
+    repeated = await api_client.post('/v1/jobs', headers={**headers, 'Idempotency-Key': 'configuration-v1'}, json=request)
+    assert repeated.json()['id'] == str(job.id)
+    assert (await db_session.get(ArtifactVersion, pinned)).version_digest == config['ref']['versionDigest']
+    with pytest.raises(DBAPIError):
+        async with db_session.begin_nested():
+            await db_session.execute(update(Job).where(Job.id == job.id).values(configuration_version_id=uuid.UUID(sealed2.json()['id'])))
+    still_original = await api_client.get(f"/v1/artifacts/{artifact_id}/versions/{config['id']}/content", headers=headers)
+    assert still_original.json() == content

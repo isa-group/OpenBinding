@@ -8,8 +8,9 @@ import secrets
 import uuid
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, status
-from sqlalchemy import func, select, update
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.orm import defer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..collaboration import (
@@ -20,17 +21,25 @@ from ..collaboration import (
     enforce_sponsor_usage,
     organization_usage,
     organization_by_ref,
+    project_by_ref,
     require_project,
     require_role,
     sponsor_has_member,
     sponsor_organization_ids,
 )
 from ..db.models import (
-    ApiKey,
+    Artifact,
+    ArtifactVersion,
+    ProjectArtifact,
+    Blob,
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
+    Collection,
+    CollectionItem,
+    CollectionRevision,
     InstanceSnapshot,
+    Job,
     Organization,
     OrganizationInvitation,
     OrganizationMembership,
@@ -38,6 +47,11 @@ from ..db.models import (
     Project,
     ProjectResource,
     ProjectResourceRevision,
+    Publication,
+    Report,
+    Study,
+    StudyCell,
+    StudyRun,
     User,
     Visibility,
     utcnow,
@@ -45,12 +59,14 @@ from ..db.models import (
 from ..models.errors import api_error
 from ..models.platform import (
     BindingCaseCreate,
+    BindingCaseUpdate,
     BindingCaseView,
     CaseRevisionCreate,
     CaseRevisionView,
     InvitationAccept,
     InvitationCreate,
     InvitationCreated,
+    JobView,
     MemberBatchUpdate,
     MemberUpsert,
     MemberView,
@@ -61,12 +77,16 @@ from ..models.platform import (
     ProjectUpdate,
     ProjectView,
     ProjectResourceCreate,
+    ProjectResourceUpdate,
     ProjectResourceRevisionCreate,
     ProjectResourceRevisionView,
     ProjectResourceView,
 )
 from ..access.dependencies import get_current_user, session_dependency
 from ..v1.canonical import digest
+from ..artifacts import store_blob, version_content
+from ..v1.canonical import canonical_json, digest_bytes
+import json
 
 router = APIRouter(prefix="/v1/organizations", tags=["Organizations"])
 invitation_router = APIRouter(prefix="/v1/invitations", tags=["Organizations"])
@@ -196,8 +216,7 @@ async def update_organization(
             await require_role(session, new_parent, user, OrganizationRole.ADMIN)
         organization.parent_id = new_parent_id
     if payload.billing_sponsor_user_id is not None and payload.billing_sponsor_user_id != organization.billing_sponsor_user_id:
-        if not user.is_admin:
-            raise api_error(status.HTTP_403_FORBIDDEN, "sponsor_transfer_forbidden", "Only a platform administrator may transfer sponsorship.")
+        await require_role(session, organization, user, OrganizationRole.OWNER)
         sponsor = await session.get(User, payload.billing_sponsor_user_id)
         if sponsor is None or not sponsor.is_active:
             raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_sponsor", "Sponsor must be active.")
@@ -215,6 +234,179 @@ async def update_organization(
     _audit(session, user, "organization.updated", organization, organization.id)
     await session.flush()
     return await _org_view(session, organization, user)
+
+
+async def _cascade_delete_project(session: AsyncSession, project: Project) -> None:
+    if await session.scalar(select(Publication.id).where(Publication.project_id == project.id).limit(1)) or await session.scalar(select(Report.id).where(Report.project_id == project.id, Report.version_id.is_not(None)).limit(1)):
+        raise api_error(409, "historical_references", "A project with sealed reports or publications cannot be deleted.")
+    historical_run = await session.scalar(select(StudyRun.id).join(Study).where(
+        Study.project_id == project.id).limit(1))
+    if historical_run:
+        raise api_error(409, "historical_references", "A project with study runs cannot be deleted; archive its studies to retain their evidence.")
+    historical_case = await session.scalar(select(BindingCaseRevision.id).join(BindingCase).where(
+        BindingCase.project_id == project.id).limit(1))
+    if historical_case:
+        raise api_error(409, "historical_references", "A project with sealed case revisions cannot be deleted.")
+    await session.execute(delete(Publication).where(Publication.project_id == project.id))
+    await session.execute(delete(Report).where(Report.project_id == project.id))
+
+    cases = (
+        await session.execute(
+            select(BindingCase).where(BindingCase.project_id == project.id)
+        )
+    ).scalars().all()
+    for c in cases:
+        await session.execute(
+            delete(BindingCaseRevision).where(BindingCaseRevision.binding_case_id == c.id)
+        )
+        await session.delete(c)
+
+    resources = (
+        await session.execute(
+            select(ProjectResource).where(ProjectResource.project_id == project.id)
+        )
+    ).scalars().all()
+    for r in resources:
+        await session.execute(
+            delete(ProjectResourceRevision).where(
+                ProjectResourceRevision.project_resource_id == r.id
+            )
+        )
+        await session.delete(r)
+
+    # Common library identities outlive a project; only the usage edge is
+    # removed when a project is deleted.
+    await session.execute(delete(ProjectArtifact).where(ProjectArtifact.project_id == project.id))
+
+    collections = (
+        await session.execute(
+            select(Collection).where(Collection.project_id == project.id)
+        )
+    ).scalars().all()
+    for col in collections:
+        await session.execute(
+            delete(CollectionRevision).where(CollectionRevision.collection_id == col.id)
+        )
+        await session.delete(col)
+
+    studies = (
+        await session.execute(
+            select(Study).where(Study.project_id == project.id)
+        )
+    ).scalars().all()
+    for s in studies:
+        runs = (
+            await session.execute(
+                select(StudyRun).where(StudyRun.study_id == s.id)
+            )
+        ).scalars().all()
+        for run in runs:
+            await session.execute(delete(StudyCell).where(StudyCell.run_id == run.id))
+            await session.delete(run)
+        await session.delete(s)
+
+    await session.execute(delete(Blob).where(Blob.project_id == project.id))
+    await session.execute(
+        update(Job).where(Job.project_id == project.id).values(project_id=None)
+    )
+    await session.delete(project)
+
+
+@router.delete("/{org}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteOrganization")
+async def delete_organization(
+    org: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> None:
+    organization = await _required_org(session, org)
+    if not user.is_admin:
+        await require_role(session, organization, user, OrganizationRole.ADMIN)
+
+    descendants = await descendant_ids(session, organization.id)
+    unique_descendants = list(dict.fromkeys(descendants))
+    from ..db.models import Artifact, ArtifactVersion
+    if await session.scalar(select(ArtifactVersion.id).join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
+                            .where(Artifact.organization_id.in_(unique_descendants)).limit(1)):
+        raise api_error(409, 'historical_references', 'Organizations with sealed library history cannot be deleted.')
+    for oid in unique_descendants:
+        projects = (
+            await session.execute(select(Project).where(Project.organization_id == oid))
+        ).scalars().all()
+        for p in projects:
+            await _cascade_delete_project(session, p)
+        await session.execute(
+            delete(OrganizationMembership).where(OrganizationMembership.organization_id == oid)
+        )
+        await session.execute(
+            delete(OrganizationInvitation).where(OrganizationInvitation.organization_id == oid)
+        )
+        await session.execute(
+            delete(AuditEvent).where(AuditEvent.organization_id == oid)
+        )
+        await session.execute(delete(Artifact).where(Artifact.organization_id == oid))
+        await session.execute(
+            delete(Blob).where(Blob.organization_id == oid)
+        )
+        await session.execute(
+            update(Job).where(Job.organization_id == oid).values(organization_id=None)
+        )
+
+    descendant_ids_only = [oid for oid in reversed(unique_descendants) if oid != organization.id]
+    for oid in descendant_ids_only:
+        child = await session.get(Organization, oid)
+        if child is not None:
+            await session.delete(child)
+
+    await session.flush()
+    await session.delete(organization)
+    await session.flush()
+
+
+@router.get("/{org}/audit", operation_id="listOrganizationAuditEvents")
+async def list_organization_audit_events(
+    org: str,
+    action: str | None = None,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=500),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> dict:
+    organization = await _required_org(session, org)
+    await require_role(session, organization, user, OrganizationRole.ADMIN)
+    conditions = [AuditEvent.organization_id == organization.id]
+    if action:
+        conditions.append(AuditEvent.action == action)
+    total = int(
+        await session.scalar(select(func.count(AuditEvent.id)).where(*conditions)) or 0
+    )
+    rows = (
+        await session.execute(
+            select(AuditEvent)
+            .where(*conditions)
+            .order_by(AuditEvent.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+    ).scalars().all()
+    return {
+        "events": [
+            {
+                "id": str(item.id),
+                "organizationId": str(item.organization_id) if item.organization_id else None,
+                "actorId": str(item.actor_id) if item.actor_id else None,
+                "action": item.action,
+                "targetType": item.target_type,
+                "targetId": str(item.target_id) if item.target_id else None,
+                "detail": item.detail,
+                "createdAt": item.created_at.isoformat(),
+            }
+            for item in rows
+        ],
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+    }
+
 
 
 async def _member_views(
@@ -354,12 +546,6 @@ async def update_members_batch(
             )
         else:
             membership.role = OrganizationRole(change.role)
-    if removed_ids:
-        await session.execute(
-            ApiKey.__table__.update()
-            .where(ApiKey.user_id.in_(removed_ids), ApiKey.revoked_at.is_(None))
-            .values(revoked_at=utcnow())
-        )
     _audit(
         session,
         user,
@@ -447,12 +633,6 @@ async def remove_member(
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Member not found.")
     await _protect_last_owner(session, membership)
     await session.delete(membership)
-    now = utcnow()
-    await session.execute(
-        ApiKey.__table__.update().where(
-            ApiKey.user_id == member_id, ApiKey.revoked_at.is_(None)
-        ).values(revoked_at=now)
-    )
     _audit(session, user, "organization.member.removed", membership, organization.id)
 
 
@@ -620,6 +800,26 @@ async def update_project(
     return _project_view(found)
 
 
+@router.delete("/{org}/projects/{project}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteProject")
+async def delete_project(
+    org: str,
+    project: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> None:
+    organization = await _required_org(session, org)
+    if not user.is_admin:
+        found = await require_project(session, organization, project, user, OrganizationRole.ADMIN)
+    else:
+        found = await project_by_ref(session, organization.id, project)
+        if found is None:
+            raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project not found.")
+
+    _audit(session, user, "project.deleted", found, organization.id)
+    await _cascade_delete_project(session, found)
+    await session.flush()
+
+
 @router.get("/{org}/projects/{project}/cases", response_model=list[BindingCaseView], operation_id="listBindingCases")
 async def list_cases(
     org: str, project: str,
@@ -664,6 +864,18 @@ async def _case(session: AsyncSession, project_id: uuid.UUID, reference: str) ->
     return found
 
 
+@router.get("/{org}/projects/{project}/cases/{case}", response_model=BindingCaseView, operation_id="getBindingCase")
+async def get_case(
+    org: str, project: str, case: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> BindingCaseView:
+    organization = await _required_org(session, org)
+    found_project = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
+    found_case = await _case(session, found_project.id, case)
+    return BindingCaseView.model_validate(found_case, from_attributes=True)
+
+
 @router.get("/{org}/projects/{project}/cases/{case}/revisions", response_model=list[CaseRevisionView], operation_id="listBindingCaseRevisions")
 async def list_case_revisions(
     org: str, project: str, case: str,
@@ -677,6 +889,55 @@ async def list_case_revisions(
     return [CaseRevisionView.model_validate(row, from_attributes=True) for row in rows]
 
 
+@router.get(
+    "/{org}/projects/{project}/cases/{case}/revisions/{revision}",
+    response_model=CaseRevisionView,
+    operation_id="getBindingCaseRevision",
+)
+async def get_case_revision(
+    org: str,
+    project: str,
+    case: str,
+    revision: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> CaseRevisionView:
+    organization = await _required_org(session, org)
+    found_project = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
+    found_case = await _case(session, found_project.id, case)
+
+    rev_row = None
+    if revision.isdigit():
+        rev_row = (await session.execute(
+            select(BindingCaseRevision).where(
+                BindingCaseRevision.binding_case_id == found_case.id,
+                BindingCaseRevision.revision == int(revision),
+            )
+        )).scalars().first()
+    if rev_row is None:
+        try:
+            parsed_uuid = uuid.UUID(revision)
+            rev_row = (await session.execute(
+                select(BindingCaseRevision).where(
+                    BindingCaseRevision.binding_case_id == found_case.id,
+                    BindingCaseRevision.id == parsed_uuid,
+                )
+            )).scalars().first()
+        except ValueError:
+            pass
+    if rev_row is None and revision.startswith("sha256-"):
+        rev_row = (await session.execute(
+            select(BindingCaseRevision).where(
+                BindingCaseRevision.binding_case_id == found_case.id,
+                BindingCaseRevision.digest == revision,
+            )
+        )).scalars().first()
+
+    if rev_row is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Binding case revision not found.")
+    return CaseRevisionView.model_validate(rev_row, from_attributes=True)
+
+
 @router.post("/{org}/projects/{project}/cases/{case}/revisions", response_model=CaseRevisionView, status_code=201, operation_id="createBindingCaseRevision")
 async def create_case_revision(
     org: str, project: str, case: str, payload: CaseRevisionCreate,
@@ -686,36 +947,99 @@ async def create_case_revision(
     organization = await _required_org(session, org)
     found_project = await require_project(session, organization, project, user, OrganizationRole.MEMBER)
     found_case = await _case(session, found_project.id, case)
-    if payload.source_snapshot_id is not None:
-        snapshot = await session.get(InstanceSnapshot, payload.source_snapshot_id)
+    from ..artifacts import materialize_case, case_composition_digest
+    from ..db.models import CaseArtifact
+    from ..models.artifacts import ArtifactUse
+    from pydantic import ValidationError
+    resources = payload.resources
+    spec = payload.document.get('spec', {})
+    if not resources and isinstance(spec, dict) and isinstance(spec.get('resources'), dict):
+        entries = [(role, alias, target) for role, group in spec['resources'].items()
+                   if isinstance(group, dict) for alias, target in group.items()]
+        if entries and all(isinstance(target, dict) and 'versionDigest' in target for _, _, target in entries):
+            try:
+                resources = [ArtifactUse(role=role, alias=alias, artifact=target,
+                    bindings=spec.get('bindings', {}).get(alias, {})) for role, alias, target in entries]
+            except (ValidationError, AttributeError) as exc:
+                raise api_error(422, 'invalid_composition', 'Invalid exact artifact references or alias bindings.') from exc
+    uses = []
+    source_document = payload.document
+    snapshot_id = payload.source_snapshot_id
+    if resources:
+        if snapshot_id is not None:
+            raise api_error(422, "ambiguous_source", "Select artifact resources or a source snapshot, not both.")
+        source_document, snapshot_id, uses = await materialize_case(session, user, organization, payload.document, resources)
+    snapshot = None
+    if snapshot_id is not None:
+        snapshot = await session.get(InstanceSnapshot, snapshot_id)
         if snapshot is None or snapshot.owner_id != user.id:
-            raise api_error(
-                status.HTTP_404_NOT_FOUND,
-                "not_found",
-                "Source snapshot not found.",
-            )
-    document_digest = digest(payload.document)
+            raise api_error(404, "not_found", "Source snapshot not found.")
+        if not uses and payload.document != snapshot.root_document:
+            raise api_error(422, "snapshot_document_mismatch", "The case document must match its source snapshot.")
+    document_digest = case_composition_digest(source_document, snapshot,
+        [use.model_dump(mode="json") for use, _ in uses])
+    await session.execute(
+        select(BindingCase.id)
+        .where(BindingCase.id == found_case.id)
+        .with_for_update()
+    )
     existing = (await session.execute(select(BindingCaseRevision).where(
         BindingCaseRevision.binding_case_id == found_case.id,
         BindingCaseRevision.digest == document_digest,
     ))).scalars().first()
     if existing is not None:
         return CaseRevisionView.model_validate(existing, from_attributes=True)
-    await session.execute(
-        select(BindingCase.id)
-        .where(BindingCase.id == found_case.id)
-        .with_for_update()
-    )
     latest = await session.scalar(select(func.max(BindingCaseRevision.revision)).where(BindingCaseRevision.binding_case_id == found_case.id))
     revision = BindingCaseRevision(
         binding_case_id=found_case.id, revision=int(latest or 0) + 1,
-        digest=document_digest, document=payload.document,
-        source_snapshot_id=payload.source_snapshot_id, created_by_id=user.id,
+        digest=document_digest, document=source_document,
+        source_snapshot_id=snapshot_id, created_by_id=user.id,
     )
     session.add(revision)
     await session.flush()
+    for use, version in uses:
+        session.add(CaseArtifact(revision_id=revision.id, alias=use.alias, role=use.role,
+            version_id=version.id, bindings=use.bindings))
+    await session.flush()
     _audit(session, user, "binding_case.revision.created", revision, organization.id, digest=document_digest)
     return CaseRevisionView.model_validate(revision, from_attributes=True)
+
+
+@router.patch("/{org}/projects/{project}/cases/{case}", response_model=BindingCaseView, operation_id="updateBindingCase")
+async def update_case(
+    org: str, project: str, case: str, payload: BindingCaseUpdate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> BindingCaseView:
+    organization = await _required_org(session, org)
+    found_project = await require_project(session, organization, project, user, OrganizationRole.MEMBER)
+    found_case = await _case(session, found_project.id, case)
+    if payload.name is not None:
+        found_case.name = payload.name
+    if payload.description is not None:
+        found_case.description = payload.description
+    await session.flush()
+    _audit(session, user, "binding_case.updated", found_case, organization.id)
+    return BindingCaseView.model_validate(found_case, from_attributes=True)
+
+
+@router.delete("/{org}/projects/{project}/cases/{case}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteBindingCase")
+async def delete_case(
+    org: str, project: str, case: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> None:
+    organization = await _required_org(session, org)
+    found_project = await require_project(session, organization, project, user, OrganizationRole.ADMIN)
+    found_case = await _case(session, found_project.id, case)
+    revisions = (await session.execute(
+        select(BindingCaseRevision.id).where(BindingCaseRevision.binding_case_id == found_case.id)
+    )).scalars().all()
+    if revisions:
+        raise api_error(409, "historical_references", "A case with sealed revisions cannot be deleted.")
+    _audit(session, user, "binding_case.deleted", found_case, organization.id)
+    await session.delete(found_case)
+    await session.flush()
 
 
 @router.get(
@@ -733,14 +1057,44 @@ async def list_project_resources(
     found_project = await require_project(
         session, organization, project, user, OrganizationRole.VIEWER
     )
-    rows = (
-        await session.execute(
-            select(ProjectResource)
-            .where(ProjectResource.project_id == found_project.id)
-            .order_by(ProjectResource.name)
-        )
-    ).scalars().all()
-    return [ProjectResourceView.model_validate(row, from_attributes=True) for row in rows]
+    rows = (await session.scalars(select(Artifact).join(ProjectArtifact)
+        .where(ProjectArtifact.project_id == found_project.id)
+        .order_by(Artifact.display_name))).all()
+    return [_legacy_resource_view(row, found_project.id) for row in rows
+            if row.kind not in {"Application", "CandidateCatalog", "ConstraintSet",
+                                "ExecutionConfiguration", "AnalysisConfiguration",
+                                "Collection", "Study", "Report", "BindingDecision"}]
+
+
+def _legacy_resource_view(artifact: Artifact, project_id: uuid.UUID) -> dict:
+    """Compatibility DTO backed exclusively by the common artifact identity."""
+    return dict(id=artifact.id, project_id=project_id, slug=artifact.name,
+        name=artifact.display_name, description=artifact.description, kind=artifact.kind,
+        created_by_id=artifact.created_by_id, created_at=artifact.created_at)
+
+
+async def _legacy_resource_revision_view(session: AsyncSession, artifact: Artifact,
+                                         version: ArtifactVersion, project_id: uuid.UUID) -> dict:
+    content, media_type = await version_content(session, version)
+    try:
+        document = json.loads(content.decode()) if media_type == "application/json" else {"content": content.decode()}
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise api_error(409, "content_integrity", "Resource content is not valid JSON.") from exc
+    return dict(id=version.id, project_resource_id=artifact.id, revision=version.ordinal,
+        digest=version.content_digest, document=document, created_at=version.created_at)
+
+
+async def _legacy_artifact(session: AsyncSession, project_id: uuid.UUID, reference: str) -> Artifact:
+    try:
+        parsed = uuid.UUID(reference)
+    except ValueError:
+        parsed = None
+    row = (await session.execute(select(Artifact).join(ProjectArtifact)
+        .where(ProjectArtifact.project_id == project_id,
+               Artifact.id == parsed if parsed else Artifact.name == reference))).scalars().first()
+    if row is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project resource not found.")
+    return row
 
 
 @router.post(
@@ -760,41 +1114,23 @@ async def create_project_resource(
     found_project = await require_project(
         session, organization, project, user, OrganizationRole.MEMBER
     )
-    duplicate = await session.scalar(
-        select(func.count(ProjectResource.id)).where(
-            ProjectResource.project_id == found_project.id,
-            ProjectResource.slug == payload.slug,
-        )
-    )
+    duplicate = await session.scalar(select(Artifact.id).where(
+        Artifact.organization_id == organization.id, Artifact.name == payload.slug))
     if duplicate:
         raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That resource slug is in use.")
-    resource = ProjectResource(
-        project_id=found_project.id, created_by_id=user.id, **payload.model_dump()
-    )
+    resource = Artifact(organization_id=organization.id, namespace=str(organization.id),
+        name=payload.slug, display_name=payload.name, description=payload.description,
+        kind=payload.kind, created_by_id=user.id)
     session.add(resource)
     await session.flush()
+    session.add(ProjectArtifact(project_id=found_project.id, artifact_id=resource.id))
+    await session.flush()
     _audit(session, user, "project_resource.created", resource, organization.id)
-    return ProjectResourceView.model_validate(resource, from_attributes=True)
+    return _legacy_resource_view(resource, found_project.id)
 
 
-async def _project_resource(
-    session: AsyncSession, project_id: uuid.UUID, reference: str
-) -> ProjectResource:
-    try:
-        parsed = uuid.UUID(reference)
-    except ValueError:
-        parsed = None
-    found = (
-        await session.execute(
-            select(ProjectResource).where(
-                ProjectResource.project_id == project_id,
-                ProjectResource.id == parsed if parsed else ProjectResource.slug == reference,
-            )
-        )
-    ).scalars().first()
-    if found is None:
-        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project resource not found.")
-    return found
+async def _project_resource(session: AsyncSession, project_id: uuid.UUID, reference: str) -> Artifact:
+    return await _legacy_artifact(session, project_id, reference)
 
 
 @router.get(
@@ -814,16 +1150,52 @@ async def list_project_resource_revisions(
         session, organization, project, user, OrganizationRole.VIEWER
     )
     found_resource = await _project_resource(session, found_project.id, resource)
-    rows = (
-        await session.execute(
-            select(ProjectResourceRevision)
-            .where(ProjectResourceRevision.project_resource_id == found_resource.id)
-            .order_by(ProjectResourceRevision.revision)
-        )
-    ).scalars().all()
-    return [
-        ProjectResourceRevisionView.model_validate(row, from_attributes=True) for row in rows
-    ]
+    rows = (await session.scalars(select(ArtifactVersion)
+        .where(ArtifactVersion.artifact_id == found_resource.id)
+        .order_by(ArtifactVersion.ordinal))).all()
+    return [await _legacy_resource_revision_view(session, found_resource, row, found_project.id) for row in rows]
+
+
+@router.get(
+    "/{org}/projects/{project}/resources/{resource}/revisions/{revision}",
+    response_model=ProjectResourceRevisionView,
+    operation_id="getProjectResourceRevision",
+)
+async def get_project_resource_revision(
+    org: str,
+    project: str,
+    resource: str,
+    revision: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> ProjectResourceRevisionView:
+    organization = await _required_org(session, org)
+    found_project = await require_project(
+        session, organization, project, user, OrganizationRole.VIEWER
+    )
+    found_resource = await _project_resource(session, found_project.id, resource)
+
+    rev_row = None
+    if revision.isdigit():
+        rev_row = await session.scalar(select(ArtifactVersion).where(
+            ArtifactVersion.artifact_id == found_resource.id,
+            ArtifactVersion.ordinal == int(revision)))
+    if rev_row is None:
+        try:
+            parsed_uuid = uuid.UUID(revision)
+            rev_row = await session.scalar(select(ArtifactVersion).where(
+                ArtifactVersion.artifact_id == found_resource.id,
+                ArtifactVersion.id == parsed_uuid))
+        except ValueError:
+            pass
+    if rev_row is None and revision.startswith("sha256-"):
+        rev_row = await session.scalar(select(ArtifactVersion).where(
+            ArtifactVersion.artifact_id == found_resource.id,
+            ArtifactVersion.content_digest == revision))
+
+    if rev_row is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Project resource revision not found.")
+    return await _legacy_resource_revision_view(session, found_resource, rev_row, found_project.id)
 
 
 @router.post(
@@ -846,33 +1218,26 @@ async def create_project_resource_revision(
     )
     found_resource = await _project_resource(session, found_project.id, resource)
     document_digest = digest(payload.document)
-    existing = (
-        await session.execute(
-            select(ProjectResourceRevision).where(
-                ProjectResourceRevision.project_resource_id == found_resource.id,
-                ProjectResourceRevision.digest == document_digest,
-            )
-        )
-    ).scalars().first()
+    existing = await session.scalar(select(ArtifactVersion).where(
+        ArtifactVersion.artifact_id == found_resource.id,
+        ArtifactVersion.content_digest == document_digest))
     if existing is not None:
-        return ProjectResourceRevisionView.model_validate(existing, from_attributes=True)
+        return await _legacy_resource_revision_view(session, found_resource, existing, found_project.id)
     await session.execute(
-        select(ProjectResource.id)
-        .where(ProjectResource.id == found_resource.id)
+        select(Artifact.id)
+        .where(Artifact.id == found_resource.id)
         .with_for_update()
     )
-    latest = await session.scalar(
-        select(func.max(ProjectResourceRevision.revision)).where(
-            ProjectResourceRevision.project_resource_id == found_resource.id
-        )
-    )
-    revision = ProjectResourceRevision(
-        project_resource_id=found_resource.id,
-        revision=int(latest or 0) + 1,
-        digest=document_digest,
-        document=payload.document,
-        created_by_id=user.id,
-    )
+    latest = await session.scalar(select(func.max(ArtifactVersion.ordinal)).where(ArtifactVersion.artifact_id == found_resource.id))
+    content = canonical_json(payload.document)
+    blob = await store_blob(session, found_resource, user, content, "application/json")
+    ordinal = int(latest or 0) + 1
+    manifest = {"apiVersion": "openbinding/artifact/v1", "kind": found_resource.kind,
+        "identity": {"namespace": found_resource.namespace, "name": found_resource.name, "version": str(ordinal)},
+        "contentDigest": document_digest, "mediaType": "application/json", "contracts": [], "dependencies": []}
+    revision = ArtifactVersion(artifact_id=found_resource.id, ordinal=ordinal, version=str(ordinal),
+        blob_id=blob.id, content_digest=document_digest, version_digest=digest(manifest),
+        manifest=manifest, created_by_id=user.id)
     session.add(revision)
     await session.flush()
     _audit(
@@ -883,4 +1248,102 @@ async def create_project_resource_revision(
         organization.id,
         digest=document_digest,
     )
-    return ProjectResourceRevisionView.model_validate(revision, from_attributes=True)
+    return await _legacy_resource_revision_view(session, found_resource, revision, found_project.id)
+
+
+@router.get(
+    "/{org}/projects/{project}/resources/{resource}",
+    response_model=ProjectResourceView,
+    operation_id="getProjectResource",
+)
+async def get_project_resource(
+    org: str,
+    project: str,
+    resource: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> ProjectResourceView:
+    organization = await _required_org(session, org)
+    found_project = await require_project(
+        session, organization, project, user, OrganizationRole.VIEWER
+    )
+    found_resource = await _project_resource(session, found_project.id, resource)
+    return _legacy_resource_view(found_resource, found_project.id)
+
+
+@router.patch(
+    "/{org}/projects/{project}/resources/{resource}",
+    response_model=ProjectResourceView,
+    operation_id="updateProjectResource",
+)
+async def update_project_resource(
+    org: str, project: str, resource: str, payload: ProjectResourceUpdate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> ProjectResourceView:
+    organization = await _required_org(session, org)
+    found_project = await require_project(session, organization, project, user, OrganizationRole.MEMBER)
+    found_resource = await _project_resource(session, found_project.id, resource)
+    if payload.name is not None:
+        found_resource.display_name = payload.name
+    if payload.description is not None:
+        found_resource.description = payload.description
+    if payload.kind is not None:
+        found_resource.kind = payload.kind
+    await session.flush()
+    _audit(session, user, "project_resource.updated", found_resource, organization.id)
+    return _legacy_resource_view(found_resource, found_project.id)
+
+
+@router.delete(
+    "/{org}/projects/{project}/resources/{resource}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="deleteProjectResource",
+)
+async def delete_project_resource(
+    org: str, project: str, resource: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> None:
+    organization = await _required_org(session, org)
+    found_project = await require_project(session, organization, project, user, OrganizationRole.ADMIN)
+    found_resource = await _project_resource(session, found_project.id, resource)
+    _audit(session, user, "project_resource.deleted", found_resource, organization.id)
+    await session.execute(delete(ProjectArtifact).where(
+        ProjectArtifact.project_id == found_project.id,
+        ProjectArtifact.artifact_id == found_resource.id))
+    await session.flush()
+
+
+@router.get(
+    "/{org}/projects/{project}/jobs",
+    response_model=list[JobView],
+    operation_id="listProjectJobs",
+)
+async def list_project_jobs(
+    org: str, project: str,
+    include_results: bool = True,
+    job_id: uuid.UUID | None = None,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(session_dependency, scope="function"),
+) -> list[JobView]:
+    organization = await _required_org(session, org)
+    found_project = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
+    query = select(Job).where(Job.project_id == found_project.id).order_by(Job.created_at.desc())
+    if job_id is not None:
+        query = query.where(Job.id == job_id)
+    if not include_results:
+        query = query.options(defer(Job.result), defer(Job.original_request), defer(Job.provenance))
+    rows = (await session.execute(query)).scalars().all()
+    return [
+        JobView(
+            id=job.id, engine_id=job.engine_id, status=job.state.value,
+            cancellation_requested=job.cancellation_requested,
+            retry_of_id=job.retry_of_id, organization_id=job.organization_id,
+            project_id=job.project_id, created_at=job.created_at, finished_at=job.finished_at,
+            result=job.result if include_results else None, termination=job.termination, options=job.options,
+            original_request=job.original_request if include_results else None,
+            provenance=job.provenance if include_results else None,
+        )
+        for job in rows
+    ]

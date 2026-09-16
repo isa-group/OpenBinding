@@ -71,6 +71,8 @@ async def reserve(
     user_id: uuid.UUID,
     *,
     federated: bool = False,
+    capacity_units: int | None = None,
+    engine_name: str | None = None,
     session: AsyncSession | None = None,
 ) -> tuple[Verdict, Optional[Reservation]]:
     """Ask whether another solve is allowed, and take what it costs up front.
@@ -81,18 +83,44 @@ async def reserve(
     """
     if session is not None:
         await session.execute(select(User.id).where(User.id == user_id).with_for_update())
-    verdict = await gate.evaluate(user_id, "federatedEngines" if federated else "solve")
-    if not verdict.allowed:
-        return verdict, None
 
-    increments = dict(FEDERATED_TASK_COST if federated else TASK_COST)
+    # Zero-quota router call: meta-router-csp incurs zero capacity/task cost
+    if engine_name == "meta-router-csp":
+        return Verdict.yes(), Reservation(user_id=user_id, increments={})
+
+    feature = "federatedEngines" if federated else "solve"
+    caps = await gate.caps(user_id)
+    has_capacity_units = "capacityUnits" in caps.limits
+
+    if has_capacity_units and capacity_units is not None:
+        cu = max(1, capacity_units)
+        expected = {"capacityUnits": cu, "concurrentJobs": 1}
+        verdict = await gate.evaluate(user_id, feature, expected)
+        if not verdict.allowed:
+            return verdict, None
+        increments = {"capacityUnits": cu, "concurrentJobs": 1}
+    elif has_capacity_units and "taskStarts" not in caps.limits:
+        cu = 1
+        expected = {"capacityUnits": cu, "concurrentJobs": 1}
+        verdict = await gate.evaluate(user_id, feature, expected)
+        if not verdict.allowed:
+            return verdict, None
+        increments = {"capacityUnits": cu, "concurrentJobs": 1}
+    else:
+        verdict = await gate.evaluate(user_id, feature)
+        if not verdict.allowed:
+            return verdict, None
+        increments = dict(FEDERATED_TASK_COST if federated else TASK_COST)
+        if has_capacity_units and capacity_units is not None:
+            increments["capacityUnits"] = max(1, capacity_units)
+
     await gate.adjust_usage(user_id, increments)
     return verdict, Reservation(user_id=user_id, increments=increments)
 
 
 async def release(gate: PricingGate, reservation: Optional[Reservation]) -> None:
     """Give back everything a reservation took, for work that never happened."""
-    if reservation is None:
+    if reservation is None or not reservation.increments:
         return
     try:
         await gate.adjust_usage(reservation.user_id, reservation.refund)
@@ -124,19 +152,21 @@ async def settle(
     if job is None:
         return False
 
-    if job.owner_id is not None:
+    if job.owner_id is not None and job.engine_id != "meta-router-csp":
         increments = {}
         if solver_seconds > 0:
             increments["solverSeconds"] = round(solver_seconds, 3)
         if release_slot:
             increments["concurrentJobs"] = -1
-        await gate.adjust_usage(job.owner_id, increments)
+        if increments:
+            await gate.adjust_usage(job.owner_id, increments)
 
     job.metered = True
     job.concurrency_released = release_slot
     job.finished_at = utcnow()
     await session.flush()
     return True
+
 
 
 async def sweep_abandoned(gate: PricingGate, session: AsyncSession) -> int:
@@ -201,6 +231,10 @@ async def run_reconciler(
                 migrated = await sweep_contract_renewals(session)
                 archived = await archive_drained_pricings(session, settings) if settings else 0
                 await session.commit()
+            # Analysis recovery commits before dispatch; isolate it from billing transactions.
+            from ..analysis_jobs import redeliver_analysis
+            async with db_base.session_factory()() as analysis_session:
+                await redeliver_analysis(analysis_session)
             if settled:
                 logger.info("Settled %d abandoned job(s)", settled)
             if migrated:

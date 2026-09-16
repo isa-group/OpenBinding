@@ -1,7 +1,8 @@
 """Dramatiq import target: ``dramatiq openbinding_gateway.worker``."""
 
 from .job_dispatch import configure_broker, run_persisted_job_message
+from .analysis_jobs import analyze_archive_message
 
 configure_broker()
 
-__all__ = ["run_persisted_job_message"]
+__all__ = ["run_persisted_job_message", "analyze_archive_message"]

@@ -3,7 +3,7 @@ import './Button.css';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'small';
   children: ReactNode;
   fullWidth?: boolean;
 }
@@ -19,7 +19,7 @@ export function Button({
   const classes = [
     'btn',
     `btn-${variant}`,
-    `btn-${size}`,
+    `btn-${size === 'small' ? 'sm' : size}`,
     fullWidth ? 'btn-full' : '',
     className
   ].filter(Boolean).join(' ');

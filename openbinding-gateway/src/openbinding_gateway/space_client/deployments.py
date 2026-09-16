@@ -83,19 +83,29 @@ class SpaceDeploymentClient:
         return result
 
     async def deploy(self, pricing_url: str) -> dict[str, Any]:
-        service = await self._request("GET", f"/services/{SERVICE_NAME}", allow_not_found=True)
-        path = "/services" if service is None else f"/services/{SERVICE_NAME}/pricings"
-        response = await self._request("POST", path, json={"pricing": pricing_url})
-        value = self._json(response)
-        return value if isinstance(value, dict) else {}
+        service_response = await self._request("GET", f"/services/{SERVICE_NAME}", allow_not_found=True)
+        service_data = self._json(service_response)
+        service_name = service_data.get("name") if isinstance(service_data, dict) else SERVICE_NAME
+        path = "/services" if service_response is None else f"/services/{service_name}/pricings"
+        try:
+            response = await self._request("POST", path, json={"pricing": pricing_url})
+            value = self._json(response)
+            return value if isinstance(value, dict) else {}
+        except PricingUnavailable as exc:
+            if "already exists" in str(exc) and isinstance(service_data, dict):
+                return service_data
+            raise
 
     async def set_availability(
         self, version: str, availability: str, fallback: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         if availability not in {"active", "archived"}:
             raise ValueError("availability must be active or archived")
+        service_response = await self._request("GET", f"/services/{SERVICE_NAME}", allow_not_found=True)
+        service_data = self._json(service_response)
+        service_name = service_data.get("name") if isinstance(service_data, dict) else SERVICE_NAME
         path = (
-            f"/services/{SERVICE_NAME}/pricings/{quote(version, safe='')}"
+            f"/services/{service_name}/pricings/{quote(version, safe='')}"
             f"?availability={availability}"
         )
         response = await self._request("PUT", path, json=fallback or {})

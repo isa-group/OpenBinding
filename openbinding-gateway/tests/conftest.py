@@ -31,6 +31,13 @@ os.environ.setdefault("SCHEMAS_DIR", os.path.join(REPO_ROOT, "schemas"))
 # The accounts tests sign real tokens, so they need a real secret. It has no
 # bearing on any deployment: this one only ever signs tokens for the suite.
 os.environ.setdefault("GATEWAY_JWT_SECRET", "test-secret-not-used-anywhere-real")
+os.environ.setdefault("JOB_DISPATCH_MODE", "inline")
+os.environ["SPHERE_ENABLED"] = "false"
+os.environ.pop("SPHERE_ORGANIZATION_ID", None)
+os.environ.pop("SPACE_DESTRUCTIVE_API_KEY", None)
+os.environ.pop("BOOTSTRAP_ADMIN_USERNAME", None)
+os.environ.pop("BOOTSTRAP_ADMIN_PASSWORD", None)
+os.environ.pop("BOOTSTRAP_ADMIN_EMAIL", None)
 
 
 @pytest.fixture
@@ -39,6 +46,41 @@ def micro_placement_instance():
     from _fixtures import micro_instance
 
     return micro_instance()
+
+
+@pytest.fixture(autouse=True)
+def clean_mock_env(monkeypatch):
+    monkeypatch.setenv("SPHERE_ENABLED", "false")
+    monkeypatch.delenv("SPHERE_ORGANIZATION_ID", raising=False)
+    monkeypatch.delenv("SPACE_DESTRUCTIVE_API_KEY", raising=False)
+    monkeypatch.delenv("BOOTSTRAP_ADMIN_USERNAME", raising=False)
+    monkeypatch.delenv("BOOTSTRAP_ADMIN_PASSWORD", raising=False)
+    monkeypatch.delenv("BOOTSTRAP_ADMIN_EMAIL", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def reset_routing_state():
+    try:
+        from openbinding_gateway.engine_routing import (
+            get_discrepancy_analyzer,
+            get_health_monitor,
+        )
+
+        get_health_monitor().reset()
+        get_discrepancy_analyzer().reset()
+    except ImportError:
+        pass
+    yield
+    try:
+        from openbinding_gateway.engine_routing import (
+            get_discrepancy_analyzer,
+            get_health_monitor,
+        )
+
+        get_health_monitor().reset()
+        get_discrepancy_analyzer().reset()
+    except ImportError:
+        pass
 
 
 @pytest.fixture(autouse=True)
@@ -53,7 +95,7 @@ def pricing_catalog_gate():
 
 
 @pytest_asyncio.fixture
-async def db_session():
+async def db_session(tmp_path, monkeypatch):
     """A session against a database that exists only for this test.
 
     SQLite in memory by default rather than a Postgres container: the models
@@ -69,6 +111,8 @@ async def db_session():
 
     from openbinding_gateway.db.base import Base
 
+    from openbinding_gateway.core.settings import get_settings
+    monkeypatch.setattr(get_settings(), "artifact_root", str(tmp_path / "blobs"))
     url = os.environ.get("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
     engine = create_async_engine(url)
     async with engine.begin() as connection:

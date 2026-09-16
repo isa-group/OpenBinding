@@ -34,7 +34,10 @@ jobs:
         run: uv sync --locked --project openbinding-gateway --no-dev
 
       - name: Compile the complete checked-in BIM corpus
-        run: openbinding-gateway/.venv/bin/python tools/check_bim_corpus.py --expected 79 --jobs 4
+        run: openbinding-gateway/.venv/bin/python tools/check_bim_corpus.py --expected 82 --jobs 4
+
+      - name: Check shared example authoring
+        run: openbinding-gateway/.venv/bin/python tools/build_shared_examples.py --check
 
       - name: Check committed BIM diagrams are current
         run: tools/render_bim_diagrams.sh --check

@@ -8,6 +8,7 @@ and never exposes a private YAML URL to a browser.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any
 from urllib.parse import quote, urljoin, urlsplit
 
@@ -153,7 +154,10 @@ class SphereClient:
         actual = urlsplit(url)
         if (actual.scheme, actual.netloc) != (expected.scheme, expected.netloc):
             raise SphereError("SPHERE returned a pricing URL on another origin.")
-        if not actual.path.startswith("/static/pricings/"):
+        if not (
+            actual.path.startswith("/static/pricings/")
+            or re.fullmatch(r"/[^/]+/[^/]+/[^/]+\.ya?ml", actual.path)
+        ):
             raise SphereError("SPHERE returned an unexpected pricing URL.")
         return url
 

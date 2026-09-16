@@ -44,7 +44,7 @@ class ApiKeyPermission(str, Enum):
     KEYS_WRITE = "keys:write"
     INSTANCES_READ = "instances:read"
     INSTANCES_WRITE = "instances:write"
-    INSTANCES_ANALYZE = "instances:analyze"
+    INSTANCES_VALIDATE = "instances:validate"
     JOBS_READ = "jobs:read"
     ENGINES_READ = "engines:read"
     ENGINES_EXECUTE = "engines:execute"
@@ -87,7 +87,7 @@ ENGINE_LIMITED_PERMISSIONS = frozenset(
         ApiKeyPermission.ENGINES_REGISTER.value,
         ApiKeyPermission.ENGINES_PUBLISH.value,
         ApiKeyPermission.ENGINES_MODERATE.value,
-        ApiKeyPermission.INSTANCES_ANALYZE.value,
+        ApiKeyPermission.INSTANCES_VALIDATE.value,
         ApiKeyPermission.JOBS_READ.value,
         ApiKeyPermission.STUDIES_READ.value,
         ApiKeyPermission.STUDIES_WRITE.value,
@@ -249,7 +249,10 @@ def allows_request(api_key: Any, *, method: str, path_params: Mapping[str, Any],
             "reports": {"report", "reports"},
             "publications": {"publication", "publications"},
             "artifacts": {"artifact", "artifacts"},
+            "library": {"artifact", "artifacts"},
+            "blobs": {"artifact", "artifacts", "blob", "blobs"},
             "jobs": {"job", "jobs"},
+            "analysis": {"job", "jobs", "analysis"},
             "instances": {"instance", "instances"},
             "engines": {"engine", "engines"},
             "engine-registrations": {"engine-registration", "engine-registrations"},
@@ -368,6 +371,14 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET"
             else {ApiKeyPermission.ADMIN_ACCOUNTS_WRITE.value}
         )
+    if path.startswith("/v1/artifacts") or (
+        path.startswith("/v1/organizations/") and any(part in path.split("/") for part in ("library", "blobs"))
+    ):
+        return frozenset(
+            {ApiKeyPermission.ARTIFACTS_READ.value}
+            if method == "GET" or path == "/v1/artifacts/resolve"
+            else {ApiKeyPermission.ARTIFACTS_WRITE.value}
+        )
     if "/projects" in path:
         if any(token in path for token in ("/studies", "/runs")):
             return frozenset(
@@ -426,18 +437,25 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         if method == "GET":
             return frozenset({ApiKeyPermission.ENGINES_READ.value})
         return frozenset({ApiKeyPermission.ENGINES_REGISTER.value})
-    if path == "/v1/analyze":
-        return frozenset({ApiKeyPermission.INSTANCES_ANALYZE.value})
-    if path.startswith("/v1/instances"):
+    if path == "/v1/validate":
+        return frozenset({ApiKeyPermission.INSTANCES_VALIDATE.value})
+    if path.startswith("/v1/instances") or path.startswith("/v1/generator"):
         return frozenset(
             {ApiKeyPermission.INSTANCES_READ.value}
             if method == "GET"
             else {ApiKeyPermission.INSTANCES_WRITE.value}
         )
+    if path.startswith("/v1/analysis"):
+        return frozenset({ApiKeyPermission.JOBS_READ.value, ApiKeyPermission.REPORTS_WRITE.value}
+                         if path == "/v1/analysis/reports" else {ApiKeyPermission.JOBS_READ.value})
     if path.startswith("/v1/jobs"):
         return frozenset(
             {ApiKeyPermission.JOBS_READ.value}
             if method == "GET"
             else {ApiKeyPermission.ENGINES_EXECUTE.value}
         )
+    if path.startswith("/v1/verifier"):
+        return frozenset({ApiKeyPermission.INSTANCES_READ.value})
+    if path.startswith("/v1/snapshots"):
+        return frozenset({ApiKeyPermission.INSTANCES_READ.value})
     return frozenset()

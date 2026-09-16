@@ -18,6 +18,20 @@ class EvolutionarySolverTest {
         .getAsJsonObject("decision").getAsJsonObject("binding").getAsJsonObject("t");
     assertEquals("catalog-a", candidate.get("resource").getAsString());
     assertEquals(40, response.getAsJsonObject("provenance").get("evaluations").getAsInt());
+    var trace = response.getAsJsonObject("provenance").getAsJsonArray("trace");
+    assertTrue(trace.size() > 0);
+    double previous = Double.POSITIVE_INFINITY;
+    long previousIndex = -1;
+    for (var point : trace) {
+      var event = point.getAsJsonObject();
+      assertTrue(event.get("best_objective").getAsDouble() <= previous);
+      assertTrue(event.get("eval_index").getAsLong() > previousIndex);
+      previous = event.get("best_objective").getAsDouble();
+      previousIndex = event.get("eval_index").getAsLong();
+    }
+    assertEquals(40, previousIndex);
+    assertEquals(response.getAsJsonArray("solutions").get(0).getAsJsonObject()
+        .getAsJsonObject("objectives").get("score").getAsDouble(), previous);
   }
 
   @Test void serverRejectsUnknownOptionAndSourceShape() {
@@ -39,6 +53,7 @@ class EvolutionarySolverTest {
         "{\"algorithm\":\"pareto-genetic\",\"population_size\":10,"
             + "\"max_evaluations\":40,\"archive_size\":5,\"seed\":7}"))).getAsJsonObject();
     assertEquals("FEASIBLE", response.get("termination").getAsString());
+    assertEquals(0, response.getAsJsonObject("provenance").getAsJsonArray("trace").size());
     assertEquals("catalog-a", response.getAsJsonArray("solutions").get(0).getAsJsonObject()
         .getAsJsonObject("decision").getAsJsonObject("binding")
         .getAsJsonObject("t").get("resource").getAsString());

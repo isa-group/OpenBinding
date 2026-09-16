@@ -1,0 +1,100 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "18_analysis_constraints_candidates"
+  },
+  "spec": {
+    "candidates": {
+      "budget": {
+        "provides": "service/analysis",
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        },
+        "metrics": {
+          "cost": 10,
+          "latency": 90,
+          "quality": 60
+        }
+      },
+      "balanced": {
+        "provides": "service/analysis",
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        },
+        "metrics": {
+          "cost": 35,
+          "latency": 35,
+          "quality": 85
+        }
+      },
+      "balanced-twin": {
+        "provides": "service/analysis",
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        },
+        "metrics": {
+          "cost": 35,
+          "latency": 35,
+          "quality": 85
+        }
+      },
+      "fast": {
+        "provides": "service/analysis",
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        },
+        "metrics": {
+          "cost": 90,
+          "latency": 10,
+          "quality": 90
+        }
+      },
+      "legacy": {
+        "provides": "service/analysis",
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        },
+        "metrics": {
+          "cost": 70,
+          "latency": 70,
+          "quality": 40
+        }
+      },
+      "overloaded": {
+        "provides": "service/analysis",
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        },
+        "metrics": {
+          "cost": 100,
+          "latency": 100,
+          "quality": 20
+        }
+      }
+    },
+    "providers": {
+      "p1": {}
+    },
+    "metricBindings": {
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      },
+      "latency": {
+        "resource": "application",
+        "id": "latency"
+      },
+      "quality": {
+        "resource": "application",
+        "id": "quality"
+      }
+    }
+  }
+}

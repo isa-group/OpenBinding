@@ -53,3 +53,17 @@ export function sourceDiff(before: string, after: string): DiffLine[] {
     ...right.slice(right.length - suffix).map((value): DiffLine => ({ kind: 'context', value })),
   ];
 }
+
+export interface JsonChange { path: string; kind: 'added' | 'removed' | 'changed'; before: unknown; after: unknown }
+
+/** JSON-pointer changes preserve array order and never infer semantic compatibility. */
+export function jsonChanges(before: unknown, after: unknown, path = ''): JsonChange[] {
+  if (before === after) return [];
+  if (before && after && typeof before === 'object' && typeof after === 'object' && Array.isArray(before) === Array.isArray(after)) {
+    const left = before as Record<string, unknown>;
+    const right = after as Record<string, unknown>;
+    return [...new Set([...Object.keys(left), ...Object.keys(right)])].sort().flatMap(key =>
+      jsonChanges(Object.prototype.hasOwnProperty.call(left, key) ? left[key] : undefined, Object.prototype.hasOwnProperty.call(right, key) ? right[key] : undefined, `${path}/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`));
+  }
+  return [{ path: path || '/', kind: before === undefined ? 'added' : after === undefined ? 'removed' : 'changed', before, after }];
+}

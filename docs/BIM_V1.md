@@ -19,18 +19,37 @@ template protocol, party negotiation, agreement lifecycle, monitoring, or
 runtime guarantee enforcement. It borrows an architectural principle, not a
 wire protocol.
 
+Open the [interactive BIM v1 architecture map](diagrams/bim-v1-architecture.html) to explore package boundaries, lowering, and the engine contract.
+
 ## The container boundary
 
 ```mermaid
-flowchart TB
-  I["Instance<br/>apiVersion bim/v1"] -->|"selects"| P["Profile<br/>roles, cardinalities, IR, vocabularies"]
-  I -->|"indexes resources by Profile role"| R["Independent source resources"]
-  D["Compatible Dialects"] -->|"declare resource types<br/>or inline extension points"| R
-  D -->|"schema + adapter + IR features"| A["Installed lowering boundary"]
-  P --> A
-  R --> A
-  A --> O["Profile-declared output IR"]
-  O --> E["Engine selected by IR feature compatibility"]
+flowchart LR
+  subgraph Package["BIM package"]
+    I["Instance<br/><small>apiVersion bim/v1</small>"]
+    R["Independent source resources<br/><small>role-indexed files</small>"]
+  end
+  subgraph Contracts["Installed contracts"]
+    P["Profile<br/><small>roles · cardinalities · vocabularies</small>"]
+    D["Compatible Dialects<br/><small>resource types · extensions</small>"]
+  end
+  subgraph Lowering["Trusted lowering boundary"]
+    A["Resolve + validate + adapt"]
+    O["Profile-declared<br/>output IR"]
+  end
+  E["Engine selected by<br/>IR feature compatibility"]
+  I -->|"selects"| P
+  I -->|"indexes"| R
+  D -->|"extends"| R
+  P & D & R --> A --> O --> E
+  classDef package fill:#eff6ff,stroke:#2563eb,color:#172554
+  classDef contract fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
+  classDef boundary fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+  classDef engine fill:#ecfdf5,stroke:#059669,color:#064e3b
+  class I,R package
+  class P,D contract
+  class A,O boundary
+  class E engine
 ```
 
 The BIM core owns only the reusable mechanics:
@@ -103,8 +122,17 @@ composes as a `qos-binding-placement/v1` `Placement` resource in the
 `application` role; it does not change `Instance` or create a second package
 shape.
 
+Together, the workflow's service tasks and the candidate catalogs define the
+discrete solution space (the **Binding Space** $S$). For each service task $t$,
+the candidate set $E(t)$ yields a total combinatorial cardinality of
+$|S| = \prod_{t} |E(t)|$. The gateway compiler computes this cardinality and its
+logarithmic scale $\log_{10}(|S|)$ deterministically during analysis and job
+creation, enabling complexity enforcement before solver dispatch without
+altering the wire contracts of external engines.
+
 Each role group maps a package-wide resource id to either a local POSIX path or
 an immutable registered reference:
+
 
 ```json
 {
@@ -324,5 +352,13 @@ are informative.
 
 Continue with the progressive [model atlas](models/README.md),
 [authoring](AUTHORING_GUIDE.md), [manifests](MANIFESTS.md),
-[Engine integration](ENGINE_INTEGRATION.md), or the reproducible
+[Engine integration](ENGINE_INTEGRATION.md), [BIM QACO generator](BIM_GENERATOR.md), or the reproducible
 [conciseness benchmark](CONCISENESS.md).
+
+## Exact library versions and contract selection
+
+Organization library versions use `{namespace,name,version,versionDigest}` resource targets. Their version manifest pins `contentDigest`, contracts and fixed dependencies; the resolver verifies both manifest and bytes. This is distinct from the earlier registered resource target with a content `digest`.
+
+`Instance.spec.contracts` contains a `profile` reference and a `dialects` array. Each exact installed contract reference uses `{namespace,name,version,digest}`. Family IDs such as `qos-binding/v1` remain vocabulary identifiers, not exact release selectors. `spec.bindings` optionally maps source resource aliases to local composition aliases per resource. Validation resolves schema-declared references without rewriting original content.
+
+See [the artifact lifecycle and cutover status](VERSIONED_ARTIFACTS.md) for executable case composition, publication, snapshots and portability limits.

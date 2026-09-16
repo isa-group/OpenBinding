@@ -481,7 +481,7 @@ async def test_a_key_cannot_remove_its_own_resource_boundary(api_client, registr
         "engines:register",
         "engines:publish",
         "engines:moderate",
-        "instances:analyze",
+        "instances:validate",
         "jobs:read",
         "studies:read",
         "studies:write",
@@ -733,3 +733,15 @@ async def test_an_admin_can_issue_a_read_only_admin_key(
     assert listing.status_code == 200
     assert mutation.status_code == 403
     assert mutation.json()["detail"]["code"] == "insufficient_api_key_permission"
+
+
+@pytest.mark.parametrize('path,method,permission', [
+    ('/v1/artifacts/id', 'PATCH', 'artifacts:write'),
+    ('/v1/artifacts/id/versions', 'GET', 'artifacts:read'),
+    ('/v1/artifacts/resolve', 'POST', 'artifacts:read'),
+    ('/v1/organizations/team/library', 'POST', 'artifacts:write'),
+    ('/v1/organizations/team/projects/project/library/id', 'DELETE', 'artifacts:write'),
+    ('/v1/organizations/team/projects/project/blobs', 'GET', 'artifacts:read'),
+])
+def test_library_and_blob_permissions_share_artifact_grants(path, method, permission):
+    assert apikeys.required_permissions(path, method) == frozenset({permission})

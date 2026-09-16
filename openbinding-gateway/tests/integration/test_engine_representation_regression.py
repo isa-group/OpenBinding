@@ -230,7 +230,7 @@ def _solve(
     )
     assert snapshot.status_code == 201, snapshot.text
     analysis = client.post(
-        "/v1/analyze", headers=headers, json={"snapshot": snapshot.json()["id"]}
+        "/v1/validate", headers=headers, json={"snapshot": snapshot.json()["id"]}
     )
     assert analysis.status_code == 200, analysis.text
     matches = [

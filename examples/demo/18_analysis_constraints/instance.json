@@ -1,0 +1,29 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "18_analysis_constraints_instance",
+    "version": "1.0.0",
+    "description": "Analysis gallery: 36 enumerable two-task bindings, categorical alternatives, duplicate metrics and dominated strategies. Includes maximized quality, hard budget and soft latency constraints.",
+    "annotations": {
+      "level": "intermediate"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}
