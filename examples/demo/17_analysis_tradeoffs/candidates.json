@@ -1,0 +1,90 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "17_analysis_tradeoffs_candidates"
+  },
+  "spec": {
+    "candidates": {
+      "budget": {
+        "provides": "service/analysis",
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        },
+        "metrics": {
+          "cost": 10,
+          "latency": 90
+        }
+      },
+      "balanced": {
+        "provides": "service/analysis",
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        },
+        "metrics": {
+          "cost": 35,
+          "latency": 35
+        }
+      },
+      "balanced-twin": {
+        "provides": "service/analysis",
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        },
+        "metrics": {
+          "cost": 35,
+          "latency": 35
+        }
+      },
+      "fast": {
+        "provides": "service/analysis",
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        },
+        "metrics": {
+          "cost": 90,
+          "latency": 10
+        }
+      },
+      "legacy": {
+        "provides": "service/analysis",
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        },
+        "metrics": {
+          "cost": 70,
+          "latency": 70
+        }
+      },
+      "overloaded": {
+        "provides": "service/analysis",
+        "provider": {
+          "resource": "catalog",
+          "id": "p1"
+        },
+        "metrics": {
+          "cost": 100,
+          "latency": 100
+        }
+      }
+    },
+    "providers": {
+      "p1": {}
+    },
+    "metricBindings": {
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      },
+      "latency": {
+        "resource": "application",
+        "id": "latency"
+      }
+    }
+  }
+}

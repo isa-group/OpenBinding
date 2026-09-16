@@ -1,0 +1,20 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {
+    "name": "19_analysis_journey_constraints"
+  },
+  "spec": {
+    "constraints": {
+      "latency-sla": {
+        "assert": "metrics.latency <= 100",
+        "enforcement": "soft",
+        "penalty": 1
+      },
+      "budget-cap": {
+        "assert": "metrics.cost <= 160",
+        "enforcement": "hard"
+      }
+    }
+  }
+}

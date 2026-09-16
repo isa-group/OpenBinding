@@ -1,0 +1,58 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "18_analysis_constraints_optimization"
+  },
+  "spec": {
+    "mode": "pareto",
+    "type": "MANY",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "weight": 1,
+        "normalize": {
+          "min": 0,
+          "max": 200,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        },
+        "weight": 1,
+        "normalize": {
+          "min": 0,
+          "max": 200,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "quality"
+        },
+        "weight": 1,
+        "normalize": {
+          "min": 0,
+          "max": 200,
+          "clamp": true
+        }
+      }
+    ],
+    "penalties": [
+      {
+        "constraint": {
+          "resource": "constraints",
+          "id": "latency-sla"
+        },
+        "weight": 0.3
+      }
+    ]
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "19_analysis_journey_optimization"
+  },
+  "spec": {
+    "mode": "weighted",
+    "type": "MONO",
+    "terms": [
+      {
+        "metric": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "weight": 0.5,
+        "normalize": {
+          "min": 0,
+          "max": 200,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "latency"
+        },
+        "weight": 0.5,
+        "normalize": {
+          "min": 0,
+          "max": 200,
+          "clamp": true
+        }
+      },
+      {
+        "metric": {
+          "resource": "application",
+          "id": "quality"
+        },
+        "weight": 0.25,
+        "normalize": {
+          "min": 0,
+          "max": 200,
+          "clamp": true
+        }
+      }
+    ],
+    "penalties": [
+      {
+        "constraint": {
+          "resource": "constraints",
+          "id": "latency-sla"
+        },
+        "weight": 0.3
+      }
+    ]
+  }
+}

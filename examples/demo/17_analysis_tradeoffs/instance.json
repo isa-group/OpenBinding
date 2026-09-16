@@ -1,0 +1,26 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "17_analysis_tradeoffs_instance",
+    "version": "1.0.0",
+    "description": "Analysis gallery: 36 enumerable two-task bindings, categorical alternatives, duplicate metrics and dominated strategies. Two-objective cost/latency front with a strong balanced compromise.",
+    "annotations": {
+      "level": "intermediate"
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      }
+    }
+  }
+}
