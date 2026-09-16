@@ -91,6 +91,15 @@ features:
     expression: pricingContext['features']['institutionalBranding']
 
 usageLimits:
+  capacityUnits:
+    description: Computational capacity units consumed across optimization solves.
+    tag: Solving
+    type: RENEWABLE
+    period: { value: 1, unit: MONTH }
+    valueType: NUMERIC
+    defaultValue: 1000
+    unit: capacity-unit/month
+    linkedFeatures: [solve]
   taskStarts:
     description: Local solves started per actor and month.
     tag: Solving
@@ -278,6 +287,7 @@ plans:
       reproducibleExport: { value: true }
       publishing: { value: true }
     usageLimits:
+      capacityUnits: { value: 5000 }
       taskStarts: { value: 10 }
       solverSeconds: { value: 900 }
       federatedTaskStarts: { value: 5 }
@@ -305,6 +315,7 @@ plans:
       <<: *basicFeatures
       advancedAnalytics: { value: true }
     usageLimits:
+      capacityUnits: { value: 100000 }
       taskStarts: { value: 25 }
       solverSeconds: { value: 18000 }
       federatedTaskStarts: { value: 10 }
@@ -333,6 +344,7 @@ plans:
       advancedAnalytics: { value: true }
       institutionalBranding: { value: true }
     usageLimits:
+      capacityUnits: { value: 1000000 }
       taskStarts: { value: 50 }
       solverSeconds: { value: 30000 }
       federatedTaskStarts: { value: 100 }
@@ -361,6 +373,7 @@ plans:
       advancedAnalytics: { value: true }
       reproducibilityArchive: { value: true }
     usageLimits:
+      capacityUnits: { value: 100000 }
       taskStarts: { value: .inf }
       solverSeconds: { value: 180000 }
       federatedTaskStarts: { value: 1000 }

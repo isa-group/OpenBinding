@@ -3,6 +3,9 @@
 #
 # Usage:
 #   ./tools/seed_dev.sh [--reset] [--verbose]
+#   ./tools/seed_dev.sh --analysis-only     # additive, no engine calls
+#   ./tools/seed_dev.sh --analysis-full     # live jobs + up to 100,000 unique bindings
+#   Both write tools/analysis-manifest.json in the gateway directory.
 #
 # It automatically detects whether to run locally (if Python environment is ready)
 # or via Docker Compose (executing inside the running `gateway-dev` container).

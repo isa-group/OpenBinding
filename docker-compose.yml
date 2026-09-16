@@ -282,7 +282,7 @@ services:
       engine-evolutionary-heuristics:
         condition: service_healthy
 
-  worker:
+  worker: &solve-worker
     build:
       context: .
       dockerfile: openbinding-gateway/Dockerfile
@@ -290,7 +290,7 @@ services:
         <<: *proxy-build-args
     profiles: ["prod"]
     entrypoint: []
-    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "4"]
+    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "4", "--queues", "default"]
     volumes:
       - artifacts:/var/lib/openbinding/artifacts
     environment:
@@ -332,7 +332,11 @@ services:
       retries: 3
       start_period: 10s
 
-  worker-dev:
+  analysis-worker:
+    <<: *solve-worker
+    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "1", "--queues", "analysis"]
+
+  worker-dev: &solve-worker-dev
     build:
       context: .
       dockerfile: openbinding-gateway/Dockerfile
@@ -340,7 +344,7 @@ services:
         <<: *proxy-build-args
     profiles: ["dev"]
     entrypoint: []
-    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "2"]
+    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "2", "--queues", "default"]
     volumes:
       - ./schemas:/app/schemas:ro
       - ./openbinding-gateway:/app
@@ -386,6 +390,10 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
+
+  analysis-worker-dev:
+    <<: *solve-worker-dev
+    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "1", "--queues", "analysis"]
 
   adminer:
     image: adminer:5
