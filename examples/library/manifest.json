@@ -1,0 +1,113 @@
+{
+  "resources": [
+    {
+      "name": "fulfillment-candidates",
+      "version": "1",
+      "source": "library/fulfillment/1/candidates.json",
+      "outputs": [
+        {
+          "path": "demo/15_bpmn_complete/candidates.json"
+        },
+        {
+          "path": "demo/16_json_complete/candidates.json"
+        }
+      ]
+    },
+    {
+      "name": "fulfillment-constraints",
+      "version": "1",
+      "source": "library/fulfillment/1/constraints.json",
+      "outputs": [
+        {
+          "path": "demo/15_bpmn_complete/constraints.json"
+        },
+        {
+          "path": "demo/16_json_complete/constraints.json"
+        }
+      ]
+    },
+    {
+      "name": "fulfillment-optimization",
+      "version": "1",
+      "source": "library/fulfillment/1/optimization.json",
+      "outputs": [
+        {
+          "path": "demo/15_bpmn_complete/optimization.json"
+        },
+        {
+          "path": "demo/16_json_complete/optimization.json"
+        }
+      ]
+    },
+    {
+      "name": "fulfillment-placement",
+      "version": "1",
+      "source": "library/fulfillment/1/placement.json",
+      "outputs": [
+        {
+          "path": "demo/15_bpmn_complete/placement.json"
+        },
+        {
+          "path": "demo/16_json_complete/placement.json"
+        }
+      ]
+    },
+    {
+      "name": "decision-analysis-application",
+      "version": "1",
+      "source": "library/decision-analysis/1/application.json",
+      "outputs": [
+        {
+          "path": "demo/18_analysis_constraints/application.json",
+          "metadata": {
+            "name": "18_analysis_constraints_application"
+          }
+        },
+        {
+          "path": "demo/19_analysis_journey/application.json",
+          "metadata": {
+            "name": "19_analysis_journey_application"
+          }
+        }
+      ]
+    },
+    {
+      "name": "decision-analysis-candidates",
+      "version": "1",
+      "source": "library/decision-analysis/1/candidates.json",
+      "outputs": [
+        {
+          "path": "demo/18_analysis_constraints/candidates.json",
+          "metadata": {
+            "name": "18_analysis_constraints_candidates"
+          }
+        },
+        {
+          "path": "demo/19_analysis_journey/candidates.json",
+          "metadata": {
+            "name": "19_analysis_journey_candidates"
+          }
+        }
+      ]
+    },
+    {
+      "name": "decision-analysis-constraints",
+      "version": "1",
+      "source": "library/decision-analysis/1/constraints.json",
+      "outputs": [
+        {
+          "path": "demo/18_analysis_constraints/constraints.json",
+          "metadata": {
+            "name": "18_analysis_constraints_constraints"
+          }
+        },
+        {
+          "path": "demo/19_analysis_journey/constraints.json",
+          "metadata": {
+            "name": "19_analysis_journey_constraints"
+          }
+        }
+      ]
+    }
+  ]
+}

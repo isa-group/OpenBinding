@@ -1,4 +1,4 @@
-# Cryptographic Element Resolver & Digital Signature Verifier
+# Content Digest Resolver and Verifier
 
 Status: **normative**.
 Implemented in: `openbinding-gateway/src/openbinding_gateway/routes/resolve.py`, `frontend/src/pages/Platform/VerifierPage.tsx`.
@@ -7,10 +7,10 @@ Implemented in: `openbinding-gateway/src/openbinding_gateway/routes/resolve.py`,
 
 ## 1. Overview
 
-OpenBinding guarantees mathematical reproducibility across all optimization cases, instances, reports, and artifacts. The **Unified Resolver & Digital Signature Verifier** provides a cryptographic authenticity mechanism akin to a digital signature validator:
+The resolver locates accessible records by content digest. SHA-256 verifies content equality; it is not an author signature and does not guarantee mathematical or numerical reproducibility. The organization library uses separate content and version-manifest digests; see [versioned artifacts](VERSIONED_ARTIFACTS.md). The legacy resolver provides:
 
-1. Given a canonical **SHA-256 digest** (or raw binary hash) and an element **`kind`**, it verifies whether the element exists and is authentic.
-2. It returns rich provenance, authoritative signatures, ownership metadata, and every project/organization location where the element is cataloged.
+1. Given a canonical **SHA-256 digest** (or raw binary hash) and an element **`kind`**, it verifies whether an accessible matching element exists.
+2. It returns rich provenance, recorded ownership metadata, and every project/organization location where the element is cataloged.
 3. It allows in-situ inspection and downloading of the canonical content without needing prior knowledge of internal database IDs or project URLs.
 4. It replaces and supersedes all legacy `/v1/public/*` routes with an authenticated, paginated, and cache-optimized architecture.
 

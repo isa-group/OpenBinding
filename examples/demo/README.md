@@ -94,3 +94,11 @@ does not accept an inline root document in place of the complete BIM package.
 The two-objective package in `11_multi_obj_negative/` can be routed to the
 federated `multi-heuristic` after following the
 [`EngineRegistration` example](../federation/multi-heuristic/README.md).
+
+### Interactive analysis examples
+
+- `17_analysis_tradeoffs`: two tasks × six candidates; 36 bindings with cost/latency trade-offs, duplicate metrics and dominated alternatives.
+- `18_analysis_constraints`: adds maximized quality, a hard cost bound and a soft latency penalty.
+- `19_analysis_journey`: weighted version for scalar-objective solver replay and priority sensitivity.
+
+Run a compatible engine from Playground, or use `./tools/seed_dev.sh --analysis-only` after the initial development seed to retain all evaluated alternatives in the **Binding Analysis Gallery**. The gallery also includes collinear, single-point, empty and 1,296-binding cases. See [the analysis guide](../../docs/analysis/binding-analysis-upgrade.md#development-gallery-and-how-to-try-it).

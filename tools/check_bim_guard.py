@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_PACKAGES = 79
+EXPECTED_PACKAGES = 82
 THIRD_PARTY_DIRECTORY_NAMES = {
     ".git",
     ".pnpm-store",

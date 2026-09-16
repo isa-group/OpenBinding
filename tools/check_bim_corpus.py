@@ -42,7 +42,7 @@ def compile_one(directory: Path) -> tuple[str, str | None, str | None]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Compile the complete BIM v1 corpus")
-    parser.add_argument("--expected", type=int, default=79)
+    parser.add_argument("--expected", type=int, default=82)
     parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
     args = parser.parse_args()
 

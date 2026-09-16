@@ -104,6 +104,22 @@ local emergency tool and binds only to loopback:
 docker compose --profile db-tools up -d adminer
 ```
 
+The versioned-artifact schema is a development cutover and cannot migrate a
+pre-cutover PostgreSQL volume because doing so would discard historical rows.
+If `gateway-dev` exits during Alembic with `Rebuild the local development
+database`, recreate only the local PostgreSQL volume and start the stack again:
+
+```bash
+docker compose stop postgres
+docker compose rm -f postgres
+docker volume rm openbinding_pgdata
+./up.sh --with-space
+```
+
+The volume name follows the Compose project name; use
+`docker volume ls --format '{{.Name}}'` if `COMPOSE_PROJECT_NAME` is set. This
+procedure leaves SPACE, Redis, artifacts and other development volumes intact.
+
 ### Seeding development data
 
 To populate the database with a complete set of development entities (users, hierarchical organizations, projects, compiled BIM v1 cases, collections, real solver jobs, comparative studies, reports, publications, and API keys) for testing all platform features:
@@ -115,16 +131,24 @@ To populate the database with a complete set of development entities (users, hie
 # Or clean previously seeded entities and repopulate from scratch
 ./tools/seed_dev.sh --reset
 
+# Add/update only the interactive binding-analysis examples (existing dev data)
+./tools/seed_dev.sh --analysis-only
+
+# Full binding decision validation with live jobs and up to 100,000 unique bindings
+./tools/seed_dev.sh --analysis-full
+
 # Directly through Docker Compose
 docker compose exec -T gateway-dev python tools/seed_dev.py --reset
 ```
+
+The integrated [binding decision workspace](docs/analysis/binding-decision-workspace.md) documents the evidence contract, geometric views, limits, scenario coverage and reproducible API/browser checks. Population writes `openbinding-gateway/tools/analysis-manifest.json` with analysis and draft Report links.
 
 All test accounts (`alice`, `bob`, `carol`, `david`, `elena`, `frank`) use password: `devpass123`.
 The administrator (`admin`) uses `devpass123` (or bootstrap password `4dm1n`).
 
 
 The gateway exposes `/v1/profiles`, `/v1/dialects`, `/v1/resources`,
-`/v1/engines`, `/v1/instances`, `/v1/jobs`, and
+`/v1/engines`, `/v1/instances`, `/v1/jobs`, `/v1/generator`, and
 `/v1/engine-registrations`. BIM source uploads are complete `.bim.zip`
 packages; JSON requests may refer to immutable snapshots. Jobs always return
 `202`. Results use `OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, or `UNKNOWN`, and
@@ -141,8 +165,10 @@ the SPHERE/SPACE pricing control room.
 
 OpenBinding guarantees strict cryptographic immutability and provenance:
 - **In-browser ZIP Uncompression & Inspection**: Explore `.bim.zip` snapshots and artifact archives directly in the browser with directory trees and syntax-highlighted code inspection via CodeMirror.
+- **Report editions**: Report drafts and sealed versions share the artifact library. Publications pin an exact version; withdrawal retains its citation and evidence.
+- **Versioned study definitions**: Projects can share an exact library Study version and adopt updates independently. Runs retain their original version and matrix; archive/restore preserves execution history. See the [artifact lifecycle and migration status](docs/VERSIONED_ARTIFACTS.md).
 - **Dedicated Deep-Linked Views**: Full-page inspection and editing for Cases (`/cases/:caseSlug`), Snapshots (`/snapshots/:snapshotId`), Collections (`/collections/:collectionSlug`), Jobs (`/jobs/:jobId`), and Reports (`/reports/:reportSlug`).
-- **Cryptographic Provenance Verifier (`/app/verifier`)**: Audits SHA-256 canonical digests of cases, snapshots, collections, reports, and artifacts via `POST /v1/verifier/inspect`, certifying reproducibility and generating scientific citations (BibTeX, DOI, Markdown badges).
+- **Cryptographic Provenance Verifier (`/app/verifier`)**: Audits SHA-256 canonical digests of cases, snapshots, collections, reports, and artifacts via `POST /v1/verifier/inspect`, checking retained content and generating citation metadata. A digest alone does not certify authorship or numerical reproducibility.
 
 ## Repository layout
 
@@ -155,13 +181,14 @@ OpenBinding guarantees strict cryptographic immutability and provenance:
   runbooks; no Helm dependency.
 - `space`: the exact SPACE 1.5 pin, bootstrap tooling and the reviewable first
   OpenBinding pricing release (`0.1.0`).
-- `engines`: MiniZinc, random-search, many-heuristic, evolutionary modes, and
-  the federated `multi-heuristic` example.
+- `engines`: MiniZinc, random-search, many-heuristic, evolutionary modes,
+  `bim-generator`, and the federated `multi-heuristic` example.
 - `examples` and `experimentation`: BIM v1 packages and reproducible generators.
 
 Start with the [progressive BIM model atlas](docs/models/README.md) for the
 metamodels and concrete instances, continue with the
-[BIM architecture](docs/BIM_V1.md), follow the
+[BIM architecture](docs/BIM_V1.md), explore the
+[BIM generator and autorouter calibration](docs/BIM_GENERATOR.md), follow the
 [authoring guide](docs/AUTHORING_GUIDE.md), or read the
 [engine integration guide](docs/ENGINE_INTEGRATION.md).
 
@@ -194,3 +221,5 @@ docker compose exec -T gateway-dev test \
 docker compose exec -T gateway-dev test \
   tests/test_v1_lifecycle_rbac.py tests/test_federated_multi_heuristic_example.py
 ```
+
+The [versioned artifact library](docs/VERSIONED_ARTIFACTS.md) documents the organization-scoped lifecycle, exact references, case composition and migration status. Project resource and collection endpoints delegate to the same library; `/blobs` stores bytes and `/v1/artifacts` exposes editorial identities.

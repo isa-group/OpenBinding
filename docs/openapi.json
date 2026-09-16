@@ -26,6 +26,113 @@
         "title": "AccountDeleteRequest",
         "type": "object"
       },
+      "AdaptationObservationItem": {
+        "properties": {
+          "actualMetrics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actualmetrics"
+          },
+          "adaptationLoopId": {
+            "title": "Adaptationloopid",
+            "type": "string"
+          },
+          "candidateEvaluations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Candidateevaluations",
+            "type": "array"
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "engineHealthSnapshot": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enginehealthsnapshot"
+          },
+          "engineSelected": {
+            "title": "Engineselected",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "jobId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jobid"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "predictedMetrics": {
+            "additionalProperties": true,
+            "title": "Predictedmetrics",
+            "type": "object"
+          },
+          "residuals": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residuals"
+          },
+          "workloadFeatures": {
+            "additionalProperties": true,
+            "title": "Workloadfeatures",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "adaptationLoopId",
+          "engineSelected",
+          "workloadFeatures",
+          "candidateEvaluations",
+          "predictedMetrics",
+          "outcome"
+        ],
+        "title": "AdaptationObservationItem",
+        "type": "object"
+      },
       "AdminSponsorTransferRequest": {
         "additionalProperties": false,
         "properties": {
@@ -166,6 +273,970 @@
         "title": "AdminUserView",
         "type": "object"
       },
+      "AnalysisCandidateResponse": {
+        "properties": {
+          "binding": {
+            "additionalProperties": true,
+            "title": "Binding",
+            "type": "object"
+          },
+          "comparison": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Comparison",
+            "type": "array"
+          },
+          "dominance": {
+            "additionalProperties": true,
+            "title": "Dominance",
+            "type": "object"
+          },
+          "evaluation": {
+            "additionalProperties": true,
+            "title": "Evaluation",
+            "type": "object"
+          },
+          "explanation": {
+            "additionalProperties": true,
+            "title": "Explanation",
+            "type": "object"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "title": "Metrics",
+            "type": "object"
+          },
+          "neighbors": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Neighbors",
+            "type": "array"
+          },
+          "occurrences": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Occurrences",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "row": {
+            "$ref": "#/components/schemas/AnalysisRow"
+          },
+          "violations": {
+            "items": {},
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "revision",
+          "row",
+          "binding",
+          "violations",
+          "evaluation",
+          "metrics",
+          "occurrences",
+          "explanation",
+          "comparison",
+          "dominance",
+          "neighbors"
+        ],
+        "title": "AnalysisCandidateResponse",
+        "type": "object"
+      },
+      "AnalysisDimension": {
+        "properties": {
+          "constant": {
+            "default": true,
+            "title": "Constant",
+            "type": "boolean"
+          },
+          "direction": {
+            "enum": [
+              "minimize",
+              "maximize"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "objective",
+              "penalty"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "rawMaximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawmaximum"
+          },
+          "rawMinimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawminimum"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "direction",
+          "kind"
+        ],
+        "title": "AnalysisDimension",
+        "type": "object"
+      },
+      "AnalysisExport": {
+        "additionalProperties": false,
+        "properties": {
+          "axes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Axes",
+            "type": "array"
+          },
+          "compare": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Compare",
+            "type": "array"
+          },
+          "format": {
+            "default": "receipt",
+            "enum": [
+              "receipt",
+              "json",
+              "csv"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "geometry": {
+            "default": "none",
+            "enum": [
+              "none",
+              "voronoi",
+              "power",
+              "sensitivity"
+            ],
+            "title": "Geometry",
+            "type": "string"
+          },
+          "layers": {
+            "default": false,
+            "title": "Layers",
+            "type": "boolean"
+          },
+          "metric": {
+            "default": "euclidean",
+            "enum": [
+              "euclidean",
+              "manhattan",
+              "hamming",
+              "gower"
+            ],
+            "title": "Metric",
+            "type": "string"
+          },
+          "neighbors": {
+            "default": 10,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Neighbors",
+            "type": "integer"
+          },
+          "page": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "default": 50,
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "paretoScope": {
+            "default": "archive",
+            "enum": [
+              "archive",
+              "eligible"
+            ],
+            "title": "Paretoscope",
+            "type": "string"
+          },
+          "reference": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Reference",
+            "type": "object"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/Requirement"
+            },
+            "maxItems": 128,
+            "title": "Requirements",
+            "type": "array"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "rule": {
+            "default": "balanced",
+            "enum": [
+              "balanced",
+              "weighted",
+              "ideal",
+              "topsis",
+              "chebyshev",
+              "reference",
+              "model"
+            ],
+            "title": "Rule",
+            "type": "string"
+          },
+          "search": {
+            "default": "",
+            "maxLength": 256,
+            "title": "Search",
+            "type": "string"
+          },
+          "selected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "default": "all",
+            "enum": [
+              "all",
+              "eligible",
+              "feasible",
+              "infeasible",
+              "unknown",
+              "excluded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "view": {
+            "default": "decision",
+            "enum": [
+              "decision",
+              "budgets",
+              "pareto",
+              "preferences",
+              "evidence"
+            ],
+            "title": "View",
+            "type": "string"
+          },
+          "viewport": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viewport"
+          },
+          "weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Weights",
+            "type": "object"
+          }
+        },
+        "required": [
+          "sources"
+        ],
+        "title": "AnalysisExport",
+        "type": "object"
+      },
+      "AnalysisQuery": {
+        "additionalProperties": false,
+        "properties": {
+          "axes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Axes",
+            "type": "array"
+          },
+          "compare": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Compare",
+            "type": "array"
+          },
+          "geometry": {
+            "default": "none",
+            "enum": [
+              "none",
+              "voronoi",
+              "power",
+              "sensitivity"
+            ],
+            "title": "Geometry",
+            "type": "string"
+          },
+          "layers": {
+            "default": false,
+            "title": "Layers",
+            "type": "boolean"
+          },
+          "metric": {
+            "default": "euclidean",
+            "enum": [
+              "euclidean",
+              "manhattan",
+              "hamming",
+              "gower"
+            ],
+            "title": "Metric",
+            "type": "string"
+          },
+          "neighbors": {
+            "default": 10,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Neighbors",
+            "type": "integer"
+          },
+          "page": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "default": 50,
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "paretoScope": {
+            "default": "archive",
+            "enum": [
+              "archive",
+              "eligible"
+            ],
+            "title": "Paretoscope",
+            "type": "string"
+          },
+          "reference": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Reference",
+            "type": "object"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/Requirement"
+            },
+            "maxItems": 128,
+            "title": "Requirements",
+            "type": "array"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "rule": {
+            "default": "balanced",
+            "enum": [
+              "balanced",
+              "weighted",
+              "ideal",
+              "topsis",
+              "chebyshev",
+              "reference",
+              "model"
+            ],
+            "title": "Rule",
+            "type": "string"
+          },
+          "search": {
+            "default": "",
+            "maxLength": 256,
+            "title": "Search",
+            "type": "string"
+          },
+          "selected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "default": "all",
+            "enum": [
+              "all",
+              "eligible",
+              "feasible",
+              "infeasible",
+              "unknown",
+              "excluded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "view": {
+            "default": "decision",
+            "enum": [
+              "decision",
+              "budgets",
+              "pareto",
+              "preferences",
+              "evidence"
+            ],
+            "title": "View",
+            "type": "string"
+          },
+          "viewport": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viewport"
+          },
+          "weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Weights",
+            "type": "object"
+          }
+        },
+        "required": [
+          "sources"
+        ],
+        "title": "AnalysisQuery",
+        "type": "object"
+      },
+      "AnalysisReport": {
+        "additionalProperties": false,
+        "properties": {
+          "axes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Axes",
+            "type": "array"
+          },
+          "compare": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Compare",
+            "type": "array"
+          },
+          "geometry": {
+            "default": "none",
+            "enum": [
+              "none",
+              "voronoi",
+              "power",
+              "sensitivity"
+            ],
+            "title": "Geometry",
+            "type": "string"
+          },
+          "layers": {
+            "default": false,
+            "title": "Layers",
+            "type": "boolean"
+          },
+          "metric": {
+            "default": "euclidean",
+            "enum": [
+              "euclidean",
+              "manhattan",
+              "hamming",
+              "gower"
+            ],
+            "title": "Metric",
+            "type": "string"
+          },
+          "neighbors": {
+            "default": 10,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Neighbors",
+            "type": "integer"
+          },
+          "organization": {
+            "title": "Organization",
+            "type": "string"
+          },
+          "page": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "default": 50,
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "paretoScope": {
+            "default": "archive",
+            "enum": [
+              "archive",
+              "eligible"
+            ],
+            "title": "Paretoscope",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "reference": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Reference",
+            "type": "object"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/components/schemas/Requirement"
+            },
+            "maxItems": 128,
+            "title": "Requirements",
+            "type": "array"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "rule": {
+            "default": "balanced",
+            "enum": [
+              "balanced",
+              "weighted",
+              "ideal",
+              "topsis",
+              "chebyshev",
+              "reference",
+              "model"
+            ],
+            "title": "Rule",
+            "type": "string"
+          },
+          "search": {
+            "default": "",
+            "maxLength": 256,
+            "title": "Search",
+            "type": "string"
+          },
+          "selected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected"
+          },
+          "slug": {
+            "maxLength": 120,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "title": "Slug",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "default": "all",
+            "enum": [
+              "all",
+              "eligible",
+              "feasible",
+              "infeasible",
+              "unknown",
+              "excluded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "default": "Binding decision",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "view": {
+            "default": "decision",
+            "enum": [
+              "decision",
+              "budgets",
+              "pareto",
+              "preferences",
+              "evidence"
+            ],
+            "title": "View",
+            "type": "string"
+          },
+          "viewport": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viewport"
+          },
+          "weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Weights",
+            "type": "object"
+          }
+        },
+        "required": [
+          "sources",
+          "organization",
+          "project",
+          "slug"
+        ],
+        "title": "AnalysisReport",
+        "type": "object"
+      },
+      "AnalysisResponse": {
+        "properties": {
+          "budgets": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budgets"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "dimensions": {
+            "items": {
+              "$ref": "#/components/schemas/AnalysisDimension"
+            },
+            "title": "Dimensions",
+            "type": "array"
+          },
+          "formula": {
+            "title": "Formula",
+            "type": "string"
+          },
+          "geometry": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geometry"
+          },
+          "modelOrderingAvailable": {
+            "title": "Modelorderingavailable",
+            "type": "boolean"
+          },
+          "next": {
+            "items": {
+              "$ref": "#/components/schemas/AnalysisRow"
+            },
+            "title": "Next",
+            "type": "array"
+          },
+          "nextCount": {
+            "title": "Nextcount",
+            "type": "integer"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "pageSize": {
+            "title": "Pagesize",
+            "type": "integer"
+          },
+          "pareto": {
+            "additionalProperties": true,
+            "title": "Pareto",
+            "type": "object"
+          },
+          "plot": {
+            "additionalProperties": true,
+            "title": "Plot",
+            "type": "object"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/AnalysisRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "rule": {
+            "title": "Rule",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/AnalysisSource"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "trajectory": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Trajectory",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          },
+          "weights": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Weights",
+            "type": "object"
+          },
+          "winnerCount": {
+            "title": "Winnercount",
+            "type": "integer"
+          },
+          "winners": {
+            "items": {
+              "$ref": "#/components/schemas/AnalysisRow"
+            },
+            "title": "Winners",
+            "type": "array"
+          }
+        },
+        "required": [
+          "version",
+          "revision",
+          "sources",
+          "dimensions",
+          "counts",
+          "rule",
+          "formula",
+          "modelOrderingAvailable",
+          "weights",
+          "warnings",
+          "winners",
+          "winnerCount",
+          "next",
+          "nextCount",
+          "rows",
+          "total",
+          "page",
+          "pageSize",
+          "pareto",
+          "plot"
+        ],
+        "title": "AnalysisResponse",
+        "type": "object"
+      },
       "AnalysisResult": {
         "additionalProperties": false,
         "properties": {
@@ -254,6 +1325,344 @@
           "analysis",
           "compatibleModes"
         ],
+        "type": "object"
+      },
+      "AnalysisRow": {
+        "properties": {
+          "eligible": {
+            "title": "Eligible",
+            "type": "boolean"
+          },
+          "feasible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feasible"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "losses": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Losses"
+          },
+          "modelScore": {
+            "title": "Modelscore"
+          },
+          "normalized": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Normalized"
+          },
+          "occurrences": {
+            "title": "Occurrences",
+            "type": "integer"
+          },
+          "paretoRank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paretorank"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "scoreGroup": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scoregroup"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          }
+        },
+        "required": [
+          "id",
+          "feasible",
+          "eligible",
+          "reasons",
+          "losses",
+          "values",
+          "normalized",
+          "score",
+          "rank",
+          "scoreGroup",
+          "occurrences"
+        ],
+        "title": "AnalysisRow",
+        "type": "object"
+      },
+      "AnalysisSource": {
+        "properties": {
+          "compatible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compatible"
+          },
+          "createdAt": {
+            "title": "Createdat",
+            "type": "string"
+          },
+          "diagnostic": {
+            "default": false,
+            "title": "Diagnostic",
+            "type": "boolean"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "evaluatorDigest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluatordigest"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "irDigest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Irdigest"
+          },
+          "legacy": {
+            "default": true,
+            "title": "Legacy",
+            "type": "boolean"
+          },
+          "projectId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projectid"
+          },
+          "resultDigest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultdigest"
+          },
+          "resultDigestKind": {
+            "default": "canonical-json",
+            "enum": [
+              "canonical-json",
+              "stored-json"
+            ],
+            "title": "Resultdigestkind",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "engine",
+          "state",
+          "createdAt"
+        ],
+        "title": "AnalysisSource",
+        "type": "object"
+      },
+      "AnalysisSources": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AnalysisSource"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nextcursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "AnalysisSources",
+        "type": "object"
+      },
+      "AnalysisTaskView": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "layers": {
+            "title": "Layers",
+            "type": "boolean"
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "number"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "cancelled",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "state",
+          "progress",
+          "scope",
+          "layers"
+        ],
+        "title": "AnalysisTaskView",
         "type": "object"
       },
       "AnalyticsView": {
@@ -608,15 +2017,319 @@
         "title": "ApiKeySummary",
         "type": "object"
       },
-      "ArtifactView": {
+      "ArtifactAddress": {
+        "additionalProperties": false,
         "properties": {
+          "name": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "namespace": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Namespace",
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "name",
+          "version"
+        ],
+        "title": "ArtifactAddress",
+        "type": "object"
+      },
+      "ArtifactCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "kind": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "display_name",
+          "kind"
+        ],
+        "title": "ArtifactCreate",
+        "type": "object"
+      },
+      "ArtifactDraftView": {
+        "properties": {
+          "based_on_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/DraftContent"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "payload",
+          "based_on_id"
+        ],
+        "title": "ArtifactDraftView",
+        "type": "object"
+      },
+      "ArtifactManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "apiVersion": {
+            "const": "openbinding/artifact/v1",
+            "title": "Apiversion",
+            "type": "string"
+          },
+          "contentDigest": {
+            "pattern": "^sha256-[0-9a-f]{64}$",
+            "title": "Contentdigest",
+            "type": "string"
+          },
+          "contracts": {
+            "items": {
+              "$ref": "#/components/schemas/ContractRef"
+            },
+            "title": "Contracts",
+            "type": "array"
+          },
+          "dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactRef"
+            },
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceRef"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/ArtifactAddress"
+          },
+          "kind": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "mediaType": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Mediatype",
+            "type": "string"
+          }
+        },
+        "required": [
+          "apiVersion",
+          "kind",
+          "identity",
+          "contentDigest",
+          "mediaType",
+          "contracts",
+          "dependencies"
+        ],
+        "title": "ArtifactManifest",
+        "type": "object"
+      },
+      "ArtifactRef": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "namespace": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Namespace",
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          },
+          "versionDigest": {
+            "pattern": "^sha256-[0-9a-f]{64}$",
+            "title": "Versiondigest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "name",
+          "version",
+          "versionDigest"
+        ],
+        "title": "ArtifactRef",
+        "type": "object"
+      },
+      "ArtifactUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labels"
+          }
+        },
+        "title": "ArtifactUpdate",
+        "type": "object"
+      },
+      "ArtifactUse": {
+        "additionalProperties": false,
+        "properties": {
+          "alias": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+            "title": "Alias",
+            "type": "string"
+          },
+          "artifact": {
+            "$ref": "#/components/schemas/ArtifactRef"
+          },
+          "bindings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Bindings",
+            "type": "object"
+          },
+          "role": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "alias",
+          "artifact"
+        ],
+        "title": "ArtifactUse",
+        "type": "object"
+      },
+      "ArtifactVersionView": {
+        "properties": {
+          "artifact_id": {
+            "format": "uuid",
+            "title": "Artifact Id",
+            "type": "string"
+          },
+          "based_on_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On Id"
+          },
+          "contentDigest": {
+            "pattern": "^sha256-[0-9a-f]{64}$",
+            "title": "Contentdigest",
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
-            "type": "string"
-          },
-          "digest": {
-            "title": "Digest",
             "type": "string"
           },
           "id": {
@@ -624,37 +2337,99 @@
             "title": "Id",
             "type": "string"
           },
-          "media_type": {
-            "title": "Media Type",
+          "manifest": {
+            "$ref": "#/components/schemas/ArtifactManifest"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "public": {
+            "title": "Public",
+            "type": "boolean"
+          },
+          "ref": {
+            "$ref": "#/components/schemas/ArtifactRef"
+          },
+          "withdrawn": {
+            "title": "Withdrawn",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "artifact_id",
+          "ordinal",
+          "ref",
+          "contentDigest",
+          "manifest",
+          "based_on_id",
+          "created_at",
+          "public",
+          "withdrawn"
+        ],
+        "title": "ArtifactVersionView",
+        "type": "object"
+      },
+      "ArtifactView": {
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "namespace": {
+            "title": "Namespace",
             "type": "string"
           },
           "organization_id": {
             "format": "uuid",
             "title": "Organization Id",
             "type": "string"
-          },
-          "project_id": {
-            "format": "uuid",
-            "title": "Project Id",
-            "type": "string"
-          },
-          "public": {
-            "title": "Public",
-            "type": "boolean"
-          },
-          "size_bytes": {
-            "title": "Size Bytes",
-            "type": "integer"
           }
         },
         "required": [
           "id",
           "organization_id",
-          "project_id",
-          "digest",
-          "media_type",
-          "size_bytes",
-          "public",
+          "namespace",
+          "name",
+          "display_name",
+          "kind",
+          "description",
+          "labels",
+          "archived",
           "created_at"
         ],
         "title": "ArtifactView",
@@ -1974,31 +3749,62 @@
                 "type": "string"
               },
               "registered": {
-                "additionalProperties": false,
-                "properties": {
-                  "digest": {
-                    "$ref": "#/components/schemas/BindingProblem/$defs/digest"
+                "oneOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "digest": {
+                        "$ref": "#/components/schemas/BindingProblem/$defs/digest"
+                      },
+                      "name": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "namespace": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "version": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "namespace",
+                      "name",
+                      "version",
+                      "digest"
+                    ],
+                    "type": "object"
                   },
-                  "name": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "namespace": {
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "version": {
-                    "minLength": 1,
-                    "type": "string"
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "namespace": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "version": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "versionDigest": {
+                        "$ref": "#/components/schemas/BindingProblem/$defs/digest"
+                      }
+                    },
+                    "required": [
+                      "namespace",
+                      "name",
+                      "version",
+                      "versionDigest"
+                    ],
+                    "type": "object"
                   }
-                },
-                "required": [
-                  "namespace",
-                  "name",
-                  "version",
-                  "digest"
-                ],
-                "type": "object"
+                ]
               },
               "role": {
                 "minLength": 1,
@@ -2530,6 +4336,87 @@
         ],
         "type": "object"
       },
+      "BlobView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "digest": {
+            "title": "Digest",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "media_type": {
+            "title": "Media Type",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "public": {
+            "title": "Public",
+            "type": "boolean"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "project_id",
+          "digest",
+          "media_type",
+          "size_bytes",
+          "public",
+          "created_at"
+        ],
+        "title": "BlobView",
+        "type": "object"
+      },
+      "CalibrateEngineRequest": {
+        "properties": {
+          "engine": {
+            "description": "Target engine name.",
+            "title": "Engine",
+            "type": "string"
+          },
+          "mode": {
+            "default": "default",
+            "description": "Engine mode.",
+            "title": "Mode",
+            "type": "string"
+          },
+          "observations": {
+            "description": "Historical execution observations.",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Observations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "engine"
+        ],
+        "title": "CalibrateEngineRequest",
+        "type": "object"
+      },
       "CasExchange": {
         "properties": {
           "code": {
@@ -2565,6 +4452,13 @@
             "title": "Document",
             "type": "object"
           },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactUse"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
           "source_snapshot_id": {
             "anyOf": [
               {
@@ -2582,6 +4476,27 @@
           "document"
         ],
         "title": "CaseRevisionCreate",
+        "type": "object"
+      },
+      "CaseRevisionRef": {
+        "additionalProperties": false,
+        "properties": {
+          "caseRevisionId": {
+            "format": "uuid",
+            "title": "Caserevisionid",
+            "type": "string"
+          },
+          "compositionDigest": {
+            "pattern": "^sha256-[0-9a-f]{64}$",
+            "title": "Compositiondigest",
+            "type": "string"
+          }
+        },
+        "required": [
+          "caseRevisionId",
+          "compositionDigest"
+        ],
+        "title": "CaseRevisionRef",
         "type": "object"
       },
       "CaseRevisionView": {
@@ -2703,6 +4618,37 @@
           "reason"
         ],
         "title": "ChangeSubscriptionRequest",
+        "type": "object"
+      },
+      "CollectionArtifactContent": {
+        "additionalProperties": false,
+        "properties": {
+          "apiVersion": {
+            "const": "openbinding/collection/v1",
+            "title": "Apiversion",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CaseRevisionRef"
+                },
+                {
+                  "$ref": "#/components/schemas/ArtifactRef"
+                }
+              ]
+            },
+            "maxItems": 1000,
+            "title": "Members",
+            "type": "array"
+          }
+        },
+        "required": [
+          "apiVersion",
+          "members"
+        ],
+        "title": "CollectionArtifactContent",
         "type": "object"
       },
       "CollectionCreate": {
@@ -2911,6 +4857,41 @@
         "title": "CollectionView",
         "type": "object"
       },
+      "ContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "digest": {
+            "pattern": "^sha256-[0-9a-f]{64}$",
+            "title": "Digest",
+            "type": "string"
+          },
+          "name": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "namespace": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Namespace",
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "name",
+          "version",
+          "digest"
+        ],
+        "title": "ContractRef",
+        "type": "object"
+      },
       "ContractSubscriptionView": {
         "properties": {
           "add_ons": {
@@ -2948,6 +4929,228 @@
           "pricing_version"
         ],
         "title": "ContractSubscriptionView",
+        "type": "object"
+      },
+      "ConvertLegacyRequest": {
+        "properties": {
+          "case_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "BindingCase name.",
+            "title": "Case Name"
+          },
+          "dialects": {
+            "description": "Allowed dialects.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Dialects",
+            "type": "array"
+          },
+          "guarantee_feasibility": {
+            "default": true,
+            "description": "Enforce witness feasibility.",
+            "title": "Guarantee Feasibility",
+            "type": "boolean"
+          },
+          "name": {
+            "default": "converted_legacy",
+            "description": "Instance name.",
+            "title": "Name",
+            "type": "string"
+          },
+          "persist": {
+            "default": false,
+            "description": "Whether to persist as InstanceSnapshot.",
+            "title": "Persist",
+            "type": "boolean"
+          },
+          "profile": {
+            "default": "qos-binding/v1",
+            "description": "BIM container profile.",
+            "title": "Profile",
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Project ID to create a BindingCase.",
+            "title": "Project Id"
+          },
+          "raw_text": {
+            "description": "Legacy QACO problem text.",
+            "title": "Raw Text",
+            "type": "string"
+          },
+          "repair_empty_branches": {
+            "default": true,
+            "description": "Repair empty sequences in branches.",
+            "title": "Repair Empty Branches",
+            "type": "boolean"
+          },
+          "tension": {
+            "default": 0.7,
+            "description": "Constraint tightness factor.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Tension",
+            "type": "number"
+          }
+        },
+        "required": [
+          "raw_text"
+        ],
+        "title": "ConvertLegacyRequest",
+        "type": "object"
+      },
+      "CorpusGeneratedResponse": {
+        "properties": {
+          "collection_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Id"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "instances": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Instances",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "study_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Study Id"
+          }
+        },
+        "required": [
+          "name",
+          "count",
+          "instances"
+        ],
+        "title": "CorpusGeneratedResponse",
+        "type": "object"
+      },
+      "CounterfactualMove": {
+        "properties": {
+          "comparison": {
+            "enum": [
+              "better",
+              "worse",
+              "equal",
+              "trade-off",
+              "infeasible",
+              "repairs-feasibility"
+            ],
+            "title": "Comparison",
+            "type": "string"
+          },
+          "componentDeltas": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Componentdeltas",
+            "type": "array"
+          },
+          "decision": {
+            "additionalProperties": true,
+            "title": "Decision",
+            "type": "object"
+          },
+          "feasible": {
+            "title": "Feasible",
+            "type": "boolean"
+          },
+          "from": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "From",
+            "type": "object"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "title": "Metrics",
+            "type": "object"
+          },
+          "objectives": {
+            "additionalProperties": true,
+            "title": "Objectives",
+            "type": "object"
+          },
+          "penaltyDelta": {
+            "title": "Penaltydelta",
+            "type": "number"
+          },
+          "task": {
+            "title": "Task",
+            "type": "string"
+          },
+          "to": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "To",
+            "type": "object"
+          },
+          "violations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "task",
+          "from",
+          "to",
+          "decision",
+          "metrics",
+          "objectives",
+          "violations",
+          "feasible",
+          "comparison",
+          "componentDeltas",
+          "penaltyDelta"
+        ],
+        "title": "CounterfactualMove",
         "type": "object"
       },
       "CreateApiKeyRequest": {
@@ -3413,6 +5616,241 @@
           "metadata",
           "spec"
         ],
+        "type": "object"
+      },
+      "DraftContent": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Content"
+          },
+          "contracts": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "maxItems": 32,
+            "title": "Contracts",
+            "type": "array"
+          },
+          "dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactRef"
+            },
+            "maxItems": 256,
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "media_type": {
+            "default": "application/json",
+            "maxLength": 160,
+            "title": "Media Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "DraftContent",
+        "type": "object"
+      },
+      "DraftCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "based_on_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Based On Id"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Content"
+          },
+          "contracts": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "maxItems": 32,
+            "title": "Contracts",
+            "type": "array"
+          },
+          "dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactRef"
+            },
+            "maxItems": 256,
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "media_type": {
+            "default": "application/json",
+            "maxLength": 160,
+            "title": "Media Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "DraftCreate",
+        "type": "object"
+      },
+      "DraftRevisionView": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ],
+        "title": "DraftRevisionView",
+        "type": "object"
+      },
+      "DraftUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Content"
+          },
+          "contracts": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "maxItems": 32,
+            "title": "Contracts",
+            "type": "array"
+          },
+          "dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactRef"
+            },
+            "maxItems": 256,
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "media_type": {
+            "default": "application/json",
+            "maxLength": 160,
+            "title": "Media Type",
+            "type": "string"
+          },
+          "revision": {
+            "exclusiveMinimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "content",
+          "revision"
+        ],
+        "title": "DraftUpdate",
+        "type": "object"
+      },
+      "EngineCalibratedResponse": {
+        "properties": {
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "failure_risk_coefficients": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Failure Risk Coefficients",
+            "type": "object"
+          },
+          "latency_coefficients": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Latency Coefficients",
+            "type": "object"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "quality_coefficients": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Quality Coefficients",
+            "type": "object"
+          },
+          "r2_score": {
+            "title": "R2 Score",
+            "type": "number"
+          },
+          "sample_count": {
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "status": {
+            "default": "calibrated",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "engine",
+          "mode",
+          "sample_count",
+          "latency_coefficients",
+          "quality_coefficients",
+          "failure_risk_coefficients",
+          "r2_score"
+        ],
+        "title": "EngineCalibratedResponse",
         "type": "object"
       },
       "EngineCatalog": {
@@ -4332,6 +6770,88 @@
         ],
         "type": "object"
       },
+      "EngineRoutingMetricsResponse": {
+        "properties": {
+          "engines": {
+            "additionalProperties": true,
+            "title": "Engines",
+            "type": "object"
+          },
+          "summary": {
+            "additionalProperties": true,
+            "title": "Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "summary",
+          "engines"
+        ],
+        "title": "EngineRoutingMetricsResponse",
+        "type": "object"
+      },
+      "EngineRoutingObservationsResponse": {
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/AdaptationObservationItem"
+            },
+            "title": "Observations",
+            "type": "array"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "limit",
+          "offset",
+          "observations"
+        ],
+        "title": "EngineRoutingObservationsResponse",
+        "type": "object"
+      },
+      "EngineRoutingRecalibrateResponse": {
+        "properties": {
+          "calibratedEngines": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Calibratedengines",
+            "type": "array"
+          },
+          "observationsProcessed": {
+            "title": "Observationsprocessed",
+            "type": "integer"
+          },
+          "recalibratedAt": {
+            "title": "Recalibratedat",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "recalibratedAt",
+          "observationsProcessed",
+          "calibratedEngines"
+        ],
+        "title": "EngineRoutingRecalibrateResponse",
+        "type": "object"
+      },
       "EngineVerificationReport": {
         "additionalProperties": true,
         "properties": {
@@ -4407,6 +6927,36 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "EvidenceRef": {
+        "additionalProperties": false,
+        "properties": {
+          "digest": {
+            "pattern": "^sha256-[0-9a-f]{64}$",
+            "title": "Digest",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "StudyRun",
+              "Job"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "digest"
+        ],
+        "title": "EvidenceRef",
+        "type": "object"
+      },
       "ExampleList": {
         "additionalProperties": false,
         "properties": {
@@ -4453,6 +7003,261 @@
         ],
         "type": "object"
       },
+      "GenerateCorpusRequest": {
+        "properties": {
+          "as_archive": {
+            "default": false,
+            "description": "Return instances as a zip archive.",
+            "title": "As Archive",
+            "type": "boolean"
+          },
+          "base_config": {
+            "$ref": "#/components/schemas/GenerateInstanceRequest"
+          },
+          "collection_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name for the Collection.",
+            "title": "Collection Name"
+          },
+          "count": {
+            "default": 5,
+            "description": "Number of instances to generate.",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "create_study": {
+            "default": false,
+            "description": "Whether to create a benchmark Study.",
+            "title": "Create Study",
+            "type": "boolean"
+          },
+          "name": {
+            "default": "corpus",
+            "description": "Corpus identifier.",
+            "title": "Name",
+            "type": "string"
+          },
+          "persist": {
+            "default": false,
+            "description": "Whether to persist instances to DB.",
+            "title": "Persist",
+            "type": "boolean"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Project to create Collection and Study in.",
+            "title": "Project Id"
+          }
+        },
+        "title": "GenerateCorpusRequest",
+        "type": "object"
+      },
+      "GenerateInstanceRequest": {
+        "properties": {
+          "branches": {
+            "default": 30.0,
+            "description": "Relative percentage of branches.",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Branches",
+            "type": "number"
+          },
+          "candidates": {
+            "default": 5,
+            "description": "Candidate services per task.",
+            "maximum": 100.0,
+            "minimum": 2.0,
+            "title": "Candidates",
+            "type": "integer"
+          },
+          "case_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Custom name for the BindingCase if persisted.",
+            "title": "Case Name"
+          },
+          "constraints": {
+            "default": 1,
+            "description": "Number of global constraints.",
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Constraints",
+            "type": "integer"
+          },
+          "control_flow": {
+            "default": 50,
+            "description": "Percentage of activities that are control flow.",
+            "maximum": 90.0,
+            "minimum": 0.0,
+            "title": "Control Flow",
+            "type": "integer"
+          },
+          "dialects": {
+            "description": "Allowed dialects.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Dialects",
+            "type": "array"
+          },
+          "guarantee_feasibility": {
+            "default": true,
+            "description": "Guarantee feasibility using witness solution.",
+            "title": "Guarantee Feasibility",
+            "type": "boolean"
+          },
+          "iterations_per_loop": {
+            "default": 5,
+            "description": "Average iterations per loop.",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Iterations Per Loop",
+            "type": "integer"
+          },
+          "loops": {
+            "default": 30.0,
+            "description": "Relative percentage of loops.",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Loops",
+            "type": "number"
+          },
+          "max_nesting": {
+            "default": 3,
+            "description": "Maximum control structure nesting level.",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Max Nesting",
+            "type": "integer"
+          },
+          "name": {
+            "default": "generated_instance",
+            "description": "Instance name.",
+            "title": "Name",
+            "type": "string"
+          },
+          "optimization_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optimization mode: 'weighted' or 'pareto'.",
+            "title": "Optimization Mode"
+          },
+          "parallel": {
+            "default": 20.0,
+            "description": "Relative percentage of parallel flows.",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Parallel",
+            "type": "number"
+          },
+          "persist": {
+            "default": false,
+            "description": "Whether to persist as InstanceSnapshot in DB.",
+            "title": "Persist",
+            "type": "boolean"
+          },
+          "profile": {
+            "default": "qos-binding/v1",
+            "description": "BIM container profile.",
+            "title": "Profile",
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Project ID to persist a BindingCase.",
+            "title": "Project Id"
+          },
+          "qos_properties": {
+            "default": 5,
+            "description": "Number of QoS properties.",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Qos Properties",
+            "type": "integer"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Random seed for reproducibility.",
+            "title": "Seed"
+          },
+          "target_engines": {
+            "description": "Target solver engines.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Target Engines",
+            "type": "array"
+          },
+          "tasks": {
+            "default": 10,
+            "description": "Total number of tasks/activities.",
+            "maximum": 1000.0,
+            "minimum": 2.0,
+            "title": "Tasks",
+            "type": "integer"
+          },
+          "tension": {
+            "default": 0.7,
+            "description": "Constraint tightness factor in [0, 1].",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Tension",
+            "type": "number"
+          },
+          "use_legacy_engine": {
+            "default": false,
+            "description": "Run the legacy Java CLI generator.",
+            "title": "Use Legacy Engine",
+            "type": "boolean"
+          }
+        },
+        "title": "GenerateInstanceRequest",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4491,8 +7296,134 @@
         ],
         "type": "object"
       },
+      "InstanceGeneratedResponse": {
+        "properties": {
+          "case_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "compilation_digest": {
+            "title": "Compilation Digest",
+            "type": "string"
+          },
+          "files": {
+            "additionalProperties": true,
+            "title": "Files",
+            "type": "object"
+          },
+          "instance_digest": {
+            "title": "Instance Digest",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "package_digest": {
+            "title": "Package Digest",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "target_engines": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Target Engines",
+            "type": "array"
+          },
+          "workload_features": {
+            "additionalProperties": true,
+            "title": "Workload Features",
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "package_digest",
+          "instance_digest",
+          "compilation_digest",
+          "target_engines",
+          "workload_features",
+          "files"
+        ],
+        "title": "InstanceGeneratedResponse",
+        "type": "object"
+      },
       "InstanceManifest": {
         "$defs": {
+          "artifactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "namespace": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "version": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "versionDigest": {
+                "pattern": "^sha256-[0-9a-f]{64}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "namespace",
+              "name",
+              "version",
+              "versionDigest"
+            ],
+            "type": "object"
+          },
+          "contractRef": {
+            "additionalProperties": false,
+            "properties": {
+              "digest": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "namespace": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "version": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "namespace",
+              "name",
+              "version",
+              "digest"
+            ],
+            "type": "object"
+          },
           "localPath": {
             "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000]+\\.(json|bpmn|xml)$",
             "type": "string"
@@ -4572,6 +7503,9 @@
               },
               {
                 "$ref": "#/components/schemas/InstanceManifest/$defs/registeredRef"
+              },
+              {
+                "$ref": "#/components/schemas/InstanceManifest/$defs/artifactRef"
               }
             ]
           }
@@ -4592,6 +7526,36 @@
           "spec": {
             "additionalProperties": false,
             "properties": {
+              "bindings": {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              "contracts": {
+                "additionalProperties": false,
+                "properties": {
+                  "dialects": {
+                    "items": {
+                      "$ref": "#/components/schemas/InstanceManifest/$defs/contractRef"
+                    },
+                    "type": "array",
+                    "uniqueItems": true
+                  },
+                  "profile": {
+                    "$ref": "#/components/schemas/InstanceManifest/$defs/contractRef"
+                  }
+                },
+                "required": [
+                  "profile",
+                  "dialects"
+                ],
+                "type": "object"
+              },
               "extensions": {
                 "additionalProperties": true,
                 "type": "object"
@@ -4879,7 +7843,37 @@
       },
       "JobRequest": {
         "additionalProperties": false,
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "engine"
+              ]
+            },
+            {
+              "required": [
+                "registration"
+              ]
+            },
+            {
+              "required": [
+                "mode"
+              ]
+            },
+            {
+              "required": [
+                "options"
+              ]
+            }
+          ],
+          "required": [
+            "configuration"
+          ]
+        },
         "properties": {
+          "configuration": {
+            "$ref": "#/components/schemas/ArtifactRef"
+          },
           "engine": {
             "oneOf": [
               {
@@ -5292,6 +8286,150 @@
           "created_at"
         ],
         "title": "MemberView",
+        "type": "object"
+      },
+      "NeighborhoodCoverage": {
+        "properties": {
+          "attempted": {
+            "title": "Attempted",
+            "type": "integer"
+          },
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "evaluated": {
+            "title": "Evaluated",
+            "type": "integer"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "perTask": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Pertask",
+            "type": "object"
+          },
+          "stopReason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "evaluation-limit",
+                  "time-budget"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stopreason"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "attempted",
+          "evaluated",
+          "complete",
+          "limit",
+          "stopReason",
+          "perTask"
+        ],
+        "title": "NeighborhoodCoverage",
+        "type": "object"
+      },
+      "NeighborhoodResponse": {
+        "properties": {
+          "base": {
+            "additionalProperties": true,
+            "title": "Base",
+            "type": "object"
+          },
+          "conclusion": {
+            "title": "Conclusion",
+            "type": "string"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/NeighborhoodCoverage"
+          },
+          "failures": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "irDigest": {
+            "title": "Irdigest",
+            "type": "string"
+          },
+          "jobId": {
+            "title": "Jobid",
+            "type": "string"
+          },
+          "kind": {
+            "const": "canonical-one-task-counterfactuals",
+            "title": "Kind",
+            "type": "string"
+          },
+          "moves": {
+            "items": {
+              "$ref": "#/components/schemas/CounterfactualMove"
+            },
+            "title": "Moves",
+            "type": "array"
+          },
+          "scope": {
+            "enum": [
+              "all-service-tasks",
+              "selected-service-task"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "semantics": {
+            "title": "Semantics",
+            "type": "string"
+          },
+          "solutionIndex": {
+            "title": "Solutionindex",
+            "type": "integer"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          }
+        },
+        "required": [
+          "jobId",
+          "solutionIndex",
+          "kind",
+          "irDigest",
+          "scope",
+          "task",
+          "base",
+          "moves",
+          "failures",
+          "coverage",
+          "conclusion",
+          "semantics"
+        ],
+        "title": "NeighborhoodResponse",
         "type": "object"
       },
       "NotificationPreferences": {
@@ -6619,6 +9757,18 @@
             "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$",
             "title": "Slug",
             "type": "string"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
           }
         },
         "required": [
@@ -6658,9 +9808,20 @@
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "version_id": {
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          },
+          "withdrawn": {
+            "title": "Withdrawn",
+            "type": "boolean"
           }
         },
         "required": [
+          "version_id",
+          "withdrawn",
           "id",
           "project_id",
           "report_id",
@@ -6669,6 +9830,18 @@
           "published_at"
         ],
         "title": "PublicationView",
+        "type": "object"
+      },
+      "PublishVersion": {
+        "additionalProperties": false,
+        "properties": {
+          "citation": {
+            "additionalProperties": true,
+            "title": "Citation",
+            "type": "object"
+          }
+        },
+        "title": "PublishVersion",
         "type": "object"
       },
       "QuotaBody": {
@@ -7010,6 +10183,18 @@
             ],
             "title": "Document"
           },
+          "draft_revision": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Revision"
+          },
           "title": {
             "anyOf": [
               {
@@ -7029,6 +10214,11 @@
       },
       "ReportView": {
         "properties": {
+          "artifact_id": {
+            "format": "uuid",
+            "title": "Artifact Id",
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -7042,6 +10232,29 @@
             "additionalProperties": true,
             "title": "Document",
             "type": "object"
+          },
+          "draft_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Id"
+          },
+          "draft_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Revision"
           },
           "id": {
             "format": "uuid",
@@ -7076,9 +10289,25 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
           }
         },
         "required": [
+          "artifact_id",
+          "version_id",
+          "draft_id",
+          "draft_revision",
           "id",
           "project_id",
           "study_run_id",
@@ -7090,6 +10319,34 @@
           "created_at"
         ],
         "title": "ReportView",
+        "type": "object"
+      },
+      "Requirement": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "title": "Dimension",
+            "type": "string"
+          },
+          "space": {
+            "default": "raw",
+            "enum": [
+              "raw",
+              "normalized"
+            ],
+            "title": "Space",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "dimension",
+          "value"
+        ],
+        "title": "Requirement",
         "type": "object"
       },
       "ResolveAuthorRef": {
@@ -7438,6 +10695,34 @@
         "title": "RoleName",
         "type": "string"
       },
+      "SealDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "exclusiveMinimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "title": "SealDraft",
+        "type": "object"
+      },
       "SnapshotCreated": {
         "additionalProperties": false,
         "properties": {
@@ -7556,6 +10841,74 @@
         ],
         "type": "object"
       },
+      "StudyArtifactContent": {
+        "additionalProperties": false,
+        "properties": {
+          "apiVersion": {
+            "const": "openbinding/study/v1",
+            "title": "Apiversion",
+            "type": "string"
+          },
+          "cases": {
+            "items": {
+              "$ref": "#/components/schemas/CaseRevisionRef"
+            },
+            "maxItems": 250,
+            "minItems": 1,
+            "title": "Cases",
+            "type": "array"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArtifactRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "engines": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Engines",
+            "type": "array"
+          },
+          "parameter_sets": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Parameter Sets",
+            "type": "array"
+          },
+          "seeds": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Seeds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "apiVersion",
+          "cases",
+          "engines"
+        ],
+        "title": "StudyArtifactContent",
+        "type": "object"
+      },
       "StudyCellResult": {
         "additionalProperties": false,
         "properties": {
@@ -7654,7 +11007,26 @@
         "additionalProperties": false,
         "properties": {
           "definition": {
-            "$ref": "#/components/schemas/StudyDefinition"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StudyDefinition"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "definition_version_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition Version Id"
           },
           "description": {
             "default": "",
@@ -7676,8 +11048,7 @@
         },
         "required": [
           "slug",
-          "name",
-          "definition"
+          "name"
         ],
         "title": "StudyCreate",
         "type": "object"
@@ -7695,7 +11066,7 @@
             "title": "Case Revision Ids",
             "type": "array"
           },
-          "collection_revision_id": {
+          "collection_version_id": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -7705,7 +11076,7 @@
                 "type": "null"
               }
             ],
-            "title": "Collection Revision Id"
+            "title": "Collection Version Id"
           },
           "engines": {
             "items": {
@@ -7756,6 +11127,11 @@
             "title": "Created At",
             "type": "string"
           },
+          "definition_version_id": {
+            "format": "uuid",
+            "title": "Definition Version Id",
+            "type": "string"
+          },
           "finished_at": {
             "anyOf": [
               {
@@ -7797,6 +11173,7 @@
           }
         },
         "required": [
+          "definition_version_id",
           "id",
           "study_id",
           "run_number",
@@ -7813,6 +11190,29 @@
       "StudyUpdate": {
         "additionalProperties": false,
         "properties": {
+          "archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived"
+          },
+          "definition_version_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition Version Id"
+          },
           "description": {
             "anyOf": [
               {
@@ -7845,6 +11245,10 @@
       "StudyView": {
         "additionalProperties": false,
         "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -7857,6 +11261,16 @@
           },
           "definition": {
             "$ref": "#/components/schemas/StudyDefinition"
+          },
+          "definition_artifact_id": {
+            "format": "uuid",
+            "title": "Definition Artifact Id",
+            "type": "string"
+          },
+          "definition_version_id": {
+            "format": "uuid",
+            "title": "Definition Version Id",
+            "type": "string"
           },
           "description": {
             "default": "",
@@ -7894,6 +11308,9 @@
           "slug",
           "name",
           "definition",
+          "archived",
+          "definition_artifact_id",
+          "definition_version_id",
           "id",
           "project_id",
           "state",
@@ -8654,6 +12071,249 @@
         ],
         "x-required-api-key-permissions": [
           "admin:accounts:read"
+        ],
+        "x-required-role": "admin"
+      }
+    },
+    "/v1/admin/engine-routing/metrics": {
+      "get": {
+        "description": "Returns autonomic health snapshots, observed failure rates, and active concurrency across candidate engines.",
+        "operationId": "admin_engine_routing_metrics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRoutingMetricsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Retrieve engine routing runtime health metrics",
+        "tags": [
+          "Administration"
+        ],
+        "x-required-api-key-permissions": [
+          "admin:accounts:read"
+        ],
+        "x-required-role": "admin"
+      }
+    },
+    "/v1/admin/engine-routing/observations": {
+      "get": {
+        "description": "Returns paginated records of instance features, candidate evaluations, predicted metrics and actual execution telemetry.",
+        "operationId": "admin_engine_routing_observations",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "engine",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Engine"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRoutingObservationsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List historical MAPE-K adaptation observations",
+        "tags": [
+          "Administration"
+        ],
+        "x-required-api-key-permissions": [
+          "admin:accounts:read"
+        ],
+        "x-required-role": "admin"
+      }
+    },
+    "/v1/admin/engine-routing/recalibrate": {
+      "post": {
+        "description": "Updates empirical confidence densities and predictive models using stored observations.",
+        "operationId": "admin_engine_routing_recalibrate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineRoutingRecalibrateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No usable credential was supplied."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential is valid but not allowed to do this."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Trigger model recalibration across historical observations",
+        "tags": [
+          "Administration"
+        ],
+        "x-required-api-key-permissions": [
+          "admin:accounts:write"
         ],
         "x-required-role": "admin"
       }
@@ -11385,6 +15045,1628 @@
           "admin:accounts:write"
         ],
         "x-required-role": "admin"
+      }
+    },
+    "/v1/analysis/candidate": {
+      "post": {
+        "operationId": "get_candidate_v1_analysis_candidate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisCandidateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Candidate",
+        "tags": [
+          "Binding analysis"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      }
+    },
+    "/v1/analysis/export": {
+      "post": {
+        "operationId": "export_analysis_v1_analysis_export_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisExport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Analysis receipt, archive rows, or CSV selected by format."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Export Analysis",
+        "tags": [
+          "Binding analysis"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      }
+    },
+    "/v1/analysis/pareto": {
+      "post": {
+        "operationId": "start_pareto_v1_analysis_pareto_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisTaskView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Start Pareto",
+        "tags": [
+          "Binding analysis"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      }
+    },
+    "/v1/analysis/pareto/{task_id}": {
+      "get": {
+        "operationId": "get_pareto_v1_analysis_pareto__task_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisTaskView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Pareto",
+        "tags": [
+          "Binding analysis"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      }
+    },
+    "/v1/analysis/pareto/{task_id}/cancel": {
+      "post": {
+        "operationId": "cancel_pareto_v1_analysis_pareto__task_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisTaskView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Cancel Pareto",
+        "tags": [
+          "Binding analysis"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      }
+    },
+    "/v1/analysis/query": {
+      "post": {
+        "operationId": "query_analysis_v1_analysis_query_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Query Analysis",
+        "tags": [
+          "Binding analysis"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      }
+    },
+    "/v1/analysis/reports": {
+      "post": {
+        "operationId": "save_report_v1_analysis_reports_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Save Report",
+        "tags": [
+          "Binding analysis"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read",
+          "reports:write"
+        ]
+      }
+    },
+    "/v1/analysis/sources": {
+      "get": {
+        "operationId": "sources_v1_analysis_sources_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Cursor",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "compatible_with",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Compatible With"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisSources"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Sources",
+        "tags": [
+          "Binding analysis"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      }
+    },
+    "/v1/artifacts/resolve": {
+      "post": {
+        "operationId": "resolve_artifact_v1_artifacts_resolve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArtifactRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactVersionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolve Artifact",
+        "tags": [
+          "Artifact library"
+        ]
+      }
+    },
+    "/v1/artifacts/{artifact_id}": {
+      "get": {
+        "operationId": "get_artifact_v1_artifacts__artifact_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Artifact",
+        "tags": [
+          "Artifact library"
+        ]
+      },
+      "patch": {
+        "operationId": "edit_artifact_v1_artifacts__artifact_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArtifactUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Edit Artifact",
+        "tags": [
+          "Artifact library"
+        ],
+        "x-required-api-key-permissions": [
+          "artifacts:write"
+        ]
+      }
+    },
+    "/v1/artifacts/{artifact_id}/drafts": {
+      "get": {
+        "operationId": "list_drafts_v1_artifacts__artifact_id__drafts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ArtifactDraftView"
+                  },
+                  "title": "Response List Drafts V1 Artifacts  Artifact Id  Drafts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Drafts",
+        "tags": [
+          "Artifact library"
+        ],
+        "x-required-api-key-permissions": [
+          "artifacts:read"
+        ]
+      },
+      "post": {
+        "operationId": "create_draft_v1_artifacts__artifact_id__drafts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactDraftView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create Draft",
+        "tags": [
+          "Artifact library"
+        ],
+        "x-required-api-key-permissions": [
+          "artifacts:write"
+        ]
+      }
+    },
+    "/v1/artifacts/{artifact_id}/drafts/{draft_id}": {
+      "put": {
+        "operationId": "edit_draft_v1_artifacts__artifact_id__drafts__draft_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftRevisionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Edit Draft",
+        "tags": [
+          "Artifact library"
+        ],
+        "x-required-api-key-permissions": [
+          "artifacts:write"
+        ]
+      }
+    },
+    "/v1/artifacts/{artifact_id}/drafts/{draft_id}/seal": {
+      "post": {
+        "operationId": "release_draft_v1_artifacts__artifact_id__drafts__draft_id__seal_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SealDraft"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactVersionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Release Draft",
+        "tags": [
+          "Artifact library"
+        ],
+        "x-required-api-key-permissions": [
+          "artifacts:write"
+        ]
+      }
+    },
+    "/v1/artifacts/{artifact_id}/versions": {
+      "get": {
+        "operationId": "list_versions_v1_artifacts__artifact_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ArtifactVersionView"
+                  },
+                  "title": "Response List Versions V1 Artifacts  Artifact Id  Versions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Versions",
+        "tags": [
+          "Artifact library"
+        ]
+      }
+    },
+    "/v1/artifacts/{artifact_id}/versions/{version_id}": {
+      "get": {
+        "operationId": "get_version_v1_artifacts__artifact_id__versions__version_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactVersionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Version",
+        "tags": [
+          "Artifact library"
+        ]
+      }
+    },
+    "/v1/artifacts/{artifact_id}/versions/{version_id}/content": {
+      "get": {
+        "operationId": "get_content_v1_artifacts__artifact_id__versions__version_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Verified original bytes; Content-Type is the sealed manifest mediaType."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Content",
+        "tags": [
+          "Artifact library"
+        ]
+      }
+    },
+    "/v1/artifacts/{artifact_id}/versions/{version_id}/publish": {
+      "post": {
+        "operationId": "publish_version_v1_artifacts__artifact_id__versions__version_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishVersion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactVersionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Publish Version",
+        "tags": [
+          "Artifact library"
+        ],
+        "x-required-api-key-permissions": [
+          "artifacts:write"
+        ]
+      }
+    },
+    "/v1/artifacts/{artifact_id}/versions/{version_id}/withdraw": {
+      "post": {
+        "operationId": "withdraw_version_v1_artifacts__artifact_id__versions__version_id__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactVersionView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Withdraw Version",
+        "tags": [
+          "Artifact library"
+        ],
+        "x-required-api-key-permissions": [
+          "artifacts:write"
+        ]
       }
     },
     "/v1/auth/cas/callback": {
@@ -14183,6 +19465,174 @@
         ]
       }
     },
+    "/v1/generator/calibrate-engine": {
+      "post": {
+        "description": "Calibrate surrogate performance models for a federated or black-box engine.",
+        "operationId": "calibrate_engine_v1_generator_calibrate_engine_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalibrateEngineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineCalibratedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Calibrate Engine",
+        "tags": [
+          "generator"
+        ]
+      }
+    },
+    "/v1/generator/convert-legacy": {
+      "post": {
+        "description": "Parse and convert raw legacy text into a strict BIM v1 package.",
+        "operationId": "convert_legacy_v1_generator_convert_legacy_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertLegacyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceGeneratedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Convert Legacy",
+        "tags": [
+          "generator"
+        ]
+      }
+    },
+    "/v1/generator/corpus": {
+      "post": {
+        "description": "Generate a corpus of problem instances with optional Collection & Study initialization.",
+        "operationId": "generate_corpus_v1_generator_corpus_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateCorpusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CorpusGeneratedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Corpus",
+        "tags": [
+          "generator"
+        ]
+      }
+    },
+    "/v1/generator/instances": {
+      "post": {
+        "description": "Synthesize a single valid BIM v1 QACO instance.",
+        "operationId": "generate_instance_v1_generator_instances_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateInstanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstanceGeneratedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Instance",
+        "tags": [
+          "generator"
+        ]
+      }
+    },
     "/v1/instances": {
       "post": {
         "operationId": "create_snapshot_v1_instances_post",
@@ -15146,6 +20596,131 @@
           }
         ],
         "summary": "Get V1 Job",
+        "tags": [
+          "BIM v1"
+        ],
+        "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-required-api-key-permissions": [
+          "jobs:read"
+        ]
+      }
+    },
+    "/v1/jobs/{job_id}/analysis/neighborhood": {
+      "get": {
+        "description": "Owner-scoped counterfactual evaluation against the pinned job IR. At most 128 eligible substitutions, with a cooperative two-second budget between evaluations. Does not invoke an Engine, mutate the job, or claim global optimality.",
+        "operationId": "get_v1_job_neighborhood_v1_jobs__job_id__analysis_neighborhood_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "solution_index",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Solution Index",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "task",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Task"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 64,
+              "maximum": 128,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NeighborhoodResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The request does not satisfy the BIM v1 contract."
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Evaluate bounded one-task binding alternatives",
         "tags": [
           "BIM v1"
         ],
@@ -16683,6 +22258,220 @@
         ]
       }
     },
+    "/v1/organizations/{org}/library": {
+      "get": {
+        "operationId": "list_artifacts_v1_organizations__org__library_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_public",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Public",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ArtifactView"
+                  },
+                  "title": "Response List Artifacts V1 Organizations  Org  Library Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "List Artifacts",
+        "tags": [
+          "Artifact library"
+        ],
+        "x-required-api-key-permissions": [
+          "artifacts:read"
+        ]
+      },
+      "post": {
+        "operationId": "create_artifact_v1_organizations__org__library_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArtifactCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create Artifact",
+        "tags": [
+          "Artifact library"
+        ],
+        "x-required-api-key-permissions": [
+          "artifacts:write"
+        ]
+      }
+    },
     "/v1/organizations/{org}/members": {
       "get": {
         "operationId": "listOrganizationMembers",
@@ -17508,9 +23297,9 @@
         ]
       }
     },
-    "/v1/organizations/{org}/projects/{project}/artifacts": {
+    "/v1/organizations/{org}/projects/{project}/blobs": {
       "get": {
-        "operationId": "listArtifacts",
+        "operationId": "listBlobs",
         "parameters": [
           {
             "in": "path",
@@ -17537,9 +23326,9 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/ArtifactView"
+                    "$ref": "#/components/schemas/BlobView"
                   },
-                  "title": "Response Listartifacts",
+                  "title": "Response Listblobs",
                   "type": "array"
                 }
               }
@@ -17604,7 +23393,7 @@
         ]
       },
       "post": {
-        "operationId": "uploadArtifact",
+        "operationId": "uploadBlob",
         "parameters": [
           {
             "in": "path",
@@ -17640,7 +23429,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ArtifactView"
+                  "$ref": "#/components/schemas/BlobView"
                 }
               }
             },
@@ -17704,9 +23493,9 @@
         ]
       }
     },
-    "/v1/organizations/{org}/projects/{project}/artifacts/{digest_value}": {
+    "/v1/organizations/{org}/projects/{project}/blobs/{digest_value}": {
       "delete": {
-        "operationId": "deleteArtifact",
+        "operationId": "deleteBlob",
         "parameters": [
           {
             "in": "path",
@@ -17798,7 +23587,7 @@
         ]
       },
       "get": {
-        "operationId": "downloadArtifact",
+        "operationId": "downloadBlob",
         "parameters": [
           {
             "in": "path",
@@ -19563,6 +25352,33 @@
               "title": "Project",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "include_results",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Results",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "job_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Job Id"
+            }
           }
         ],
         "responses": {
@@ -19635,6 +25451,299 @@
         ],
         "x-required-api-key-permissions": [
           "projects:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/library": {
+      "get": {
+        "operationId": "project_artifacts_v1_organizations__org__projects__project__library_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ArtifactView"
+                  },
+                  "title": "Response Project Artifacts V1 Organizations  Org  Projects  Project  Library Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Project Artifacts",
+        "tags": [
+          "Artifact library"
+        ],
+        "x-required-api-key-permissions": [
+          "artifacts:read"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/projects/{project}/library/{artifact_id}": {
+      "delete": {
+        "operationId": "dissociate_artifact_v1_organizations__org__projects__project__library__artifact_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Dissociate Artifact",
+        "tags": [
+          "Artifact library"
+        ],
+        "x-required-api-key-permissions": [
+          "artifacts:write"
+        ]
+      },
+      "put": {
+        "operationId": "associate_artifact_v1_organizations__org__projects__project__library__artifact_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Associate Artifact V1 Organizations  Org  Projects  Project  Library  Artifact Id  Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Associate Artifact",
+        "tags": [
+          "Artifact library"
+        ],
+        "x-required-api-key-permissions": [
+          "artifacts:write"
         ]
       }
     },
@@ -20637,6 +26746,107 @@
         ]
       }
     },
+    "/v1/organizations/{org}/projects/{project}/reports/{report}/drafts": {
+      "post": {
+        "operationId": "createReportDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "report",
+            "required": true,
+            "schema": {
+              "title": "Report",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Create Report Draft",
+        "tags": [
+          "Studies"
+        ],
+        "x-required-api-key-permissions": [
+          "reports:write"
+        ]
+      }
+    },
     "/v1/organizations/{org}/projects/{project}/reports/{report}/freeze": {
       "post": {
         "operationId": "freezeReport",
@@ -21581,6 +27791,16 @@
               "title": "Project",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "include_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Archived",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -22096,6 +28316,23 @@
             "schema": {
               "title": "Study",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "definition_version_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Definition Version Id"
             }
           }
         ],
@@ -25078,5 +31315,13 @@
     "pricing:admin",
     "admin:accounts:read",
     "admin:accounts:write"
-  ]
+  ],
+  "x-artifact-content-schemas": {
+    "Collection": {
+      "$ref": "#/components/schemas/CollectionArtifactContent"
+    },
+    "Study": {
+      "$ref": "#/components/schemas/StudyArtifactContent"
+    }
+  }
 }

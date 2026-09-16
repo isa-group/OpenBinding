@@ -230,3 +230,9 @@ space/space-src/
 
 # Runtime content-addressed artifact store
 .artifacts/
+
+# Development analysis outputs (contain deployment-specific IDs and timings)
+/openbinding-gateway/tools/analysis-manifest.json
+/openbinding-gateway/tools/analysis-verification.json
+/openbinding-gateway/tools/analysis-reseed-verification.json
+/openbinding-gateway/tools/analysis-browser-benchmark.json

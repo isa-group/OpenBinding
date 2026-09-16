@@ -352,5 +352,13 @@ are informative.
 
 Continue with the progressive [model atlas](models/README.md),
 [authoring](AUTHORING_GUIDE.md), [manifests](MANIFESTS.md),
-[Engine integration](ENGINE_INTEGRATION.md), or the reproducible
+[Engine integration](ENGINE_INTEGRATION.md), [BIM QACO generator](BIM_GENERATOR.md), or the reproducible
 [conciseness benchmark](CONCISENESS.md).
+
+## Exact library versions and contract selection
+
+Organization library versions use `{namespace,name,version,versionDigest}` resource targets. Their version manifest pins `contentDigest`, contracts and fixed dependencies; the resolver verifies both manifest and bytes. This is distinct from the earlier registered resource target with a content `digest`.
+
+`Instance.spec.contracts` contains a `profile` reference and a `dialects` array. Each exact installed contract reference uses `{namespace,name,version,digest}`. Family IDs such as `qos-binding/v1` remain vocabulary identifiers, not exact release selectors. `spec.bindings` optionally maps source resource aliases to local composition aliases per resource. Validation resolves schema-declared references without rewriting original content.
+
+See [the artifact lifecycle and cutover status](VERSIONED_ARTIFACTS.md) for executable case composition, publication, snapshots and portability limits.
