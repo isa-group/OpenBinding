@@ -10,7 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .capacity_model import get_capacity_model
 from .client import get_meta_router_client
+from .features import WorkloadFeatures
 from .health_monitor import EngineHealthSnapshot
 from .profiler import EngineProfile
 
@@ -62,6 +64,7 @@ class MetaQacoSolver:
         confidences: dict[str, float],
         routing_options: dict[str, Any] | None = None,
         service_url: str | None = None,
+        features: WorkloadFeatures | None = None,
     ) -> MetaQacoDecision:
         opts = routing_options or {}
         hard_constraints = opts.get("hardConstraints", {})
@@ -82,17 +85,31 @@ class MetaQacoSolver:
         w_c = float(weights.get("costCredits", 0.20))
         w_r = float(weights.get("reliability", 0.10))
 
-        # Build candidate request structures
+        capacity_model = get_capacity_model()
+
+        # Build candidate request structures with active queue wait modeling
         candidates_payload = []
+        effective_latencies: dict[str, tuple[float, float]] = {}  # engine -> (effective_latency, queue_wait)
+
         for p in profiles:
             health = health_snapshots.get(p.engine)
             is_available = health.available and health.health_status != "DEGRADED" if health else True
             conf = confidences.get(p.engine, 0.85)
 
+            active_jobs = health.active_jobs if health else 0
+            if active_jobs > 0:
+                mst = capacity_model.estimate_sustainable_throughput(p.engine, features) if features else capacity_model.mst_max
+                queue_wait = active_jobs / max(0.01, mst)
+            else:
+                queue_wait = 0.0
+
+            effective_lat = p.latency + queue_wait
+            effective_latencies[p.engine] = (effective_lat, queue_wait)
+
             candidates_payload.append({
                 "engine": p.engine,
                 "mode": p.mode,
-                "latency": p.latency,
+                "latency": round(effective_lat, 3),
                 "quality": p.quality,
                 "failureRisk": p.failure_risk,
                 "credits": p.credits,
@@ -149,7 +166,7 @@ class MetaQacoSolver:
             )
 
         # Local deterministic evaluation (exact fallback)
-        max_obs_latency = max(1.0, max(p.latency for p in profiles)) if profiles else 1.0
+        max_obs_latency = max(1.0, max(effective_latencies.get(p.engine, (p.latency, 0.0))[0] for p in profiles)) if profiles else 1.0
         max_obs_credits = max(1.0, max(p.credits for p in profiles)) if profiles else 1.0
 
         evaluations_list: list[CandidateEvaluationResult] = []
@@ -159,13 +176,19 @@ class MetaQacoSolver:
             health = health_snapshots.get(p.engine)
             is_available = health.available and health.health_status != "DEGRADED" if health else True
             conf = confidences.get(p.engine, 0.85)
+            effective_lat, queue_wait = effective_latencies.get(p.engine, (p.latency, 0.0))
 
             reasons: list[str] = []
             if not is_available:
                 status_str = health.health_status if health else "UNAVAILABLE"
                 reasons.append(f"Engine health is {status_str}")
-            if p.latency > max_time_s:
-                reasons.append(f"Predicted latency {p.latency:.2f}s exceeds time budget {max_time_s:.2f}s")
+            if effective_lat > max_time_s:
+                if queue_wait > 0.0:
+                    reasons.append(
+                        f"Predicted effective latency {effective_lat:.2f}s (solve: {p.latency:.2f}s, queue wait: {queue_wait:.2f}s) exceeds time budget {max_time_s:.2f}s"
+                    )
+                else:
+                    reasons.append(f"Predicted latency {p.latency:.2f}s exceeds time budget {max_time_s:.2f}s")
             if p.credits > max_credits_val:
                 reasons.append(f"Predicted credits {p.credits} exceeds maxCredits {max_credits_val}")
             if p.quality < min_quality:
@@ -179,7 +202,10 @@ class MetaQacoSolver:
 
             is_adm = (len(reasons) == 0)
             predicted_data = {
-                "latency": round(p.latency, 3),
+                "latency": round(effective_lat, 3),
+                "solveLatency": round(p.latency, 3),
+                "queueWait": round(queue_wait, 3),
+                "activeJobs": health.active_jobs if health else 0,
                 "quality": round(p.quality, 3),
                 "failureRisk": round(p.failure_risk, 3),
                 "credits": p.credits,
@@ -197,7 +223,7 @@ class MetaQacoSolver:
                 )
                 evaluations_list.append(eval_res)
             else:
-                norm_lat = p.latency / max_obs_latency
+                norm_lat = effective_lat / max_obs_latency
                 norm_cred = p.credits / max_obs_credits
                 utility = w_q * p.quality - w_l * norm_lat - w_c * norm_cred - w_r * p.failure_risk
                 rounded_u = round(utility, 4)

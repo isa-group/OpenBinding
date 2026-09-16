@@ -95,6 +95,7 @@ class AdaptationManager:
             confidences=confidences,
             routing_options=routing_opts,
             service_url=service_url,
+            features=features,
         )
 
         # Build concise user provenance
