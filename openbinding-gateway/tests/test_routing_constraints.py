@@ -121,3 +121,36 @@ async def test_soft_preferences_cost_bias(test_problem):
 
     # Cost-heavy weighting should favor random-search (1 CU)
     assert plan.selected_engine == "random-search"
+
+
+@pytest.mark.asyncio
+async def test_active_queue_wait_penalizes_congested_engine(test_problem):
+    manager = get_adaptation_manager()
+
+    # Artificially congest evolutionary-heuristics with 80 active jobs in queue
+    manager.health_monitor._active_jobs["evolutionary-heuristics"] = 80
+    try:
+        plan = await manager.plan_routing(
+            problem=test_problem,
+            options={
+                "routing": {
+                    "hardConstraints": {
+                        "maxTimeBudgetMs": 4000,  # 4 seconds budget
+                    }
+                }
+            }
+        )
+
+        evaluations = plan.provenance_admin["candidateEvaluations"]
+        evo_cand = next(c for c in evaluations if c["engine"] == "evolutionary-heuristics")
+
+        # Verify queue wait was tracked and modeled
+        assert evo_cand["predicted"]["activeJobs"] == 80
+        assert evo_cand["predicted"]["queueWait"] > 0.0
+        assert evo_cand["predicted"]["latency"] > evo_cand["predicted"]["solveLatency"]
+
+        # Congested evolutionary engine should be rejected or deprioritized due to queue delay
+        assert plan.selected_engine != "evolutionary-heuristics"
+    finally:
+        manager.health_monitor._active_jobs.clear()
+
