@@ -1,5 +1,7 @@
+import { ArtifactVersionPicker } from '../../components/Artifacts/ArtifactVersionPicker';
+import type { ArtifactUse } from '../../api/library';
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { platformApi, type BindingCase, type CaseRevision } from '../../api/platform';
 import { CodeEditor } from '../../components/CodeEditor/CodeEditor';
 import {
@@ -21,10 +23,12 @@ import './CaseDetailPage.css';
 export function CaseDetailPage() {
   const { org = '', project: projectSlug = '', caseSlug = '' } = useParams<{ org: string; project: string; caseSlug: string }>();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const revisionId = params.get("revision");
 
   const [bindingCase, setBindingCase] = useState<BindingCase | null>(null);
   const [revisions, setRevisions] = useState<CaseRevision[]>([]);
-  const [selectedRevision, setSelectedRevision] = useState<CaseRevision | null>(null);
+  const selectedRevision = (revisionId ? revisions.find(item => item.id === revisionId) : revisions[0]) || null;
   const [activeTab, setActiveTab] = useState<'spec' | 'json'>('spec');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +42,9 @@ export function CaseDetailPage() {
   // New revision modal state
   const [showNewRevModal, setShowNewRevModal] = useState(false);
   const [newRevDoc, setNewRevDoc] = useState('');
-  const [newRevSnapshotId, setNewRevSnapshotId] = useState('');
+  const [resourceUses, setResourceUses] = useState<ArtifactUse[]>([]);
+  const [resourceRole, setResourceRole] = useState('application');
+  const [resourceAlias, setResourceAlias] = useState('app');
   const [savingRev, setSavingRev] = useState(false);
   const [revError, setRevError] = useState<string | null>(null);
 
@@ -61,10 +67,6 @@ export function CaseDetailPage() {
 
       const sorted = [...revsData].sort((a, b) => b.revision - a.revision);
       setRevisions(sorted);
-      if (sorted.length > 0) {
-        setSelectedRevision(sorted[0]);
-        setNewRevDoc(JSON.stringify(sorted[0].document, null, 2));
-      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load case details.');
     } finally {
@@ -101,15 +103,17 @@ export function CaseDetailPage() {
     setRevError(null);
     try {
       const parsed = JSON.parse(newRevDoc) as Record<string, unknown>;
-      await platformApi.createCaseRevision(
+      const created = await platformApi.createCaseRevision(
         org,
         projectSlug,
         bindingCase.slug,
         parsed,
-        newRevSnapshotId.trim() || undefined
+        undefined,
+        resourceUses
       );
       setShowNewRevModal(false);
       await loadCaseData();
+      setParams({ revision: created.id });
     } catch (err: unknown) {
       setRevError(err instanceof Error ? err.message : 'Invalid JSON document or server rejected revision.');
     } finally {
@@ -200,13 +204,13 @@ export function CaseDetailPage() {
             </button>
             <button
               type="button"
-              onClick={() => setShowNewRevModal(true)}
+              onClick={() => { setNewRevDoc(JSON.stringify(selectedRevision?.document || {}, null, 2)); setResourceUses([]); setShowNewRevModal(true); }}
               className="case-action-btn is-primary"
             >
               <Plus size={13} /> New Revision (r{revisions.length + 1})
             </button>
             <Link
-              to={`/app/${org}/${projectSlug}/workbench`}
+              to={`/app/${org}/${projectSlug}/workbench?case=${encodeURIComponent(caseSlug)}&revision=${selectedRevision?.id || ""}`}
               className="case-action-btn"
             >
               <Cpu size={13} /> Open in Workbench
@@ -237,7 +241,10 @@ export function CaseDetailPage() {
               return (
                 <div
                   key={rev.id}
-                  onClick={() => setSelectedRevision(rev)}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setParams({ revision: rev.id })}
+                  onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setParams({ revision: rev.id }); } }}
                   className={`case-timeline-item ${isSelected ? 'is-active' : ''}`}
                 >
                   <div className="case-timeline-head">
@@ -444,16 +451,19 @@ export function CaseDetailPage() {
             )}
 
             <form onSubmit={handleCreateRevision} className="case-modal-form">
-              <label>
-                Source Snapshot UUID (Optional)
-                <input
-                  type="text"
-                  value={newRevSnapshotId}
-                  onChange={(e) => setNewRevSnapshotId(e.target.value)}
-                  placeholder="Optional executable snapshot UUID"
-
-                />
-              </label>
+              <p>Select every resource consumed by this revision. Sealing validates the composition and creates its executable snapshot.</p>
+              <label>Resource role<input value={resourceRole} onChange={event => setResourceRole(event.target.value)} /></label>
+              <label>Local alias<input value={resourceAlias} onChange={event => setResourceAlias(event.target.value)} /></label>
+              <ArtifactVersionPicker org={org} onSelect={(_artifact, version) => {
+                if (!resourceRole.trim() || !resourceAlias.trim()) return;
+                setResourceUses(current => [...current.filter(item => item.alias !== resourceAlias.trim()), {
+                  role: resourceRole.trim(), alias: resourceAlias.trim(), artifact: version.ref, bindings: {},
+                }]);
+              }} />
+              {resourceUses.map(use => <div key={use.alias}>
+                <code>{use.role}/{use.alias}: {use.artifact.name}@{use.artifact.version}</code>
+                <button type="button" onClick={() => setResourceUses(current => current.filter(item => item.alias !== use.alias))}>Remove {use.alias}</button>
+              </div>)}
 
               <label>
                 Case Document JSON

@@ -27,6 +27,7 @@ const api = vi.hoisted(() => ({
   createStudy: vi.fn(),
 }));
 
+vi.mock('../../api/library', () => ({ libraryApi: { list: vi.fn().mockResolvedValue([]), versions: vi.fn().mockResolvedValue([]) } }));
 const client = vi.hoisted(() => ({ getEngines: vi.fn() }));
 const outlet = vi.hoisted(() => ({ value: null as PlatformOutletContext | null }));
 
@@ -98,12 +99,12 @@ describe('collaborative project pages', () => {
 
   it('cancels an active study run and retries only failed cells', async () => {
     const study = {
-      id: 'study-id', project_id: project.id, slug: 'engines', name: 'Engine comparison', description: '',
+      id: 'study-id', archived: false, definition_artifact_id: 'study-artifact', definition_version_id: 'study-version-1', project_id: project.id, slug: 'engines', name: 'Engine comparison', description: '',
       definition: { case_revision_ids: ['revision-id'], engines: [{}], parameter_sets: [{}], seeds: [0] },
       state: 'active', created_by_id: 'user-id', created_at: '2026-09-01T00:00:00Z',
     };
     const run: StudyRun = {
-      id: 'run-id', study_id: study.id, run_number: 1, state: 'running', matrix_digest: `sha256-${'b'.repeat(64)}`,
+      id: 'run-id', definition_version_id: 'study-version-1', study_id: study.id, run_number: 1, state: 'running', matrix_digest: `sha256-${'b'.repeat(64)}`,
       cells: 1, summary: {}, created_at: '2026-09-01T00:00:00Z', finished_at: null,
     };
     const failedCell: StudyCell = {

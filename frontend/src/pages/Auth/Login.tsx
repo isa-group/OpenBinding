@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Building2 } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../contexts/auth';
 import { Card } from '../../components/ui/Card';
@@ -60,7 +59,8 @@ export function Login() {
         {notice && <Alert type="success">{notice}</Alert>}
 
         <a className="auth-cas-action" href={apiClient.casStartUrl()}>
-          <Building2 aria-hidden="true" />
+          {/* <Building2 aria-hidden="true" /> */}
+          <img src="/brands/us-fama.png" alt="Universidad de Sevilla" height="32" />
           <span><strong>Continue with Universidad de Sevilla</strong><small>Verified UVUS access · RESEARCH plan</small></span>
         </a>
 

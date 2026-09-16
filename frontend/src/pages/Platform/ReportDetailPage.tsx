@@ -16,6 +16,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { DigestBadge } from '../../components/Inspection/DigestBadge';
+import { SavedDecision } from './AnalysisPage';
 import '../../components/Inspection/VisualEffects.css';
 
 export function ReportDetailPage() {
@@ -59,7 +60,7 @@ export function ReportDetailPage() {
       setEditTitle(repData.title);
       setEditDocJson(JSON.stringify(repData.document, null, 2));
 
-      const matchingPub = pubsData.find((p) => p.report_id === repData.id);
+      const matchingPub = pubsData.find((p) => repData.state === 'frozen' && p.report_id === repData.id && p.version_id === repData.version_id && !p.withdrawn);
       setPublication(matchingPub || null);
       if (matchingPub) {
         setPubSlug(matchingPub.slug);
@@ -86,7 +87,7 @@ export function ReportDetailPage() {
       const parsedDoc = JSON.parse(editDocJson) as Record<string, unknown>;
       const updated = await platformApi.updateReport(org, projectSlug, report.slug, {
         title: editTitle,
-        document: parsedDoc,
+        document: parsedDoc, draft_revision: report.draft_revision ?? undefined,
       });
       setReport(updated);
       setActiveTab('editorial');
@@ -121,7 +122,7 @@ export function ReportDetailPage() {
     try {
       const authorsList = pubAuthors.split(',').map((a) => a.trim()).filter(Boolean);
       const pub = await platformApi.publishReport(org, projectSlug, {
-        report_id: report.id,
+        report_id: report.id, version_id: report.version_id ?? undefined,
         slug: pubSlug.trim() || `${report.slug}-pub`,
         citation: {
           title: report.title,
@@ -142,7 +143,7 @@ export function ReportDetailPage() {
 
   const handleDeletePublication = async () => {
     if (!publication) return;
-    if (!window.confirm(`Permanently unpublish and remove publication "${publication.slug}"?`)) return;
+    if (!window.confirm(`Withdraw publication while retaining its version and citation "${publication.slug}"?`)) return;
     try {
       await platformApi.deletePublication(org, projectSlug, publication.slug);
       setPublication(null);
@@ -213,10 +214,17 @@ export function ReportDetailPage() {
           <div>
             <div>
               <h1>{report.title}</h1>
+              <Link to={`/app/${org}/library?artifact=${report.artifact_id}${report.version_id ? `&version=${report.version_id}` : ''}`}>Version history</Link>
+              {isFrozen && <button type="button" disabled={saving} onClick={async () => {
+                setSaving(true);
+                try { await platformApi.createReportDraft(org, projectSlug, report.slug); await loadReportData(); setActiveTab('edit'); }
+                catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not create a new report draft.'); }
+                finally { setSaving(false); }
+              }}>New version</button>}
               <span className={`hash-badge ${isFrozen ? 'glow-completed' : 'glow-running'}`}>
                 {publication ? 'PUBLISHED' : report.state.toUpperCase()}
               </span>
-              {report.digest ? (
+              {isFrozen ? (
                 <span className="hash-badge">
                   <ShieldCheck size={12} />
                   FROZEN SEAL
@@ -372,7 +380,15 @@ export function ReportDetailPage() {
       </div>
 
       {/* Tab 1: Editorial View */}
-      {activeTab === 'editorial' && (
+      {activeTab === 'editorial' && doc.kind === 'binding-decision' && Array.isArray(doc.selected) && (
+        <div className="glass-panel">
+          <h3>Recorded binding decision</h3>
+          <p>This snapshot records the selected rule and evidence. Reopening verifies source access and identities before recalculating.</p>
+          <Link className="hash-badge" to={`/app/analysis?report=${encodeURIComponent(`${org}/${projectSlug}/${report.slug}`)}`}>Reopen decision workspace</Link>
+          <SavedDecision document={doc} />
+        </div>
+      )}
+      {activeTab === 'editorial' && doc.kind !== 'binding-decision' && (
         <div>
           {/* Executive Summary Card */}
           <div className="glass-panel">

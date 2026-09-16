@@ -1,3 +1,4 @@
+import type { Neighborhood } from '../analysis/neighborhood';
 import { config } from '../config';
 import { PricingUnavailableError, QuotaError } from './auth';
 import type {
@@ -565,6 +566,9 @@ export class ApiClient {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
     const timeoutId = timeoutMs ? setTimeout(() => controller.abort(), timeoutMs) : undefined;
+    const abortFromCaller = () => controller.abort();
+    if (options.signal?.aborted) controller.abort();
+    options.signal?.addEventListener('abort', abortFromCaller, { once: true });
 
     try {
       const response = await fetch(url, {
@@ -604,10 +608,12 @@ export class ApiClient {
       return response.json();
     } catch (error: unknown) {
       if (isAbortError(error)) {
+        if (options.signal?.aborted) throw error;
         throw new Error('Request timed out');
       }
       throw error;
     } finally {
+      options.signal?.removeEventListener('abort', abortFromCaller);
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
@@ -758,6 +764,13 @@ export class ApiClient {
     return this.request<V1JobStatus>(`/v1/jobs/${jobId}`);
   }
 
+  async createConfiguredBimJob(snapshot: string, configuration: import('./library').ArtifactRef): Promise<{ id: string; status: string; irDigest: string }> {
+    return this.request('/v1/jobs', {
+      method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() },
+      body: JSON.stringify({ snapshot, configuration }),
+    });
+  }
+
   async getBimExamples(): Promise<string[]> {
     const body = await this.request<{ examples: string[] }>('/v1/examples');
     return body.examples || [];
@@ -765,6 +778,15 @@ export class ApiClient {
 
   async getBimExamplePackage(path: string): Promise<ArrayBuffer> {
     return this.requestBinary(`/v1/examples/${path.split('/').map(encodeURIComponent).join('/')}`);
+  }
+
+  async getBindingNeighborhood(jobId: string, solutionIndex: number, task: string, limit: number, signal?: AbortSignal): Promise<Neighborhood> {
+    const query = new URLSearchParams({ solution_index: String(solutionIndex), limit: String(limit) });
+    if (task) query.set('task', task);
+    const result = await this.request<Neighborhood & { detail?: string; title?: string }>(`/v1/jobs/${encodeURIComponent(jobId)}/analysis/neighborhood?${query}`, { signal });
+    // The generic client preserves validation bodies for form consumers; this endpoint needs a real result.
+    if (!result.coverage || !Array.isArray(result.moves)) throw new Error(typeof result.detail === 'string' ? result.detail : result.title || 'Neighborhood evaluation could not be completed');
+    return result;
   }
 
   async getJobStatus(jobId: string, timeoutMs: number = 30000): Promise<JobStatus> {
@@ -1294,6 +1316,338 @@ export class ApiClient {
     const qs = query.toString();
     return this.request<AdminErrorListResponse>(`/v1/admin/errors${qs ? `?${qs}` : ''}`);
   }
+
+  // ==========================================
+  // QACO Generator & Legacy Conversion
+  // ==========================================
+
+  async generateBimInstance(params: GenerateInstanceParams): Promise<InstanceGeneratedResponse> {
+    return this.request<InstanceGeneratedResponse>('/v1/generator/instances', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async generateBimCorpus(params: GenerateCorpusParams): Promise<CorpusGeneratedResponse> {
+    return this.request<CorpusGeneratedResponse>('/v1/generator/corpus', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async convertLegacyBimProblem(params: ConvertLegacyParams): Promise<InstanceGeneratedResponse> {
+    return this.request<InstanceGeneratedResponse>('/v1/generator/convert-legacy', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async calibrateEngineSurrogate(params: CalibrateEngineParams): Promise<EngineCalibratedResponse> {
+    return this.request<EngineCalibratedResponse>('/v1/generator/calibrate-engine', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  // ==========================================
+  // Admin AutoRouter & MAPE-K Monitoring
+  // ==========================================
+
+  async adminGetEngineRoutingMetrics(): Promise<EngineRoutingMetricsResponse> {
+    return this.request<EngineRoutingMetricsResponse>('/v1/admin/engine-routing/metrics');
+  }
+
+  async adminListEngineRoutingObservations(params?: {
+    engine?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<EngineRoutingObservationsResponse> {
+    const query = new URLSearchParams();
+    if (params?.engine) query.set('engine', params.engine);
+    if (params?.limit !== undefined) query.set('limit', String(params.limit));
+    if (params?.offset !== undefined) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return this.request<EngineRoutingObservationsResponse>(`/v1/admin/engine-routing/observations${qs ? `?${qs}` : ''}`);
+  }
+
+  async adminRecalibrateEngineRouting(): Promise<EngineRoutingRecalibrateResponse> {
+    return this.request<EngineRoutingRecalibrateResponse>('/v1/admin/engine-routing/recalibrate', {
+      method: 'POST',
+    });
+  }
+
+  // ==========================================
+  // AutoRouter Job Submission
+  // ==========================================
+
+  async createAutoRouterBimJob(
+    snapshot: string,
+    routingOptions?: AutoRoutingOptions,
+    options: Record<string, unknown> = {},
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<{ id: string; status: string; irDigest: string }> {
+    const mergedOptions = {
+      ...options,
+      routing: routingOptions ?? { strategy: 'auto', profile: 'balanced' },
+    };
+    return this.request<{ id: string; status: string; irDigest: string }>('/v1/jobs', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify({
+        snapshot,
+        engine: 'auto',
+        options: mergedOptions,
+      }),
+    });
+  }
+}
+
+// ==========================================
+// Generator & Legacy Conversion Types
+// ==========================================
+
+export interface GenerateInstanceParams {
+  tasks?: number;
+  candidates?: number;
+  control_flow?: number;
+  loops?: number;
+  branches?: number;
+  parallel?: number;
+  max_nesting?: number;
+  iterations_per_loop?: number;
+  qos_properties?: number;
+  constraints?: number;
+  target_engines?: string[];
+  optimization_mode?: 'weighted' | 'pareto' | null;
+  guarantee_feasibility?: boolean;
+  tension?: number;
+  name?: string;
+  profile?: string;
+  dialects?: string[];
+  seed?: number | null;
+  persist?: boolean;
+  project_id?: string | null;
+  case_name?: string | null;
+  use_legacy_engine?: boolean;
+}
+
+export interface InstanceGeneratedResponse {
+  name: string;
+  package_digest: string;
+  instance_digest: string;
+  compilation_digest: string;
+  snapshot_id?: string | null;
+  case_id?: string | null;
+  target_engines: string[];
+  workload_features: Record<string, unknown>;
+  files: Record<string, unknown>;
+}
+
+export interface GenerateCorpusParams {
+  count?: number;
+  base_config?: GenerateInstanceParams;
+  name?: string;
+  persist?: boolean;
+  project_id?: string | null;
+  collection_name?: string | null;
+  create_study?: boolean;
+  as_archive?: boolean;
+}
+
+export interface CorpusGeneratedResponse {
+  name: string;
+  count: number;
+  instances: Array<{
+    name: string;
+    package_digest: string;
+    compilation_digest: string;
+    snapshot_id?: string | null;
+    workload_features: Record<string, unknown>;
+  }>;
+  collection_id?: string | null;
+  study_id?: string | null;
+}
+
+export interface ConvertLegacyParams {
+  raw_text: string;
+  name?: string;
+  profile?: string;
+  dialects?: string[];
+  repair_empty_branches?: boolean;
+  guarantee_feasibility?: boolean;
+  tension?: number;
+  persist?: boolean;
+  project_id?: string | null;
+  case_name?: string | null;
+}
+
+export interface CalibrateEngineParams {
+  engine: string;
+  mode?: string;
+  observations?: Array<{
+    workload_features: Record<string, unknown>;
+    latency: number;
+    quality: number;
+    success: boolean;
+  }>;
+}
+
+export interface EngineCalibratedResponse {
+  engine: string;
+  mode: string;
+  sample_count: number;
+  latency_coefficients: Record<string, number>;
+  quality_coefficients: Record<string, number>;
+  failure_risk_coefficients: Record<string, number>;
+  r2_score: number;
+  status: string;
+}
+
+// ==========================================
+// Auto-Router & MAPE-K Types
+// ==========================================
+
+export interface AutoRoutingHardConstraints {
+  maxCredits?: number;
+  maxTimeBudgetMs?: number;
+  minQuality?: number;
+  requireExact?: boolean;
+  minConfidence?: number;
+  maxFailureRisk?: number;
+}
+
+export interface AutoRoutingSoftPreferences {
+  weights?: {
+    quality?: number;
+    latency?: number;
+    costCredits?: number;
+    reliability?: number;
+    confidence?: number;
+  };
+}
+
+export interface AutoRoutingOptions {
+  strategy?: 'auto' | string;
+  profile?: 'balanced' | 'quality_first' | 'latency_first' | 'cost_first';
+  hardConstraints?: AutoRoutingHardConstraints;
+  softPreferences?: AutoRoutingSoftPreferences;
+  adaptation?: {
+    allowFallback?: boolean;
+    fallbackTimeoutMs?: number;
+  };
+}
+
+export interface EngineRoutingUserProvenance {
+  selectedEngine: string;
+  selectedMode: string;
+  adaptationReason: string;
+  utilityScore?: number;
+  creditsCost?: number;
+  fallbackActivated?: boolean;
+}
+
+export interface EngineRoutingAdminProvenance {
+  adaptationLoopId?: string;
+  workloadFeatures?: {
+    S?: number;
+    D_constr?: number;
+    N_tasks?: number;
+    N_cap?: number;
+    OptMode?: string;
+    D_obj?: number;
+    T_budget?: number;
+    [key: string]: unknown;
+  };
+  engineHealthSnapshot?: Record<string, {
+    available?: boolean;
+    activeJobs?: number;
+    healthStatus?: 'HEALTHY' | 'DEGRADED' | string;
+    confidence?: number;
+    errorRate?: number;
+    avgLatency?: number;
+    [key: string]: unknown;
+  }>;
+  candidateEvaluations?: Array<{
+    engine: string;
+    predicted?: {
+      latency?: number;
+      quality?: number;
+      failureRisk?: number;
+      credits?: number;
+    };
+    admissible: boolean;
+    utility?: number;
+    rejectionReason?: string;
+  }>;
+  actualExecution?: {
+    actualLatency?: number;
+    actualQuality?: number;
+    actualCredits?: number;
+    residualLatency?: number;
+    residualQuality?: number;
+    residualCredits?: number;
+    [key: string]: unknown;
+  };
+  fallbackEngine?: string;
+}
+
+export interface EngineRoutingMetricSnapshot {
+  available: boolean;
+  activeJobs: number;
+  healthStatus: 'HEALTHY' | 'DEGRADED';
+  confidence: number;
+  consecutiveFailures?: number;
+  oneHourFailureRate?: number;
+  avgLatency?: number;
+  cusumSPlus?: number;
+  cusumSMinus?: number;
+  driftAlarm?: boolean;
+  [key: string]: unknown;
+}
+
+export interface EngineRoutingMetricsResponse {
+  summary: {
+    totalEngines: number;
+    healthyEngines: number;
+    degradedEngines: number;
+    activeJobs: number;
+  };
+  engines: Record<string, EngineRoutingMetricSnapshot>;
+}
+
+export interface AdaptationObservationItem {
+  id: string;
+  jobId: string | null;
+  adaptationLoopId: string;
+  engineSelected: string;
+  workloadFeatures: Record<string, unknown>;
+  candidateEvaluations: Array<{
+    engine: string;
+    predicted?: Record<string, unknown>;
+    admissible: boolean;
+    utility?: number;
+    rejectionReason?: string;
+  }>;
+  predictedMetrics: Record<string, unknown>;
+  actualMetrics?: Record<string, unknown> | null;
+  residuals?: Record<string, unknown> | null;
+  outcome: string;
+  engineHealthSnapshot?: Record<string, unknown> | null;
+  createdAt: string | null;
+}
+
+export interface EngineRoutingObservationsResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  observations: AdaptationObservationItem[];
+}
+
+export interface EngineRoutingRecalibrateResponse {
+  status: string;
+  recalibratedAt: string;
+  observationsProcessed: number;
+  calibratedEngines: string[];
 }
 
 export const apiClient = new ApiClient();

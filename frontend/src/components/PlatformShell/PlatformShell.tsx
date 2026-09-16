@@ -35,7 +35,7 @@ const projectLinks = [
 ];
 
 const RESERVED_SLUGS = new Set([
-  'admin', 'account', 'workbench', 'cases', 'resources', 'collections',
+  'admin', 'account', 'analysis', 'workbench', 'cases', 'resources', 'collections',
   'jobs', 'studies', 'analytics', 'reports', 'artifacts', 'settings', 'engines', 'snapshots', 'verifier',
 ]);
 
@@ -124,7 +124,7 @@ export function PlatformShell() {
             {isResearch && (
               <span
                 className="platform-institution-mark"
-                title="Cuenta institucional · Universidad de Sevilla"
+                title="Institutional account · Universidad de Sevilla"
               >
                 <img src="/brands/us-fama.png" alt="Universidad de Sevilla" />
               </span>
@@ -200,6 +200,7 @@ export function PlatformShell() {
             </NavLink>
           ))}
           <p>System</p>
+          <NavLink to="/app/analysis" end><BarChart3 aria-hidden="true" />Binding decisions</NavLink>
           <NavLink to="/app/account" end><User aria-hidden="true" />Account</NavLink>
           {isAdmin && <NavLink to="/app/admin" end><Shield aria-hidden="true" />Administration</NavLink>}
           {organization && <NavLink to={`/app/${organization.slug}/settings`}><Users aria-hidden="true" />Organization</NavLink>}
@@ -208,7 +209,7 @@ export function PlatformShell() {
           {isAdmin && <NavLink to="/app/admin/pricing"><Settings aria-hidden="true" />Pricing control</NavLink>}
         </nav>
         {isResearch && (
-          <a className="us-institution" href="https://www.us.es" target="_blank" rel="noreferrer" title="Cuenta institucional · Universidad de Sevilla">
+          <a className="us-institution" href="https://www.us.es" target="_blank" rel="noreferrer" title="Institutional account · Universidad de Sevilla">
             <img src="/brands/universidad-sevilla.svg" alt="Universidad de Sevilla" />
             <small>Institutional account</small>
           </a>
@@ -233,7 +234,7 @@ export function PlatformShell() {
           {organization && <Link to={`/app/${organization.slug}/settings`}>Organization</Link>}
           <Link to="/app/account">Account</Link>
           {isAdmin && <Link to="/app/admin">Administration</Link>}
-          {isResearch && <a className="mobile-us-brand" href="https://www.us.es" target="_blank" rel="noreferrer" title="Cuenta institucional · Universidad de Sevilla"><img src="/brands/universidad-sevilla.svg" alt="Universidad de Sevilla" /></a>}
+          {isResearch && <a className="mobile-us-brand" href="https://www.us.es" target="_blank" rel="noreferrer" title="Institutional account · Universidad de Sevilla"><img src="/brands/universidad-sevilla.svg" alt="Universidad de Sevilla" /></a>}
         </nav>
       </details>
 

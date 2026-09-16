@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArtifactVersionPicker } from '../../components/Artifacts/ArtifactVersionPicker';
+import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysis';
+import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import {
   Archive, ArrowDownToLine, ArrowRight, ArrowUpFromLine, Braces, CheckCircle2, CircleDashed, CircleStop, Clock3, Copy, Database, ExternalLink, Eye, FileArchive, FileText, FlaskConical,
@@ -7,14 +9,14 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Bar, BarChart, CartesianGrid, ResponsiveContainer, Scatter, ScatterChart,
+  Bar, BarChart, CartesianGrid, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { platformApi } from '../../api/platform';
 import { apiClient, bimResourceKey } from '../../api/client';
 import type { EngineCatalogEntry } from '../../api/client';
 import type {
-  Analytics, Artifact, BindingCase, CaseRevision, Collection, CollectionItem,
+  Analytics, StoredBlob, BindingCase, CaseRevision, Collection, CollectionItem,
   CollectionRevision, OrganizationInvitation, OrganizationMember, OrganizationRole,
   ProjectResource, ProjectResourceRevision, Publication, Report, Study, StudyCell, StudyRun,
 } from '../../api/platform';
@@ -313,7 +315,7 @@ export function ProjectOverview() {
     if (!organization || !project) return;
     void Promise.all([
       platformApi.cases(organization.slug, project.slug),
-      platformApi.studies(organization.slug, project.slug),
+      platformApi.studies(organization.slug, project.slug, true),
       platformApi.reports(organization.slug, project.slug),
     ]).then(([nextCases, nextStudies, nextReports]) => {
       setCases(nextCases); setStudies(nextStudies); setReports(nextReports);
@@ -988,11 +990,13 @@ export function StudiesPage() {
   const [selectedEngines, setSelectedEngines] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [inspectStudy, setInspectStudy] = useState<Study | null>(null);
+  const [libraryDefinition, setLibraryDefinition] = useState('');
+  const [libraryCollection, setLibraryCollection] = useState('');
 
   const load = useCallback(async () => {
     if (!organization || !project) return;
     const [next, nextCases, nextEngines] = await Promise.all([
-      platformApi.studies(organization.slug, project.slug),
+      platformApi.studies(organization.slug, project.slug, true),
       platformApi.cases(organization.slug, project.slug),
       apiClient.getEngines(),
     ]);
@@ -1009,7 +1013,7 @@ export function StudiesPage() {
   if (!organization || !project) return <NoProject />;
   const execute = async (study: Study) => {
     setRunning(study.id); setError(null);
-    try { await platformApi.runStudy(organization.slug, project.slug, study.slug); await load(); }
+    try { await platformApi.runStudy(organization.slug, project.slug, study.slug, study.definition_version_id); await load(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : 'Study dispatch failed.'); }
     finally { setRunning(null); }
   };
@@ -1030,7 +1034,7 @@ export function StudiesPage() {
     event.preventDefault(); setError(null);
     const form = new FormData(event.currentTarget);
     try {
-      if (!selectedRevisions.length) throw new Error('Choose at least one executable case revision.');
+      if (!selectedRevisions.length && !libraryCollection) throw new Error('Choose executable case revisions or a sealed collection.');
       if (!selectedEngines.length) throw new Error('Choose at least one exact Engine mode.');
       const parameterSets = JSON.parse(String(form.get('parameters') || '[{}]')) as Array<Record<string, unknown>>;
       if (!Array.isArray(parameterSets) || !parameterSets.length) throw new Error('Parameter sets must be a non-empty JSON array.');
@@ -1041,12 +1045,13 @@ export function StudiesPage() {
         description: String(form.get('description') || ''),
         definition: {
           case_revision_ids: selectedRevisions,
+          ...(libraryCollection ? { collection_version_id: libraryCollection } : {}),
           engines: engineChoices.filter((choice) => selectedEngines.includes(choice.key)).map(({ engine, mode }) => ({ ...engine.ref, mode: mode.id })),
           parameter_sets: parameterSets,
           seeds,
         },
       });
-      event.currentTarget.reset(); setSelectedRevisions([]); setSelectedEngines([]); await load();
+      event.currentTarget.reset(); setSelectedRevisions([]); setSelectedEngines([]); setLibraryCollection(''); await load();
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Study creation failed.'); }
   };
   return (
@@ -1065,7 +1070,7 @@ export function StudiesPage() {
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                  <span className="status-chip">{study.state}</span>
+                  <span className="status-chip">{study.archived ? 'archived' : study.state}</span>
                   <button
                     type="button"
                     onClick={() => setInspectStudy(study)}
@@ -1078,6 +1083,14 @@ export function StudiesPage() {
                 </div>
                 <h2>{study.name}</h2>
                 <p>{study.description || 'Exact comparative matrix.'}</p>
+                <Link to={`/app/${organization.slug}/library?artifact=${study.definition_artifact_id}&version=${study.definition_version_id}`}>Open versioned definition</Link>
+                {study.state === 'ready' && <details><summary>Select definition version</summary>
+                  <ArtifactVersionPicker org={organization.slug} kind="Study" artifactId={study.definition_artifact_id} versionId={study.definition_version_id} onSelect={(_, version) => {
+                    void platformApi.updateStudy(organization.slug, project.slug, study.slug, { definition_version_id: version.id })
+                      .then(load).catch(caught => setError(String(caught)));
+                  }} />
+                </details>}
+
                 <div className="study-formula">
                   <code>{study.definition.case_revision_ids.length} cases</code>
                   <b>×</b>
@@ -1117,7 +1130,11 @@ export function StudiesPage() {
                 ) : (
                   <small>Never run</small>
                 )}
-                <button type="button" onClick={() => void execute(study)} disabled={running !== null}>
+                <button type="button" onClick={() => {
+                  void platformApi.updateStudy(organization.slug, project.slug, study.slug, { archived: !study.archived })
+                    .then(load).catch(caught => setError(String(caught)));
+                }}>{study.archived ? 'Restore study' : 'Archive study'}</button>
+                <button type="button" onClick={() => void execute(study)} disabled={running !== null || study.archived || study.state !== 'ready'}>
                   <RefreshCw aria-hidden="true" />{running === study.id ? 'Dispatching…' : 'Run matrix'}
                 </button>
               </aside>
@@ -1126,7 +1143,23 @@ export function StudiesPage() {
         })}
       </div>
       {!studies.length && <Empty title="No study definitions" detail="Create a study from a case after choosing exact compatible engine revisions and seeds." action={<Link to={`/app/${organization.slug}/${project.slug}/cases`}>Choose a case</Link>} />}
-      <details className="study-builder"><summary><Plus aria-hidden="true" /> Define comparative study</summary><form onSubmit={create}><div className="study-builder-fields"><label>Name<input name="name" required /></label><label>Slug<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" /></label><label>Description<textarea name="description" rows={3} /></label></div><div className="study-builder-matrix"><fieldset><legend>Executable case revisions</legend>{cases.map((item) => { const revision = caseRevisions[item.id]?.find((candidate) => candidate.source_snapshot_id); return <label key={item.id} className={!revision ? 'is-disabled' : undefined}><input type="checkbox" disabled={!revision} checked={Boolean(revision && selectedRevisions.includes(revision.id))} onChange={() => revision && setSelectedRevisions((current) => current.includes(revision.id) ? current.filter((id) => id !== revision.id) : [...current, revision.id])} /><span><strong>{item.name}</strong><small>{revision ? `r${revision.revision} · ${revision.digest.slice(0, 15)}…` : 'Attach a revision backed by a BIM snapshot first'}</small></span></label>; })}{!cases.length && <p>No binding cases yet.</p>}</fieldset><fieldset><legend>Exact Engine modes</legend>{engineChoices.map(({ engine, mode, key }) => <label key={key}><input type="checkbox" checked={selectedEngines.includes(key)} onChange={() => setSelectedEngines((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} /><span><strong>{engine.namespace}/{engine.name}</strong><small>{engine.version} · {mode.id} · {engine.digest.slice(0, 12)}…</small></span></label>)}{!engineChoices.length && <p>No compatible engines visible.</p>}</fieldset></div><div className="study-builder-options"><label>Parameter sets (JSON array)<textarea name="parameters" rows={5} defaultValue="[{}]" spellCheck={false} /></label><label>Seeds<input name="seeds" defaultValue="0" placeholder="0, 1, 2" /></label><output>{selectedRevisions.length || 0} × {selectedEngines.length || 0} × parameters × seeds</output><button>Create immutable definition</button></div></form></details>
+      <details className="study-builder"><summary>Use a library study definition</summary>
+        <form onSubmit={async event => {
+          event.preventDefault(); const element = event.currentTarget; const data = new FormData(element);
+          try {
+            await platformApi.createStudy(organization.slug, project.slug, {
+              name: String(data.get('name')), slug: String(data.get('slug')), description: '', definition_version_id: libraryDefinition,
+            });
+            element.reset(); setLibraryDefinition(''); await load();
+          } catch (caught) { setError(String(caught)); }
+        }}>
+          <label>Name<input name="name" required /></label>
+          <label>Slug<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" /></label>
+          <ArtifactVersionPicker org={organization.slug} kind="Study" versionId={libraryDefinition} onSelect={(_, version) => setLibraryDefinition(version.id)} />
+          <button disabled={!libraryDefinition}>Use selected version</button>
+        </form>
+      </details>
+      <details className="study-builder"><summary><Plus aria-hidden="true" /> Define comparative study</summary><form onSubmit={create}><div className="study-builder-fields"><label>Name<input name="name" required /></label><label>Slug<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" /></label><label>Description<textarea name="description" rows={3} /></label></div><fieldset><legend>Library collection (optional)</legend><ArtifactVersionPicker org={organization.slug} kind="Collection" versionId={libraryCollection} onSelect={(_, version) => setLibraryCollection(version.id)} />{libraryCollection && <button type="button" onClick={() => setLibraryCollection('')}>Clear collection</button>}<p>All case members of this exact version are included with the cases selected below.</p></fieldset><div className="study-builder-matrix"><fieldset><legend>Executable case revisions</legend>{cases.flatMap((item) => (caseRevisions[item.id] || []).filter(revision => revision.source_snapshot_id).map(revision => <label key={revision.id}><input type="checkbox" disabled={!revision} checked={Boolean(revision && selectedRevisions.includes(revision.id))} onChange={() => revision && setSelectedRevisions((current) => current.includes(revision.id) ? current.filter((id) => id !== revision.id) : [...current, revision.id])} /><span><strong>{item.name}</strong><small>{revision ? `r${revision.revision} · ${revision.digest.slice(0, 15)}…` : 'Attach a revision backed by a BIM snapshot first'}</small></span></label>))}{!cases.length && <p>No binding cases yet.</p>}</fieldset><fieldset><legend>Exact Engine modes</legend>{engineChoices.map(({ engine, mode, key }) => <label key={key}><input type="checkbox" checked={selectedEngines.includes(key)} onChange={() => setSelectedEngines((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key])} /><span><strong>{engine.namespace}/{engine.name}</strong><small>{engine.version} · {mode.id} · {engine.digest.slice(0, 12)}…</small></span></label>)}{!engineChoices.length && <p>No compatible engines visible.</p>}</fieldset></div><div className="study-builder-options"><label>Parameter sets (JSON array)<textarea name="parameters" rows={5} defaultValue="[{}]" spellCheck={false} /></label><label>Seeds<input name="seeds" defaultValue="0" placeholder="0, 1, 2" /></label><output>{selectedRevisions.length || 0} × {selectedEngines.length || 0} × parameters × seeds</output><button>Create immutable definition</button></div></form></details>
 
       {/* Slide-over Drawer for Study */}
       {inspectStudy && (
@@ -1197,8 +1230,20 @@ export function AnalyticsPage() {
       platformApi.studyCells(organization.slug, project.slug, selection.study.slug, selection.run.id),
     ]).then(([nextAnalytics, nextCells]) => { setAnalytics(nextAnalytics); setCells(nextCells); });
   }, [organization, project, selection]);
-  const objectiveKeys = useMemo(() => Object.keys(analytics?.pareto[0] ?? {}), [analytics]);
-  const scatter = (analytics?.pareto ?? []).map((point) => ({ x: point[objectiveKeys[0]], y: point[objectiveKeys[1] ?? objectiveKeys[0]] }));
+  const [analysisJob, setAnalysisJob] = useState<string>('');
+  const [analysisResult, setAnalysisResult] = useState<unknown>(null);
+  const [analysisError, setAnalysisError] = useState('');
+  const availableCells = cells.filter(cell => cell.job_id);
+  const effectiveJob = availableCells.some(cell => cell.job_id === analysisJob) ? analysisJob : availableCells[0]?.job_id ?? '';
+  useEffect(() => {
+    let active = true;
+    setAnalysisResult(null);
+    setAnalysisError('');
+    if (effectiveJob) void apiClient.getJobStatus(effectiveJob).then(job => {
+      if (active) setAnalysisResult(job.result);
+    }).catch(error => { if (active) setAnalysisError(error instanceof Error ? error.message : 'Unable to load job'); });
+    return () => { active = false; };
+  }, [effectiveJob]);
   if (!organization || !project) return <NoProject />;
   return <div className="platform-page analysis-page"><PageHeading eyebrow="Evidence, not decoration" title="Binding analysis" detail="Inspect feasibility, objective trade-offs, timing and stability while retaining the cell fingerprints behind every point." action={studies.length > 1 ? <select aria-label="Study run" value={selection?.study.id ?? ''} onChange={(event) => { const study = studies.find((item) => item.id === event.target.value); if (study) void platformApi.studyRuns(organization.slug, project.slug, study.slug).then((runs) => runs[0] && setSelection({ study, run: runs[0] })); }}>{studies.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select> : undefined} />
     {!analytics ? <Empty title="No completed study to analyze" detail="Run a comparative study; this surface will derive its charts from the persisted cell metrics." /> : <>
@@ -1206,7 +1251,7 @@ export function AnalyticsPage() {
         <article><CheckCircle2 /><small>Feasible</small><strong>{analytics.feasible}</strong><span>of {analytics.cells} cells</span></article>
         <article><TriangleAlert /><small>Failed</small><strong>{analytics.failed}</strong><span>retryable cells</span></article>
         <article><Clock3 /><small>Median runtime</small><strong>{analytics.runtimes_s.length ? `${analytics.runtimes_s[Math.floor(analytics.runtimes_s.length / 2)].toFixed(2)}s` : '—'}</strong><span>end-to-end</span></article>
-        <article><Sparkles /><small>Pareto front</small><strong>{analytics.pareto.length}</strong><span>nondominated points</span></article>
+        <article><Sparkles /><small>Analysis scope</small><strong>One job</strong><span>comparable canonical solutions</span></article>
         {analytics.binding_space && (
           <article>
             <Layers3 />
@@ -1222,10 +1267,10 @@ export function AnalyticsPage() {
             <header>
               <div>
                 <span>Combinatorial Complexity</span>
-                <h2>Instance search space</h2>
+                <h2>{(analytics.binding_space.cases?.length ?? 0) > 1 ? 'Largest instance search space' : 'Instance search space'}</h2>
               </div>
               <small>
-                {analytics.binding_space.case_name ? `${analytics.binding_space.case_name} · rev ${analytics.binding_space.revision}` : 'Analyzed instance'}
+                {(analytics.binding_space.cases?.length ?? 0) > 1 ? `${analytics.binding_space.cases!.length} cases · largest cardinality` : analytics.binding_space.case_name ? `${analytics.binding_space.case_name} · rev ${analytics.binding_space.revision}` : 'Analyzed instance'}
               </small>
             </header>
             <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1253,10 +1298,9 @@ export function AnalyticsPage() {
             </div>
           </article>
         )}
-        <article className="analysis-panel pareto-panel"><header><div><span>Pareto explorer</span><h2>{objectiveKeys.length > 1 ? `${objectiveKeys[0]} × ${objectiveKeys[1]}` : 'Objective frontier'}</h2></div><small>minimize · exact cell results</small></header><div className="chart-frame">{scatter.length ? <ResponsiveContainer width="100%" height="100%"><ScatterChart margin={{ top: 20, right: 25, bottom: 25, left: 10 }}><CartesianGrid stroke="var(--color-border)" strokeDasharray="2 5"/><XAxis type="number" dataKey="x" name={objectiveKeys[0]} stroke="var(--color-text-tertiary)"/><YAxis type="number" dataKey="y" name={objectiveKeys[1]} stroke="var(--color-text-tertiary)"/><Tooltip cursor={{ strokeDasharray: '3 3' }}/><Scatter data={scatter} fill="var(--color-accent)" /></ScatterChart></ResponsiveContainer> : <Empty title="No objective points" detail="Completed feasible solutions with numeric objectives appear here." />}</div></article>
+        <article className="analysis-panel pareto-panel" style={{ gridColumn: '1 / -1' }}><header><div><span>Canonical solution analysis</span><h2>Explore a study cell</h2></div></header><label>Study cell<select aria-label="Analysis study cell" value={effectiveJob} onChange={event => setAnalysisJob(event.target.value)}>{availableCells.map(cell => <option key={cell.id} value={cell.job_id!}>Cell {cell.ordinal + 1} · {String(cell.parameters.analysisScenario ?? cell.metrics.analysisScenario ?? cell.engine_ref.name)} · seed {cell.seed} · {cell.binding_case_revision_id}</option>)}</select></label><p>Choose one execution to preserve instance, objective and normalization semantics. Different cases are never pooled into one Pareto front.</p>{analysisError ? <p role="alert">{analysisError}</p> : effectiveJob && !analysisResult ? <p>Loading canonical result…</p> : <BindingAnalysis result={analysisResult} jobId={effectiveJob || undefined} />}</article>
         <article className="analysis-panel"><header><div><span>Runtime distribution</span><h2>Cost of evidence</h2></div></header><div className="chart-frame"><ResponsiveContainer width="100%" height="100%"><BarChart data={analytics.runtimes_s.map((value, index) => ({ cell: index + 1, seconds: value }))}><CartesianGrid stroke="var(--color-border)" vertical={false}/><XAxis dataKey="cell" hide/><YAxis stroke="var(--color-text-tertiary)"/><Tooltip/><Bar dataKey="seconds" fill="var(--color-dialect)" radius={[2,2,0,0]}/></BarChart></ResponsiveContainer></div></article>
         <article className="analysis-panel"><header><div><span>Stability between seeds</span><h2>Repeatability</h2></div></header><div className="stability-ledger">{Object.entries(analytics.stability).map(([engine, value]) => <div key={engine}><span>{engine}</span><meter min="0" max="1" value={value.repeatability}>{value.repeatability}</meter><strong>{Math.round(value.repeatability * 100)}%</strong><small>{value.distinct}/{value.samples} distinct</small></div>)}{!Object.keys(analytics.stability).length && <p>No repeated objective samples yet.</p>}</div></article>
-        <article className="analysis-panel"><header><div><span>Convergence</span><h2>Search trace</h2></div></header><Empty title="Trace artifact not emitted" detail="When an engine returns its declared convergence trace, the run keeps it as a content-addressed artifact and renders it here." /></article>
       </div>
       <section className="cell-ledger">
         <header>
@@ -1342,11 +1386,11 @@ export function AnalyticsPage() {
 export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) {
   const { organization, project } = useOutletContext<PlatformOutletContext>();
   const [reports, setReports] = useState<Report[]>([]);
-  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [artifacts, setArtifacts] = useState<StoredBlob[]>([]);
   const [publications, setPublications] = useState<Publication[]>([]);
   const [runOptions, setRunOptions] = useState<Array<{ id: string; label: string }>>([]);
   const [inspectReport, setInspectReport] = useState<Report | null>(null);
-  const [inspectArtifact, setInspectArtifact] = useState<Artifact | null>(null);
+  const [inspectArtifact, setInspectArtifact] = useState<StoredBlob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1362,7 +1406,7 @@ export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) 
       }
       const [nextReports, nextStudies, nextPublications] = await Promise.all([
         platformApi.reports(organization.slug, project.slug),
-        platformApi.studies(organization.slug, project.slug),
+        platformApi.studies(organization.slug, project.slug, true),
         platformApi.publications(organization.slug, project.slug),
       ]);
       setReports(nextReports);
@@ -1475,7 +1519,7 @@ export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) 
     }
   };
 
-  const downloadArtifact = async (artifact: Artifact) => {
+  const downloadArtifact = async (artifact: StoredBlob) => {
     setBusy(artifact.id);
     setError(null);
     try {
@@ -1560,7 +1604,7 @@ export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) 
           <div>
             <form onSubmit={upload}>
               <label>
-                Artifact file
+                File
                 <input type="file" name="artifact" required />
               </label>
               <label className="artifact-public">
@@ -1870,12 +1914,12 @@ export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) 
         );
       })()}
 
-      {/* Slide-over Drawer for Artifact */}
+      {/* Slide-over Drawer for StoredBlob */}
       {inspectArtifact && (
         <EntityDrawer
           isOpen={Boolean(inspectArtifact)}
           onClose={() => setInspectArtifact(null)}
-          title={`Artifact ${inspectArtifact.digest.slice(0, 16)}…`}
+          title={`Blob ${inspectArtifact.digest.slice(0, 16)}…`}
           subtitle={`Digest: ${inspectArtifact.digest}`}
           badge={{
             label: inspectArtifact.public ? 'PUBLIC' : 'PRIVATE',
@@ -1900,7 +1944,7 @@ export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) 
               label: 'Direct Delivery URL',
               value: (
                 <code className="hash-badge" style={{ fontSize: '0.75rem' }}>
-                  /v1/organizations/{organization.slug}/projects/{project.slug}/artifacts/{inspectArtifact.digest}
+                  /v1/organizations/{organization.slug}/projects/{project.slug}/blobs/{inspectArtifact.digest}
                 </code>
               ),
             },

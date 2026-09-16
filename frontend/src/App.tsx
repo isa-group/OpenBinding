@@ -32,10 +32,11 @@ const PlatformDashboard = lazy(() => import('./pages/Platform/PlatformPages').th
 const ProjectOverview = lazy(() => import('./pages/Platform/PlatformPages').then((module) => ({ default: module.ProjectOverview })));
 const OrganizationSettingsPage = lazy(() => import('./pages/Platform/PlatformPages').then((module) => ({ default: module.OrganizationSettingsPage })));
 const CasesPage = lazy(() => import('./pages/Platform/PlatformPages').then((module) => ({ default: module.CasesPage })));
-const ResourcesPage = lazy(() => import('./pages/Platform/PlatformPages').then((module) => ({ default: module.ResourcesPage })));
+const ResourcesPage = lazy(() => import('./pages/Platform/ArtifactLibraryPage'));
 const CollectionsPage = lazy(() => import('./pages/Platform/PlatformPages').then((module) => ({ default: module.CollectionsPage })));
 const StudiesPage = lazy(() => import('./pages/Platform/PlatformPages').then((module) => ({ default: module.StudiesPage })));
 const AnalyticsPage = lazy(() => import('./pages/Platform/PlatformPages').then((module) => ({ default: module.AnalyticsPage })));
+const AnalysisPage = lazy(() => import('./pages/Platform/AnalysisPage').then((module) => ({ default: module.AnalysisPage })));
 const ProjectRecordsPage = lazy(() => import('./pages/Platform/PlatformPages').then((module) => ({ default: module.ProjectRecordsPage })));
 const PricingControlRoomPage = lazy(() => import('./pages/Platform/PricingControlRoom').then((module) => ({ default: module.PricingControlRoomPage })));
 const AppEngines = lazy(() => import('./pages/Platform/AppEngines').then((module) => ({ default: module.AppEngines })));
@@ -51,6 +52,7 @@ const ResearchPage = lazy(() => import('./pages/Public/PublicPages').then((modul
 const FundingPage = lazy(() => import('./pages/Public/PublicPages').then((module) => ({ default: module.FundingPage })));
 const ContributionsPage = lazy(() => import('./pages/Public/PublicPages').then((module) => ({ default: module.ContributionsPage })));
 const ChangelogPage = lazy(() => import('./pages/Public/PublicPages').then((module) => ({ default: module.ChangelogPage })));
+const WorkbenchPage = lazy(() => import('./pages/Public/PublicPages').then((module) => ({ default: module.WorkbenchPage })));
 
 function AppSurface() {
   const location = useLocation();
@@ -67,6 +69,7 @@ function AppSurface() {
                 <Route path="/playground" element={<ProtectedRoute><Playground /></ProtectedRoute>} />
                 <Route path="/profiles" element={<Profiles />} />
                 <Route path="/examples" element={<Examples />} />
+                <Route path="/workbench" element={<WorkbenchPage />} />
                 <Route path="/explore" element={<ExplorePage />} />
                 <Route path="/engines" element={<Engines />} />
                 {/* Registering needs an account: an engine belongs to somebody. */}
@@ -94,11 +97,13 @@ function AppSurface() {
                 <Route path="/app" element={<ProtectedRoute><PlatformShell /></ProtectedRoute>}>
                   <Route index element={<PlatformDashboard />} />
                   <Route path="account" element={<Account />} />
+                  <Route path="analysis" element={<AnalysisPage />} />
                   <Route path="admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
                   <Route path="workbench" element={<Playground />} />
                   <Route path="engines" element={<AppEngines />} />
                   <Route path="engines/new" element={<RegisterEngine />} />
                   <Route path=":org" element={<ProjectOverview />} />
+                  <Route path=":org/library" element={<ResourcesPage />} />
                   <Route path=":org/settings" element={<OrganizationSettingsPage />} />
                   <Route path=":org/:project" element={<ProjectOverview />} />
                   <Route path=":org/:project/cases" element={<CasesPage />} />

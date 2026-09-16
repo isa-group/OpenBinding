@@ -3,26 +3,15 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
   Compass,
-  Cpu,
-  HelpCircle,
   Layers,
   RefreshCw,
-  RotateCcw,
-  Scale,
   Sparkles,
-  TrendingDown,
-  TrendingUp,
-  Zap,
 } from 'lucide-react';
 import {
   apiClient,
   type AdaptationObservationItem,
-  type EngineRoutingMetricSnapshot,
   type EngineRoutingMetricsResponse,
-  type EngineRoutingRecalibrateResponse,
 } from '../../api/client';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -37,7 +26,6 @@ export function AdminAutoRouter() {
   const [selectedEngineFilter, setSelectedEngineFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [recalibrating, setRecalibrating] = useState(false);
-  const [recalibrateResult, setRecalibrateResult] = useState<EngineRoutingRecalibrateResponse | null>(null);
   const [expandedObsId, setExpandedObsId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -85,7 +73,6 @@ export function AdminAutoRouter() {
     setNotice(null);
     try {
       const res = await apiClient.adminRecalibrateEngineRouting();
-      setRecalibrateResult(res);
       setNotice(
         `Recalibration complete: ${res.observationsProcessed} observation(s) processed. Calibrated engines: ${
           res.calibratedEngines.length > 0 ? res.calibratedEngines.join(', ') : 'None'
@@ -409,9 +396,9 @@ export function AdminAutoRouter() {
                           </td>
                           <td style={{ padding: '0.6rem 0.5rem' }}>
                             <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                              S={typeof wf.S === 'number' ? wf.S.toFixed(1) : wf.S ?? '—'}, D_c=
-                              {typeof wf.D_constr === 'number' ? wf.D_constr.toFixed(2) : wf.D_constr ?? '—'}, Tasks=
-                              {wf.N_tasks ?? '—'}
+                              S={typeof wf.S === 'number' ? wf.S.toFixed(1) : wf.S == null ? '—' : String(wf.S)}, D_c=
+                              {typeof wf.D_constr === 'number' ? wf.D_constr.toFixed(2) : wf.D_constr == null ? '—' : String(wf.D_constr)}, Tasks=
+                              {wf.N_tasks == null ? '—' : String(wf.N_tasks)}
                             </span>
                           </td>
                           <td style={{ padding: '0.6rem 0.5rem' }}>

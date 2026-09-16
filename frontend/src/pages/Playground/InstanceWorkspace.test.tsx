@@ -447,7 +447,7 @@ describe('BIM Instance Workspace', () => {
   });
 
   it('authors RoutingOverlay and the complete Placement topology without expert JSON', async () => {
-    localStorage.setItem('bim-v1-draft', JSON.stringify({
+    localStorage.setItem(`bim-v1-draft:anonymous:${window.location.pathname}::`, JSON.stringify({
       'instance.json': JSON.stringify({
         apiVersion: 'bim/v1',
         kind: 'Instance',
@@ -525,7 +525,7 @@ describe('BIM Instance Workspace', () => {
   }, 15000);
 
   it('creates schema-valid expression AST and keeps an invalid AST draft out of the package', async () => {
-    localStorage.setItem('bim-v1-draft', JSON.stringify({
+    localStorage.setItem(`bim-v1-draft:anonymous:${window.location.pathname}::`, JSON.stringify({
       'instance.json': JSON.stringify({
         apiVersion: 'bim/v1',
         kind: 'Instance',

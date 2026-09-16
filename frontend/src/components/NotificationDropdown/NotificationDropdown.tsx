@@ -158,8 +158,8 @@ export function NotificationDropdown() {
         onClick={toggleOpen}
         aria-label={
           unreadCount > 0
-            ? `${unreadCount} notificaciones no leídas`
-            : 'Notificaciones'
+            ? `${unreadCount} unread notifications`
+            : 'Notifications'
         }
         aria-expanded={isOpen}
         aria-haspopup="dialog"
@@ -181,13 +181,13 @@ export function NotificationDropdown() {
         <div
           className={`notification-panel ${isEnlarged ? 'is-enlarged' : ''}`}
           role="dialog"
-          aria-label="Panel de notificaciones"
+          aria-label="Notifications panel"
         >
           <header className="notification-panel-header">
             <div className="notification-header-title">
-              <h3>Notificaciones</h3>
+              <h3>Notifications</h3>
               {unreadCount > 0 && (
-                <span className="notification-count-pill">{unreadCount} nuevas</span>
+                <span className="notification-count-pill">{unreadCount} new</span>
               )}
             </div>
 
@@ -198,11 +198,11 @@ export function NotificationDropdown() {
                   className="notification-action-btn"
                   onClick={() => void markAllRead()}
                   disabled={markingAll}
-                  title="Marcar todas como leídas"
-                  aria-label="Marcar todas como leídas"
+                  title="Mark all as read"
+                  aria-label="Mark all as read"
                 >
                   <CheckCheck aria-hidden="true" />
-                  <span>Leídas</span>
+                  <span>Read</span>
                 </button>
               )}
 
@@ -210,15 +210,15 @@ export function NotificationDropdown() {
                 type="button"
                 className="notification-action-btn notification-icon-btn"
                 onClick={handleEnlargeToggle}
-                title={isEnlarged ? 'Reducir tamaño' : 'Agrandar para ver todas'}
-                aria-label={isEnlarged ? 'Reducir tamaño' : 'Agrandar para ver todas'}
+                title={isEnlarged ? 'Reduce size' : 'Enlarge to view all'}
+                aria-label={isEnlarged ? 'Reduce size' : 'Enlarge to view all'}
               >
                 {isEnlarged ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
               </button>
             </div>
           </header>
 
-          <div className="notification-tabs" role="tablist" aria-label="Filtro de notificaciones">
+          <div className="notification-tabs" role="tablist" aria-label="Notification filter">
             <button
               type="button"
               role="tab"
@@ -226,7 +226,7 @@ export function NotificationDropdown() {
               className={`notification-tab ${activeTab === 'unread' ? 'is-active' : ''}`}
               onClick={() => setActiveTab('unread')}
             >
-              No leídos ({unreadCount})
+              Unread ({unreadCount})
             </button>
             <button
               type="button"
@@ -235,11 +235,11 @@ export function NotificationDropdown() {
               className={`notification-tab ${activeTab === 'all' ? 'is-active' : ''}`}
               onClick={() => setActiveTab('all')}
             >
-              Todos ({notifications.length})
+              All ({notifications.length})
             </button>
           </div>
 
-          <div className="notification-panel-list" tabIndex={0} role="region" aria-label="Lista de notificaciones">
+          <div className="notification-panel-list" tabIndex={0} role="region" aria-label="Notification list">
             {displayedList.length > 0 ? (
               displayedList.map((item) => {
                 const isUnread = !item.read_at;
@@ -252,8 +252,8 @@ export function NotificationDropdown() {
                     disabled={busyItem === item.id}
                     aria-label={
                       isUnread
-                        ? `Marcar como leído: ${item.subject}`
-                        : `${item.subject}, leído`
+                        ? `Mark as read: ${item.subject}`
+                        : `${item.subject}, read`
                     }
                   >
                     {isUnread && <span className="notification-unread-dot" aria-hidden="true" />}
@@ -271,35 +271,35 @@ export function NotificationDropdown() {
               <div className="notification-empty">
                 {activeTab === 'unread' ? (
                   <>
-                    <p>No tienes notificaciones no leídas.</p>
+                    <p>You have no unread notifications.</p>
                     {notifications.length > 0 && (
                       <button
                         type="button"
                         className="notification-empty-btn"
                         onClick={() => setActiveTab('all')}
                       >
-                        Ver las {notifications.length} notificaciones de los últimos 7 días
+                        View the {notifications.length} notifications from the last 7 days
                       </button>
                     )}
                   </>
                 ) : (
-                  <p>No hay notificaciones en los últimos 7 días.</p>
+                  <p>No notifications in the last 7 days.</p>
                 )}
               </div>
             )}
           </div>
 
           <footer className="notification-panel-footer">
-            <span className="notification-retention-badge" title="Las notificaciones expiran automáticamente tras 7 días">
+            <span className="notification-retention-badge" title="Notifications expire automatically after 7 days">
               <Clock aria-hidden="true" />
-              <span>Vida: 7 días</span>
+              <span>Lifetime: 7 days</span>
             </span>
             <Link
               to="/app/account?tab=services"
               className="notification-account-link"
               onClick={() => setIsOpen(false)}
             >
-              <span>Gestionar en cuenta</span>
+              <span>Manage in account</span>
               <ExternalLink aria-hidden="true" />
             </Link>
           </footer>

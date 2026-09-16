@@ -59,7 +59,7 @@ describe('Universidad de Sevilla institutional branding', () => {
     render(<MemoryRouter><Navigation /></MemoryRouter>);
 
     const brandLink = screen.getByRole('link', { name: /OpenBinding home/i });
-    const usHeaderSpan = screen.getByTitle('Cuenta institucional · Universidad de Sevilla');
+    const usHeaderSpan = screen.getByTitle('Institutional account · Universidad de Sevilla');
     const usImg = screen.getByRole('img', { name: 'Universidad de Sevilla' });
 
     expect(brandLink).toContainElement(usHeaderSpan);

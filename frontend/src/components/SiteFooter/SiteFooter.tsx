@@ -7,7 +7,7 @@ const columns = [
     title: 'Platform',
     links: [
       { label: 'Explore', to: '/explore' },
-      { label: 'Workbench', to: '/playground' },
+      { label: 'Workbench', to: '/workbench' },
       { label: 'Engines', to: '/engines' },
       { label: 'Pricing', to: '/pricing' },
     ],
@@ -62,7 +62,7 @@ export function SiteFooter() {
             <a href="https://score.us.es" target="_blank" rel="noreferrer">SCORE Lab</a>
             <a href="https://www.isa.us.es/3.0/" target="_blank" rel="noreferrer">ISA Group</a>
             <a href="https://www.us.es" target="_blank" rel="noreferrer">Universidad de Sevilla</a>
-            <a href="https://github.com/isa-group/OpenBinding" target="_blank" rel="noreferrer">Source</a>
+            <a href="https://github.com/isa-group/OpenBinding" target="_blank" rel="noreferrer">GitHub Source</a>
           </div>
         </div>
       </div>

@@ -41,4 +41,9 @@ describe('Navigation dropdowns', () => {
     render(<MemoryRouter><Navigation /></MemoryRouter>);
     expect(screen.getAllByText('About BIM').length).toBeGreaterThan(0);
   });
+
+  it('points BIM Workbench to its public page', () => {
+    render(<MemoryRouter><Navigation /></MemoryRouter>);
+    expect(screen.getByRole('link', { name: 'BIM Workbench' })).toHaveAttribute('href', '/workbench');
+  });
 });

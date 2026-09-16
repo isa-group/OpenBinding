@@ -268,6 +268,8 @@ describe('InspectionPages test suite', () => {
       // Switch to Revision 1
       fireEvent.click(screen.getByText('Revision r1'));
       expect(screen.getByText('Revision r1 Document')).toBeInTheDocument();
+      expect(api.caseRevisions).toHaveBeenCalledTimes(1);
+      expect(api.case).toHaveBeenCalledTimes(1);
     });
 
     it('updates case metadata and creates a new revision', async () => {

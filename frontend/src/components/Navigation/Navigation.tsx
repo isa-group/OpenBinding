@@ -18,7 +18,7 @@ const navMenus = [
   {
     label: 'About BIM',
     links: [
-      { to: '/playground', label: 'BIM Workbench', description: 'Author, validate and solve' },
+      { to: '/workbench', label: 'BIM Workbench', description: 'Author, validate and solve' },
       { to: '/profiles', label: 'Profiles & dialects', description: 'Language extension points' },
       { to: '/schemas', label: 'Specification', description: 'BIM v1 contracts and schemas' },
     ],
@@ -81,7 +81,7 @@ export function Navigation() {
             {isResearch && (
               <span
                 className="institution-header-mark"
-                title="Cuenta institucional · Universidad de Sevilla"
+                title="Institutional account · Universidad de Sevilla"
               >
                 <img src="/brands/us-fama.png" alt="Universidad de Sevilla" />
               </span>
@@ -175,7 +175,7 @@ export function Navigation() {
               <a href={`${config.apiBaseUrl}/docs`} target="_blank" rel="noreferrer">API reference <ExternalLink aria-hidden="true" /></a>
               {user ? (
                 <>
-                  {isResearch && <a className="mobile-institution-mark" href="https://www.us.es" target="_blank" rel="noreferrer"><img src="/brands/universidad-sevilla.svg" alt="Cuenta institucional · Universidad de Sevilla" /></a>}
+                  {isResearch && <a className="mobile-institution-mark" href="https://www.us.es" target="_blank" rel="noreferrer"><img src="/brands/universidad-sevilla.svg" alt="Institutional account · Universidad de Sevilla" /></a>}
                   <Link to="/app" viewTransition onClick={closeMobileMenu}>Open platform</Link>
                   <Link to="/app/account" viewTransition onClick={closeMobileMenu}>{user.username} · {user.plan}</Link>
                   {isAdmin && <Link to="/app/admin" viewTransition onClick={closeMobileMenu}>Admin</Link>}

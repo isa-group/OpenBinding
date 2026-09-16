@@ -1,3 +1,4 @@
+import type { ArtifactUse } from './library';
 import { apiClient } from './client';
 
 export type Visibility = 'private' | 'public';
@@ -111,7 +112,7 @@ export interface CollectionRevision {
   created_at: string;
 }
 
-export interface Artifact {
+export interface StoredBlob {
   id: string;
   organization_id: string;
   project_id: string;
@@ -124,6 +125,10 @@ export interface Artifact {
 }
 
 export interface Report {
+  artifact_id: string;
+  version_id: string | null;
+  draft_id: string | null;
+  draft_revision: number | null;
   id: string;
   project_id: string;
   study_run_id: string | null;
@@ -136,6 +141,8 @@ export interface Report {
 }
 
 export interface Publication {
+  version_id: string;
+  withdrawn: boolean;
   id: string;
   project_id: string;
   report_id: string;
@@ -145,13 +152,17 @@ export interface Publication {
 }
 
 export interface Study {
+  archived: boolean;
   id: string;
+  definition_version_id: string;
+  definition_artifact_id: string;
   project_id: string;
   slug: string;
   name: string;
   description: string;
   definition: {
     case_revision_ids: string[];
+    collection_version_id?: string;
     engines: Array<Record<string, string>>;
     parameter_sets: Array<Record<string, unknown>>;
     seeds: number[];
@@ -163,6 +174,7 @@ export interface Study {
 
 export interface StudyRun {
   id: string;
+  definition_version_id: string;
   study_id: string;
   run_number: number;
   state: RunState;
@@ -379,10 +391,10 @@ export const platformApi = {
       `${root(org, project)}/cases/${encodeURIComponent(bindingCase)}/revisions`,
       { method: 'POST', body: JSON.stringify({ document, source_snapshot_id: source_snapshot_id ?? null }) },
     ),
-  createCaseRevision: (org: string, project: string, bindingCase: string, document: Record<string, unknown>, source_snapshot_id?: string | null) =>
+  createCaseRevision: (org: string, project: string, bindingCase: string, document: Record<string, unknown>, source_snapshot_id?: string | null, resources: ArtifactUse[] = []) =>
     apiClient.request<CaseRevision>(
       `${root(org, project)}/cases/${encodeURIComponent(bindingCase)}/revisions`,
-      { method: 'POST', body: JSON.stringify({ document, source_snapshot_id: source_snapshot_id ?? null }) },
+      { method: 'POST', body: JSON.stringify({ document, source_snapshot_id: source_snapshot_id ?? null, resources }) },
     ),
   resources: (org: string, project: string) =>
     apiClient.request<ProjectResource[]>(`${root(org, project)}/resources`),
@@ -423,13 +435,13 @@ export const platformApi = {
     apiClient.request<CollectionRevision>(`${root(org, project)}/collections/${encodeURIComponent(collection)}/revisions`, {
       method: 'POST', body: JSON.stringify({ items }),
     }),
-  studies: (org: string, project: string) =>
-    apiClient.request<Study[]>(`${root(org, project)}/studies`),
-  createStudy: (org: string, project: string, value: Pick<Study, 'slug' | 'name' | 'description' | 'definition'>) =>
+  studies: (org: string, project: string, includeArchived = false) =>
+    apiClient.request<Study[]>(`${root(org, project)}/studies?include_archived=${includeArchived}`),
+  createStudy: (org: string, project: string, value: Pick<Study, 'slug' | 'name' | 'description'> & ({ definition: Study['definition'] } | { definition_version_id: string })) =>
     apiClient.request<Study>(`${root(org, project)}/studies`, {
       method: 'POST', body: JSON.stringify(value),
     }),
-  updateStudy: (org: string, project: string, study: string, value: { name?: string; description?: string }) =>
+  updateStudy: (org: string, project: string, study: string, value: { name?: string; description?: string; definition_version_id?: string; archived?: boolean }) =>
     apiClient.request<Study>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, {
       method: 'PATCH', body: JSON.stringify(value),
     }),
@@ -441,7 +453,7 @@ export const platformApi = {
     apiClient.request<Report>(`${root(org, project)}/reports`, {
       method: 'POST', body: JSON.stringify(value),
     }),
-  updateReport: (org: string, project: string, report: string, value: { title?: string; document?: Record<string, unknown> }) =>
+  updateReport: (org: string, project: string, report: string, value: { title?: string; document?: Record<string, unknown>; draft_revision?: number }) =>
     apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}`, {
       method: 'PATCH', body: JSON.stringify(value),
     }),
@@ -449,30 +461,32 @@ export const platformApi = {
     apiClient.request<void>(`${root(org, project)}/reports/${encodeURIComponent(report)}`, { method: 'DELETE' }),
   report: (org: string, project: string, reportSlug: string) =>
     apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(reportSlug)}`),
+  createReportDraft: (org: string, project: string, report: string) =>
+    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}/drafts`, { method: 'POST' }),
   freezeReport: (org: string, project: string, report: string) =>
     apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}/freeze`, { method: 'POST' }),
   publications: (org: string, project: string) =>
     apiClient.request<Publication[]>(`${root(org, project)}/publications`),
-  publishReport: (org: string, project: string, value: { report_id: string; slug: string; citation: Record<string, unknown> }) =>
+  publishReport: (org: string, project: string, value: { report_id: string; version_id?: string; slug: string; citation: Record<string, unknown> }) =>
     apiClient.request<Publication>(`${root(org, project)}/publications`, {
       method: 'POST', body: JSON.stringify(value),
     }),
   deletePublication: (org: string, project: string, publication: string) =>
     apiClient.request<void>(`${root(org, project)}/publications/${encodeURIComponent(publication)}`, { method: 'DELETE' }),
   artifacts: (org: string, project: string) =>
-    apiClient.request<Artifact[]>(`${root(org, project)}/artifacts`),
+    apiClient.request<StoredBlob[]>(`${root(org, project)}/blobs`),
   uploadArtifact: (org: string, project: string, file: File, makePublic: boolean) =>
-    apiClient.request<Artifact>(`${root(org, project)}/artifacts?public=${makePublic}`, {
+    apiClient.request<StoredBlob>(`${root(org, project)}/blobs?public=${makePublic}`, {
       method: 'POST',
       headers: { 'Content-Type': file.type || 'application/octet-stream' },
       body: file,
     }),
   downloadArtifact: (org: string, project: string, digest: string) =>
-    apiClient.requestBinary(`${root(org, project)}/artifacts/${encodeURIComponent(digest)}`),
+    apiClient.requestBinary(`${root(org, project)}/blobs/${encodeURIComponent(digest)}`),
   deleteArtifact: (org: string, project: string, digest: string) =>
-    apiClient.request<void>(`${root(org, project)}/artifacts/${encodeURIComponent(digest)}`, { method: 'DELETE' }),
-  projectJobs: (org: string, project: string) =>
-    apiClient.request<Job[]>(`${root(org, project)}/jobs`),
+    apiClient.request<void>(`${root(org, project)}/blobs/${encodeURIComponent(digest)}`, { method: 'DELETE' }),
+  projectJobs: (org: string, project: string, jobId?: string) =>
+    apiClient.request<Job[]>(`${root(org, project)}/jobs?${jobId ? `job_id=${encodeURIComponent(jobId)}` : 'include_results=false'}`),
   snapshot: (id: string) =>
     apiClient.request<Snapshot>(`/v1/snapshots/${encodeURIComponent(id)}`),
   snapshotArchive: (id: string) =>
@@ -499,9 +513,9 @@ export const platformApi = {
     apiClient.request<Analytics>(
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${run}/analytics`,
     ),
-  runStudy: (org: string, project: string, study: string) =>
+  runStudy: (org: string, project: string, study: string, version: string) =>
     apiClient.request<StudyRun>(
-      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs`,
+      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs?definition_version_id=${encodeURIComponent(version)}`,
       { method: 'POST' },
     ),
   cancelStudyRun: (org: string, project: string, study: string, run: string) =>

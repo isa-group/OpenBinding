@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -24,7 +24,7 @@ import './TraceChart.css';
 
 interface TracePoint {
   evalIndex: number | null;
-  elapsedMs: number;
+  elapsedMs: number | null;
   value: number;
   feasible: boolean;
 }
@@ -42,10 +42,11 @@ function normalizeTrace(rawTrace: unknown): TracePoint[] {
       : typeof e.objective_value === 'number'
         ? e.objective_value
         : null;
-    if (value === null) continue;
+    if (value === null || !Number.isFinite(value)) continue;
+    if (!(typeof e.eval_index === 'number' && Number.isFinite(e.eval_index) && e.eval_index >= 0) && !(typeof e.elapsed_ms === 'number' && Number.isFinite(e.elapsed_ms) && e.elapsed_ms >= 0)) continue;
     points.push({
-      evalIndex: typeof e.eval_index === 'number' ? e.eval_index : null,
-      elapsedMs: typeof e.elapsed_ms === 'number' ? e.elapsed_ms : 0,
+      evalIndex: typeof e.eval_index === 'number' && Number.isFinite(e.eval_index) && e.eval_index >= 0 ? e.eval_index : null,
+      elapsedMs: typeof e.elapsed_ms === 'number' && Number.isFinite(e.elapsed_ms) && e.elapsed_ms >= 0 ? e.elapsed_ms : null,
       value,
       feasible: e.feasible !== false,
     });
@@ -55,8 +56,28 @@ function normalizeTrace(rawTrace: unknown): TracePoint[] {
 
 export function TraceChart({ trace, engineId }: { trace: unknown; engineId?: string }) {
   const points = useMemo(() => normalizeTrace(trace), [trace]);
+  const hasTimeAxis = points.some(p => p.elapsedMs !== null);
   const hasEvalAxis = points.some((p) => p.evalIndex !== null);
   const [xMode, setXMode] = useState<XMode>(hasEvalAxis ? 'evaluations' : 'time');
+
+  const [cursor, setCursor] = useState<number | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [reduced, setReduced] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  useEffect(() => {
+    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const update = () => { setReduced(Boolean(media?.matches)); if (media?.matches) setPlaying(false); };
+    media?.addEventListener('change', update);
+    return () => media?.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
+    if (!playing || reduced || (cursor !== null && cursor >= points.length - 1)) return;
+    const timer = window.setInterval(() => setCursor(value => {
+      const next = (value ?? 0) + 1;
+      return Math.min(next, points.length - 1);
+    }), 500);
+    return () => window.clearInterval(timer);
+  }, [playing, reduced, points.length, cursor]);
+  const isPlaying = playing && !reduced && (cursor ?? 0) < points.length - 1;
 
   if (points.length === 0) {
     return (
@@ -67,15 +88,17 @@ export function TraceChart({ trace, engineId }: { trace: unknown; engineId?: str
     );
   }
 
-  const effectiveMode: XMode = xMode === 'evaluations' && hasEvalAxis ? 'evaluations' : 'time';
+  const effectiveMode: XMode = (xMode === 'evaluations' && hasEvalAxis) || !hasTimeAxis ? 'evaluations' : 'time';
   const data = points
+    .filter(p => effectiveMode === 'evaluations' ? p.evalIndex !== null : p.elapsedMs !== null)
     .map((p) => ({
-      x: effectiveMode === 'evaluations' ? p.evalIndex ?? 0 : Math.max(1, p.elapsedMs),
+      x: effectiveMode === 'evaluations' ? p.evalIndex ?? 0 : p.elapsedMs ?? 0,
       value: p.value,
       feasible: p.feasible,
     }))
     .sort((a, b) => a.x - b.x);
 
+  const activeIndex = Math.min(cursor ?? data.length - 1, data.length - 1);
   const feasibleCount = points.filter((p) => p.feasible).length;
   const lastValue = data[data.length - 1]?.value;
 
@@ -94,13 +117,14 @@ export function TraceChart({ trace, engineId }: { trace: unknown; engineId?: str
           <button
             className={`trace-mode-button ${effectiveMode === 'time' ? 'active' : ''}`}
             onClick={() => setXMode('time')}
+            disabled={!hasTimeAxis}
             title="X axis: wall-clock time (ms)"
           >
             Time
           </button>
         </div>
         <div className="trace-chart-meta">
-          <Badge variant="accent" size="sm">{points.length} improvements</Badge>
+          <Badge variant="accent" size="sm">{points.length} recorded events</Badge>
           {feasibleCount < points.length && (
             <Badge variant="warning" size="sm">{points.length - feasibleCount} infeasible</Badge>
           )}
@@ -110,18 +134,24 @@ export function TraceChart({ trace, engineId }: { trace: unknown; engineId?: str
         </div>
       </div>
 
+      <div className="trace-chart-toolbar">
+        <button disabled={reduced || points.length < 2} onClick={() => { if (isPlaying) setPlaying(false); else { setCursor(0); setPlaying(true); } }}>{isPlaying ? 'Pause replay' : 'Replay recorded events'}</button>
+        <label>Event <input aria-label="Trace event" type="range" min={0} max={data.length - 1} value={activeIndex} onChange={e => { setPlaying(false); setCursor(+e.target.value); }} /></label>
+        <output>Event {activeIndex + 1}/{data.length} · {data[activeIndex].x} {effectiveMode === 'time' ? 'ms' : 'evaluations'} · objective {data[activeIndex].value.toFixed(6)}</output>
+        {reduced && <small>Reduced motion: use the event slider.</small>}
+      </div>
       <div className="trace-chart-canvas">
         <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
+          <LineChart data={data.slice(0, activeIndex + 1)} margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
             <XAxis
               dataKey="x"
               type="number"
-              scale="log"
-              domain={['dataMin', 'dataMax']}
+              scale="linear"
+              domain={[data[0].x, data[data.length - 1].x || 1]}
               tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }}
               label={{
-                value: effectiveMode === 'evaluations' ? 'evaluations (log)' : 'wall time (ms, log)',
+                value: effectiveMode === 'evaluations' ? 'evaluations' : 'wall time (ms)',
                 position: 'insideBottom',
                 offset: -4,
                 fontSize: 11,
@@ -129,6 +159,7 @@ export function TraceChart({ trace, engineId }: { trace: unknown; engineId?: str
               }}
             />
             <YAxis
+              domain={[Math.min(...data.map(p => p.value)), Math.max(...data.map(p => p.value))]}
               tick={{ fontSize: 11, fill: 'var(--color-text-secondary)' }}
               tickFormatter={(v: number) => v.toFixed(3)}
               width={64}
@@ -175,9 +206,9 @@ export function TraceChart({ trace, engineId }: { trace: unknown; engineId?: str
       </div>
 
       <p className="trace-chart-footnote">
-        Engine-internal best-so-far objective (lower is better)
+        Recorded best-so-far objective (lower is better)
         {engineId ? ` reported by ${engineId}` : ''}. Amber dots mark best-so-far points that were
-        still infeasible; the returned solution is always re-evaluated canonically by the gateway.
+        still infeasible; solver results are re-evaluated canonically by the gateway; development archives identify their reference evaluator.
       </p>
     </div>
   );

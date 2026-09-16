@@ -144,7 +144,7 @@ describe('AppEngines (/app/engines authenticated dashboard)', () => {
 
     expect(await screen.findByRole('heading', { name: 'Engine Management' })).toBeInTheDocument();
     expect(screen.getByText('Real-time Telemetry & Solves')).toBeInTheDocument();
-    expect(screen.getByText('builtin-opt')).toBeInTheDocument();
+    expect(await screen.findByText('builtin-opt')).toBeInTheDocument();
     expect(screen.getByText('custom-solver')).toBeInTheDocument();
   });
 

@@ -51,7 +51,7 @@ describe('NotificationDropdown', () => {
 
     await waitFor(() => expect(api.listNotifications).toHaveBeenCalled());
 
-    const trigger = screen.getByRole('button', { name: 'Notificaciones' });
+    const trigger = screen.getByRole('button', { name: 'Notifications' });
     expect(trigger).toBeInTheDocument();
     expect(trigger.querySelector('.notification-badge')).toBeNull();
     expect(trigger.querySelector('.notification-icon.has-unread')).toBeNull();
@@ -66,7 +66,7 @@ describe('NotificationDropdown', () => {
       </MemoryRouter>
     );
 
-    const trigger = await screen.findByRole('button', { name: '1 notificaciones no leídas' });
+    const trigger = await screen.findByRole('button', { name: '1 unread notifications' });
     expect(trigger).toBeInTheDocument();
 
     const badge = trigger.querySelector('.notification-badge');
@@ -86,10 +86,10 @@ describe('NotificationDropdown', () => {
       </MemoryRouter>
     );
 
-    const trigger = await screen.findByRole('button', { name: '1 notificaciones no leídas' });
+    const trigger = await screen.findByRole('button', { name: '1 unread notifications' });
     fireEvent.click(trigger);
 
-    expect(screen.getByRole('dialog', { name: 'Panel de notificaciones' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Notifications panel' })).toBeInTheDocument();
     expect(screen.getByText('Job completed successfully')).toBeInTheDocument();
     // Default tab is unread, so mockReadNotification is not visible in unread list
     expect(screen.queryByText('Contract novation notice')).toBeNull();
@@ -104,13 +104,13 @@ describe('NotificationDropdown', () => {
       </MemoryRouter>
     );
 
-    const trigger = await screen.findByRole('button', { name: '1 notificaciones no leídas' });
+    const trigger = await screen.findByRole('button', { name: '1 unread notifications' });
     fireEvent.click(trigger);
 
-    const enlargeBtn = screen.getByRole('button', { name: 'Agrandar para ver todas' });
+    const enlargeBtn = screen.getByRole('button', { name: 'Enlarge to view all' });
     fireEvent.click(enlargeBtn);
 
-    const panel = screen.getByRole('dialog', { name: 'Panel de notificaciones' });
+    const panel = screen.getByRole('dialog', { name: 'Notifications panel' });
     expect(panel).toHaveClass('is-enlarged');
 
     // Both unread and read are visible
@@ -118,7 +118,7 @@ describe('NotificationDropdown', () => {
     expect(screen.getByText('Contract novation notice')).toBeInTheDocument();
 
     // The enlarge button switches to reduce
-    expect(screen.getByRole('button', { name: 'Reducir tamaño' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reduce size' })).toBeInTheDocument();
   });
 
   it('marks individual unread notification as read when clicked', async () => {
@@ -134,10 +134,10 @@ describe('NotificationDropdown', () => {
       </MemoryRouter>
     );
 
-    const trigger = await screen.findByRole('button', { name: '1 notificaciones no leídas' });
+    const trigger = await screen.findByRole('button', { name: '1 unread notifications' });
     fireEvent.click(trigger);
 
-    const notifItem = screen.getByRole('button', { name: /Marcar como leído: Job completed successfully/ });
+    const notifItem = screen.getByRole('button', { name: /Mark as read: Job completed successfully/ });
     fireEvent.click(notifItem);
 
     await waitFor(() => {
@@ -157,10 +157,10 @@ describe('NotificationDropdown', () => {
       </MemoryRouter>
     );
 
-    const trigger = await screen.findByRole('button', { name: '1 notificaciones no leídas' });
+    const trigger = await screen.findByRole('button', { name: '1 unread notifications' });
     fireEvent.click(trigger);
 
-    const markAllBtn = screen.getByRole('button', { name: 'Marcar todas como leídas' });
+    const markAllBtn = screen.getByRole('button', { name: 'Mark all as read' });
     fireEvent.click(markAllBtn);
 
     await waitFor(() => {
@@ -179,8 +179,8 @@ describe('NotificationDropdown', () => {
 
     await waitFor(() => expect(api.listNotifications).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Notificaciones' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
 
-    expect(screen.getByText('Vida: 7 días')).toBeInTheDocument();
+    expect(screen.getByText('Lifetime: 7 days')).toBeInTheDocument();
   });
 });

@@ -1,3 +1,4 @@
+import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysis';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -442,8 +443,8 @@ export function Account() {
             <div className="account-breadcrumb">
               <span className="account-kicker">System / Account</span>
               {isResearch && (
-                <span className="account-us-pill" title="Cuenta verificada por la Universidad de Sevilla">
-                  <img src="/brands/universidad-sevilla.svg" alt="US" />
+                <span className="account-us-pill" title="Account verified by Universidad de Sevilla">
+                  <img src="/brands/us-logo.png" alt="US" />
                   <span>Universidad de Sevilla</span>
                 </span>
               )}
@@ -700,7 +701,7 @@ export function Account() {
               {isResearch && (
                 <div className="account-us-institutional-card">
                   <div className="us-card-logo-wrap">
-                    <img src="/brands/universidad-sevilla.svg" alt="Universidad de Sevilla" />
+                    <img src="/brands/us-logo.png" alt="Universidad de Sevilla" />
                   </div>
                   <div className="us-card-info">
                     <div className="us-card-title">Universidad de Sevilla</div>
@@ -1338,6 +1339,7 @@ function SolutionPanel({ job, onDownload }: { job: JobStatus; onDownload: () => 
 
   return (
     <div className="account-solution-panel">
+      <BindingAnalysis result={job.result} jobId={job.id} />
       <header className="account-solution-head">
         <div className="account-solution-meta">
           {job.result?.termination && (
@@ -1411,7 +1413,7 @@ function SolutionPanel({ job, onDownload }: { job: JobStatus; onDownload: () => 
 
       {(job.result?.solutions?.length ?? 0) > 1 && (
         <p className="account-solution-subtext">
-          Showing the first of {job.result!.solutions!.length} evaluated solutions; additional Pareto variants are included in the downloaded document.
+          Showing the first of {job.result!.solutions!.length} evaluated solutions; all variants are available in the linked analysis above and downloaded document.
         </p>
       )}
     </div>

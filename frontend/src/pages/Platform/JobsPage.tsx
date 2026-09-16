@@ -1,8 +1,9 @@
+import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysis';
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 import { platformApi, type Job } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
-import { Terminal, Cpu, Clock, CheckCircle2, AlertTriangle, XCircle, RotateCcw, Ban, Sparkles, Copy, Check, CircleDashed } from 'lucide-react';
+import { Terminal, Cpu, Clock, CheckCircle2, AlertTriangle, XCircle, RotateCcw, Ban, Sparkles, Copy, Check, CircleDashed, Compass } from 'lucide-react';
 import { EntityDrawer } from '../../components/Inspection/EntityDrawer';
 import '../../components/Inspection/VisualEffects.css';
 import './JobsPage.css';
@@ -45,6 +46,17 @@ export function JobsPage() {
   useEffect(() => {
     void loadJobs();
   }, [loadJobs]);
+
+  const selectedId = selectedJob?.id;
+  useEffect(() => {
+    if (!selectedId || !org || !projectSlug) return;
+    let active = true;
+    platformApi.projectJobs(org, projectSlug, selectedId).then(rows => {
+      const detail = rows.find(row => row.id === selectedId);
+      if (active && detail) setSelectedJob(detail);
+    }).catch(err => { if (active) setError(err instanceof Error ? err.message : 'Failed to load job evidence.'); });
+    return () => { active = false; };
+  }, [selectedId, org, projectSlug]);
 
   const filteredJobs = jobs.filter((j) => {
     if (filter === 'all') return true;
@@ -150,6 +162,11 @@ export function JobsPage() {
                     <span className="job-card-title">
                       {getStatusIcon(job.status)}
                       {job.engine_id}
+                      {Boolean(job.provenance?.engineRouting) && (
+                        <span style={{ marginLeft: '0.35rem', fontSize: '0.7rem', padding: '0.1rem 0.35rem', borderRadius: '4px', backgroundColor: 'var(--color-primary-subtle, rgba(59,130,246,0.15))', color: 'var(--color-primary)' }}>
+                          AutoRouter
+                        </span>
+                      )}
                     </span>
                     <span className={`hash-badge glow-${statusClass}`}>
                       {job.status.toUpperCase()}
@@ -173,6 +190,11 @@ export function JobsPage() {
                 <div className="job-detail-title-group">
                   <h2>
                     {selectedJob.engine_id}
+                    {Boolean(selectedJob.provenance?.engineRouting) && (
+                      <span className="hash-badge" style={{ backgroundColor: 'var(--color-primary)', color: '#fff', marginLeft: '0.4rem' }}>
+                        AutoRouter
+                      </span>
+                    )}
                     <span className={`hash-badge glow-${selectedJob.status.toLowerCase()}`}>
                       {selectedJob.status.toUpperCase()}
                     </span>
@@ -241,6 +263,78 @@ export function JobsPage() {
                 </div>
               </div>
 
+              {/* AutoRouter Autonomic Decision Card (if routed via AutoRouter) */}
+              {Boolean(selectedJob.provenance?.engineRouting) && (
+                <div style={{ padding: '0.85rem', margin: '0.75rem 0', backgroundColor: 'var(--color-surface-subtle)', borderRadius: '6px', border: '1px solid var(--color-border)', borderLeft: '4px solid var(--color-primary)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Compass size={17} color="var(--color-primary)" />
+                      <strong>AutoRouter Autonomic Decision (MAPE-K):</strong>
+                      <span className="hash-badge" style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}>
+                        {String((selectedJob.provenance?.engineRouting as Record<string, unknown> | undefined)?.selectedEngine || '')} · {String((selectedJob.provenance?.engineRouting as Record<string, unknown> | undefined)?.selectedMode || '')}
+                      </span>
+                      {Boolean((selectedJob.provenance?.engineRouting as Record<string, unknown> | undefined)?.fallbackActivated) && (
+                        <span className="hash-badge" style={{ backgroundColor: 'var(--color-warning)', color: '#000' }}>
+                          Fallback Activated
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+                      <span>Utility: <strong>{Number((selectedJob.provenance?.engineRouting as Record<string, unknown> | undefined)?.utilityScore ?? 0).toFixed(3)}</strong></span>
+                      <span>Cost: <strong>{String((selectedJob.provenance?.engineRouting as Record<string, unknown> | undefined)?.creditsCost ?? 1)} CU</strong></span>
+                    </div>
+                  </div>
+                  <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.85rem', color: 'var(--color-muted)' }}>
+                    {String((selectedJob.provenance?.engineRouting as Record<string, unknown> | undefined)?.adaptationReason || '')}
+                  </p>
+
+                  {/* Extended Admin Provenance */}
+                  {Boolean(selectedJob.provenance?.engineRoutingAdmin) && (
+                    <details style={{ marginTop: '0.65rem', borderTop: '1px solid var(--color-border)', paddingTop: '0.45rem' }}>
+                      <summary style={{ cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+                        MAPE-K Autonomic Diagnostic Telemetry (Admin)
+                      </summary>
+                      <div style={{ marginTop: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.8rem' }}>
+                        <div>
+                          <strong>Adaptation Loop ID:</strong> <code>{String((selectedJob.provenance?.engineRoutingAdmin as Record<string, unknown> | undefined)?.adaptationLoopId || '')}</code>
+                        </div>
+                        {Boolean((selectedJob.provenance?.engineRoutingAdmin as Record<string, unknown> | undefined)?.workloadFeatures) && (
+                          <div>
+                            <strong>Workload Features:</strong>{' '}
+                            <code>{JSON.stringify((selectedJob.provenance?.engineRoutingAdmin as Record<string, unknown> | undefined)?.workloadFeatures)}</code>
+                          </div>
+                        )}
+                        {Array.isArray((selectedJob.provenance?.engineRoutingAdmin as Record<string, unknown> | undefined)?.candidateEvaluations) && (
+                          <div>
+                            <strong>Candidate Solver Evaluations:</strong>
+                            <table style={{ width: '100%', marginTop: '0.25rem', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left', color: 'var(--color-muted)' }}>
+                                  <th style={{ padding: '0.25rem' }}>Engine</th>
+                                  <th style={{ padding: '0.25rem' }}>Admissible</th>
+                                  <th style={{ padding: '0.25rem' }}>Utility</th>
+                                  <th style={{ padding: '0.25rem' }}>Rejection Reason</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(((selectedJob.provenance?.engineRoutingAdmin as Record<string, unknown> | undefined)?.candidateEvaluations as Array<Record<string, unknown>>) || []).map((cand, cIdx) => (
+                                  <tr key={cIdx} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
+                                    <td style={{ padding: '0.25rem' }}><code>{String(cand.engine)}</code></td>
+                                    <td style={{ padding: '0.25rem' }}>{cand.admissible ? '✅ Yes' : '❌ No'}</td>
+                                    <td style={{ padding: '0.25rem' }}>{cand.utility != null ? Number(cand.utility).toFixed(3) : '—'}</td>
+                                    <td style={{ padding: '0.25rem', color: 'var(--color-error)' }}>{String(cand.rejectionReason || '—')}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              )}
+
               {/* Terminal Logs View */}
               <div className="job-console-section">
                 <div className="terminal-header">
@@ -268,6 +362,7 @@ export function JobsPage() {
               </div>
 
               {/* Solutions Preview if Optimal/Feasible */}
+              <BindingAnalysis key={selectedJob.id} result={selectedJob.result} jobId={selectedJob.id} />
               {selectedJob.result?.solutions && selectedJob.result.solutions.length > 0 && (
                 <div className="job-solutions-preview">
                   <h3>Optimal Candidate Solution #1</h3>
@@ -294,6 +389,26 @@ export function JobsPage() {
           }}
           metadata={[
             { label: 'Engine ID', value: drawerJob.engine_id },
+            ...(drawerJob.provenance?.engineRouting
+              ? [
+                  {
+                    label: 'AutoRouter Selection',
+                    value: `${String((drawerJob.provenance.engineRouting as Record<string, unknown>).selectedEngine || '')} (${String((drawerJob.provenance.engineRouting as Record<string, unknown>).selectedMode || '')})`,
+                  },
+                  {
+                    label: 'AutoRouter Utility',
+                    value: String((drawerJob.provenance.engineRouting as Record<string, unknown>).utilityScore ?? 'N/A'),
+                  },
+                  {
+                    label: 'Capacity Cost',
+                    value: `${String((drawerJob.provenance.engineRouting as Record<string, unknown>).creditsCost ?? 1)} CU`,
+                  },
+                  {
+                    label: 'Adaptation Reason',
+                    value: String((drawerJob.provenance.engineRouting as Record<string, unknown>).adaptationReason || ''),
+                  },
+                ]
+              : []),
             { label: 'Status', value: drawerJob.status },
             { label: 'Termination', value: drawerJob.termination || 'N/A' },
             { label: 'Created At', value: new Date(drawerJob.created_at).toLocaleString() },

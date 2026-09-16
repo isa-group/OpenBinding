@@ -976,3 +976,7 @@
   .workspace-tabs button::after,
   .resource-examples-link svg { transition-duration: 0.01ms; }
 }
+
+/* Canonical objective JSON can contain long resource-qualified keys. */
+.workspace-decision .decision-heading > span { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.workspace-decision pre { max-width: 100%; overflow-x: auto; }

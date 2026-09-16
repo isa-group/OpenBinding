@@ -1,13 +1,14 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, CSSProperties } from 'react';
 import './Card.css';
 
 interface CardProps {
   children: ReactNode;
   className?: string;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  style?: CSSProperties;
 }
 
-export function Card({ children, className = '', padding = 'md' }: CardProps) {
+export function Card({ children, className = '', padding = 'md', style }: CardProps) {
   const classes = [
     'card',
     `card-padding-${padding}`,
@@ -15,7 +16,7 @@ export function Card({ children, className = '', padding = 'md' }: CardProps) {
   ].filter(Boolean).join(' ');
 
   return (
-    <div className={classes}>
+    <div className={classes} style={style}>
       {children}
     </div>
   );

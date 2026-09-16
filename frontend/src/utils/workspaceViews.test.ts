@@ -17,3 +17,12 @@ describe('workspace representations', () => {
     ]);
   });
 });
+
+it('compares JSON structurally with escaped paths and ordered array entries', async () => {
+  const { jsonChanges } = await import('./workspaceViews');
+  expect(jsonChanges({ 'a/b': [1, 2], same: true }, { same: true, 'a/b': [1, 3, 4] })).toEqual([
+    { path: '/a~1b/1', kind: 'changed', before: 2, after: 3 },
+    { path: '/a~1b/2', kind: 'added', before: undefined, after: 4 },
+  ]);
+  expect(jsonChanges({}, [])).toEqual([{ path: '/', kind: 'changed', before: {}, after: [] }]);
+});

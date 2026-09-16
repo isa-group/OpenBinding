@@ -1,14 +1,6 @@
 import { useState } from 'react';
 import {
-  AlertTriangle,
-  CheckCircle2,
-  Cpu,
   FileCode,
-  FileText,
-  HelpCircle,
-  Play,
-  RotateCcw,
-  Sliders,
   Sparkles,
   Wand2,
   X,
@@ -16,7 +8,6 @@ import {
 import {
   apiClient,
   type GenerateInstanceParams,
-  type InstanceGeneratedResponse,
 } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -34,6 +25,8 @@ export function InstanceGeneratorModal({
   onClose,
   onLoadGeneratedFiles,
 }: InstanceGeneratorModalProps) {
+  const iterationsPerLoop = 5;
+  const qosProperties = 5;
   const [activeTab, setActiveTab] = useState<'synthesize' | 'legacy'>('synthesize');
 
   // Synthesize Form State
@@ -45,8 +38,6 @@ export function InstanceGeneratorModal({
   const [branches, setBranches] = useState(30);
   const [parallel, setParallel] = useState(20);
   const [maxNesting, setMaxNesting] = useState(3);
-  const [iterationsPerLoop, setIterationsPerLoop] = useState(5);
-  const [qosProperties, setQosProperties] = useState(5);
   const [constraints, setConstraints] = useState(1);
   const [tension, setTension] = useState(0.7);
   const [guaranteeFeasibility, setGuaranteeFeasibility] = useState(true);

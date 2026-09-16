@@ -136,7 +136,7 @@ describe('AdminErrorDiagnostics Component', () => {
     });
 
     // Check KPI counts
-    expect(screen.getByText('15')).toBeInTheDocument(); // Quota
+    expect(await screen.findByText('15')).toBeInTheDocument(); // Quota
     expect(screen.getByText('8')).toBeInTheDocument();  // Concurrency
     expect(screen.getByText('12')).toBeInTheDocument(); // Solver
     expect(screen.getByText('7')).toBeInTheDocument();  // System
