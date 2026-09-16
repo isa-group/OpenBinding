@@ -1,0 +1,21 @@
+{
+  "name": "meta-router-csp-engine",
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.12.4",
+  "description": "Dedicated MiniZinc Meta-Router Engine for 1-Task Self-Adaptive Selection",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "test": "tsc && node --test dist/*.test.js"
+  },
+  "dependencies": {
+    "fastify": "^4.26.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.11.19",
+    "ts-node": "^10.9.2"
+  }
+}
