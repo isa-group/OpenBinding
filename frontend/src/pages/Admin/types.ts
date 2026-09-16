@@ -2,7 +2,7 @@ export type TimeHorizon = 'realtime' | 'day' | 'week' | 'month' | 'historic';
 
 export type DashboardCategory = 'builtin' | 'public_federated' | 'private_federated' | 'unified';
 
-export type AdminViewMode = 'all' | 'dashboards' | 'accounts' | 'engines' | 'operations' | 'diagnostics';
+export type AdminViewMode = 'all' | 'dashboards' | 'accounts' | 'engines' | 'autorouter' | 'operations' | 'diagnostics';
 
 export interface UserEngineUsage {
   engineId: string;

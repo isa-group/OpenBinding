@@ -4,6 +4,7 @@ import {
   Activity,
   AlertTriangle,
   ArrowUpRight,
+  Compass,
   Layers,
   Lock,
   Radio,
@@ -33,6 +34,7 @@ import { Alert } from '../../components/ui/Alert';
 import { AdminOperations } from './AdminOperations';
 import { AdminUsageDashboard } from './AdminUsageDashboard';
 import { AdminErrorDiagnostics } from './AdminErrorDiagnostics';
+import { AdminAutoRouter } from './AdminAutoRouter';
 import { useAdminTelemetry } from './useAdminTelemetry';
 import type { AdminViewMode } from './types';
 import './Admin.css';
@@ -378,6 +380,14 @@ export function Admin() {
           </button>
           <button
             type="button"
+            className={`admin-view-btn ${viewMode === 'autorouter' ? 'is-active' : ''}`}
+            onClick={() => setViewMode('autorouter')}
+          >
+            <Compass aria-hidden="true" style={{ width: 14, height: 14 }} />
+            AutoRouter
+          </button>
+          <button
+            type="button"
             className={`admin-view-btn ${viewMode === 'operations' ? 'is-active' : ''}`}
             onClick={() => setViewMode('operations')}
           >
@@ -385,6 +395,11 @@ export function Admin() {
             Operations & Ledger
           </button>
         </nav>
+
+        {/* SECTION: AUTOROUTER MAPE-K MONITORING */}
+        {(viewMode === 'all' || viewMode === 'autorouter') && (
+          <AdminAutoRouter />
+        )}
 
         {/* SECTION 1: USAGE & SPEND DASHBOARDS */}
         {(viewMode === 'all' || viewMode === 'dashboards') && (
