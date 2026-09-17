@@ -43,14 +43,14 @@ class ResourceIdentity <<IR>> {
 }
 class ApplicationIR <<IR>> {
   tasks
-  metrics
-  requiredMetrics
-  taskRequiredMetrics
+  features
+  requiredFeatures
+  taskRequiredFeatures
   workflow
 }
 class CandidateCatalogIR <<IR>> {
   providers
-  metricBindings
+  featureBindings
   candidates
 }
 class Eligibility <<IR>> {

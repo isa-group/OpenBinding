@@ -113,7 +113,7 @@ async def test_case_composition_closes_exact_resources_without_copying_authority
     use, version = next((use, version) for use, version in rows if use.alias == 'cat-a')
     artifact = await db_session.get(Artifact, version.artifact_id)
     document = json.loads((await version_content(db_session, version))[0])
-    document['spec']['candidates']['c1']['metrics']['latency'] += 1
+    document['spec']['candidates']['c1']['features']['latency'] += 1
     draft = ArtifactDraft(artifact_id=artifact.id, payload=DraftContent(content=document).model_dump(), created_by_id=user.id)
     db_session.add(draft)
     await db_session.flush()

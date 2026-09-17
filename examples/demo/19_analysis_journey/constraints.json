@@ -7,12 +7,12 @@
   "spec": {
     "constraints": {
       "latency-sla": {
-        "assert": "metrics.latency <= 100",
+        "assert": "features.latency <= 100",
         "enforcement": "soft",
         "penalty": 1
       },
       "budget-cap": {
-        "assert": "metrics.cost <= 160",
+        "assert": "features.cost <= 160",
         "enforcement": "hard"
       }
     }

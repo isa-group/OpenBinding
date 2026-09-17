@@ -19,26 +19,26 @@ For example, these two assertions lower to the same IR:
 ```json
 {
   "op": "lte",
-  "left": {"path": ["metrics", "latency"]},
+  "left": {"path": ["features", "latency"]},
   "right": {"literal": 250}
 }
 ```
 
 ```cel
-metrics.latency <= 250
+features.latency <= 250
 ```
 
-A JSON path may be a dotted identifier such as `metrics.latency` or a
+A JSON path may be a dotted identifier such as `features.latency` (or legacy `metrics.latency`) or a
 non-empty segment array. Use the array whenever an id contains punctuation:
 
 ```json
-{"path": ["tasks", "checkout.payment", "metrics", "latency"]}
+{"path": ["tasks", "checkout.payment", "features", "latency"]}
 ```
 
 The equivalent CEL form uses constant string subscripts:
 
 ```cel
-tasks["checkout.payment"].metrics.latency
+tasks["checkout.payment"].features.latency
 ```
 
 Lowering always represents a path as

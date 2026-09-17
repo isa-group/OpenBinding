@@ -17,7 +17,7 @@
         "name": "Assemble final textbook access report"
       }
     },
-    "metrics": {
+    "features": {
       "latency_ms": {
         "unit": "ms",
         "direction": "minimize",

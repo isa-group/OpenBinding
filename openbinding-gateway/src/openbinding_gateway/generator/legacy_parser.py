@@ -29,7 +29,14 @@ class QoSPropertySpec:
 @dataclass
 class CandidateService:
     name: str
+    features: dict[str, float] = field(default_factory=dict)
     metrics: dict[str, float] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.metrics and not self.features:
+            self.features = dict(self.metrics)
+        elif self.features and not self.metrics:
+            self.metrics = dict(self.features)
 
 
 @dataclass
@@ -311,16 +318,16 @@ def parse_legacy_file(content_or_path: Union[str, bytes]) -> LegacyProblem:
                     m = re.match(r"([A-Za-z0-9_.-]+)\s*\((.*)\)", cline)
                     if m:
                         cname = m.group(1)
-                        raw_metrics = m.group(2)
-                        metrics: dict[str, float] = {}
-                        for item in raw_metrics.split(","):
+                        raw_features = m.group(2)
+                        features: dict[str, float] = {}
+                        for item in raw_features.split(","):
                             if ":" in item:
                                 k, v = item.split(":", 1)
                                 try:
-                                    metrics[k.strip()] = float(v.strip())
+                                    features[k.strip()] = float(v.strip())
                                 except ValueError:
                                     pass
-                        cands.append(CandidateService(name=cname, metrics=metrics))
+                        cands.append(CandidateService(name=cname, features=features))
                 candidates[task_name] = cands
                 i += 2
                 continue

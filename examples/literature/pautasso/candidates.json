@@ -8,7 +8,7 @@
     "candidates": {
       "c_shopA_create_order": {
         "provides": "service/t_create_order",
-        "metrics": {
+        "features": {
           "latency_ms": 105,
           "cost_usd": 0.0006,
           "availability": 0.997,
@@ -22,7 +22,7 @@
       },
       "c_shopB_create_order": {
         "provides": "service/t_create_order",
-        "metrics": {
+        "features": {
           "latency_ms": 130,
           "cost_usd": 0.0004,
           "availability": 0.999,
@@ -36,7 +36,7 @@
       },
       "c_shopA_add_item": {
         "provides": "service/t_add_item",
-        "metrics": {
+        "features": {
           "latency_ms": 135,
           "cost_usd": 0.0008,
           "availability": 0.997,
@@ -50,7 +50,7 @@
       },
       "c_shopB_add_item": {
         "provides": "service/t_add_item",
-        "metrics": {
+        "features": {
           "latency_ms": 160,
           "cost_usd": 0.0006,
           "availability": 0.999,
@@ -64,7 +64,7 @@
       },
       "c_shopA_remove_item": {
         "provides": "service/t_remove_item",
-        "metrics": {
+        "features": {
           "latency_ms": 85,
           "cost_usd": 0.0005,
           "availability": 0.997,
@@ -78,7 +78,7 @@
       },
       "c_shopB_remove_item": {
         "provides": "service/t_remove_item",
-        "metrics": {
+        "features": {
           "latency_ms": 100,
           "cost_usd": 0.0003,
           "availability": 0.999,
@@ -92,7 +92,7 @@
       },
       "c_shopA_get_amount": {
         "provides": "service/t_get_amount",
-        "metrics": {
+        "features": {
           "latency_ms": 55,
           "cost_usd": 0.00025,
           "availability": 0.998,
@@ -106,7 +106,7 @@
       },
       "c_shopB_get_amount": {
         "provides": "service/t_get_amount",
-        "metrics": {
+        "features": {
           "latency_ms": 75,
           "cost_usd": 0.00018,
           "availability": 0.999,
@@ -120,7 +120,7 @@
       },
       "c_shopA_checkout": {
         "provides": "service/t_checkout",
-        "metrics": {
+        "features": {
           "latency_ms": 150,
           "cost_usd": 0.0012,
           "availability": 0.996,
@@ -134,7 +134,7 @@
       },
       "c_shopB_checkout": {
         "provides": "service/t_checkout",
-        "metrics": {
+        "features": {
           "latency_ms": 185,
           "cost_usd": 0.001,
           "availability": 0.999,
@@ -148,7 +148,7 @@
       },
       "c_shopA_list_confirmed": {
         "provides": "service/t_list_confirmed",
-        "metrics": {
+        "features": {
           "latency_ms": 70,
           "cost_usd": 0.00025,
           "availability": 0.998,
@@ -162,7 +162,7 @@
       },
       "c_shopB_list_confirmed": {
         "provides": "service/t_list_confirmed",
-        "metrics": {
+        "features": {
           "latency_ms": 90,
           "cost_usd": 0.0002,
           "availability": 0.999,
@@ -176,7 +176,7 @@
       },
       "c_shopA_ship_order": {
         "provides": "service/t_ship_order",
-        "metrics": {
+        "features": {
           "latency_ms": 480,
           "cost_usd": 0.05,
           "availability": 0.995,
@@ -190,7 +190,7 @@
       },
       "c_shopB_ship_order": {
         "provides": "service/t_ship_order",
-        "metrics": {
+        "features": {
           "latency_ms": 520,
           "cost_usd": 0.045,
           "availability": 0.998,
@@ -204,7 +204,7 @@
       },
       "c_shopA_update_shipment": {
         "provides": "service/t_update_shipment",
-        "metrics": {
+        "features": {
           "latency_ms": 95,
           "cost_usd": 0.0006,
           "availability": 0.997,
@@ -218,7 +218,7 @@
       },
       "c_shopB_update_shipment": {
         "provides": "service/t_update_shipment",
-        "metrics": {
+        "features": {
           "latency_ms": 110,
           "cost_usd": 0.00045,
           "availability": 0.999,
@@ -232,7 +232,7 @@
       },
       "c_shopA_cancel_order": {
         "provides": "service/t_cancel_order",
-        "metrics": {
+        "features": {
           "latency_ms": 85,
           "cost_usd": 0.00035,
           "availability": 0.998,
@@ -246,7 +246,7 @@
       },
       "c_shopB_cancel_order": {
         "provides": "service/t_cancel_order",
-        "metrics": {
+        "features": {
           "latency_ms": 95,
           "cost_usd": 0.00025,
           "availability": 0.999,
@@ -260,7 +260,7 @@
       },
       "c_catalogA_request_quote": {
         "provides": "service/t_request_quote",
-        "metrics": {
+        "features": {
           "latency_ms": 120,
           "cost_usd": 0.002,
           "availability": 0.995,
@@ -274,7 +274,7 @@
       },
       "c_catalogB_request_quote": {
         "provides": "service/t_request_quote",
-        "metrics": {
+        "features": {
           "latency_ms": 210,
           "cost_usd": 0.0015,
           "availability": 0.999,
@@ -288,7 +288,7 @@
       },
       "c_catalogA_get_quote": {
         "provides": "service/t_get_quote",
-        "metrics": {
+        "features": {
           "latency_ms": 85,
           "cost_usd": 0.001,
           "availability": 0.995,
@@ -302,7 +302,7 @@
       },
       "c_catalogB_get_quote": {
         "provides": "service/t_get_quote",
-        "metrics": {
+        "features": {
           "latency_ms": 155,
           "cost_usd": 0.0007,
           "availability": 0.999,
@@ -316,7 +316,7 @@
       },
       "c_paymentA_charge": {
         "provides": "service/t_charge_payment",
-        "metrics": {
+        "features": {
           "latency_ms": 320,
           "cost_usd": 0.02,
           "availability": 0.997,
@@ -330,7 +330,7 @@
       },
       "c_paymentB_charge": {
         "provides": "service/t_charge_payment",
-        "metrics": {
+        "features": {
           "latency_ms": 380,
           "cost_usd": 0.017,
           "availability": 0.999,
@@ -344,7 +344,7 @@
       },
       "c_paymentA_refund": {
         "provides": "service/t_refund_payment",
-        "metrics": {
+        "features": {
           "latency_ms": 240,
           "cost_usd": 0.015,
           "availability": 0.997,
@@ -358,7 +358,7 @@
       },
       "c_paymentB_refund": {
         "provides": "service/t_refund_payment",
-        "metrics": {
+        "features": {
           "latency_ms": 290,
           "cost_usd": 0.013,
           "availability": 0.999,
@@ -379,7 +379,7 @@
       "p_payment_a": {},
       "p_payment_b": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "latency_ms": {
         "resource": "application",
         "id": "latency_ms"

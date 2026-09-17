@@ -14,7 +14,7 @@ class Task <<source>> {
 class Requirement <<source>> {
   type: string
 }
-class MetricDefinition <<source>> {
+class FeatureDefinition <<source>> {
   id: name
 }
 class CandidateCatalog <<source>> {
@@ -28,13 +28,13 @@ class Provider <<source>> {
 class Candidate <<source>> {
   id: name
   properties: scalar map
-  metrics: finite-number map
+  features: finite-number map
 }
 class Capability <<source>> {
   type: string
   properties: scalar map
 }
-class MetricBinding <<source>> {
+class FeatureBinding <<source>> {
   slot: name
 }
 class ResourceRef <<core>> {
@@ -47,20 +47,20 @@ class Eligibility <<IR>> {
 class Predicate <<source>>
 
 Application "1" *-- "1..*" Task
-Application "1" *-- "0..*" MetricDefinition
+Application "1" *-- "0..*" FeatureDefinition
 Task "0..1" *-- Requirement
 Requirement "0..1" --> Predicate
 
 CandidateCatalog "1" *-- "0..*" Provider
 CandidateCatalog "1" *-- "1..*" Candidate
-CandidateCatalog "1" *-- "0..*" MetricBinding
+CandidateCatalog "1" *-- "0..*" FeatureBinding
 Candidate "0..1" --> Provider : provider ref
 Candidate "1" *-- "1..*" Capability : provides
-MetricBinding "1" *-- "1" ResourceRef : Application metric
+FeatureBinding "1" *-- "1" ResourceRef : Application feature
 
 Task ..> Eligibility : requirement
 Candidate ..> Eligibility : capabilities + predicate
-MetricBinding ..> Eligibility : registers metric slots
+FeatureBinding ..> Eligibility : registers feature slots
 
 note bottom of Eligibility
   Materialized before search.

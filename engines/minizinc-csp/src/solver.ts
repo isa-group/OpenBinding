@@ -68,6 +68,7 @@ export class Solver {
       termination: complete ? 'OPTIMAL' : 'FEASIBLE',
       solutions: [{
         decision: { kind: 'binding', binding },
+        features: evaluation.features,
         metrics: evaluation.metrics,
         objectives: evaluation.objectives,
         penalties: evaluation.penalties,
@@ -110,6 +111,8 @@ export class Solver {
   private evaluate(problem: any, binding: Record<string, CandidateRef>): any {
     const spec = problem.spec;
     const application = spec.application;
+    const appFeatures = application.features || application.metrics || {};
+    const appReqFeatures = application.requiredFeatures || application.requiredMetrics || [];
     const candidate = (reference: CandidateRef): any => {
       const value = spec.candidates?.[reference.resource]?.candidates?.[reference.id];
       if (!value) throw new Error(`Unknown selected candidate '${reference.resource}:${reference.id}'`);
@@ -117,11 +120,14 @@ export class Solver {
     };
     const candidateMetric = (reference: CandidateRef, metricId: string): number => {
       const wrapper = spec.candidates?.[reference.resource];
-      const alias = Object.entries(wrapper?.metricBindings || {}).find(([, metricRef]: [string, any]) =>
+      const bindings = wrapper?.featureBindings || wrapper?.metricBindings || {};
+      const alias = Object.entries(bindings).find(([, metricRef]: [string, any]) =>
         metricRef?.resource === application.resource && metricRef?.id === metricId)?.[0];
-      const value = alias === undefined ? undefined : candidate(reference).metrics?.[alias];
+      const cand = candidate(reference);
+      const candFeatures = cand.features || cand.metrics || {};
+      const value = alias === undefined ? undefined : candFeatures?.[alias];
       if (!Number.isFinite(Number(value))) {
-        throw new Error(`Selected candidate '${reference.resource}:${reference.id}' is missing metric '${metricId}'`);
+        throw new Error(`Selected candidate '${reference.resource}:${reference.id}' is missing feature '${metricId}'`);
       }
       return Number(value);
     };
@@ -129,7 +135,7 @@ export class Solver {
       this.refKey(entry.target), Number(entry.probability),
     ]));
     const invocation = (metricId: string, node: any, pointer: string): number => {
-      const metric = application.metrics[metricId];
+      const metric = appFeatures[metricId];
       if (node.kind === 'task') {
         const task = application.tasks[node.task.id];
         if (task.kind === 'local') return Number(metric.neutral);
@@ -162,30 +168,32 @@ export class Solver {
       throw new Error(`Unsupported workflow node '${String(node.kind)}' during result evaluation`);
     };
     const metrics: Record<string, number> = {};
-    for (const metricId of application.requiredMetrics) {
-      const metric = application.metrics[metricId];
+    for (const metricId of appReqFeatures) {
+      const metric = appFeatures[metricId];
       const value = metric.scope === 'selectedCandidate'
         ? this.aggregate(metric.aggregation.selection,
           [...new Map(Object.values(binding).map((reference) => [this.refKey(reference), reference])).values()]
             .map((reference) => candidateMetric(reference, metricId)), Number(metric.neutral))
         : invocation(metricId, application.workflow, '/spec/application/workflow');
       metrics[metricId] = value;
-      if (!Number.isFinite(metrics[metricId])) throw new Error(`Metric '${metricId}' evaluated to a non-finite value`);
+      if (!Number.isFinite(metrics[metricId])) throw new Error(`Feature '${metricId}' evaluated to a non-finite value`);
     }
     const placement = evaluatePlacement(problem, binding, candidateMetric);
-    Object.assign(metrics, placement.metrics);
+    Object.assign(metrics, placement.features || placement.metrics);
     const taskContext: Record<string, any> = {};
     for (const [task, reference] of Object.entries(binding)) {
       const selected = candidate(reference);
       const wrapper = spec.candidates[reference.resource];
-      const selectedMetrics = Object.fromEntries(Object.entries(wrapper.metricBindings || {}).map(([alias, metricRef]: [string, any]) =>
-        [metricRef.id, Number(selected.metrics?.[alias])]));
+      const bindings = wrapper.featureBindings || wrapper.metricBindings || {};
+      const candFeatures = selected.features || selected.metrics || {};
+      const selectedMetrics = Object.fromEntries(Object.entries(bindings).map(([alias, metricRef]: [string, any]) =>
+        [metricRef.id, Number(candFeatures?.[alias])]));
       taskContext[task] = {
         candidate: reference, provider: selected.provider,
-        metrics: selectedMetrics, properties: selected.properties || {},
+        features: selectedMetrics, metrics: selectedMetrics, properties: selected.properties || {},
       };
     }
-    const context = { metrics, tasks: taskContext };
+    const context = { features: metrics, metrics, tasks: taskContext };
     const expression = (node: any): any => {
       if (node?.kind === 'literal') return node.value;
       if (node?.kind === 'path') return node.segments.reduce((value: any, segment: string) => {
@@ -211,7 +219,8 @@ export class Solver {
       }
     }
     const components = spec.optimization.terms.map((term: any) => {
-      const value = metrics[term.metric.id];
+      const featureRef = term.feature || term.metric;
+      const value = metrics[featureRef.id];
       let normalized = value;
       if (term.normalize) {
         normalized = (value - Number(term.normalize.min))
@@ -221,11 +230,12 @@ export class Solver {
       const loss = term.direction === 'maximize'
         ? term.normalize ? 1 - normalized : -normalized
         : normalized;
-      return { metric: term.metric, value, loss, weight: Number(term.weight) };
+      return { feature: featureRef, metric: featureRef, value, loss, weight: Number(term.weight) };
     });
     const score = components.reduce((sum: number, component: any) =>
       sum + component.loss * component.weight, placement.penalty);
     return {
+      features: metrics,
       metrics,
       objectives: { mode: 'weighted', components, penalty: placement.penalty, score },
       penalties: placement.penalties,

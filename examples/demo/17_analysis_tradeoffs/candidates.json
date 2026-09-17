@@ -12,7 +12,7 @@
           "resource": "catalog",
           "id": "p1"
         },
-        "metrics": {
+        "features": {
           "cost": 10,
           "latency": 90
         }
@@ -23,7 +23,7 @@
           "resource": "catalog",
           "id": "p1"
         },
-        "metrics": {
+        "features": {
           "cost": 35,
           "latency": 35
         }
@@ -34,7 +34,7 @@
           "resource": "catalog",
           "id": "p1"
         },
-        "metrics": {
+        "features": {
           "cost": 35,
           "latency": 35
         }
@@ -45,7 +45,7 @@
           "resource": "catalog",
           "id": "p1"
         },
-        "metrics": {
+        "features": {
           "cost": 90,
           "latency": 10
         }
@@ -56,7 +56,7 @@
           "resource": "catalog",
           "id": "p1"
         },
-        "metrics": {
+        "features": {
           "cost": 70,
           "latency": 70
         }
@@ -67,7 +67,7 @@
           "resource": "catalog",
           "id": "p1"
         },
-        "metrics": {
+        "features": {
           "cost": 100,
           "latency": 100
         }
@@ -76,7 +76,7 @@
     "providers": {
       "p1": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "cost": {
         "resource": "application",
         "id": "cost"

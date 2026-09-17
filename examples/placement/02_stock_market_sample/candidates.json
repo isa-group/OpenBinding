@@ -8,7 +8,7 @@
     "candidates": {
       "cand_fCheck_fog5_orig_3a70e90c": {
         "provides": "service/fCheck",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 20.98417438,
           "security": 1.0,
@@ -55,7 +55,7 @@
       },
       "cand_fCheck_fog2_orig_1c007edb": {
         "provides": "service/fCheck",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 17.78557172,
           "security": 1.0,
@@ -102,7 +102,7 @@
       },
       "cand_fCheck_fog2_orig_1db3dbdc": {
         "provides": "service/fCheck",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 17.78557172,
           "security": 1.0,
@@ -149,7 +149,7 @@
       },
       "cand_fCheck_fog2_orig_da6e8f74": {
         "provides": "service/fCheck",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 17.78557172,
           "security": 1.0,
@@ -196,7 +196,7 @@
       },
       "cand_fCheck_fog2_orig_1555d474": {
         "provides": "service/fCheck",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 17.78557172,
           "security": 1.0,
@@ -243,7 +243,7 @@
       },
       "cand_fCheck_fog5_orig_7e21be4d": {
         "provides": "service/fCheck",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 20.98417438,
           "security": 1.0,
@@ -290,7 +290,7 @@
       },
       "cand_fCheck_fog5_orig_47218c21": {
         "provides": "service/fCheck",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 20.98417438,
           "security": 1.0,
@@ -337,7 +337,7 @@
       },
       "cand_fBuyOrSell_fog2_orig_7bda1723": {
         "provides": "service/fBuyOrSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 35.57114344,
           "security": 1.0,
@@ -384,7 +384,7 @@
       },
       "cand_fBuyOrSell_cloud3_orig_1622d05e": {
         "provides": "service/fBuyOrSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 0.31711059,
           "security": 1.0,
@@ -431,7 +431,7 @@
       },
       "cand_fBuyOrSell_cloud1_orig_4d017223": {
         "provides": "service/fBuyOrSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 1.06063389,
           "security": 1.0,
@@ -478,7 +478,7 @@
       },
       "cand_fBuyOrSell_cloud2_orig_72d85ab4": {
         "provides": "service/fBuyOrSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 1.37455637,
           "security": 1.0,
@@ -525,7 +525,7 @@
       },
       "cand_fBuyOrSell_aws_faas_eu_west_1_mem2048_937190b0": {
         "provides": "service/fBuyOrSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 4.200008,
           "security": 1.0,
@@ -572,7 +572,7 @@
       },
       "cand_fBuyOrSell_aws_faas_us_east_1_mem2048_fca4c019": {
         "provides": "service/fBuyOrSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 4.750008,
           "security": 1.0,
@@ -619,7 +619,7 @@
       },
       "cand_fBuyOrSell_azure_faas_westeurope_mem2048_d3da1020": {
         "provides": "service/fBuyOrSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 5.84,
           "security": 1.0,
@@ -666,7 +666,7 @@
       },
       "cand_fBuyOrSell_azure_faas_eastus_mem2048_95892990": {
         "provides": "service/fBuyOrSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 5.84,
           "security": 1.0,
@@ -713,7 +713,7 @@
       },
       "cand_fBuyOrSell_aws_faas_eu_west_1_mem4096_bfb5ff15": {
         "provides": "service/fBuyOrSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 8.200016,
           "security": 1.0,
@@ -760,7 +760,7 @@
       },
       "cand_fBuyOrSell_aws_faas_us_east_1_mem4096_2d423c8f": {
         "provides": "service/fBuyOrSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 8.750016,
           "security": 1.0,
@@ -807,7 +807,7 @@
       },
       "cand_fSell_fog9_orig_b04d55e5": {
         "provides": "service/fSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 17.3868091,
           "security": 1.0,
@@ -854,7 +854,7 @@
       },
       "cand_fSell_cloud3_orig_9815e1b8": {
         "provides": "service/fSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 0.31711059,
           "security": 1.0,
@@ -901,7 +901,7 @@
       },
       "cand_fSell_aws_faas_eu_west_1_mem256_7ac79ad3": {
         "provides": "service/fSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 0.700001,
           "security": 1.0,
@@ -948,7 +948,7 @@
       },
       "cand_fSell_cloud1_orig_6284fade": {
         "provides": "service/fSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 1.06063389,
           "security": 1.0,
@@ -995,7 +995,7 @@
       },
       "cand_fSell_aws_faas_eu_west_1_mem512_3b0e404b": {
         "provides": "service/fSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 1.200002,
           "security": 1.0,
@@ -1042,7 +1042,7 @@
       },
       "cand_fSell_aws_faas_us_east_1_mem256_20de2790": {
         "provides": "service/fSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 1.250001,
           "security": 1.0,
@@ -1089,7 +1089,7 @@
       },
       "cand_fSell_cloud2_orig_523a0778": {
         "provides": "service/fSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 1.37455637,
           "security": 1.0,
@@ -1136,7 +1136,7 @@
       },
       "cand_fSell_aws_faas_us_east_1_mem512_23d26335": {
         "provides": "service/fSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 1.750002,
           "security": 1.0,
@@ -1183,7 +1183,7 @@
       },
       "cand_fSell_aws_faas_eu_west_1_mem1024_97e4d6a3": {
         "provides": "service/fSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 2.200004,
           "security": 1.0,
@@ -1230,7 +1230,7 @@
       },
       "cand_fSell_azure_faas_westeurope_mem256_f096d601": {
         "provides": "service/fSell",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 2.48,
           "security": 1.0,
@@ -1277,7 +1277,7 @@
       },
       "cand_fBuy_fog9_orig_0e17942b": {
         "provides": "service/fBuy",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 17.3868091,
           "security": 1.0,
@@ -1324,7 +1324,7 @@
       },
       "cand_fBuy_cloud3_orig_8d287ecd": {
         "provides": "service/fBuy",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 0.31711059,
           "security": 1.0,
@@ -1371,7 +1371,7 @@
       },
       "cand_fBuy_aws_faas_eu_west_1_mem256_986184bb": {
         "provides": "service/fBuy",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 0.700001,
           "security": 1.0,
@@ -1418,7 +1418,7 @@
       },
       "cand_fBuy_cloud1_orig_f86fc30f": {
         "provides": "service/fBuy",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 1.06063389,
           "security": 1.0,
@@ -1465,7 +1465,7 @@
       },
       "cand_fBuy_aws_faas_eu_west_1_mem512_2fde36d8": {
         "provides": "service/fBuy",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 1.200002,
           "security": 1.0,
@@ -1512,7 +1512,7 @@
       },
       "cand_fBuy_aws_faas_us_east_1_mem256_e9bbee65": {
         "provides": "service/fBuy",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 1.250001,
           "security": 1.0,
@@ -1559,7 +1559,7 @@
       },
       "cand_fBuy_cloud2_orig_6f68d5e9": {
         "provides": "service/fBuy",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 1.37455637,
           "security": 1.0,
@@ -1606,7 +1606,7 @@
       },
       "cand_fBuy_aws_faas_us_east_1_mem512_2b561a88": {
         "provides": "service/fBuy",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 1.750002,
           "security": 1.0,
@@ -1653,7 +1653,7 @@
       },
       "cand_fBuy_aws_faas_eu_west_1_mem1024_35db5f23": {
         "provides": "service/fBuy",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 2.200004,
           "security": 1.0,
@@ -1700,7 +1700,7 @@
       },
       "cand_fBuy_azure_faas_westeurope_mem256_55ccaeea": {
         "provides": "service/fBuy",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 2.48,
           "security": 1.0,
@@ -1747,7 +1747,7 @@
       },
       "cand_fRecord_aws_faas_eu_west_1_mem2048_934e82be": {
         "provides": "service/fRecord",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 4.200008,
           "security": 1.0,
@@ -1794,7 +1794,7 @@
       },
       "cand_fRecord_gcp_faas_europe_west1_mem2048_7e198e3b": {
         "provides": "service/fRecord",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 6.76,
           "security": 1.0,
@@ -1841,7 +1841,7 @@
       },
       "cand_fRecord_gcp_faas_europe_west1_mem4096_61ce5a71": {
         "provides": "service/fRecord",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 7.36,
           "security": 1.0,
@@ -1888,7 +1888,7 @@
       },
       "cand_fRecord_aws_faas_eu_west_1_mem4096_57ea71a5": {
         "provides": "service/fRecord",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 8.200016,
           "security": 1.0,
@@ -1935,7 +1935,7 @@
       },
       "cand_fRecord_fog2_orig_e596d480": {
         "provides": "service/fRecord",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 17.78557172,
           "security": 1.0,
@@ -1982,7 +1982,7 @@
       },
       "cand_fRecord_fog2_orig_862e2a3b": {
         "provides": "service/fRecord",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 17.78557172,
           "security": 1.0,
@@ -2029,7 +2029,7 @@
       },
       "cand_fRecord_fog2_orig_9409211d": {
         "provides": "service/fRecord",
-        "metrics": {
+        "features": {
           "latency": 0.0,
           "cost": 17.78557172,
           "security": 1.0,
@@ -2086,7 +2086,7 @@
       "telco": {},
       "university": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "latency": {
         "resource": "application",
         "id": "latency"

@@ -178,7 +178,7 @@
         },
         "maximum": 15.0,
         "enforcement": "hard",
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "latency"
         }
@@ -194,7 +194,7 @@
         },
         "maximum": 6.0,
         "enforcement": "hard",
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "latency"
         }
@@ -209,7 +209,7 @@
       }
     ],
     "globalLatency": {
-      "metric": {
+      "feature": {
         "resource": "application",
         "id": "latency"
       },

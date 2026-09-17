@@ -102,7 +102,7 @@ sequenceDiagram
   Engine-->>Gateway: termination + candidate solutions
   loop every returned decision
     Gateway->>Evaluator: canonical evaluate(binding)
-    Evaluator-->>Gateway: metrics, violations, penalties, objective
+    Evaluator-->>Gateway: features, violations, penalties, objective
   end
   Gateway->>Gateway: discard invalid or incomplete decisions
   Gateway-->>Client: OPTIMAL | FEASIBLE | INFEASIBLE | UNKNOWN

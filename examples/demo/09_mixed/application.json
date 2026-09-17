@@ -10,7 +10,7 @@
       "t2": "service/t2",
       "t3": "service/t3"
     },
-    "metrics": {
+    "features": {
       "cost": {
         "unit": "$",
         "direction": "minimize",

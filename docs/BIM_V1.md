@@ -62,7 +62,7 @@ The BIM core owns only the reusable mechanics:
 - secure package transport, canonicalization, digests, diagnostics, and
   provenance.
 
-The core does not define what an application, candidate, SLO, metric,
+The core does not define what an application, candidate, SLO, feature,
 condition, workflow, or objective must look like. Those concepts belong to a
 selected Profile and its compatible Dialects. Consequently, adding a service
 term or condition language does not add fields to `Instance`; it adds a
@@ -287,7 +287,7 @@ intervals, stochastic scenarios, risk measures, scheduling, telemetry,
 rebinding, or runtime adaptation. Routing probabilities and `expectedCount`
 remain deterministic workflow multipliers; they are not uncertain QoS values.
 
-See [formal semantics](SEMANTICS.md), [metrics](METRICS.md),
+See [formal semantics](SEMANTICS.md), [features](FEATURES.md),
 [BPMN](BPMN.md), [expressions](EXPRESSIONS.md), and
 [placement](PLACEMENT.md) for the executable mathematical model.
 

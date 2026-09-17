@@ -305,7 +305,7 @@ def test_generate_one_instance_layout_and_validation(tmp_path: Path) -> None:
     assert routing["apiVersion"] == "qos-binding/v1"
     assert placement["apiVersion"] == "qos-binding-placement/v1"
     assert isinstance(application["spec"]["tasks"], dict)
-    assert catalog["spec"]["metricBindings"]["cost"] == {
+    assert catalog["spec"]["featureBindings"]["cost"] == {
         "resource": "application",
         "id": "cost",
     }

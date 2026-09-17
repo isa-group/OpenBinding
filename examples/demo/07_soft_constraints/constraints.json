@@ -7,7 +7,7 @@
   "spec": {
     "constraints": {
       "c_soft_lat": {
-        "assert": "metrics.latency <= 50",
+        "assert": "features.latency <= 50",
         "enforcement": "soft",
         "penalty": 1
       }

@@ -53,35 +53,35 @@ def gallery_package(examples_dir: Path, scenario: str, example: str) -> Instance
         app["spec"]["tasks"] = {"choice": "service/analysis"}
         values = {"cost-extreme": (0, 100), "balanced": (60, 60), "balanced-twin": (60, 60),
                   "latency-extreme": (100, 0), "runner-up": (85, 85), "infeasible-attractive": (20, 20)}
-        catalog["spec"]["candidates"] = {name: {"provides": "service/analysis", "metrics": {"cost": cost, "latency": latency}}
+        catalog["spec"]["candidates"] = {name: {"provides": "service/analysis", "features": {"cost": cost, "latency": latency}}
                                            for name, (cost, latency) in values.items()}
-        constraints["spec"]["constraints"] = {"necessary-total": {"assert": "metrics.cost + metrics.latency >= 100", "enforcement": "hard"}}
+        constraints["spec"]["constraints"] = {"necessary-total": {"assert": "features.cost + features.latency >= 100", "enforcement": "hard"}}
         instance["spec"]["resources"]["constraintSet"] = {"constraints": "constraints.json"}
     elif scenario == "geometry-limit":
         app["spec"]["tasks"] = {"choice": "service/analysis"}
         catalog["spec"]["candidates"] = {f"option-{i:03d}": {"provides": "service/analysis",
-            "metrics": {"cost": i / 4, "latency": (349-i) / 4}} for i in range(350)}
+            "features": {"cost": i / 4, "latency": (349-i) / 4}} for i in range(350)}
     elif scenario == "power-slice":
-        app["spec"]["metrics"]["energy"] = {"unit": "joule", "direction": "minimize", "scope": "invocation", "aggregation": "sum", "domain": {"kind": "real", "minimum": 0, "maximum": 100}}
-        catalog["spec"]["metricBindings"]["energy"] = {"resource": "application", "id": "energy"}
+        app["spec"]["features"]["energy"] = {"unit": "joule", "direction": "minimize", "scope": "invocation", "aggregation": "sum", "domain": {"kind": "real", "minimum": 0, "maximum": 100}}
+        catalog["spec"]["featureBindings"]["energy"] = {"resource": "application", "id": "energy"}
         for i, candidate in enumerate(catalog["spec"]["candidates"].values()):
-            candidate["metrics"]["energy"] = [15, 70, 20, 45, 80, 90][i % 6]
-        opt["spec"]["terms"].append({"metric": {"resource": "application", "id": "energy"}, "weight": 1, "normalize": {"min": 0, "max": 200, "clamp": True}})
-        constraints["spec"]["constraints"]["energy-sla"] = {"assert": "metrics.energy <= 90", "enforcement": "soft", "penalty": 2}
-        opt["spec"]["penalties"].append({"constraint": {"resource": "constraints", "id": "energy-sla"}, "weight": .5})
+            candidate["features"]["energy"] = [15, 70, 20, 45, 80, 90][i % 6]
+        opt["spec"]["terms"].append({"feature": {"resource": "application", "id": "energy"}, "weight": 1, "normalize": {"min": 0, "max": 200, "clamp": True}})
+        constraints["spec"]["constraints"]["energy-sla"] = {"assert": "features.energy <= 90", "enforcement": "soft", "penalty": 2}
+        opt["spec"]["penalties"].append({"constraint": {"resource": "constraints", "id": "energy-sla"}, "weight": .5} )
     else:
         # Explicit radix-indexed assignments avoid enumerating an implicit universe for scale fixtures.
         app["spec"]["tasks"] = {f"stage-{t}": f"service/analysis-{t}" for t in range(5)}
-        metrics = ["cost", "latency"] + (["energy", "quality"] if scenario != "scale" else [])
-        app["spec"]["metrics"] = {name: {"unit": "unit", "direction": "maximize" if name == "quality" else "minimize",
-            "scope": "invocation", "aggregation": "sum", "domain": {"kind": "real", "minimum": 0, "maximum": 2_000_000}} for name in metrics}
-        catalog["spec"]["metricBindings"] = {name: {"resource": "application", "id": name} for name in metrics}
+        features = ["cost", "latency"] + (["energy", "quality"] if scenario != "scale" else [])
+        app["spec"]["features"] = {name: {"unit": "unit", "direction": "maximize" if name == "quality" else "minimize",
+            "scope": "invocation", "aggregation": "sum", "domain": {"kind": "real", "minimum": 0, "maximum": 2_000_000}} for name in features}
+        catalog["spec"]["featureBindings"] = {name: {"resource": "application", "id": name} for name in features}
         catalog["spec"]["candidates"] = {f"stage-{t}-option-{i}": {"provides": f"service/analysis-{t}",
-            "metrics": {name: {"cost": i*10**t, "latency": (9-i)*10**t, "energy": i*i*11**t, "quality": (9-i)*(t+1)}[name] for name in metrics}}
+            "features": {name: {"cost": i*10**t, "latency": (9-i)*10**t, "energy": i*i*11**t, "quality": (9-i)*(t+1)}[name] for name in features}}
             for t in range(5) for i in range(10)}
-        opt["spec"]["terms"] = [{"metric": {"resource": "application", "id": name}, "weight": 1,
-            "normalize": {"min": 0, "max": 1_000_000, "clamp": False}} for name in metrics]
-        opt["spec"]["type"] = "MANY" if len(metrics) > 2 else "MULTI"
+        opt["spec"]["terms"] = [{"feature": {"resource": "application", "id": name}, "weight": 1,
+            "normalize": {"min": 0, "max": 1_000_000, "clamp": False}} for name in features]
+        opt["spec"]["type"] = "MANY" if len(features) > 2 else "MULTI"
     app["spec"]["workflow"] = {"sequence": [{"task": {"resource": "application", "id": task}} for task in app["spec"]["tasks"]]}
     for term in opt["spec"]["terms"]:
         if scenario == "large":

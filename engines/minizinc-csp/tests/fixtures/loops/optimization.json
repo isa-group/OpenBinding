@@ -8,7 +8,7 @@
     "mode": "weighted",
     "terms": [
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "cost"
         },

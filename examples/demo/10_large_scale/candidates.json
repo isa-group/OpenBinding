@@ -8,7 +8,7 @@
     "candidates": {
       "c1_1": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "time": 100,
           "reliability": 0.00999,
@@ -21,7 +21,7 @@
       },
       "c1_2": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "cost": 0.5,
           "time": 300,
           "reliability": 0.0095,
@@ -34,7 +34,7 @@
       },
       "c1_3": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "cost": 0.1,
           "time": 500,
           "reliability": 0.009000000000000001,
@@ -47,7 +47,7 @@
       },
       "c2_1": {
         "provides": "service/t2",
-        "metrics": {
+        "features": {
           "cost": 2.0,
           "time": 200,
           "reliability": 0.0098,
@@ -60,7 +60,7 @@
       },
       "c2_2": {
         "provides": "service/t2",
-        "metrics": {
+        "features": {
           "cost": 1.5,
           "time": 250,
           "reliability": 0.0097,
@@ -73,7 +73,7 @@
       },
       "c2_3": {
         "provides": "service/t2",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "time": 400,
           "reliability": 0.0095,
@@ -86,7 +86,7 @@
       },
       "c3_1": {
         "provides": "service/t3",
-        "metrics": {
+        "features": {
           "cost": 0.5,
           "time": 50,
           "reliability": 0.009899999999999999,
@@ -99,7 +99,7 @@
       },
       "c3_2": {
         "provides": "service/t3",
-        "metrics": {
+        "features": {
           "cost": 0.2,
           "time": 100,
           "reliability": 0.0098,
@@ -112,7 +112,7 @@
       },
       "c3_3": {
         "provides": "service/t3",
-        "metrics": {
+        "features": {
           "cost": 0.1,
           "time": 150,
           "reliability": 0.009000000000000001,
@@ -125,7 +125,7 @@
       },
       "c4_1": {
         "provides": "service/t4",
-        "metrics": {
+        "features": {
           "cost": 5.0,
           "time": 500,
           "reliability": 0.0095,
@@ -138,7 +138,7 @@
       },
       "c4_2": {
         "provides": "service/t4",
-        "metrics": {
+        "features": {
           "cost": 4.0,
           "time": 600,
           "reliability": 0.009000000000000001,
@@ -151,7 +151,7 @@
       },
       "c4_3": {
         "provides": "service/t4",
-        "metrics": {
+        "features": {
           "cost": 6.0,
           "time": 450,
           "reliability": 0.0098,
@@ -164,7 +164,7 @@
       },
       "c5_1": {
         "provides": "service/t5",
-        "metrics": {
+        "features": {
           "cost": 10.0,
           "time": 100,
           "reliability": 0.009899999999999999,
@@ -177,7 +177,7 @@
       },
       "c5_2": {
         "provides": "service/t5",
-        "metrics": {
+        "features": {
           "cost": 12.0,
           "time": 80,
           "reliability": 0.00999,
@@ -190,7 +190,7 @@
       },
       "c5_3": {
         "provides": "service/t5",
-        "metrics": {
+        "features": {
           "cost": 8.0,
           "time": 120,
           "reliability": 0.0095,
@@ -203,7 +203,7 @@
       },
       "c6_1": {
         "provides": "service/t6",
-        "metrics": {
+        "features": {
           "cost": 2.5,
           "time": 300,
           "reliability": 0.00999,
@@ -216,7 +216,7 @@
       },
       "c6_2": {
         "provides": "service/t6",
-        "metrics": {
+        "features": {
           "cost": 1.5,
           "time": 500,
           "reliability": 0.0095,
@@ -229,7 +229,7 @@
       },
       "c6_3": {
         "provides": "service/t6",
-        "metrics": {
+        "features": {
           "cost": 3.0,
           "time": 200,
           "reliability": 0.009899999999999999,
@@ -242,7 +242,7 @@
       },
       "c7_1": {
         "provides": "service/t7",
-        "metrics": {
+        "features": {
           "cost": 0.01,
           "time": 10,
           "reliability": 0.009899999999999999,
@@ -255,7 +255,7 @@
       },
       "c7_2": {
         "provides": "service/t7",
-        "metrics": {
+        "features": {
           "cost": 0.005,
           "time": 20,
           "reliability": 0.0095,
@@ -268,7 +268,7 @@
       },
       "c7_3": {
         "provides": "service/t7",
-        "metrics": {
+        "features": {
           "cost": 0.001,
           "time": 50,
           "reliability": 0.009000000000000001,
@@ -281,7 +281,7 @@
       },
       "c8_1": {
         "provides": "service/t8",
-        "metrics": {
+        "features": {
           "cost": 0.1,
           "time": 5,
           "reliability": 0.00999,
@@ -294,7 +294,7 @@
       },
       "c8_2": {
         "provides": "service/t8",
-        "metrics": {
+        "features": {
           "cost": 0.05,
           "time": 10,
           "reliability": 0.0098,
@@ -307,7 +307,7 @@
       },
       "c8_3": {
         "provides": "service/t8",
-        "metrics": {
+        "features": {
           "cost": 0.02,
           "time": 20,
           "reliability": 0.0095,
@@ -320,7 +320,7 @@
       },
       "c9_1": {
         "provides": "service/t9",
-        "metrics": {
+        "features": {
           "cost": 0.5,
           "time": 100,
           "reliability": 0.009899999999999999,
@@ -333,7 +333,7 @@
       },
       "c9_2": {
         "provides": "service/t9",
-        "metrics": {
+        "features": {
           "cost": 0.3,
           "time": 200,
           "reliability": 0.0095,
@@ -346,7 +346,7 @@
       },
       "c9_3": {
         "provides": "service/t9",
-        "metrics": {
+        "features": {
           "cost": 0.1,
           "time": 400,
           "reliability": 0.009000000000000001,
@@ -359,7 +359,7 @@
       },
       "c10_1": {
         "provides": "service/t10",
-        "metrics": {
+        "features": {
           "cost": 0.2,
           "time": 50,
           "reliability": 0.009899999999999999,
@@ -372,7 +372,7 @@
       },
       "c10_2": {
         "provides": "service/t10",
-        "metrics": {
+        "features": {
           "cost": 0.1,
           "time": 60,
           "reliability": 0.0098,
@@ -385,7 +385,7 @@
       },
       "c10_3": {
         "provides": "service/t10",
-        "metrics": {
+        "features": {
           "cost": 0.05,
           "time": 80,
           "reliability": 0.0095,
@@ -400,7 +400,7 @@
     "providers": {
       "p1": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "cost": {
         "resource": "application",
         "id": "cost"

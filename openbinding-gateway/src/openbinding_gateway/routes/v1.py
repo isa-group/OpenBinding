@@ -422,22 +422,22 @@ def _conformance_options(mode: Mapping[str, Any]) -> dict[str, Any]:
 
 def _conformance_problem(mode: Mapping[str, Any]) -> dict[str, Any]:
     optimization_mode, objective_type, objective_count = _conformance_shape(mode)
-    metric_ids = [f"probe-objective-{index + 1}" for index in range(objective_count)]
+    feature_ids = [f"probe-objective-{index + 1}" for index in range(objective_count)]
     application = {
         "apiVersion": "qos-binding/v1",
         "kind": "Application",
         "metadata": {"name": "probe-application"},
         "spec": {
             "tasks": {"probe-task": {"requires": "bim.conformance.probe"}},
-            "metrics": {
-                metric_id: {
+            "features": {
+                feature_id: {
                     "unit": "1",
                     "direction": "minimize",
                     "scope": "selectedCandidate",
                     "aggregation": "sum",
                     "domain": {"kind": "real", "minimum": 0, "maximum": 1},
                 }
-                for metric_id in metric_ids
+                for feature_id in feature_ids
             },
             "workflow": {
                 "task": {"resource": "probe-application", "id": "probe-task"}
@@ -449,14 +449,14 @@ def _conformance_problem(mode: Mapping[str, Any]) -> dict[str, Any]:
         "kind": "CandidateCatalog",
         "metadata": {"name": "probe-catalog"},
         "spec": {
-            "metricBindings": {
-                metric_id: {"resource": "probe-application", "id": metric_id}
-                for metric_id in metric_ids
+            "featureBindings": {
+                feature_id: {"resource": "probe-application", "id": feature_id}
+                for feature_id in feature_ids
             },
             "candidates": {
                 "probe-candidate": {
                     "provides": "bim.conformance.probe",
-                    "metrics": {metric_id: 0 for metric_id in metric_ids},
+                    "features": {feature_id: 0 for feature_id in feature_ids},
                 }
             }
         },
@@ -470,10 +470,10 @@ def _conformance_problem(mode: Mapping[str, Any]) -> dict[str, Any]:
             "type": objective_type,
             **({
                 "terms": [
-                    {"metric": {"resource": "probe-application", "id": metric_id}}
-                    for metric_id in metric_ids
+                    {"feature": {"resource": "probe-application", "id": feature_id}}
+                    for feature_id in feature_ids
                 ]
-            } if metric_ids else {}),
+            } if feature_ids else {}),
         },
     }
     instance = {
@@ -1103,7 +1103,7 @@ def _aggregate_bound(constraint: dict[str, Any]) -> bool:
     return any(
         isinstance(child, dict)
         and child.get("kind") == "path"
-        and child.get("segments", [None])[0] == "metrics"
+        and child.get("segments", [None])[0] == "features"
         for child in children
     ) and any(isinstance(child, dict) and child.get("kind") == "literal" for child in children)
 
@@ -1111,18 +1111,18 @@ def _aggregate_bound(constraint: dict[str, Any]) -> bool:
 def _ir_features(problem: BindingProblem) -> dict[str, set[str]]:
     spec = problem.document.get("spec", {})
     application = spec.get("application", {})
-    metrics = application.get("metrics", {}) if isinstance(application, dict) else {}
+    features_dict = application.get("features", {}) if isinstance(application, dict) else {}
     workflow = application.get("workflow", {}) if isinstance(application, dict) else {}
     workflow_contexts = _workflow_aggregation_contexts(workflow)
-    required_metrics = set(application.get("requiredMetrics", [])) if isinstance(application, dict) else set()
+    required_features = set(application.get("requiredFeatures", [])) if isinstance(application, dict) else set()
     aggregations: set[str] = set()
-    metric_scopes: set[str] = set()
-    for metric_id, metric in metrics.items() if isinstance(metrics, dict) else []:
-        if metric_id not in required_metrics:
+    feature_scopes: set[str] = set()
+    for feature_id, feature in features_dict.items() if isinstance(features_dict, dict) else []:
+        if feature_id not in required_features:
             continue
-        aggregation = metric.get("aggregation", {}) if isinstance(metric, dict) else {}
+        aggregation = feature.get("aggregation", {}) if isinstance(feature, dict) else {}
         if isinstance(aggregation, dict):
-            scope = metric.get("scope")
+            scope = feature.get("scope")
             active_contexts = {"selection"} if scope == "selectedCandidate" else workflow_contexts
             for context in active_contexts:
                 value = aggregation.get(context)
@@ -1130,8 +1130,8 @@ def _ir_features(problem: BindingProblem) -> dict[str, set[str]]:
                     continue
                 operator = value if isinstance(value, str) else "expression"
                 aggregations.add(f"{context}.{operator}")
-        if isinstance(metric, dict) and isinstance(metric.get("scope"), str):
-            metric_scopes.add(metric["scope"])
+        if isinstance(feature, dict) and isinstance(feature.get("scope"), str):
+            feature_scopes.add(feature["scope"])
     constraints = spec.get("constraints", [])
     constraint_features: set[str] = set()
     if isinstance(constraints, list):
@@ -1143,15 +1143,15 @@ def _ir_features(problem: BindingProblem) -> dict[str, set[str]]:
                 shape = "aggregate-bound" if _aggregate_bound(constraint) else "expression"
                 constraint_features.add(f"{enforcement}.{shape}")
     active_aggregation_expressions: list[Any] = []
-    for metric_id, metric in metrics.items() if isinstance(metrics, Mapping) else ():
-        if metric_id not in required_metrics or not isinstance(metric, Mapping):
+    for feature_id, feature in features_dict.items() if isinstance(features_dict, Mapping) else ():
+        if feature_id not in required_features or not isinstance(feature, Mapping):
             continue
-        aggregation = metric.get("aggregation", {})
+        aggregation = feature.get("aggregation", {})
         if not isinstance(aggregation, Mapping):
             continue
         contexts = (
             {"selection"}
-            if metric.get("scope") == "selectedCandidate"
+            if feature.get("scope") == "selectedCandidate"
             else workflow_contexts
         )
         active_aggregation_expressions.extend(
@@ -1178,7 +1178,7 @@ def _ir_features(problem: BindingProblem) -> dict[str, set[str]]:
     features = {
         "workflowNodes": _workflow_features(workflow, routing),
         "aggregations": aggregations,
-        "metricScopes": metric_scopes,
+        "featureScopes": feature_scopes,
         "constraints": constraint_features,
         "optimization": {optimization_mode} if isinstance(optimization_mode, str) else set(),
         "objectiveTypes": {objective_type} if isinstance(objective_type, str) else set(),
@@ -2064,24 +2064,24 @@ def _authoritative_evaluation(
 ) -> tuple[dict[str, float], dict[str, Any], list[dict[str, Any]]]:
     """Reevaluate a returned decision against the gateway's canonical IR."""
     violations = _binding_violations(problem, binding)
-    metric_definitions = problem.document["spec"].get("application", {}).get("metrics", {})
-    empty_metrics = (
-        {metric_id: 0.0 for metric_id in metric_definitions}
-        if isinstance(metric_definitions, dict)
+    feature_definitions = problem.document["spec"].get("application", {}).get("features", {})
+    empty_features = (
+        {feature_id: 0.0 for feature_id in feature_definitions}
+        if isinstance(feature_definitions, dict)
         else {}
     )
     if violations:
-        return empty_metrics, {}, violations
+        return empty_features, {}, violations
     try:
         evaluation = problem.evaluate(binding)
-        metrics = evaluation["metrics"]
+        features = evaluation["features"]
         objectives = evaluation["objectives"]
         violations.extend(evaluation["violations"])
     except (ArithmeticError, KeyError, TypeError, ValueError) as exc:
-        metrics = empty_metrics
+        features = empty_features
         objectives = {}
         violations.append({"code": "binding_evaluation", "message": str(exc), "enforcement": "hard"})
-    return metrics, objectives, violations
+    return features, objectives, violations
 
 
 def _reevaluate_result(
@@ -2103,7 +2103,7 @@ def _reevaluate_result(
         ):
             invalid = True
             continue
-        metrics, objectives, violations = _authoritative_evaluation(problem, binding)
+        features, objectives, violations = _authoritative_evaluation(problem, binding)
         if not objectives:
             invalid = True
             continue
@@ -2119,7 +2119,7 @@ def _reevaluate_result(
         ]
         solutions.append({
             "decision": {"kind": "binding", "binding": binding},
-            "metrics": metrics,
+            "features": features,
             "objectives": objectives,
             "penalties": penalties,
             "violations": violations,

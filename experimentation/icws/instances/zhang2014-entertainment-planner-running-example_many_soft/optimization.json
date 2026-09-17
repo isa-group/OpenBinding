@@ -8,7 +8,7 @@
     "mode": "pareto",
     "terms": [
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "availability"
         },
@@ -19,7 +19,7 @@
         }
       },
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "cost"
         },
@@ -30,7 +30,7 @@
         }
       },
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "distance"
         },
@@ -41,7 +41,7 @@
         }
       },
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "reliability"
         },
@@ -52,7 +52,7 @@
         }
       },
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "security"
         },
@@ -63,7 +63,7 @@
         }
       },
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "time"
         },

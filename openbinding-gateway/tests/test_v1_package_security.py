@@ -47,7 +47,7 @@ def _package_with_bpmn(xml: bytes) -> InstancePackage:
         "metadata": {"name": "application"},
         "spec": {
             "tasks": {"task": "service/test"},
-            "metrics": {},
+            "features": {},
             "workflow": {"bpmn": {"resource": "workflow", "id": "p1"}},
         },
     }
@@ -56,9 +56,9 @@ def _package_with_bpmn(xml: bytes) -> InstancePackage:
         "kind": "CandidateCatalog",
         "metadata": {"name": "catalog"},
         "spec": {
-            "metricBindings": {},
+            "featureBindings": {},
             "candidates": {
-                "candidate": {"provides": "service/test", "metrics": {}}
+                "candidate": {"provides": "service/test", "features": {}}
             }
         },
     }

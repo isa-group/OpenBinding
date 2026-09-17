@@ -120,6 +120,7 @@ public final class EngineContract {
     solution.add("decision", evaluation.decisionJson());
     JsonObject metrics = new JsonObject();
     for (Map.Entry<String, Double> entry : evaluation.metrics().entrySet()) metrics.addProperty(entry.getKey(), entry.getValue());
+    solution.add("features", metrics);
     solution.add("metrics", metrics);
     solution.add("objectives", evaluation.objectives());
     JsonArray penalties = new JsonArray();

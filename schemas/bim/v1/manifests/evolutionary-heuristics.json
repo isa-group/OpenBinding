@@ -16,7 +16,7 @@
         "algorithm": "elitist-genetic-search",
         "capabilities": {
           "workflowNodes": {"selector": "all"},
-          "metricScopes": {"selector": "all"},
+          "featureScopes": {"selector": "all"},
           "aggregations": {"selector": "all"},
           "constraints": {"selector": "all"},
           "optimization": {"selector": "only", "values": ["satisfy", "weighted", "lexicographic"]},
@@ -49,7 +49,7 @@
         "algorithm": "pareto-genetic-search",
         "capabilities": {
           "workflowNodes": {"selector": "all"},
-          "metricScopes": {"selector": "all"},
+          "featureScopes": {"selector": "all"},
           "aggregations": {"selector": "all"},
           "constraints": {"selector": "all"},
           "optimization": {"selector": "only", "values": ["pareto"]},

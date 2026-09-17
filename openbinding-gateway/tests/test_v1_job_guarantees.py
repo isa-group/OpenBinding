@@ -64,7 +64,7 @@ def _valid_result(termination: str) -> dict:
 class _FakeProblem:
     document = {
         "spec": {
-            "application": {"metrics": {"latency": {}}},
+            "application": {"features": {"latency": {}}},
             "optimization": {"penalties": []},
         }
     }
@@ -76,7 +76,7 @@ class _FakeProblem:
     def evaluate(self, binding):
         self.validate_binding(binding)
         return {
-            "metrics": {"latency": 1.0},
+            "features": {"latency": 1.0},
             "objectives": {"mode": "satisfy", "satisfied": True},
             "violations": [],
         }

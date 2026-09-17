@@ -5,7 +5,7 @@
     "version": "1.1.0"
   },
   "x-bim-protocol": "bim-engine/v1",
-  "x-bim-protocol-digest": "sha256-8fd6a9e8c2294542a0338f3bcc4186f4832485ad83b58c609717c307ef58c0dd",
+  "x-bim-protocol-digest": "sha256-68c0805083caebdbfea967ffc5447b215c63b1e70792cc969cbb8d3768d3d628",
   "paths": {
     "/internal/v1/binding-problems": {
       "post": {
@@ -89,9 +89,9 @@
       "ObjectiveComponent": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["metric", "value", "loss", "weight"],
+        "required": ["feature", "value", "loss", "weight"],
         "properties": {
-          "metric": {"$ref": "#/components/schemas/Ref"},
+          "feature": {"$ref": "#/components/schemas/Ref"},
           "value": {"type": "number"},
           "loss": {"type": "number"},
           "weight": {"type": "number", "exclusiveMinimum": 0}
@@ -116,10 +116,10 @@
       "BindingSolution": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["decision", "metrics", "objectives", "penalties", "violations"],
+        "required": ["decision", "features", "objectives", "penalties", "violations"],
         "properties": {
           "decision": {"$ref": "#/components/schemas/BindingDecision"},
-          "metrics": {"type": "object", "additionalProperties": {"type": "number"}},
+          "features": {"type": "object", "additionalProperties": {"type": "number"}},
           "objectives": {"$ref": "#/components/schemas/ObjectiveEvaluation"},
           "penalties": {"type": "array", "items": {"type": "number", "minimum": 0}},
           "violations": {"type": "array", "items": {"$ref": "#/components/schemas/Violation"}}

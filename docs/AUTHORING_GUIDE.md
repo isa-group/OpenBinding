@@ -88,7 +88,7 @@ its sublanguage:
   "metadata": {"name": "checkout-application"},
   "spec": {
     "tasks": {"checkout": "payment"},
-    "metrics": {},
+    "features": {},
     "workflow": {
       "task": {"resource": "application", "id": "checkout"}
     }
@@ -109,16 +109,17 @@ id in the Instance index; `id` is the selected resource's local symbol.
 
 ## 3. Author the QoS-binding modules independently
 
-Define service and local tasks, capability types, metric definitions, and the
+Define service and local tasks, capability types, feature definitions, and the
 workflow in Application. A service task requires a binding; a local task does
 not and contributes the declared or compiler-materialized neutral for each
-evaluated metric. Source workflow blocks are compact keyed forms such as
+evaluated feature. Source workflow blocks are compact keyed forms such as
 `{"task":{"resource":"application","id":"charge"}}` and
 `{"sequence":[...]}`; authors do not write the IR-only `kind` field.
 
 CandidateCatalog resources advertise capabilities, typed properties,
-providers, and finite scalar metric slots. They never list task ids. Connect
-catalog-local slot names to Application metrics with `metricBindings`.
+providers, and finite scalar feature slots. They never list task ids. Connect
+catalog-local slot names to Application features with `featureBindings` (or
+legacy `metricBindings`).
 Capability matching and an optional typed predicate construct eligibility
 before optimization.
 
@@ -202,7 +203,7 @@ Start from `examples/demo/01_simple_seq`, then analyze the complete directory
 in the Playground. Compilation is all-or-nothing and diagnostics point to the
 resource and JSON Pointer, CEL span, or BPMN element.
 
-Every eligible candidate must provide each metric read by policy,
+Every eligible candidate must provide each feature read by policy,
 optimization, or selected Placement policy; the deterministic Profile never
 imputes QoS values. Public source-upload endpoints accept complete ZIP bytes,
 not a standalone `instance.json` or JSON virtual-filesystem object.

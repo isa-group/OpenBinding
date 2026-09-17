@@ -29,14 +29,14 @@
               "selection.sum", "selection.min", "selection.max"
             ]
           },
-          "metricScopes": {
+          "featureScopes": {
             "selector": "only",
             "values": ["invocation", "selectedCandidate"]
           },
           "constraints": {"selector": "only", "values": ["hard.aggregate-bound", "hard.expression"]},
           "optimization": {"selector": "only", "values": ["weighted"]},
           "objectiveTypes": {"selector": "only", "values": ["MONO"]},
-          "expressions": {"selector": "only", "values": ["literal", "path.metrics", "path.tasks", "compare"]},
+          "expressions": {"selector": "only", "values": ["literal", "path.features", "path.tasks", "compare"]},
           "placement": {"selector": "all"},
           "irExtensions": {"selector": "only", "values": ["qos-binding-placement/v1"]}
         },

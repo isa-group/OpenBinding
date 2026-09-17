@@ -843,7 +843,7 @@ async def ensure_project_resources(session, project_map, users):
     root = source.instance()
     root['spec']['resources']['constraintSet'] = {'constraints': 'constraints.json'}
     constraints = dict(apiVersion='qos-binding/v1', kind='ConstraintSet', metadata={'name': 'shared-latency-bound'},
-        spec={'constraints': {'latency-sla': {'assert': 'metrics.latency <= 1000', 'enforcement': 'hard'}}})
+        spec={'constraints': {'latency-sla': {'assert': 'features.latency <= 1000', 'enforcement': 'hard'}}})
     files = {**source.files, 'instance.json': canonical_json(root), 'constraints.json': canonical_json(constraints)}
     initial = InstancePackage(files)
     first_uses = None
@@ -854,7 +854,7 @@ async def ensure_project_resources(session, project_map, users):
         package = initial
         if index:
             catalog = initial.json('candidates.json')
-            catalog['spec']['candidates']['c1a']['metrics']['latency'] = 8
+            catalog['spec']['candidates']['c1a']['features']['latency'] = 8
             package = InstancePackage({**files, 'candidates.json': canonical_json(catalog)})
         document, snapshot_id, uses = await ensure_library_composition(session, project, users['alice'], package, '01_simple_seq')
         if first_uses is None:

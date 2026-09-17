@@ -22,24 +22,24 @@ Placement resources are permitted when their references remain unambiguous.
 
 ## Application and workflow
 
-![UML metamodel of Application tasks, metrics, aggregation, and recursive workflow nodes](generated/02-application-workflow.svg)
+![UML metamodel of Application tasks, features, aggregation, and recursive workflow nodes](generated/02-application-workflow.svg)
 
 PlantUML source:
 [`02-application-workflow.puml`](plantuml/02-application-workflow.puml).
 Primary source:
 [`application.schema.json`](../../schemas/bim/v1/application.schema.json).
 
-Every Application owns at least one task, zero or more metric definitions, and
+Every Application owns at least one task, zero or more feature definitions, and
 one workflow root. The source workflow is a recursive tagged union: `task`,
 `empty`, `sequence`, `parallel`, `exclusive`, `repeat`, or `bpmn`. A service
 task requires one capability type, optionally refined by a typed predicate; a
-local task requires no candidate. Each metric declares deterministic scalar
+local task requires no candidate. Each feature declares deterministic scalar
 semantics and aggregation for sequence, parallel, exclusive, repeat, and
 selected-candidate composition.
 
 ## Candidate catalogs and eligibility
 
-![UML metamodel of candidate catalogs, capabilities, metric bindings, and compiled eligibility](generated/02-catalog-eligibility.svg)
+![UML metamodel of candidate catalogs, capabilities, feature bindings, and compiled eligibility](generated/02-catalog-eligibility.svg)
 
 PlantUML source:
 [`02-catalog-eligibility.puml`](plantuml/02-catalog-eligibility.puml).
@@ -49,10 +49,10 @@ and candidate normalization in
 [`compiler.py`](../../openbinding-gateway/src/openbinding_gateway/v1/compiler.py).
 
 Catalog candidates publish capability types, optional stable scalar
-properties, providers, and metric slots. They never contain task ids.
+properties, providers, and feature slots. They never contain task ids.
 Application requirements and predicates are evaluated before search to produce
-the closed `eligibility` matrix in the BindingProblem IR. Each catalog metric
-slot is connected to an Application metric through an explicit resource
+the closed `eligibility` matrix in the BindingProblem IR. Each catalog feature
+slot is connected to an Application feature through an explicit resource
 reference.
 
 ## Constraints and expressions
@@ -89,11 +89,11 @@ targets native branch ids or BPMN sequence-flow ids.
 ```mermaid
 flowchart LR
   accTitle: QoS-binding semantic evaluation flow
-  accDescr: Application requirements and catalogs produce eligibility, an Engine chooses a binding, and the authoritative evaluator aggregates metrics, checks constraints, applies penalties, and computes the selected objective.
+  accDescr: Application requirements and catalogs produce eligibility, an Engine chooses a binding, and the authoritative evaluator aggregates features, checks constraints, applies penalties, and computes the selected objective.
   A[Application requirements] --> EL[Eligibility matrix]
   C[Candidate catalogs] --> EL
   EL --> B[Binding decision]
-  W[Structured workflow] --> AG[Metric aggregation]
+  W[Structured workflow] --> AG[Feature aggregation]
   R[Routing overlay] --> AG
   B --> AG
   AG --> HC{Hard constraints hold?}
@@ -110,5 +110,5 @@ The gateway executes this same model after an Engine responds. A candidate
 value is never imputed, an unsupported expression is never delegated as raw
 source, and an Engine result that cannot be reproduced by the canonical
 evaluator is rejected. The precise mathematical rules remain in
-[SEMANTICS](../SEMANTICS.md), [METRICS](../METRICS.md), and
+[SEMANTICS](../SEMANTICS.md), [FEATURES](../FEATURES.md), and
 [EXPRESSIONS](../EXPRESSIONS.md).

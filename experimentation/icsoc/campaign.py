@@ -202,7 +202,7 @@ def corpus_summary_row(instance: LoadedInstance, path: Path) -> dict[str, Any]:
         "n_tasks": len(tasks),
         "n_candidates": len(candidates),
         "n_pools": len(placement.get("spec", {}).get("pools", [])),
-        "n_features": len(application.get("spec", {}).get("metrics", [])),
+        "n_features": len(application.get("spec", {}).get("features", application.get("spec", {}).get("metrics", []))),
         "n_constraints_local": counts["LOCAL"],
         "n_constraints_global": counts["GLOBAL"],
         "n_constraints_dependency": counts["DEPENDENCY"],
@@ -352,7 +352,7 @@ def _run_row(
             item.get("enforcement") == "hard" for item in violations
         )
         objectives = solution.get("objectives") or {}
-        metrics = solution.get("metrics") or {}
+        features = solution.get("features", solution.get("metrics", {})) or {}
         objective_value = objectives.get("score")
         if isinstance(objective_value, (dict, list)):
             objective_value = json.dumps(objective_value, sort_keys=True, separators=(",", ":"))
@@ -368,9 +368,9 @@ def _run_row(
             "soft_violations": sum(
                 1 for item in violations if item.get("enforcement") == "soft"
             ),
-            "cost": metrics.get("cost"),
-            "latency": metrics.get("latency"),
-            "security": metrics.get("security"),
+            "cost": features.get("cost"),
+            "latency": features.get("latency"),
+            "security": features.get("security"),
         })
     return row
 

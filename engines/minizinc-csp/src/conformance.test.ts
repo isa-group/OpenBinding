@@ -23,6 +23,7 @@ function candidate(resource: string, cost: number, latency: number) {
   return {
     ref: ref(resource, 'same-id'), provider: ref(resource, 'provider'),
     provides: [{ type: 'compute', properties: {} }], properties: {},
+    features: { price: cost, response: latency },
     metrics: { price: cost, response: latency },
   };
 }
@@ -30,12 +31,16 @@ function candidate(resource: string, cost: number, latency: number) {
 function catalog(resource: string, cost: number, latency: number) {
   return {
     providers: { provider: { properties: {} } },
+    featureBindings: { price: ref('app', 'cost'), response: ref('app', 'latency') },
     metricBindings: { price: ref('app', 'cost'), response: ref('app', 'latency') },
     candidates: { 'same-id': candidate(resource, cost, latency) },
   };
 }
 
 function problem(): any {
+  const appFeatures = { cost: metric(), latency: metric() };
+  const reqFeatures = ['cost', 'latency'];
+  const taskReqFeatures = {};
   return {
     apiVersion: 'bim/v1', kind: 'BindingProblem', metadata: { name: 'mini' },
     spec: {
@@ -62,8 +67,12 @@ function problem(): any {
       application: {
         resource: 'app',
         tasks: { t: { kind: 'service', requires: { type: 'compute' } } },
-        metrics: { cost: metric(), latency: metric() },
-        requiredMetrics: ['cost', 'latency'], taskRequiredMetrics: {},
+        features: appFeatures,
+        metrics: appFeatures,
+        requiredFeatures: reqFeatures,
+        requiredMetrics: reqFeatures,
+        taskRequiredFeatures: taskReqFeatures,
+        taskRequiredMetrics: taskReqFeatures,
         workflow: { kind: 'task', task: ref('app', 't') },
       },
       candidates: {
@@ -74,7 +83,7 @@ function problem(): any {
       routing: [], constraints: [], placement: [],
       optimization: {
         resource: 'optimization', mode: 'weighted', type: 'MONO',
-        terms: [{ metric: ref('app', 'cost'), direction: 'minimize', weight: 1 }],
+        terms: [{ feature: ref('app', 'cost'), metric: ref('app', 'cost'), direction: 'minimize', weight: 1 }],
         penalties: [],
       },
       extensions: {}, sourceMap: {},
@@ -132,10 +141,10 @@ function placedProblem(): any {
     },
     transitions: [{
       ref: ref('placement', 'ingress-to-t'), from: ref('placement', 'ingress'), to: ref('app', 't'),
-      metric: ref('app', 'latency'), maximum: 5, enforcement: 'hard',
+      feature: ref('app', 'latency'), metric: ref('app', 'latency'), maximum: 5, enforcement: 'hard',
     }],
     globalLatency: {
-      metric: ref('app', 'latency'), includeExecution: true, exclusive: 'routing', parallel: 'max',
+      feature: ref('app', 'latency'), metric: ref('app', 'latency'), includeExecution: true, exclusive: 'routing', parallel: 'max',
     },
     capacityRules: [{ ref: ref('placement', 'capacityRules/0'), resources: ['memory'], scope: 'selectedCandidate' }],
   }];
@@ -157,6 +166,7 @@ describe('canonical BIM v1 lowering', () => {
 
   it('materializes changed objectives and hard constraints', () => {
     const objective = problem();
+    objective.spec.optimization.terms[0].feature = ref('app', 'latency');
     objective.spec.optimization.terms[0].metric = ref('app', 'latency');
     assert.equal(parameter(new DznBuilder().build(objective, {}).dznContent, 'term_metric'), '[2]');
     objective.spec.optimization.terms[0].normalize = { min: 0, max: 5, clamp: false };
@@ -319,6 +329,7 @@ describe('BIM Engine Protocol v1', () => {
     const result = await new Solver(runner).solve(problem(), { time_budget_ms: 1234 });
     assert.equal(result.termination, 'OPTIMAL');
     assert.deepEqual(result.solutions[0].decision.binding.t, ref('catalog-b', 'same-id'));
+    assert.equal(result.solutions[0].features.cost, 9);
     assert.equal(result.solutions[0].metrics.cost, 9);
     assert.equal(result.solutions[0].objectives.score, 9);
     assert.deepEqual(runner.extraArgs.slice(0, 2), ['--time-limit', '1234']);
@@ -337,6 +348,7 @@ describe('BIM Engine Protocol v1', () => {
     const value = placedProblem();
     const solved = await new Solver(new PlacementRunner(1, 1)).solve(value, {});
     assert.deepEqual(solved.solutions[0].decision.binding.t, ref('catalog-a', 'same-id'));
+    assert.equal(solved.solutions[0].features.latency, 10);
     assert.equal(solved.solutions[0].metrics.latency, 10);
     assert.equal(solved.solutions[0].objectives.score, 1);
 

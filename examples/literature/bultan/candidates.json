@@ -8,7 +8,7 @@
     "candidates": {
       "c_authorize_store_v1": {
         "provides": "service/t_authorize",
-        "metrics": {
+        "features": {
           "latency_ms": 55,
           "cost_usd": 0.01,
           "availability": 0.999,
@@ -22,7 +22,7 @@
       },
       "c_ok_bank_v1": {
         "provides": "service/t_ok",
-        "metrics": {
+        "features": {
           "latency_ms": 45,
           "cost_usd": 0.01,
           "availability": 0.999,
@@ -36,7 +36,7 @@
       },
       "c_order1_store_v1": {
         "provides": "service/t_order1",
-        "metrics": {
+        "features": {
           "latency_ms": 65,
           "cost_usd": 0.02,
           "availability": 0.998,
@@ -50,7 +50,7 @@
       },
       "c_receipt1_wh1_v1": {
         "provides": "service/t_receipt1",
-        "metrics": {
+        "features": {
           "latency_ms": 80,
           "cost_usd": 0.015,
           "availability": 0.997,
@@ -64,7 +64,7 @@
       },
       "c_bill1_wh1_v1": {
         "provides": "service/t_bill1",
-        "metrics": {
+        "features": {
           "latency_ms": 75,
           "cost_usd": 0.015,
           "availability": 0.998,
@@ -78,7 +78,7 @@
       },
       "c_payment1_bank_v1": {
         "provides": "service/t_payment1",
-        "metrics": {
+        "features": {
           "latency_ms": 90,
           "cost_usd": 0.03,
           "availability": 0.999,
@@ -92,7 +92,7 @@
       },
       "c_order2_store_v1": {
         "provides": "service/t_order2",
-        "metrics": {
+        "features": {
           "latency_ms": 70,
           "cost_usd": 0.02,
           "availability": 0.998,
@@ -106,7 +106,7 @@
       },
       "c_receipt2_wh2_v1": {
         "provides": "service/t_receipt2",
-        "metrics": {
+        "features": {
           "latency_ms": 85,
           "cost_usd": 0.015,
           "availability": 0.997,
@@ -120,7 +120,7 @@
       },
       "c_bill2_wh2_v1": {
         "provides": "service/t_bill2",
-        "metrics": {
+        "features": {
           "latency_ms": 78,
           "cost_usd": 0.015,
           "availability": 0.998,
@@ -134,7 +134,7 @@
       },
       "c_payment2_bank_v1": {
         "provides": "service/t_payment2",
-        "metrics": {
+        "features": {
           "latency_ms": 95,
           "cost_usd": 0.03,
           "availability": 0.999,
@@ -153,7 +153,7 @@
       "p_wh1": {},
       "p_wh2": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "latency_ms": {
         "resource": "application",
         "id": "latency_ms"

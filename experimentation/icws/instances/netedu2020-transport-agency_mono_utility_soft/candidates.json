@@ -8,7 +8,7 @@
     "candidates": {
       "c_get_country_from_location": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 1,
           "execution_time": 192,
           "availability": 0.985,
@@ -22,7 +22,7 @@
       },
       "c_get_transport_company": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1,
           "execution_time": 192,
           "availability": 0.985,
@@ -36,7 +36,7 @@
       },
       "c_get_closest_city": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1,
           "execution_time": 192,
           "availability": 0.985,
@@ -50,7 +50,7 @@
       },
       "c_get_local_subsidiary": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1,
           "execution_time": 192,
           "availability": 0.985,
@@ -64,7 +64,7 @@
       },
       "c_get_vehicle": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1,
           "execution_time": 192,
           "availability": 0.985,
@@ -78,7 +78,7 @@
       },
       "c_make_arrangements": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1,
           "execution_time": 192,
           "availability": 0.985,
@@ -92,7 +92,7 @@
       },
       "t_get_country_from_location_gen_1": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 1.0,
           "reliability": 1.0,
@@ -106,7 +106,7 @@
       },
       "t_get_transport_company_gen_1": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.991803,
           "reliability": 0.9876999999999999,
@@ -120,7 +120,7 @@
       },
       "t_get_closest_city_gen_1": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.97843,
           "reliability": 0.9883,
@@ -134,7 +134,7 @@
       },
       "t_get_local_subsidiary_gen_1": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.996911,
           "reliability": 0.9882,
@@ -148,7 +148,7 @@
       },
       "t_get_vehicle_gen_1": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1.03,
           "availability": 0.964604,
           "reliability": 0.9541,
@@ -162,7 +162,7 @@
       },
       "t_make_arrangements_gen_1": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 0.97,
           "availability": 1.0,
           "reliability": 1.0,
@@ -176,7 +176,7 @@
       },
       "t_get_closest_city_gen_2": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.999128,
           "reliability": 0.9634,
@@ -190,7 +190,7 @@
       },
       "t_get_country_from_location_gen_2": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.962685,
           "reliability": 1.0,
@@ -204,7 +204,7 @@
       },
       "t_get_local_subsidiary_gen_2": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.988709,
           "reliability": 0.9729000000000001,
@@ -218,7 +218,7 @@
       },
       "t_get_transport_company_gen_2": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.969007,
           "reliability": 0.9721,
@@ -232,7 +232,7 @@
       },
       "t_get_vehicle_gen_2": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.996238,
           "reliability": 0.9747,
@@ -246,7 +246,7 @@
       },
       "t_make_arrangements_gen_2": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.968931,
           "reliability": 0.9944,
@@ -260,7 +260,7 @@
       },
       "t_get_closest_city_gen_3": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 1.0,
           "reliability": 0.9967,
@@ -274,7 +274,7 @@
       },
       "t_get_country_from_location_gen_3": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.985383,
           "reliability": 0.9925,
@@ -288,7 +288,7 @@
       },
       "t_get_local_subsidiary_gen_3": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 0.959119,
           "reliability": 0.9822,
@@ -302,7 +302,7 @@
       },
       "t_get_transport_company_gen_3": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.977779,
           "reliability": 0.9882,
@@ -316,7 +316,7 @@
       },
       "t_get_vehicle_gen_3": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 0.968685,
           "reliability": 0.971,
@@ -330,7 +330,7 @@
       },
       "t_make_arrangements_gen_3": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.974933,
           "reliability": 0.9632999999999999,
@@ -344,7 +344,7 @@
       },
       "t_get_closest_city_gen_4": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.03,
           "availability": 0.989821,
           "reliability": 0.9662000000000001,
@@ -358,7 +358,7 @@
       },
       "t_get_country_from_location_gen_4": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.98547,
           "reliability": 0.9709,
@@ -372,7 +372,7 @@
       },
       "t_get_local_subsidiary_gen_4": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.957077,
           "reliability": 0.9994,
@@ -386,7 +386,7 @@
       },
       "t_get_transport_company_gen_4": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 1.0,
           "reliability": 0.9545999999999999,
@@ -400,7 +400,7 @@
       },
       "t_get_vehicle_gen_4": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 0.97,
           "availability": 0.97782,
           "reliability": 0.9982,
@@ -414,7 +414,7 @@
       },
       "t_make_arrangements_gen_4": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 0.994841,
           "reliability": 0.9619,
@@ -428,7 +428,7 @@
       },
       "t_get_closest_city_gen_5": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 1.0,
           "reliability": 0.9764,
@@ -442,7 +442,7 @@
       },
       "t_get_country_from_location_gen_5": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.975724,
           "reliability": 1.0,
@@ -456,7 +456,7 @@
       },
       "t_get_local_subsidiary_gen_5": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.03,
           "availability": 0.982868,
           "reliability": 0.9847,
@@ -470,7 +470,7 @@
       },
       "t_get_transport_company_gen_5": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.993595,
           "reliability": 0.9781,
@@ -484,7 +484,7 @@
       },
       "t_get_vehicle_gen_5": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 0.97,
           "availability": 1.0,
           "reliability": 0.9931,
@@ -498,7 +498,7 @@
       },
       "t_make_arrangements_gen_5": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9979,
@@ -512,7 +512,7 @@
       },
       "t_get_closest_city_gen_6": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.984055,
           "reliability": 0.9723999999999999,
@@ -526,7 +526,7 @@
       },
       "t_get_country_from_location_gen_6": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.972367,
           "reliability": 0.9592,
@@ -540,7 +540,7 @@
       },
       "t_get_local_subsidiary_gen_6": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.981194,
           "reliability": 1.0,
@@ -554,7 +554,7 @@
       },
       "t_get_transport_company_gen_6": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 1.0,
           "reliability": 1.0,
@@ -568,7 +568,7 @@
       },
       "t_get_vehicle_gen_6": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 1.0,
           "reliability": 0.9863,
@@ -582,7 +582,7 @@
       },
       "t_make_arrangements_gen_6": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.979578,
           "reliability": 0.9897,
@@ -596,7 +596,7 @@
       },
       "t_get_closest_city_gen_7": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 1.0,
           "reliability": 0.9893000000000001,
@@ -610,7 +610,7 @@
       },
       "t_get_country_from_location_gen_7": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 0.962911,
           "reliability": 0.9876999999999999,
@@ -624,7 +624,7 @@
       },
       "t_get_local_subsidiary_gen_7": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.993956,
           "reliability": 0.9882,
@@ -638,7 +638,7 @@
       },
       "t_get_transport_company_gen_7": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.998395,
           "reliability": 0.9784,
@@ -652,7 +652,7 @@
       },
       "t_get_vehicle_gen_7": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9706,
@@ -666,7 +666,7 @@
       },
       "t_make_arrangements_gen_7": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9758,
@@ -680,7 +680,7 @@
       },
       "t_get_closest_city_gen_8": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.974905,
           "reliability": 0.9932,
@@ -694,7 +694,7 @@
       },
       "t_get_country_from_location_gen_8": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.991678,
           "reliability": 0.9570000000000001,
@@ -708,7 +708,7 @@
       },
       "t_get_local_subsidiary_gen_8": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 1.0,
           "reliability": 0.9839,
@@ -722,7 +722,7 @@
       },
       "t_get_transport_company_gen_8": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 0.97,
           "availability": 0.986512,
           "reliability": 0.9567,
@@ -736,7 +736,7 @@
       },
       "t_get_vehicle_gen_8": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.995343,
           "reliability": 0.9989,
@@ -750,7 +750,7 @@
       },
       "t_make_arrangements_gen_8": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 1.0,
           "reliability": 0.9764,
@@ -764,7 +764,7 @@
       },
       "t_get_closest_city_gen_9": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 1.0,
           "reliability": 0.961,
@@ -778,7 +778,7 @@
       },
       "t_get_country_from_location_gen_9": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.984417,
           "reliability": 0.9993000000000001,
@@ -792,7 +792,7 @@
       },
       "t_get_local_subsidiary_gen_9": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 0.979951,
           "reliability": 0.9906999999999999,
@@ -806,7 +806,7 @@
       },
       "t_get_transport_company_gen_9": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.95873,
           "reliability": 0.9813,
@@ -820,7 +820,7 @@
       },
       "t_get_vehicle_gen_9": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 1.0,
           "reliability": 0.9722,
@@ -834,7 +834,7 @@
       },
       "t_make_arrangements_gen_9": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 0.972509,
           "reliability": 0.9943000000000001,
@@ -848,7 +848,7 @@
       },
       "t_get_closest_city_gen_10": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9673,
@@ -862,7 +862,7 @@
       },
       "t_get_country_from_location_gen_10": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.985623,
           "reliability": 0.9704,
@@ -876,7 +876,7 @@
       },
       "t_get_local_subsidiary_gen_10": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.990336,
           "reliability": 0.9926999999999999,
@@ -890,7 +890,7 @@
       },
       "t_get_transport_company_gen_10": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 1.0,
           "reliability": 0.9781,
@@ -904,7 +904,7 @@
       },
       "t_get_vehicle_gen_10": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.988537,
           "reliability": 0.9547,
@@ -918,7 +918,7 @@
       },
       "t_make_arrangements_gen_10": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9691,
@@ -932,7 +932,7 @@
       },
       "t_get_closest_city_gen_11": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 0.97,
           "availability": 1.0,
           "reliability": 1.0,
@@ -946,7 +946,7 @@
       },
       "t_get_country_from_location_gen_11": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9851000000000001,
@@ -960,7 +960,7 @@
       },
       "t_get_local_subsidiary_gen_11": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.999127,
           "reliability": 1.0,
@@ -974,7 +974,7 @@
       },
       "t_get_transport_company_gen_11": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.998897,
           "reliability": 1.0,
@@ -988,7 +988,7 @@
       },
       "t_get_vehicle_gen_11": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 0.97,
           "availability": 0.989577,
           "reliability": 0.9716,
@@ -1002,7 +1002,7 @@
       },
       "t_make_arrangements_gen_11": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.964069,
           "reliability": 0.9568000000000001,
@@ -1016,7 +1016,7 @@
       },
       "t_get_closest_city_gen_12": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9924,
@@ -1030,7 +1030,7 @@
       },
       "t_get_country_from_location_gen_12": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.975577,
           "reliability": 1.0,
@@ -1044,7 +1044,7 @@
       },
       "t_get_local_subsidiary_gen_12": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.978063,
           "reliability": 1.0,
@@ -1058,7 +1058,7 @@
       },
       "t_get_transport_company_gen_12": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.03,
           "availability": 0.992155,
           "reliability": 0.9926999999999999,
@@ -1072,7 +1072,7 @@
       },
       "t_get_vehicle_gen_12": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.957107,
           "reliability": 0.9570000000000001,
@@ -1086,7 +1086,7 @@
       },
       "t_make_arrangements_gen_12": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.994209,
           "reliability": 0.9581000000000001,
@@ -1100,7 +1100,7 @@
       },
       "t_get_closest_city_gen_13": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.970495,
           "reliability": 1.0,
@@ -1114,7 +1114,7 @@
       },
       "t_get_country_from_location_gen_13": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.995586,
           "reliability": 0.9619,
@@ -1128,7 +1128,7 @@
       },
       "t_get_local_subsidiary_gen_13": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 1.0,
           "reliability": 0.9645999999999999,
@@ -1142,7 +1142,7 @@
       },
       "t_get_transport_company_gen_13": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9878,
@@ -1156,7 +1156,7 @@
       },
       "t_get_vehicle_gen_13": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.97126,
           "reliability": 0.9542,
@@ -1170,7 +1170,7 @@
       },
       "t_make_arrangements_gen_13": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9567,
@@ -1184,7 +1184,7 @@
       },
       "t_get_closest_city_gen_14": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.963526,
           "reliability": 0.9873000000000001,
@@ -1198,7 +1198,7 @@
       },
       "t_get_country_from_location_gen_14": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.998234,
           "reliability": 0.9847,
@@ -1212,7 +1212,7 @@
       },
       "t_get_local_subsidiary_gen_14": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 0.97,
           "availability": 0.992707,
           "reliability": 0.9749,
@@ -1226,7 +1226,7 @@
       },
       "t_get_transport_company_gen_14": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.993391,
           "reliability": 1.0,
@@ -1240,7 +1240,7 @@
       },
       "t_get_vehicle_gen_14": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.95636,
           "reliability": 0.9631000000000001,
@@ -1254,7 +1254,7 @@
       },
       "t_make_arrangements_gen_14": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.968359,
           "reliability": 1.0,
@@ -1268,7 +1268,7 @@
       },
       "t_get_closest_city_gen_15": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.97858,
           "reliability": 0.9765999999999999,
@@ -1282,7 +1282,7 @@
       },
       "t_get_country_from_location_gen_15": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 0.99494,
           "reliability": 1.0,
@@ -1296,7 +1296,7 @@
       },
       "t_get_local_subsidiary_gen_15": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 1.0,
           "reliability": 0.9945,
@@ -1310,7 +1310,7 @@
       },
       "t_get_transport_company_gen_15": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 0.981698,
           "reliability": 0.9538,
@@ -1324,7 +1324,7 @@
       },
       "t_get_vehicle_gen_15": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.992215,
           "reliability": 0.9732,
@@ -1338,7 +1338,7 @@
       },
       "t_make_arrangements_gen_15": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.997873,
           "reliability": 0.9606,
@@ -1352,7 +1352,7 @@
       },
       "t_get_closest_city_gen_16": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.03,
           "availability": 0.997898,
           "reliability": 1.0,
@@ -1366,7 +1366,7 @@
       },
       "t_get_country_from_location_gen_16": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.969288,
           "reliability": 0.9697,
@@ -1380,7 +1380,7 @@
       },
       "t_get_local_subsidiary_gen_16": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.03,
           "availability": 0.990874,
           "reliability": 0.9990000000000001,
@@ -1394,7 +1394,7 @@
       },
       "t_get_transport_company_gen_16": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.03,
           "availability": 0.989328,
           "reliability": 0.9544,
@@ -1408,7 +1408,7 @@
       },
       "t_get_vehicle_gen_16": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9638,
@@ -1422,7 +1422,7 @@
       },
       "t_make_arrangements_gen_16": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.997782,
           "reliability": 0.9586,
@@ -1436,7 +1436,7 @@
       },
       "t_get_closest_city_gen_17": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 1.0,
@@ -1450,7 +1450,7 @@
       },
       "t_get_country_from_location_gen_17": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 0.97,
           "availability": 1.0,
           "reliability": 1.0,
@@ -1464,7 +1464,7 @@
       },
       "t_get_local_subsidiary_gen_17": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.997078,
           "reliability": 1.0,
@@ -1478,7 +1478,7 @@
       },
       "t_get_transport_company_gen_17": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.956197,
           "reliability": 0.9984000000000001,
@@ -1492,7 +1492,7 @@
       },
       "t_get_vehicle_gen_17": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.992812,
           "reliability": 0.9797,
@@ -1506,7 +1506,7 @@
       },
       "t_make_arrangements_gen_17": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.987863,
           "reliability": 0.9723,
@@ -1520,7 +1520,7 @@
       },
       "t_get_closest_city_gen_18": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 0.97,
           "availability": 0.960686,
           "reliability": 1.0,
@@ -1534,7 +1534,7 @@
       },
       "t_get_country_from_location_gen_18": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.956918,
           "reliability": 0.9892,
@@ -1548,7 +1548,7 @@
       },
       "t_get_local_subsidiary_gen_18": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.997013,
           "reliability": 0.9747,
@@ -1562,7 +1562,7 @@
       },
       "t_get_transport_company_gen_18": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.03,
           "availability": 1.0,
           "reliability": 0.9787,
@@ -1576,7 +1576,7 @@
       },
       "t_get_vehicle_gen_18": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 0.97,
           "availability": 0.992388,
           "reliability": 0.9544,
@@ -1590,7 +1590,7 @@
       },
       "t_make_arrangements_gen_18": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.978011,
           "reliability": 0.9906,
@@ -1604,7 +1604,7 @@
       },
       "t_get_closest_city_gen_19": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 0.967284,
           "reliability": 1.0,
@@ -1618,7 +1618,7 @@
       },
       "t_get_country_from_location_gen_19": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.958774,
           "reliability": 0.9847,
@@ -1632,7 +1632,7 @@
       },
       "t_get_local_subsidiary_gen_19": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9621999999999999,
@@ -1646,7 +1646,7 @@
       },
       "t_get_transport_company_gen_19": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 1.0,
           "reliability": 0.998,
@@ -1660,7 +1660,7 @@
       },
       "t_get_vehicle_gen_19": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1.01,
           "availability": 0.976513,
           "reliability": 1.0,
@@ -1674,7 +1674,7 @@
       },
       "t_make_arrangements_gen_19": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 1.0,
           "reliability": 0.9784,
@@ -1688,7 +1688,7 @@
       },
       "t_get_closest_city_gen_20": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 0.97,
           "availability": 0.97562,
           "reliability": 0.9659,
@@ -1702,7 +1702,7 @@
       },
       "t_get_country_from_location_gen_20": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9943000000000001,
@@ -1716,7 +1716,7 @@
       },
       "t_get_local_subsidiary_gen_20": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.02,
           "availability": 0.97548,
           "reliability": 0.9773999999999999,
@@ -1730,7 +1730,7 @@
       },
       "t_get_transport_company_gen_20": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 0.961157,
           "reliability": 0.9590000000000001,
@@ -1744,7 +1744,7 @@
       },
       "t_get_vehicle_gen_20": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 0.982694,
           "reliability": 0.9802,
@@ -1758,7 +1758,7 @@
       },
       "t_make_arrangements_gen_20": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 0.98,
           "availability": 1.0,
           "reliability": 0.9582999999999999,
@@ -1772,7 +1772,7 @@
       },
       "t_get_closest_city_gen_21": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9818000000000001,
@@ -1786,7 +1786,7 @@
       },
       "t_get_country_from_location_gen_21": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 0.99,
           "availability": 1.0,
           "reliability": 0.955,
@@ -1800,7 +1800,7 @@
       },
       "t_get_local_subsidiary_gen_21": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1.03,
           "availability": 0.975774,
           "reliability": 0.9947,
@@ -1814,7 +1814,7 @@
       },
       "t_get_transport_company_gen_21": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1.0,
           "availability": 1.0,
           "reliability": 0.9609000000000001,
@@ -1836,7 +1836,7 @@
       "p_gen_4": {},
       "p_gen_5": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "cost": {
         "resource": "application",
         "id": "cost"

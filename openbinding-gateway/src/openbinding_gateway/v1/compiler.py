@@ -159,7 +159,7 @@ def _all_profile_manifests() -> list[dict[str, Any]]:
                             "openValues": False,
                         },
                         "aggregations": {"values": aggregation_values, "openValues": False},
-                        "metricScopes": {"values": ["invocation", "selectedCandidate"], "openValues": False},
+                        "featureScopes": {"values": ["invocation", "selectedCandidate"], "openValues": False},
                         "constraints": {
                             "values": [
                                 "hard.aggregate-bound", "hard.expression",
@@ -178,7 +178,7 @@ def _all_profile_manifests() -> list[dict[str, Any]]:
                         "expressions": {
                             "values": [
                                 "literal", "not", "negate", "and", "or", "compare", "arithmetic",
-                                "path.binding", "path.tasks", "path.metrics", "path.extensions",
+                                "path.binding", "path.tasks", "path.features", "path.extensions",
                                 "path.candidate", "path.capability", "path.values",
                                 "path.weights", "path.count", "call.has", "call.min", "call.max",
                                 "call.sum", "call.product", "call.weightedSum", "call.weightedProduct",
@@ -1863,12 +1863,12 @@ def _aggregation_policy(value: Any, diagnostics: list[CompileDiagnostic], resour
     return defaults
 
 
-def _normalize_metrics(application: _Resource, diagnostics: list[CompileDiagnostic], source_map: dict[str, Any]) -> dict[str, dict[str, Any]]:
-    source = application.document.get("spec", {}).get("metrics", {})
-    metrics: dict[str, dict[str, Any]] = {}
+def _normalize_features(application: _Resource, diagnostics: list[CompileDiagnostic], source_map: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    source = application.document.get("spec", {}).get("features", {})
+    features: dict[str, dict[str, Any]] = {}
     if not isinstance(source, dict):
-        return metrics
-    for metric_id, value in source.items():
+        return features
+    for feature_id, value in source.items():
         if not isinstance(value, dict):
             continue
         domain = value.get("domain", "real")
@@ -1879,17 +1879,17 @@ def _normalize_metrics(application: _Resource, diagnostics: list[CompileDiagnost
         domain_kind = domain.get("kind")
         for bound in ("minimum", "maximum"):
             if bound in domain:
-                _finite(domain[bound], f"/spec/metrics/{metric_id}/domain/{bound}", diagnostics, application.path)
+                _finite(domain[bound], f"/spec/features/{feature_id}/domain/{bound}", diagnostics, application.path)
                 if domain_kind == "integer" and isinstance(domain[bound], (int, float)) and not float(domain[bound]).is_integer():
-                    diagnostics.append(_diag("metric_domain", "integer metric bounds must be integers", application.path, f"/spec/metrics/{metric_id}/domain/{bound}"))
+                    diagnostics.append(_diag("feature_domain", "integer feature bounds must be integers", application.path, f"/spec/features/{feature_id}/domain/{bound}"))
         if domain_kind == "ratio":
             minimum = domain.setdefault("minimum", 0.0)
             maximum = domain.setdefault("maximum", 1.0)
             if isinstance(minimum, (int, float)) and isinstance(maximum, (int, float)) and (minimum < 0 or maximum > 1):
-                diagnostics.append(_diag("metric_domain", "ratio metric domains must stay within [0, 1]", application.path, f"/spec/metrics/{metric_id}/domain"))
+                diagnostics.append(_diag("feature_domain", "ratio feature domains must stay within [0, 1]", application.path, f"/spec/features/{feature_id}/domain"))
         if isinstance(domain.get("minimum"), (int, float)) and isinstance(domain.get("maximum"), (int, float)) and domain["maximum"] < domain["minimum"]:
-            diagnostics.append(_diag("metric_domain", "metric domain maximum must not be lower than minimum", application.path, f"/spec/metrics/{metric_id}/domain"))
-        aggregation = _aggregation_policy(value.get("aggregation"), diagnostics, application.path, f"/spec/metrics/{metric_id}/aggregation")
+            diagnostics.append(_diag("feature_domain", "feature domain maximum must not be lower than minimum", application.path, f"/spec/features/{feature_id}/domain"))
+        aggregation = _aggregation_policy(value.get("aggregation"), diagnostics, application.path, f"/spec/features/{feature_id}/aggregation")
         neutral = value.get("neutral")
         if neutral is None:
             sequence_operator = aggregation.get("sequence")
@@ -1902,14 +1902,14 @@ def _normalize_metrics(application: _Resource, diagnostics: list[CompileDiagnost
             elif sequence_operator == "max":
                 neutral = 0.0 if domain.get("kind") == "ratio" else domain.get("minimum")
             if neutral is None:
-                diagnostics.append(_diag("metric_neutral", "metric.neutral is required when it cannot be inferred from aggregation and domain", application.path, f"/spec/metrics/{metric_id}/neutral"))
+                diagnostics.append(_diag("feature_neutral", "feature.neutral is required when it cannot be inferred from aggregation and domain", application.path, f"/spec/features/{feature_id}/neutral"))
                 neutral = 0.0
-        if _finite(neutral, f"/spec/metrics/{metric_id}/neutral", diagnostics, application.path):
+        if _finite(neutral, f"/spec/features/{feature_id}/neutral", diagnostics, application.path):
             minimum = 0.0 if domain.get("kind") == "ratio" else domain.get("minimum")
             maximum = 1.0 if domain.get("kind") == "ratio" else domain.get("maximum")
             if (minimum is not None and float(neutral) < float(minimum)) or (maximum is not None and float(neutral) > float(maximum)):
-                diagnostics.append(_diag("metric_neutral_domain", "metric.neutral must be inside the declared domain", application.path, f"/spec/metrics/{metric_id}/neutral"))
-        metric = {
+                diagnostics.append(_diag("feature_neutral_domain", "feature.neutral must be inside the declared domain", application.path, f"/spec/features/{feature_id}/neutral"))
+        feature = {
             "type": "number",
             "unit": value.get("unit", "1"),
             "domain": domain,
@@ -1919,15 +1919,15 @@ def _normalize_metrics(application: _Resource, diagnostics: list[CompileDiagnost
             "neutral": float(neutral),
         }
         if isinstance(value.get("name"), str):
-            metric["name"] = value["name"]
-        metrics[metric_id] = metric
-        source_map[f"/spec/application/metrics/{metric_id}"] = {"resource": application.id, "path": application.path, "pointer": f"/spec/metrics/{metric_id}"}
-    return metrics
+            feature["name"] = value["name"]
+        features[feature_id] = feature
+        source_map[f"/spec/application/features/{feature_id}"] = {"resource": application.id, "path": application.path, "pointer": f"/spec/features/{feature_id}"}
+    return features
 
 
-def _validate_metric_value(
+def _validate_feature_value(
     value: Any,
-    metric: Mapping[str, Any],
+    feature: Mapping[str, Any],
     resource: str,
     pointer: str,
     diagnostics: list[CompileDiagnostic],
@@ -1935,15 +1935,15 @@ def _validate_metric_value(
     if not _finite(value, pointer, diagnostics, resource):
         return
     numeric = float(value)
-    domain = metric.get("domain", {})
+    domain = feature.get("domain", {})
     minimum = domain.get("minimum") if isinstance(domain, Mapping) else None
     maximum = domain.get("maximum") if isinstance(domain, Mapping) else None
     if minimum is not None and numeric < float(minimum):
-        diagnostics.append(_diag("metric_value_domain", "candidate metric value is below its declared domain", resource, pointer))
+        diagnostics.append(_diag("feature_value_domain", "candidate feature value is below its declared domain", resource, pointer))
     if maximum is not None and numeric > float(maximum):
-        diagnostics.append(_diag("metric_value_domain", "candidate metric value is above its declared domain", resource, pointer))
+        diagnostics.append(_diag("feature_value_domain", "candidate feature value is above its declared domain", resource, pointer))
     if isinstance(domain, Mapping) and domain.get("kind") == "integer" and not numeric.is_integer():
-        diagnostics.append(_diag("metric_value_domain", "candidate value for an integer metric must be integral", resource, pointer))
+        diagnostics.append(_diag("feature_value_domain", "candidate value for an integer feature must be integral", resource, pointer))
 
 
 def _normalize_capabilities(value: Any) -> list[dict[str, Any]]:
@@ -2008,7 +2008,7 @@ def _normalize_candidates(
     catalogs: list[_Resource],
     tasks: dict[str, dict[str, Any]],
     application: _Resource,
-    metric_definitions: Mapping[str, Any],
+    feature_definitions: Mapping[str, Any],
     diagnostics: list[CompileDiagnostic],
     source_map: dict[str, Any],
 ) -> tuple[dict[str, dict[str, Any]], dict[str, list[dict[str, str]]]]:
@@ -2025,22 +2025,22 @@ def _normalize_candidates(
             }
             for provider_id, value in providers_source.items()
         } if isinstance(providers_source, dict) else {}
-        bindings_source = spec.get("metricBindings", {})
-        metric_bindings: dict[str, dict[str, str]] = {}
+        bindings_source = spec.get("featureBindings", {})
+        feature_bindings: dict[str, dict[str, str]] = {}
         bound_refs: set[tuple[str, str]] = set()
         for alias, value in bindings_source.items() if isinstance(bindings_source, dict) else []:
-            reference = _validate_ref(value, catalog.path, f"/spec/metricBindings/{alias}", diagnostics)
+            reference = _validate_ref(value, catalog.path, f"/spec/featureBindings/{alias}", diagnostics)
             if reference is None:
                 continue
-            if reference["resource"] != application_id or reference["id"] not in metric_definitions:
-                diagnostics.append(_diag("candidate_metric_ref", f"metric binding {alias!r} must reference a metric in the Application", catalog.path, f"/spec/metricBindings/{alias}"))
+            if reference["resource"] != application_id or reference["id"] not in feature_definitions:
+                diagnostics.append(_diag("candidate_feature_ref", f"feature binding {alias!r} must reference a feature in the Application", catalog.path, f"/spec/featureBindings/{alias}"))
                 continue
             key = _ref_key(reference)
             if key in bound_refs:
-                diagnostics.append(_diag("candidate_metric_ref_duplicate", f"metric {reference!r} is bound by more than one alias", catalog.path, f"/spec/metricBindings/{alias}"))
+                diagnostics.append(_diag("candidate_feature_ref_duplicate", f"feature {reference!r} is bound by more than one alias", catalog.path, f"/spec/featureBindings/{alias}"))
                 continue
             bound_refs.add(key)
-            metric_bindings[alias] = reference
+            feature_bindings[alias] = reference
         source = spec.get("candidates", {})
         catalog_candidates: dict[str, Any] = {}
         if not isinstance(source, dict):
@@ -2054,25 +2054,25 @@ def _normalize_candidates(
                 provider_ref = _validate_ref(provider, catalog.path, f"/spec/candidates/{candidate_id}/provider", diagnostics)
                 if provider_ref and (provider_ref["resource"] != catalog.id or provider_ref["id"] not in providers):
                     diagnostics.append(_diag("candidate_provider", f"provider must reference a declaration in catalog {catalog.id!r}", catalog.path, f"/spec/candidates/{candidate_id}/provider"))
-            metrics = value.get("metrics", {})
-            for alias, metric_value in metrics.items() if isinstance(metrics, dict) else []:
-                if alias not in metric_bindings:
-                    diagnostics.append(_diag("candidate_metric_alias", f"unknown metric alias {alias!r}", catalog.path, f"/spec/candidates/{candidate_id}/metrics/{alias}"))
-                    _finite(metric_value, f"/spec/candidates/{candidate_id}/metrics/{alias}", diagnostics, catalog.path)
+            features = value.get("features", {})
+            for alias, feature_value in features.items() if isinstance(features, dict) else []:
+                if alias not in feature_bindings:
+                    diagnostics.append(_diag("candidate_feature_alias", f"unknown feature alias {alias!r}", catalog.path, f"/spec/candidates/{candidate_id}/features/{alias}"))
+                    _finite(feature_value, f"/spec/candidates/{candidate_id}/features/{alias}", diagnostics, catalog.path)
                 else:
-                    metric_id = metric_bindings[alias]["id"]
-                    _validate_metric_value(
-                        metric_value,
-                        metric_definitions[metric_id],
+                    feature_id = feature_bindings[alias]["id"]
+                    _validate_feature_value(
+                        feature_value,
+                        feature_definitions[feature_id],
                         catalog.path,
-                        f"/spec/candidates/{candidate_id}/metrics/{alias}",
+                        f"/spec/candidates/{candidate_id}/features/{alias}",
                         diagnostics,
                     )
             normalized = {
                 "ref": _ref(catalog.id, candidate_id),
                 "provides": _normalize_capabilities(value.get("provides")),
                 "properties": value.get("properties", {}),
-                "metrics": metrics if isinstance(metrics, dict) else {},
+                "features": features if isinstance(features, dict) else {},
             }
             if provider_ref is not None:
                 normalized["provider"] = provider_ref
@@ -2117,7 +2117,7 @@ def _normalize_candidates(
                     if not accepted:
                         continue
                 eligibility[task_id].append(_ref(catalog.id, candidate_id))
-        candidates[catalog.id] = {"providers": providers, "metricBindings": metric_bindings, "candidates": catalog_candidates}
+        candidates[catalog.id] = {"providers": providers, "featureBindings": feature_bindings, "candidates": catalog_candidates}
     for task_id, eligible in eligibility.items():
         if not eligible:
             diagnostics.append(_diag("ineligible_task", f"no candidate satisfies task {task_id!r}", "Application", f"/spec/tasks/{task_id}"))
@@ -2134,7 +2134,7 @@ def _normalize_candidates(
 
 def _condition_environment(
     tasks: Mapping[str, Any],
-    metrics: Mapping[str, Any],
+    features: Mapping[str, Any],
     candidates: Mapping[str, Any],
     eligibility: Mapping[str, list[dict[str, str]]],
     extensions: Mapping[str, Any],
@@ -2142,13 +2142,13 @@ def _condition_environment(
     roots = {
         "binding": "closed-object",
         "tasks": "closed-object",
-        "metrics": "closed-object",
+        "features": "closed-object",
         "extensions": "closed-object",
     }
-    paths: dict[tuple[str, ...], str] = {("metrics", metric_id): "number" for metric_id in metrics}
+    paths: dict[tuple[str, ...], str] = {("features", feature_id): "number" for feature_id in features}
     for task_id, task in tasks.items():
         # Local activities have no binding, provider, candidate, or candidate
-        # metrics.  Do not advertise paths the runtime can never materialize.
+        # features.  Do not advertise paths the runtime can never materialize.
         if task.get("kind") != "service":
             continue
         paths[("binding", task_id)] = "object"
@@ -2159,7 +2159,7 @@ def _condition_environment(
         paths[("tasks", task_id, "provider")] = "object"
         paths[("tasks", task_id, "provider", "resource")] = "string"
         paths[("tasks", task_id, "provider", "id")] = "string"
-        paths[("tasks", task_id, "metrics")] = "object"
+        paths[("tasks", task_id, "features")] = "object"
         paths[("tasks", task_id, "properties")] = "object"
         eligible_properties = [
             candidate.get("properties", {})
@@ -2171,8 +2171,8 @@ def _condition_environment(
             eligible_properties,
             paths,
         )
-        for metric_id in metrics:
-            paths[("tasks", task_id, "metrics", metric_id)] = "number"
+        for feature_id in features:
+            paths[("tasks", task_id, "features", feature_id)] = "number"
     _property_path_types(("extensions",), dict(extensions), paths)
     return roots, paths
 
@@ -2610,7 +2610,7 @@ def _validate_xor_aggregation(
     workflow: Mapping[str, Any],
     routing: list[dict[str, Any]],
     workflow_owner: str,
-    metrics: Mapping[str, Any],
+    features: Mapping[str, Any],
     required_global: set[str],
     diagnostics: list[CompileDiagnostic],
 ) -> None:
@@ -2620,10 +2620,10 @@ def _validate_xor_aggregation(
         targets = {_ref_key(_ref(workflow_owner, branch["id"])) for branch in branches}
         if targets and targets.issubset(routed) or all("when" in branch for branch in branches):
             continue
-        for metric_id in sorted(required_global):
-            operator = metrics[metric_id]["aggregation"]["exclusive"]
+        for feature_id in sorted(required_global):
+            operator = features[feature_id]["aggregation"]["exclusive"]
             if operator in {"weightedSum", "weightedProduct"}:
-                diagnostics.append(_diag("routing_required", f"metric {metric_id!r} uses {operator} and requires probabilities for every branch of this XOR", workflow_owner, "/spec/workflow"))
+                diagnostics.append(_diag("routing_required", f"feature {feature_id!r} uses {operator} and requires probabilities for every branch of this XOR", workflow_owner, "/spec/workflow"))
 
 
 def _walk_repeats(node: Mapping[str, Any]) -> Iterable[Mapping[str, Any]]:
@@ -2641,7 +2641,7 @@ def _walk_repeats(node: Mapping[str, Any]) -> Iterable[Mapping[str, Any]]:
 def _validate_fractional_products(
     workflow: Mapping[str, Any],
     routing: list[dict[str, Any]],
-    metrics: Mapping[str, Any],
+    features: Mapping[str, Any],
     required_global: set[str],
     candidates: Mapping[str, Any],
     diagnostics: list[CompileDiagnostic],
@@ -2654,11 +2654,11 @@ def _validate_fractional_products(
         and not float(repeat["expectedCount"]).is_integer()
         for repeat in _walk_repeats(workflow)
     )
-    for metric_id in sorted(required_global):
-        metric = metrics[metric_id]
-        if metric.get("scope") != "invocation":
+    for feature_id in sorted(required_global):
+        feature = features[feature_id]
+        if feature.get("scope") != "invocation":
             continue
-        aggregation = metric.get("aggregation", {})
+        aggregation = feature.get("aggregation", {})
         needs_nonnegative = (
             fractional_routing and aggregation.get("exclusive") == "weightedProduct"
         ) or (
@@ -2666,25 +2666,25 @@ def _validate_fractional_products(
         )
         if not needs_nonnegative:
             continue
-        domain = metric.get("domain", {})
+        domain = feature.get("domain", {})
         minimum = domain.get("minimum") if isinstance(domain, Mapping) else None
-        if minimum is None or float(minimum) < 0 or float(metric.get("neutral", 0)) < 0:
+        if minimum is None or float(minimum) < 0 or float(feature.get("neutral", 0)) < 0:
             diagnostics.append(_diag(
                 "fractional_product_domain",
-                f"metric {metric_id!r} requires an explicitly non-negative domain and neutral for fractional product/power aggregation",
+                f"feature {feature_id!r} requires an explicitly non-negative domain and neutral for fractional product/power aggregation",
                 "Application",
-                f"/spec/metrics/{metric_id}/domain",
+                f"/spec/features/{feature_id}/domain",
             ))
         for catalog_id, catalog in candidates.items():
             for candidate_id in catalog.get("candidates", {}):
                 reference = _ref(catalog_id, candidate_id)
-                value = _resolved_candidate_metrics(candidates, reference).get(metric_id)
+                value = _resolved_candidate_features(candidates, reference).get(feature_id)
                 if value is not None and value < 0:
                     diagnostics.append(_diag(
                         "fractional_product_value",
-                        f"candidate {reference!r} has a negative value for fractional product/power metric {metric_id!r}",
+                        f"candidate {reference!r} has a negative value for fractional product/power feature {feature_id!r}",
                         catalog_id,
-                        f"/spec/candidates/{candidate_id}/metrics",
+                        f"/spec/candidates/{candidate_id}/features",
                     ))
 
 
@@ -2765,17 +2765,17 @@ def _lookup_candidate(candidates: Mapping[str, Any], reference: Mapping[str, Any
     return values.get(reference.get("id")) if isinstance(values, Mapping) else None
 
 
-def _resolved_candidate_metrics(candidates: Mapping[str, Any], reference: Mapping[str, Any]) -> dict[str, float]:
+def _resolved_candidate_features(candidates: Mapping[str, Any], reference: Mapping[str, Any]) -> dict[str, float]:
     catalog = candidates.get(reference.get("resource"))
     candidate = _lookup_candidate(candidates, reference)
     if not isinstance(catalog, Mapping) or candidate is None:
         return {}
-    bindings = catalog.get("metricBindings", {})
-    slots = candidate.get("metrics", {})
+    bindings = catalog.get("featureBindings", {})
+    slots = candidate.get("features", {})
     return {
-        metric_ref["id"]: float(slots[alias])
-        for alias, metric_ref in bindings.items()
-        if isinstance(metric_ref, Mapping) and alias in slots
+        feature_ref["id"]: float(slots[alias])
+        for alias, feature_ref in bindings.items()
+        if isinstance(feature_ref, Mapping) and alias in slots
     }
 
 
@@ -2784,7 +2784,7 @@ def _placement(
     indexed: Mapping[str, _Resource],
     candidates: Mapping[str, Any],
     tasks: Mapping[str, Any],
-    metrics: Mapping[str, Any],
+    features: Mapping[str, Any],
     application_id: str,
     diagnostics: list[CompileDiagnostic],
     source_map: dict[str, Any],
@@ -2942,10 +2942,10 @@ def _placement(
                 endpoints[endpoint] = endpoint_ref
             maximum = transition.get("maximum")
             _finite(maximum, f"/spec/transitions/{transition_id}/maximum", diagnostics, resource.path, nonnegative=True)
-            metric_ref = _validate_ref(transition.get("metric"), resource.path, f"/spec/transitions/{transition_id}/metric", diagnostics)
-            if metric_ref and (metric_ref["resource"] != application_id or metric_ref["id"] not in metrics):
-                diagnostics.append(_diag("placement_transition_metric", "transition metric must reference an Application metric", resource.path, f"/spec/transitions/{transition_id}/metric"))
-            normalized_transition = {"ref": _ref(resource.id, transition_id), **endpoints, "metric": metric_ref, "maximum": maximum, "enforcement": transition.get("enforcement", "hard")}
+            feature_ref = _validate_ref(transition.get("feature"), resource.path, f"/spec/transitions/{transition_id}/feature", diagnostics)
+            if feature_ref and (feature_ref["resource"] != application_id or feature_ref["id"] not in features):
+                diagnostics.append(_diag("placement_transition_feature", "transition feature must reference an Application feature", resource.path, f"/spec/transitions/{transition_id}/feature"))
+            normalized_transition = {"ref": _ref(resource.id, transition_id), **endpoints, "feature": feature_ref, "maximum": maximum, "enforcement": transition.get("enforcement", "hard")}
             if normalized_transition["enforcement"] == "soft":
                 penalty = transition.get("penalty")
                 _finite(penalty, f"/spec/transitions/{transition_id}/penalty", diagnostics, resource.path, nonnegative=True)
@@ -2954,12 +2954,12 @@ def _placement(
         global_latency_source = spec.get("globalLatency")
         global_latency: dict[str, Any] | None = None
         if isinstance(global_latency_source, dict):
-            metric_ref = _validate_ref(global_latency_source.get("metric"), resource.path, "/spec/globalLatency/metric", diagnostics)
-            if metric_ref and (metric_ref["resource"] != application_id or metric_ref["id"] not in metrics):
-                diagnostics.append(_diag("placement_global_metric", "global latency metric must reference the Application", resource.path, "/spec/globalLatency/metric"))
-            if metric_ref:
+            feature_ref = _validate_ref(global_latency_source.get("feature"), resource.path, "/spec/globalLatency/feature", diagnostics)
+            if feature_ref and (feature_ref["resource"] != application_id or feature_ref["id"] not in features):
+                diagnostics.append(_diag("placement_global_feature", "global latency feature must reference the Application", resource.path, "/spec/globalLatency/feature"))
+            if feature_ref:
                 global_latency = {
-                    "metric": metric_ref,
+                    "feature": feature_ref,
                     "includeExecution": bool(global_latency_source.get("includeExecution", True)),
                     "exclusive": global_latency_source.get("exclusive", "routing"),
                     "parallel": global_latency_source.get("parallel", "max"),
@@ -3098,7 +3098,7 @@ def _validate_placement_contract(
         return
 
     assigned: dict[tuple[str, str], str] = {}
-    global_metrics: dict[tuple[str, str], str] = {}
+    global_features: dict[tuple[str, str], str] = {}
     workflow_tasks = _workflow_service_tasks(workflow, eligibility)
     routed_branch_ids = {str(entry["target"]["id"]) for entry in routing}
     for model in placement:
@@ -3117,17 +3117,17 @@ def _validate_placement_contract(
                 assigned[key] = resource
         global_latency = model.get("globalLatency")
         if isinstance(global_latency, Mapping):
-            metric_key = _ref_key(global_latency["metric"])
-            previous = global_metrics.get(metric_key)
+            feature_key = _ref_key(global_latency["feature"])
+            previous = global_features.get(feature_key)
             if previous is not None:
                 diagnostics.append(_diag(
-                    "placement_global_metric_duplicate",
-                    f"metric {global_latency['metric']!r} is derived by both {previous!r} and {resource!r}",
+                    "placement_global_feature_duplicate",
+                    f"feature {global_latency['feature']!r} is derived by both {previous!r} and {resource!r}",
                     resource,
-                    "/spec/globalLatency/metric",
+                    "/spec/globalLatency/feature",
                 ))
             else:
-                global_metrics[metric_key] = resource
+                global_features[feature_key] = resource
             oversized_repeat = any(
                 int(repeat.get("count", 0)) > 10_000
                 for repeat in _walk_repeats(workflow)
@@ -3266,7 +3266,7 @@ def _validate_placement_contract(
 def _optimization(
     resource: _Resource,
     application_id: str,
-    metrics: Mapping[str, Any],
+    features: Mapping[str, Any],
     constraints: list[dict[str, Any]],
     diagnostics: list[CompileDiagnostic],
     source_map: dict[str, Any],
@@ -3276,20 +3276,20 @@ def _optimization(
     terms: list[dict[str, Any]] = []
     units: set[str] = set()
     for index, value in enumerate(spec.get("terms", [])):
-        metric_ref = _validate_ref(value.get("metric"), resource.path, f"/spec/terms/{index}/metric", diagnostics)
-        if metric_ref is None or metric_ref["resource"] != application_id or metric_ref["id"] not in metrics:
-            diagnostics.append(_diag("optimization_metric", "optimization term must reference an Application metric", resource.path, f"/spec/terms/{index}/metric"))
+        feature_ref = _validate_ref(value.get("feature"), resource.path, f"/spec/terms/{index}/feature", diagnostics)
+        if feature_ref is None or feature_ref["resource"] != application_id or feature_ref["id"] not in features:
+            diagnostics.append(_diag("optimization_feature", "optimization term must reference an Application feature", resource.path, f"/spec/terms/{index}/feature"))
             continue
         weight = value.get("weight", 1)
         if not _finite(weight, f"/spec/terms/{index}/weight", diagnostics, resource.path) or float(weight) <= 0:
             diagnostics.append(_diag("optimization_weight", "term weight must be positive", resource.path, f"/spec/terms/{index}/weight"))
             continue
-        item = {"metric": metric_ref, "direction": value.get("direction", metrics[metric_ref["id"]]["direction"]), "weight": float(weight)}
+        item = {"feature": feature_ref, "direction": value.get("direction", features[feature_ref["id"]]["direction"]), "weight": float(weight)}
         normalize = value.get("normalize")
         # `ratio` is a normative, typed domain contract, not a heuristic based
-        # on metric name or unit.  Its closed [0,1] bounds are therefore a safe
+        # on feature name or unit.  Its closed [0,1] bounds are therefore a safe
         # concise spelling of the same explicit optimization normalization.
-        if normalize is None and metrics[metric_ref["id"]].get("domain", {}).get("kind") == "ratio":
+        if normalize is None and features[feature_ref["id"]].get("domain", {}).get("kind") == "ratio":
             normalize = {"min": 0.0, "max": 1.0, "clamp": False}
         if normalize is not None:
             if not all(_finite(normalize.get(key), f"/spec/terms/{index}/normalize/{key}", diagnostics, resource.path) for key in ("min", "max")) or float(normalize.get("max", 0)) <= float(normalize.get("min", 0)):
@@ -3300,7 +3300,7 @@ def _optimization(
                     "max": float(normalize["max"]),
                     "clamp": bool(normalize.get("clamp", False)),
                 }
-        units.add(metrics[metric_ref["id"]]["unit"])
+        units.add(features[feature_ref["id"]]["unit"])
         terms.append(item)
         source_map[f"/spec/optimization/terms/{len(terms) - 1}"] = {"resource": resource.id, "path": resource.path, "pointer": f"/spec/terms/{index}"}
     if mode == "satisfy" and terms:
@@ -3367,24 +3367,24 @@ def _optimization(
     return {"resource": resource.id, "mode": mode, "type": objective_type, "terms": terms, "penalties": penalties}
 
 
-def _required_metrics(
+def _required_features(
     optimization: Mapping[str, Any],
     constraints: list[dict[str, Any]],
     placement: list[dict[str, Any]],
 ) -> tuple[set[str], dict[str, set[str]]]:
-    global_metrics = {term["metric"]["id"] for term in optimization.get("terms", [])}
+    global_features = {term["feature"]["id"] for term in optimization.get("terms", [])}
     local: dict[str, set[str]] = {}
     for constraint in constraints:
         for segments in _expression_paths(constraint):
-            if len(segments) == 2 and segments[0] == "metrics":
-                global_metrics.add(segments[1])
-            elif len(segments) == 4 and segments[0] == "tasks" and segments[2] == "metrics":
+            if len(segments) == 2 and segments[0] == "features":
+                global_features.add(segments[1])
+            elif len(segments) == 4 and segments[0] == "tasks" and segments[2] == "features":
                 local.setdefault(segments[1], set()).add(segments[3])
     for model in placement:
         global_latency = model.get("globalLatency")
         if isinstance(global_latency, Mapping):
-            global_metrics.add(global_latency["metric"]["id"])
-    return global_metrics, local
+            global_features.add(global_latency["feature"]["id"])
+    return global_features, local
 
 
 @dataclass(frozen=True)
@@ -3518,7 +3518,7 @@ class BindingProblem(CompiledProblem):
             candidate = self._candidate(reference)
             task_context = {
                 "candidate": reference,
-                "metrics": _resolved_candidate_metrics(self.document["spec"]["candidates"], reference),
+                "features": _resolved_candidate_features(self.document["spec"]["candidates"], reference),
                 "properties": candidate.get("properties", {}),
             }
             if "provider" in candidate:
@@ -3642,7 +3642,7 @@ class BindingProblem(CompiledProblem):
         scale the duration of one representative iteration deterministically.
         """
         config = model["globalLatency"]
-        metric_id = config["metric"]["id"]
+        feature_id = config["feature"]["id"]
         context = self._task_context(binding)
         routing = {
             entry["target"]["id"]: float(entry["probability"])
@@ -3692,9 +3692,9 @@ class BindingProblem(CompiledProblem):
                 candidate = binding[task_id]
                 execution = 0.0
                 if config.get("includeExecution"):
-                    execution = float(_resolved_candidate_metrics(
+                    execution = float(_resolved_candidate_features(
                         self.document["spec"]["candidates"], candidate
-                    )[metric_id])
+                    )[feature_id])
                 output: list[Variant] = []
                 for probability, frontier in variants:
                     start = max(
@@ -3813,17 +3813,17 @@ class BindingProblem(CompiledProblem):
             raise ValueError("placement global latency is not finite and non-negative")
         return value
 
-    def _placement_metric_overrides(
+    def _placement_feature_overrides(
         self, binding: Mapping[str, dict[str, str]]
     ) -> dict[str, float]:
         overrides: dict[str, float] = {}
         for model in self.document["spec"].get("placement", []):
             if "globalLatency" not in model:
                 continue
-            metric_id = model["globalLatency"]["metric"]["id"]
-            if metric_id in overrides:
-                raise ValueError(f"more than one placement derives metric {metric_id!r}")
-            overrides[metric_id] = self._global_latency(model, binding)
+            feature_id = model["globalLatency"]["feature"]["id"]
+            if feature_id in overrides:
+                raise ValueError(f"more than one placement derives feature {feature_id!r}")
+            overrides[feature_id] = self._global_latency(model, binding)
         return overrides
 
     def _placement_violations(
@@ -3922,31 +3922,31 @@ class BindingProblem(CompiledProblem):
         routing = {entry["target"]["id"]: float(entry["probability"]) for entry in spec["routing"]}
         context = self._task_context(normalized)
 
-        def invocation(metric_id: str, metric: Mapping[str, Any], node: Mapping[str, Any]) -> float:
+        def invocation(feature_id: str, feature: Mapping[str, Any], node: Mapping[str, Any]) -> float:
             kind = node.get("kind")
             if kind == "task":
                 task_id = node.get("task", {}).get("id")
                 task = application["tasks"].get(task_id, {})
                 if task.get("kind") == "local":
-                    return float(metric["neutral"])
-                values = _resolved_candidate_metrics(spec["candidates"], normalized[task_id])
-                return float(values[metric_id])
+                    return float(feature["neutral"])
+                values = _resolved_candidate_features(spec["candidates"], normalized[task_id])
+                return float(values[feature_id])
             if kind == "empty":
-                return float(metric["neutral"])
+                return float(feature["neutral"])
             if kind in {"sequence", "parallel"}:
                 children = node.get("steps", node.get("branches", []))
-                values = [invocation(metric_id, metric, child) for child in children]
-                return self._apply_operator(metric["aggregation"][kind], values)
+                values = [invocation(feature_id, feature, child) for child in children]
+                return self._apply_operator(feature["aggregation"][kind], values)
             if kind == "repeat":
-                value = invocation(metric_id, metric, node.get("body", {}))
+                value = invocation(feature_id, feature, node.get("body", {}))
                 count = float(node.get("count", node.get("expectedCount")))
-                return self._apply_operator(metric["aggregation"]["repeat"], [value], count=count)
+                return self._apply_operator(feature["aggregation"]["repeat"], [value], count=count)
             if kind == "exclusive":
                 branches = node.get("branches", [])
                 branch_ids = [branch["id"] for branch in branches]
                 if all(branch_id in routing for branch_id in branch_ids):
-                    operator_name = metric["aggregation"]["exclusive"]
-                    values = [invocation(metric_id, metric, branch["flow"]) for branch in branches]
+                    operator_name = feature["aggregation"]["exclusive"]
+                    values = [invocation(feature_id, feature, branch["flow"]) for branch in branches]
                     return self._apply_operator(operator_name, values, weights=[routing[branch_id] for branch_id in branch_ids])
                 selected: list[dict[str, Any]] = []
                 for branch in branches:
@@ -3955,28 +3955,28 @@ class BindingProblem(CompiledProblem):
                         selected.append(branch)
                 if len(selected) != 1:
                     raise ValueError(f"static XOR must select exactly one branch, got {len(selected)}")
-                return invocation(metric_id, metric, selected[0]["flow"])
+                return invocation(feature_id, feature, selected[0]["flow"])
             raise ValueError(f"unknown workflow kind: {kind}")
 
         result: dict[str, float] = {}
-        for metric_id in application.get("requiredMetrics", []):
-            metric = application["metrics"][metric_id]
-            if metric["scope"] == "selectedCandidate":
+        for feature_id in application.get("requiredFeatures", []):
+            feature = application["features"][feature_id]
+            if feature["scope"] == "selectedCandidate":
                 unique: dict[tuple[str, str], dict[str, str]] = {_ref_key(reference): reference for reference in normalized.values()}
-                values = [float(_resolved_candidate_metrics(spec["candidates"], reference)[metric_id]) for reference in unique.values()]
-                value = self._apply_operator(metric["aggregation"]["selection"], values)
+                values = [float(_resolved_candidate_features(spec["candidates"], reference)[feature_id]) for reference in unique.values()]
+                value = self._apply_operator(feature["aggregation"]["selection"], values)
             else:
-                value = invocation(metric_id, metric, application["workflow"])
+                value = invocation(feature_id, feature, application["workflow"])
             if not math.isfinite(float(value)):
-                raise ValueError(f"metric {metric_id!r} evaluated to a non-finite number")
-            result[metric_id] = float(value)
-        result.update(self._placement_metric_overrides(normalized))
+                raise ValueError(f"feature {feature_id!r} evaluated to a non-finite number")
+            result[feature_id] = float(value)
+        result.update(self._placement_feature_overrides(normalized))
         return result
 
-    def evaluate_constraints(self, binding: Mapping[str, Any], metrics: Mapping[str, float] | None = None) -> list[dict[str, Any]]:
+    def evaluate_constraints(self, binding: Mapping[str, Any], features: Mapping[str, float] | None = None) -> list[dict[str, Any]]:
         normalized = self.validate_binding(binding)
-        metric_values = dict(metrics or self.evaluate_binding(normalized))
-        context = {**self._task_context(normalized), "metrics": metric_values}
+        feature_values = dict(features or self.evaluate_binding(normalized))
+        context = {**self._task_context(normalized), "features": feature_values}
         violations: list[dict[str, Any]] = []
         for constraint in self.document["spec"].get("constraints", []):
             when = Expression(constraint["when"], "bool").evaluate(context)
@@ -3998,11 +3998,11 @@ class BindingProblem(CompiledProblem):
         violations.extend(self._placement_violations(normalized))
         return violations
 
-    def evaluate_objectives(self, metrics: Mapping[str, float], violations: list[dict[str, Any]]) -> dict[str, Any]:
+    def evaluate_objectives(self, features: Mapping[str, float], violations: list[dict[str, Any]]) -> dict[str, Any]:
         optimization = self.document["spec"]["optimization"]
         components: list[dict[str, Any]] = []
         for term in optimization["terms"]:
-            value = float(metrics[term["metric"]["id"]])
+            value = float(features[term["feature"]["id"]])
             normalized = value
             if "normalize" in term:
                 bounds = term["normalize"]
@@ -4012,7 +4012,7 @@ class BindingProblem(CompiledProblem):
                 loss = normalized if term["direction"] == "minimize" else 1.0 - normalized
             else:
                 loss = value if term["direction"] == "minimize" else -value
-            components.append({"metric": term["metric"], "value": value, "loss": loss, "weight": term["weight"]})
+            components.append({"feature": term["feature"], "value": value, "loss": loss, "weight": term["weight"]})
         penalty_weights = {_ref_key(item["constraint"]): item["weight"] for item in optimization["penalties"]}
         penalty = sum(float(item["penalty"]) * penalty_weights.get(_ref_key(item["constraint"]), 0.0) for item in violations if item["enforcement"] == "soft")
         mode = optimization["mode"]
@@ -4030,9 +4030,14 @@ class BindingProblem(CompiledProblem):
         return {"mode": mode, "components": components, "penalty": penalty, "score": score}
 
     def evaluate(self, binding: Mapping[str, Any]) -> dict[str, Any]:
-        metrics = self.evaluate_binding(binding)
-        violations = self.evaluate_constraints(binding, metrics)
-        return {"metrics": metrics, "violations": violations, "objectives": self.evaluate_objectives(metrics, violations)}
+        features = self.evaluate_binding(binding)
+        violations = self.evaluate_constraints(binding, features)
+        return {
+            "features": features,
+            "metrics": features,
+            "violations": violations,
+            "objectives": self.evaluate_objectives(features, violations),
+        }
 
 
 def _compile_qos_binding(
@@ -4057,12 +4062,12 @@ def _compile_qos_binding(
             }
     application_resource = by_type[(QOS_API_VERSION, "Application")][0]
     tasks = _normalize_tasks(application_resource, diagnostics, source_map)
-    metrics = _normalize_metrics(application_resource, diagnostics, source_map)
+    features = _normalize_features(application_resource, diagnostics, source_map)
     candidates, eligibility = _normalize_candidates(
         by_type[(QOS_API_VERSION, "CandidateCatalog")],
         tasks,
         application_resource,
-        metrics,
+        features,
         diagnostics,
         source_map,
     )
@@ -4119,13 +4124,13 @@ def _compile_qos_binding(
                 bucket[section] = value
     roots, paths = _condition_environment(
         tasks,
-        metrics,
+        features,
         candidates,
         eligibility,
         extensions,
     )
-    routing_roots = {root: value for root, value in roots.items() if root != "metrics"}
-    routing_paths = {path: value for path, value in paths.items() if path[0] != "metrics"}
+    routing_roots = {root: value for root, value in roots.items() if root != "features"}
+    routing_paths = {path: value for path, value in paths.items() if path[0] != "features"}
     workflow_source = application_resource.document.get("spec", {}).get("workflow")
     workflow = _compile_workflow(workflow_source, application_resource, tasks, routing_roots, routing_paths, diagnostics, source_map)
     source_workflow_owner = application_resource.id
@@ -4156,7 +4161,7 @@ def _compile_qos_binding(
         indexed,
         candidates,
         tasks,
-        metrics,
+        features,
         application_resource.id,
         diagnostics,
         source_map,
@@ -4165,24 +4170,24 @@ def _compile_qos_binding(
     optimization = _optimization(
         by_type[(QOS_API_VERSION, "Optimization")][0],
         application_resource.id,
-        metrics,
+        features,
         constraints + _placement_constraints(placement),
         diagnostics,
         source_map,
     )
-    required_global, required_local = _required_metrics(optimization, constraints, placement)
+    required_global, required_local = _required_features(optimization, constraints, placement)
     _validate_xor_aggregation(
         workflow or {"kind": "empty"},
         routing,
         application_resource.id,
-        metrics,
+        features,
         required_global,
         diagnostics,
     )
     _validate_fractional_products(
         workflow or {"kind": "empty"},
         routing,
-        metrics,
+        features,
         required_global,
         candidates,
         diagnostics,
@@ -4191,10 +4196,10 @@ def _compile_qos_binding(
         required = required_global | required_local.get(task_id, set())
         for candidate_ref in eligible:
             candidate = _lookup_candidate(candidates, candidate_ref)
-            available = set(_resolved_candidate_metrics(candidates, candidate_ref))
+            available = set(_resolved_candidate_features(candidates, candidate_ref))
             missing = sorted(required - available) if candidate else sorted(required)
             if missing:
-                diagnostics.append(_diag("missing_metric", f"eligible candidate {candidate_ref!r} is missing used metrics: {', '.join(missing)}", candidate_ref["resource"], f"/spec/candidates/{candidate_ref['id']}/metrics"))
+                diagnostics.append(_diag("missing_feature", f"eligible candidate {candidate_ref!r} is missing used features: {', '.join(missing)}", candidate_ref["resource"], f"/spec/candidates/{candidate_ref['id']}/features"))
     resource_digests = package.resource_digests
     identity = instance_digest(instance, resource_digests)
     resource_manifest = {
@@ -4227,9 +4232,9 @@ def _compile_qos_binding(
             "application": {
                 "resource": application_resource.id,
                 "tasks": tasks,
-                "metrics": metrics,
-                "requiredMetrics": sorted(required_global),
-                "taskRequiredMetrics": {task_id: sorted(values) for task_id, values in sorted(required_local.items())},
+                "features": features,
+                "requiredFeatures": sorted(required_global),
+                "taskRequiredFeatures": {task_id: sorted(values) for task_id, values in sorted(required_local.items())},
                 "workflow": workflow,
             },
             "candidates": candidates,

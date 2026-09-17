@@ -8,7 +8,7 @@
     "candidates": {
       "c1a": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "latency": 10
         },
         "provider": {
@@ -18,7 +18,7 @@
       },
       "c1b": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "latency": 20
         },
         "provider": {
@@ -28,7 +28,7 @@
       },
       "c2a": {
         "provides": "service/t2",
-        "metrics": {
+        "features": {
           "latency": 15
         },
         "provider": {
@@ -38,7 +38,7 @@
       },
       "c3a": {
         "provides": "service/t3",
-        "metrics": {
+        "features": {
           "latency": 5
         },
         "provider": {
@@ -50,7 +50,7 @@
     "providers": {
       "p1": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "latency": {
         "resource": "application",
         "id": "latency"

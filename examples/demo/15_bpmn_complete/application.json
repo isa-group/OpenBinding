@@ -15,7 +15,7 @@
       "audit": "service/audit",
       "publish": "service/publish"
     },
-    "metrics": {
+    "features": {
       "latency": {
         "unit": "ms",
         "direction": "minimize",

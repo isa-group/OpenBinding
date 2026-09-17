@@ -8,7 +8,7 @@
     "candidates": {
       "c_dining_autre_saison": {
         "provides": "service/t_dining",
-        "metrics": {
+        "features": {
           "cost": 20,
           "time": 60,
           "distance": 1600,
@@ -23,7 +23,7 @@
       },
       "c_dining_seven_night_club": {
         "provides": "service/t_dining",
-        "metrics": {
+        "features": {
           "cost": 20,
           "time": 60,
           "distance": 1800,
@@ -38,7 +38,7 @@
       },
       "c_shopping_local": {
         "provides": "service/t_shopping",
-        "metrics": {
+        "features": {
           "cost": 20,
           "time": 45,
           "distance": 1200,
@@ -53,7 +53,7 @@
       },
       "c_movie_the_help_banque_scotia": {
         "provides": "service/t_movie",
-        "metrics": {
+        "features": {
           "cost": 10,
           "time": 135,
           "distance": 1700,
@@ -73,7 +73,7 @@
       "p_seven_night_club": {},
       "p_local_shopping": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "cost": {
         "resource": "application",
         "id": "cost"

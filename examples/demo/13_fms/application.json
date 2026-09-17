@@ -16,7 +16,7 @@
         "name": "Classic routing path executed outside the selectable candidate set."
       }
     },
-    "metrics": {
+    "features": {
       "cost": {
         "unit": "USD/month",
         "direction": "minimize",

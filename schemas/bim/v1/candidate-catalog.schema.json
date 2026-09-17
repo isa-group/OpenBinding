@@ -9,14 +9,14 @@
     "metadata": {"$ref": "#/$defs/metadata"},
     "spec": {
       "type": "object",
-      "required": ["metricBindings", "candidates"],
+      "required": ["featureBindings", "candidates"],
       "properties": {
         "providers": {
           "type": "object",
           "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
           "additionalProperties": {"$ref": "#/$defs/provider"}
         },
-        "metricBindings": {
+        "featureBindings": {
           "type": "object",
           "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
           "additionalProperties": {"$ref": "#/$defs/ref"}
@@ -85,13 +85,13 @@
     },
     "candidate": {
       "type": "object",
-      "required": ["provides", "metrics"],
+      "required": ["provides", "features"],
       "properties": {
         "name": {"type": "string"},
         "provider": {"$ref": "#/$defs/ref"},
         "provides": {"$ref": "#/$defs/provides"},
         "properties": {"$ref": "#/$defs/propertyMap"},
-        "metrics": {"type": "object", "additionalProperties": {"type": "number"}},
+        "features": {"type": "object", "additionalProperties": {"type": "number"}},
         "extensions": {"type": "object", "additionalProperties": true}
       },
       "additionalProperties": false

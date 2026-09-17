@@ -8,7 +8,7 @@
     "candidates": {
       "cand_t1_google_cloud": {
         "provides": "service/T1",
-        "metrics": {
+        "features": {
           "cost": 240,
           "execution_time": 220,
           "availability": 0.9998,
@@ -22,7 +22,7 @@
       },
       "cand_t1_aws": {
         "provides": "service/T1",
-        "metrics": {
+        "features": {
           "cost": 220,
           "execution_time": 210,
           "availability": 0.9995,
@@ -36,7 +36,7 @@
       },
       "cand_t2_radius_iot_network": {
         "provides": "service/T2",
-        "metrics": {
+        "features": {
           "cost": 500,
           "execution_time": 420,
           "availability": 0.998,
@@ -50,7 +50,7 @@
       },
       "cand_t2_samsara_fleet_api": {
         "provides": "service/T2",
-        "metrics": {
+        "features": {
           "cost": 650,
           "execution_time": 520,
           "availability": 0.9984999999999999,
@@ -64,7 +64,7 @@
       },
       "cand_t3_here_routing_api": {
         "provides": "service/T3",
-        "metrics": {
+        "features": {
           "cost": 300,
           "execution_time": 380,
           "availability": 0.9990000000000001,
@@ -78,7 +78,7 @@
       },
       "cand_t3_distance_matrix_api": {
         "provides": "service/T3",
-        "metrics": {
+        "features": {
           "cost": 900,
           "execution_time": 300,
           "availability": 0.9995,
@@ -92,7 +92,7 @@
       },
       "cand_t5_amazon_braket": {
         "provides": "service/T5",
-        "metrics": {
+        "features": {
           "cost": 1200,
           "execution_time": 9000,
           "availability": 0.9990000000000001,
@@ -106,7 +106,7 @@
       },
       "cand_t5_ibm_quantum": {
         "provides": "service/T5",
-        "metrics": {
+        "features": {
           "cost": 1500,
           "execution_time": 12000,
           "availability": 0.997,
@@ -120,7 +120,7 @@
       },
       "cand_t6_paypal": {
         "provides": "service/T6",
-        "metrics": {
+        "features": {
           "cost": 1200,
           "execution_time": 450,
           "availability": 0.9995,
@@ -134,7 +134,7 @@
       },
       "cand_t6_stripe": {
         "provides": "service/T6",
-        "metrics": {
+        "features": {
           "cost": 950,
           "execution_time": 520,
           "availability": 0.9998999999999999,
@@ -157,7 +157,7 @@
       "paypal": {},
       "stripe": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "cost": {
         "resource": "application",
         "id": "cost"

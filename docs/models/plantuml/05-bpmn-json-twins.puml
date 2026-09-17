@@ -17,7 +17,7 @@ object "16_json_complete : Instance" as jsonInstance <<core>> {
 object "shared semantic resources" as shared <<source>> {
   7 tasks
   14 candidates
-  4 metrics
+  4 features
   constraints + routing
   3-pool Placement
   weighted 4-term objective

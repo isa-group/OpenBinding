@@ -32,7 +32,7 @@ class ExclusiveBranch <<source>>
 
 Optimization "1" *-- "0..*" Term
 Optimization "1" *-- "0..*" PenaltyTerm
-Term "1" *-- "1" ResourceRef : metric
+Term "1" *-- "1" ResourceRef : feature
 PenaltyTerm "1" *-- "1" ResourceRef : constraint or transition
 
 RoutingOverlay "1" *-- "0..*" RoutingEntry

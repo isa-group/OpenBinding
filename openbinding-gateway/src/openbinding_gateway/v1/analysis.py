@@ -95,7 +95,7 @@ def analyze_neighborhood(problem: BindingProblem, binding: dict, *, task: str | 
                 **evaluation, "feasible": _feasible(evaluation),
                 "comparison": _comparison(base, evaluation),
                 "componentDeltas": [
-                    {"metric": c["metric"], "value": c["value"] - b["value"], "loss": c["loss"] - b["loss"]}
+                    {"feature": c["feature"], "value": c["value"] - b["value"], "loss": c["loss"] - b["loss"]}
                     for c, b in zip(evaluation["objectives"]["components"], base_components, strict=True)
                 ],
                 "penaltyDelta": evaluation["objectives"]["penalty"] - base["objectives"]["penalty"],

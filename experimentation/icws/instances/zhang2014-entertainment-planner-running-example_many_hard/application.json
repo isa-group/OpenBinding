@@ -10,7 +10,7 @@
       "t_shopping": "service/t_shopping",
       "t_movie": "service/t_movie"
     },
-    "metrics": {
+    "features": {
       "cost": {
         "unit": "usd",
         "direction": "minimize",

@@ -8,7 +8,7 @@
     "mode": "weighted",
     "terms": [
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "availability"
         },
@@ -20,7 +20,7 @@
         }
       },
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "cost"
         },
@@ -32,7 +32,7 @@
         }
       },
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "execution_time"
         },
@@ -44,7 +44,7 @@
         }
       },
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "reliability"
         },
@@ -56,7 +56,7 @@
         }
       },
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "security"
         },

@@ -9,7 +9,7 @@
     "metadata": {"$ref": "#/$defs/metadata"},
     "spec": {
       "type": "object",
-      "required": ["tasks", "metrics", "workflow"],
+      "required": ["tasks", "features", "workflow"],
       "properties": {
         "tasks": {
           "type": "object",
@@ -17,10 +17,10 @@
           "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
           "additionalProperties": {"$ref": "#/$defs/task"}
         },
-        "metrics": {
+        "features": {
           "type": "object",
           "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
-          "additionalProperties": {"$ref": "#/$defs/metric"}
+          "additionalProperties": {"$ref": "#/$defs/feature"}
         },
         "workflow": {"$ref": "#/$defs/node"},
         "extensions": {"type": "object", "additionalProperties": true}
@@ -130,7 +130,7 @@
         }
       ]
     },
-    "metric": {
+    "feature": {
       "type": "object",
       "properties": {
         "name": {"type": "string"},

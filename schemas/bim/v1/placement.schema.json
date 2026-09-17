@@ -143,11 +143,11 @@
     },
     "transition": {
       "type": "object",
-      "required": ["from", "to", "metric", "maximum"],
+      "required": ["from", "to", "feature", "maximum"],
       "properties": {
         "from": {"$ref": "#/$defs/ref"},
         "to": {"$ref": "#/$defs/ref"},
-        "metric": {"$ref": "#/$defs/ref"},
+        "feature": {"$ref": "#/$defs/ref"},
         "maximum": {"type": "number", "minimum": 0},
         "enforcement": {"enum": ["hard", "soft"]},
         "penalty": {"type": "number", "minimum": 0}
@@ -172,9 +172,9 @@
     },
     "globalLatency": {
       "type": "object",
-      "required": ["metric", "includeExecution", "exclusive", "parallel"],
+      "required": ["feature", "includeExecution", "exclusive", "parallel"],
       "properties": {
-        "metric": {"$ref": "#/$defs/ref"},
+        "feature": {"$ref": "#/$defs/ref"},
         "includeExecution": {"type": "boolean"},
         "exclusive": {"enum": ["routing", "condition"]},
         "parallel": {"enum": ["max", "sum"]}

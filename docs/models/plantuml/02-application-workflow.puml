@@ -1,5 +1,5 @@
 @startuml
-title Application, metric, and recursive workflow metamodel
+title Application, feature, and recursive workflow metamodel
 left to right direction
 hide methods
 skinparam monochrome true
@@ -18,7 +18,7 @@ class Task <<source>> {
 class Requirement <<source>> {
   type: string
 }
-class MetricDefinition <<source>> {
+class FeatureDefinition <<source>> {
   id: name
   type: number
   unit: string
@@ -62,12 +62,12 @@ class ResourceRef <<core>> {
 abstract class Expression <<source>>
 
 Application "1" *-- "1..*" Task : tasks
-Application "1" *-- "0..*" MetricDefinition : metrics
+Application "1" *-- "0..*" FeatureDefinition : features
 Application "1" *-- "1" WorkflowNode : workflow
 Task "0..1" *-- Requirement : service requires
 Requirement "0..1" --> Expression : predicate
-MetricDefinition "1" *-- "1" Domain
-MetricDefinition "1" *-- "1" Aggregation
+FeatureDefinition "1" *-- "1" Domain
+FeatureDefinition "1" *-- "1" Aggregation
 
 WorkflowNode <|-- TaskNode
 WorkflowNode <|-- EmptyNode

@@ -8,7 +8,7 @@
     "candidates": {
       "S1_1": {
         "provides": "service/T1",
-        "metrics": {
+        "features": {
           "cost": 10,
           "time": 5,
           "reliability": 0.99
@@ -20,7 +20,7 @@
       },
       "S1_2": {
         "provides": "service/T1",
-        "metrics": {
+        "features": {
           "cost": 20,
           "time": 2,
           "reliability": 0.95
@@ -32,7 +32,7 @@
       },
       "S2_1": {
         "provides": "service/T2",
-        "metrics": {
+        "features": {
           "cost": 15,
           "time": 4,
           "reliability": 0.98
@@ -44,7 +44,7 @@
       },
       "S2_2": {
         "provides": "service/T2",
-        "metrics": {
+        "features": {
           "cost": 25,
           "time": 1,
           "reliability": 0.9
@@ -58,7 +58,7 @@
     "providers": {
       "P1": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "cost": {
         "resource": "application",
         "id": "cost"

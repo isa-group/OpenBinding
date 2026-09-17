@@ -303,6 +303,11 @@
             "title": "Explanation",
             "type": "object"
           },
+          "features": {
+            "additionalProperties": true,
+            "title": "Features",
+            "type": "object"
+          },
           "metrics": {
             "additionalProperties": true,
             "title": "Metrics",
@@ -343,7 +348,6 @@
           "binding",
           "violations",
           "evaluation",
-          "metrics",
           "occurrences",
           "explanation",
           "comparison",
@@ -2687,13 +2691,13 @@
           "application": {
             "additionalProperties": false,
             "properties": {
-              "metrics": {
+              "features": {
                 "additionalProperties": {
-                  "$ref": "#/components/schemas/BindingProblem/$defs/metric"
+                  "$ref": "#/components/schemas/BindingProblem/$defs/feature"
                 },
                 "type": "object"
               },
-              "requiredMetrics": {
+              "requiredFeatures": {
                 "items": {
                   "minLength": 1,
                   "type": "string"
@@ -2705,7 +2709,7 @@
                 "minLength": 1,
                 "type": "string"
               },
-              "taskRequiredMetrics": {
+              "taskRequiredFeatures": {
                 "additionalProperties": {
                   "items": {
                     "minLength": 1,
@@ -2730,9 +2734,9 @@
             "required": [
               "resource",
               "tasks",
-              "metrics",
-              "requiredMetrics",
-              "taskRequiredMetrics",
+              "features",
+              "requiredFeatures",
+              "taskRequiredFeatures",
               "workflow"
             ],
             "type": "object"
@@ -2740,7 +2744,7 @@
           "candidate": {
             "additionalProperties": false,
             "properties": {
-              "metrics": {
+              "features": {
                 "$ref": "#/components/schemas/BindingProblem/$defs/numberMap"
               },
               "name": {
@@ -2767,7 +2771,7 @@
               "ref",
               "provides",
               "properties",
-              "metrics"
+              "features"
             ],
             "type": "object"
           },
@@ -2781,7 +2785,7 @@
                 "minProperties": 1,
                 "type": "object"
               },
-              "metricBindings": {
+              "featureBindings": {
                 "additionalProperties": {
                   "$ref": "#/components/schemas/BindingProblem/$defs/ref"
                 },
@@ -2796,7 +2800,7 @@
             },
             "required": [
               "providers",
-              "metricBindings",
+              "featureBindings",
               "candidates"
             ],
             "type": "object"
@@ -3210,75 +3214,7 @@
               }
             ]
           },
-          "globalLatency": {
-            "additionalProperties": false,
-            "properties": {
-              "exclusive": {
-                "enum": [
-                  "routing",
-                  "condition"
-                ]
-              },
-              "includeExecution": {
-                "type": "boolean"
-              },
-              "metric": {
-                "$ref": "#/components/schemas/BindingProblem/$defs/ref"
-              },
-              "parallel": {
-                "enum": [
-                  "max",
-                  "sum"
-                ]
-              }
-            },
-            "required": [
-              "metric",
-              "includeExecution",
-              "exclusive",
-              "parallel"
-            ],
-            "type": "object"
-          },
-          "instanceIdentity": {
-            "additionalProperties": false,
-            "properties": {
-              "digest": {
-                "$ref": "#/components/schemas/BindingProblem/$defs/digest"
-              },
-              "resources": {
-                "additionalProperties": {
-                  "$ref": "#/components/schemas/BindingProblem/$defs/resourceIdentity"
-                },
-                "minProperties": 1,
-                "type": "object"
-              }
-            },
-            "required": [
-              "digest",
-              "resources"
-            ],
-            "type": "object"
-          },
-          "irFeature": {
-            "additionalProperties": false,
-            "properties": {
-              "dimension": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "value": {
-                "minLength": 1,
-                "type": "string"
-              }
-            },
-            "required": [
-              "dimension",
-              "value"
-            ],
-            "type": "object"
-          },
-          "metric": {
+          "feature": {
             "additionalProperties": false,
             "properties": {
               "aggregation": {
@@ -3346,6 +3282,74 @@
               "scope",
               "aggregation",
               "neutral"
+            ],
+            "type": "object"
+          },
+          "globalLatency": {
+            "additionalProperties": false,
+            "properties": {
+              "exclusive": {
+                "enum": [
+                  "routing",
+                  "condition"
+                ]
+              },
+              "feature": {
+                "$ref": "#/components/schemas/BindingProblem/$defs/ref"
+              },
+              "includeExecution": {
+                "type": "boolean"
+              },
+              "parallel": {
+                "enum": [
+                  "max",
+                  "sum"
+                ]
+              }
+            },
+            "required": [
+              "feature",
+              "includeExecution",
+              "exclusive",
+              "parallel"
+            ],
+            "type": "object"
+          },
+          "instanceIdentity": {
+            "additionalProperties": false,
+            "properties": {
+              "digest": {
+                "$ref": "#/components/schemas/BindingProblem/$defs/digest"
+              },
+              "resources": {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/BindingProblem/$defs/resourceIdentity"
+                },
+                "minProperties": 1,
+                "type": "object"
+              }
+            },
+            "required": [
+              "digest",
+              "resources"
+            ],
+            "type": "object"
+          },
+          "irFeature": {
+            "additionalProperties": false,
+            "properties": {
+              "dimension": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "value": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "dimension",
+              "value"
             ],
             "type": "object"
           },
@@ -3938,7 +3942,7 @@
                   "maximize"
                 ]
               },
-              "metric": {
+              "feature": {
                 "$ref": "#/components/schemas/BindingProblem/$defs/ref"
               },
               "normalize": {
@@ -3967,7 +3971,7 @@
               }
             },
             "required": [
-              "metric",
+              "feature",
               "direction",
               "weight"
             ],
@@ -4008,15 +4012,15 @@
                   "soft"
                 ]
               },
+              "feature": {
+                "$ref": "#/components/schemas/BindingProblem/$defs/ref"
+              },
               "from": {
                 "$ref": "#/components/schemas/BindingProblem/$defs/ref"
               },
               "maximum": {
                 "minimum": 0,
                 "type": "number"
-              },
-              "metric": {
-                "$ref": "#/components/schemas/BindingProblem/$defs/ref"
               },
               "penalty": {
                 "minimum": 0,
@@ -4033,7 +4037,7 @@
               "ref",
               "from",
               "to",
-              "metric",
+              "feature",
               "maximum",
               "enforcement"
             ],
@@ -5096,6 +5100,11 @@
             "title": "Feasible",
             "type": "boolean"
           },
+          "features": {
+            "additionalProperties": true,
+            "title": "Features",
+            "type": "object"
+          },
           "from": {
             "additionalProperties": {
               "type": "string"
@@ -5142,7 +5151,6 @@
           "from",
           "to",
           "decision",
-          "metrics",
           "objectives",
           "violations",
           "feasible",

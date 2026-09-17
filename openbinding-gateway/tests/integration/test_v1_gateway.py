@@ -205,14 +205,14 @@ def test_every_builtin_engine_executes_only_canonical_ir_and_returns_a_reevaluat
             # by the gateway's authoritative evaluator from the decision.
             assert set(solution) == {
                 "decision",
-                "metrics",
+                "features",
                 "objectives",
                 "penalties",
                 "violations",
             }
             assert solution["decision"]["kind"] == "binding"
             assert solution["decision"]["binding"]
-            assert solution["metrics"]
+            assert solution["features"]
             assert solution["objectives"]
             assert isinstance(solution["penalties"], list)
             assert isinstance(solution["violations"], list)

@@ -27,16 +27,16 @@ class ResourceRef <<core>> {
 }
 class Task <<source>>
 class Event <<dialect>>
-class MetricDefinition <<source>>
+class FeatureDefinition <<source>>
 
 Placement "1" *-- "0..*" Transition : transitions
 Placement "1" *-- "0..1" GlobalLatency
 Transition "1" *-- "2" ResourceRef : from / to
-Transition "1" *-- "1" ResourceRef : metric
+Transition "1" *-- "1" ResourceRef : feature
 Transition ..> Task
 Transition ..> Event
-Transition ..> MetricDefinition
-GlobalLatency "1" *-- "1" ResourceRef : metric
+Transition ..> FeatureDefinition
+GlobalLatency "1" *-- "1" ResourceRef : feature
 
 note bottom of Transition
   from = service task or event; to = service task.

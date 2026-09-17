@@ -8,7 +8,7 @@
     "candidates": {
       "c1a": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "cost": 100,
           "rel": 0.009899999999999999
         },
@@ -19,7 +19,7 @@
       },
       "c1b": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "cost": 50,
           "rel": 0.009000000000000001
         },
@@ -30,7 +30,7 @@
       },
       "c2a": {
         "provides": "service/t2",
-        "metrics": {
+        "features": {
           "cost": 100,
           "rel": 0.009899999999999999
         },
@@ -41,7 +41,7 @@
       },
       "c2b": {
         "provides": "service/t2",
-        "metrics": {
+        "features": {
           "cost": 50,
           "rel": 0.009000000000000001
         },
@@ -52,7 +52,7 @@
       },
       "c3": {
         "provides": "service/t3",
-        "metrics": {
+        "features": {
           "cost": 10,
           "rel": 0.009899999999999999
         },
@@ -65,7 +65,7 @@
     "providers": {
       "p1": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "cost": {
         "resource": "application",
         "id": "cost"

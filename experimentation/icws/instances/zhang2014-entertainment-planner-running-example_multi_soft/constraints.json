@@ -7,27 +7,27 @@
   "spec": {
     "constraints": {
       "c_within_2km": {
-        "assert": "metrics.distance <= 2000",
+        "assert": "features.distance <= 2000",
         "enforcement": "soft",
         "penalty": 1
       },
       "c_time_budget": {
-        "assert": "metrics.time <= 240",
+        "assert": "features.time <= 240",
         "enforcement": "soft",
         "penalty": 1
       },
       "c_cost_budget": {
-        "assert": "metrics.cost <= 100",
+        "assert": "features.cost <= 100",
         "enforcement": "soft",
         "penalty": 1
       },
       "gen_c_global_cost_1": {
-        "assert": "metrics.cost <= 54.89",
+        "assert": "features.cost <= 54.89",
         "enforcement": "soft",
         "penalty": 1
       },
       "gen_c_local_t_movie_availability_1": {
-        "assert": "tasks.t_movie.metrics.availability >= 0.98",
+        "assert": "tasks.t_movie.features.availability >= 0.98",
         "enforcement": "soft",
         "penalty": 1
       },

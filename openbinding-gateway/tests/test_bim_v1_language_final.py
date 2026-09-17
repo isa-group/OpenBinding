@@ -55,7 +55,7 @@ def base_package(*, workflow=None, optimization=None, placement=None):
         "app",
         {
             "tasks": {"t1": "svc/v1", "t2": "svc/v1", "local": {"kind": "local"}},
-            "metrics": {
+            "features": {
                 "latency": {"unit": "ms", "direction": "minimize", "aggregation": "sum"},
                 "cost": {"unit": "eur", "direction": "minimize", "scope": "selectedCandidate", "aggregation": "sum"},
             },
@@ -67,7 +67,7 @@ def base_package(*, workflow=None, optimization=None, placement=None):
         "catalog-a",
         {
             "providers": {"pa": {"name": "A"}},
-            "metricBindings": {
+            "featureBindings": {
                 "latency": {"resource": "app", "id": "latency"},
                 "cost": {"resource": "app", "id": "cost"},
             },
@@ -75,7 +75,7 @@ def base_package(*, workflow=None, optimization=None, placement=None):
                 "c1": {
                     "provider": {"resource": "cat-a", "id": "pa"},
                     "provides": "svc/v1",
-                    "metrics": {"latency": 10, "cost": 5},
+                    "features": {"latency": 10, "cost": 5},
                 }
             },
         },
@@ -85,7 +85,7 @@ def base_package(*, workflow=None, optimization=None, placement=None):
         "catalog-b",
         {
             "providers": {"pb": {"name": "B"}},
-            "metricBindings": {
+            "featureBindings": {
                 "latency": {"resource": "app", "id": "latency"},
                 "cost": {"resource": "app", "id": "cost"},
             },
@@ -93,7 +93,7 @@ def base_package(*, workflow=None, optimization=None, placement=None):
                 "c1": {
                     "provider": {"resource": "cat-b", "id": "pb"},
                     "provides": ["svc/v1"],
-                    "metrics": {"latency": 20, "cost": 7},
+                    "features": {"latency": 20, "cost": 7},
                 }
             },
         },
@@ -101,7 +101,7 @@ def base_package(*, workflow=None, optimization=None, placement=None):
     hard = envelope(
         "ConstraintSet",
         "hard",
-        {"constraints": {"limit": {"assert": "metrics.latency <= 100", "enforcement": "hard"}}},
+        {"constraints": {"limit": {"assert": "features.latency <= 100", "enforcement": "hard"}}},
     )
     soft = envelope(
         "ConstraintSet",
@@ -114,8 +114,8 @@ def base_package(*, workflow=None, optimization=None, placement=None):
         {
             "mode": "weighted",
             "terms": [
-                {"metric": {"resource": "app", "id": "latency"}, "weight": 3, "normalize": {"min": 0, "max": 100, "clamp": False}},
-                {"metric": {"resource": "app", "id": "cost"}, "weight": 1, "normalize": {"min": 0, "max": 20, "clamp": False}},
+                {"feature": {"resource": "app", "id": "latency"}, "weight": 3, "normalize": {"min": 0, "max": 100, "clamp": False}},
+                {"feature": {"resource": "app", "id": "cost"}, "weight": 1, "normalize": {"min": 0, "max": 20, "clamp": False}},
             ],
             "penalties": [{"constraint": {"resource": "soft", "id": "limit"}, "weight": 1}],
         },
@@ -166,7 +166,7 @@ def test_objective_type_has_the_declared_source_cardinality(
             "mode": mode,
             "type": objective_type,
             "terms": [
-                {"metric": {"resource": "app", "id": f"metric-{index}"}}
+                {"feature": {"resource": "app", "id": f"feature-{index}"}}
                 for index in range(term_count)
             ],
         },
@@ -373,7 +373,7 @@ def test_routing_weighted_product_is_geometric_and_not_a_scaled_sum():
         ]
     })).encode()
     application = json.loads(value.files["application.json"])
-    application["spec"]["metrics"]["availability"] = {
+    application["spec"]["features"]["availability"] = {
         "unit": "1",
         "domain": "ratio",
         "direction": "maximize",
@@ -382,11 +382,11 @@ def test_routing_weighted_product_is_geometric_and_not_a_scaled_sum():
     value.files["application.json"] = json.dumps(application).encode()
     for path, amount in (("catalog-a.json", 0.9), ("catalog-b.json", 0.8)):
         catalog = json.loads(value.files[path])
-        catalog["spec"]["metricBindings"]["availability"] = {"resource": "app", "id": "availability"}
-        catalog["spec"]["candidates"]["c1"]["metrics"]["availability"] = amount
+        catalog["spec"]["featureBindings"]["availability"] = {"resource": "app", "id": "availability"}
+        catalog["spec"]["candidates"]["c1"]["features"]["availability"] = amount
         value.files[path] = json.dumps(catalog).encode()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [{"metric": {"resource": "app", "id": "availability"}, "weight": 1}]
+    optimization["spec"]["terms"] = [{"feature": {"resource": "app", "id": "availability"}, "weight": 1}]
     value.files["optimization.json"] = json.dumps(optimization).encode()
     problem = compile_instance(value)
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-b", "id": "c1"}}
@@ -412,7 +412,7 @@ def test_fractional_product_requires_a_nonnegative_metric_domain():
         ]
     })).encode()
     application = json.loads(value.files["application.json"])
-    application["spec"]["metrics"]["signed"] = {
+    application["spec"]["features"]["signed"] = {
         "unit": "1",
         "domain": {"kind": "real", "minimum": -1, "maximum": 1},
         "direction": "maximize",
@@ -421,11 +421,11 @@ def test_fractional_product_requires_a_nonnegative_metric_domain():
     value.files["application.json"] = json.dumps(application).encode()
     for path, amount in (("catalog-a.json", -0.9), ("catalog-b.json", 0.8)):
         catalog = json.loads(value.files[path])
-        catalog["spec"]["metricBindings"]["signed"] = {"resource": "app", "id": "signed"}
-        catalog["spec"]["candidates"]["c1"]["metrics"]["signed"] = amount
+        catalog["spec"]["featureBindings"]["signed"] = {"resource": "app", "id": "signed"}
+        catalog["spec"]["candidates"]["c1"]["features"]["signed"] = amount
         value.files[path] = json.dumps(catalog).encode()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [{"metric": {"resource": "app", "id": "signed"}}]
+    optimization["spec"]["terms"] = [{"feature": {"resource": "app", "id": "signed"}}]
     value.files["optimization.json"] = json.dumps(optimization).encode()
     with pytest.raises(CompileError, match="non-negative domain"):
         compile_instance(value)
@@ -434,7 +434,7 @@ def test_fractional_product_requires_a_nonnegative_metric_domain():
 def test_metric_neutral_is_used_for_local_activities():
     value = base_package()
     application = json.loads(value.files["application.json"])
-    application["spec"]["metrics"]["quality"] = {
+    application["spec"]["features"]["quality"] = {
         "unit": "score",
         "domain": {"kind": "real", "minimum": 0, "maximum": 100},
         "direction": "maximize",
@@ -443,11 +443,11 @@ def test_metric_neutral_is_used_for_local_activities():
     value.files["application.json"] = json.dumps(application).encode()
     for path, amount in (("catalog-a.json", 80), ("catalog-b.json", 70)):
         catalog = json.loads(value.files[path])
-        catalog["spec"]["metricBindings"]["quality"] = {"resource": "app", "id": "quality"}
-        catalog["spec"]["candidates"]["c1"]["metrics"]["quality"] = amount
+        catalog["spec"]["featureBindings"]["quality"] = {"resource": "app", "id": "quality"}
+        catalog["spec"]["candidates"]["c1"]["features"]["quality"] = amount
         value.files[path] = json.dumps(catalog).encode()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [{"metric": {"resource": "app", "id": "quality"}}]
+    optimization["spec"]["terms"] = [{"feature": {"resource": "app", "id": "quality"}}]
     value.files["optimization.json"] = json.dumps(optimization).encode()
     problem = compile_instance(value)
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-a", "id": "c1"}}
@@ -458,7 +458,7 @@ def test_objective_normalization_clamp_and_maximize_loss_are_explicit():
     value = base_package()
     optimization = json.loads(value.files["optimization.json"])
     optimization["spec"]["terms"] = [{
-        "metric": {"resource": "app", "id": "latency"},
+        "feature": {"resource": "app", "id": "latency"},
         "direction": "maximize",
         "normalize": {"min": 0, "max": 20, "clamp": True},
     }]
@@ -480,7 +480,7 @@ def test_objective_normalization_clamp_and_maximize_loss_are_explicit():
 def test_constraints_have_no_hidden_comparison_epsilon():
     value = base_package()
     hard = json.loads(value.files["hard.json"])
-    hard["spec"]["constraints"]["limit"]["assert"] = "metrics.latency <= 29.9999999"
+    hard["spec"]["constraints"]["limit"]["assert"] = "features.latency <= 29.9999999"
     value.files["hard.json"] = json.dumps(hard).encode()
     problem = compile_instance(value)
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-a", "id": "c1"}}
@@ -495,7 +495,7 @@ def test_constraints_have_no_hidden_comparison_epsilon():
 def test_constraint_diagnostics_preserve_the_exact_cel_error_span():
     value = base_package()
     hard = json.loads(value.files["hard.json"])
-    source = "  metrics.latency <= && 100  "
+    source = "  features.latency <= && 100  "
     hard["spec"]["constraints"]["limit"]["assert"] = source
     value.files["hard.json"] = json.dumps(hard).encode()
 
@@ -508,35 +508,35 @@ def test_constraint_diagnostics_preserve_the_exact_cel_error_span():
 
 
 def test_cel_and_json_ast_share_ir_and_roots_are_typed():
-    kwargs = {"allowed_roots": {"metrics": "object"}, "path_types": {"metrics.latency": "number"}, "expected_type": "bool"}
-    cel = compile_expression("metrics.latency <= 50", **kwargs)
-    tree = compile_expression({"op": "lte", "left": {"path": "metrics.latency"}, "right": 50}, **kwargs)
+    kwargs = {"allowed_roots": {"features": "object"}, "path_types": {"features.latency": "number"}, "expected_type": "bool"}
+    cel = compile_expression("features.latency <= 50", **kwargs)
+    tree = compile_expression({"op": "lte", "left": {"path": "features.latency"}, "right": 50}, **kwargs)
     assert cel.ast == tree.ast
-    assert cel.span == {"start": 0, "end": 21}
+    assert cel.span == {"start": 0, "end": 22}
     with pytest.raises(ExpressionError, match="root is not allowed"):
         compile_expression("secrets.token == 'x'", **kwargs)
     with pytest.raises(ExpressionError, match="exactly left and right"):
-        compile_expression({"op": "and"}, allowed_roots={"metrics": "object"})
+        compile_expression({"op": "and"}, allowed_roots={"features": "object"})
     assert compile_expression("'true && false' == 'true && false'", expected_type="bool").evaluate({})
 
 
 def test_expression_segments_preserve_dotted_ids_and_comparison_types_are_strict():
     kwargs = {
-        "allowed_roots": {"metrics": "closed-object", "tasks": "closed-object"},
+        "allowed_roots": {"features": "closed-object", "tasks": "closed-object"},
         "path_types": {
-            ("metrics", "response.time"): "number",
+            ("features", "response.time"): "number",
             ("tasks", "checkout.v2", "properties", "region"): "string",
         },
     }
-    cel = compile_expression("metrics['response.time'] <= 50", expected_type="bool", **kwargs)
+    cel = compile_expression("features['response.time'] <= 50", expected_type="bool", **kwargs)
     tree = compile_expression(
-        {"op": "lte", "left": {"path": ["metrics", "response.time"]}, "right": 50},
+        {"op": "lte", "left": {"path": ["features", "response.time"]}, "right": 50},
         expected_type="bool",
         **kwargs,
     )
     assert cel.ast == tree.ast
-    assert cel.ast["left"] == {"kind": "path", "segments": ["metrics", "response.time"]}
-    assert cel.evaluate({"metrics": {"response.time": 40}}) is True
+    assert cel.ast["left"] == {"kind": "path", "segments": ["features", "response.time"]}
+    assert cel.evaluate({"features": {"response.time": 40}}) is True
     assert compile_expression(
         "tasks['checkout.v2'].properties.region < 'm'",
         expected_type="bool",
@@ -1124,23 +1124,23 @@ def test_registered_resources_are_exact_digest_pinned_and_source_free_in_ir():
         compile_instance(value, wrong)
 
 
-def test_only_semantically_used_metrics_are_required():
+def test_only_semantically_used_features_are_required():
     value = base_package()
     optimization = json.loads(value.files["optimization.json"])
     optimization["spec"]["terms"] = [
-        {"metric": {"resource": "app", "id": "latency"}, "weight": 1}
+        {"feature": {"resource": "app", "id": "latency"}, "weight": 1}
     ]
     value.files["optimization.json"] = json.dumps(optimization).encode()
     catalog = json.loads(value.files["catalog-b.json"])
-    catalog["spec"]["candidates"]["c1"]["metrics"].pop("cost")
+    catalog["spec"]["candidates"]["c1"]["features"].pop("cost")
     value.files["catalog-b.json"] = json.dumps(catalog).encode()
     problem = compile_instance(value)
-    assert problem.document["spec"]["application"]["requiredMetrics"] == ["latency"]
+    assert problem.document["spec"]["application"]["requiredFeatures"] == ["latency"]
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-b", "id": "c1"}}
     assert problem.evaluate_binding(binding) == {"latency": 50.0}
 
 
-def test_task_metric_requirements_are_scoped_and_dynamic_penalties_are_checked():
+def test_task_feature_requirements_are_scoped_and_dynamic_penalties_are_checked():
     value = base_package()
     application = json.loads(value.files["application.json"])
     application["spec"]["tasks"]["t1"] = "svc/a"
@@ -1151,10 +1151,10 @@ def test_task_metric_requirements_are_scoped_and_dynamic_penalties_are_checked()
     value.files["catalog-a.json"] = json.dumps(catalog_a).encode()
     catalog_b = json.loads(value.files["catalog-b.json"])
     catalog_b["spec"]["candidates"]["c1"]["provides"] = "svc/b"
-    catalog_b["spec"]["candidates"]["c1"]["metrics"].pop("cost")
+    catalog_b["spec"]["candidates"]["c1"]["features"].pop("cost")
     value.files["catalog-b.json"] = json.dumps(catalog_b).encode()
     hard = json.loads(value.files["hard.json"])
-    hard["spec"]["constraints"]["limit"]["assert"] = "tasks.t1.metrics.cost <= 10"
+    hard["spec"]["constraints"]["limit"]["assert"] = "tasks.t1.features.cost <= 10"
     value.files["hard.json"] = json.dumps(hard).encode()
     soft = json.loads(value.files["soft.json"])
     soft["spec"]["constraints"] = {}
@@ -1163,13 +1163,13 @@ def test_task_metric_requirements_are_scoped_and_dynamic_penalties_are_checked()
     optimization["spec"] = {"mode": "satisfy"}
     value.files["optimization.json"] = json.dumps(optimization).encode()
     problem = compile_instance(value)
-    assert problem.document["spec"]["application"]["requiredMetrics"] == []
-    assert problem.document["spec"]["application"]["taskRequiredMetrics"] == {"t1": ["cost"]}
+    assert problem.document["spec"]["application"]["requiredFeatures"] == []
+    assert problem.document["spec"]["application"]["taskRequiredFeatures"] == {"t1": ["cost"]}
 
     dynamic = base_package()
     soft = json.loads(dynamic.files["soft.json"])
     soft["spec"]["constraints"]["limit"]["assert"] = False
-    soft["spec"]["constraints"]["limit"]["penalty"] = "tasks.t1.metrics.latency - 20"
+    soft["spec"]["constraints"]["limit"]["penalty"] = "tasks.t1.features.latency - 20"
     dynamic.files["soft.json"] = json.dumps(soft).encode()
     checked = compile_instance(dynamic)
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-b", "id": "c1"}}
@@ -1203,13 +1203,13 @@ def test_placement_is_cross_referenced_and_groups_expand():
                 "login": {
                     "from": {"resource": "place", "id": "user"},
                     "to": {"resource": "app", "id": "t1"},
-                    "metric": {"resource": "app", "id": "latency"},
+                    "feature": {"resource": "app", "id": "latency"},
                     "maximum": 10,
                 }
             },
             "capacityRules": [{"resources": ["memory"], "scope": "selectedCandidate"}],
             "globalLatency": {
-                "metric": {"resource": "app", "id": "latency"},
+                "feature": {"resource": "app", "id": "latency"},
                 "includeExecution": True,
                 "exclusive": "routing",
                 "parallel": "max",
@@ -1230,7 +1230,7 @@ def test_placement_is_cross_referenced_and_groups_expand():
     }
     evaluation = problem.evaluate(binding)
     # Event transfer (1) + t1 execution (10) + expected two t2 executions (40).
-    assert evaluation["metrics"]["latency"] == 51
+    assert evaluation["features"]["latency"] == 51
     assert evaluation["violations"] == []
     broken = deepcopy(placement)
     broken["spec"]["groups"]["svc"]["pool"]["id"] = "missing"
@@ -1252,7 +1252,7 @@ def test_placement_rejects_non_executable_workflow_expansion_limits():
                 }
             },
             "globalLatency": {
-                "metric": {"resource": "app", "id": "latency"},
+                "feature": {"resource": "app", "id": "latency"},
                 "includeExecution": True,
                 "exclusive": "routing",
                 "parallel": "max",
@@ -1310,7 +1310,7 @@ def test_placement_membership_is_fail_closed_per_model():
         }
         if global_latency:
             spec["globalLatency"] = {
-                "metric": {"resource": "app", "id": "latency"},
+                "feature": {"resource": "app", "id": "latency"},
                 "includeExecution": True,
                 "exclusive": "routing",
                 "parallel": "max",
@@ -1319,7 +1319,7 @@ def test_placement_membership_is_fail_closed_per_model():
             spec["transitions"] = {"hop": {
                 "from": {"resource": "app", "id": "t1"},
                 "to": {"resource": "app", "id": "t2"},
-                "metric": {"resource": "app", "id": "latency"},
+                "feature": {"resource": "app", "id": "latency"},
                 "maximum": 10,
             }}
         return envelope("Placement", resource, spec)
@@ -1359,7 +1359,7 @@ def test_placement_capacity_scope_and_soft_transition_penalty_are_authoritative(
                 "slow": {
                     "from": {"resource": "app", "id": "t1"},
                     "to": {"resource": "app", "id": "t2"},
-                    "metric": {"resource": "app", "id": "latency"},
+                    "feature": {"resource": "app", "id": "latency"},
                     "maximum": 0,
                     "enforcement": "soft",
                     "penalty": 7,

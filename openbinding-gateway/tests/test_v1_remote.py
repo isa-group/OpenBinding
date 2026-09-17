@@ -10,7 +10,7 @@ def _result(termination: str = "FEASIBLE") -> dict:
         "solutions": [
             {
                 "decision": {"kind": "binding", "binding": {}},
-                "metrics": {},
+                "features": {},
                 "objectives": {
                     "mode": "satisfy",
                     "components": [],

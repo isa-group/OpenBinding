@@ -7,14 +7,14 @@
     "sourceCommit": "81e095ca06f52316f23e738e84011356e0d51e81"
   },
   "digests": {
-    "package": "sha256-d9cfdd7911b2c09d1126b6313766a4202730d3f94e12c6b6f6eee502a3fbf6a8",
-    "ir": "sha256-faadbbe1608e2e4a1dcdf2b24ffb1bda526fad422890846b985a7b1c21b156c7"
+    "package": "sha256-71e33c667fca0fba33211574cbec333d2a0c6cdbcf63bd0e9884e448da201a33",
+    "ir": "sha256-890794175380bb63ea9c672b906e4b8fcec782f2d30dd9df3b3c4bee6c97231c"
   },
   "structure": {
     "tasks": 5,
     "candidates": 540,
     "pools": 56,
-    "metrics": 35,
+    "features": 35,
     "constraints": 13,
     "demands": 540,
     "capacityRules": 1,
@@ -39,12 +39,12 @@
     "engine": "minizinc-csp",
     "termination": "OPTIMAL",
     "score": 0.02037444933920705,
-    "metrics": {"cost": 1.26844236, "latency": 37.0, "security": 1.0},
+    "features": {"cost": 1.26844236, "latency": 37.0, "security": 1.0},
     "elapsedSeconds": 2.099
   },
   "currentExact": {
     "score": 0.02037444933920705,
-    "metrics": {"cost": 1.26844236, "latency": 37.0, "security": 1.0}
+    "features": {"cost": 1.26844236, "latency": 37.0, "security": 1.0}
   },
   "currentObserved": {
     "date": "2026-08-28",
@@ -52,14 +52,14 @@
       "seed": 7,
       "evaluations": 1000,
       "score": 0.0698825520019213,
-      "metrics": {"cost": 20.075004, "latency": 75.0245, "security": 1.0},
+      "features": {"cost": 20.075004, "latency": 75.0245, "security": 1.0},
       "classification": "similar"
     },
     "evolutionary-heuristics": {
       "seed": 7,
       "evaluations": 1000,
       "score": 0.06420703414416934,
-      "metrics": {"cost": 16.660663890000002, "latency": 74.137, "security": 1.0},
+      "features": {"cost": 16.660663890000002, "latency": 74.137, "security": 1.0},
       "classification": "similar"
     }
   },

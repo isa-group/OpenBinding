@@ -68,22 +68,22 @@ def count_semantic_controls(package: Path) -> Counter[str]:
         if isinstance(task, Mapping) and "kind" in task:
             _add(controls, "taskSemantics")
 
-    for metric in application.get("metrics", {}).values():
-        if not isinstance(metric, Mapping):
+    for feature in application.get("features", {}).values():
+        if not isinstance(feature, Mapping):
             continue
         for field in ("type", "unit", "direction", "scope", "neutral"):
-            if field in metric:
-                _add(controls, "metricInterpretation")
-        domain = metric.get("domain")
+            if field in feature:
+                _add(controls, "featureInterpretation")
+        domain = feature.get("domain")
         if isinstance(domain, str):
-            _add(controls, "metricInterpretation")
+            _add(controls, "featureInterpretation")
         elif isinstance(domain, Mapping):
             _add(
                 controls,
-                "metricInterpretation",
+                "featureInterpretation",
                 sum(field in domain for field in ("kind", "minimum", "maximum")),
             )
-        aggregation = metric.get("aggregation")
+        aggregation = feature.get("aggregation")
         if isinstance(aggregation, str):
             _add(controls, "aggregation")
         elif isinstance(aggregation, Mapping):
@@ -166,20 +166,20 @@ def _projection_digest(problem: Mapping[str, Any]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _candidate_metric(spec: Mapping[str, Any], reference: Mapping[str, str], metric_id: str) -> float:
+def _candidate_feature(spec: Mapping[str, Any], reference: Mapping[str, str], feature_id: str) -> float:
     catalog = spec["candidates"][reference["resource"]]
     aliases = [
         alias
-        for alias, target in catalog["metricBindings"].items()
-        if target["resource"] == spec["application"]["resource"] and target["id"] == metric_id
+        for alias, target in catalog["featureBindings"].items()
+        if target["resource"] == spec["application"]["resource"] and target["id"] == feature_id
     ]
     if len(aliases) != 1:
-        raise ValueError(f"metric {metric_id!r} has no unique catalog binding")
-    return float(catalog["candidates"][reference["id"]]["metrics"][aliases[0]])
+        raise ValueError(f"feature {feature_id!r} has no unique catalog binding")
+    return float(catalog["candidates"][reference["id"]]["features"][aliases[0]])
 
 
 def _normalization_ranges(compiled: Any, *, enumeration_limit: int = 10_000) -> dict[str, list[float]]:
-    """Prove the observed range of every normalized objective metric.
+    """Prove the observed range of every normalized objective feature.
 
     Small spaces are exhaustive. Large spaces use pointwise extrema, which are
     exact for the non-negative monotone operators admitted by these benchmarks.
@@ -187,35 +187,35 @@ def _normalization_ranges(compiled: Any, *, enumeration_limit: int = 10_000) -> 
 
     spec = compiled.document["spec"]
     terms = [term for term in spec["optimization"]["terms"] if "normalize" in term]
-    metrics = [term["metric"]["id"] for term in terms]
+    features = [term["feature"]["id"] for term in terms]
     eligibility = spec["eligibility"]
     tasks = list(eligibility)
     combinations = math.prod(len(eligibility[task]) for task in tasks)
-    ranges = {metric_id: [math.inf, -math.inf] for metric_id in metrics}
+    ranges = {feature_id: [math.inf, -math.inf] for feature_id in features}
 
     def observe(binding: Mapping[str, Mapping[str, str]]) -> None:
         values = compiled.evaluate_binding(binding)
-        for metric_id in metrics:
-            value = float(values[metric_id])
-            ranges[metric_id][0] = min(ranges[metric_id][0], value)
-            ranges[metric_id][1] = max(ranges[metric_id][1], value)
+        for feature_id in features:
+            value = float(values[feature_id])
+            ranges[feature_id][0] = min(ranges[feature_id][0], value)
+            ranges[feature_id][1] = max(ranges[feature_id][1], value)
 
     if combinations <= enumeration_limit:
         for choices in product(*(eligibility[task] for task in tasks)):
             observe(dict(zip(tasks, choices, strict=True)))
     else:
-        application_metrics = spec["application"]["metrics"]
-        for metric_id in metrics:
-            metric = application_metrics[metric_id]
-            if metric["scope"] != "invocation":
-                raise ValueError("large-space range proof requires invocation-scoped metrics")
+        application_features = spec["application"]["features"]
+        for feature_id in features:
+            feature = application_features[feature_id]
+            if feature["scope"] != "invocation":
+                raise ValueError("large-space range proof requires invocation-scoped features")
             if any(
-                _candidate_metric(spec, reference, metric_id) < 0
+                _candidate_feature(spec, reference, feature_id) < 0
                 for choices in eligibility.values()
                 for reference in choices
             ):
                 raise ValueError("large-space range proof requires non-negative candidate values")
-            operators = metric["aggregation"]
+            operators = feature["aggregation"]
             if any(
                 not isinstance(operator, str)
                 or operator not in {"sum", "product", "min", "max", "weightedSum", "weightedProduct", "scale", "power", "identity"}
@@ -226,8 +226,8 @@ def _normalization_ranges(compiled: Any, *, enumeration_limit: int = 10_000) -> 
                 binding = {
                     task: (max if choose_maximum else min)(
                         choices,
-                        key=lambda reference, selected_metric=metric_id: _candidate_metric(
-                            spec, reference, selected_metric
+                        key=lambda reference, selected_feature=feature_id: _candidate_feature(
+                            spec, reference, selected_feature
                         ),
                     )
                     for task, choices in eligibility.items()
@@ -235,12 +235,12 @@ def _normalization_ranges(compiled: Any, *, enumeration_limit: int = 10_000) -> 
                 observe(binding)
 
     for term in terms:
-        metric_id = term["metric"]["id"]
-        lower, upper = ranges[metric_id]
+        feature_id = term["feature"]["id"]
+        lower, upper = ranges[feature_id]
         bounds = term["normalize"]
         if lower < bounds["min"] - 1e-12 or upper > bounds["max"] + 1e-12:
             raise ValueError(
-                f"normalization for {metric_id!r} does not contain reachable range [{lower}, {upper}]"
+                f"normalization for {feature_id!r} does not contain reachable range [{lower}, {upper}]"
             )
     return ranges
 
@@ -281,7 +281,7 @@ def run_benchmarks() -> dict[str, Any]:
         normalization_ranges = _normalization_ranges(compiled)
         evaluation = compiled.evaluate(benchmark["probe"]["binding"])
         actual_probe = {
-            "metrics": evaluation["metrics"],
+            "features": evaluation["features"],
             "mode": evaluation["objectives"]["mode"],
             "score": evaluation["objectives"]["score"],
             "penalty": evaluation["objectives"]["penalty"],
@@ -303,8 +303,9 @@ def run_benchmarks() -> dict[str, Any]:
         comparison = benchmark["historicalComparison"]
         if comparison["status"] not in {"exact", "normative-change"}:
             errors.append("historical comparison has an unknown status")
-        if not _close(actual_probe["metrics"], comparison["equivalentMetrics"]):
-            errors.append("metrics declared equivalent to the audited baseline changed")
+        equiv = comparison.get("equivalentFeatures", comparison.get("equivalentMetrics"))
+        if not _close(actual_probe["features"], equiv):
+            errors.append("features declared equivalent to the audited baseline changed")
         if comparison["status"] == "exact" and not _close(
             actual_probe["score"], comparison["objectiveScore"]
         ):

@@ -102,13 +102,13 @@ def build_archive(sources: list[tuple[AnalysisSource, dict, dict]]) -> Archive:
         raise ValueError("Pooling requires identical verified model and evaluator identities")
     if any(record(record(doc.get("spec")).get("optimization")) != optimization for _, doc, _ in sources):
         raise ValueError("The sources have incompatible objective schemas")
-    keys = [metric_key(record(t).get("metric")) for t in terms]
+    keys = [metric_key(record(t).get("feature")) for t in terms]
     if len(set(keys)) != len(keys):
         # Repeated terms have different semantics and must not collapse into one axis.
         keys = [f"{key}#{i + 1}" for i, key in enumerate(keys)]
-    metrics = record(record(record(document.get("spec")).get("application")).get("metrics"))
-    dimensions = [AnalysisDimension(key=keys[i], label=metric_key(record(t).get("metric")),
-                    unit=record(metrics.get(record(record(t).get("metric")).get("id"))).get("unit"),
+    features = record(record(record(document.get("spec")).get("application")).get("features"))
+    dimensions = [AnalysisDimension(key=keys[i], label=metric_key(record(t).get("feature")),
+                    unit=record(features.get(record(record(t).get("feature")).get("id"))).get("unit"),
                     direction=record(t).get("direction", "minimize"), kind="objective")
                   for i, t in enumerate(terms)]
     dimensions.append(AnalysisDimension(key="penalty", label="Soft penalty", direction="minimize", kind="penalty"))
@@ -149,8 +149,8 @@ def build_archive(sources: list[tuple[AnalysisSource, dict, dict]]) -> Archive:
                 candidate_id = digest({"job": source.id, "index": index})
             objective = record(solution.get("objectives"))
             components = objective.get("components", [])
-            expected = [metric_key(record(term).get("metric")) for term in terms]
-            actual = [metric_key(record(c).get("metric")) for c in components] if isinstance(components, list) else []
+            expected = [metric_key(record(term).get("feature")) for term in terms]
+            actual = [metric_key(record(c).get("feature")) for c in components] if isinstance(components, list) else []
             if actual != expected or objective.get("mode") != optimization.get("mode"):
                 reasons.append("Evaluation does not match the pinned objective schema")
             components = components if isinstance(components, list) else []
@@ -173,7 +173,7 @@ def build_archive(sources: list[tuple[AnalysisSource, dict, dict]]) -> Archive:
             if candidate_id in candidates:
                 previous = candidates[candidate_id].solution
                 def evaluation_fingerprint(value):
-                    return digest(safe({key: value.get(key) for key in ("objectives", "metrics", "violations")}))
+                    return digest(safe({key: value.get(key) for key in ("objectives", "features", "violations")}))
                 if evaluation_fingerprint(previous) != evaluation_fingerprint(solution):
                     raise ValueError("The same binding has contradictory stored evaluations; analyze its sources separately")
                 candidates[candidate_id].occurrences.append({"jobId": source.id, "solutionIndex": index})
@@ -536,7 +536,9 @@ def candidate_detail(archive: Archive, query: AnalysisQuery) -> dict:
     own_score = decision.scores.get(selected.id)
     next_group = next((decision.scores[c.id] for c in decision.ordered if own_score and decision.scores[c.id] > own_score), None)
     return {"revision": archive.revision, "row": row_view(selected, decision), "binding": selected.binding,
-        "violations": safe(selected.solution.get("violations")) if isinstance(selected.solution.get("violations"), list) else [], "evaluation": safe(selected.solution), "metrics": safe(record(selected.solution.get("metrics"))),
+        "violations": safe(selected.solution.get("violations")) if isinstance(selected.solution.get("violations"), list) else [], "evaluation": safe(selected.solution),
+        "features": safe(record(selected.solution.get("features", selected.solution.get("metrics")))),
+        "metrics": safe(record(selected.solution.get("features", selected.solution.get("metrics")))),
         "occurrences": selected.occurrences, "comparison": comparison,
         "dominance": {"scope": query.paretoScope, "computed": selected.losses is not None,
             "eligibleForFront": selected in scope, "dominatorCount": len(dominators), "dominators": dominators[:200]},

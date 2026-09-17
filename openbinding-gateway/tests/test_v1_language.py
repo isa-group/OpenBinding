@@ -98,9 +98,9 @@ def test_workflow_catalog_and_optimization_references_are_explicit() -> None:
     problem = compile_instance(load_package(EXAMPLE)).as_dict()
     first = problem["spec"]["application"]["workflow"]["steps"][0]["task"]
     term = problem["spec"]["optimization"]["terms"][0]
-    binding = problem["spec"]["candidates"]["catalog"]["metricBindings"]["latency"]
+    binding = problem["spec"]["candidates"]["catalog"]["featureBindings"]["latency"]
     assert first == {"resource": "application", "id": "t1"}
-    assert term["metric"] == {"resource": "application", "id": "latency"}
+    assert term["feature"] == {"resource": "application", "id": "latency"}
     assert binding == {"resource": "application", "id": "latency"}
 
 

@@ -8,7 +8,7 @@
     "candidates": {
       "c_google_books_api": {
         "provides": "service/t_books",
-        "metrics": {
+        "features": {
           "latency_ms": 250,
           "cost_usd": 0.0001,
           "availability": 0.995,
@@ -22,7 +22,7 @@
       },
       "c_amazon_market_api": {
         "provides": "service/t_market",
-        "metrics": {
+        "features": {
           "latency_ms": 400,
           "cost_usd": 0.001,
           "availability": 0.99,
@@ -36,7 +36,7 @@
       },
       "c_opac_library_api": {
         "provides": "service/t_library",
-        "metrics": {
+        "features": {
           "latency_ms": 350,
           "cost_usd": 0.0001,
           "availability": 0.98,
@@ -50,7 +50,7 @@
       },
       "c_google_geocoding_api": {
         "provides": "service/t_geocoding",
-        "metrics": {
+        "features": {
           "latency_ms": 300,
           "cost_usd": 0.002,
           "availability": 0.995,
@@ -64,7 +64,7 @@
       },
       "c_google_transit_api": {
         "provides": "service/t_transit",
-        "metrics": {
+        "features": {
           "latency_ms": 450,
           "cost_usd": 0.0001,
           "availability": 0.995,
@@ -78,7 +78,7 @@
       },
       "c_archive_api": {
         "provides": "service/t_archive",
-        "metrics": {
+        "features": {
           "latency_ms": 500,
           "cost_usd": 0.0001,
           "availability": 0.97,
@@ -98,7 +98,7 @@
       "p_archive": {},
       "p_local": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "latency_ms": {
         "resource": "application",
         "id": "latency_ms"

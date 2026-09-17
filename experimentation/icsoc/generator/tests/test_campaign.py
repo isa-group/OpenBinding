@@ -43,7 +43,7 @@ def test_run_row_uses_authoritative_evaluation_and_v1_provenance() -> None:
             "termination": "FEASIBLE",
             "solutions": [{
                 "decision": {"kind": "binding", "binding": {}},
-                "metrics": {"cost": 4.5, "latency": 8.0, "security": 0.9},
+                "features": {"cost": 4.5, "latency": 8.0, "security": 0.9},
                 "objectives": {"mode": "weighted", "score": 0.25},
                 "penalties": [0.5, 1.25],
                 "violations": [

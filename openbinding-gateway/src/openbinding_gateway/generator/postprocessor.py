@@ -66,7 +66,7 @@ class BIMPostprocessor:
         self.branch_counter = 0
         self.routing_entries: list[dict[str, Any]] = []
 
-    def _normalize_metric_name(self, raw_name: str) -> str:
+    def _normalize_feature_name(self, raw_name: str) -> str:
         name_lower = raw_name.lower().strip()
         mapping = {
             "exectime": "latency",
@@ -80,6 +80,8 @@ class BIMPostprocessor:
             "trust": "trust",
         }
         return mapping.get(name_lower, name_lower)
+
+    _normalize_metric_name = _normalize_feature_name
 
     def _build_workflow_node(
         self,
@@ -220,9 +222,9 @@ class BIMPostprocessor:
         if "empty" in workflow_root:
             workflow_root = {"sequence": [{"task": {"resource": "application", "id": all_task_ids[0]}}]}
 
-        # 3. Build Metrics
-        metrics_dict: dict[str, Any] = {}
-        metric_key_map: dict[str, str] = {}
+        # 3. Build Features
+        features_dict: dict[str, Any] = {}
+        feature_key_map: dict[str, str] = {}
 
         # Default properties if none found
         raw_props = problem.qos_properties
@@ -238,8 +240,8 @@ class BIMPostprocessor:
         is_minizinc = "minizinc-csp" in self.capabilities.target_engines
 
         for raw_name, prop_spec in raw_props.items():
-            norm_name = self._normalize_metric_name(raw_name)
-            metric_key_map[raw_name] = norm_name
+            norm_name = self._normalize_feature_name(raw_name)
+            feature_key_map[raw_name] = norm_name
 
             direction = prop_spec.direction
             scope = "invocation" if norm_name == "latency" else "selectedCandidate"
@@ -290,7 +292,7 @@ class BIMPostprocessor:
             else:
                 neutral = 0.0
 
-            metrics_dict[norm_name] = {
+            features_dict[norm_name] = {
                 "unit": unit,
                 "direction": direction,
                 "scope": scope,
@@ -310,9 +312,9 @@ class BIMPostprocessor:
                 "properties": {"tier": "standard", "region": "eu-west"},
             }
         }
-        metric_bindings = {
+        feature_bindings = {
             m_id: {"resource": "application", "id": m_id}
-            for m_id in metrics_dict
+            for m_id in features_dict
         }
 
         candidates_dict: dict[str, Any] = {}
@@ -324,21 +326,21 @@ class BIMPostprocessor:
                 continue
             for c_idx, cws in enumerate(c_list):
                 c_id = _clean_id(f"{clean_task}_{cws.name or c_idx}")
-                c_metrics: dict[str, float] = {}
-                for r_prop, val in cws.metrics.items():
-                    n_prop = metric_key_map.get(r_prop, self._normalize_metric_name(r_prop))
-                    if n_prop in metrics_dict:
-                        c_metrics[n_prop] = float(val)
+                c_features: dict[str, float] = {}
+                for r_prop, val in (cws.features if hasattr(cws, "features") and cws.features else cws.metrics).items():
+                    n_prop = feature_key_map.get(r_prop, self._normalize_feature_name(r_prop))
+                    if n_prop in features_dict:
+                        c_features[n_prop] = float(val)
 
-                # Ensure all metrics have a value
-                for m_id, m_spec in metrics_dict.items():
-                    if m_id not in c_metrics:
-                        c_metrics[m_id] = 0.5 * (m_spec["domain"]["minimum"] + m_spec["domain"]["maximum"])
+                # Ensure all features have a value
+                for m_id, m_spec in features_dict.items():
+                    if m_id not in c_features:
+                        c_features[m_id] = 0.5 * (m_spec["domain"]["minimum"] + m_spec["domain"]["maximum"])
 
                 candidates_dict[c_id] = {
                     "provides": f"service/{clean_task}",
                     "provider": {"resource": "catalog", "id": "provider-core"},
-                    "metrics": c_metrics,
+                    "features": c_features,
                 }
                 if clean_task not in witness_solution:
                     witness_solution[clean_task] = c_id
@@ -348,25 +350,25 @@ class BIMPostprocessor:
             if t_id not in witness_solution:
                 for c_idx in range(2):
                     c_id = f"cand_{t_id}_{c_idx + 1}"
-                    c_metrics = {}
-                    for m_id, m_spec in metrics_dict.items():
-                        c_metrics[m_id] = round(0.5 * (m_spec["domain"]["minimum"] + m_spec["domain"]["maximum"]), 4)
+                    c_features = {}
+                    for m_id, m_spec in features_dict.items():
+                        c_features[m_id] = round(0.5 * (m_spec["domain"]["minimum"] + m_spec["domain"]["maximum"]), 4)
                     candidates_dict[c_id] = {
                         "provides": f"service/{t_id}",
                         "provider": {"resource": "catalog", "id": "provider-core"},
-                        "metrics": c_metrics,
+                        "features": c_features,
                     }
                     if t_id not in witness_solution:
                         witness_solution[t_id] = c_id
 
         # 5. Witness Solution Evaluation & Feasibility Control
         def _eval_witness(wnode: dict[str, Any], m_id: str) -> float:
-            aggr = metrics_dict[m_id]["aggregation"]
+            aggr = features_dict[m_id]["aggregation"]
             if "task" in wnode:
                 t_id = wnode["task"]["id"]
                 cand_id = witness_solution.get(t_id)
                 cand = candidates_dict.get(cand_id, {})
-                return cand.get("metrics", {}).get(m_id, 0.0)
+                return cand.get("features", {}).get(m_id, 0.0)
 
             if "sequence" in wnode:
                 vals = [_eval_witness(ch, m_id) for ch in wnode["sequence"]]
@@ -434,7 +436,7 @@ class BIMPostprocessor:
 
         witness_values: dict[str, float] = {
             m_id: _eval_witness(workflow_root, m_id)
-            for m_id in metrics_dict
+            for m_id in features_dict
         }
 
         # 6. Build Constraints
@@ -443,13 +445,13 @@ class BIMPostprocessor:
 
         # Include constraints from LegacyProblem
         for constr in problem.constraints:
-            norm_prop = metric_key_map.get(constr.property_name, self._normalize_metric_name(constr.property_name))
-            if norm_prop not in metrics_dict:
+            norm_prop = feature_key_map.get(constr.property_name, self._normalize_feature_name(constr.property_name))
+            if norm_prop not in features_dict:
                 continue
             c_index += 1
-            direction = metrics_dict[norm_prop]["direction"]
+            direction = features_dict[norm_prop]["direction"]
             v_witness = witness_values[norm_prop]
-            m_domain = metrics_dict[norm_prop]["domain"]
+            m_domain = features_dict[norm_prop]["domain"]
 
             bound_val = constr.value
             if self.guarantee_feasibility:
@@ -468,7 +470,7 @@ class BIMPostprocessor:
 
             bound_rounded = round(bound_val, 4)
             constraints_spec[f"c_{c_index}_{norm_prop}"] = {
-                "assert": f"metrics.{norm_prop} {op} {bound_rounded}",
+                "assert": f"features.{norm_prop} {op} {bound_rounded}",
                 "enforcement": "hard",
             }
 
@@ -476,11 +478,11 @@ class BIMPostprocessor:
         opt_mode = self.capabilities.default_optimization
         obj_type = self.capabilities.default_objective_type
 
-        # Select metrics for optimization terms
+        # Select features for optimization terms
         terms = []
-        for m_id, m_spec in list(metrics_dict.items())[:max(1, self.capabilities.min_objectives)]:
+        for m_id, m_spec in list(features_dict.items())[:max(1, self.capabilities.min_objectives)]:
             term: dict[str, Any] = {
-                "metric": {"resource": "application", "id": m_id},
+                "feature": {"resource": "application", "id": m_id},
                 "normalize": {
                     "min": m_spec["domain"]["minimum"],
                     "max": m_spec["domain"]["maximum"],
@@ -488,7 +490,7 @@ class BIMPostprocessor:
                 },
             }
             if opt_mode == "weighted":
-                weight = 1.0 / max(1, min(len(metrics_dict), self.capabilities.min_objectives))
+                weight = 1.0 / max(1, min(len(features_dict), self.capabilities.min_objectives))
                 term["weight"] = round(weight, 4)
             terms.append(term)
 
@@ -551,7 +553,7 @@ class BIMPostprocessor:
             "metadata": {"name": f"{self.name}_application"},
             "spec": {
                 "tasks": {t_id: f"service/{t_id}" for t_id in all_task_ids},
-                "metrics": metrics_dict,
+                "features": features_dict,
                 "workflow": workflow_root,
             },
         }
@@ -575,7 +577,7 @@ class BIMPostprocessor:
             "metadata": {"name": f"{self.name}_catalog"},
             "spec": {
                 "providers": providers,
-                "metricBindings": metric_bindings,
+                "featureBindings": feature_bindings,
                 "candidates": candidates_dict,
             },
         }

@@ -26,13 +26,13 @@ def test_gallery_is_deterministic_and_canonically_evaluated(scenario, example, d
     assert len(result["solutions"]) == expected[scenario]
     for solution in result["solutions"]:
         evaluated = problem.evaluate(solution["decision"]["binding"])
-        assert solution["metrics"] == evaluated["metrics"]
+        assert solution["features"] == evaluated["features"]
         assert solution["objectives"] == evaluated["objectives"]
         assert solution["violations"] == evaluated["violations"]
     if scenario == "constraints":
         assert any(v["enforcement"] == "hard" for s in result["solutions"] for v in s["violations"])
         assert any(s["objectives"]["penalty"] > 0 for s in result["solutions"])
-        assert all(s["objectives"]["components"][2]["loss"] == 1 - s["metrics"]["quality"] / 200 for s in result["solutions"])
+        assert all(s["objectives"]["components"][2]["loss"] == 1 - s["features"]["quality"] / 200 for s in result["solutions"])
     if scenario == "tradeoffs":
         vectors = [tuple(s["objectives"]["score"]) for s in result["solutions"]]
         assert len(set(vectors)) < len(vectors)
@@ -99,7 +99,7 @@ def test_scale_batches_are_unique_explicit_canonical_assignments():
     from openbinding_gateway.v1.canonical import digest
     rows = first["solutions"] + second["solutions"]
     assert len({digest(row["decision"]["binding"]) for row in rows}) == 1000
-    assert len({row["metrics"]["cost"] for row in rows}) == 1000
+    assert len({row["features"]["cost"] for row in rows}) == 1000
     assert second["provenance"]["analysisFixture"]["evaluatedBindings"] == 500
     for row in (rows[0], rows[-1]):
         assert row["objectives"] == problem.evaluate(row["decision"]["binding"])["objectives"]

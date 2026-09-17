@@ -538,7 +538,7 @@
         }
       ]
     },
-    "metric": {
+    "feature": {
       "type": "object",
       "required": [
         "type",
@@ -790,9 +790,9 @@
       "required": [
         "resource",
         "tasks",
-        "metrics",
-        "requiredMetrics",
-        "taskRequiredMetrics",
+        "features",
+        "requiredFeatures",
+        "taskRequiredFeatures",
         "workflow"
       ],
       "properties": {
@@ -807,13 +807,13 @@
             "$ref": "#/$defs/task"
           }
         },
-        "metrics": {
+        "features": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/$defs/metric"
+            "$ref": "#/$defs/feature"
           }
         },
-        "requiredMetrics": {
+        "requiredFeatures": {
           "type": "array",
           "uniqueItems": true,
           "items": {
@@ -821,7 +821,7 @@
             "minLength": 1
           }
         },
-        "taskRequiredMetrics": {
+        "taskRequiredFeatures": {
           "type": "object",
           "additionalProperties": {
             "type": "array",
@@ -876,7 +876,7 @@
         "ref",
         "provides",
         "properties",
-        "metrics"
+        "features"
       ],
       "properties": {
         "ref": {
@@ -898,7 +898,7 @@
         "properties": {
           "$ref": "#/$defs/scalarMap"
         },
-        "metrics": {
+        "features": {
           "$ref": "#/$defs/numberMap"
         }
       },
@@ -908,7 +908,7 @@
       "type": "object",
       "required": [
         "providers",
-        "metricBindings",
+        "featureBindings",
         "candidates"
       ],
       "properties": {
@@ -918,7 +918,7 @@
             "$ref": "#/$defs/provider"
           }
         },
-        "metricBindings": {
+        "featureBindings": {
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/ref"
@@ -1305,7 +1305,7 @@
         "ref",
         "from",
         "to",
-        "metric",
+        "feature",
         "maximum",
         "enforcement"
       ],
@@ -1319,7 +1319,7 @@
         "to": {
           "$ref": "#/$defs/ref"
         },
-        "metric": {
+        "feature": {
           "$ref": "#/$defs/ref"
         },
         "maximum": {
@@ -1368,13 +1368,13 @@
     "globalLatency": {
       "type": "object",
       "required": [
-        "metric",
+        "feature",
         "includeExecution",
         "exclusive",
         "parallel"
       ],
       "properties": {
-        "metric": {
+        "feature": {
           "$ref": "#/$defs/ref"
         },
         "includeExecution": {
@@ -1485,12 +1485,12 @@
     "term": {
       "type": "object",
       "required": [
-        "metric",
+        "feature",
         "direction",
         "weight"
       ],
       "properties": {
-        "metric": {
+        "feature": {
           "$ref": "#/$defs/ref"
         },
         "direction": {

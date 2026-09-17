@@ -70,9 +70,9 @@
     },
     "term": {
       "type": "object",
-      "required": ["metric"],
+      "required": ["feature"],
       "properties": {
-        "metric": {"$ref": "#/$defs/ref"},
+        "feature": {"$ref": "#/$defs/ref"},
         "direction": {"enum": ["minimize", "maximize"]},
         "weight": {"type": "number", "exclusiveMinimum": 0},
         "normalize": {"$ref": "#/$defs/normalize"}

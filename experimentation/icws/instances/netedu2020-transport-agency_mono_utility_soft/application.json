@@ -13,7 +13,7 @@
       "t_get_vehicle": "service/t_get_vehicle",
       "t_make_arrangements": "service/t_make_arrangements"
     },
-    "metrics": {
+    "features": {
       "cost": {
         "unit": "USD",
         "direction": "minimize",

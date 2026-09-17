@@ -22,12 +22,12 @@
         "penalty": 1
       },
       "gen_c_global_latency_ms_1": {
-        "assert": "metrics.latency_ms <= 1903.85",
+        "assert": "features.latency_ms <= 1903.85",
         "enforcement": "soft",
         "penalty": 1
       },
       "gen_c_local_t_checkout_security_1": {
-        "assert": "tasks.t_checkout.metrics.security >= 4.98",
+        "assert": "tasks.t_checkout.features.security >= 4.98",
         "enforcement": "soft",
         "penalty": 1
       },

@@ -14,7 +14,7 @@
           "service/t_rules",
           "service/t_render"
         ],
-        "metrics": {
+        "features": {
           "cost": 10.0,
           "latency": 2.0,
           "security": 0.66
@@ -32,7 +32,7 @@
           "service/t_rules",
           "service/t_render"
         ],
-        "metrics": {
+        "features": {
           "cost": 18.0,
           "latency": 2.0,
           "security": 1.0
@@ -48,7 +48,7 @@
       "prov_fog": {},
       "prov_cloud": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "latency": {
         "resource": "application",
         "id": "latency"

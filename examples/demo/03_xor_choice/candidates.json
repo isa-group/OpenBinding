@@ -8,24 +8,24 @@
     "candidates": {
       "c_common": {
         "provides": "service/t_common",
-        "metrics": {
+        "features": {
           "availability": 0.99
         }
       },
       "c_a": {
         "provides": "service/t_path_a",
-        "metrics": {
+        "features": {
           "availability": 0.95
         }
       },
       "c_b": {
         "provides": "service/t_path_b",
-        "metrics": {
+        "features": {
           "availability": 0.999
         }
       }
     },
-    "metricBindings": {
+    "featureBindings": {
       "availability": {
         "resource": "application",
         "id": "availability"

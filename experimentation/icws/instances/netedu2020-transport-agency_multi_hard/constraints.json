@@ -7,11 +7,11 @@
   "spec": {
     "constraints": {
       "gen_c_global_cost_1": {
-        "assert": "metrics.cost <= 11.01",
+        "assert": "features.cost <= 11.01",
         "enforcement": "hard"
       },
       "gen_c_local_t_get_closest_city_reliability_1": {
-        "assert": "tasks.t_get_closest_city.metrics.reliability >= 0.9833",
+        "assert": "tasks.t_get_closest_city.features.reliability >= 0.9833",
         "enforcement": "hard"
       },
       "gen_c_dep_same_1": {

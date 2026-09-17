@@ -2485,7 +2485,7 @@
         },
         "maximum": 25.0,
         "enforcement": "hard",
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "latency"
         }
@@ -2501,7 +2501,7 @@
         },
         "maximum": 14.0,
         "enforcement": "hard",
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "latency"
         }
@@ -2517,7 +2517,7 @@
         },
         "maximum": 22.0,
         "enforcement": "hard",
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "latency"
         }
@@ -2533,7 +2533,7 @@
         },
         "maximum": 24.0,
         "enforcement": "hard",
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "latency"
         }
@@ -2549,7 +2549,7 @@
         },
         "maximum": 24.0,
         "enforcement": "hard",
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "latency"
         }
@@ -2565,7 +2565,7 @@
         },
         "maximum": 15.0,
         "enforcement": "hard",
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "latency"
         }
@@ -2583,7 +2583,7 @@
       }
     ],
     "globalLatency": {
-      "metric": {
+      "feature": {
         "resource": "application",
         "id": "latency"
       },

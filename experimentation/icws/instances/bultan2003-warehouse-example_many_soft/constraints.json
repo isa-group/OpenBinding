@@ -7,12 +7,12 @@
   "spec": {
     "constraints": {
       "gen_c_global_latency_ms_1": {
-        "assert": "metrics.latency_ms <= 1337.9",
+        "assert": "features.latency_ms <= 1337.9",
         "enforcement": "soft",
         "penalty": 1
       },
       "gen_c_local_t_receipt2_security_1": {
-        "assert": "tasks.t_receipt2.metrics.security >= 3.97",
+        "assert": "tasks.t_receipt2.features.security >= 3.97",
         "enforcement": "soft",
         "penalty": 1
       },

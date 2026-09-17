@@ -24,7 +24,7 @@ def test_problem():
             ],
             "optimization": {
                 "terms": [
-                    {"metric": {"id": "latency"}, "direction": "minimize", "weight": 1.0}
+                    {"feature": {"id": "latency"}, "direction": "minimize", "weight": 1.0}
                 ]
             },
         }

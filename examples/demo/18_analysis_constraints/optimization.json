@@ -9,7 +9,7 @@
     "type": "MANY",
     "terms": [
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "cost"
         },
@@ -21,7 +21,7 @@
         }
       },
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "latency"
         },
@@ -33,7 +33,7 @@
         }
       },
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "quality"
         },

@@ -33,7 +33,7 @@ PlantUML source:
 [`15_bpmn_complete`](../../examples/demo/15_bpmn_complete/) and
 [`16_json_complete`](../../examples/demo/16_json_complete/).
 
-Both packages describe seven tasks, fourteen candidates, four metrics,
+Both packages describe seven tasks, fourteen candidates, four features,
 constraints, routing, three-pool Placement, and the same four-term weighted
 objective. Their canonical executable fields and semantic digest are equal for
 all 128 possible bindings. Their provenance differs: only the XML package pins
@@ -106,7 +106,7 @@ compatibility, not deployment availability.
 | `07_soft_constraints` | Soft assertion and explicitly activated penalty |
 | `08_dependencies` | Typed provider properties and cross-task constraint |
 | `09_mixed` | Sequence, routed XOR, hard metric constraint |
-| `10_large_scale` | Ten tasks; sequence, parallel, exclusive, repeat; four metrics |
+| `10_large_scale` | Ten tasks; sequence, parallel, exclusive, repeat; four features |
 | `11_multi_obj_negative` | Two-objective Pareto `MULTI` compatibility |
 | `12_many_obj_pareto` | Three-objective Pareto `MANY` compatibility |
 | `13_fms` | Fleet-management composition and routing |

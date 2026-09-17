@@ -9,7 +9,7 @@
       "t1": "service/t1",
       "t2": "service/t2"
     },
-    "metrics": {
+    "features": {
       "latency": {
         "unit": "ms",
         "direction": "minimize",

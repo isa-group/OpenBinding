@@ -9,7 +9,7 @@ object "instance : Instance" as instance <<core>> {
 }
 object "application : Application" as app <<source>> {
   tasks = 5 service tasks
-  metrics = latency, cost, security
+  features = latency, cost, security
   workflow = sequence + parallel + exclusive
 }
 object "catalog : CandidateCatalog" as catalog <<source>> {
@@ -19,7 +19,7 @@ object "catalog : CandidateCatalog" as catalog <<source>> {
 object "placement : Placement" as placement <<dialect>> {
   networkMode = symmetric
   defaults.memory = 2
-  globalLatency.metric = latency
+  globalLatency.feature = latency
   includeExecution = true
   exclusive = routing
   parallel = max
@@ -69,5 +69,5 @@ catalog --> cloud : c_cloud demand
 event --> transitions : event -> t_login
 app --> transitions : t_login -> t_process
 app --> constraints
-app --> optimization : metric refs
+app --> optimization : feature refs
 @enduml

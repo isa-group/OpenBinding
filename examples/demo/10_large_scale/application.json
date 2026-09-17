@@ -17,7 +17,7 @@
       "t9": "service/t9",
       "t10": "service/t10"
     },
-    "metrics": {
+    "features": {
       "cost": {
         "unit": "USD",
         "direction": "minimize",

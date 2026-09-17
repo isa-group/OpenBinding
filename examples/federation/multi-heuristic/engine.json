@@ -16,7 +16,7 @@
         "algorithm": "bounded-pareto-sampling",
         "capabilities": {
           "workflowNodes": {"selector": "all"},
-          "metricScopes": {"selector": "all"},
+          "featureScopes": {"selector": "all"},
           "aggregations": {"selector": "all"},
           "constraints": {"selector": "all"},
           "optimization": {"selector": "only", "values": ["pareto"]},

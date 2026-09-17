@@ -422,7 +422,7 @@ def build_instance(
         ]
     )
     service_ids = unique_sorted(safe_id(s["name"]) for s in infra.services)
-    metrics = base_metric_definitions(service_types, service_ids)
+    features = base_feature_definitions(service_types, service_ids)
     providers = build_providers(infra)
     tasks = {
         safe_id(function["id"]): f"service/{safe_id(function['id'])}"
@@ -443,7 +443,7 @@ def build_instance(
             pricing=pricing,
             config=config,
             generator_seed=generator_seed,
-            metric_names=list(metrics),
+            feature_names=list(features),
             security_threshold=security_thresholds.get(task_name, 0.33),
             reports=reports,
         )
@@ -466,7 +466,7 @@ def build_instance(
         transitions[name] = {
             **edge,
             "enforcement": "hard",
-            "metric": {"resource": "application", "id": "latency"},
+            "feature": {"resource": "application", "id": "latency"},
         }
 
     pricing_cfg = config.get("pricing_constraints", {}) or {}
@@ -493,7 +493,7 @@ def build_instance(
         "apiVersion": "qos-binding/v1",
         "kind": "Application",
         "metadata": {"name": f"{name}_application"},
-        "spec": {"tasks": tasks, "metrics": metrics, "workflow": workflow},
+        "spec": {"tasks": tasks, "features": features, "workflow": workflow},
     }
     catalog = {
         "apiVersion": "qos-binding/v1",
@@ -501,9 +501,9 @@ def build_instance(
         "metadata": {"name": f"{name}_catalog"},
         "spec": {
             "providers": providers,
-            "metricBindings": {
-                metric_name: {"resource": "application", "id": metric_name}
-                for metric_name in metrics
+            "featureBindings": {
+                feature_name: {"resource": "application", "id": feature_name}
+                for feature_name in features
             },
             "candidates": candidates,
         },
@@ -523,12 +523,12 @@ def build_instance(
             "mode": "weighted",
             "terms": [
                 {
-                    "metric": {"resource": "application", "id": metric_name},
-                    "weight": abs(float(objective_weights.get(metric_name, 1.0)))
+                    "feature": {"resource": "application", "id": feature_name},
+                    "weight": abs(float(objective_weights.get(feature_name, 1.0)))
                     or 1.0,
-                    "normalize": {**normalize_bounds[metric_name], "clamp": True},
+                    "normalize": {**normalize_bounds[feature_name], "clamp": True},
                 }
-                for metric_name in ("latency", "cost", "security")
+                for feature_name in ("latency", "cost", "security")
             ],
             **(
                 {
@@ -590,7 +590,7 @@ def build_instance(
                 }
             ],
             "globalLatency": {
-                "metric": {"resource": "application", "id": "latency"},
+                "feature": {"resource": "application", "id": "latency"},
                 "includeExecution": True,
                 "exclusive": "routing",
                 "parallel": "max",
@@ -656,9 +656,9 @@ def _fallback_normalization_bounds(
     bounds: dict[str, dict[str, float]] = {}
     for metric_name in ("latency", "cost", "security"):
         values = [
-            float(candidate["metrics"][metric_name])
+            float(candidate.get("features", candidate.get("metrics", {}))[metric_name])
             for candidate in candidates.values()
-            if isinstance(candidate.get("metrics", {}).get(metric_name), (int, float))
+            if isinstance(candidate.get("features", candidate.get("metrics", {})).get(metric_name), (int, float))
         ]
         if values:
             minimum, maximum = min(values), max(values)
@@ -669,11 +669,11 @@ def _fallback_normalization_bounds(
     return bounds
 
 
-def base_metric_definitions(
+def base_feature_definitions(
     service_types: list[str],
     service_names: list[str],
 ) -> dict[str, dict[str, Any]]:
-    metrics: dict[str, dict[str, Any]] = {
+    features: dict[str, dict[str, Any]] = {
         "latency": {
             "unit": "ms",
             "direction": "minimize",
@@ -703,7 +703,7 @@ def base_metric_definitions(
         },
     }
     for service_type in service_types:
-        metrics[f"has_service_{service_type}"] = {
+        features[f"has_service_{service_type}"] = {
             "unit": "boolean",
             "direction": "maximize",
             "scope": "invocation",
@@ -711,14 +711,17 @@ def base_metric_definitions(
             "domain": {"kind": "real", "minimum": 0.0, "maximum": 1.0},
         }
     for service_name in service_names:
-        metrics[f"bind_service_{service_name}"] = {
+        features[f"bind_service_{service_name}"] = {
             "unit": "boolean",
             "direction": "maximize",
             "scope": "invocation",
             "aggregation": "max",
             "domain": {"kind": "real", "minimum": 0.0, "maximum": 1.0},
         }
-    return metrics
+    return features
+
+
+base_metric_definitions = base_feature_definitions
 
 
 def build_providers(infra: InfraContext) -> dict[str, dict[str, str]]:
@@ -736,7 +739,7 @@ def build_security_constraints(
     return {
         safe_id(f"security_min_{task_name}"): {
             "assert": (
-                f"tasks.{task_name}.metrics.security >= "
+                f"tasks.{task_name}.features.security >= "
                 f"{json_number(round(float(threshold), 6))}"
             ),
             "enforcement": "hard",
@@ -752,7 +755,7 @@ def build_service_constraints(app: dict[str, Any]) -> dict[str, dict[str, Any]]:
         for req in function.get("service_reqs", []) or []:
             service_type = safe_id(req["type"])
             constraints[safe_id(f"{task_name}_requires_{service_type}")] = {
-                "assert": f"tasks.{task_name}.metrics.has_service_{service_type} == 1",
+                "assert": f"tasks.{task_name}.features.has_service_{service_type} == 1",
                 "enforcement": "hard",
             }
     return constraints
@@ -775,10 +778,12 @@ def generate_task_candidates(
     pricing: FaaSPricing,
     config: dict[str, Any],
     generator_seed: int,
-    metric_names: list[str],
-    security_threshold: float,
-    reports: GenerationReports,
+    feature_names: list[str] | None = None,
+    security_threshold: float = 0.33,
+    reports: GenerationReports | None = None,
+    metric_names: list[str] | None = None,
 ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
+    names = feature_names if feature_names is not None else (metric_names or [])
     task_name = safe_id(function["id"])
     demand = _task_demand(function)
     service_reqs = function.get("service_reqs", []) or []
@@ -823,8 +828,8 @@ def generate_task_candidates(
                         f"Original {node.get('type')} node, security={score_label}"
                     )
                 },
-                "metrics": candidate_metrics(
-                    metric_names,
+                "features": candidate_features(
+                    names,
                     base_cost,
                     security_score,
                     selected_services,
@@ -890,8 +895,8 @@ def generate_task_candidates(
                         "properties": {
                             "description": "Generated regional FaaS candidate"
                         },
-                        "metrics": candidate_metrics(
-                            metric_names,
+                        "features": candidate_features(
+                            names,
                             cost,
                             1.0,
                             selected_services,
@@ -1029,20 +1034,23 @@ def candidate_key(
     return safe_id(f"cand_{task_name}_{pool_name}_{variant}_{digest}")
 
 
-def candidate_metrics(
-    metric_names: list[str],
+def candidate_features(
+    feature_names: list[str],
     cost: float,
     security: float,
     selected_services: list[dict[str, Any]],
 ) -> dict[str, float]:
-    metrics = {name: 0.0 for name in metric_names}
-    metrics["latency"] = 0.0
-    metrics["cost"] = round(float(cost), 8)
-    metrics["security"] = round(float(security), 6)
+    features = {name: 0.0 for name in feature_names}
+    features["latency"] = 0.0
+    features["cost"] = round(float(cost), 8)
+    features["security"] = round(float(security), 6)
     for service in selected_services:
-        metrics[f"has_service_{safe_id(service['type'])}"] = 1.0
-        metrics[f"bind_service_{safe_id(service['name'])}"] = 1.0
-    return metrics
+        features[f"has_service_{safe_id(service['type'])}"] = 1.0
+        features[f"bind_service_{safe_id(service['name'])}"] = 1.0
+    return features
+
+
+candidate_metrics = candidate_features
 
 
 def pricing_row(
@@ -1492,12 +1500,12 @@ def build_pricing_artifacts(
             (
                 candidate_name
                 for candidate_name in by_task.get(task_name, [])
-                if float(candidates[candidate_name]["metrics"]["security"])
+                if float(candidates[candidate_name].get("features", candidates[candidate_name].get("metrics", {}))["security"])
                 >= threshold - 1e-9
                 and candidate_pools.get(candidate_name) in pool_domain
             ),
             key=lambda candidate_name: float(
-                candidates[candidate_name]["metrics"]["cost"]
+                candidates[candidate_name].get("features", candidates[candidate_name].get("metrics", {}))["cost"]
             ),
         )
     witness = _cheapest_feasible_witness(
@@ -1523,16 +1531,16 @@ def build_pricing_artifacts(
         if not task_candidates:
             continue
         costs_all = [
-            float(candidates[name]["metrics"]["cost"]) for name in task_candidates
+            float(candidates[name].get("features", candidates[name].get("metrics", {}))["cost"]) for name in task_candidates
         ]
         securities_all = [
-            float(candidates[name]["metrics"]["security"]) for name in task_candidates
+            float(candidates[name].get("features", candidates[name].get("metrics", {}))["security"]) for name in task_candidates
         ]
         threshold = float(security_thresholds.get(task_name, 0.0))
         pool_domain = ac_domains.get(task_name, set())
         latency_feasible = bool(pool_domain)
         eligible_costs = [
-            float(candidates[name]["metrics"]["cost"])
+            float(candidates[name].get("features", candidates[name].get("metrics", {}))["cost"])
             for name in eligible_by_task[task_name]
         ]
         security_feasible = bool(eligible_costs)
@@ -1540,9 +1548,9 @@ def build_pricing_artifacts(
             # Degenerate fallback (latency/security-infeasible task): derive
             # budgets from the security-only filter, then from all candidates.
             eligible_costs = [
-                float(candidates[name]["metrics"]["cost"])
+                float(candidates[name].get("features", candidates[name].get("metrics", {}))["cost"])
                 for name in task_candidates
-                if float(candidates[name]["metrics"]["security"]) >= threshold - 1e-9
+                if float(candidates[name].get("features", candidates[name].get("metrics", {}))["security"]) >= threshold - 1e-9
             ] or costs_all
 
         local_budget = round(_quantile(sorted(eligible_costs), quantile), 8)
@@ -1550,7 +1558,7 @@ def build_pricing_artifacts(
         # within the local budget, otherwise the joint transition/capacity
         # structure can make the emitted instance UNSAT.
         witness_cost = (
-            float(candidates[witness[task_name]]["metrics"]["cost"])
+            float(candidates[witness[task_name]].get("features", candidates[witness[task_name]].get("metrics", {}))["cost"])
             if witness and task_name in witness
             else None
         )
@@ -1559,7 +1567,7 @@ def build_pricing_artifacts(
         local_budget_by_task[task_name] = local_budget
         constraints[safe_id(f"budget_local_{task_name}")] = {
             "assert": (
-                f"tasks.{task_name}.metrics.cost <= {json_number(local_budget)}"
+                f"tasks.{task_name}.features.cost <= {json_number(local_budget)}"
             ),
             "enforcement": "hard",
         }
@@ -1624,7 +1632,7 @@ def build_pricing_artifacts(
         global_budget = round(factor * cheapest_eligible, 8)
     constraints = {
         safe_id(f"budget_global_{app_id}"): {
-            "assert": f"metrics.cost <= {json_number(global_budget)}",
+            "assert": f"features.cost <= {json_number(global_budget)}",
             "enforcement": "hard",
         },
         **constraints,
@@ -1634,7 +1642,7 @@ def build_pricing_artifacts(
     max_exec_lat: dict[str, float] = {}
     for task_name in task_names:
         exec_lats = [
-            float(candidates[name]["metrics"].get("latency", 0.0))
+            float(candidates[name].get("features", candidates[name].get("metrics", {})).get("latency", 0.0))
             for name in by_task.get(task_name, [])
         ]
         if exec_lats:
@@ -1724,7 +1732,7 @@ def build_event_latency(
                 "to": first_task,
                 "maximum": float(first_task_bounds[task_name]),
                 "enforcement": "hard",
-                "metric": {"resource": "application", "id": "latency"},
+                "feature": {"resource": "application", "id": "latency"},
             }
     return transitions, event_pools, event_latencies
 

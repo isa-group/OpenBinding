@@ -55,7 +55,7 @@ protected from every extension not named in that list.
 
 For `qos-binding/v1`, the request payload is a closed `bim/v1`
 `BindingProblem`. It contains canonical workflow, candidate eligibility,
-finite scalar metrics, expression IR, constraints, optimization, optional
+finite scalar features, expression IR, constraints, optimization, optional
 placement/extension data, and the source map required for diagnostics. The IR
 also pins the selected Profile and each selected Dialect/adapter revision.
 

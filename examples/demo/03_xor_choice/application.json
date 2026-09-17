@@ -10,7 +10,7 @@
       "t_path_a": "service/t_path_a",
       "t_path_b": "service/t_path_b"
     },
-    "metrics": {
+    "features": {
       "availability": {
         "unit": "prob",
         "direction": "maximize",

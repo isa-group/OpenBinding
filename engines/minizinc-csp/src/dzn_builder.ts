@@ -5,6 +5,7 @@ export interface CandidateRef { resource: string; id: string }
 
 export interface DznBuildResult {
   dznContent: string;
+  features: string[];
   metrics: string[];
   tasks: string[];
   candidates: CandidateRef[];
@@ -12,6 +13,7 @@ export interface DznBuildResult {
 
 type CandidateEntry = {
   ref: CandidateRef;
+  features: Record<string, number>;
   metrics: Record<string, number>;
   provider?: CandidateRef;
   properties: Record<string, string | number | boolean | null>;
@@ -30,26 +32,29 @@ export class DznBuilder {
     const tasks = taskEntries.filter(([, task]) => task?.kind === 'service').map(([id]) => id);
     if (tasks.length > 10000) throw new Error('MiniZinc mode limit maxTasks=10000 exceeded');
 
-    if (!Array.isArray(application.requiredMetrics)) {
-      throw new Error('BindingProblem.application.requiredMetrics must be materialized');
+    const appFeatures = application.features || application.metrics || {};
+    const appReqFeatures = application.requiredFeatures || application.requiredMetrics;
+    if (!Array.isArray(appReqFeatures)) {
+      throw new Error('BindingProblem.application.requiredFeatures must be materialized');
     }
-    const requiredMetrics = application.requiredMetrics as unknown[];
+    const requiredMetrics = appReqFeatures as unknown[];
     if (new Set(requiredMetrics).size !== requiredMetrics.length
-        || requiredMetrics.some((id) => typeof id !== 'string' || !application.metrics?.[id])) {
-      throw new Error('BindingProblem.application.requiredMetrics must contain unique known metric ids');
+        || requiredMetrics.some((id) => typeof id !== 'string' || !appFeatures?.[id])) {
+      throw new Error('BindingProblem.application.requiredFeatures must contain unique known feature ids');
     }
-    const localMetrics = Object.values(application.taskRequiredMetrics || {}).flatMap((value: any) =>
+    const taskReq = application.taskRequiredFeatures || application.taskRequiredMetrics || {};
+    const localMetrics = Object.values(taskReq).flatMap((value: any) =>
       Array.isArray(value) ? value : []).filter((id: any) => typeof id === 'string');
     const encodedMetricIds = [...new Set([...requiredMetrics as string[], ...localMetrics])];
-    const metricEntries = encodedMetricIds.map((id) => [id, application.metrics[id]] as [string, any]);
+    const metricEntries = encodedMetricIds.map((id) => [id, appFeatures[id]] as [string, any]);
     const metrics = metricEntries.map(([id]) => id);
-    if (metrics.length === 0) throw new Error('MiniZinc requires at least one metric');
+    if (metrics.length === 0) throw new Error('MiniZinc requires at least one feature');
     for (const [id, metric] of metricEntries) this.validateMetric(id, metric);
     const routing = this.routing(spec.routing);
     const usedRouting = new Set<string>();
 
     const candidates = this.flattenCandidates(spec.candidates || {}, application.resource,
-      new Set(Object.keys(application.metrics || {})), new Set(metrics));
+      new Set(Object.keys(appFeatures)), new Set(metrics));
     if (candidates.length === 0) throw new Error('MiniZinc requires at least one candidate');
     if (candidates.length > 100000) throw new Error('MiniZinc mode limit maxCandidates=100000 exceeded');
     const candidateIndex = new Map(candidates.map((candidate, index) => [this.refKey(candidate.ref), index + 1]));
@@ -84,8 +89,8 @@ export class DznBuilder {
     ]);
 
     const candidateMetric = candidates.map((candidate) => metrics.map((metric) => {
-      const value = Number(candidate.metrics?.[metric]);
-      if (!Number.isFinite(value)) throw new Error(`Candidate '${candidate.ref.resource}:${candidate.ref.id}' is missing finite metric '${metric}'`);
+      const value = Number(candidate.features?.[metric] ?? candidate.metrics?.[metric]);
+      if (!Number.isFinite(value)) throw new Error(`Candidate '${candidate.ref.resource}:${candidate.ref.id}' is missing finite feature '${metric}'`);
       return value;
     }));
     const nodes: Array<{ kind: number; task: number; children: number[]; weights: number[]; repeat: number }> = [];
@@ -292,7 +297,7 @@ ready_base = ${fmt(placement.readyBase)};
 ready_child_count = ${fmt(placement.readyChildCount)};
 ready_children = ${fmt2d(placement.readyChildren)};
 `;
-    return { dznContent: content.trimStart(), metrics, tasks, candidates: candidates.map((candidate) => candidate.ref) };
+    return { dznContent: content.trimStart(), features: metrics, metrics, tasks, candidates: candidates.map((candidate) => candidate.ref) };
   }
 
   private requireProblem(problem: any): void {
@@ -358,19 +363,21 @@ ready_children = ${fmt2d(placement.readyChildren)};
       applicationMetrics: Set<string>, encodedMetrics: Set<string>): CandidateEntry[] {
     const values: CandidateEntry[] = [];
     for (const [catalogId, wrapper] of Object.entries(catalogs || {}) as Array<[string, any]>) {
+      const allowedKeys = ['providers', 'features', 'metrics', 'featureBindings', 'metricBindings', 'candidates'];
+      const featureBindings = wrapper?.featureBindings || wrapper?.metricBindings;
       if (!wrapper || typeof wrapper !== 'object' || Array.isArray(wrapper)
-          || Object.keys(wrapper).some((key) => !['providers', 'metricBindings', 'candidates'].includes(key))
-          || !wrapper.providers || !wrapper.metricBindings || !wrapper.candidates) {
-        throw new Error(`Candidate catalog '${catalogId}' must contain providers, metricBindings and candidates`);
+          || Object.keys(wrapper).some((key) => !allowedKeys.includes(key))
+          || !wrapper.providers || !featureBindings || !wrapper.candidates) {
+        throw new Error(`Candidate catalog '${catalogId}' must contain providers, featureBindings and candidates`);
       }
       const canonicalByAlias = new Map<string, string>();
       const seenMetrics = new Set<string>();
-      for (const [alias, metricRef] of Object.entries(wrapper.metricBindings) as Array<[string, any]>) {
-        this.requireRef(metricRef, `candidate catalog ${catalogId}.metricBindings.${alias}`);
+      for (const [alias, metricRef] of Object.entries(featureBindings) as Array<[string, any]>) {
+        this.requireRef(metricRef, `candidate catalog ${catalogId}.featureBindings.${alias}`);
         if (metricRef.resource !== applicationResource || !applicationMetrics.has(metricRef.id)) {
-          throw new Error(`Candidate catalog '${catalogId}' binds alias '${alias}' to an unknown metric`);
+          throw new Error(`Candidate catalog '${catalogId}' binds alias '${alias}' to an unknown feature`);
         }
-        if (seenMetrics.has(metricRef.id)) throw new Error(`Candidate catalog '${catalogId}' binds metric '${metricRef.id}' more than once`);
+        if (seenMetrics.has(metricRef.id)) throw new Error(`Candidate catalog '${catalogId}' binds feature '${metricRef.id}' more than once`);
         seenMetrics.add(metricRef.id);
         canonicalByAlias.set(alias, metricRef.id);
       }
@@ -388,15 +395,16 @@ ready_children = ${fmt2d(placement.readyChildren)};
           provider = candidate.provider;
         }
         const canonicalMetrics: Record<string, number> = {};
-        for (const [alias, raw] of Object.entries(candidate.metrics || {})) {
+        const candFeatures = candidate.features || candidate.metrics || {};
+        for (const [alias, raw] of Object.entries(candFeatures)) {
           const metricId = canonicalByAlias.get(alias);
-          if (!metricId) throw new Error(`Candidate '${catalogId}:${candidateId}' uses unknown metric alias '${alias}'`);
+          if (!metricId) throw new Error(`Candidate '${catalogId}:${candidateId}' uses unknown feature alias '${alias}'`);
           const numeric = Number(raw);
-          if (!Number.isFinite(numeric)) throw new Error(`Candidate '${catalogId}:${candidateId}' metric '${alias}' is not finite`);
+          if (!Number.isFinite(numeric)) throw new Error(`Candidate '${catalogId}:${candidateId}' feature '${alias}' is not finite`);
           if (encodedMetrics.has(metricId)) canonicalMetrics[metricId] = numeric;
         }
         values.push({
-          ref: { resource: catalogId, id: candidateId }, metrics: canonicalMetrics, provider,
+          ref: { resource: catalogId, id: candidateId }, features: canonicalMetrics, metrics: canonicalMetrics, provider,
           properties: candidate.properties || {},
         });
       }
@@ -469,7 +477,7 @@ ready_children = ${fmt2d(placement.readyChildren)};
         rawValue: node.value, rawValues: candidates.map(() => node.value) };
     }
     const segments = node?.kind === 'path' && Array.isArray(node.segments) ? node.segments : [];
-    if (segments.length === 2 && segments[0] === 'metrics' && metricIndex.has(segments[1])) {
+    if (segments.length === 2 && (segments[0] === 'features' || segments[0] === 'metrics') && metricIndex.has(segments[1])) {
       return { kind: 1, index: metricIndex.get(segments[1])!, value: 0, values: candidates.map(() => 0),
         type: 'number', rawValue: 0, rawValues: [] };
     }
@@ -479,8 +487,8 @@ ready_children = ${fmt2d(placement.readyChildren)};
     const task = taskIndex.get(segments[1])!;
     let values: unknown[];
     let type = 'string';
-    if (segments.length === 4 && segments[2] === 'metrics' && metricIndex.has(segments[3])) {
-      values = candidates.map((candidate) => candidate.metrics[segments[3]]);
+    if (segments.length === 4 && (segments[2] === 'features' || segments[2] === 'metrics') && metricIndex.has(segments[3])) {
+      values = candidates.map((candidate) => candidate.features[segments[3]] ?? candidate.metrics[segments[3]]);
       type = 'number';
     } else if (segments.length === 3 && segments[2] === 'candidate') {
       values = candidates.map((candidate) => this.refKey(candidate.ref)); type = 'ref';
@@ -527,9 +535,10 @@ ready_children = ${fmt2d(placement.readyChildren)};
       penaltyWeight: new Map<string, number>(),
     };
     for (const term of optimization.terms) {
-      this.requireRef(term.metric, 'optimization term.metric');
-      if (term.metric.resource !== applicationResource || !metricIndex.has(term.metric.id)) {
-        throw new Error(`Optimization term references unknown metric '${term.metric.resource}:${term.metric.id}'`);
+      const featureRef = term.feature || term.metric;
+      this.requireRef(featureRef, 'optimization term.feature');
+      if (featureRef.resource !== applicationResource || !metricIndex.has(featureRef.id)) {
+        throw new Error(`Optimization term references unknown feature '${featureRef.resource}:${featureRef.id}'`);
       }
       const weight = Number(term.weight);
       if (!(weight > 0) || !Number.isFinite(weight)) throw new Error('Optimization weights must be finite and positive');
@@ -541,7 +550,7 @@ ready_children = ${fmt2d(placement.readyChildren)};
           || typeof normalize.clamp !== 'boolean')) {
         throw new Error('Optimization normalization bounds are invalid');
       }
-      result.metric.push(metricIndex.get(term.metric.id)!);
+      result.metric.push(metricIndex.get(featureRef.id)!);
       result.weight.push(weight);
       result.direction.push(term.direction === 'minimize' ? 1 : -1);
       result.hasNormalize.push(normalize !== undefined);

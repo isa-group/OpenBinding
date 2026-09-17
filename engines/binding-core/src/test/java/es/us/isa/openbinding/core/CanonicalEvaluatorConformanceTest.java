@@ -814,4 +814,38 @@ class CanonicalEvaluatorConformanceTest {
     }
     return document;
   }
+
+  @Test void featureModelEvaluatesAndExposesFeaturesAndMetrics() {
+    JsonObject document = TestProblems.twoCandidatesWithFeatures();
+    BindingProblem problem = new BindingProblem(document);
+    CanonicalEvaluator evaluator = new CanonicalEvaluator(problem);
+    CanonicalEvaluator.Evaluation evaluation = evaluator.evaluate(TestProblems.decision("catalog-a"));
+    assertEquals(1.0, evaluation.features().get("cost"));
+    assertEquals(1.0, evaluation.metrics().get("cost"));
+    assertEquals(10.0, evaluation.features().get("latency"));
+    assertEquals(10.0, evaluation.metrics().get("latency"));
+
+    JsonObject solution = EngineContract.solution(evaluation);
+    assertTrue(solution.has("features"));
+    assertTrue(solution.has("metrics"));
+    assertEquals(1.0, solution.getAsJsonObject("features").get("cost").getAsDouble());
+    assertEquals(1.0, solution.getAsJsonObject("metrics").get("cost").getAsDouble());
+  }
+
+  @Test void featurePathExpressionsInConstraintsEvaluateCorrectly() {
+    JsonObject document = TestProblems.twoCandidatesWithFeatures();
+    JsonObject constraint = new JsonObject();
+    constraint.add("ref", ref("constraints", "feature-limit"));
+    constraint.add("when", literal(true));
+    constraint.addProperty("enforcement", "hard");
+    constraint.add("assert", compare("lte", path("tasks.t.features.latency"), literal(5)));
+    document.getAsJsonObject("spec").getAsJsonArray("constraints").add(constraint);
+
+    BindingProblem problem = new BindingProblem(document);
+    CanonicalEvaluator evaluator = new CanonicalEvaluator(problem);
+    // catalog-a has latency 10 (> 5), so infeasible
+    assertFalse(evaluator.evaluate(TestProblems.decision("catalog-a")).feasible());
+    // catalog-b has latency 1 (<= 5), so feasible
+    assertTrue(evaluator.evaluate(TestProblems.decision("catalog-b")).feasible());
+  }
 }

@@ -8,7 +8,7 @@
     "candidates": {
       "svc_ass_1": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 180,
           "cost_usd": 0,
           "availability": 0.995,
@@ -22,7 +22,7 @@
       },
       "svc_ass_2": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 120,
           "cost_usd": 5,
           "availability": 0.99,
@@ -36,7 +36,7 @@
       },
       "svc_dfbs_1": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 650,
           "cost_usd": 420,
           "availability": 0.985,
@@ -50,7 +50,7 @@
       },
       "svc_dfbs_2": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 520,
           "cost_usd": 460,
           "availability": 0.99,
@@ -64,7 +64,7 @@
       },
       "svc_ifbs_1": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 780,
           "cost_usd": 820,
           "availability": 0.98,
@@ -78,7 +78,7 @@
       },
       "svc_ifbs_2": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 610,
           "cost_usd": 900,
           "availability": 0.988,
@@ -92,7 +92,7 @@
       },
       "svc_tis_1": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 240,
           "cost_usd": 55,
           "availability": 0.997,
@@ -106,7 +106,7 @@
       },
       "svc_tis_2": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 190,
           "cost_usd": 70,
           "availability": 0.999,
@@ -120,7 +120,7 @@
       },
       "svc_abs_1": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 430,
           "cost_usd": 950,
           "availability": 0.992,
@@ -134,7 +134,7 @@
       },
       "svc_abs_2": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 350,
           "cost_usd": 1100,
           "availability": 0.995,
@@ -148,7 +148,7 @@
       },
       "svc_crs_1": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 310,
           "cost_usd": 260,
           "availability": 0.99,
@@ -162,7 +162,7 @@
       },
       "svc_crs_2": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 260,
           "cost_usd": 320,
           "availability": 0.996,
@@ -189,7 +189,7 @@
       "p_car_a": {},
       "p_car_b": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "latency_ms": {
         "resource": "application",
         "id": "latency_ms"

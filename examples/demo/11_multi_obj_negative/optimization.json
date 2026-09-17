@@ -9,7 +9,7 @@
     "type": "MULTI",
     "terms": [
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "cost"
         },
@@ -20,7 +20,7 @@
         }
       },
       {
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "time"
         },

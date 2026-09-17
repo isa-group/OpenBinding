@@ -67,6 +67,7 @@ public final class CanonicalEvaluator {
 
     public Map<String, BindingProblem.Ref> binding() { return binding; }
     public Map<String, Double> metrics() { return metrics; }
+    public Map<String, Double> features() { return metrics; }
     public JsonObject objectives() { return objectives.deepCopy(); }
     public List<Double> objectiveVector() { return objectiveVector; }
     public List<Double> penalties() { return penalties; }
@@ -163,10 +164,13 @@ public final class CanonicalEvaluator {
     double weighted = 0.0;
     for (int index = 0; index < terms.size(); index++) {
       JsonObject term = terms.get(index).getAsJsonObject();
-      BindingProblem.Ref metricRef = BindingProblem.ref(term.get("metric"), "optimization term.metric");
+      BindingProblem.Ref metricRef = BindingProblem.ref(
+          term.has("feature") ? term.get("feature") : term.get("metric"),
+          "optimization term.feature");
       double raw = metrics.get(metricRef.id()).doubleValue();
       double loss = objectiveLoss(raw, term);
       JsonObject component = new JsonObject();
+      component.add("feature", metricRef.toJson());
       component.add("metric", metricRef.toJson());
       component.addProperty("value", raw);
       component.addProperty("loss", loss);
@@ -302,8 +306,11 @@ public final class CanonicalEvaluator {
     for (JsonElement rawModel : problem.placement()) {
       JsonObject model = rawModel.getAsJsonObject();
       if (!model.has("globalLatency")) continue;
-      String metric = model.getAsJsonObject("globalLatency").getAsJsonObject("metric")
-          .get("id").getAsString();
+      JsonObject global = model.getAsJsonObject("globalLatency");
+      JsonObject metricRefObj = global.has("feature")
+          ? global.getAsJsonObject("feature")
+          : global.getAsJsonObject("metric");
+      String metric = metricRefObj.get("id").getAsString();
       if (result.containsKey(metric)) {
         throw new IllegalArgumentException("More than one placement derives metric '" + metric + "'");
       }
@@ -406,8 +413,11 @@ public final class CanonicalEvaluator {
       }
       BindingProblem.Ref target = BindingProblem.ref(assignment.demand.get("pool"), "placement demand.pool");
       JsonObject config = model.getAsJsonObject("globalLatency");
+      JsonObject metricRefObj = config.has("feature")
+          ? config.getAsJsonObject("feature")
+          : config.getAsJsonObject("metric");
       double execution = config.get("includeExecution").getAsBoolean()
-          ? problem.candidateMetric(candidate, config.getAsJsonObject("metric").get("id").getAsString()) : 0.0;
+          ? problem.candidateMetric(candidate, metricRefObj.get("id").getAsString()) : 0.0;
       List<PlacementVariant> result = new ArrayList<PlacementVariant>();
       for (PlacementVariant variant : variants) {
         double start = 0.0;
@@ -966,6 +976,7 @@ public final class CanonicalEvaluator {
     JsonObject metricJson = new JsonObject();
     for (Map.Entry<String, Double> entry : metrics.entrySet()) metricJson.addProperty(entry.getKey(), entry.getValue());
     context.add("binding", bindingJson);
+    context.add("features", metricJson);
     context.add("metrics", metricJson);
     context.add("candidates", problem.candidatesJson());
     context.add("extensions", problem.extensions().deepCopy());
@@ -978,11 +989,13 @@ public final class CanonicalEvaluator {
         JsonObject candidate = problem.candidate(selected);
         task.add("candidate", selected.toJson());
         if (candidate.has("provider")) task.add("provider", candidate.get("provider").deepCopy());
+        task.add("features", problem.candidateMetrics(selected));
         task.add("metrics", problem.candidateMetrics(selected));
         task.add("properties", candidate.has("properties")
             ? candidate.getAsJsonObject("properties").deepCopy() : new JsonObject());
       } else {
         task.add("candidate", JsonNull.INSTANCE);
+        task.add("features", new JsonObject());
         task.add("metrics", new JsonObject());
         task.add("properties", new JsonObject());
       }

@@ -8,7 +8,7 @@
     "candidates": {
       "c1": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "latency": 40
         },
         "provider": {
@@ -18,7 +18,7 @@
       },
       "c2": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "latency": 60
         },
         "provider": {
@@ -30,7 +30,7 @@
     "providers": {
       "p1": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "latency": {
         "resource": "application",
         "id": "latency"

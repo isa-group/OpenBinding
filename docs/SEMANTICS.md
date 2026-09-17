@@ -15,7 +15,7 @@ capability-type matching followed by its optional typed predicate. A binding
 decision is a total function `b : T → C` with `b(t) ∈ E(t)`. Local tasks occur
 in the workflow but are not in the domain of `b`.
 
-Every metric definition `m` assigns a finite scalar `q(c,m)` to every eligible
+Every feature definition `m` assigns a finite scalar `q(c,m)` to every eligible
 candidate whose value is required by policy. Missing values are compilation
 errors. Invocation-scoped values are evaluated at each task occurrence;
 selected-candidate values are charged once for each distinct candidate in the
@@ -23,18 +23,18 @@ range of `b`.
 
 ## Workflow aggregation
 
-The workflow is a structured tree. For a fixed binding and metric, service-task
+The workflow is a structured tree. For a fixed binding and feature, service-task
 leaves produce the selected candidate's value. Local-task and empty leaves
-produce that metric's `neutral` value from the canonical IR. They do not derive
+produce that feature's `neutral` value from the canonical IR. They do not derive
 a fresh identity from the surrounding block operator. The compiler may infer a
-neutral only when the source metric's domain and sequence operator make it
+neutral only when the source feature's domain and sequence operator make it
 unambiguous; otherwise the author must state it. In every case the compiler
 materializes the value before an engine receives the problem.
 
-Each metric separately declares operators for sequence, parallel, exclusive,
+Each feature separately declares operators for sequence, parallel, exclusive,
 repeat, and selected-candidate aggregation. Therefore the same local activity
-can contribute, for example, `0` to an additive latency metric and `1` to a
-multiplicative reliability metric without carrying QoS values of its own.
+can contribute, for example, `0` to an additive latency feature and `1` to a
+multiplicative reliability feature without carrying QoS values of its own.
 
 Built-ins are sum, product, minimum, maximum, routing-weighted sum/product,
 scale, power, and identity. For exclusive branch values `x_i` and a complete
@@ -75,13 +75,13 @@ Transition bounds compare the resulting direct transfer latency with their
 maximum and produce a hard violation or the declared soft penalty. Local tasks
 are not placement transition endpoints.
 
-A `globalLatency` policy derives its referenced metric from the structured
+A `globalLatency` policy derives its referenced feature from the structured
 SESE workflow. Declared events are its external starting frontier. It
 optionally includes candidate execution values, computes routing XORs as the
 weighted expected latency or selects exactly one condition XOR, joins parallel
 branches by `max` or `sum`, evaluates exact repeats, and scales one iteration
 for `expectedCount`. The derived value replaces the ordinary workflow aggregate
-for that metric before constraints and objectives run. A metric can have only
+for that feature before constraints and objectives run. A feature can have only
 one placement derivation.
 
 ## Constraints and penalties

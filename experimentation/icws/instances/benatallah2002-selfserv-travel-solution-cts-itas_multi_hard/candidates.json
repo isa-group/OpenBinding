@@ -8,7 +8,7 @@
     "candidates": {
       "svc_ass_1": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 180,
           "cost_usd": 0,
           "availability": 0.995,
@@ -22,7 +22,7 @@
       },
       "svc_ass_2": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 120,
           "cost_usd": 5,
           "availability": 0.99,
@@ -36,7 +36,7 @@
       },
       "svc_dfbs_1": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 650,
           "cost_usd": 420,
           "availability": 0.985,
@@ -50,7 +50,7 @@
       },
       "svc_dfbs_2": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 520,
           "cost_usd": 460,
           "availability": 0.99,
@@ -64,7 +64,7 @@
       },
       "svc_ifbs_1": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 780,
           "cost_usd": 820,
           "availability": 0.98,
@@ -78,7 +78,7 @@
       },
       "svc_ifbs_2": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 610,
           "cost_usd": 900,
           "availability": 0.988,
@@ -92,7 +92,7 @@
       },
       "svc_tis_1": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 240,
           "cost_usd": 55,
           "availability": 0.997,
@@ -106,7 +106,7 @@
       },
       "svc_tis_2": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 190,
           "cost_usd": 70,
           "availability": 0.999,
@@ -120,7 +120,7 @@
       },
       "svc_abs_1": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 430,
           "cost_usd": 950,
           "availability": 0.992,
@@ -134,7 +134,7 @@
       },
       "svc_abs_2": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 350,
           "cost_usd": 1100,
           "availability": 0.995,
@@ -148,7 +148,7 @@
       },
       "svc_crs_1": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 310,
           "cost_usd": 260,
           "availability": 0.99,
@@ -162,7 +162,7 @@
       },
       "svc_crs_2": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 260,
           "cost_usd": 320,
           "availability": 0.996,
@@ -176,7 +176,7 @@
       },
       "t_attractions_search_gen_1": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 180.56,
           "cost_usd": 0.0,
           "availability": 1.0,
@@ -190,7 +190,7 @@
       },
       "t_flight_booking_domestic_gen_1": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 631.43,
           "cost_usd": 418.27,
           "availability": 0.96498,
@@ -204,7 +204,7 @@
       },
       "t_flight_booking_international_gen_1": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 790.77,
           "cost_usd": 836.7,
           "availability": 0.9544,
@@ -218,7 +218,7 @@
       },
       "t_travel_insurance_gen_1": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 237.5,
           "cost_usd": 55.35,
           "availability": 0.999345,
@@ -232,7 +232,7 @@
       },
       "t_accommodation_booking_gen_1": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 428.91,
           "cost_usd": 959.88,
           "availability": 0.989053,
@@ -246,7 +246,7 @@
       },
       "t_car_rental_booking_gen_1": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 302.68,
           "cost_usd": 258.25,
           "availability": 0.979341,
@@ -260,7 +260,7 @@
       },
       "t_accommodation_booking_gen_2": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 420.78,
           "cost_usd": 922.42,
           "availability": 0.964195,
@@ -274,7 +274,7 @@
       },
       "t_attractions_search_gen_2": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 184.04,
           "cost_usd": 0.0,
           "availability": 1.0,
@@ -288,7 +288,7 @@
       },
       "t_car_rental_booking_gen_2": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 314.36,
           "cost_usd": 263.3,
           "availability": 1.0,
@@ -302,7 +302,7 @@
       },
       "t_flight_booking_domestic_gen_2": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 665.6,
           "cost_usd": 419.68,
           "availability": 1.0,
@@ -316,7 +316,7 @@
       },
       "t_flight_booking_international_gen_2": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 799.69,
           "cost_usd": 811.47,
           "availability": 0.965675,
@@ -330,7 +330,7 @@
       },
       "t_travel_insurance_gen_2": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 239.02,
           "cost_usd": 53.91,
           "availability": 1.0,
@@ -344,7 +344,7 @@
       },
       "t_accommodation_booking_gen_3": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 426.06,
           "cost_usd": 950.75,
           "availability": 1.0,
@@ -358,7 +358,7 @@
       },
       "t_attractions_search_gen_3": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 181.9,
           "cost_usd": 0.0,
           "availability": 0.993845,
@@ -372,7 +372,7 @@
       },
       "t_car_rental_booking_gen_3": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 305.71,
           "cost_usd": 254.63,
           "availability": 0.97168,
@@ -386,7 +386,7 @@
       },
       "t_flight_booking_domestic_gen_3": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 662.88,
           "cost_usd": 429.07,
           "availability": 0.974707,
@@ -400,7 +400,7 @@
       },
       "t_flight_booking_international_gen_3": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 786.57,
           "cost_usd": 835.36,
           "availability": 0.957108,
@@ -414,7 +414,7 @@
       },
       "t_travel_insurance_gen_3": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 234.57,
           "cost_usd": 56.3,
           "availability": 1.0,
@@ -428,7 +428,7 @@
       },
       "t_accommodation_booking_gen_4": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 438.43,
           "cost_usd": 977.79,
           "availability": 0.962759,
@@ -442,7 +442,7 @@
       },
       "t_attractions_search_gen_4": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 176.96,
           "cost_usd": 0.0,
           "availability": 1.0,
@@ -456,7 +456,7 @@
       },
       "t_car_rental_booking_gen_4": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 307.82,
           "cost_usd": 267.42,
           "availability": 0.973027,
@@ -470,7 +470,7 @@
       },
       "t_flight_booking_domestic_gen_4": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 647.6,
           "cost_usd": 410.39,
           "availability": 0.991802,
@@ -484,7 +484,7 @@
       },
       "t_flight_booking_international_gen_4": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 774.62,
           "cost_usd": 829.91,
           "availability": 0.973283,
@@ -498,7 +498,7 @@
       },
       "t_travel_insurance_gen_4": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 236.96,
           "cost_usd": 53.98,
           "availability": 0.976545,
@@ -512,7 +512,7 @@
       },
       "t_accommodation_booking_gen_5": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 442.29,
           "cost_usd": 933.52,
           "availability": 1.0,
@@ -526,7 +526,7 @@
       },
       "t_attractions_search_gen_5": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 178.04,
           "cost_usd": 0.0,
           "availability": 1.0,
@@ -540,7 +540,7 @@
       },
       "t_car_rental_booking_gen_5": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 314.15,
           "cost_usd": 252.84,
           "availability": 1.0,
@@ -554,7 +554,7 @@
       },
       "t_flight_booking_domestic_gen_5": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 640.42,
           "cost_usd": 420.2,
           "availability": 0.991193,
@@ -568,7 +568,7 @@
       },
       "t_flight_booking_international_gen_5": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 774.6,
           "cost_usd": 805.09,
           "availability": 0.988194,
@@ -582,7 +582,7 @@
       },
       "t_travel_insurance_gen_5": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 238.21,
           "cost_usd": 56.61,
           "availability": 1.0,
@@ -596,7 +596,7 @@
       },
       "t_accommodation_booking_gen_6": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 426.74,
           "cost_usd": 923.19,
           "availability": 1.0,
@@ -610,7 +610,7 @@
       },
       "t_attractions_search_gen_6": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 175.91,
           "cost_usd": 0.0,
           "availability": 1.0,
@@ -624,7 +624,7 @@
       },
       "t_car_rental_booking_gen_6": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 305.51,
           "cost_usd": 254.46,
           "availability": 0.989564,
@@ -638,7 +638,7 @@
       },
       "t_flight_booking_domestic_gen_6": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 655.97,
           "cost_usd": 421.71,
           "availability": 0.986318,
@@ -652,7 +652,7 @@
       },
       "t_flight_booking_international_gen_6": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 788.74,
           "cost_usd": 837.67,
           "availability": 0.970493,
@@ -666,7 +666,7 @@
       },
       "t_travel_insurance_gen_6": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 238.45,
           "cost_usd": 53.64,
           "availability": 0.985017,
@@ -680,7 +680,7 @@
       },
       "t_accommodation_booking_gen_7": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 425.46,
           "cost_usd": 956.87,
           "availability": 1.0,
@@ -694,7 +694,7 @@
       },
       "t_attractions_search_gen_7": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 181.46,
           "cost_usd": 0.0,
           "availability": 1.0,
@@ -708,7 +708,7 @@
       },
       "t_car_rental_booking_gen_7": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 306.41,
           "cost_usd": 261.55,
           "availability": 1.0,
@@ -722,7 +722,7 @@
       },
       "t_flight_booking_domestic_gen_7": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 640.86,
           "cost_usd": 430.91,
           "availability": 0.979292,
@@ -736,7 +736,7 @@
       },
       "t_flight_booking_international_gen_7": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 796.63,
           "cost_usd": 832.47,
           "availability": 0.964267,
@@ -750,7 +750,7 @@
       },
       "t_travel_insurance_gen_7": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 241.93,
           "cost_usd": 56.65,
           "availability": 0.979389,
@@ -764,7 +764,7 @@
       },
       "t_accommodation_booking_gen_8": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 435.3,
           "cost_usd": 943.55,
           "availability": 0.98734,
@@ -778,7 +778,7 @@
       },
       "t_attractions_search_gen_8": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 183.09,
           "cost_usd": 0.0,
           "availability": 0.99119,
@@ -792,7 +792,7 @@
       },
       "t_car_rental_booking_gen_8": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 309.2,
           "cost_usd": 254.41,
           "availability": 1.0,
@@ -806,7 +806,7 @@
       },
       "t_flight_booking_domestic_gen_8": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 632.82,
           "cost_usd": 429.4,
           "availability": 1.0,
@@ -820,7 +820,7 @@
       },
       "t_flight_booking_international_gen_8": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 786.64,
           "cost_usd": 821.39,
           "availability": 0.970101,
@@ -834,7 +834,7 @@
       },
       "t_travel_insurance_gen_8": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 237.17,
           "cost_usd": 56.31,
           "availability": 0.967624,
@@ -848,7 +848,7 @@
       },
       "t_accommodation_booking_gen_9": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 418.07,
           "cost_usd": 922.82,
           "availability": 1.0,
@@ -862,7 +862,7 @@
       },
       "t_attractions_search_gen_9": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 183.3,
           "cost_usd": 0.0,
           "availability": 1.0,
@@ -876,7 +876,7 @@
       },
       "t_car_rental_booking_gen_9": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 307.58,
           "cost_usd": 262.18,
           "availability": 1.0,
@@ -890,7 +890,7 @@
       },
       "t_flight_booking_domestic_gen_9": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 666.73,
           "cost_usd": 424.4,
           "availability": 0.999365,
@@ -904,7 +904,7 @@
       },
       "t_flight_booking_international_gen_9": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 778.56,
           "cost_usd": 797.21,
           "availability": 0.950706,
@@ -918,7 +918,7 @@
       },
       "t_travel_insurance_gen_9": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 246.23,
           "cost_usd": 54.34,
           "availability": 0.992913,
@@ -932,7 +932,7 @@
       },
       "t_accommodation_booking_gen_10": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 437.45,
           "cost_usd": 940.68,
           "availability": 0.993847,
@@ -946,7 +946,7 @@
       },
       "t_attractions_search_gen_10": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 178.42,
           "cost_usd": 0.0,
           "availability": 0.977804,
@@ -960,7 +960,7 @@
       },
       "t_car_rental_booking_gen_10": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 313.52,
           "cost_usd": 263.4,
           "availability": 0.979111,
@@ -974,7 +974,7 @@
       },
       "t_flight_booking_domestic_gen_10": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 665.84,
           "cost_usd": 425.35,
           "availability": 1.0,
@@ -988,7 +988,7 @@
       },
       "t_flight_booking_international_gen_10": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 800.94,
           "cost_usd": 820.43,
           "availability": 0.960461,
@@ -1002,7 +1002,7 @@
       },
       "t_travel_insurance_gen_10": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 239.02,
           "cost_usd": 54.1,
           "availability": 1.0,
@@ -1016,7 +1016,7 @@
       },
       "t_accommodation_booking_gen_11": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 433.75,
           "cost_usd": 929.71,
           "availability": 0.985764,
@@ -1030,7 +1030,7 @@
       },
       "t_attractions_search_gen_11": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 184.11,
           "cost_usd": 0.0,
           "availability": 0.966846,
@@ -1044,7 +1044,7 @@
       },
       "t_car_rental_booking_gen_11": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 304.3,
           "cost_usd": 266.59,
           "availability": 0.976083,
@@ -1058,7 +1058,7 @@
       },
       "t_flight_booking_domestic_gen_11": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 656.14,
           "cost_usd": 431.3,
           "availability": 0.959105,
@@ -1072,7 +1072,7 @@
       },
       "t_flight_booking_international_gen_11": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 790.25,
           "cost_usd": 813.69,
           "availability": 0.999889,
@@ -1086,7 +1086,7 @@
       },
       "t_travel_insurance_gen_11": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 243.12,
           "cost_usd": 54.56,
           "availability": 1.0,
@@ -1100,7 +1100,7 @@
       },
       "t_accommodation_booking_gen_12": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 424.32,
           "cost_usd": 953.24,
           "availability": 1.0,
@@ -1114,7 +1114,7 @@
       },
       "t_attractions_search_gen_12": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 179.4,
           "cost_usd": 0.0,
           "availability": 0.989475,
@@ -1128,7 +1128,7 @@
       },
       "t_car_rental_booking_gen_12": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 301.83,
           "cost_usd": 263.54,
           "availability": 0.961694,
@@ -1142,7 +1142,7 @@
       },
       "t_flight_booking_domestic_gen_12": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 664.9,
           "cost_usd": 416.19,
           "availability": 0.956532,
@@ -1156,7 +1156,7 @@
       },
       "t_flight_booking_international_gen_12": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 761.83,
           "cost_usd": 807.73,
           "availability": 0.964417,
@@ -1170,7 +1170,7 @@
       },
       "t_travel_insurance_gen_12": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 238.07,
           "cost_usd": 55.5,
           "availability": 0.97068,
@@ -1184,7 +1184,7 @@
       },
       "t_accommodation_booking_gen_13": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 418.74,
           "cost_usd": 954.2,
           "availability": 0.992199,
@@ -1198,7 +1198,7 @@
       },
       "t_attractions_search_gen_13": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 183.96,
           "cost_usd": 0.0,
           "availability": 0.997268,
@@ -1212,7 +1212,7 @@
       },
       "t_car_rental_booking_gen_13": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 309.44,
           "cost_usd": 261.9,
           "availability": 0.979668,
@@ -1226,7 +1226,7 @@
       },
       "t_flight_booking_domestic_gen_13": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 640.51,
           "cost_usd": 419.78,
           "availability": 0.957316,
@@ -1240,7 +1240,7 @@
       },
       "t_flight_booking_international_gen_13": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 777.65,
           "cost_usd": 840.75,
           "availability": 0.969753,
@@ -1254,7 +1254,7 @@
       },
       "t_travel_insurance_gen_13": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 241.07,
           "cost_usd": 55.71,
           "availability": 0.979118,
@@ -1268,7 +1268,7 @@
       },
       "t_accommodation_booking_gen_14": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 422.59,
           "cost_usd": 962.08,
           "availability": 0.999634,
@@ -1282,7 +1282,7 @@
       },
       "t_attractions_search_gen_14": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 182.66,
           "cost_usd": 0.0,
           "availability": 1.0,
@@ -1296,7 +1296,7 @@
       },
       "t_car_rental_booking_gen_14": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 302.67,
           "cost_usd": 260.3,
           "availability": 0.987535,
@@ -1310,7 +1310,7 @@
       },
       "t_flight_booking_domestic_gen_14": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 639.0,
           "cost_usd": 427.91,
           "availability": 0.994908,
@@ -1324,7 +1324,7 @@
       },
       "t_flight_booking_international_gen_14": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 760.77,
           "cost_usd": 843.91,
           "availability": 0.99882,
@@ -1338,7 +1338,7 @@
       },
       "t_travel_insurance_gen_14": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 240.95,
           "cost_usd": 54.99,
           "availability": 1.0,
@@ -1352,7 +1352,7 @@
       },
       "t_accommodation_booking_gen_15": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 440.55,
           "cost_usd": 976.0,
           "availability": 1.0,
@@ -1366,7 +1366,7 @@
       },
       "t_attractions_search_gen_15": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 175.35,
           "cost_usd": 0.0,
           "availability": 0.966804,
@@ -1380,7 +1380,7 @@
       },
       "t_car_rental_booking_gen_15": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 302.73,
           "cost_usd": 252.2,
           "availability": 1.0,
@@ -1394,7 +1394,7 @@
       },
       "t_flight_booking_domestic_gen_15": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 669.17,
           "cost_usd": 416.89,
           "availability": 1.0,
@@ -1408,7 +1408,7 @@
       },
       "t_flight_booking_international_gen_15": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 764.95,
           "cost_usd": 823.75,
           "availability": 0.971061,
@@ -1422,7 +1422,7 @@
       },
       "t_travel_insurance_gen_15": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 245.86,
           "cost_usd": 54.27,
           "availability": 0.985615,
@@ -1436,7 +1436,7 @@
       },
       "t_accommodation_booking_gen_16": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 417.56,
           "cost_usd": 927.42,
           "availability": 0.991605,
@@ -1450,7 +1450,7 @@
       },
       "t_attractions_search_gen_16": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 182.32,
           "cost_usd": 0.0,
           "availability": 0.985515,
@@ -1464,7 +1464,7 @@
       },
       "t_car_rental_booking_gen_16": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 302.19,
           "cost_usd": 266.7,
           "availability": 1.0,
@@ -1478,7 +1478,7 @@
       },
       "t_flight_booking_domestic_gen_16": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 662.66,
           "cost_usd": 417.24,
           "availability": 0.981665,
@@ -1492,7 +1492,7 @@
       },
       "t_flight_booking_international_gen_16": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 758.17,
           "cost_usd": 822.54,
           "availability": 0.961346,
@@ -1506,7 +1506,7 @@
       },
       "t_travel_insurance_gen_16": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 237.92,
           "cost_usd": 56.52,
           "availability": 0.991152,
@@ -1520,7 +1520,7 @@
       },
       "t_accommodation_booking_gen_17": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 417.83,
           "cost_usd": 976.62,
           "availability": 0.98989,
@@ -1534,7 +1534,7 @@
       },
       "t_attractions_search_gen_17": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 181.56,
           "cost_usd": 0.0,
           "availability": 1.0,
@@ -1548,7 +1548,7 @@
       },
       "t_car_rental_booking_gen_17": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 317.95,
           "cost_usd": 258.27,
           "availability": 0.992943,
@@ -1562,7 +1562,7 @@
       },
       "t_flight_booking_domestic_gen_17": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 648.06,
           "cost_usd": 408.6,
           "availability": 0.980141,
@@ -1576,7 +1576,7 @@
       },
       "t_flight_booking_international_gen_17": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 766.01,
           "cost_usd": 821.52,
           "availability": 0.951145,
@@ -1590,7 +1590,7 @@
       },
       "t_travel_insurance_gen_17": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 237.34,
           "cost_usd": 55.92,
           "availability": 0.970043,
@@ -1604,7 +1604,7 @@
       },
       "t_accommodation_booking_gen_18": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 429.73,
           "cost_usd": 944.51,
           "availability": 1.0,
@@ -1618,7 +1618,7 @@
       },
       "t_attractions_search_gen_18": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 177.57,
           "cost_usd": 0.0,
           "availability": 0.986296,
@@ -1632,7 +1632,7 @@
       },
       "t_car_rental_booking_gen_18": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 303.68,
           "cost_usd": 267.48,
           "availability": 1.0,
@@ -1646,7 +1646,7 @@
       },
       "t_flight_booking_domestic_gen_18": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 631.06,
           "cost_usd": 415.45,
           "availability": 0.984941,
@@ -1660,7 +1660,7 @@
       },
       "t_flight_booking_international_gen_18": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 783.35,
           "cost_usd": 835.69,
           "availability": 0.959814,
@@ -1674,7 +1674,7 @@
       },
       "t_travel_insurance_gen_18": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 244.43,
           "cost_usd": 53.9,
           "availability": 1.0,
@@ -1688,7 +1688,7 @@
       },
       "t_accommodation_booking_gen_19": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 432.81,
           "cost_usd": 934.17,
           "availability": 0.988295,
@@ -1702,7 +1702,7 @@
       },
       "t_attractions_search_gen_19": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 181.31,
           "cost_usd": 0.0,
           "availability": 0.998639,
@@ -1716,7 +1716,7 @@
       },
       "t_car_rental_booking_gen_19": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 315.28,
           "cost_usd": 265.02,
           "availability": 0.984961,
@@ -1730,7 +1730,7 @@
       },
       "t_flight_booking_domestic_gen_19": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 634.73,
           "cost_usd": 429.43,
           "availability": 0.962286,
@@ -1744,7 +1744,7 @@
       },
       "t_flight_booking_international_gen_19": {
         "provides": "service/t_flight_booking_international",
-        "metrics": {
+        "features": {
           "latency_ms": 795.36,
           "cost_usd": 831.96,
           "availability": 0.964161,
@@ -1758,7 +1758,7 @@
       },
       "t_travel_insurance_gen_19": {
         "provides": "service/t_travel_insurance",
-        "metrics": {
+        "features": {
           "latency_ms": 241.98,
           "cost_usd": 54.82,
           "availability": 1.0,
@@ -1772,7 +1772,7 @@
       },
       "t_accommodation_booking_gen_20": {
         "provides": "service/t_accommodation_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 418.42,
           "cost_usd": 935.62,
           "availability": 1.0,
@@ -1786,7 +1786,7 @@
       },
       "t_attractions_search_gen_20": {
         "provides": "service/t_attractions_search",
-        "metrics": {
+        "features": {
           "latency_ms": 184.74,
           "cost_usd": 0.0,
           "availability": 0.997399,
@@ -1800,7 +1800,7 @@
       },
       "t_car_rental_booking_gen_20": {
         "provides": "service/t_car_rental_booking",
-        "metrics": {
+        "features": {
           "latency_ms": 319.08,
           "cost_usd": 255.6,
           "availability": 0.978203,
@@ -1814,7 +1814,7 @@
       },
       "t_flight_booking_domestic_gen_20": {
         "provides": "service/t_flight_booking_domestic",
-        "metrics": {
+        "features": {
           "latency_ms": 632.43,
           "cost_usd": 416.9,
           "availability": 0.964364,
@@ -1847,7 +1847,7 @@
       "p_gen_4": {},
       "p_gen_5": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "latency_ms": {
         "resource": "application",
         "id": "latency_ms"

@@ -19,12 +19,12 @@ from openbinding_gateway.v1.package import load_package
 def example_archive(points=None, directions=None, constraints=None):
     points = points or [(0, 1), (.6, .6), (1, 0), (.85, .85)]
     m = len(points[0])
-    terms = [{"metric": {"resource": "app", "id": f"x{j}"}, "direction": (directions or ["minimize"] * m)[j]} for j in range(m)]
+    terms = [{"feature": {"resource": "app", "id": f"x{j}"}, "direction": (directions or ["minimize"] * m)[j]} for j in range(m)]
     document = {"spec": {"optimization": {"mode": "pareto", "terms": terms}, "constraints": constraints or []}}
     solutions = [{"decision": {"kind": "binding", "binding": {"task": {"resource": "catalog", "id": str(i)}}},
-        "metrics": {f"x{j}": x for j, x in enumerate(point)}, "violations": [],
+        "features": {f"x{j}": x for j, x in enumerate(point)}, "violations": [],
         "objectives": {"mode": "pareto", "penalty": 0, "score": [*point, 0],
-            "components": [{"metric": term["metric"], "value": point[j], "loss": point[j], "weight": 1} for j, term in enumerate(terms)]}}
+            "components": [{"feature": term["feature"], "value": point[j], "loss": point[j], "weight": 1} for j, term in enumerate(terms)]}}
         for i, point in enumerate(points)]
     result = {"solutions": solutions}
     source = AnalysisSource(id="source", engine="fixture", state="completed", createdAt="2026-01-01", irDigest=digest(document), evaluatorDigest="verified-evaluator", resultDigest=digest(result), legacy=False)
@@ -93,7 +93,7 @@ def test_power_cell_winners_match_direct_scores_including_fixed_hidden_priority(
 
 def constraint(op, value):
     return {"ref": {"resource": "rules", "id": op}, "when": {"kind": "literal", "value": True}, "enforcement": "hard",
-        "assert": {"kind": "compare", "op": op, "left": {"kind": "path", "segments": ["metrics", "x0"]},
+        "assert": {"kind": "compare", "op": op, "left": {"kind": "path", "segments": ["features", "x0"]},
                    "right": {"kind": "literal", "value": value}}}
 
 

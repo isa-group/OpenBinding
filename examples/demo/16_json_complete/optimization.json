@@ -9,10 +9,54 @@
     "mode": "weighted",
     "type": "MONO",
     "terms": [
-      {"metric": {"resource": "application", "id": "latency"}, "weight": 0.45, "normalize": {"min": 0, "max": 220, "clamp": true}},
-      {"metric": {"resource": "application", "id": "cost"}, "weight": 0.25, "normalize": {"min": 0, "max": 30, "clamp": true}},
-      {"metric": {"resource": "application", "id": "carbon"}, "weight": 0.15, "normalize": {"min": 0, "max": 30, "clamp": true}},
-      {"metric": {"resource": "application", "id": "trust"}, "weight": 0.15, "normalize": {"min": 0, "max": 1, "clamp": true}}
+      {
+        "feature": {
+          "resource": "application",
+          "id": "latency"
+        },
+        "weight": 0.45,
+        "normalize": {
+          "min": 0,
+          "max": 220,
+          "clamp": true
+        }
+      },
+      {
+        "feature": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "weight": 0.25,
+        "normalize": {
+          "min": 0,
+          "max": 30,
+          "clamp": true
+        }
+      },
+      {
+        "feature": {
+          "resource": "application",
+          "id": "carbon"
+        },
+        "weight": 0.15,
+        "normalize": {
+          "min": 0,
+          "max": 30,
+          "clamp": true
+        }
+      },
+      {
+        "feature": {
+          "resource": "application",
+          "id": "trust"
+        },
+        "weight": 0.15,
+        "normalize": {
+          "min": 0,
+          "max": 1,
+          "clamp": true
+        }
+      }
     ]
   }
 }

@@ -158,12 +158,12 @@ class ProblemSynthesizer:
             c_list: list[CandidateService] = []
             for c_idx in range(self.candidates):
                 c_name = f"s_{task}_{c_idx + 1}"
-                metrics = {}
+                features = {}
                 for p_name, prop in qos_props.items():
                     # Generate values within domain
                     val = self.rng.uniform(prop.domain_min, prop.domain_max)
-                    metrics[p_name] = round(val, 4)
-                c_list.append(CandidateService(name=c_name, metrics=metrics))
+                    features[p_name] = round(val, 4)
+                c_list.append(CandidateService(name=c_name, features=features))
             candidates[task] = c_list
 
         # 5. Initial constraints

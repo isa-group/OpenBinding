@@ -7,15 +7,15 @@
   "spec": {
     "constraints": {
       "c_within_2km": {
-        "assert": "metrics.distance <= 2000",
+        "assert": "features.distance <= 2000",
         "enforcement": "hard"
       },
       "c_time_budget": {
-        "assert": "metrics.time <= 240",
+        "assert": "features.time <= 240",
         "enforcement": "hard"
       },
       "c_cost_budget": {
-        "assert": "metrics.cost <= 100",
+        "assert": "features.cost <= 100",
         "enforcement": "hard"
       },
       "gen_c_dep_same_1": {

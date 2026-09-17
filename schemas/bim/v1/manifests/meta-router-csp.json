@@ -27,7 +27,7 @@
             "selector": "only",
             "values": ["selection.sum"]
           },
-          "metricScopes": {
+          "featureScopes": {
             "selector": "only",
             "values": ["selectedCandidate"]
           },

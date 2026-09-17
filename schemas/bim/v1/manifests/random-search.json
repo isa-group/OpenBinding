@@ -16,7 +16,7 @@
         "algorithm": "seeded-random-search",
         "capabilities": {
           "workflowNodes": {"selector": "all"},
-          "metricScopes": {"selector": "all"},
+          "featureScopes": {"selector": "all"},
           "aggregations": {"selector": "all"},
           "constraints": {"selector": "all"},
           "optimization": {"selector": "all"},

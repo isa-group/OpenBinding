@@ -79,7 +79,7 @@ def test_reduced_dataset_reproduces_the_historical_case(
         "tasks": len(application["spec"]["tasks"]),
         "candidates": len(candidates["spec"]["candidates"]),
         "pools": len(placement["spec"]["pools"]),
-        "metrics": len(application["spec"]["metrics"]),
+        "features": len(application["spec"]["features"]),
         "constraints": len(constraints["spec"]["constraints"]),
         "demands": len(placement["spec"]["demands"]),
         "capacityRules": len(placement["spec"]["capacityRules"]),
@@ -87,7 +87,7 @@ def test_reduced_dataset_reproduces_the_historical_case(
         "globalLatencyRules": len(placement["spec"]["globalLatency"]),
     }
     normalization = {
-        term["metric"]["id"]: {
+        term["feature"]["id"]: {
             "min": term["normalize"]["min"],
             "max": term["normalize"]["max"],
         }
@@ -110,7 +110,7 @@ def test_reduced_dataset_reproduces_the_historical_case(
     }
     historical_shape = {
         "localConstraints": sum(value.startswith("tasks.") for value in assertions),
-        "globalConstraints": sum(value.startswith("metrics.") for value in assertions),
+        "globalConstraints": sum(value.startswith("features.") for value in assertions),
         "dependencyConstraints": sum(
             len(set(re.findall(r"tasks\.([A-Za-z0-9_.-]+)", value))) > 1
             for value in assertions
@@ -278,13 +278,13 @@ def test_reduced_campaign_matches_or_remains_statistically_sensible(
     assert float(exact["objectives"]["score"]) == pytest.approx(
         exact_baseline["score"], abs=1e-9
     )
-    for metric, expected in exact_baseline["metrics"].items():
-        assert float(exact["metrics"][metric]) == pytest.approx(expected, abs=1e-6)
+    for feature, expected in exact_baseline["features"].items():
+        assert float(exact["features"][feature]) == pytest.approx(expected, abs=1e-6)
     assert float(exact["objectives"]["score"]) == pytest.approx(
         baseline["currentExact"]["score"], abs=1e-9
     )
-    for metric, expected in baseline["currentExact"]["metrics"].items():
-        assert float(exact["metrics"][metric]) == pytest.approx(expected, abs=1e-6)
+    for feature, expected in baseline["currentExact"]["features"].items():
+        assert float(exact["features"][feature]) == pytest.approx(expected, abs=1e-6)
 
     exact_score = float(exact["objectives"]["score"])
     classifications: dict[str, str] = {"minizinc-csp": "coincide"}
@@ -306,8 +306,8 @@ def test_reduced_campaign_matches_or_remains_statistically_sensible(
         assert observed["seed"] == options["seed"]
         assert observed["evaluations"] == expected_evaluations
         assert score == pytest.approx(observed["score"], abs=1e-12)
-        for metric, expected in observed["metrics"].items():
-            assert float(solution["metrics"][metric]) == pytest.approx(expected, abs=1e-6)
+        for feature, expected in observed["features"].items():
+            assert float(solution["features"][feature]) == pytest.approx(expected, abs=1e-6)
         assert classifications[engine] == observed["classification"]
 
     assert classifications == {

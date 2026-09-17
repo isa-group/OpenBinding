@@ -2,6 +2,7 @@ import { CandidateRef } from './dzn_builder';
 
 export interface PlacementCandidate {
   ref: CandidateRef;
+  features?: Record<string, number>;
   metrics: Record<string, number>;
 }
 
@@ -311,8 +312,9 @@ export function buildPlacementEncoding(problem: any, candidates: PlacementCandid
   placements.forEach((model, modelOffset) => {
     if (!model.globalLatency) return;
     const modelId = modelOffset + 1;
-    const metric = metricIndex.get(model.globalLatency.metric.id);
-    if (!metric) throw new Error(`Placement globalLatency references unknown metric '${model.globalLatency.metric.id}'`);
+    const latencyFeature = model.globalLatency.feature || model.globalLatency.metric;
+    const metric = metricIndex.get(latencyFeature.id);
+    if (!metric) throw new Error(`Placement globalLatency references unknown metric '${latencyFeature.id}'`);
     globalMetricModel[metric - 1] = modelId;
     const initial = Object.keys(model.events || {}).sort().map((eventId) => ({
       kind: 1 as const, source: eventIndex.get(`${model.resource}\u0000${eventId}`)!, ready: 0,
@@ -328,7 +330,7 @@ export function buildPlacementEncoding(problem: any, candidates: PlacementCandid
   const maxNetwork = Math.max(0, ...poolLatency.flat(), ...eventLatency.flat());
   const globalMetrics = new Set(globalMetricModel.map((value, index) => value ? index + 1 : 0));
   const maxExecution = Math.max(0, ...candidates.flatMap((candidate) =>
-    [...globalMetrics].filter(Boolean).map((metric) => Math.max(0, candidate.metrics[[...metricIndex.entries()].find(([, value]) => value === metric)?.[0] || ''] || 0))));
+    [...globalMetrics].filter(Boolean).map((metric) => Math.max(0, (candidate.features || candidate.metrics)[[...metricIndex.entries()].find(([, value]) => value === metric)?.[0] || ''] || 0))));
   const timeBound = Math.max(1, (activityTask.length + 1) * (maxNetwork + maxExecution + 1));
   const maxPreds = Math.max(1, ...activityPredKind.map((row) => row.length));
   const maxReadyChildren = Math.max(1, ...readyChildren.map((row) => row.length));
@@ -352,6 +354,7 @@ export function buildPlacementEncoding(problem: any, candidates: PlacementCandid
 }
 
 export interface PlacementEvaluation {
+  features: Record<string, number>;
   metrics: Record<string, number>;
   penalties: number[];
   violations: any[];
@@ -390,7 +393,8 @@ export function evaluatePlacement(problem: any, binding: Record<string, Candidat
         const placed = assignment.get(key(selected));
         if (!placed || placed.model.resource !== model.resource) throw new Error(`Task '${node.task.id}' is assigned outside placement '${model.resource}'`);
         const target = placed.demand.pool;
-        const execution = config.includeExecution ? candidateMetric(selected, config.metric.id) : 0;
+        const latencyConfig = config.feature || config.metric;
+        const execution = config.includeExecution ? candidateMetric(selected, latencyConfig.id) : 0;
         return variants.map((variant) => {
           const start = Math.max(0, ...variant.frontier.map((source) => source.ready + (source.kind === 1
             ? eventLatency(model, source.event!, target) : network(model, source.pool!, target))));
@@ -444,7 +448,12 @@ export function evaluatePlacement(problem: any, binding: Record<string, Candidat
       .reduce((sum, variant) => sum + variant.probability * latest(variant.frontier), 0);
   };
   const metrics: Record<string, number> = {};
-  for (const model of placements) if (model.globalLatency) metrics[model.globalLatency.metric.id] = global(model);
+  for (const model of placements) {
+    if (model.globalLatency) {
+      const featId = (model.globalLatency.feature || model.globalLatency.metric).id;
+      metrics[featId] = global(model);
+    }
+  }
 
   const violations: any[] = [];
   const invocations = taskInvocations(problem, new Map(Object.keys(binding).map((task, index) => [task, index + 1])));
@@ -488,5 +497,5 @@ export function evaluatePlacement(problem: any, binding: Record<string, Candidat
   const rawPenalty = new Map(violations.filter((value) => value.enforcement === 'soft').map((value) => [key(value.constraint), value.penalty]));
   const penalties = (problem.spec.optimization.penalties || []).map((item: any) =>
     (rawPenalty.get(key(item.constraint)) || 0) * Number(item.weight));
-  return { metrics, penalties, violations, penalty: penalties.reduce((sum: number, value: number) => sum + value, 0) };
+  return { features: metrics, metrics, penalties, violations, penalty: penalties.reduce((sum: number, value: number) => sum + value, 0) };
 }

@@ -171,7 +171,7 @@
           "id": "t_process"
         },
         "maximum": 15.0,
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "latency"
         }
@@ -186,7 +186,7 @@
           "id": "t_login"
         },
         "maximum": 6.0,
-        "metric": {
+        "feature": {
           "resource": "application",
           "id": "latency"
         }
@@ -201,7 +201,7 @@
       }
     ],
     "globalLatency": {
-      "metric": {
+      "feature": {
         "resource": "application",
         "id": "latency"
       },

@@ -8,7 +8,7 @@
     "tasks": {
       "t1": "service/t1"
     },
-    "metrics": {
+    "features": {
       "cost": {
         "unit": "eur",
         "direction": "minimize",

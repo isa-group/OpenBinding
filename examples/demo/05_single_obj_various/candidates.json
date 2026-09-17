@@ -8,7 +8,7 @@
     "candidates": {
       "c_fast_expensive": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "cost": 90,
           "latency": 10
         },
@@ -19,7 +19,7 @@
       },
       "c_slow_cheap": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "cost": 10,
           "latency": 90
         },
@@ -30,7 +30,7 @@
       },
       "c_balanced": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "cost": 50,
           "latency": 50
         },
@@ -41,7 +41,7 @@
       },
       "c_bad": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "cost": 100,
           "latency": 100
         },
@@ -54,7 +54,7 @@
     "providers": {
       "p1": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "cost": {
         "resource": "application",
         "id": "cost"

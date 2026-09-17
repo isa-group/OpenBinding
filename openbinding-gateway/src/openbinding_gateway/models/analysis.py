@@ -19,7 +19,8 @@ class CounterfactualMove(BaseModel):
     from_ref: dict[str, str] = Field(alias="from")
     to: dict[str, str]
     decision: dict[str, Any]
-    metrics: dict[str, Any]
+    features: dict[str, Any] = Field(default_factory=dict)
+    metrics: dict[str, Any] = Field(default_factory=dict)
     objectives: dict[str, Any]
     violations: list[dict[str, Any]]
     feasible: bool
@@ -158,7 +159,8 @@ class AnalysisCandidateResponse(BaseModel):
     binding: dict[str, Any]
     violations: list[Any]
     evaluation: dict[str, Any]
-    metrics: dict[str, Any]
+    features: dict[str, Any] = Field(default_factory=dict)
+    metrics: dict[str, Any] = Field(default_factory=dict)
     occurrences: list[dict[str, Any]]
     explanation: dict[str, Any]
     comparison: list[dict[str, Any]]

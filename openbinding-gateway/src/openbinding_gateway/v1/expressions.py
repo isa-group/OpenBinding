@@ -39,7 +39,7 @@ _DEFAULT_ROOT_TYPES: dict[str, str] = {
     "candidate": "object",
     "capabilities": "object",
     "extensions": "object",
-    "metrics": "object",
+    "features": "object",
     "properties": "object",
     "values": "list<number>",
     "weights": "list<number>",

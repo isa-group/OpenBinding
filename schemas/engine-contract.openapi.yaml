@@ -97,9 +97,9 @@ components:
     ObjectiveComponent:
       type: object
       additionalProperties: false
-      required: [metric, value, loss, weight]
+      required: [feature, value, loss, weight]
       properties:
-        metric: {$ref: '#/components/schemas/Ref'}
+        feature: {$ref: '#/components/schemas/Ref'}
         value: {type: number}
         loss: {type: number}
         weight: {type: number, exclusiveMinimum: 0}
@@ -118,10 +118,10 @@ components:
     BindingSolution:
       type: object
       additionalProperties: false
-      required: [decision, metrics, objectives, penalties, violations]
+      required: [decision, features, objectives, penalties, violations]
       properties:
         decision: {$ref: '#/components/schemas/BindingDecision'}
-        metrics: {type: object, additionalProperties: {type: number}}
+        features: {type: object, additionalProperties: {type: number}}
         objectives: {$ref: '#/components/schemas/ObjectiveEvaluation'}
         penalties: {type: array, items: {type: number, minimum: 0}}
         violations: {type: array, items: {$ref: '#/components/schemas/Violation'}}

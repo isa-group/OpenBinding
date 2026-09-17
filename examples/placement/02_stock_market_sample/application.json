@@ -12,7 +12,7 @@
       "fBuy": "service/fBuy",
       "fRecord": "service/fRecord"
     },
-    "metrics": {
+    "features": {
       "latency": {
         "unit": "ms",
         "direction": "minimize",

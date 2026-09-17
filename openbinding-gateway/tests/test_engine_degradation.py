@@ -25,7 +25,7 @@ def exact_friendly_problem():
             ],
             "optimization": {
                 "terms": [
-                    {"metric": {"id": "quality"}, "direction": "maximize", "weight": 1.0}
+                    {"feature": {"id": "quality"}, "direction": "maximize", "weight": 1.0}
                 ]
             },
         }

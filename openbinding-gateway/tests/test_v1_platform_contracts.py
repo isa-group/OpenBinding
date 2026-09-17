@@ -67,7 +67,7 @@ def _problem(*, placement: bool = False):
                 "profile": {"id": "qos-binding/v1"},
                 "application": {
                     "tasks": {"task": {"kind": "service"}},
-                    "metrics": {
+                    "features": {
                     "latency": {
                         "scope": "selectedCandidate",
                         "aggregation": {
@@ -79,13 +79,13 @@ def _problem(*, placement: bool = False):
                             }
                         }
                     },
-                    "requiredMetrics": ["latency"],
+                    "requiredFeatures": ["latency"],
                     "workflow": {"kind": "sequence", "steps": [{"kind": "task"}]},
                 },
                 "candidates": {
                     "catalog": {
                         "providers": {},
-                        "metricBindings": {},
+                        "featureBindings": {},
                         "candidates": {"one": {}, "two": {}},
                     }
                 },
@@ -105,7 +105,7 @@ def test_mode_compatibility_checks_construct_values_and_limits() -> None:
         "capabilities": {
             "workflowNodes": {"selector": "only", "values": ["task"]},
             "aggregations": {"selector": "all"},
-            "metricScopes": {"selector": "only", "values": ["invocation"]},
+            "featureScopes": {"selector": "only", "values": ["invocation"]},
             "constraints": {"selector": "none"},
             "optimization": {"selector": "only", "values": ["satisfy"]},
             "objectiveTypes": {"selector": "only", "values": ["MONO"]},
@@ -117,7 +117,7 @@ def test_mode_compatibility_checks_construct_values_and_limits() -> None:
     }
     diagnostics = routes._mode_compatibility(_problem(placement=True), mode)
     by_category = {item.get("category") for item in diagnostics}
-    assert {"workflowNodes", "metricScopes", "constraints", "optimization", "placement"} <= by_category
+    assert {"workflowNodes", "featureScopes", "constraints", "optimization", "placement"} <= by_category
     assert any(item.get("limit") == "maxCandidates" for item in diagnostics)
 
 
@@ -130,7 +130,7 @@ def test_mode_compatibility_accepts_all_only_for_closed_dimensions() -> None:
             for category in (
                 "workflowNodes",
                 "aggregations",
-                "metricScopes",
+                "featureScopes",
                 "constraints",
                 "optimization",
                 "objectiveTypes",
@@ -152,7 +152,7 @@ def test_none_selector_accepts_an_unused_feature_category() -> None:
             for category in (
                 "workflowNodes",
                 "aggregations",
-                "metricScopes",
+                "featureScopes",
                 "constraints",
                 "optimization",
                 "objectiveTypes",
@@ -201,7 +201,7 @@ def test_many_and_multi_modes_are_eligible_only_for_their_declared_objective_cla
 
 def test_feature_extraction_ignores_unreachable_aggregation_expressions() -> None:
     problem = _problem()
-    aggregation = problem.document["spec"]["application"]["metrics"]["latency"]["aggregation"]
+    aggregation = problem.document["spec"]["application"]["features"]["latency"]["aggregation"]
     aggregation["sequence"] = {
         "kind": "arithmetic",
         "op": "add",
@@ -816,7 +816,7 @@ def test_gateway_rejects_incomplete_decisions_and_replaces_engine_evaluation() -
     class FakeProblem:
         document = {
             "spec": {
-                "application": {"metrics": {"latency": {}}},
+                "application": {"features": {"latency": {}}},
                 "optimization": {"penalties": []},
             }
         }
@@ -829,7 +829,7 @@ def test_gateway_rejects_incomplete_decisions_and_replaces_engine_evaluation() -
         def evaluate(self, binding):
             self.validate_binding(binding)
             return {
-                "metrics": {"latency": 7.0},
+                "features": {"latency": 7.0},
                 "objectives": {"mode": "weighted", "score": 7.0},
                 "violations": [],
             }
@@ -851,13 +851,13 @@ def test_gateway_rejects_incomplete_decisions_and_replaces_engine_evaluation() -
                         "kind": "binding",
                         "binding": {"task": {"resource": "catalog", "id": "candidate"}},
                     },
-                    "metrics": {"latency": -999},
+                    "features": {"latency": -999},
                 }
             ],
         },
     )
     assert valid["termination"] == "FEASIBLE"
-    assert valid["solutions"][0]["metrics"] == {"latency": 7.0}
+    assert valid["solutions"][0]["features"] == {"latency": 7.0}
     assert valid["solutions"][0]["objectives"]["score"] == 7.0
 
 

@@ -9,7 +9,7 @@
       "ingest": "service/analysis",
       "publish": "service/analysis"
     },
-    "metrics": {
+    "features": {
       "cost": {
         "unit": "eur",
         "direction": "minimize",

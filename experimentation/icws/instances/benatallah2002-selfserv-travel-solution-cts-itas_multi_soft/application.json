@@ -16,7 +16,7 @@
         "kind": "local"
       }
     },
-    "metrics": {
+    "features": {
       "latency_ms": {
         "unit": "ms",
         "aggregation": {

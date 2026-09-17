@@ -152,7 +152,7 @@ def test_postprocessor_tension_bounds():
     pkg_tight = pp_tight.process(prob)
     constr_tight = pkg_tight.json("constraints.json")
     assert "c_1_latency" in constr_tight["spec"]["constraints"]
-    assert "metrics.latency <=" in constr_tight["spec"]["constraints"]["c_1_latency"]["assert"]
+    assert "features.latency <=" in constr_tight["spec"]["constraints"]["c_1_latency"]["assert"]
 
     # Loosest tension (tau = 0.0)
     pp_loose = BIMPostprocessor(name="loose", guarantee_feasibility=True, tension=0.0)

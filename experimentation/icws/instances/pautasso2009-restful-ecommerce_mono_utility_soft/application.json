@@ -20,7 +20,7 @@
       "t_cancel_order": "service/t_cancel_order",
       "t_refund_payment": "service/t_refund_payment"
     },
-    "metrics": {
+    "features": {
       "latency_ms": {
         "unit": "ms",
         "direction": "minimize",

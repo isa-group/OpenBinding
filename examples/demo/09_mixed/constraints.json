@@ -7,7 +7,7 @@
   "spec": {
     "constraints": {
       "c1": {
-        "assert": "metrics.cost <= 150",
+        "assert": "features.cost <= 150",
         "enforcement": "hard"
       }
     }

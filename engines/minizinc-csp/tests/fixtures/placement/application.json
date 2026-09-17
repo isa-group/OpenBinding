@@ -12,7 +12,7 @@
       "t_rules": "service/t_rules",
       "t_render": "service/t_render"
     },
-    "metrics": {
+    "features": {
       "latency": {
         "unit": "ms",
         "direction": "minimize",

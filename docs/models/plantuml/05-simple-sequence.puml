@@ -12,7 +12,7 @@ object "demo_01_simple_seq : Instance" as instance <<core>> {
 }
 object "application : Application" as app <<source>> {
   tasks = t1, t2, t3
-  metric = latency ms
+  feature = latency ms
   workflow = sequence(t1, t2, t3)
 }
 object "catalog : CandidateCatalog" as catalog <<source>> {
@@ -23,7 +23,7 @@ object "catalog : CandidateCatalog" as catalog <<source>> {
 }
 object "optimization : Optimization" as optimization <<source>> {
   mode = weighted
-  metric = application/latency
+  feature = application/latency
   normalize = 0..1000
 }
 object "eligibility : Eligibility" as eligibility <<IR>> {
@@ -37,5 +37,5 @@ instance *-- catalog
 instance *-- optimization
 app --> eligibility : task requirements
 catalog --> eligibility : capabilities
-app --> optimization : latency metric ref
+app --> optimization : latency feature ref
 @enduml

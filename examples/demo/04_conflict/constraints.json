@@ -7,7 +7,7 @@
   "spec": {
     "constraints": {
       "c_impossible": {
-        "assert": "metrics.cost < 0",
+        "assert": "features.cost < 0",
         "enforcement": "hard"
       }
     }

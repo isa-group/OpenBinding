@@ -83,7 +83,11 @@ class SpacePricingGate:
         Accepting a plain value keeps injected test doubles tiny; the
         production factory always returns native awaitables.
         """
-        from space_client import SpaceError
+        try:
+            from space_client import SpaceError
+        except ImportError:
+            class SpaceError(Exception):
+                pass
         try:
             result = operation()
             return await result if inspect.isawaitable(result) else result

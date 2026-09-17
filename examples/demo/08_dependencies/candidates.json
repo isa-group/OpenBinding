@@ -8,7 +8,7 @@
     "candidates": {
       "c1_A": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "cost": 10
         },
         "provider": {
@@ -18,7 +18,7 @@
       },
       "c1_B": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "cost": 20
         },
         "provider": {
@@ -28,7 +28,7 @@
       },
       "c2_A": {
         "provides": "service/t2",
-        "metrics": {
+        "features": {
           "cost": 10
         },
         "provider": {
@@ -38,7 +38,7 @@
       },
       "c2_B": {
         "provides": "service/t2",
-        "metrics": {
+        "features": {
           "cost": 5
         },
         "provider": {
@@ -51,7 +51,7 @@
       "pA": {},
       "pB": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "cost": {
         "resource": "application",
         "id": "cost"

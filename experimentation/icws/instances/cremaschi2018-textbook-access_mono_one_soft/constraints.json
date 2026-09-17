@@ -7,12 +7,12 @@
   "spec": {
     "constraints": {
       "gen_c_global_latency_ms_1": {
-        "assert": "metrics.latency_ms <= 1382.51",
+        "assert": "features.latency_ms <= 1382.51",
         "enforcement": "soft",
         "penalty": 1
       },
       "gen_c_local_t_books_reliability_1": {
-        "assert": "tasks.t_books.metrics.reliability >= 0.995",
+        "assert": "tasks.t_books.features.reliability >= 0.995",
         "enforcement": "soft",
         "penalty": 1
       },

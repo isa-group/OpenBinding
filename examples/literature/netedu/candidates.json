@@ -8,7 +8,7 @@
     "candidates": {
       "c_get_country_from_location": {
         "provides": "service/t_get_country_from_location",
-        "metrics": {
+        "features": {
           "cost": 1,
           "execution_time": 192,
           "availability": 0.985,
@@ -22,7 +22,7 @@
       },
       "c_get_transport_company": {
         "provides": "service/t_get_transport_company",
-        "metrics": {
+        "features": {
           "cost": 1,
           "execution_time": 192,
           "availability": 0.985,
@@ -36,7 +36,7 @@
       },
       "c_get_closest_city": {
         "provides": "service/t_get_closest_city",
-        "metrics": {
+        "features": {
           "cost": 1,
           "execution_time": 192,
           "availability": 0.985,
@@ -50,7 +50,7 @@
       },
       "c_get_local_subsidiary": {
         "provides": "service/t_get_local_subsidiary",
-        "metrics": {
+        "features": {
           "cost": 1,
           "execution_time": 192,
           "availability": 0.985,
@@ -64,7 +64,7 @@
       },
       "c_get_vehicle": {
         "provides": "service/t_get_vehicle",
-        "metrics": {
+        "features": {
           "cost": 1,
           "execution_time": 192,
           "availability": 0.985,
@@ -78,7 +78,7 @@
       },
       "c_make_arrangements": {
         "provides": "service/t_make_arrangements",
-        "metrics": {
+        "features": {
           "cost": 1,
           "execution_time": 192,
           "availability": 0.985,
@@ -94,7 +94,7 @@
     "providers": {
       "p_transport_agency": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "cost": {
         "resource": "application",
         "id": "cost"

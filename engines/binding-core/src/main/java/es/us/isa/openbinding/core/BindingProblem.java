@@ -90,11 +90,15 @@ public final class BindingProblem {
         "extensions", "sourceMap");
     validateIdentity();
     this.application = requireObject(spec, "application", "BindingProblem.spec");
-    requireOnly(application, "BindingProblem.spec.application", "resource", "tasks", "metrics",
-        "requiredMetrics", "taskRequiredMetrics", "workflow");
+    requireOnly(application, "BindingProblem.spec.application", "resource", "tasks", "features", "metrics",
+        "requiredFeatures", "requiredMetrics", "taskRequiredFeatures", "taskRequiredMetrics", "workflow");
     this.applicationResource = requiredString(application, "resource", "BindingProblem.spec.application");
     this.tasks = requireObject(application, "tasks", "BindingProblem.spec.application");
-    this.metrics = requireObject(application, "metrics", "BindingProblem.spec.application");
+    if (application.has("features") && application.get("features").isJsonObject()) {
+      this.metrics = application.getAsJsonObject("features");
+    } else {
+      this.metrics = requireObject(application, "metrics", "BindingProblem.spec.application");
+    }
     this.catalogs = requireObject(spec, "candidates", "BindingProblem.spec");
     this.eligibility = requireObject(spec, "eligibility", "BindingProblem.spec");
     requireArray(spec, "routing", "BindingProblem.spec");
@@ -139,7 +143,11 @@ public final class BindingProblem {
   public Map<String, JsonObject> metricDefinitions() {
     return Collections.unmodifiableMap(metricDefinitions);
   }
+  public Map<String, JsonObject> featureDefinitions() {
+    return Collections.unmodifiableMap(metricDefinitions);
+  }
   public List<String> requiredMetrics() { return Collections.unmodifiableList(requiredMetrics); }
+  public List<String> requiredFeatures() { return Collections.unmodifiableList(requiredMetrics); }
   public JsonObject task(String taskId) { return tasks.getAsJsonObject(taskId); }
 
   public Double routingProbability(Ref target) { return routing.get(target); }
@@ -169,15 +177,29 @@ public final class BindingProblem {
     return finiteNumber(values.get(metricId), "candidate " + ref + " metric " + metricId);
   }
 
+  public double candidateFeature(Ref ref, String featureId) {
+    return candidateMetric(ref, featureId);
+  }
+
   public JsonObject candidateMetrics(Ref ref) {
-    JsonObject local = requireObject(candidate(ref), "metrics", "candidate " + ref);
+    JsonObject cand = candidate(ref);
+    JsonObject local = cand.has("features") && cand.get("features").isJsonObject()
+        ? cand.getAsJsonObject("features")
+        : requireObject(cand, "metrics", "candidate " + ref);
     Map<String, String> aliases = metricAliases.get(ref.resource());
-    JsonObject canonical = new JsonObject();
-    if (aliases == null) return canonical;
-    for (Map.Entry<String, String> entry : aliases.entrySet()) {
-      if (local.has(entry.getValue())) canonical.add(entry.getKey(), local.get(entry.getValue()).deepCopy());
+    JsonObject result = new JsonObject();
+    if (aliases != null) {
+      for (Map.Entry<String, String> entry : aliases.entrySet()) {
+        if (local.has(entry.getValue())) {
+          result.add(entry.getKey(), local.get(entry.getValue()));
+        }
+      }
     }
-    return canonical;
+    return result;
+  }
+
+  public JsonObject candidateFeatures(Ref ref) {
+    return candidateMetrics(ref);
   }
 
   public JsonObject candidatesJson() { return catalogs; }
@@ -247,34 +269,40 @@ public final class BindingProblem {
   }
 
   private void validateRequiredMetrics() {
-    JsonArray global = requireArray(application, "requiredMetrics", "BindingProblem.spec.application");
+    JsonArray global = application.has("requiredFeatures")
+        ? requireArray(application, "requiredFeatures", "BindingProblem.spec.application")
+        : requireArray(application, "requiredMetrics", "BindingProblem.spec.application");
     Set<String> unique = new LinkedHashSet<String>();
     for (JsonElement value : global) {
       if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()
           || value.getAsString().isEmpty()) {
-        throw new IllegalArgumentException("application.requiredMetrics must contain metric identifiers");
+        throw new IllegalArgumentException("application required features must contain feature identifiers");
       }
       String metric = value.getAsString();
       if (!metricDefinitions.containsKey(metric)) {
-        throw new IllegalArgumentException("application.requiredMetrics references unknown metric '" + metric + "'");
+        throw new IllegalArgumentException("application required features references unknown feature '" + metric + "'");
       }
       if (!unique.add(metric)) {
-        throw new IllegalArgumentException("application.requiredMetrics contains duplicate metric '" + metric + "'");
+        throw new IllegalArgumentException("application required features contains duplicate feature '" + metric + "'");
       }
       requiredMetrics.add(metric);
     }
-    JsonObject local = requireObject(application, "taskRequiredMetrics", "BindingProblem.spec.application");
+    JsonObject local = application.has("taskRequiredFeatures")
+        ? requireObject(application, "taskRequiredFeatures", "BindingProblem.spec.application")
+        : (application.has("taskRequiredMetrics")
+            ? requireObject(application, "taskRequiredMetrics", "BindingProblem.spec.application")
+            : new JsonObject());
     for (Map.Entry<String, JsonElement> entry : local.entrySet()) {
       if (!serviceTasks.contains(entry.getKey()) || !entry.getValue().isJsonArray()) {
-        throw new IllegalArgumentException("application.taskRequiredMetrics contains an invalid task entry '"
+        throw new IllegalArgumentException("application task required features contains an invalid task entry '"
             + entry.getKey() + "'");
       }
       Set<String> taskMetrics = new LinkedHashSet<String>();
       for (JsonElement value : entry.getValue().getAsJsonArray()) {
         if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()
             || !metricDefinitions.containsKey(value.getAsString()) || !taskMetrics.add(value.getAsString())) {
-          throw new IllegalArgumentException("application.taskRequiredMetrics." + entry.getKey()
-              + " must contain unique known metric identifiers");
+          throw new IllegalArgumentException("application task required features for " + entry.getKey()
+              + " must contain unique known feature identifiers");
         }
       }
     }
@@ -327,7 +355,7 @@ public final class BindingProblem {
       }
       String catalogId = catalogEntry.getKey();
       JsonObject catalog = catalogEntry.getValue().getAsJsonObject();
-      requireOnly(catalog, "candidate catalog " + catalogId, "providers", "metricBindings", "candidates");
+      requireOnly(catalog, "candidate catalog " + catalogId, "providers", "features", "metrics", "featureBindings", "metricBindings", "candidates");
       JsonObject providers = requireObject(catalog, "providers", "candidate catalog " + catalogId);
       for (Map.Entry<String, JsonElement> providerEntry : providers.entrySet()) {
         JsonObject provider = object(providerEntry.getValue(), "provider " + catalogId + ":" + providerEntry.getKey());
@@ -335,17 +363,19 @@ public final class BindingProblem {
         if (provider.has("name")) requiredString(provider, "name", "provider " + catalogId + ":" + providerEntry.getKey());
         requireObject(provider, "properties", "provider " + catalogId + ":" + providerEntry.getKey());
       }
-      JsonObject bindings = requireObject(catalog, "metricBindings", "candidate catalog " + catalogId);
+      JsonObject bindings = catalog.has("featureBindings")
+          ? requireObject(catalog, "featureBindings", "candidate catalog " + catalogId)
+          : requireObject(catalog, "metricBindings", "candidate catalog " + catalogId);
       Map<String, String> canonicalToAlias = new LinkedHashMap<String, String>();
       for (Map.Entry<String, JsonElement> binding : bindings.entrySet()) {
-        Ref metric = ref(binding.getValue(), "candidate catalog " + catalogId + ".metricBindings." + binding.getKey());
+        Ref metric = ref(binding.getValue(), "candidate catalog " + catalogId + ".featureBindings." + binding.getKey());
         if (!applicationResource.equals(metric.resource()) || !metricDefinitions.containsKey(metric.id())) {
           throw new IllegalArgumentException("Candidate catalog " + catalogId
-              + " binds alias '" + binding.getKey() + "' to unknown metric " + metric);
+              + " binds alias '" + binding.getKey() + "' to unknown feature " + metric);
         }
         if (canonicalToAlias.put(metric.id(), binding.getKey()) != null) {
           throw new IllegalArgumentException("Candidate catalog " + catalogId
-              + " binds the same metric more than once: " + metric);
+              + " binds the same feature more than once: " + metric);
         }
       }
       metricAliases.put(catalogId, canonicalToAlias);
@@ -359,7 +389,7 @@ public final class BindingProblem {
         }
         JsonObject candidate = candidateEntry.getValue().getAsJsonObject();
         requireOnly(candidate, "candidate " + catalogId + ":" + candidateEntry.getKey(),
-            "ref", "name", "provider", "provides", "properties", "metrics");
+            "ref", "name", "provider", "provides", "properties", "features", "metrics");
         Ref declared = ref(candidate.get("ref"), "candidate.ref");
         if (!catalogId.equals(declared.resource()) || !candidateEntry.getKey().equals(declared.id())) {
           throw new IllegalArgumentException("Candidate map key and candidate.ref disagree for " + declared);
@@ -378,12 +408,14 @@ public final class BindingProblem {
           requiredString(provided, "type", "candidate " + declared + ".provides");
           requireObject(provided, "properties", "candidate " + declared + ".provides");
         }
-        JsonObject candidateMetrics = requireObject(candidate, "metrics", "candidate " + declared);
+        JsonObject candidateMetrics = candidate.has("features")
+            ? requireObject(candidate, "features", "candidate " + declared)
+            : requireObject(candidate, "metrics", "candidate " + declared);
         for (Map.Entry<String, JsonElement> value : candidateMetrics.entrySet()) {
           if (!bindings.has(value.getKey())) {
-            throw new IllegalArgumentException("Candidate " + declared + " provides unknown metric alias '" + value.getKey() + "'");
+            throw new IllegalArgumentException("Candidate " + declared + " provides unknown feature alias '" + value.getKey() + "'");
           }
-          finiteNumber(value.getValue(), "candidate " + declared + " metric " + value.getKey());
+          finiteNumber(value.getValue(), "candidate " + declared + " feature " + value.getKey());
         }
       }
     }
@@ -403,8 +435,10 @@ public final class BindingProblem {
         candidate(candidateRef);
         if (!unique.add(candidateRef)) throw new IllegalArgumentException("Duplicate eligibility reference " + candidateRef);
         for (String metric : requiredMetrics) candidateMetric(candidateRef, metric);
-        JsonObject taskRequired = application.getAsJsonObject("taskRequiredMetrics");
-        if (taskRequired.has(taskId)) {
+        JsonObject taskRequired = application.has("taskRequiredFeatures") && application.get("taskRequiredFeatures").isJsonObject()
+            ? application.getAsJsonObject("taskRequiredFeatures")
+            : application.getAsJsonObject("taskRequiredMetrics");
+        if (taskRequired != null && taskRequired.has(taskId)) {
           for (JsonElement metric : taskRequired.getAsJsonArray(taskId)) {
             candidateMetric(candidateRef, metric.getAsString());
           }
@@ -634,14 +668,16 @@ public final class BindingProblem {
     double termWeightTotal = 0.0;
     for (JsonElement value : terms) {
       JsonObject term = object(value, "optimization term");
-      requireOnly(term, "optimization term", "metric", "direction", "weight", "normalize");
-      Ref metric = ref(term.get("metric"), "optimization term.metric");
-      if (!metricDefinitions.containsKey(metric.id())) throw new IllegalArgumentException("Unknown optimization metric " + metric);
+      requireOnly(term, "optimization term", "feature", "metric", "direction", "weight", "normalize");
+      Ref metric = term.has("feature")
+          ? ref(term.get("feature"), "optimization term.feature")
+          : ref(term.get("metric"), "optimization term.metric");
+      if (!metricDefinitions.containsKey(metric.id())) throw new IllegalArgumentException("Unknown optimization feature " + metric);
       if (!requiredMetrics.contains(metric.id())) {
-        throw new IllegalArgumentException("Optimization metric is not materialized in application.requiredMetrics: " + metric);
+        throw new IllegalArgumentException("Optimization feature is not materialized in application.requiredFeatures: " + metric);
       }
       if (!applicationResource.equals(metric.resource())) {
-        throw new IllegalArgumentException("Optimization metric " + metric
+        throw new IllegalArgumentException("Optimization feature " + metric
             + " must target application resource '" + applicationResource + "'");
       }
       String direction = requiredString(term, "direction", "optimization term");
@@ -789,7 +825,7 @@ public final class BindingProblem {
 
       for (JsonElement rawTransition : requireArray(model, "transitions", "placement " + resource)) {
         JsonObject transition = object(rawTransition, "placement transition");
-        requireOnly(transition, "placement transition", "ref", "from", "to", "metric", "maximum",
+        requireOnly(transition, "placement transition", "ref", "from", "to", "feature", "metric", "maximum",
             "enforcement", "penalty");
         Ref transitionRef = ref(transition.get("ref"), "placement transition.ref");
         if (!resource.equals(transitionRef.resource())) {
@@ -798,8 +834,10 @@ public final class BindingProblem {
         }
         validatePlacementEndpoint(resource, events, ref(transition.get("from"), "placement transition.from"));
         validatePlacementEndpoint(resource, events, ref(transition.get("to"), "placement transition.to"));
-        Ref metricRef = ref(transition.get("metric"), "placement transition.metric");
-        validateApplicationMetric(metricRef, "placement transition.metric");
+        Ref metricRef = transition.has("feature")
+            ? ref(transition.get("feature"), "placement transition.feature")
+            : ref(transition.get("metric"), "placement transition.metric");
+        validateApplicationMetric(metricRef, "placement transition.feature");
         nonNegative(transition.get("maximum"), "placement transition.maximum");
         String enforcement = requiredString(transition, "enforcement", "placement transition " + transitionRef);
         if (!"hard".equals(enforcement) && !"soft".equals(enforcement)) {
@@ -814,14 +852,16 @@ public final class BindingProblem {
 
       if (model.has("globalLatency")) {
         JsonObject global = object(model.get("globalLatency"), "placement globalLatency");
-        requireOnly(global, "placement globalLatency", "metric", "includeExecution", "exclusive", "parallel");
-        Ref metricRef = ref(global.get("metric"), "placement globalLatency.metric");
-        validateApplicationMetric(metricRef, "placement globalLatency.metric");
+        requireOnly(global, "placement globalLatency", "feature", "metric", "includeExecution", "exclusive", "parallel");
+        Ref metricRef = global.has("feature")
+            ? ref(global.get("feature"), "placement globalLatency.feature")
+            : ref(global.get("metric"), "placement globalLatency.metric");
+        validateApplicationMetric(metricRef, "placement globalLatency.feature");
         if (!requiredMetrics.contains(metricRef.id())) {
-          throw new IllegalArgumentException("Placement global latency metric is not materialized: " + metricRef);
+          throw new IllegalArgumentException("Placement global latency feature is not materialized: " + metricRef);
         }
         if (!globalMetrics.add(metricRef.key())) {
-          throw new IllegalArgumentException("More than one placement derives metric " + metricRef);
+          throw new IllegalArgumentException("More than one placement derives feature " + metricRef);
         }
         requiredBoolean(global, "includeExecution", "placement globalLatency");
         String exclusive = requiredString(global, "exclusive", "placement globalLatency");

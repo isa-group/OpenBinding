@@ -8,7 +8,7 @@
     "candidates": {
       "c1": {
         "provides": "service/t1",
-        "metrics": {
+        "features": {
           "cost": 5
         },
         "provider": {
@@ -20,7 +20,7 @@
     "providers": {
       "p1": {}
     },
-    "metricBindings": {
+    "featureBindings": {
       "cost": {
         "resource": "application",
         "id": "cost"

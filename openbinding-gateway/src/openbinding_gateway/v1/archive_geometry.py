@@ -35,7 +35,7 @@ def affine(node: dict, metric_axes: dict[str, int], depth=0) -> tuple | None:
         return (0.0, 0.0, float(node["value"]))
     if node.get("kind") == "path":
         segments = node.get("segments", [])
-        if len(segments) == 2 and segments[0] == "metrics" and segments[1] in metric_axes:
+        if len(segments) == 2 and segments[0] == "features" and segments[1] in metric_axes:
             axis = metric_axes[segments[1]]
             return (float(axis == 0), float(axis == 1), 0.0)
     if node.get("kind") == "negate":
@@ -64,7 +64,7 @@ def raw_constraint_planes(archive, axes):
         return [], []
     labels = [archive.dimensions[j].label.split(":")[-1] for j in axes[:2]]
     if labels[0] == labels[1]:
-        return [], ["Two distinct metrics are required"]
+        return [], ["Two distinct features are required"]
     mapping, planes, skipped = dict(zip(labels, (0, 1), strict=True)), [], []
     for constraint in record(archive.document.get("spec")).get("constraints", []):
         label = metric_key(constraint.get("ref"))
@@ -75,7 +75,7 @@ def raw_constraint_planes(archive, axes):
         left, right = affine(assertion.get("left"), mapping), affine(assertion.get("right"), mapping)
         op = assertion.get("op")
         if left is None or right is None or op not in ("lt", "lte", "gt", "gte", "eq"):
-            skipped.append(f"{label}: hidden metric or nonlinear predicate")
+            skipped.append(f"{label}: hidden feature or nonlinear predicate")
             continue
         delta = [a - b for a, b in zip(left, right, strict=True)]
         for sign in ((1, -1) if op == "eq" else (-1,) if op in ("gt", "gte") else (1,)):
@@ -93,7 +93,7 @@ def outcome_constraints(archive, axes):
     transforms = []
     for j in axes[:2]:
         if j >= len(terms):
-            return {"planes": [], "skipped": skipped + ["Aggregate penalties are not raw metric coordinates"]}
+            return {"planes": [], "skipped": skipped + ["Aggregate penalties are not raw feature coordinates"]}
         d, term = archive.dimensions[j], terms[j]
         norm, sign = record(term.get("normalize")), -1 if d.direction == "maximize" else 1
         span = norm["max"] - norm["min"] if "min" in norm and "max" in norm else 1

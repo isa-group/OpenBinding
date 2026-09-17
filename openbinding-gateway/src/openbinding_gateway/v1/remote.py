@@ -163,7 +163,7 @@ def _validate_result(payload: object) -> dict:
         if (
             not isinstance(solution, dict)
             or set(solution)
-            != {"decision", "metrics", "objectives", "penalties", "violations"}
+            != {"decision", "features", "objectives", "penalties", "violations"}
             or not isinstance(decision, dict)
             or set(decision) != {"kind", "binding"}
             or decision.get("kind") != "binding"
@@ -171,12 +171,12 @@ def _validate_result(payload: object) -> dict:
             or any(not isinstance(key, str) or not valid_ref(value) for key, value in binding.items())
         ):
             raise RemoteEngineError("every engine solution must contain a canonical binding decision")
-        metrics = solution["metrics"]
+        features = solution["features"]
         if (
-            not isinstance(metrics, dict)
-            or any(not isinstance(key, str) or not number(value) for key, value in metrics.items())
+            not isinstance(features, dict)
+            or any(not isinstance(key, str) or not number(value) for key, value in features.items())
         ):
-            raise RemoteEngineError("every engine solution must contain numeric metrics")
+            raise RemoteEngineError("every engine solution must contain numeric features")
         objectives = solution["objectives"]
         if (
             not isinstance(objectives, dict)
@@ -197,8 +197,8 @@ def _validate_result(payload: object) -> dict:
         for component in objectives["components"]:
             if (
                 not isinstance(component, dict)
-                or set(component) != {"metric", "value", "loss", "weight"}
-                or not valid_ref(component.get("metric"))
+                or set(component) != {"feature", "value", "loss", "weight"}
+                or not valid_ref(component.get("feature"))
                 or not number(component.get("value"))
                 or not number(component.get("loss"))
                 or not number(component.get("weight"))

@@ -106,13 +106,13 @@ Calibrates empirical surrogate models for black-box or federated engines.
 
 ## Witness Feasibility Formulation
 
-Given a synthesized instance with candidates $C_i$ for task $i$, a witness configuration $b^*$ is selected. For each constrained metric $m$ with domain $[d_{min}, d_{max}]$ and aggregated witness value $v_{witness} = \mathcal{A}(b^*, m)$:
+Given a synthesized instance with candidates $C_i$ for task $i$, a witness configuration $b^*$ is selected. For each constrained feature $m$ with domain $[d_{min}, d_{max}]$ and aggregated witness value $v_{witness} = \mathcal{A}(b^*, m)$:
 
-- If metric $m$ is minimized:
+- If feature $m$ is minimized:
   $$\text{bound} = v_{witness} + (1 - \tau) \cdot (\max(d_{max} \cdot |T|, 1.5 \cdot v_{witness}) - v_{witness})$$
-  Constraint: $\text{metrics}.m \le \text{bound}$
-- If metric $m$ is maximized:
+  Constraint: $\text{features}.m \le \text{bound}$
+- If feature $m$ is maximized:
   $$\text{bound} = v_{witness} - (1 - \tau) \cdot (v_{witness} - \min(d_{min}, 0.5 \cdot v_{witness}))$$
-  Constraint: $\text{metrics}.m \ge \text{bound}$
+  Constraint: $\text{features}.m \ge \text{bound}$
 
 Setting $\tau = 1.0$ produces the tightest feasible bound matching the witness solution, while $\tau = 0.0$ relaxes the constraint to maximum slack.
