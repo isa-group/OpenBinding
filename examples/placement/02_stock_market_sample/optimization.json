@@ -5,26 +5,25 @@
     "name": "stock_market_placement_sample_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
+    "criteria": [
       {
+        "id": "latency",
         "feature": {
           "resource": "application",
           "id": "latency"
         },
-        "weight": 0.33,
         "normalize": {
-          "min": 0.0,
+          "min": 0,
           "max": 599.28,
           "clamp": true
         }
       },
       {
+        "id": "cost",
         "feature": {
           "resource": "application",
           "id": "cost"
         },
-        "weight": 0.34,
         "normalize": {
           "min": 14.45990841,
           "max": 264.23741579,
@@ -32,14 +31,14 @@
         }
       },
       {
+        "id": "security",
         "feature": {
           "resource": "application",
           "id": "security"
         },
-        "weight": 0.33,
         "normalize": {
           "min": 0.66,
-          "max": 1.0,
+          "max": 1,
           "clamp": true
         }
       }

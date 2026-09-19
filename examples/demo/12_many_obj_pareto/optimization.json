@@ -5,10 +5,9 @@
     "name": "demo_many_obj_optimization"
   },
   "spec": {
-    "mode": "pareto",
-    "type": "MANY",
-    "terms": [
+    "criteria": [
       {
+        "id": "cost",
         "feature": {
           "resource": "application",
           "id": "cost"
@@ -20,6 +19,7 @@
         }
       },
       {
+        "id": "time",
         "feature": {
           "resource": "application",
           "id": "time"
@@ -31,13 +31,14 @@
         }
       },
       {
+        "id": "reliability",
         "feature": {
           "resource": "application",
           "id": "reliability"
         },
         "normalize": {
-          "min": 0.0,
-          "max": 1.0,
+          "min": 0,
+          "max": 1,
           "clamp": true
         }
       }

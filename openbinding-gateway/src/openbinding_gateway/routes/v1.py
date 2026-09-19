@@ -10,6 +10,7 @@ import asyncio
 import copy
 import json
 import logging
+import math
 import time
 import uuid
 from datetime import datetime, timezone
@@ -372,27 +373,28 @@ def _selector_values(mode: Mapping[str, Any], dimension: str, universe: tuple[st
 
 
 def _conformance_shape(mode: Mapping[str, Any]) -> tuple[str, str, int]:
-    optimization_modes = _selector_values(
-        mode, "optimization", ("satisfy", "weighted", "lexicographic", "pareto")
-    )
-    objective_types = _selector_values(mode, "objectiveTypes", ("MONO", "MULTI", "MANY"))
+    scalarizations = mode.get("capabilities", {}).get("scalarizations", {})
+    descriptors = scalarizations.get("values", []) if isinstance(scalarizations, Mapping) else []
     limits = mode.get("limits", {})
     minimum = limits.get("minObjectives", 0) if isinstance(limits, Mapping) else 0
     maximum = limits.get("maxObjectives") if isinstance(limits, Mapping) else None
     minimum = minimum if isinstance(minimum, int) else 0
     maximum = maximum if isinstance(maximum, int) else None
-    for optimization_mode in optimization_modes:
-        for objective_type in objective_types:
-            if optimization_mode == "satisfy":
-                if objective_type == "MONO" and minimum == 0:
-                    return optimization_mode, objective_type, 0
+    for descriptor in descriptors:
+        if not isinstance(descriptor, Mapping):
+            continue
+        scalarization = descriptor.get("id")
+        for objective_type in descriptor.get("objectiveTypes", []):
+            if not isinstance(scalarization, str) or objective_type not in {"SINGLE", "MULTI", "MANY"}:
                 continue
-            objective_count = max(minimum, {"MONO": 1, "MULTI": 2, "MANY": 3}[objective_type])
+            if scalarization == "feasibility" and objective_type == "SINGLE" and minimum == 0:
+                return scalarization, objective_type, 0
+            objective_count = max(minimum, {"SINGLE": 1, "MULTI": 2, "MANY": 3}[objective_type])
             if objective_type == "MULTI" and objective_count > 3:
                 continue
             if maximum is not None and objective_count > maximum:
                 continue
-            return optimization_mode, objective_type, objective_count
+            return scalarization, objective_type, objective_count
     raise RemoteEngineError("Engine has no mode shape suitable for a deterministic conformance probe")
 
 
@@ -421,7 +423,7 @@ def _conformance_options(mode: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _conformance_problem(mode: Mapping[str, Any]) -> dict[str, Any]:
-    optimization_mode, objective_type, objective_count = _conformance_shape(mode)
+    scalarization, objective_type, objective_count = _conformance_shape(mode)
     feature_ids = [f"probe-objective-{index + 1}" for index in range(objective_count)]
     application = {
         "apiVersion": "qos-binding/v1",
@@ -466,14 +468,10 @@ def _conformance_problem(mode: Mapping[str, Any]) -> dict[str, Any]:
         "kind": "Optimization",
         "metadata": {"name": "probe-optimization"},
         "spec": {
-            "mode": optimization_mode,
-            "type": objective_type,
-            **({
-                "terms": [
-                    {"feature": {"resource": "probe-application", "id": feature_id}}
-                    for feature_id in feature_ids
-                ]
-            } if feature_ids else {}),
+            "criteria": [
+                {"id": feature_id, "feature": {"resource": "probe-application", "id": feature_id}}
+                for feature_id in feature_ids
+            ],
         },
     }
     instance = {
@@ -500,6 +498,19 @@ def _conformance_problem(mode: Mapping[str, Any]) -> dict[str, Any]:
         ).to_zip()
     )
     return compile_instance(package).document
+
+
+def _conformance_optimization(mode: Mapping[str, Any]) -> dict[str, Any]:
+    _, objective_type, objective_count = _conformance_shape(mode)
+    scalarization, _, _ = _conformance_shape(mode)
+    return {
+        "type": objective_type,
+        "scalarization": scalarization,
+        "weights": [
+            {"criteria": f"probe-objective-{index + 1}", "value": 1.0 / objective_count}
+            for index in range(objective_count)
+        ],
+    }
 
 
 async def _verify_registration(
@@ -637,6 +648,7 @@ async def _verify_registration(
             transport,
             _conformance_problem(conformance_mode),
             _conformance_options(conformance_mode),
+            _conformance_optimization(conformance_mode),
             timeout_s=10.0,
         )
         expected_binding = {"probe-task": {"resource": "probe-catalog", "id": "probe-candidate"}}
@@ -1171,17 +1183,12 @@ def _ir_features(problem: BindingProblem) -> dict[str, set[str]]:
                 dialect_features.setdefault(feature["dimension"], set()).add(feature["value"])
     placement = spec.get("placement")
     placement_features = {"placement"} if isinstance(placement, (list, dict)) and placement else set()
-    optimization = spec.get("optimization", {})
-    optimization_mode = optimization.get("mode") if isinstance(optimization, dict) else None
-    objective_type = optimization.get("type") if isinstance(optimization, dict) else None
     routing = spec.get("routing", {}) if isinstance(spec.get("routing"), dict) else {}
     features = {
         "workflowNodes": _workflow_features(workflow, routing),
         "aggregations": aggregations,
         "featureScopes": feature_scopes,
         "constraints": constraint_features,
-        "optimization": {optimization_mode} if isinstance(optimization_mode, str) else set(),
-        "objectiveTypes": {objective_type} if isinstance(objective_type, str) else set(),
         "expressions": expression_features,
         "placement": placement_features,
         "irExtensions": set(),
@@ -1189,6 +1196,75 @@ def _ir_features(problem: BindingProblem) -> dict[str, set[str]]:
     for dimension, values in dialect_features.items():
         features.setdefault(dimension, set()).update(values)
     return features
+
+
+def _resolve_execution_optimization(
+    problem: BindingProblem,
+    mode: Mapping[str, Any],
+    requested: Any,
+) -> dict[str, Any]:
+    """Validate and canonicalize the execution-time optimization selection."""
+    if not isinstance(requested, Mapping):
+        raise HTTPException(status_code=422, detail={
+            "code": "optimization_required",
+            "message": "job execution requires an optimization object",
+        })
+    objective_type = requested.get("type")
+    scalarization = requested.get("scalarization")
+    if objective_type not in {"SINGLE", "MULTI", "MANY"}:
+        raise HTTPException(status_code=422, detail={"code": "invalid_optimization_type", "message": "optimization.type must be SINGLE, MULTI or MANY"})
+    if not isinstance(scalarization, str) or not scalarization:
+        raise HTTPException(status_code=422, detail={"code": "scalarization_required", "message": "optimization.scalarization is required"})
+    criteria = problem.document.get("spec", {}).get("optimization", {}).get("criteria", [])
+    criteria_ids = [item.get("id") for item in criteria if isinstance(item, Mapping)]
+    if len(criteria_ids) != len(set(criteria_ids)):
+        raise HTTPException(status_code=422, detail={"code": "invalid_criteria", "message": "BindingProblem contains duplicate criterion ids"})
+    count = len(criteria_ids)
+    if objective_type == "MULTI" and not 2 <= count <= 3:
+        raise HTTPException(status_code=422, detail={"code": "objective_cardinality", "message": "MULTI requires two or three criteria"})
+    if objective_type == "MANY" and count < 3:
+        raise HTTPException(status_code=422, detail={"code": "objective_cardinality", "message": "MANY requires at least three criteria"})
+    capabilities = mode.get("capabilities", {})
+    declaration = capabilities.get("scalarizations") if isinstance(capabilities, Mapping) else None
+    descriptors = declaration.get("values", []) if isinstance(declaration, Mapping) else []
+    descriptor = next((item for item in descriptors if isinstance(item, Mapping) and item.get("id") == scalarization), None)
+    if descriptor is None:
+        raise HTTPException(status_code=422, detail={"code": "scalarization_incompatible", "message": f"engine mode does not support scalarization {scalarization!r}"})
+    if objective_type not in descriptor.get("objectiveTypes", []):
+        raise HTTPException(status_code=422, detail={"code": "optimization_type_incompatible", "message": f"scalarization {scalarization!r} does not support {objective_type}"})
+    weight_policy = descriptor.get("weightPolicy")
+    supplied = requested.get("weights")
+    if supplied is not None and not isinstance(supplied, list):
+        raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "optimization.weights must be an array"})
+    if weight_policy == "forbidden" and supplied not in (None, []):
+        raise HTTPException(status_code=422, detail={"code": "weights_forbidden", "message": f"scalarization {scalarization!r} does not accept weights"})
+    if weight_policy == "required" and supplied is None:
+        if count == 0:
+            raise HTTPException(status_code=422, detail={"code": "weights_required", "message": "a weighted scalarization requires at least one criterion"})
+        supplied = [{"criteria": criterion_id, "value": 1.0 / count} for criterion_id in criteria_ids]
+    if supplied is None:
+        supplied = []
+    weights: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in supplied:
+        if not isinstance(item, Mapping) or set(item) != {"criteria", "value"}:
+            raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "each weight must contain exactly criteria and value"})
+        criterion_id = item.get("criteria")
+        value = item.get("value")
+        if criterion_id not in criteria_ids or criterion_id in seen:
+            raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "weights must reference each criterion exactly once"})
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)) or float(value) <= 0:
+            raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "criterion weights must be positive finite numbers"})
+        seen.add(criterion_id)
+        weights.append({"criteria": criterion_id, "value": float(value)})
+    if weight_policy == "required" and set(seen) != set(criteria_ids):
+        raise HTTPException(status_code=422, detail={"code": "invalid_weights", "message": "weights must cover all criteria"})
+    if weights:
+        total = sum(item["value"] for item in weights)
+        weights = [{**item, "value": item["value"] / total} for item in weights]
+    if count == 0 and scalarization != "feasibility":
+        raise HTTPException(status_code=422, detail={"code": "criteria_required", "message": "criteria are required unless using feasibility scalarization"})
+    return {"type": objective_type, "scalarization": scalarization, "weights": weights}
 
 
 def _mode_compatibility(problem: BindingProblem, mode: dict[str, Any]) -> list[dict[str, Any]]:
@@ -1263,8 +1339,8 @@ def _mode_compatibility(problem: BindingProblem, mode: dict[str, Any]) -> list[d
     task_count = len(tasks) if isinstance(tasks, (dict, list)) else 0
     candidate_count = _candidate_count(spec)
     optimization = spec.get("optimization", {})
-    terms = optimization.get("terms", []) if isinstance(optimization, Mapping) else []
-    objective_count = len(terms) if isinstance(terms, list) else 0
+    criteria = optimization.get("criteria", []) if isinstance(optimization, Mapping) else []
+    objective_count = len(criteria) if isinstance(criteria, list) else 0
     limits = mode.get("limits", {})
     for key, actual, label in (
         ("maxTasks", task_count, "tasks"),
@@ -2060,7 +2136,7 @@ def _binding_violations(problem: BindingProblem, binding: dict[str, Any]) -> lis
 
 
 def _authoritative_evaluation(
-    problem: BindingProblem, binding: dict[str, Any]
+    problem: BindingProblem, binding: dict[str, Any], execution: Mapping[str, Any] | None = None
 ) -> tuple[dict[str, float], dict[str, Any], list[dict[str, Any]]]:
     """Reevaluate a returned decision against the gateway's canonical IR."""
     violations = _binding_violations(problem, binding)
@@ -2073,7 +2149,7 @@ def _authoritative_evaluation(
     if violations:
         return empty_features, {}, violations
     try:
-        evaluation = problem.evaluate(binding)
+        evaluation = problem.evaluate(binding, execution)
         features = evaluation["features"]
         objectives = evaluation["objectives"]
         violations.extend(evaluation["violations"])
@@ -2087,6 +2163,7 @@ def _authoritative_evaluation(
 def _reevaluate_result(
     problem: BindingProblem,
     result: dict[str, Any],
+    execution: Mapping[str, Any] | None = None,
     allowed_terminations: list[str] | tuple[str, ...] | set[str] = ("FEASIBLE", "UNKNOWN"),
 ) -> dict[str, Any]:
     """Replace engine-reported QoS fields with authoritative gateway values."""
@@ -2103,8 +2180,8 @@ def _reevaluate_result(
         ):
             invalid = True
             continue
-        features, objectives, violations = _authoritative_evaluation(problem, binding)
-        if not objectives:
+        features, objectives, violations = _authoritative_evaluation(problem, binding, execution)
+        if not objectives and (problem.document["spec"]["optimization"].get("criteria") or violations):
             invalid = True
             continue
         soft_by_ref = {
@@ -3968,11 +4045,13 @@ async def _run_job(job_id: str) -> None:
             job["transport"],
             job["problem"].document,
             job["options"],
+            job["optimization"],
             timeout_s=job["timeout"],
         )
         result = _reevaluate_result(
             job["problem"],
             engine_result,
+            job["optimization"],
             job["mode"]["terminationGuarantees"],
         )
         result["provenance"] = {**job["provenance"], "engineReported": engine_result.get("provenance", {})}
@@ -4213,6 +4292,7 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
                 transport,
                 problem.document,
                 job.options,
+                request.get("optimization", provenance.get("optimization", {})),
                 timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
             )
         except RemoteEngineError as exc:
@@ -4235,6 +4315,7 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
                             fallback_transport,
                             problem.document,
                             job.options,
+                            request.get("optimization", provenance.get("optimization", {})),
                             timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
                         )
                         job.engine_id = fallback_engine
@@ -4274,6 +4355,7 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
         reevaluated = _reevaluate_result(
             problem,
             remote_result,
+            request.get("optimization", provenance.get("optimization", {})),
             mode_contract["terminationGuarantees"],
         )
         job.provenance = {
@@ -4426,7 +4508,7 @@ async def create_job(
             payload = strict_json_loads(body)
             snapshot_id = payload.get("snapshot") if isinstance(payload, dict) else None
             if snapshot_id:
-                allowed_fields = {"snapshot", "engine", "registration", "mode", "options", "configuration"}
+                allowed_fields = {"snapshot", "engine", "registration", "mode", "options", "optimization", "configuration"}
                 if set(payload) - allowed_fields:
                     return _problem(
                         422,
@@ -4436,7 +4518,7 @@ async def create_job(
                 if 'configuration' in payload:
                     if session is None or caller is None:
                         return _problem(401, 'unauthorized', 'Selecting a library execution configuration requires an account.')
-                    if set(payload) & {'engine', 'registration', 'mode', 'options'}:
+                    if set(payload) & {'engine', 'registration', 'mode', 'options', 'optimization'}:
                         return _problem(422, 'ambiguous_configuration', 'Select a configuration version or inline execution settings, not both.')
                     from ..artifacts import resolve_version, reference, version_content
                     from ..models.artifacts import ArtifactRef
@@ -4535,6 +4617,14 @@ async def create_job(
     except HTTPException as exc:
         return _error_from_http(exc)
     engine_hash = digest(manifest)
+    try:
+        execution_optimization = _resolve_execution_optimization(
+            problem,
+            selected_mode,
+            payload.get("optimization") if isinstance(payload, dict) else None,
+        )
+    except HTTPException as exc:
+        return _error_from_http(exc)
     immutable_engine_ref = _engine_ref(manifest, engine_namespace or "bim.builtin")
     if caller is not None and not allows_engine(caller, immutable_engine_ref):
         return _problem(404, "not_found", "Engine revision not found")
@@ -4644,6 +4734,7 @@ async def create_job(
         "registration": registration_ref,
         "protocolDigest": protocol_hash,
         "mode": mode,
+        "optimization": execution_optimization,
         "algorithm": selected_mode.get("algorithm"),
         "options": effective_options,
         "limits": limits,
@@ -4692,6 +4783,7 @@ async def create_job(
         "protocol": "bim-engine/v1",
         "protocolDigest": protocol_hash,
         "mode": mode,
+        "optimization": execution_optimization,
         "algorithm": selected_mode.get("algorithm"),
         "profile": profile,
         "profileDigest": profile["digest"],
@@ -4786,6 +4878,7 @@ async def create_job(
                 "bindingProblem": problem.document,
                 "timeout": effective_timeout,
                 "mode": mode_contract,
+                "optimization": execution_optimization,
                 "registration": registration_ref,
             },
             options=effective_options,
@@ -4834,6 +4927,7 @@ async def create_job(
         "options": effective_options,
         "timeout": effective_timeout,
         "mode": mode_contract,
+        "optimization": execution_optimization,
         "idempotencyKey": idempotency_key,
         "idempotencyFingerprint": request_fingerprint,
         "provenance": provenance,

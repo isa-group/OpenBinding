@@ -641,37 +641,16 @@ public final class BindingProblem {
 
   private void validateOptimization() {
     JsonObject optimization = optimization();
-    requireOnly(optimization, "optimization", "resource", "mode", "type", "terms", "penalties");
+    requireOnly(optimization, "optimization", "resource", "criteria", "penalties");
     requiredString(optimization, "resource", "optimization");
-    String mode = requiredString(optimization, "mode", "optimization");
-    if (!"satisfy".equals(mode) && !"weighted".equals(mode)
-        && !"lexicographic".equals(mode) && !"pareto".equals(mode)) {
-      throw new IllegalArgumentException("Unsupported optimization mode '" + mode + "'");
-    }
-    String objectiveType = requiredString(optimization, "type", "optimization");
-    if (!"MONO".equals(objectiveType) && !"MULTI".equals(objectiveType)
-        && !"MANY".equals(objectiveType)) {
-      throw new IllegalArgumentException("Unsupported objective type '" + objectiveType + "'");
-    }
-    JsonArray terms = requireArray(optimization, "terms", "optimization");
-    if ("satisfy".equals(mode) && terms.size() != 0) throw new IllegalArgumentException("satisfy optimization cannot contain terms");
-    if (!"satisfy".equals(mode) && terms.size() == 0) throw new IllegalArgumentException(mode + " optimization requires terms");
-    if ("satisfy".equals(mode) && !"MONO".equals(objectiveType)) {
-      throw new IllegalArgumentException("satisfy optimization must use objective type MONO");
-    }
-    if ("MULTI".equals(objectiveType) && (terms.size() < 2 || terms.size() > 3)) {
-      throw new IllegalArgumentException("MULTI optimization requires two or three terms");
-    }
-    if ("MANY".equals(objectiveType) && terms.size() < 3) {
-      throw new IllegalArgumentException("MANY optimization requires at least three terms");
-    }
-    double termWeightTotal = 0.0;
-    for (JsonElement value : terms) {
-      JsonObject term = object(value, "optimization term");
-      requireOnly(term, "optimization term", "feature", "metric", "direction", "weight", "normalize");
-      Ref metric = term.has("feature")
-          ? ref(term.get("feature"), "optimization term.feature")
-          : ref(term.get("metric"), "optimization term.metric");
+    JsonArray criteria = requireArray(optimization, "criteria", "optimization");
+    Set<String> criterionIds = new LinkedHashSet<String>();
+    for (JsonElement value : criteria) {
+      JsonObject criterion = object(value, "optimization criterion");
+      requireOnly(criterion, "optimization criterion", "id", "feature", "direction", "normalize");
+      String criterionId = requiredString(criterion, "id", "optimization criterion");
+      if (!criterionIds.add(criterionId)) throw new IllegalArgumentException("Duplicate optimization criterion id " + criterionId);
+      Ref metric = ref(criterion.get("feature"), "optimization criterion.feature");
       if (!metricDefinitions.containsKey(metric.id())) throw new IllegalArgumentException("Unknown optimization feature " + metric);
       if (!requiredMetrics.contains(metric.id())) {
         throw new IllegalArgumentException("Optimization feature is not materialized in application.requiredFeatures: " + metric);
@@ -680,17 +659,11 @@ public final class BindingProblem {
         throw new IllegalArgumentException("Optimization feature " + metric
             + " must target application resource '" + applicationResource + "'");
       }
-      String direction = requiredString(term, "direction", "optimization term");
+      String direction = requiredString(criterion, "direction", "optimization criterion");
       if (!"minimize".equals(direction) && !"maximize".equals(direction)) throw new IllegalArgumentException("Invalid objective direction");
-      double weight = finiteNumber(term.get("weight"), "optimization term.weight");
-      if (weight <= 0) throw new IllegalArgumentException("Optimization weights must be positive");
-      termWeightTotal += weight;
-      if (("lexicographic".equals(mode) || "pareto".equals(mode)) && weight != 1.0) {
-        throw new IllegalArgumentException(mode + " optimization terms must carry canonical weight 1");
-      }
-      if (term.has("normalize")) {
-        JsonObject bounds = object(term.get("normalize"), "optimization term.normalize");
-        requireOnly(bounds, "optimization term.normalize", "min", "max", "clamp");
+      if (criterion.has("normalize")) {
+        JsonObject bounds = object(criterion.get("normalize"), "optimization criterion.normalize");
+        requireOnly(bounds, "optimization criterion.normalize", "min", "max", "clamp");
         double min = finiteNumber(bounds.get("min"), "normalize.min");
         double max = finiteNumber(bounds.get("max"), "normalize.max");
         if (max <= min) throw new IllegalArgumentException("normalize.max must be greater than normalize.min");
@@ -699,9 +672,6 @@ public final class BindingProblem {
           throw new IllegalArgumentException("normalize.clamp must be boolean");
         }
       }
-    }
-    if ("weighted".equals(mode) && Math.abs(termWeightTotal - 1.0) > 1e-12) {
-      throw new IllegalArgumentException("Weighted optimization term weights must be normalized to 1 in canonical IR");
     }
     JsonArray penalties = requireArray(optimization, "penalties", "optimization");
     Set<String> referenced = new LinkedHashSet<String>();

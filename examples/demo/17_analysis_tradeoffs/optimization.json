@@ -5,15 +5,13 @@
     "name": "17_analysis_tradeoffs_optimization"
   },
   "spec": {
-    "mode": "pareto",
-    "type": "MULTI",
-    "terms": [
+    "criteria": [
       {
+        "id": "cost",
         "feature": {
           "resource": "application",
           "id": "cost"
         },
-        "weight": 1,
         "normalize": {
           "min": 0,
           "max": 200,
@@ -21,11 +19,11 @@
         }
       },
       {
+        "id": "latency",
         "feature": {
           "resource": "application",
           "id": "latency"
         },
-        "weight": 1,
         "normalize": {
           "min": 0,
           "max": 200,

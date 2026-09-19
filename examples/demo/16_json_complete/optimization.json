@@ -6,15 +6,13 @@
     "description": "One utility over four normalized service-level dimensions."
   },
   "spec": {
-    "mode": "weighted",
-    "type": "MONO",
-    "terms": [
+    "criteria": [
       {
+        "id": "latency",
         "feature": {
           "resource": "application",
           "id": "latency"
         },
-        "weight": 0.45,
         "normalize": {
           "min": 0,
           "max": 220,
@@ -22,11 +20,11 @@
         }
       },
       {
+        "id": "cost",
         "feature": {
           "resource": "application",
           "id": "cost"
         },
-        "weight": 0.25,
         "normalize": {
           "min": 0,
           "max": 30,
@@ -34,11 +32,11 @@
         }
       },
       {
+        "id": "carbon",
         "feature": {
           "resource": "application",
           "id": "carbon"
         },
-        "weight": 0.15,
         "normalize": {
           "min": 0,
           "max": 30,
@@ -46,11 +44,11 @@
         }
       },
       {
+        "id": "trust",
         "feature": {
           "resource": "application",
           "id": "trust"
         },
-        "weight": 0.15,
         "normalize": {
           "min": 0,
           "max": 1,

@@ -10,7 +10,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "openbinding-gateway" / "src"))
-DERIVED_ROOTS = {ROOT / "experimentation" / "icsoc" / "out" / "bim-v1"}
+DERIVED_ROOTS = {
+    ROOT / "experimentation" / "icsoc" / "out" / "bim-v1",
+    ROOT / "datasets",
+}
 
 
 def package_directories() -> list[Path]:

@@ -15,11 +15,11 @@
     "resources": {
       "application": {
         "application": "application.json",
-        "workflow": "workflow.bpmn",
-        "routing": "routing.json",
-        "placement": "placement.json"
+        "workflow": "workflow.bpmn"
       },
       "candidateCatalog": {
+        "routing": "routing.json",
+        "placement": "placement.json",
         "catalog": "candidates.json"
       },
       "constraintSet": {

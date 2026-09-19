@@ -5,9 +5,9 @@
     "name": "cremaschi2018_textbook_access_multi_hard_optimization"
   },
   "spec": {
-    "mode": "pareto",
-    "terms": [
+    "criteria": [
       {
+        "id": "availability",
         "feature": {
           "resource": "application",
           "id": "availability"
@@ -19,6 +19,7 @@
         }
       },
       {
+        "id": "cost_usd",
         "feature": {
           "resource": "application",
           "id": "cost_usd"
@@ -30,6 +31,7 @@
         }
       },
       {
+        "id": "latency_ms",
         "feature": {
           "resource": "application",
           "id": "latency_ms"

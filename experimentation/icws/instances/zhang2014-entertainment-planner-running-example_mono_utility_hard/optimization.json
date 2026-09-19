@@ -5,14 +5,13 @@
     "name": "zhang2014_entertainment_planner_running_example_mono_utility_hard_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
+    "criteria": [
       {
+        "id": "availability",
         "feature": {
           "resource": "application",
           "id": "availability"
         },
-        "weight": 0.17,
         "normalize": {
           "min": 0,
           "max": 1,
@@ -20,11 +19,11 @@
         }
       },
       {
+        "id": "cost",
         "feature": {
           "resource": "application",
           "id": "cost"
         },
-        "weight": 0.17,
         "normalize": {
           "min": 0,
           "max": 1000,
@@ -32,11 +31,11 @@
         }
       },
       {
+        "id": "distance",
         "feature": {
           "resource": "application",
           "id": "distance"
         },
-        "weight": 0.17,
         "normalize": {
           "min": 0,
           "max": 50000,
@@ -44,23 +43,23 @@
         }
       },
       {
+        "id": "reliability",
         "feature": {
           "resource": "application",
           "id": "reliability"
         },
-        "weight": 0.17,
         "normalize": {
-          "min": 0.0,
-          "max": 1.0,
+          "min": 0,
+          "max": 1,
           "clamp": true
         }
       },
       {
+        "id": "security",
         "feature": {
           "resource": "application",
           "id": "security"
         },
-        "weight": 0.16,
         "normalize": {
           "min": 1,
           "max": 5,
@@ -68,11 +67,11 @@
         }
       },
       {
+        "id": "time",
         "feature": {
           "resource": "application",
           "id": "time"
         },
-        "weight": 0.16,
         "normalize": {
           "min": 0,
           "max": 1440,

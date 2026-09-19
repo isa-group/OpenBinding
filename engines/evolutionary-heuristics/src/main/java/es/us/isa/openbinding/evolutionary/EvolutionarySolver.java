@@ -42,11 +42,12 @@ final class EvolutionarySolver {
     if (!"elitist-genetic".equals(algorithm) && !"pareto-genetic".equals(algorithm)) {
       throw new IllegalArgumentException("options.algorithm must be elitist-genetic or pareto-genetic");
     }
-    String mode = request.problem().optimization().get("mode").getAsString();
-    if ("pareto-genetic".equals(algorithm) && !"pareto".equals(mode)) {
-      throw new IllegalArgumentException("pareto-genetic requires optimization.mode pareto");
+    JsonObject optimization = request.optimization();
+    String scalarization = optimization.get("scalarization").getAsString();
+    if ("pareto-genetic".equals(algorithm) && !"pareto-front".equals(scalarization)) {
+      throw new IllegalArgumentException("pareto-genetic requires scalarization pareto-front");
     }
-    if ("elitist-genetic".equals(algorithm) && "pareto".equals(mode)) {
+    if ("elitist-genetic".equals(algorithm) && "pareto-front".equals(scalarization)) {
       throw new IllegalArgumentException("elitist-genetic does not implement Pareto archive semantics");
     }
     int populationSize = EngineContract.integerOption(options, "population_size", 100, 2, 10000);
@@ -59,11 +60,11 @@ final class EvolutionarySolver {
     double crossover = probability(options, "crossover_probability", 0.9);
     double mutation = probability(options, "mutation_probability",
         1.0 / Math.max(1, request.problem().serviceTasks().size()));
-    return search(request.problem(), algorithm, populationSize, maxEvaluations, archiveSize,
+    return search(request.problem(), optimization, algorithm, populationSize, maxEvaluations, archiveSize,
         seed, timeBudget, crossover, mutation);
   }
 
-  private Result search(BindingProblem problem, String algorithm, int populationSize,
+  private Result search(BindingProblem problem, JsonObject optimization, String algorithm, int populationSize,
       int maxEvaluations, int archiveSize, long seed, Long timeBudgetMs,
       double crossoverProbability, double mutationProbability) {
     CanonicalEvaluator evaluator = new CanonicalEvaluator(problem);
@@ -83,7 +84,7 @@ final class EvolutionarySolver {
       List<CanonicalEvaluator.Evaluation> scored = new ArrayList<CanonicalEvaluator.Evaluation>();
       for (Map<String, BindingProblem.Ref> chromosome : population) {
         if (evaluations >= maxEvaluations || expired(started, timeBudgetMs, evaluations)) break;
-        CanonicalEvaluator.Evaluation evaluation = evaluator.evaluate(chromosome);
+        CanonicalEvaluator.Evaluation evaluation = evaluator.evaluate(chromosome, optimization);
         scored.add(evaluation);
         evaluations++;
         if (evaluation.feasible()) {

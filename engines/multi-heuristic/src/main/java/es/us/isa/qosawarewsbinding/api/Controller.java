@@ -35,18 +35,6 @@ public final class Controller implements HttpHandler {
 
   public String solvePayload(String payload) {
     EngineContract.Request request = EngineContract.parse(payload);
-    JsonObject optimization = request.problem().optimization();
-    if (!"pareto".equals(optimization.get("mode").getAsString())) {
-      throw new IllegalArgumentException("pareto-sampling requires optimization.mode pareto");
-    }
-    if (!"MULTI".equals(optimization.get("type").getAsString())) {
-      throw new IllegalArgumentException("pareto-sampling requires optimization.type MULTI");
-    }
-    int objectives = optimization.getAsJsonArray("terms").size();
-    if (objectives < 2 || objectives > 3) {
-      throw new IllegalArgumentException("MULTI optimization requires two or three terms");
-    }
-
     JsonObject options = request.options();
     EngineContract.validateOptions(options, "iterations", "archive_size", "seed", "time_budget_ms");
     int iterations = EngineContract.integerOption(options, "iterations", 5000, 1, 1000000);
@@ -54,7 +42,7 @@ public final class Controller implements HttpHandler {
     long seed = EngineContract.longOption(options, "seed", 0L);
     Long budget = EngineContract.optionalPositiveLong(options, "time_budget_ms");
     V1MultiSearch.Result result = V1MultiSearch.run(
-        request.problem(), iterations, budget, archiveSize, seed);
+        request.problem(), request.optimization(), iterations, budget, archiveSize, seed);
 
     JsonObject provenance = new JsonObject();
     provenance.addProperty("algorithm", "bounded-pareto-sampling");

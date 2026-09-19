@@ -21,10 +21,10 @@ export function buildServer(solver: Pick<Solver, 'validate' | 'solve'> = new Sol
       requireEnvelope(body);
       // Validate synchronously so unsupported IR/options produce 422 instead
       // of a queued job that later fails after silently changing semantics.
-      solver.validate(body.problem, body.options || {});
+      solver.validate(body.problem, body.options || {}, body.optimization);
       const job = jobs.createJob();
       jobs.updateJob(job.id, { status: 'running' });
-      solver.solve(body.problem, body.options || {})
+      solver.solve(body.problem, body.options || {}, body.optimization)
         .then((result) => jobs.updateJob(job.id, { status: 'completed', result }))
         .catch((error) => jobs.updateJob(job.id, { status: 'failed', error: String(error?.message || error) }));
       return reply.code(202).send({ id: job.id, status: 'queued' });
@@ -46,10 +46,10 @@ function requireEnvelope(body: any): void {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     throw new Error('BindingProblemRequest must be an object');
   }
-  const unknown = Object.keys(body).filter((key) => !['apiVersion', 'kind', 'protocol', 'problem', 'options'].includes(key));
+  const unknown = Object.keys(body).filter((key) => !['apiVersion', 'kind', 'protocol', 'problem', 'optimization', 'options'].includes(key));
   if (unknown.length) throw new Error(`BindingProblemRequest has unknown fields: ${unknown.join(', ')}`);
   if (body.apiVersion !== 'bim/v1' || body.kind !== 'BindingProblemRequest'
-      || body.protocol !== 'bim-engine/v1' || !body.problem) {
+      || body.protocol !== 'bim-engine/v1' || !body.problem || !body.optimization) {
     throw new Error('Expected bim/v1 BindingProblemRequest using bim-engine/v1');
   }
 }

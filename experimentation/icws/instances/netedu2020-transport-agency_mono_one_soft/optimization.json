@@ -5,21 +5,6 @@
     "name": "netedu2020_transport_agency_mono_one_soft_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
-      {
-        "feature": {
-          "resource": "application",
-          "id": "availability"
-        },
-        "weight": 1.0,
-        "normalize": {
-          "min": 0,
-          "max": 1,
-          "clamp": true
-        }
-      }
-    ],
     "penalties": [
       {
         "constraint": {
@@ -41,6 +26,20 @@
           "id": "gen_c_dep_same_1"
         },
         "weight": 1
+      }
+    ],
+    "criteria": [
+      {
+        "id": "availability",
+        "feature": {
+          "resource": "application",
+          "id": "availability"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 1,
+          "clamp": true
+        }
       }
     ]
   }

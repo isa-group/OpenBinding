@@ -5,14 +5,13 @@
     "name": "demo_14_shared_candidates_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
+    "criteria": [
       {
+        "id": "cost",
         "feature": {
           "resource": "application",
           "id": "cost"
         },
-        "weight": 1,
         "normalize": {
           "min": 0,
           "max": 30,
@@ -20,11 +19,11 @@
         }
       },
       {
+        "id": "latency",
         "feature": {
           "resource": "application",
           "id": "latency"
         },
-        "weight": 1,
         "normalize": {
           "min": 0,
           "max": 90,

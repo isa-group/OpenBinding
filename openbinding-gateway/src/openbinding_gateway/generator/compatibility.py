@@ -21,10 +21,10 @@ class IncompatibleTargetEnginesError(ValueError):
 @dataclass
 class TargetCapabilities:
     target_engines: list[str]
-    allowed_optimizations: list[str] = field(default_factory=lambda: ["weighted", "pareto"])
-    default_optimization: str = "weighted"
-    allowed_objective_types: list[str] = field(default_factory=lambda: ["MONO", "MANY"])
-    default_objective_type: str = "MONO"
+    allowed_optimizations: list[str] = field(default_factory=lambda: ["weighted-sum", "pareto-front"])
+    default_optimization: str = "weighted-sum"
+    allowed_objective_types: list[str] = field(default_factory=lambda: ["SINGLE", "MANY"])
+    default_objective_type: str = "SINGLE"
     min_objectives: int = 1
     max_tasks: int = 10000
     allowed_workflow_nodes: set[str] = field(default_factory=lambda: {"task", "empty", "sequence", "parallel", "exclusive.probabilistic", "repeat.count"})
@@ -80,7 +80,7 @@ def resolve_engine_capabilities(target_engines: list[str] | None) -> TargetCapab
             )
         engine_modes[engine] = modes
 
-    # Find common optimization modes across all engines
+    # Find common scalarizations across all engines
     # An engine supports an optimization mode if at least one of its modes supports it
     engine_opts: dict[str, set[str]] = {}
     engine_obj_types: dict[str, set[str]] = {}
@@ -92,17 +92,11 @@ def resolve_engine_capabilities(target_engines: list[str] | None) -> TargetCapab
         min_obj = 1
         for mode in modes:
             caps = mode.get("capabilities", {})
-            opt_spec = caps.get("optimization", {})
-            if opt_spec.get("selector") == "all":
-                opts.update(["weighted", "pareto", "satisfy", "lexicographic"])
-            else:
-                opts.update(opt_spec.get("values", []))
-
-            obj_spec = caps.get("objectiveTypes", {})
-            if obj_spec.get("selector") == "all":
-                objs.update(["MONO", "MANY"])
-            else:
-                objs.update(obj_spec.get("values", []))
+            opt_spec = caps.get("scalarizations", {})
+            for descriptor in opt_spec.get("values", []) if isinstance(opt_spec, dict) else []:
+                if isinstance(descriptor, dict):
+                    opts.add(descriptor.get("id"))
+                    objs.update(descriptor.get("objectiveTypes", []))
 
             limits = mode.get("limits", {})
             if "minObjectives" in limits:
@@ -121,7 +115,7 @@ def resolve_engine_capabilities(target_engines: list[str] | None) -> TargetCapab
         for engine, opts in engine_opts.items():
             conflicts.append({
                 "engine": engine,
-                "dimension": "optimization",
+                "dimension": "scalarizations",
                 "supported": sorted(opts),
             })
     if not common_objs:
@@ -164,12 +158,12 @@ def resolve_engine_capabilities(target_engines: list[str] | None) -> TargetCapab
     common_aggrs = set.intersection(*all_aggregations) if all_aggregations else set()
 
     # Determine default optimization & objective type
-    default_opt = "weighted" if "weighted" in common_opts else next(iter(sorted(common_opts)))
-    default_obj = "MONO" if "MONO" in common_objs and default_opt == "weighted" else next(iter(sorted(common_objs)))
+    default_opt = "weighted-sum" if "weighted-sum" in common_opts else next(iter(sorted(common_opts)))
+    default_obj = "SINGLE" if "SINGLE" in common_objs and default_opt == "weighted-sum" else next(iter(sorted(common_objs)))
     req_min_objs = max(engine_min_objs.values()) if engine_min_objs else 1
 
     # If pareto is chosen or default, objectiveType should be MANY if supported, and min_objectives >= 2 (or >= 3 if many-heuristic)
-    if default_opt == "pareto":
+    if default_opt == "pareto-front":
         if "MANY" in common_objs:
             default_obj = "MANY"
         req_min_objs = max(req_min_objs, 3 if "many-heuristic" in unique_engines else 2)
@@ -179,8 +173,8 @@ def resolve_engine_capabilities(target_engines: list[str] | None) -> TargetCapab
     for engine, modes in engine_modes.items():
         for m in modes:
             caps = m.get("capabilities", {})
-            opt_values = caps.get("optimization", {}).get("values", [])
-            if caps.get("optimization", {}).get("selector") == "all" or default_opt in opt_values:
+            opt_values = [item.get("id") for item in caps.get("scalarizations", {}).get("values", []) if isinstance(item, dict)]
+            if default_opt in opt_values:
                 mode_by_engine[engine] = m.get("id", "default")
                 break
         if engine not in mode_by_engine and modes:

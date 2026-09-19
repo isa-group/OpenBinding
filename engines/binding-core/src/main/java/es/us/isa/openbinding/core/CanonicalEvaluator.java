@@ -152,32 +152,53 @@ public final class CanonicalEvaluator {
   public BindingProblem problem() { return problem; }
 
   public Evaluation evaluate(Map<String, BindingProblem.Ref> decision) {
+    JsonObject execution = new JsonObject();
+    execution.addProperty("type", "SINGLE");
+    execution.addProperty("scalarization", "weighted-sum");
+    JsonArray weights = new JsonArray();
+    for (JsonElement item : problem.optimization().getAsJsonArray("criteria")) {
+      JsonObject weight = new JsonObject();
+      weight.addProperty("criteria", item.getAsJsonObject().get("id").getAsString());
+      weight.addProperty("value", 1.0);
+      weights.add(weight);
+    }
+    execution.add("weights", weights);
+    return evaluate(decision, execution);
+  }
+
+  public Evaluation evaluate(Map<String, BindingProblem.Ref> decision, JsonObject execution) {
     Map<String, BindingProblem.Ref> binding = validateDecision(decision);
     Map<String, Double> metrics = evaluateMetrics(binding);
     metrics.putAll(evaluatePlacementMetrics(binding));
     ConstraintOutcome constraints = evaluateConstraints(binding, metrics);
     evaluatePlacementConstraints(binding, constraints);
     JsonObject optimization = problem.optimization();
-    JsonArray terms = optimization.getAsJsonArray("terms");
+    JsonArray criteria = optimization.getAsJsonArray("criteria");
+    Map<String, Double> effectiveWeights = new LinkedHashMap<String, Double>();
+    for (JsonElement item : execution.getAsJsonArray("weights")) {
+      JsonObject weight = item.getAsJsonObject();
+      effectiveWeights.put(weight.get("criteria").getAsString(), weight.get("value").getAsDouble());
+    }
     JsonArray components = new JsonArray();
-    List<Double> termVector = new ArrayList<Double>();
+    List<Double> criterionVector = new ArrayList<Double>();
     double weighted = 0.0;
-    for (int index = 0; index < terms.size(); index++) {
-      JsonObject term = terms.get(index).getAsJsonObject();
+    for (int index = 0; index < criteria.size(); index++) {
+      JsonObject criterion = criteria.get(index).getAsJsonObject();
       BindingProblem.Ref metricRef = BindingProblem.ref(
-          term.has("feature") ? term.get("feature") : term.get("metric"),
-          "optimization term.feature");
+          criterion.get("feature"), "optimization criterion.feature");
       double raw = metrics.get(metricRef.id()).doubleValue();
-      double loss = objectiveLoss(raw, term);
+      double loss = objectiveLoss(raw, criterion);
+      double weight = effectiveWeights.containsKey(criterion.get("id").getAsString())
+          ? effectiveWeights.get(criterion.get("id").getAsString()).doubleValue() : 0.0;
       JsonObject component = new JsonObject();
+      component.addProperty("criteria", criterion.get("id").getAsString());
       component.add("feature", metricRef.toJson());
-      component.add("metric", metricRef.toJson());
       component.addProperty("value", raw);
       component.addProperty("loss", loss);
-      component.addProperty("weight", term.get("weight").getAsDouble());
+      component.addProperty("weight", weight);
       components.add(component);
-      termVector.add(Double.valueOf(loss));
-      weighted += term.get("weight").getAsDouble() * loss;
+      criterionVector.add(Double.valueOf(loss));
+      weighted += weight * loss;
     }
 
     List<Double> penalties = new ArrayList<Double>();
@@ -193,23 +214,24 @@ public final class CanonicalEvaluator {
       penaltyTotal += weightedPenalty;
     }
 
-    String mode = optimization.get("mode").getAsString();
+    String type = execution.get("type").getAsString();
+    String scalarization = execution.get("scalarization").getAsString();
     List<Double> vector = new ArrayList<Double>();
-    if ("weighted".equals(mode)) {
-      vector.add(Double.valueOf(weighted + penaltyTotal));
-    } else if ("satisfy".equals(mode)) {
-      vector.add(Double.valueOf(penaltyTotal));
+    if ("SINGLE".equals(type)) {
+      double score = "feasibility".equals(scalarization) ? penaltyTotal : weighted + penaltyTotal;
+      vector.add(Double.valueOf(score));
     } else {
-      vector.addAll(termVector);
+      vector.addAll(criterionVector);
       vector.add(Double.valueOf(penaltyTotal));
     }
     JsonObject objectives = new JsonObject();
-    objectives.addProperty("mode", mode);
+    objectives.addProperty("type", type);
+    objectives.addProperty("scalarization", scalarization);
     objectives.add("components", components);
     objectives.addProperty("penalty", penaltyTotal);
-    if ("weighted".equals(mode) || "satisfy".equals(mode)) {
-      objectives.addProperty("score", "weighted".equals(mode) ? weighted + penaltyTotal : penaltyTotal);
-    } else if ("lexicographic".equals(mode) || "pareto".equals(mode)) {
+    if ("SINGLE".equals(type)) {
+      objectives.addProperty("score", vector.get(0).doubleValue());
+    } else {
       JsonArray score = new JsonArray();
       for (Double value : vector) score.add(value);
       objectives.add("score", score);

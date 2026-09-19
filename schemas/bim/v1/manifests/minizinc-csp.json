@@ -34,8 +34,7 @@
             "values": ["invocation", "selectedCandidate"]
           },
           "constraints": {"selector": "only", "values": ["hard.aggregate-bound", "hard.expression"]},
-          "optimization": {"selector": "only", "values": ["weighted"]},
-          "objectiveTypes": {"selector": "only", "values": ["MONO"]},
+          "scalarizations": {"selector": "only", "values": [{"id": "weighted-sum", "objectiveTypes": ["SINGLE"], "weightPolicy": "required"}]},
           "expressions": {"selector": "only", "values": ["literal", "path.features", "path.tasks", "compare"]},
           "placement": {"selector": "all"},
           "irExtensions": {"selector": "only", "values": ["qos-binding-placement/v1"]}

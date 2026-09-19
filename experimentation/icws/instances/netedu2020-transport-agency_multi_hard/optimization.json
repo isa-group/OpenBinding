@@ -5,9 +5,9 @@
     "name": "netedu2020_transport_agency_multi_hard_optimization"
   },
   "spec": {
-    "mode": "pareto",
-    "terms": [
+    "criteria": [
       {
+        "id": "availability",
         "feature": {
           "resource": "application",
           "id": "availability"
@@ -19,6 +19,7 @@
         }
       },
       {
+        "id": "cost",
         "feature": {
           "resource": "application",
           "id": "cost"
@@ -30,6 +31,7 @@
         }
       },
       {
+        "id": "execution_time",
         "feature": {
           "resource": "application",
           "id": "execution_time"

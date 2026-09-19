@@ -47,7 +47,7 @@ def extract_features(problem: Any, options: dict[str, Any] | None = None) -> Wor
     constraints = spec.get("constraints", [])
     placement = spec.get("placement", {})
     optimization = spec.get("optimization", {})
-    terms = optimization.get("terms", [])
+    criteria = optimization.get("criteria", [])
 
     # Count eligible tasks and combinatorial space magnitude S = sum(log10(|C_t|))
     n_tasks = 0
@@ -90,15 +90,9 @@ def extract_features(problem: Any, options: dict[str, Any] | None = None) -> Wor
     s_val = s_log10 if math.isfinite(s_log10) and s_log10 >= 0.0 else 0.0
     d_val = d_constr if math.isfinite(d_constr) and d_constr >= 0.0 else 0.0
 
-    # Optimization mode and objectives
-    opt_mode = "weighted"
-    if isinstance(optimization, dict):
-        if optimization.get("pareto") is not None:
-            opt_mode = "pareto"
-        elif optimization.get("mode") is not None:
-            opt_mode = str(optimization["mode"])
-
-    d_obj = max(1, len(terms)) if isinstance(terms, list) else 1
+    # Objective count is source-defined; optimization mode is execution-time.
+    opt_mode = "execution-selected"
+    d_obj = max(1, len(criteria)) if isinstance(criteria, list) else 1
 
     # Time budget
     opts = options or {}

@@ -5,14 +5,13 @@
     "name": "benatallah2002_selfserv_travel_solution_cts_itas_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
+    "criteria": [
       {
+        "id": "cost_usd",
         "feature": {
           "resource": "application",
           "id": "cost_usd"
         },
-        "weight": 0.28,
         "normalize": {
           "min": 0,
           "max": 5000,
@@ -20,11 +19,11 @@
         }
       },
       {
+        "id": "latency_ms",
         "feature": {
           "resource": "application",
           "id": "latency_ms"
         },
-        "weight": 0.21,
         "normalize": {
           "min": 0,
           "max": 10000,
@@ -32,11 +31,11 @@
         }
       },
       {
+        "id": "availability",
         "feature": {
           "resource": "application",
           "id": "availability"
         },
-        "weight": 0.21,
         "normalize": {
           "min": 0,
           "max": 1,
@@ -44,23 +43,23 @@
         }
       },
       {
+        "id": "reliability",
         "feature": {
           "resource": "application",
           "id": "reliability"
         },
-        "weight": 0.15,
         "normalize": {
-          "min": 0.0,
-          "max": 1.0,
+          "min": 0,
+          "max": 1,
           "clamp": true
         }
       },
       {
+        "id": "security",
         "feature": {
           "resource": "application",
           "id": "security"
         },
-        "weight": 0.15,
         "normalize": {
           "min": 1,
           "max": 5,

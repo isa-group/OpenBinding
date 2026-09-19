@@ -5,46 +5,6 @@
     "name": "18_analysis_constraints_optimization"
   },
   "spec": {
-    "mode": "pareto",
-    "type": "MANY",
-    "terms": [
-      {
-        "feature": {
-          "resource": "application",
-          "id": "cost"
-        },
-        "weight": 1,
-        "normalize": {
-          "min": 0,
-          "max": 200,
-          "clamp": true
-        }
-      },
-      {
-        "feature": {
-          "resource": "application",
-          "id": "latency"
-        },
-        "weight": 1,
-        "normalize": {
-          "min": 0,
-          "max": 200,
-          "clamp": true
-        }
-      },
-      {
-        "feature": {
-          "resource": "application",
-          "id": "quality"
-        },
-        "weight": 1,
-        "normalize": {
-          "min": 0,
-          "max": 200,
-          "clamp": true
-        }
-      }
-    ],
     "penalties": [
       {
         "constraint": {
@@ -52,6 +12,44 @@
           "id": "latency-sla"
         },
         "weight": 0.3
+      }
+    ],
+    "criteria": [
+      {
+        "id": "cost",
+        "feature": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 200,
+          "clamp": true
+        }
+      },
+      {
+        "id": "latency",
+        "feature": {
+          "resource": "application",
+          "id": "latency"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 200,
+          "clamp": true
+        }
+      },
+      {
+        "id": "quality",
+        "feature": {
+          "resource": "application",
+          "id": "quality"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 200,
+          "clamp": true
+        }
       }
     ]
   }

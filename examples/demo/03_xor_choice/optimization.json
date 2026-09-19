@@ -5,9 +5,9 @@
     "name": "demo_03_xor_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
+    "criteria": [
       {
+        "id": "availability",
         "feature": {
           "resource": "application",
           "id": "availability"

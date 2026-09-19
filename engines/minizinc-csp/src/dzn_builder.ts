@@ -21,7 +21,7 @@ type CandidateEntry = {
 
 /** Strict lowering for the exact subset declared by the minizinc-csp manifest. */
 export class DznBuilder {
-  build(problem: any, _options: any = {}): DznBuildResult {
+  build(problem: any, _options: any = {}, executionOptimization?: any): DznBuildResult {
     this.requireProblem(problem);
     const spec = problem.spec;
     const application = spec.application;
@@ -177,7 +177,7 @@ export class DznBuilder {
     ]);
 
     const constraints = this.constraints(spec.constraints || [], metricIndex, taskIndex, candidates);
-    const optimization = this.optimization(spec.optimization, application.resource, metricIndex);
+    const optimization = this.optimization(spec.optimization, executionOptimization, application.resource, metricIndex);
     const placement = buildPlacementEncoding(problem, candidates, tasks, metricIndex, optimization.penaltyWeight);
     let objectiveBound = 0;
     optimization.metric.forEach((metricPosition, index) => {
@@ -516,31 +516,32 @@ ready_children = ${fmt2d(placement.readyChildren)};
     return { kind: 2, index: task, value: 0, values: numeric, type, rawValue: values[0], rawValues: values };
   }
 
-  private optimization(optimization: any, applicationResource: string, metricIndex: Map<string, number>) {
-    if (!optimization || optimization.mode !== 'weighted') {
-      throw new Error('MiniZinc exact-weighted mode requires optimization.mode weighted');
+  private optimization(source: any, execution: any, applicationResource: string, metricIndex: Map<string, number>) {
+    if (!execution || execution.scalarization !== 'weighted-sum') {
+      throw new Error('MiniZinc exact-weighted mode requires scalarization weighted-sum');
     }
-    if (optimization.type !== 'MONO') {
-      throw new Error('MiniZinc exact-weighted mode supports objective type MONO only');
+    if (execution.type !== 'SINGLE') {
+      throw new Error('MiniZinc exact-weighted mode supports objective type SINGLE only');
     }
-    if (!Array.isArray(optimization.penalties)) {
+    if (!Array.isArray(source.penalties)) {
       throw new Error('Weighted optimization penalties must be materialized');
     }
-    if (!Array.isArray(optimization.terms) || optimization.terms.length === 0) {
-      throw new Error('Weighted optimization requires at least one term');
+    if (!Array.isArray(source.criteria) || source.criteria.length === 0) {
+      throw new Error('Weighted optimization requires at least one criterion');
     }
+    const weights = new Map((execution.weights || []).map((item: any) => [item.criteria, Number(item.value)]));
     const result = {
       metric: [] as number[], weight: [] as number[], direction: [] as number[],
       hasNormalize: [] as boolean[], min: [] as number[], max: [] as number[], clamp: [] as boolean[],
       penaltyWeight: new Map<string, number>(),
     };
-    for (const term of optimization.terms) {
-      const featureRef = term.feature || term.metric;
-      this.requireRef(featureRef, 'optimization term.feature');
+    for (const term of source.criteria) {
+      const featureRef = term.feature;
+      this.requireRef(featureRef, 'optimization criterion.feature');
       if (featureRef.resource !== applicationResource || !metricIndex.has(featureRef.id)) {
         throw new Error(`Optimization term references unknown feature '${featureRef.resource}:${featureRef.id}'`);
       }
-      const weight = Number(term.weight);
+      const weight = Number(weights.get(term.id));
       if (!(weight > 0) || !Number.isFinite(weight)) throw new Error('Optimization weights must be finite and positive');
       if (!['minimize', 'maximize'].includes(term.direction)) throw new Error('Optimization direction is invalid');
       const normalize = term.normalize;
@@ -560,9 +561,9 @@ ready_children = ${fmt2d(placement.readyChildren)};
     }
     const weightTotal = result.weight.reduce((sum, weight) => sum + weight, 0);
     if (Math.abs(weightTotal - 1) > 1e-12) {
-      throw new Error('Weighted optimization term weights must be normalized to 1 in canonical IR');
+      throw new Error('Execution optimization weights must be normalized to 1');
     }
-    for (const item of optimization.penalties) {
+    for (const item of source.penalties) {
       this.requireRef(item?.constraint, 'optimization penalty.constraint');
       const weight = Number(item.weight);
       if (!(weight > 0) || !Number.isFinite(weight)) throw new Error('Optimization penalty weights must be finite and positive');

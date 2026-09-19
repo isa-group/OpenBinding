@@ -2,6 +2,7 @@ package es.us.isa.qosawarewsbinding.search;
 
 import es.us.isa.openbinding.core.BindingProblem;
 import es.us.isa.openbinding.core.CanonicalEvaluator;
+import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -29,18 +30,28 @@ public final class V1MultiSearch {
 
   private V1MultiSearch() {}
 
+  /** Compatibility for library callers; engine requests use the explicit overload below. */
   public static Result run(BindingProblem problem, int iterations, Long timeBudgetMs,
+      int archiveSize, long seed) {
+    JsonObject execution = new JsonObject();
+    execution.addProperty("type", "MULTI");
+    execution.addProperty("scalarization", "pareto-front");
+    execution.add("weights", new com.google.gson.JsonArray());
+    return run(problem, execution, iterations, timeBudgetMs, archiveSize, seed);
+  }
+
+  public static Result run(BindingProblem problem, JsonObject optimization, int iterations, Long timeBudgetMs,
       int archiveSize, long seed) {
     if (iterations < 1 || archiveSize < 1) {
       throw new IllegalArgumentException("Search budgets must be positive");
     }
-    if (!"pareto".equals(problem.optimization().get("mode").getAsString())) {
-      throw new IllegalArgumentException("pareto-sampling requires optimization.mode pareto");
+    if (!"pareto-front".equals(optimization.get("scalarization").getAsString())) {
+      throw new IllegalArgumentException("pareto-sampling requires scalarization pareto-front");
     }
-    if (!"MULTI".equals(problem.optimization().get("type").getAsString())) {
+    if (!"MULTI".equals(optimization.get("type").getAsString())) {
       throw new IllegalArgumentException("pareto-sampling requires optimization.type MULTI");
     }
-    int objectives = problem.optimization().getAsJsonArray("terms").size();
+    int objectives = problem.optimization().getAsJsonArray("criteria").size();
     if (objectives < 2 || objectives > 3) {
       throw new IllegalArgumentException("MULTI optimization requires two or three terms");
     }
@@ -63,7 +74,7 @@ public final class V1MultiSearch {
         decision.put(task, eligible.get(choice));
         taskIndex++;
       }
-      CanonicalEvaluator.Evaluation evaluation = evaluator.evaluate(decision);
+      CanonicalEvaluator.Evaluation evaluation = evaluator.evaluate(decision, optimization);
       completed++;
       if (evaluation.feasible()) updateArchive(archive, evaluation, evaluator, archiveSize);
     }

@@ -9,29 +9,12 @@
     "metadata": {"$ref": "#/$defs/metadata"},
     "spec": {
       "type": "object",
-      "required": ["mode"],
+      "required": ["criteria"],
       "properties": {
-        "mode": {"enum": ["satisfy", "weighted", "lexicographic", "pareto"]},
-        "type": {"enum": ["MONO", "MULTI", "MANY"]},
-        "terms": {"type": "array", "items": {"$ref": "#/$defs/term"}},
+        "criteria": {"type": "array", "items": {"$ref": "#/$defs/criterion"}, "uniqueItems": true},
         "penalties": {"type": "array", "items": {"$ref": "#/$defs/penalty"}},
         "extensions": {"type": "object", "additionalProperties": true}
       },
-      "allOf": [
-        {
-          "if": {"properties": {"mode": {"const": "satisfy"}}, "required": ["mode"]},
-          "then": {"properties": {"terms": {"maxItems": 0}}},
-          "else": {"required": ["terms"], "properties": {"terms": {"minItems": 1}}}
-        },
-        {
-          "if": {"properties": {"type": {"const": "MULTI"}}, "required": ["type"]},
-          "then": {"required": ["terms"], "properties": {"terms": {"minItems": 2, "maxItems": 3}}}
-        },
-        {
-          "if": {"properties": {"type": {"const": "MANY"}}, "required": ["type"]},
-          "then": {"required": ["terms"], "properties": {"terms": {"minItems": 3}}}
-        }
-      ],
       "additionalProperties": false
     }
   },
@@ -68,13 +51,13 @@
       },
       "additionalProperties": false
     },
-    "term": {
+    "criterion": {
       "type": "object",
-      "required": ["feature"],
+      "required": ["id", "feature"],
       "properties": {
+        "id": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
         "feature": {"$ref": "#/$defs/ref"},
         "direction": {"enum": ["minimize", "maximize"]},
-        "weight": {"type": "number", "exclusiveMinimum": 0},
         "normalize": {"$ref": "#/$defs/normalize"}
       },
       "additionalProperties": false

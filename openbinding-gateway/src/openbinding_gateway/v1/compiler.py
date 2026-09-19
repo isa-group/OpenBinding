@@ -118,7 +118,6 @@ def _all_profile_manifests() -> list[dict[str, Any]]:
                     "application": {
                         "resourceTypes": [
                             {"apiVersion": QOS_API_VERSION, "kind": "Application", "minimum": 1, "maximum": 1},
-                            {"apiVersion": QOS_API_VERSION, "kind": "RoutingOverlay", "minimum": 0, "maximum": 1},
                             {"apiVersion": OMG_BPMN_API_VERSION, "kind": "BPMN", "minimum": 0},
                         ],
                         "extensionTypes": "installed",
@@ -126,6 +125,8 @@ def _all_profile_manifests() -> list[dict[str, Any]]:
                     "candidateCatalog": {
                         "resourceTypes": [
                             {"apiVersion": QOS_API_VERSION, "kind": "CandidateCatalog", "minimum": 1},
+                            {"apiVersion": QOS_API_VERSION, "kind": "RoutingOverlay", "minimum": 0, "maximum": 1},
+                            {"apiVersion": PLACEMENT_DIALECT_ID, "kind": "Placement", "minimum": 0},
                         ],
                         "extensionTypes": "installed",
                     },
@@ -167,14 +168,7 @@ def _all_profile_manifests() -> list[dict[str, Any]]:
                             ],
                             "openValues": False,
                         },
-                        "optimization": {
-                            "values": ["satisfy", "weighted", "lexicographic", "pareto"],
-                            "openValues": False,
-                        },
-                        "objectiveTypes": {
-                            "values": ["MONO", "MULTI", "MANY"],
-                            "openValues": False,
-                        },
+                        "scalarizations": {"values": [], "openValues": True},
                         "expressions": {
                             "values": [
                                 "literal", "not", "negate", "and", "or", "compare", "arithmetic",
@@ -310,7 +304,7 @@ def _all_dialect_manifests() -> list[dict[str, Any]]:
         resource_type("CandidateCatalog", "candidate-catalog.schema.json", ["candidateCatalog"]),
         resource_type("ConstraintSet", "constraint-set.schema.json", ["constraintSet"]),
         resource_type("Optimization", "optimization.schema.json", ["optimization"]),
-        resource_type("RoutingOverlay", "routing-overlay.schema.json", ["application"]),
+        resource_type("RoutingOverlay", "routing-overlay.schema.json", ["candidateCatalog"]),
     ]
     bpmn_type = {
         "apiVersion": OMG_BPMN_API_VERSION,
@@ -328,7 +322,7 @@ def _all_dialect_manifests() -> list[dict[str, Any]]:
     placement_type = resource_type(
         "Placement",
         "placement.schema.json",
-        ["application"],
+        ["candidateCatalog"],
         api_version=PLACEMENT_DIALECT_ID,
     )
     builtins = [
@@ -3272,19 +3266,24 @@ def _optimization(
     source_map: dict[str, Any],
 ) -> dict[str, Any]:
     spec = resource.document.get("spec", {})
-    mode = spec.get("mode")
-    terms: list[dict[str, Any]] = []
+    criteria: list[dict[str, Any]] = []
+    criterion_ids: set[str] = set()
     units: set[str] = set()
-    for index, value in enumerate(spec.get("terms", [])):
-        feature_ref = _validate_ref(value.get("feature"), resource.path, f"/spec/terms/{index}/feature", diagnostics)
+    for index, value in enumerate(spec.get("criteria", [])):
+        pointer = f"/spec/criteria/{index}"
+        criterion_id = value.get("id") if isinstance(value, Mapping) else None
+        if not isinstance(criterion_id, str) or not criterion_id:
+            diagnostics.append(_diag("optimization_criterion_id", "optimization criteria require a non-empty id", resource.path, f"{pointer}/id"))
+            continue
+        if criterion_id in criterion_ids:
+            diagnostics.append(_diag("optimization_criterion_duplicate", f"criterion id {criterion_id!r} is duplicated", resource.path, f"{pointer}/id"))
+            continue
+        criterion_ids.add(criterion_id)
+        feature_ref = _validate_ref(value.get("feature"), resource.path, f"{pointer}/feature", diagnostics)
         if feature_ref is None or feature_ref["resource"] != application_id or feature_ref["id"] not in features:
-            diagnostics.append(_diag("optimization_feature", "optimization term must reference an Application feature", resource.path, f"/spec/terms/{index}/feature"))
+            diagnostics.append(_diag("optimization_feature", "optimization criterion must reference an Application feature", resource.path, f"{pointer}/feature"))
             continue
-        weight = value.get("weight", 1)
-        if not _finite(weight, f"/spec/terms/{index}/weight", diagnostics, resource.path) or float(weight) <= 0:
-            diagnostics.append(_diag("optimization_weight", "term weight must be positive", resource.path, f"/spec/terms/{index}/weight"))
-            continue
-        item = {"feature": feature_ref, "direction": value.get("direction", features[feature_ref["id"]]["direction"]), "weight": float(weight)}
+        item = {"id": criterion_id, "feature": feature_ref, "direction": value.get("direction", features[feature_ref["id"]]["direction"])}
         normalize = value.get("normalize")
         # `ratio` is a normative, typed domain contract, not a heuristic based
         # on feature name or unit.  Its closed [0,1] bounds are therefore a safe
@@ -3292,8 +3291,8 @@ def _optimization(
         if normalize is None and features[feature_ref["id"]].get("domain", {}).get("kind") == "ratio":
             normalize = {"min": 0.0, "max": 1.0, "clamp": False}
         if normalize is not None:
-            if not all(_finite(normalize.get(key), f"/spec/terms/{index}/normalize/{key}", diagnostics, resource.path) for key in ("min", "max")) or float(normalize.get("max", 0)) <= float(normalize.get("min", 0)):
-                diagnostics.append(_diag("normalization", "normalize.max must be greater than normalize.min", resource.path, f"/spec/terms/{index}/normalize"))
+            if not all(_finite(normalize.get(key), f"{pointer}/normalize/{key}", diagnostics, resource.path) for key in ("min", "max")) or float(normalize.get("max", 0)) <= float(normalize.get("min", 0)):
+                diagnostics.append(_diag("normalization", "normalize.max must be greater than normalize.min", resource.path, f"{pointer}/normalize"))
             else:
                 item["normalize"] = {
                     "min": float(normalize["min"]),
@@ -3301,41 +3300,12 @@ def _optimization(
                     "clamp": bool(normalize.get("clamp", False)),
                 }
         units.add(features[feature_ref["id"]]["unit"])
-        terms.append(item)
-        source_map[f"/spec/optimization/terms/{len(terms) - 1}"] = {"resource": resource.id, "path": resource.path, "pointer": f"/spec/terms/{index}"}
-    if mode == "satisfy" and terms:
-        diagnostics.append(_diag("satisfy_terms", "satisfy mode cannot contain objective terms", resource.path, "/spec/terms"))
-    if mode != "satisfy" and not terms:
-        diagnostics.append(_diag("optimization_terms", f"{mode} mode requires at least one term", resource.path, "/spec/terms"))
-    objective_type = spec.get("type")
-    if objective_type is None:
-        objective_type = (
-            "MONO"
-            if mode != "pareto" or len(terms) <= 1
-            else "MULTI"
-            if len(terms) == 2
-            else "MANY"
-        )
-    cardinality = len(terms)
-    if objective_type == "MULTI" and not 2 <= cardinality <= 3:
-        diagnostics.append(_diag("objective_cardinality", "MULTI requires two or three objective terms", resource.path, "/spec/terms"))
-    elif objective_type == "MANY" and cardinality < 3:
-        diagnostics.append(_diag("objective_cardinality", "MANY requires at least three objective terms", resource.path, "/spec/terms"))
-    elif objective_type == "MONO" and mode != "satisfy" and cardinality < 1:
-        diagnostics.append(_diag("objective_cardinality", "MONO requires at least one objective term", resource.path, "/spec/terms"))
+        criteria.append(item)
+        source_map[f"/spec/optimization/criteria/{len(criteria) - 1}"] = {"resource": resource.id, "path": resource.path, "pointer": pointer}
     if len(units) > 1:
-        for index, term in enumerate(terms):
-            if "normalize" not in term:
-                diagnostics.append(_diag("normalization_required", "terms with different units require explicit normalization", resource.path, f"/spec/terms/{index}/normalize"))
-    if mode == "weighted":
-        total = sum(term["weight"] for term in terms)
-        for term in terms:
-            term["weight"] /= total
-    elif mode in {"lexicographic", "pareto"}:
-        # Weights are irrelevant to these strategies; canonicalize them to one
-        # instead of smuggling weighted semantics into the mode.
-        for term in terms:
-            term["weight"] = 1.0
+        for index, criterion in enumerate(criteria):
+            if "normalize" not in criterion:
+                diagnostics.append(_diag("normalization_required", "criteria with different units require explicit normalization", resource.path, f"/spec/criteria/{index}/normalize"))
     constraint_index = {_ref_key(constraint["ref"]): constraint for constraint in constraints}
     penalties: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
@@ -3364,7 +3334,7 @@ def _optimization(
         total = sum(item["weight"] for item in penalties)
         for item in penalties:
             item["weight"] /= total
-    return {"resource": resource.id, "mode": mode, "type": objective_type, "terms": terms, "penalties": penalties}
+    return {"resource": resource.id, "criteria": criteria, "penalties": penalties}
 
 
 def _required_features(
@@ -3372,7 +3342,7 @@ def _required_features(
     constraints: list[dict[str, Any]],
     placement: list[dict[str, Any]],
 ) -> tuple[set[str], dict[str, set[str]]]:
-    global_features = {term["feature"]["id"] for term in optimization.get("terms", [])}
+    global_features = {criterion["feature"]["id"] for criterion in optimization.get("criteria", [])}
     local: dict[str, set[str]] = {}
     for constraint in constraints:
         for segments in _expression_paths(constraint):
@@ -3998,45 +3968,58 @@ class BindingProblem(CompiledProblem):
         violations.extend(self._placement_violations(normalized))
         return violations
 
-    def evaluate_objectives(self, features: Mapping[str, float], violations: list[dict[str, Any]]) -> dict[str, Any]:
+    def evaluate_objectives(
+        self,
+        features: Mapping[str, float],
+        violations: list[dict[str, Any]],
+        execution: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
         optimization = self.document["spec"]["optimization"]
         components: list[dict[str, Any]] = []
-        for term in optimization["terms"]:
-            value = float(features[term["feature"]["id"]])
+        for criterion in optimization["criteria"]:
+            value = float(features[criterion["feature"]["id"]])
             normalized = value
-            if "normalize" in term:
-                bounds = term["normalize"]
+            if "normalize" in criterion:
+                bounds = criterion["normalize"]
                 normalized = (value - bounds["min"]) / (bounds["max"] - bounds["min"])
                 if bounds["clamp"]:
                     normalized = min(1.0, max(0.0, normalized))
-                loss = normalized if term["direction"] == "minimize" else 1.0 - normalized
+                loss = normalized if criterion["direction"] == "minimize" else 1.0 - normalized
             else:
-                loss = value if term["direction"] == "minimize" else -value
-            components.append({"feature": term["feature"], "value": value, "loss": loss, "weight": term["weight"]})
+                loss = value if criterion["direction"] == "minimize" else -value
+            components.append({"criteria": criterion["id"], "feature": criterion["feature"], "value": value, "loss": loss})
         penalty_weights = {_ref_key(item["constraint"]): item["weight"] for item in optimization["penalties"]}
         penalty = sum(float(item["penalty"]) * penalty_weights.get(_ref_key(item["constraint"]), 0.0) for item in violations if item["enforcement"] == "soft")
-        mode = optimization["mode"]
-        if mode == "weighted":
-            score: Any = sum(item["loss"] * item["weight"] for item in components) + penalty
-        elif mode in {"lexicographic", "pareto"}:
-            # A declared soft constraint must never be inert.  For ordered and
-            # Pareto objectives, the aggregate penalty is an explicit final
-            # dimension (a lexicographic tiebreaker in the former case).
-            score = [item["loss"] for item in components] + [penalty]
+        execution = execution or {
+            "type": "SINGLE",
+            "scalarization": "weighted-sum",
+            "weights": [{"criteria": item["criteria"], "value": 1.0 / len(components)} for item in components] if components else [],
+        }
+        objective_type = execution.get("type")
+        scalarization = execution.get("scalarization")
+        weight_values = {
+            item.get("criteria"): float(item.get("value"))
+            for item in execution.get("weights", [])
+            if isinstance(item, Mapping)
+        }
+        for item in components:
+            item["weight"] = weight_values.get(item["criteria"], 0.0)
+        if scalarization == "feasibility":
+            score: Any = penalty
+        elif objective_type == "SINGLE" and scalarization == "weighted-sum":
+            score = sum(item["loss"] * item["weight"] for item in components) + penalty
         else:
-            # `satisfy` ranks feasible bindings by declared soft penalties and
-            # is constant when no soft constraints exist.
-            score = penalty
-        return {"mode": mode, "components": components, "penalty": penalty, "score": score}
+            score = [item["loss"] for item in components] + [penalty]
+        return {"type": objective_type, "scalarization": scalarization, "components": components, "penalty": penalty, "score": score}
 
-    def evaluate(self, binding: Mapping[str, Any]) -> dict[str, Any]:
+    def evaluate(self, binding: Mapping[str, Any], execution: Mapping[str, Any] | None = None) -> dict[str, Any]:
         features = self.evaluate_binding(binding)
         violations = self.evaluate_constraints(binding, features)
         return {
             "features": features,
             "metrics": features,
             "violations": violations,
-            "objectives": self.evaluate_objectives(features, violations),
+            "objectives": self.evaluate_objectives(features, violations, execution),
         }
 
 

@@ -514,18 +514,16 @@ def build_instance(
         "metadata": {"name": f"{name}_constraints"},
         "spec": {"constraints": constraints},
     }
-    objective_weights = config["objective"]["weights"]
     optimization = {
         "apiVersion": "qos-binding/v1",
         "kind": "Optimization",
         "metadata": {"name": f"{name}_optimization"},
         "spec": {
-            "mode": "weighted",
-            "terms": [
+            "criteria": [
                 {
+                    "id": feature_name,
                     "feature": {"resource": "application", "id": feature_name},
-                    "weight": abs(float(objective_weights.get(feature_name, 1.0)))
-                    or 1.0,
+                    "direction": "minimize",
                     "normalize": {**normalize_bounds[feature_name], "clamp": True},
                 }
                 for feature_name in ("latency", "cost", "security")
@@ -785,6 +783,7 @@ def generate_task_candidates(
 ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
     names = feature_names if feature_names is not None else (metric_names or [])
     task_name = safe_id(function["id"])
+    base_latency = float(getattr(task_call, "latency_bound_ms", 0.0) or 0.0)
     demand = _task_demand(function)
     service_reqs = function.get("service_reqs", []) or []
     counters = Counter()
@@ -833,6 +832,7 @@ def generate_task_candidates(
                     base_cost,
                     security_score,
                     selected_services,
+                    latency=base_latency,
                 ),
             }
             demands.append(
@@ -900,6 +900,7 @@ def generate_task_candidates(
                             cost,
                             1.0,
                             selected_services,
+                            latency=base_latency,
                         ),
                     }
                     demands.append(
@@ -1039,9 +1040,10 @@ def candidate_features(
     cost: float,
     security: float,
     selected_services: list[dict[str, Any]],
+    latency: float = 0.0,
 ) -> dict[str, float]:
     features = {name: 0.0 for name in feature_names}
-    features["latency"] = 0.0
+    features["latency"] = round(float(latency), 6)
     features["cost"] = round(float(cost), 8)
     features["security"] = round(float(security), 6)
     for service in selected_services:

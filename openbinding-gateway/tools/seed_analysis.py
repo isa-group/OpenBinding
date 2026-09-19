@@ -66,7 +66,7 @@ def gallery_package(examples_dir: Path, scenario: str, example: str) -> Instance
         catalog["spec"]["featureBindings"]["energy"] = {"resource": "application", "id": "energy"}
         for i, candidate in enumerate(catalog["spec"]["candidates"].values()):
             candidate["features"]["energy"] = [15, 70, 20, 45, 80, 90][i % 6]
-        opt["spec"]["terms"].append({"feature": {"resource": "application", "id": "energy"}, "weight": 1, "normalize": {"min": 0, "max": 200, "clamp": True}})
+        opt["spec"]["criteria"].append({"id": "energy", "feature": {"resource": "application", "id": "energy"}, "direction": "minimize", "normalize": {"min": 0, "max": 200, "clamp": True}})
         constraints["spec"]["constraints"]["energy-sla"] = {"assert": "features.energy <= 90", "enforcement": "soft", "penalty": 2}
         opt["spec"]["penalties"].append({"constraint": {"resource": "constraints", "id": "energy-sla"}, "weight": .5} )
     else:
@@ -79,11 +79,10 @@ def gallery_package(examples_dir: Path, scenario: str, example: str) -> Instance
         catalog["spec"]["candidates"] = {f"stage-{t}-option-{i}": {"provides": f"service/analysis-{t}",
             "features": {name: {"cost": i*10**t, "latency": (9-i)*10**t, "energy": i*i*11**t, "quality": (9-i)*(t+1)}[name] for name in features}}
             for t in range(5) for i in range(10)}
-        opt["spec"]["terms"] = [{"feature": {"resource": "application", "id": name}, "weight": 1,
+        opt["spec"]["criteria"] = [{"id": name, "feature": {"resource": "application", "id": name}, "direction": "maximize" if name == "quality" else "minimize",
             "normalize": {"min": 0, "max": 1_000_000, "clamp": False}} for name in features]
-        opt["spec"]["type"] = "MANY" if len(features) > 2 else "MULTI"
     app["spec"]["workflow"] = {"sequence": [{"task": {"resource": "application", "id": task}} for task in app["spec"]["tasks"]]}
-    for term in opt["spec"]["terms"]:
+    for term in opt["spec"]["criteria"]:
         if scenario == "large":
             term["normalize"]["max"] = 400
     instance["metadata"]["name"] = f"analysis-{scenario}"

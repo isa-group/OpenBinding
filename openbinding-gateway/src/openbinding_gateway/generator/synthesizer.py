@@ -251,6 +251,7 @@ def generate_instance_package(
     dialects: list[str] | None = None,
     seed: int | None = None,
     use_legacy_engine: bool = False,
+    validate_compile: bool = True,
 ) -> InstancePackage:
     """Unified generator entrypoint producing a valid BIM v1 InstancePackage."""
     caps = resolve_engine_capabilities(target_engines)
@@ -259,10 +260,10 @@ def generate_instance_package(
             from .compatibility import IncompatibleTargetEnginesError
             raise IncompatibleTargetEnginesError(
                 f"Requested optimization mode {optimization_mode!r} not supported by target engines {target_engines}: allowed {caps.allowed_optimizations}",
-                conflicts=[{"dimension": "optimization", "requested": optimization_mode, "allowed": caps.allowed_optimizations}],
+                conflicts=[{"dimension": "scalarizations", "requested": optimization_mode, "allowed": caps.allowed_optimizations}],
             )
         caps.default_optimization = optimization_mode
-        caps.default_objective_type = "MANY" if optimization_mode == "pareto" else "MONO"
+        caps.default_objective_type = "MANY" if optimization_mode == "pareto-front" else "SINGLE"
 
     if use_legacy_engine:
         raw_text = run_legacy_cli(
@@ -301,6 +302,7 @@ def generate_instance_package(
         guarantee_feasibility=guarantee_feasibility,
         tension=tension,
         repair_empty_branches=True,
+        validate_compile=validate_compile,
     )
 
     return postprocessor.process(problem)

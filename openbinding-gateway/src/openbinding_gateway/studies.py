@@ -15,7 +15,7 @@ def expand_study(definition: StudyDefinition) -> list[dict[str, Any]]:
     engines = sorted(
         definition.engines,
         key=lambda item: tuple(item[key] for key in ("namespace", "name", "version", "digest"))
-        + (item.get("mode", ""),),
+        + (item.get("mode", ""), item.get("optimization", {}).get("scalarization", "")),
     )
     cases = sorted(definition.case_revision_ids, key=str)
     parameters = sorted(definition.parameter_sets, key=digest)

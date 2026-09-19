@@ -5,69 +5,6 @@
     "name": "pautasso2009_restful_ecommerce_mono_utility_soft_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
-      {
-        "feature": {
-          "resource": "application",
-          "id": "availability"
-        },
-        "weight": 0.2,
-        "normalize": {
-          "min": 0,
-          "max": 1,
-          "clamp": true
-        }
-      },
-      {
-        "feature": {
-          "resource": "application",
-          "id": "cost_usd"
-        },
-        "weight": 0.2,
-        "normalize": {
-          "min": 0,
-          "max": 1000,
-          "clamp": true
-        }
-      },
-      {
-        "feature": {
-          "resource": "application",
-          "id": "latency_ms"
-        },
-        "weight": 0.2,
-        "normalize": {
-          "min": 0,
-          "max": 5000,
-          "clamp": true
-        }
-      },
-      {
-        "feature": {
-          "resource": "application",
-          "id": "reliability"
-        },
-        "weight": 0.2,
-        "normalize": {
-          "min": 0.0,
-          "max": 1.0,
-          "clamp": true
-        }
-      },
-      {
-        "feature": {
-          "resource": "application",
-          "id": "security"
-        },
-        "weight": 0.2,
-        "normalize": {
-          "min": 1,
-          "max": 5,
-          "clamp": true
-        }
-      }
-    ],
     "penalties": [
       {
         "constraint": {
@@ -110,6 +47,68 @@
           "id": "gen_c_dep_same_1"
         },
         "weight": 1
+      }
+    ],
+    "criteria": [
+      {
+        "id": "availability",
+        "feature": {
+          "resource": "application",
+          "id": "availability"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 1,
+          "clamp": true
+        }
+      },
+      {
+        "id": "cost_usd",
+        "feature": {
+          "resource": "application",
+          "id": "cost_usd"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 1000,
+          "clamp": true
+        }
+      },
+      {
+        "id": "latency_ms",
+        "feature": {
+          "resource": "application",
+          "id": "latency_ms"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 5000,
+          "clamp": true
+        }
+      },
+      {
+        "id": "reliability",
+        "feature": {
+          "resource": "application",
+          "id": "reliability"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 1,
+          "clamp": true
+        }
+      },
+      {
+        "id": "security",
+        "feature": {
+          "resource": "application",
+          "id": "security"
+        },
+        "normalize": {
+          "min": 1,
+          "max": 5,
+          "clamp": true
+        }
       }
     ]
   }

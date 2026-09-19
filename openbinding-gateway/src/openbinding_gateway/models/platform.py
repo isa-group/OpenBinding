@@ -244,7 +244,7 @@ class StudyDefinition(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     case_revision_ids: list[uuid.UUID] = Field(default_factory=list, max_length=250)
-    engines: list[dict[str, str]] = Field(..., min_length=1, max_length=50)
+    engines: list[dict[str, Any]] = Field(..., min_length=1, max_length=50)
     parameter_sets: list[dict[str, Any]] = Field(default_factory=lambda: [{}], min_length=1, max_length=100)
     seeds: list[int] = Field(default_factory=lambda: [0], min_length=1, max_length=100)
     collection_version_id: Optional[uuid.UUID] = None
@@ -260,7 +260,7 @@ class StudyDefinition(BaseModel):
         if len({json.dumps(value, sort_keys=True, separators=(",", ":")) for value in self.parameter_sets}) != len(self.parameter_sets):
             raise ValueError("parameter_sets contains duplicates")
         identities = {
-            tuple(engine.get(key, "") for key in ("namespace", "name", "version", "digest", "mode"))
+            (tuple(engine.get(key, "") for key in ("namespace", "name", "version", "digest", "mode")), json.dumps(engine.get("optimization", {}), sort_keys=True, separators=(",", ":")))
             for engine in self.engines
         }
         if len(identities) != len(self.engines):
@@ -269,9 +269,15 @@ class StudyDefinition(BaseModel):
         if self.case_revision_ids and cells > 10_000:
             raise ValueError("a study run may contain at most 10,000 cells")
         required = {"namespace", "name", "version", "digest"}
-        allowed = required | {"mode"}
+        allowed = required | {"mode", "optimization"}
         if any(not required <= set(engine) or not set(engine) <= allowed for engine in self.engines):
-            raise ValueError("every engine must be an exact immutable reference with an optional mode")
+            raise ValueError("every engine must be an exact immutable reference with mode and optimization")
+        for engine in self.engines:
+            optimization = engine.get("optimization")
+            if not engine.get("mode"):
+                raise ValueError("every study engine must select an explicit mode")
+            if not isinstance(optimization, dict) or not isinstance(optimization.get("type"), str) or not isinstance(optimization.get("scalarization"), str):
+                raise ValueError("every study engine must define an optimization type and scalarization")
         if any(not re.fullmatch(DIGEST, engine.get("digest", "")) for engine in self.engines):
             raise ValueError("every engine digest must be sha256- followed by 64 lowercase hex characters")
         return self
@@ -338,7 +344,7 @@ class StudyCellView(BaseModel):
     study_run_id: uuid.UUID
     ordinal: int
     binding_case_revision_id: uuid.UUID
-    engine_ref: dict[str, str]
+    engine_ref: dict[str, Any]
     parameters: dict[str, Any]
     seed: int
     fingerprint: str

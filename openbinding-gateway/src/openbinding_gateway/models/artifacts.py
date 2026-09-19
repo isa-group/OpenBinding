@@ -146,14 +146,14 @@ class StudyArtifactContent(BaseModel):
     model_config = ConfigDict(extra='forbid')
     apiVersion: Literal['openbinding/study/v1']
     cases: list[CaseRevisionRef] = Field(min_length=1, max_length=250)
-    engines: list[dict[str, str]] = Field(min_length=1, max_length=50)
+    engines: list[dict[str, Any]] = Field(min_length=1, max_length=50)
     parameter_sets: list[dict[str, Any]] = Field(default_factory=lambda: [{}], min_length=1, max_length=100)
     seeds: list[int] = Field(default_factory=lambda: [0], min_length=1, max_length=100)
     collection: ArtifactRef | None = None
 
     def definition(self):
-        if any(not engine.get('mode') for engine in self.engines):
-            raise ValueError('Every study engine must select an explicit mode.')
+        if any(not engine.get('mode') or not isinstance(engine.get('optimization'), dict) for engine in self.engines):
+            raise ValueError('Every study engine must select an explicit mode and optimization.')
         from .platform import StudyDefinition
         return StudyDefinition(case_revision_ids=[case.caseRevisionId for case in self.cases],
             engines=self.engines, parameter_sets=self.parameter_sets, seeds=self.seeds)

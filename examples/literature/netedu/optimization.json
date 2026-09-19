@@ -5,14 +5,13 @@
     "name": "netedu2020_transport_agency_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
+    "criteria": [
       {
+        "id": "cost",
         "feature": {
           "resource": "application",
           "id": "cost"
         },
-        "weight": 0.25,
         "normalize": {
           "min": 0,
           "max": 1000,
@@ -20,11 +19,11 @@
         }
       },
       {
+        "id": "execution_time",
         "feature": {
           "resource": "application",
           "id": "execution_time"
         },
-        "weight": 0.25,
         "normalize": {
           "min": 0,
           "max": 20000,
@@ -32,11 +31,11 @@
         }
       },
       {
+        "id": "availability",
         "feature": {
           "resource": "application",
           "id": "availability"
         },
-        "weight": 0.2,
         "normalize": {
           "min": 0,
           "max": 1,
@@ -44,23 +43,23 @@
         }
       },
       {
+        "id": "reliability",
         "feature": {
           "resource": "application",
           "id": "reliability"
         },
-        "weight": 0.15,
         "normalize": {
-          "min": 0.0,
-          "max": 1.0,
+          "min": 0,
+          "max": 1,
           "clamp": true
         }
       },
       {
+        "id": "security",
         "feature": {
           "resource": "application",
           "id": "security"
         },
-        "weight": 0.15,
         "normalize": {
           "min": 1,
           "max": 5,

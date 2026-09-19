@@ -19,8 +19,7 @@
           "featureScopes": {"selector": "all"},
           "aggregations": {"selector": "all"},
           "constraints": {"selector": "all"},
-          "optimization": {"selector": "only", "values": ["pareto"]},
-          "objectiveTypes": {"selector": "only", "values": ["MANY"]},
+          "scalarizations": {"selector": "only", "values": [{"id": "pareto-front", "objectiveTypes": ["MANY"], "weightPolicy": "forbidden"}]},
           "expressions": {"selector": "all"},
           "placement": {"selector": "all"},
           "irExtensions": {"selector": "only", "values": ["qos-binding-placement/v1"]}

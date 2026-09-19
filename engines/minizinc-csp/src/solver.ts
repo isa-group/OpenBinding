@@ -10,14 +10,16 @@ export class Solver {
 
   constructor(private readonly runner: MiniZincRunner = new MiniZincRunner()) {}
 
-  validate(problem: any, options: any): DznBuildResult {
+  validate(problem: any, options: any, optimization?: any): DznBuildResult {
     this.validateOptions(options || {});
-    return this.builder.build(problem, options || {});
+    return this.builder.build(problem, options || {}, optimization);
   }
 
-  async solve(problem: any, options: any): Promise<any> {
+  async solve(problem: any, options: any, executionOptimization?: any): Promise<any> {
     const normalizedOptions = options || {};
-    const built = this.validate(problem, normalizedOptions);
+    const execution = executionOptimization;
+    if (!execution) throw new Error('Execution optimization is required');
+    const built = this.validate(problem, normalizedOptions, execution);
     const solverName = String(normalizedOptions.solver || 'gecode');
     const timeLimitMs = normalizedOptions.time_budget_ms == null
       ? 30000 : Number(normalizedOptions.time_budget_ms);
@@ -60,7 +62,7 @@ export class Solver {
     });
     const objectiveValue = Number(incumbent.objective_value);
     if (!Number.isFinite(objectiveValue)) throw new Error('MiniZinc returned a non-finite objective');
-    const evaluation = this.evaluate(problem, binding);
+    const evaluation = this.evaluate(problem, binding, execution);
     if (Math.abs(Number(evaluation.objectives.score) - objectiveValue) > 1e-6) {
       throw new Error('MiniZinc objective disagrees with the canonical BIM v1 evaluation');
     }
@@ -108,7 +110,7 @@ export class Solver {
     return values;
   }
 
-  private evaluate(problem: any, binding: Record<string, CandidateRef>): any {
+  private evaluate(problem: any, binding: Record<string, CandidateRef>, optimization: any): any {
     const spec = problem.spec;
     const application = spec.application;
     const appFeatures = application.features || application.metrics || {};
@@ -218,26 +220,29 @@ export class Solver {
         throw new Error(`MiniZinc returned a decision that violates hard constraint '${constraint.ref.resource}:${constraint.ref.id}'`);
       }
     }
-    const components = spec.optimization.terms.map((term: any) => {
-      const featureRef = term.feature || term.metric;
+    const weights = new Map((optimization?.weights || []).map((item: any) => [item.criteria, Number(item.value)]));
+    const components = spec.optimization.criteria.map((criterion: any) => {
+      const featureRef = criterion.feature;
       const value = metrics[featureRef.id];
       let normalized = value;
-      if (term.normalize) {
-        normalized = (value - Number(term.normalize.min))
-          / (Number(term.normalize.max) - Number(term.normalize.min));
-        if (term.normalize.clamp) normalized = Math.max(0, Math.min(1, normalized));
+      if (criterion.normalize) {
+        normalized = (value - Number(criterion.normalize.min))
+          / (Number(criterion.normalize.max) - Number(criterion.normalize.min));
+        if (criterion.normalize.clamp) normalized = Math.max(0, Math.min(1, normalized));
       }
-      const loss = term.direction === 'maximize'
-        ? term.normalize ? 1 - normalized : -normalized
+      const loss = criterion.direction === 'maximize'
+        ? criterion.normalize ? 1 - normalized : -normalized
         : normalized;
-      return { feature: featureRef, metric: featureRef, value, loss, weight: Number(term.weight) };
+      return { criteria: criterion.id, feature: featureRef, value, loss, weight: weights.get(criterion.id) || 0 };
     });
-    const score = components.reduce((sum: number, component: any) =>
-      sum + component.loss * component.weight, placement.penalty);
+    const weighted = components.reduce((sum: number, component: any) => sum + component.loss * component.weight, 0);
+    const score = optimization.type === 'SINGLE'
+      ? (optimization.scalarization === 'feasibility' ? placement.penalty : weighted + placement.penalty)
+      : components.map((component: any) => component.loss).concat([placement.penalty]);
     return {
       features: metrics,
       metrics,
-      objectives: { mode: 'weighted', components, penalty: placement.penalty, score },
+      objectives: { type: optimization.type, scalarization: optimization.scalarization, components, penalty: placement.penalty, score },
       penalties: placement.penalties,
       violations: placement.violations,
     };

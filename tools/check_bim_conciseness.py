@@ -103,11 +103,10 @@ def count_semantic_controls(package: Path) -> Counter[str]:
             )
 
     optimization = documents["Optimization"]["spec"]
-    _add(controls, "optimization", sum(field in optimization for field in ("mode", "type")))
-    for term in optimization.get("terms", []):
+    for term in optimization.get("criteria", []):
         if not isinstance(term, Mapping):
             continue
-        _add(controls, "optimization", sum(field in term for field in ("direction", "weight")))
+        _add(controls, "optimization", sum(field in term for field in ("id", "direction")))
         normalization = term.get("normalize")
         if isinstance(normalization, Mapping):
             _add(
@@ -186,7 +185,7 @@ def _normalization_ranges(compiled: Any, *, enumeration_limit: int = 10_000) -> 
     """
 
     spec = compiled.document["spec"]
-    terms = [term for term in spec["optimization"]["terms"] if "normalize" in term]
+    terms = [term for term in spec["optimization"]["criteria"] if "normalize" in term]
     features = [term["feature"]["id"] for term in terms]
     eligibility = spec["eligibility"]
     tasks = list(eligibility)

@@ -141,6 +141,7 @@ async def launch_study_cell(
 
     engine = dict(cell.engine_ref)
     requested_mode = engine.pop("mode", None)
+    execution_optimization = engine.pop("optimization", None)
     try:
         _, selected_mode, _ = await v1._engine_mode(
             engine["name"],
@@ -164,6 +165,7 @@ async def launch_study_cell(
         "snapshot": snapshot_id,
         "engine": engine,
         "mode": selected_mode["id"],
+        "optimization": execution_optimization,
         "options": options,
     }
     created = _response_payload(

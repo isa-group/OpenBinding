@@ -5,26 +5,25 @@
     "name": "demo_09_mixed_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
+    "criteria": [
       {
+        "id": "rel",
         "feature": {
           "resource": "application",
           "id": "rel"
         },
-        "weight": 0.8,
         "normalize": {
-          "min": 0.0,
+          "min": 0,
           "max": 0.01,
           "clamp": true
         }
       },
       {
+        "id": "cost",
         "feature": {
           "resource": "application",
           "id": "cost"
         },
-        "weight": 0.2,
         "normalize": {
           "min": 0,
           "max": 1000,

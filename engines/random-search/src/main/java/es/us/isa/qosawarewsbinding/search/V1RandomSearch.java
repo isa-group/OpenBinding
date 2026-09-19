@@ -2,6 +2,7 @@ package es.us.isa.qosawarewsbinding.search;
 
 import es.us.isa.openbinding.core.BindingProblem;
 import es.us.isa.openbinding.core.CanonicalEvaluator;
+import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -29,6 +30,21 @@ public final class V1RandomSearch {
   private V1RandomSearch() {}
 
   public static Result run(BindingProblem problem, int iterations, Long timeBudgetMs, long seed) {
+    JsonObject execution = new JsonObject();
+    execution.addProperty("type", "SINGLE");
+    execution.addProperty("scalarization", "weighted-sum");
+    com.google.gson.JsonArray weights = new com.google.gson.JsonArray();
+    for (com.google.gson.JsonElement item : problem.optimization().getAsJsonArray("criteria")) {
+      JsonObject weight = new JsonObject();
+      weight.addProperty("criteria", item.getAsJsonObject().get("id").getAsString());
+      weight.addProperty("value", 1.0);
+      weights.add(weight);
+    }
+    execution.add("weights", weights);
+    return run(problem, execution, iterations, timeBudgetMs, seed);
+  }
+
+  public static Result run(BindingProblem problem, JsonObject optimization, int iterations, Long timeBudgetMs, long seed) {
     if (iterations < 1) throw new IllegalArgumentException("iterations must be positive");
     CanonicalEvaluator evaluator = new CanonicalEvaluator(problem);
     Random random = new Random(seed);
@@ -43,7 +59,7 @@ public final class V1RandomSearch {
         List<BindingProblem.Ref> eligible = problem.eligible(task);
         decision.put(task, eligible.get(random.nextInt(eligible.size())));
       }
-      CanonicalEvaluator.Evaluation evaluation = evaluator.evaluate(decision);
+      CanonicalEvaluator.Evaluation evaluation = evaluator.evaluate(decision, optimization);
       if (best == null || evaluator.comparator().compare(evaluation, best) < 0) best = evaluation;
       completed++;
     }

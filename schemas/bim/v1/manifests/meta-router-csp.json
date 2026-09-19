@@ -35,14 +35,7 @@
             "selector": "only",
             "values": ["hard.aggregate-bound"]
           },
-          "optimization": {
-            "selector": "only",
-            "values": ["weighted"]
-          },
-          "objectiveTypes": {
-            "selector": "only",
-            "values": ["MONO"]
-          },
+          "scalarizations": {"selector": "only", "values": [{"id": "weighted-sum", "objectiveTypes": ["SINGLE"], "weightPolicy": "required"}]},
           "expressions": {
             "selector": "only",
             "values": ["literal"]

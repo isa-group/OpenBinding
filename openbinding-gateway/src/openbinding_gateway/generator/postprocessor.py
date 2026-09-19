@@ -54,6 +54,7 @@ class BIMPostprocessor:
         guarantee_feasibility: bool = True,
         tension: float = 0.7,
         repair_empty_branches: bool = True,
+        validate_compile: bool = True,
     ):
         self.name = _clean_id(name)
         self.profile = profile
@@ -62,6 +63,7 @@ class BIMPostprocessor:
         self.guarantee_feasibility = guarantee_feasibility
         self.tension = max(0.0, min(1.0, tension))
         self.repair_empty_branches = repair_empty_branches
+        self.validate_compile = validate_compile
 
         self.branch_counter = 0
         self.routing_entries: list[dict[str, Any]] = []
@@ -478,10 +480,11 @@ class BIMPostprocessor:
         opt_mode = self.capabilities.default_optimization
         obj_type = self.capabilities.default_objective_type
 
-        # Select features for optimization terms
-        terms = []
+        # Select only explicitly requested features for optimization criteria.
+        criteria = []
         for m_id, m_spec in list(features_dict.items())[:max(1, self.capabilities.min_objectives)]:
-            term: dict[str, Any] = {
+            criterion: dict[str, Any] = {
+                "id": m_id,
                 "feature": {"resource": "application", "id": m_id},
                 "normalize": {
                     "min": m_spec["domain"]["minimum"],
@@ -489,28 +492,10 @@ class BIMPostprocessor:
                     "clamp": True,
                 },
             }
-            if opt_mode == "weighted":
-                weight = 1.0 / max(1, min(len(features_dict), self.capabilities.min_objectives))
-                term["weight"] = round(weight, 4)
-            terms.append(term)
-
-        # Ensure weighted terms sum to 1.0 if weighted
-        if opt_mode == "weighted" and terms:
-            w_sum = sum(t.get("weight", 0.0) for t in terms[:-1])
-            terms[-1]["weight"] = round(1.0 - w_sum, 4)
-
-        n_terms = len(terms)
-        if n_terms >= 3:
-            eff_type = "MANY" if obj_type == "MANY" else "MULTI"
-        elif n_terms == 2:
-            eff_type = "MULTI"
-        else:
-            eff_type = "MONO"
+            criteria.append(criterion)
 
         opt_spec: dict[str, Any] = {
-            "mode": opt_mode,
-            "type": eff_type,
-            "terms": terms,
+            "criteria": criteria,
         }
 
         # 8. Assemble Documents
@@ -530,11 +515,9 @@ class BIMPostprocessor:
             "spec": {
                 "profile": self.profile,
                 "resources": {
-                    "application": {
-                        "application": "application.json",
-                        "routing": "routing.json",
-                    },
+                    "application": {"application": "application.json"},
                     "candidateCatalog": {
+                        "routing": "routing.json",
                         "catalog": "candidates.json",
                     },
                     "constraintSet": {
@@ -609,5 +592,6 @@ class BIMPostprocessor:
 
         package = InstancePackage(files)
         # Validate that compiler can lower it without errors
-        compile_instance(package)
+        if self.validate_compile:
+            compile_instance(package)
         return package

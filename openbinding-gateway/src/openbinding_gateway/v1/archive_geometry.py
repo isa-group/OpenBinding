@@ -89,7 +89,7 @@ def outcome_constraints(archive, axes):
     planes, skipped = raw_constraint_planes(archive, axes)
     if len(axes) < 2 or any(archive.dimensions[j].constant for j in axes[:2]):
         return {"planes": [], "skipped": skipped + ["Constraint projection needs two varying objectives"]}
-    terms = archive.document["spec"]["optimization"]["terms"]
+    terms = archive.document["spec"]["optimization"]["criteria"]
     transforms = []
     for j in axes[:2]:
         if j >= len(terms):

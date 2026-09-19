@@ -18,11 +18,11 @@
     "profile": "qos-binding/v1",
     "resources": {
       "application": {
-        "application": "application.json",
-        "routing": "routing.json",
-        "placement": "placement.json"
+        "application": "application.json"
       },
       "candidateCatalog": {
+        "routing": "routing.json",
+        "placement": "placement.json",
         "catalog": "candidates.json"
       },
       "optimization": {

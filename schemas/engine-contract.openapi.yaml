@@ -71,13 +71,30 @@ components:
     BindingProblemRequest:
       type: object
       additionalProperties: false
-      required: [apiVersion, kind, protocol, problem]
+      required: [apiVersion, kind, protocol, problem, optimization]
       properties:
         apiVersion: {const: bim/v1}
         kind: {const: BindingProblemRequest}
         protocol: {const: bim-engine/v1}
         problem: {$ref: '#/components/schemas/BindingProblem'}
+        optimization: {$ref: '#/components/schemas/ExecutionOptimization'}
         options: {type: object}
+    ExecutionOptimization:
+      type: object
+      additionalProperties: false
+      required: [type, scalarization, weights]
+      properties:
+        type: {type: string, enum: [SINGLE, MULTI, MANY]}
+        scalarization: {type: string, minLength: 1}
+        weights:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [criteria, value]
+            properties:
+              criteria: {type: string, minLength: 1}
+              value: {type: number, exclusiveMinimum: 0}
     BindingDecision:
       type: object
       additionalProperties: false
@@ -97,18 +114,20 @@ components:
     ObjectiveComponent:
       type: object
       additionalProperties: false
-      required: [feature, value, loss, weight]
+      required: [criteria, feature, value, loss, weight]
       properties:
+        criteria: {type: string, minLength: 1}
         feature: {$ref: '#/components/schemas/Ref'}
         value: {type: number}
         loss: {type: number}
-        weight: {type: number, exclusiveMinimum: 0}
+        weight: {type: number, minimum: 0}
     ObjectiveEvaluation:
       type: object
       additionalProperties: false
-      required: [mode, components, penalty, score]
+      required: [type, scalarization, components, penalty, score]
       properties:
-        mode: {type: string, enum: [satisfy, weighted, lexicographic, pareto]}
+        type: {type: string, enum: [SINGLE, MULTI, MANY]}
+        scalarization: {type: string, minLength: 1}
         components: {type: array, items: {$ref: '#/components/schemas/ObjectiveComponent'}}
         penalty: {type: number, minimum: 0}
         score:

@@ -100,9 +100,10 @@
       "ObjectiveEvaluation": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["mode", "components", "penalty", "score"],
+        "required": ["type", "scalarization", "components", "penalty", "score"],
         "properties": {
-          "mode": {"type": "string", "enum": ["satisfy", "weighted", "lexicographic", "pareto"]},
+          "type": {"type": "string", "enum": ["SINGLE", "MULTI", "MANY"]},
+          "scalarization": {"type": "string"},
           "components": {"type": "array", "items": {"$ref": "#/components/schemas/ObjectiveComponent"}},
           "penalty": {"type": "number", "minimum": 0},
           "score": {

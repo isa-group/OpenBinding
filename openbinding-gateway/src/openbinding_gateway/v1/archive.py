@@ -94,7 +94,7 @@ def build_archive(sources: list[tuple[AnalysisSource, dict, dict]]) -> Archive:
     sources = sorted(sources, key=lambda source: source[0].id)
     document = sources[0][1]
     optimization = record(record(document.get("spec")).get("optimization"))
-    terms = optimization.get("terms", [])
+    terms = optimization.get("criteria", [])
     if not isinstance(terms, list):
         raise ValueError("The pinned objective schema is unavailable")
     signatures = {(s.irDigest, s.evaluatorDigest) for s, _, _ in sources}
@@ -151,7 +151,7 @@ def build_archive(sources: list[tuple[AnalysisSource, dict, dict]]) -> Archive:
             components = objective.get("components", [])
             expected = [metric_key(record(term).get("feature")) for term in terms]
             actual = [metric_key(record(c).get("feature")) for c in components] if isinstance(components, list) else []
-            if actual != expected or objective.get("mode") != optimization.get("mode"):
+            if actual != expected or objective.get("scalarization") is None:
                 reasons.append("Evaluation does not match the pinned objective schema")
             components = components if isinstance(components, list) else []
             losses = tuple(record(c).get("loss") for c in components) + (objective.get("penalty"),)
@@ -169,7 +169,7 @@ def build_archive(sources: list[tuple[AnalysisSource, dict, dict]]) -> Archive:
                 reasons.append("Feasibility is unknown")
             elif not feasible:
                 reasons.append("Violates a hard model constraint")
-            comparable = valid_binding and actual == expected and objective.get("mode") == optimization.get("mode") and len(losses) == len(dimensions) and all(finite(v) for v in (*losses, *values))
+            comparable = valid_binding and actual == expected and objective.get("scalarization") is not None and len(losses) == len(dimensions) and all(finite(v) for v in (*losses, *values))
             if candidate_id in candidates:
                 previous = candidates[candidate_id].solution
                 def evaluation_fingerprint(value):

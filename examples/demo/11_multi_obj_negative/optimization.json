@@ -5,10 +5,9 @@
     "name": "demo_multi_obj_optimization"
   },
   "spec": {
-    "mode": "pareto",
-    "type": "MULTI",
-    "terms": [
+    "criteria": [
       {
+        "id": "cost",
         "feature": {
           "resource": "application",
           "id": "cost"
@@ -20,6 +19,7 @@
         }
       },
       {
+        "id": "time",
         "feature": {
           "resource": "application",
           "id": "time"

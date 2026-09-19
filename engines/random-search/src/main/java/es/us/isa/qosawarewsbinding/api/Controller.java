@@ -45,7 +45,7 @@ public final class Controller implements HttpHandler {
     int iterations = EngineContract.integerOption(options, "iterations", 1000, 1, 1000000);
     long seed = EngineContract.longOption(options, "seed", 0L);
     Long budget = EngineContract.optionalPositiveLong(options, "time_budget_ms");
-    V1RandomSearch.Result result = V1RandomSearch.run(request.problem(), iterations, budget, seed);
+    V1RandomSearch.Result result = V1RandomSearch.run(request.problem(), request.optimization(), iterations, budget, seed);
 
     List<CanonicalEvaluator.Evaluation> solutions = new ArrayList<CanonicalEvaluator.Evaluation>();
     if (result.best() != null && result.best().feasible()) solutions.add(result.best());

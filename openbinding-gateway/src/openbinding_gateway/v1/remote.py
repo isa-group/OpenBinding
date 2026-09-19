@@ -180,8 +180,9 @@ def _validate_result(payload: object) -> dict:
         objectives = solution["objectives"]
         if (
             not isinstance(objectives, dict)
-            or set(objectives) != {"mode", "components", "penalty", "score"}
-            or objectives.get("mode") not in {"satisfy", "weighted", "lexicographic", "pareto"}
+            or set(objectives) != {"type", "scalarization", "components", "penalty", "score"}
+            or objectives.get("type") not in {"SINGLE", "MULTI", "MANY"}
+            or not isinstance(objectives.get("scalarization"), str)
             or not isinstance(objectives.get("components"), list)
             or not number(objectives.get("penalty"))
             or objectives["penalty"] < 0
@@ -197,12 +198,13 @@ def _validate_result(payload: object) -> dict:
         for component in objectives["components"]:
             if (
                 not isinstance(component, dict)
-                or set(component) != {"feature", "value", "loss", "weight"}
+                or set(component) != {"criteria", "feature", "value", "loss", "weight"}
+                or not isinstance(component.get("criteria"), str)
                 or not valid_ref(component.get("feature"))
                 or not number(component.get("value"))
                 or not number(component.get("loss"))
                 or not number(component.get("weight"))
-                or component["weight"] <= 0
+                or component["weight"] < 0
             ):
                 raise RemoteEngineError("engine objective components must satisfy bim-engine/v1")
         penalties = solution["penalties"]
@@ -343,6 +345,7 @@ async def solve_remote(
     registration: RemoteRegistration,
     problem: dict,
     options: dict,
+    optimization: dict,
     *,
     timeout_s: float = 30.0,
     transport: httpx.AsyncBaseTransport | None = None,
@@ -351,7 +354,7 @@ async def solve_remote(
     mappings = registration.mappings or {}
     request_url = _path(registration.endpoint, mappings.get("request"), "/internal/v1/binding-problems")
     poll_template = mappings.get("job", "/internal/v1/jobs/{id}")
-    body = {"apiVersion": "bim/v1", "kind": "BindingProblemRequest", "protocol": "bim-engine/v1", "problem": problem, "options": options}
+    body = {"apiVersion": "bim/v1", "kind": "BindingProblemRequest", "protocol": "bim-engine/v1", "problem": problem, "optimization": optimization, "options": options}
     headers = _headers(registration)
     timeout = httpx.Timeout(timeout_s, connect=min(timeout_s, 5.0))
     # The policy-checked address is frozen for the complete request/poll cycle;

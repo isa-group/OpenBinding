@@ -1482,14 +1482,19 @@
       },
       "additionalProperties": false
     },
-    "term": {
+    "criterion": {
       "type": "object",
       "required": [
+        "id",
         "feature",
-        "direction",
-        "weight"
+        "direction"
       ],
       "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+        },
         "feature": {
           "$ref": "#/$defs/ref"
         },
@@ -1498,10 +1503,6 @@
             "minimize",
             "maximize"
           ]
-        },
-        "weight": {
-          "type": "number",
-          "exclusiveMinimum": 0
         },
         "normalize": {
           "type": "object",
@@ -1547,9 +1548,7 @@
       "type": "object",
       "required": [
         "resource",
-        "mode",
-        "type",
-        "terms",
+        "criteria",
         "penalties"
       ],
       "properties": {
@@ -1557,25 +1556,11 @@
           "type": "string",
           "minLength": 1
         },
-        "mode": {
-          "enum": [
-            "satisfy",
-            "weighted",
-            "lexicographic",
-            "pareto"
-          ]
-        },
-        "type": {
-          "enum": [
-            "MONO",
-            "MULTI",
-            "MANY"
-          ]
-        },
-        "terms": {
+        "criteria": {
           "type": "array",
+          "uniqueItems": true,
           "items": {
-            "$ref": "#/$defs/term"
+            "$ref": "#/$defs/criterion"
           }
         },
         "penalties": {
@@ -1586,76 +1571,6 @@
           }
         }
       },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "mode": {
-                "const": "satisfy"
-              }
-            },
-            "required": [
-              "mode"
-            ]
-          },
-          "then": {
-            "properties": {
-              "type": {
-                "const": "MONO"
-              },
-              "terms": {
-                "maxItems": 0
-              }
-            }
-          },
-          "else": {
-            "properties": {
-              "terms": {
-                "minItems": 1
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "MULTI"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "properties": {
-              "terms": {
-                "minItems": 2,
-                "maxItems": 3
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
-                "const": "MANY"
-              }
-            },
-            "required": [
-              "type"
-            ]
-          },
-          "then": {
-            "properties": {
-              "terms": {
-                "minItems": 3
-              }
-            }
-          }
-        }
-      ],
       "additionalProperties": false
     },
     "sourceLocation": {

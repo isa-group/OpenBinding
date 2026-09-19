@@ -20,13 +20,16 @@ public final class EngineContract {
 
   public static final class Request {
     private final BindingProblem problem;
+    private final JsonObject optimization;
     private final JsonObject options;
 
-    Request(BindingProblem problem, JsonObject options) {
+    Request(BindingProblem problem, JsonObject optimization, JsonObject options) {
       this.problem = problem;
+      this.optimization = optimization;
       this.options = options;
     }
     public BindingProblem problem() { return problem; }
+    public JsonObject optimization() { return optimization; }
     public JsonObject options() { return options; }
   }
 
@@ -36,7 +39,7 @@ public final class EngineContract {
     catch (RuntimeException exception) { throw new IllegalArgumentException("Request body must be valid JSON", exception); }
     if (!parsed.isJsonObject()) throw new IllegalArgumentException("BindingProblemRequest must be an object");
     JsonObject envelope = parsed.getAsJsonObject();
-    Set<String> allowed = new LinkedHashSet<String>(Arrays.asList("apiVersion", "kind", "protocol", "problem", "options"));
+    Set<String> allowed = new LinkedHashSet<String>(Arrays.asList("apiVersion", "kind", "protocol", "problem", "optimization", "options"));
     Set<String> unknown = new LinkedHashSet<String>(envelope.keySet());
     unknown.removeAll(allowed);
     if (!unknown.isEmpty()) throw new IllegalArgumentException("BindingProblemRequest has unknown fields " + unknown);
@@ -50,9 +53,43 @@ public final class EngineContract {
       throw new IllegalArgumentException("BindingProblemRequest.protocol must be bim-engine/v1");
     }
     JsonObject problem = BindingProblem.requireObject(envelope, "problem", "BindingProblemRequest");
+    JsonObject optimization = BindingProblem.requireObject(envelope, "optimization", "BindingProblemRequest");
+    validateOptimization(problem, optimization);
     JsonObject options = envelope.has("options")
         ? BindingProblem.requireObject(envelope, "options", "BindingProblemRequest") : new JsonObject();
-    return new Request(new BindingProblem(problem), options.deepCopy());
+    return new Request(new BindingProblem(problem), optimization.deepCopy(), options.deepCopy());
+  }
+
+  private static void validateOptimization(JsonObject problemDocument, JsonObject optimization) {
+    Set<String> allowed = new LinkedHashSet<String>(Arrays.asList("type", "scalarization", "weights"));
+    Set<String> unknown = new LinkedHashSet<String>(optimization.keySet());
+    unknown.removeAll(allowed);
+    if (!unknown.isEmpty()) throw new IllegalArgumentException("Execution optimization has unknown fields " + unknown);
+    String type = BindingProblem.requiredString(optimization, "type", "execution optimization");
+    if (!Arrays.asList("SINGLE", "MULTI", "MANY").contains(type)) throw new IllegalArgumentException("Unsupported execution optimization type '" + type + "'");
+    String scalarization = BindingProblem.requiredString(optimization, "scalarization", "execution optimization");
+    if (scalarization.isEmpty()) throw new IllegalArgumentException("Execution scalarization must not be empty");
+    JsonObject spec = problemDocument.getAsJsonObject("spec");
+    JsonArray criteria = spec.getAsJsonObject("optimization").getAsJsonArray("criteria");
+    int count = criteria.size();
+    if ("MULTI".equals(type) && (count < 2 || count > 3)) throw new IllegalArgumentException("MULTI requires two or three criteria");
+    if ("MANY".equals(type) && count < 3) throw new IllegalArgumentException("MANY requires at least three criteria");
+    JsonArray weights = optimization.has("weights") ? BindingProblem.requireArray(optimization, "weights", "execution optimization") : new JsonArray();
+    Set<String> ids = new LinkedHashSet<String>();
+    for (JsonElement value : criteria) ids.add(BindingProblem.requiredString(value.getAsJsonObject(), "id", "optimization criterion"));
+    Set<String> seen = new LinkedHashSet<String>();
+    double total = 0.0;
+    for (JsonElement value : weights) {
+      JsonObject item = BindingProblem.object(value, "execution optimization weight");
+      if (!item.keySet().equals(new LinkedHashSet<String>(Arrays.asList("criteria", "value")))) throw new IllegalArgumentException("Each execution weight requires criteria and value");
+      String id = BindingProblem.requiredString(item, "criteria", "execution optimization weight");
+      double weight = BindingProblem.finiteNumber(item.get("value"), "execution optimization weight.value");
+      if (!ids.contains(id) || !seen.add(id) || weight <= 0) throw new IllegalArgumentException("Execution weights must reference unique criteria with positive values");
+      total += weight;
+    }
+    if (weights.size() != 0 && seen.size() != ids.size()) throw new IllegalArgumentException("Execution weights must cover every criterion");
+    if (weights.size() != 0 && Math.abs(total - 1.0) > 1e-9) throw new IllegalArgumentException("Execution weights must be normalized to 1");
+    if (count == 0 && !"feasibility".equals(scalarization)) throw new IllegalArgumentException("Empty criteria require feasibility scalarization");
   }
 
   public static void validateOptions(JsonObject options, String... allowedNames) {
@@ -121,7 +158,6 @@ public final class EngineContract {
     JsonObject metrics = new JsonObject();
     for (Map.Entry<String, Double> entry : evaluation.metrics().entrySet()) metrics.addProperty(entry.getKey(), entry.getValue());
     solution.add("features", metrics);
-    solution.add("metrics", metrics);
     solution.add("objectives", evaluation.objectives());
     JsonArray penalties = new JsonArray();
     for (Double penalty : evaluation.penalties()) penalties.add(penalty);

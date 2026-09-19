@@ -13,10 +13,10 @@
     "profile": "qos-binding/v1",
     "resources": {
       "application": {
-        "application": "application.json",
-        "routing": "routing.json"
+        "application": "application.json"
       },
       "candidateCatalog": {
+        "routing": "routing.json",
         "catalog": "candidates.json"
       },
       "optimization": {

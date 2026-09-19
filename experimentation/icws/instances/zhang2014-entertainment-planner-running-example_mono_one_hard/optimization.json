@@ -5,14 +5,13 @@
     "name": "zhang2014_entertainment_planner_running_example_mono_one_hard_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
+    "criteria": [
       {
+        "id": "availability",
         "feature": {
           "resource": "application",
           "id": "availability"
         },
-        "weight": 1.0,
         "normalize": {
           "min": 0,
           "max": 1,

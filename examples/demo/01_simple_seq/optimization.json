@@ -5,9 +5,9 @@
     "name": "demo_01_simple_seq_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
+    "criteria": [
       {
+        "id": "latency",
         "feature": {
           "resource": "application",
           "id": "latency"

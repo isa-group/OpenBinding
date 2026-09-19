@@ -35,16 +35,13 @@ public final class Controller implements HttpHandler {
 
   public String solvePayload(String payload) {
     EngineContract.Request request = EngineContract.parse(payload);
-    if (!"pareto".equals(request.problem().optimization().get("mode").getAsString())) {
-      throw new IllegalArgumentException("pareto-sampling requires optimization.mode pareto");
-    }
     JsonObject options = request.options();
     EngineContract.validateOptions(options, "iterations", "archive_size", "seed", "time_budget_ms");
     int iterations = EngineContract.integerOption(options, "iterations", 5000, 1, 1000000);
     int archiveSize = EngineContract.integerOption(options, "archive_size", 100, 1, 10000);
     long seed = EngineContract.longOption(options, "seed", 0L);
     Long budget = EngineContract.optionalPositiveLong(options, "time_budget_ms");
-    V1ManySearch.Result result = V1ManySearch.run(request.problem(), iterations, budget, archiveSize, seed);
+    V1ManySearch.Result result = V1ManySearch.run(request.problem(), request.optimization(), iterations, budget, archiveSize, seed);
     JsonObject provenance = new JsonObject();
     provenance.addProperty("algorithm", "bounded-pareto-sampling");
     provenance.addProperty("evaluations", result.evaluations());

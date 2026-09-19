@@ -5,42 +5,6 @@
     "name": "netedu2020_transport_agency_multi_soft_optimization"
   },
   "spec": {
-    "mode": "pareto",
-    "terms": [
-      {
-        "feature": {
-          "resource": "application",
-          "id": "availability"
-        },
-        "normalize": {
-          "min": 0,
-          "max": 1,
-          "clamp": true
-        }
-      },
-      {
-        "feature": {
-          "resource": "application",
-          "id": "cost"
-        },
-        "normalize": {
-          "min": 0,
-          "max": 1000,
-          "clamp": true
-        }
-      },
-      {
-        "feature": {
-          "resource": "application",
-          "id": "execution_time"
-        },
-        "normalize": {
-          "min": 0,
-          "max": 20000,
-          "clamp": true
-        }
-      }
-    ],
     "penalties": [
       {
         "constraint": {
@@ -62,6 +26,44 @@
           "id": "gen_c_dep_same_1"
         },
         "weight": 1
+      }
+    ],
+    "criteria": [
+      {
+        "id": "availability",
+        "feature": {
+          "resource": "application",
+          "id": "availability"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 1,
+          "clamp": true
+        }
+      },
+      {
+        "id": "cost",
+        "feature": {
+          "resource": "application",
+          "id": "cost"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 1000,
+          "clamp": true
+        }
+      },
+      {
+        "id": "execution_time",
+        "feature": {
+          "resource": "application",
+          "id": "execution_time"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 20000,
+          "clamp": true
+        }
       }
     ]
   }

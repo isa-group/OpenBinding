@@ -5,14 +5,13 @@
     "name": "demo_02_parallel_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
+    "criteria": [
       {
+        "id": "latency",
         "feature": {
           "resource": "application",
           "id": "latency"
         },
-        "weight": 1.0,
         "normalize": {
           "min": 0,
           "max": 1000,

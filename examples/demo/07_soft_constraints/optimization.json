@@ -5,21 +5,6 @@
     "name": "demo_07_soft_optimization"
   },
   "spec": {
-    "mode": "weighted",
-    "terms": [
-      {
-        "feature": {
-          "resource": "application",
-          "id": "latency"
-        },
-        "weight": 1.0,
-        "normalize": {
-          "min": 0,
-          "max": 1000,
-          "clamp": true
-        }
-      }
-    ],
     "penalties": [
       {
         "constraint": {
@@ -27,6 +12,20 @@
           "id": "c_soft_lat"
         },
         "weight": 1
+      }
+    ],
+    "criteria": [
+      {
+        "id": "latency",
+        "feature": {
+          "resource": "application",
+          "id": "latency"
+        },
+        "normalize": {
+          "min": 0,
+          "max": 1000,
+          "clamp": true
+        }
       }
     ]
   }
