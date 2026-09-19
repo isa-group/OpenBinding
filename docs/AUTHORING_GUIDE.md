@@ -126,7 +126,7 @@ before optimization.
 Put policy in ConstraintSet and decision strategy in Optimization. Constraints
 use safe CEL or JSON AST. Every soft assertion has a non-negative penalty and
 must be referenced explicitly by the Optimization. Choose `satisfy`,
-`weighted`, `lexicographic`, or `pareto`; normalize terms explicitly when units
+`weighted-sum`, `lexicographic`, or `pareto-front`; normalize criteria explicitly when units
 differ.
 
 Keep XOR probabilities in a RoutingOverlay. Supply every branch probability or

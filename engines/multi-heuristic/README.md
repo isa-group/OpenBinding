@@ -3,7 +3,7 @@
 This is the federated counterpart of `many-heuristic`. It uses the same seeded
 sampling and bounded non-dominated archive, but accepts only canonical
 `BindingProblem` IR with `optimization.type: MULTI`, `mode: pareto`, and two or
-three objective terms. Placement remains optional in the IR; when present the
+three objective criteria. Placement remains optional in the IR; when present the
 shared `binding-core` evaluator applies it to every sampled decision.
 
 The synchronous deployment implements `bim-engine/v1` at

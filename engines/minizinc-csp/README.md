@@ -4,7 +4,7 @@ This service lowers a deliberately small canonical `bim/v1` `BindingProblem`
 subset to `model/binding_problem.mzn`. It never reads an `Instance` package or
 authoring resource.
 
-The `exact-weighted` mode supports MONO weighted utility, task, empty,
+The `exact-weighted` mode supports SINGLE weighted-sum utility, task, empty,
 sequence, parallel, probabilistic XOR and exact repeat nodes. Its executable
 aggregations are sequence/parallel sum/min/max, XOR weighted sum/min/max,
 repeat scale or identity, and selected-candidate sum/min/max. Hard comparison

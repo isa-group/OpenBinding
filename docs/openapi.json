@@ -2907,6 +2907,51 @@
             ],
             "type": "object"
           },
+          "criterion": {
+            "additionalProperties": false,
+            "properties": {
+              "direction": {
+                "enum": [
+                  "minimize",
+                  "maximize"
+                ]
+              },
+              "feature": {
+                "$ref": "#/components/schemas/BindingProblem/$defs/ref"
+              },
+              "id": {
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+                "type": "string"
+              },
+              "normalize": {
+                "additionalProperties": false,
+                "properties": {
+                  "clamp": {
+                    "type": "boolean"
+                  },
+                  "max": {
+                    "type": "number"
+                  },
+                  "min": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "min",
+                  "max",
+                  "clamp"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "id",
+              "feature",
+              "direction"
+            ],
+            "type": "object"
+          },
           "demand": {
             "additionalProperties": false,
             "properties": {
@@ -3389,84 +3434,13 @@
           },
           "optimization": {
             "additionalProperties": false,
-            "allOf": [
-              {
-                "else": {
-                  "properties": {
-                    "terms": {
-                      "minItems": 1
-                    }
-                  }
-                },
-                "if": {
-                  "properties": {
-                    "mode": {
-                      "const": "satisfy"
-                    }
-                  },
-                  "required": [
-                    "mode"
-                  ]
-                },
-                "then": {
-                  "properties": {
-                    "terms": {
-                      "maxItems": 0
-                    },
-                    "type": {
-                      "const": "MONO"
-                    }
-                  }
-                }
-              },
-              {
-                "if": {
-                  "properties": {
-                    "type": {
-                      "const": "MULTI"
-                    }
-                  },
-                  "required": [
-                    "type"
-                  ]
-                },
-                "then": {
-                  "properties": {
-                    "terms": {
-                      "maxItems": 3,
-                      "minItems": 2
-                    }
-                  }
-                }
-              },
-              {
-                "if": {
-                  "properties": {
-                    "type": {
-                      "const": "MANY"
-                    }
-                  },
-                  "required": [
-                    "type"
-                  ]
-                },
-                "then": {
-                  "properties": {
-                    "terms": {
-                      "minItems": 3
-                    }
-                  }
-                }
-              }
-            ],
             "properties": {
-              "mode": {
-                "enum": [
-                  "satisfy",
-                  "weighted",
-                  "lexicographic",
-                  "pareto"
-                ]
+              "criteria": {
+                "items": {
+                  "$ref": "#/components/schemas/BindingProblem/$defs/criterion"
+                },
+                "type": "array",
+                "uniqueItems": true
               },
               "penalties": {
                 "items": {
@@ -3478,26 +3452,11 @@
               "resource": {
                 "minLength": 1,
                 "type": "string"
-              },
-              "terms": {
-                "items": {
-                  "$ref": "#/components/schemas/BindingProblem/$defs/term"
-                },
-                "type": "array"
-              },
-              "type": {
-                "enum": [
-                  "MONO",
-                  "MULTI",
-                  "MANY"
-                ]
               }
             },
             "required": [
               "resource",
-              "mode",
-              "type",
-              "terms",
+              "criteria",
               "penalties"
             ],
             "type": "object"
@@ -3932,50 +3891,6 @@
                 "type": "object"
               }
             ]
-          },
-          "term": {
-            "additionalProperties": false,
-            "properties": {
-              "direction": {
-                "enum": [
-                  "minimize",
-                  "maximize"
-                ]
-              },
-              "feature": {
-                "$ref": "#/components/schemas/BindingProblem/$defs/ref"
-              },
-              "normalize": {
-                "additionalProperties": false,
-                "properties": {
-                  "clamp": {
-                    "type": "boolean"
-                  },
-                  "max": {
-                    "type": "number"
-                  },
-                  "min": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "min",
-                  "max",
-                  "clamp"
-                ],
-                "type": "object"
-              },
-              "weight": {
-                "exclusiveMinimum": 0,
-                "type": "number"
-              }
-            },
-            "required": [
-              "feature",
-              "direction",
-              "weight"
-            ],
-            "type": "object"
           },
           "transition": {
             "additionalProperties": false,
@@ -5960,12 +5875,17 @@
       "EngineManifest": {
         "$defs": {
           "capabilities": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/EngineManifest/$defs/selector"
-            },
+            "additionalProperties": false,
             "minProperties": 1,
-            "propertyNames": {
-              "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"
+            "patternProperties": {
+              "^(?!scalarizations$)[A-Za-z][A-Za-z0-9_.-]{0,127}$": {
+                "$ref": "#/components/schemas/EngineManifest/$defs/selector"
+              }
+            },
+            "properties": {
+              "scalarizations": {
+                "$ref": "#/components/schemas/EngineManifest/$defs/scalarizations"
+              }
             },
             "type": "object"
           },
@@ -6021,6 +5941,9 @@
               },
               "description": {
                 "type": "string"
+              },
+              "internal": {
+                "type": "boolean"
               },
               "labels": {
                 "additionalProperties": {
@@ -6269,6 +6192,58 @@
               "type",
               "properties",
               "additionalProperties"
+            ],
+            "type": "object"
+          },
+          "scalarizations": {
+            "additionalProperties": false,
+            "properties": {
+              "selector": {
+                "const": "only"
+              },
+              "values": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "objectiveTypes": {
+                      "items": {
+                        "enum": [
+                          "SINGLE",
+                          "MULTI",
+                          "MANY"
+                        ]
+                      },
+                      "minItems": 1,
+                      "type": "array",
+                      "uniqueItems": true
+                    },
+                    "weightPolicy": {
+                      "enum": [
+                        "required",
+                        "optional",
+                        "forbidden"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "objectiveTypes",
+                    "weightPolicy"
+                  ],
+                  "type": "object"
+                },
+                "minItems": 1,
+                "type": "array",
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "selector",
+              "values"
             ],
             "type": "object"
           },
@@ -10879,9 +10854,7 @@
           },
           "engines": {
             "items": {
-              "additionalProperties": {
-                "type": "string"
-              },
+              "additionalProperties": true,
               "type": "object"
             },
             "maxItems": 50,
@@ -10940,9 +10913,7 @@
             "type": "string"
           },
           "engine_ref": {
-            "additionalProperties": {
-              "type": "string"
-            },
+            "additionalProperties": true,
             "title": "Engine Ref",
             "type": "object"
           },
@@ -11088,9 +11059,7 @@
           },
           "engines": {
             "items": {
-              "additionalProperties": {
-                "type": "string"
-              },
+              "additionalProperties": true,
               "type": "object"
             },
             "maxItems": 50,

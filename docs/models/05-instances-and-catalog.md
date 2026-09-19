@@ -100,7 +100,7 @@ compatibility, not deployment availability.
 | `02_parallel` | Parallel workflow and `max` latency aggregation |
 | `03_xor_choice` | Probabilistic exclusive branch and RoutingOverlay |
 | `04_conflict` | Hard constraint infeasibility |
-| `05_multi_obj` | Two normalized terms with explicit `MONO` classification |
+| `05_multi_obj` | Two normalized criteria selected at execution time |
 | `05_single_obj_various` | The same weighted scalarization with inferred objective type |
 | `06_loops` | Deterministic `repeat.expectedCount` aggregation |
 | `07_soft_constraints` | Soft assertion and explicitly activated penalty |
