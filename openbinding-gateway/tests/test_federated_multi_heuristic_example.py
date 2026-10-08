@@ -40,10 +40,12 @@ def test_federated_example_pins_valid_immutable_contracts() -> None:
 
     mode = engine["spec"]["modes"][0]
     problem = routes._conformance_problem(mode)
-    optimization = problem["spec"]["optimization"]
-    assert (optimization["type"], optimization["mode"], len(optimization["terms"])) == (
+    # The IR only lists criteria; type and scalarization are chosen at execution.
+    assert len(problem["spec"]["optimization"]["criteria"]) == 2
+    execution = routes._conformance_optimization(mode)
+    assert (execution["type"], execution["scalarization"], len(execution["weights"])) == (
         "MULTI",
-        "pareto",
+        "pareto-front",
         2,
     )
 
@@ -76,11 +78,13 @@ async def test_federated_verification_probes_the_published_multi_mode(monkeypatc
     async def fetch(_transport, path, **_kwargs):
         return deployment_openapi if path == "/openapi.json" else {"status": "ok"}
 
-    async def solve(_transport, problem, options, **_kwargs):
-        optimization = problem["spec"]["optimization"]
+    async def solve(_transport, problem, options, optimization, **_kwargs):
+        assert len(problem["spec"]["optimization"]["criteria"]) == 2
         assert optimization["type"] == "MULTI"
-        assert optimization["mode"] == "pareto"
-        assert len(optimization["terms"]) == 2
+        assert optimization["scalarization"] == "pareto-front"
+        assert [item["criteria"] for item in optimization["weights"]] == [
+            criterion["id"] for criterion in problem["spec"]["optimization"]["criteria"]
+        ]
         assert options == {"iterations": 5000, "archive_size": 100, "seed": 0}
         return {
             "termination": "FEASIBLE",

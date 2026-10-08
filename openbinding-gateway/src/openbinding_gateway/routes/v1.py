@@ -5033,9 +5033,15 @@ async def get_v1_job_neighborhood(
     if _ANALYSIS_SLOTS.locked():
         return _problem(429, "analysis_busy", "The analysis evaluator is busy; retry shortly")
     problem = BindingProblem(document=document, digest=ir_digest or digest(document), source_map={})
+    # Compare under the job's execution optimization, as the gateway re-evaluation did.
+    execution = (job.original_request or {}).get("optimization") or (job.provenance or {}).get("optimization")
+    if not isinstance(execution, dict):
+        execution = None
     async with _ANALYSIS_SLOTS:
         try:
-            result = await run_in_threadpool(analyze_neighborhood, problem, decision["binding"], task=task, limit=limit)
+            result = await run_in_threadpool(
+                analyze_neighborhood, problem, decision["binding"], task=task, limit=limit, execution=execution
+            )
         except (ValueError, ArithmeticError) as exc:
             return _problem(422, "analysis_invalid", str(exc)[:300])
     return {"jobId": job_id, "solutionIndex": solution_index, **result}

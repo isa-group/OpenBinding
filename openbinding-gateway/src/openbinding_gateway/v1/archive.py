@@ -90,6 +90,25 @@ def compact_archive(archive):
     return archive
 
 
+TOTAL_ORDER_MODES = ("weighted", "lexicographic", "feasibility")
+
+
+def ordering_mode(shapes: set[tuple[Any, Any]]) -> str:
+    """Model ordering implied by the execution objective the stored evaluations were scored under.
+
+    The IR no longer carries a mode: the objective type and scalarization are
+    chosen per job execution and recorded in every stored evaluation.
+    """
+    if len(shapes) != 1:
+        return "unknown"
+    objective_type, scalarization = next(iter(shapes))
+    if objective_type in ("MULTI", "MANY"):
+        return "pareto"
+    if objective_type != "SINGLE" or not isinstance(scalarization, str):
+        return "unknown"
+    return "weighted" if scalarization == "weighted-sum" else "feasibility" if scalarization == "feasibility" else "lexicographic"
+
+
 def build_archive(sources: list[tuple[AnalysisSource, dict, dict]]) -> Archive:
     sources = sorted(sources, key=lambda source: source[0].id)
     document = sources[0][1]
@@ -115,6 +134,7 @@ def build_archive(sources: list[tuple[AnalysisSource, dict, dict]]) -> Archive:
     candidates: dict[str, Candidate] = {}
     assignment_fragments = {}
     trajectory = []
+    shapes: set[tuple[Any, Any]] = set()
     for source, _, result in sources:
         solutions = record(result).get("solutions", [])
         if not isinstance(solutions, list):
@@ -148,6 +168,7 @@ def build_archive(sources: list[tuple[AnalysisSource, dict, dict]]) -> Archive:
             else:
                 candidate_id = digest({"job": source.id, "index": index})
             objective = record(solution.get("objectives"))
+            shapes.add((objective.get("type"), objective.get("scalarization")))
             components = objective.get("components", [])
             expected = [metric_key(record(term).get("feature")) for term in terms]
             actual = [metric_key(record(c).get("feature")) for c in components] if isinstance(components, list) else []
@@ -194,7 +215,7 @@ def build_archive(sources: list[tuple[AnalysisSource, dict, dict]]) -> Archive:
             c.normalized = tuple(0.0 if d.constant else (c.losses[j] - d.minimum) / (d.maximum - d.minimum)
                                  for j, d in enumerate(dimensions))
     revision = digest({"version": VERSION, "sources": [s.model_dump() for s, _, _ in sources]})
-    return Archive(revision, [s for s, _, _ in sources], dimensions, rows, document, optimization.get("mode", "unknown"), trajectory)
+    return Archive(revision, [s for s, _, _ in sources], dimensions, rows, document, ordering_mode(shapes), trajectory)
 
 
 def hypervolume_2d(archive, rows):
@@ -227,6 +248,8 @@ def validate_query(archive: Archive, query: AnalysisQuery) -> None:
         raise ValueError("The viewport must have positive width and height")
     if query.rule == "model" and archive.mode == "pareto":
         raise ValueError("The Pareto model defines a partial order; choose a preference rule to rank trade-offs")
+    if query.rule == "model" and archive.mode not in TOTAL_ORDER_MODES:
+        raise ValueError("The stored evaluations do not share one canonical model score; choose a preference rule")
 
 
 def priorities(archive: Archive, query: AnalysisQuery) -> list[float]:
@@ -490,7 +513,7 @@ def query_archive(archive: Archive, query: AnalysisQuery) -> dict:
                    "eligible": len(decision.ordered), "excluded": len(other)})
     return {"version": VERSION, "revision": archive.revision, "sources": archive.sources, "dimensions": archive.dimensions,
         "counts": dict(counts), "rule": query.rule, "formula": FORMULAS[query.rule],
-        "modelOrderingAvailable": archive.mode in ("weighted", "lexicographic"),
+        "modelOrderingAvailable": archive.mode in TOTAL_ORDER_MODES,
         "weights": dict(zip((d.key for d in archive.dimensions), decision.weights, strict=True)), "warnings": warnings,
         "winners": [row_view(c, decision, ranks) for c in winners[:200]], "winnerCount": len(winners),
         "next": [row_view(c, decision, ranks) for c in following[:200]], "nextCount": len(following),

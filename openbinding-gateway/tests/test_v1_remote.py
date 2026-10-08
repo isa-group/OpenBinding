@@ -4,6 +4,9 @@ import pytest
 from openbinding_gateway.v1 import remote
 
 
+OPTIMIZATION = {"type": "SINGLE", "scalarization": "feasibility"}
+
+
 def _result(termination: str = "FEASIBLE") -> dict:
     return {
         "termination": termination,
@@ -12,7 +15,8 @@ def _result(termination: str = "FEASIBLE") -> dict:
                 "decision": {"kind": "binding", "binding": {}},
                 "features": {},
                 "objectives": {
-                    "mode": "satisfy",
+                    "type": "SINGLE",
+                    "scalarization": "feasibility",
                     "components": [],
                     "penalty": 0,
                     "score": 0,
@@ -61,11 +65,13 @@ async def test_remote_transport_sends_only_binding_problem(monkeypatch) -> None:
         remote.RemoteRegistration("https://engine.example", {}, "bearer", "secret"),
         {"apiVersion": "bim/v1", "kind": "BindingProblem"},
         {"seed": 7},
+        OPTIMIZATION,
         transport=httpx.MockTransport(handler),
     )
     assert result["termination"] == "FEASIBLE"
     assert seen["auth"] == "Bearer secret"
     assert b'"kind":"BindingProblemRequest"' in seen["body"]
+    assert b'"optimization":{"type":"SINGLE","scalarization":"feasibility"}' in seen["body"]
     assert b'"zip"' not in seen["body"]
 
 
@@ -98,6 +104,7 @@ async def test_remote_async_receipt_is_polled(monkeypatch) -> None:
         remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}),
         {},
         {},
+        OPTIMIZATION,
         transport=httpx.MockTransport(handler),
     )
     assert result["termination"] == "OPTIMAL"
@@ -116,6 +123,7 @@ async def test_remote_async_receipt_must_match_the_published_contract(monkeypatc
             remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}),
             {},
             {},
+            OPTIMIZATION,
             transport=httpx.MockTransport(handler),
         )
 
@@ -153,6 +161,7 @@ async def test_remote_transport_pins_validated_address_against_dns_rebinding(mon
         remote.RemoteRegistration("https://solver.example:8443", {}),
         {"apiVersion": "bim/v1", "kind": "BindingProblem"},
         {},
+        OPTIMIZATION,
         transport=httpx.MockTransport(handler),
     )
 
@@ -175,6 +184,7 @@ async def test_remote_response_size_is_bounded_even_without_content_length(monke
             remote.RemoteRegistration("https://engine.example", {}),
             {"apiVersion": "bim/v1", "kind": "BindingProblem"},
             {},
+            OPTIMIZATION,
             transport=httpx.MockTransport(handler),
         )
 

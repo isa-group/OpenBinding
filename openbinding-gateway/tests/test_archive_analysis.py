@@ -19,12 +19,12 @@ from openbinding_gateway.v1.package import load_package
 def example_archive(points=None, directions=None, constraints=None):
     points = points or [(0, 1), (.6, .6), (1, 0), (.85, .85)]
     m = len(points[0])
-    terms = [{"feature": {"resource": "app", "id": f"x{j}"}, "direction": (directions or ["minimize"] * m)[j]} for j in range(m)]
-    document = {"spec": {"optimization": {"mode": "pareto", "terms": terms}, "constraints": constraints or []}}
+    terms = [{"id": f"x{j}", "feature": {"resource": "app", "id": f"x{j}"}, "direction": (directions or ["minimize"] * m)[j]} for j in range(m)]
+    document = {"spec": {"optimization": {"criteria": terms, "penalties": []}, "constraints": constraints or []}}
     solutions = [{"decision": {"kind": "binding", "binding": {"task": {"resource": "catalog", "id": str(i)}}},
         "features": {f"x{j}": x for j, x in enumerate(point)}, "violations": [],
-        "objectives": {"mode": "pareto", "penalty": 0, "score": [*point, 0],
-            "components": [{"feature": term["feature"], "value": point[j], "loss": point[j], "weight": 1} for j, term in enumerate(terms)]}}
+        "objectives": {"type": "MULTI", "scalarization": "pareto", "penalty": 0, "score": [*point, 0],
+            "components": [{"criteria": term["id"], "feature": term["feature"], "value": point[j], "loss": point[j], "weight": 1} for j, term in enumerate(terms)]}}
         for i, point in enumerate(points)]
     result = {"solutions": solutions}
     source = AnalysisSource(id="source", engine="fixture", state="completed", createdAt="2026-01-01", irDigest=digest(document), evaluatorDigest="verified-evaluator", resultDigest=digest(result), legacy=False)
@@ -50,6 +50,27 @@ def test_balanced_unsupported_winner_dominated_runner_up_and_fixed_normalization
     response = query_archive(archive, q)
     assert response["winnerCount"] == 1 and response["nextCount"] == 1
     assert response["pareto"]["frontCount"] == 3
+    # The ordering mode comes from the stored execution objective, not the IR.
+    assert archive.mode == "pareto" and response["modelOrderingAvailable"] is False
+    with pytest.raises(ValueError, match="partial order"):
+        decide(archive, q.model_copy(update={"rule": "model"}))
+
+
+@pytest.mark.parametrize("shapes, expected", [
+    ({("MULTI", "pareto-front")}, "pareto"),
+    ({("MANY", "pareto-front")}, "pareto"),
+    ({("SINGLE", "weighted-sum")}, "weighted"),
+    ({("SINGLE", "lexicographic")}, "lexicographic"),
+    ({("SINGLE", "feasibility")}, "feasibility"),
+    ({("SINGLE", "weighted-sum"), ("MULTI", "pareto-front")}, "unknown"),
+    ({(None, None)}, "unknown"),
+    (set(), "unknown"),
+])
+def test_ordering_mode_comes_from_the_stored_execution_objective(shapes, expected):
+    from openbinding_gateway.v1.archive import TOTAL_ORDER_MODES, ordering_mode
+    mode = ordering_mode(shapes)
+    assert mode == expected
+    assert (mode in TOTAL_ORDER_MODES) == (expected in {"weighted", "lexicographic", "feasibility"})
 
 
 @pytest.mark.parametrize("m", [1, 2, 3])

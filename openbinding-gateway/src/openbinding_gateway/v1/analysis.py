@@ -40,7 +40,8 @@ def _comparison(base: dict, alternative: dict) -> str:
     if not _feasible(base):
         return "repairs-feasibility"
     a, b = alternative["objectives"], base["objectives"]
-    if a["mode"] == "pareto":
+    if a["type"] in {"MULTI", "MANY"}:
+        # Multi-objective executions define only a partial order over the losses.
         x, y = _losses(alternative), _losses(base)
         return "better" if _dominates(x, y) else "worse" if _dominates(y, x) else "equal" if x == y else "trade-off"
     # Python list ordering matches the canonical lexicographic convention.
@@ -48,9 +49,11 @@ def _comparison(base: dict, alternative: dict) -> str:
 
 
 def analyze_neighborhood(problem: BindingProblem, binding: dict, *, task: str | None = None,
-                         limit: int = 64, seconds: float = 2.0) -> dict:
+                         limit: int = 64, seconds: float = 2.0, execution: dict | None = None) -> dict:
     """Evaluate at most `limit` distinct eligible Hamming-distance-one moves.
 
+    `execution` is the job's execution-time optimization (type, scalarization
+    and weights). Without it the evaluator default (equal-weight SINGLE) applies.
     The time budget is cooperative between evaluations, not a hard deadline
     for an individual evaluator call. The caller bounds concurrent requests.
     """
@@ -60,7 +63,10 @@ def analyze_neighborhood(problem: BindingProblem, binding: dict, *, task: str | 
     normalized = problem.validate_binding(binding)
     if task is not None and task not in normalized:
         raise ValueError("The selected task is not a bound service task")
-    base = problem.evaluate(normalized)
+    def evaluate(candidate: dict) -> dict:
+        return problem.evaluate(candidate) if execution is None else problem.evaluate(candidate, execution)
+
+    base = evaluate(normalized)
     if not _finite_tree(base):
         raise ValueError("The selected binding has non-finite evaluation data")
     choices = {}
@@ -82,7 +88,7 @@ def analyze_neighborhood(problem: BindingProblem, binding: dict, *, task: str | 
             attempted += 1
             changed = {**normalized, key: ref}
             try:
-                evaluation = problem.evaluate(changed)
+                evaluation = evaluate(changed)
                 if not _finite_tree(evaluation):
                     raise ValueError("Non-finite evaluation data")
             except (ValueError, ArithmeticError) as exc:
@@ -121,7 +127,7 @@ def analyze_neighborhood(problem: BindingProblem, binding: dict, *, task: str | 
                      "limit": limit, "stopReason": stop_reason, "perTask": {key: len(refs) for key, refs in choices.items()}},
         "conclusion": conclusion,
         "semantics": "Re-evaluated with the current canonical evaluator against the pinned job IR. "
-                     "Comparison uses the model's original objective mode and weights, not UI preferences. "
+                     "Comparison uses the job's execution objective type, scalarization and weights, not UI preferences. "
                      "This is new counterfactual evidence, not solver history or global optimality. "
                      "Only eligible single-task substitutions are considered; multi-task changes are untested.",
     }

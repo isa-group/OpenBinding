@@ -102,7 +102,8 @@
               "apiVersion",
               "kind",
               "protocol",
-              "problem"
+              "problem",
+              "optimization"
             ],
             "properties": {
               "apiVersion": {
@@ -117,8 +118,55 @@
               "problem": {
                 "$ref": "#/components/schemas/BindingProblem"
               },
+              "optimization": {
+                "$ref": "#/components/schemas/ExecutionOptimization"
+              },
               "options": {
                 "type": "object"
+              }
+            }
+          },
+          "ExecutionOptimization": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "scalarization",
+              "weights"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "SINGLE",
+                  "MULTI",
+                  "MANY"
+                ]
+              },
+              "scalarization": {
+                "type": "string",
+                "minLength": 1
+              },
+              "weights": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "criteria",
+                    "value"
+                  ],
+                  "properties": {
+                    "criteria": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "value": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    }
+                  }
+                }
               }
             }
           },
@@ -173,12 +221,17 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
+              "criteria",
               "feature",
               "value",
               "loss",
               "weight"
             ],
             "properties": {
+              "criteria": {
+                "type": "string",
+                "minLength": 1
+              },
               "feature": {
                 "$ref": "#/components/schemas/Ref"
               },
@@ -190,7 +243,7 @@
               },
               "weight": {
                 "type": "number",
-                "exclusiveMinimum": 0
+                "minimum": 0
               }
             }
           },
@@ -198,20 +251,24 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
-              "mode",
+              "type",
+              "scalarization",
               "components",
               "penalty",
               "score"
             ],
             "properties": {
-              "mode": {
+              "type": {
                 "type": "string",
                 "enum": [
-                  "satisfy",
-                  "weighted",
-                  "lexicographic",
-                  "pareto"
+                  "SINGLE",
+                  "MULTI",
+                  "MANY"
                 ]
+              },
+              "scalarization": {
+                "type": "string",
+                "minLength": 1
               },
               "components": {
                 "type": "array",
