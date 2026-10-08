@@ -1,0 +1,34 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "cremaschi2018_textbook_access_multi_hard",
+    "version": "1.0.0",
+    "description": "QoS-aware instance derived from the running example in 'A Practical Approach to Services Composition Through Light Semantic Descriptions' (ESOCC 2018). QoS values are illustrative placeholders.",
+    "annotations": {
+      "paper": {
+        "title": "A Practical Approach to Services Composition Through Light Semantic Descriptions",
+        "authors": "M. Cremaschi et al.",
+        "year": 2018,
+        "doi": "10.1007/978-3-319-99819-0_10"
+      }
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

@@ -273,6 +273,97 @@
         "title": "AdminUserView",
         "type": "object"
       },
+      "Aggregation": {
+        "additionalProperties": false,
+        "properties": {
+          "exclusive": {
+            "anyOf": [
+              {
+                "enum": [
+                  "weightedSum",
+                  "weightedProduct",
+                  "min",
+                  "max"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclusive"
+          },
+          "parallel": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sum",
+                  "product",
+                  "min",
+                  "max"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parallel"
+          },
+          "repeat": {
+            "anyOf": [
+              {
+                "enum": [
+                  "scale",
+                  "power",
+                  "identity"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repeat"
+          },
+          "selection": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sum",
+                  "product",
+                  "min",
+                  "max"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selection"
+          },
+          "sequence": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sum",
+                  "product",
+                  "min",
+                  "max"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sequence"
+          }
+        },
+        "title": "Aggregation",
+        "type": "object"
+      },
       "AnalysisCandidateResponse": {
         "properties": {
           "binding": {
@@ -5541,6 +5632,56 @@
         ],
         "type": "object"
       },
+      "Distribution": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "uniform",
+              "normal"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "maximum": {
+            "title": "Maximum",
+            "type": "number"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "minimum": {
+            "title": "Minimum",
+            "type": "number"
+          },
+          "stddev": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stddev"
+          }
+        },
+        "required": [
+          "kind",
+          "minimum",
+          "maximum"
+        ],
+        "title": "Distribution",
+        "type": "object"
+      },
       "DraftContent": {
         "additionalProperties": false,
         "properties": {
@@ -6955,6 +7096,70 @@
         ],
         "type": "object"
       },
+      "FeatureDefinition": {
+        "additionalProperties": false,
+        "properties": {
+          "aggregation": {
+            "$ref": "#/components/schemas/Aggregation"
+          },
+          "count": {
+            "default": 1,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "direction": {
+            "enum": [
+              "minimize",
+              "maximize"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "distribution": {
+            "$ref": "#/components/schemas/Distribution"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "objective": {
+            "default": true,
+            "title": "Objective",
+            "type": "boolean"
+          },
+          "scope": {
+            "enum": [
+              "selectedCandidate",
+              "invocation"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "unit": {
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit",
+          "direction",
+          "scope",
+          "distribution",
+          "aggregation"
+        ],
+        "title": "FeatureDefinition",
+        "type": "object"
+      },
       "GatewayBindingResult": {
         "additionalProperties": false,
         "properties": {
@@ -6987,6 +7192,7 @@
         "type": "object"
       },
       "GenerateCorpusRequest": {
+        "additionalProperties": false,
         "properties": {
           "as_archive": {
             "default": false,
@@ -7049,10 +7255,14 @@
             "title": "Project Id"
           }
         },
+        "required": [
+          "base_config"
+        ],
         "title": "GenerateCorpusRequest",
         "type": "object"
       },
       "GenerateInstanceRequest": {
+        "additionalProperties": false,
         "properties": {
           "branches": {
             "default": 30.0,
@@ -7082,10 +7292,16 @@
             "description": "Custom name for the BindingCase if persisted.",
             "title": "Case Name"
           },
+          "constraint_count_mode": {
+            "default": "exact",
+            "pattern": "^(exact|expected)$",
+            "title": "Constraint Count Mode",
+            "type": "string"
+          },
           "constraints": {
             "default": 1,
-            "description": "Number of global constraints.",
-            "maximum": 10.0,
+            "description": "Exact or expected number of distinct feature constraints.",
+            "maximum": 100.0,
             "minimum": 0.0,
             "title": "Constraints",
             "type": "integer"
@@ -7106,10 +7322,28 @@
             "title": "Dialects",
             "type": "array"
           },
+          "distributions": {
+            "$ref": "#/components/schemas/GenerationDistributions"
+          },
+          "features": {
+            "description": "Explicit candidate feature definitions.",
+            "items": {
+              "$ref": "#/components/schemas/FeatureDefinition"
+            },
+            "minItems": 1,
+            "title": "Features",
+            "type": "array"
+          },
           "guarantee_feasibility": {
             "default": true,
             "description": "Guarantee feasibility using witness solution.",
             "title": "Guarantee Feasibility",
+            "type": "boolean"
+          },
+          "include_file_bytes": {
+            "default": false,
+            "description": "Include exact generated file bytes as base64 for reproducible exports.",
+            "title": "Include File Bytes",
             "type": "boolean"
           },
           "iterations_per_loop": {
@@ -7187,17 +7421,11 @@
             "description": "Project ID to persist a BindingCase.",
             "title": "Project Id"
           },
-          "qos_properties": {
-            "default": 5,
-            "description": "Number of QoS properties.",
-            "maximum": 5.0,
-            "minimum": 1.0,
-            "title": "Qos Properties",
-            "type": "integer"
-          },
           "seed": {
             "anyOf": [
               {
+                "maximum": 9.223372036854776e+18,
+                "minimum": -9.223372036854776e+18,
                 "type": "integer"
               },
               {
@@ -7238,7 +7466,57 @@
             "type": "boolean"
           }
         },
+        "required": [
+          "features"
+        ],
         "title": "GenerateInstanceRequest",
+        "type": "object"
+      },
+      "GenerationDistributions": {
+        "additionalProperties": false,
+        "properties": {
+          "branches_per_decision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Distribution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidate_count": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Distribution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "constraint_optimality_percent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Distribution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "loop_iterations": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Distribution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "GenerationDistributions",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -7281,6 +7559,17 @@
       },
       "InstanceGeneratedResponse": {
         "properties": {
+          "actual_constraint_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Constraint Count"
+          },
           "case_id": {
             "anyOf": [
               {
@@ -7295,6 +7584,20 @@
           "compilation_digest": {
             "title": "Compilation Digest",
             "type": "string"
+          },
+          "file_bytes_base64": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Bytes Base64"
           },
           "files": {
             "additionalProperties": true,

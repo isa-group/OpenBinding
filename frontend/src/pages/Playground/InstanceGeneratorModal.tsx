@@ -26,7 +26,6 @@ export function InstanceGeneratorModal({
   onLoadGeneratedFiles,
 }: InstanceGeneratorModalProps) {
   const iterationsPerLoop = 5;
-  const qosProperties = 5;
   const [activeTab, setActiveTab] = useState<'synthesize' | 'legacy'>('synthesize');
 
   // Synthesize Form State
@@ -76,14 +75,22 @@ export function InstanceGeneratorModal({
         tasks,
         candidates,
         control_flow: controlFlow,
-        loops,
-        branches,
-        parallel,
-        max_nesting: maxNesting,
-        iterations_per_loop: iterationsPerLoop,
-        qos_properties: qosProperties,
+        ...(controlFlow > 0 ? { loops, branches, parallel, max_nesting: maxNesting } : {}),
+        ...(controlFlow > 0 && loops > 0 ? { iterations_per_loop: iterationsPerLoop } : {}),
+        features: [
+          { id: 'cost', unit: 'EUR', direction: 'minimize', scope: 'selectedCandidate',
+            distribution: { kind: 'uniform', minimum: 0, maximum: 100 }, aggregation: { selection: 'sum' } },
+          { id: 'latency', unit: 'ms', direction: 'minimize', scope: 'invocation',
+            distribution: { kind: 'uniform', minimum: 0, maximum: 500 },
+            aggregation: { sequence: 'sum', parallel: 'max', exclusive: 'weightedSum', repeat: 'scale' } },
+          ...(['reliability', 'availability', 'security'] as const).map((id) => ({
+            id, unit: '1', direction: 'maximize' as const, scope: 'selectedCandidate' as const,
+            distribution: { kind: 'uniform' as const, minimum: 0, maximum: 1 },
+            aggregation: { selection: 'min' as const },
+          })),
+        ],
         constraints,
-        tension,
+        ...(constraints > 0 && guaranteeFeasibility ? { tension } : {}),
         guarantee_feasibility: guaranteeFeasibility,
         optimization_mode: optimizationMode,
         target_engines: targetEngines,

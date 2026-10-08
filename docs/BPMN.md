@@ -11,8 +11,9 @@ XML is not rewritten as a `bim/v1` JSON resource.
 
 BPMN XML is preserved for editing, while the Profile/Dialect adapter lowers
 only a well-defined executable subset: one structured SESE process,
-service/local tasks, none start/end events, sequence flow, structured XOR/AND
-gateways, and exact static sequential multi-instance activities. Unsupported
+service/local tasks, start/end events, sequence flow, structured XOR/AND
+gateways, nested structured subprocesses, and exact static sequential
+multi-instance activities or subprocesses. Unsupported
 elements produce element-local diagnostics; the compiler never guesses or
 silently degrades them. BPMN task ids, or task names when ids differ, must
 resolve to tasks declared by the Application resource.
@@ -28,7 +29,8 @@ Native `repeat` accepts either an exact integer `count` or a decimal
 not an uncertain QoS distribution. Parallel and exclusive structures use the
 metric aggregation declared by the application.
 
-An executable BPMN repeat has this exact shape on an activity:
+An executable BPMN repeat has this exact shape on an activity or structured
+subprocess:
 
 ```xml
 <multiInstanceLoopCharacteristics isSequential="true">
@@ -37,7 +39,9 @@ An executable BPMN repeat has this exact shape on an activity:
 ```
 
 `loopCardinality` must be a static, finite, non-negative integer literal and is
-lowered to native `repeat.count`. Parallel multi-instance execution, dynamic
+lowered to native `repeat.count`. A subprocess body is compiled recursively;
+its task references, XOR/AND joins and routing flow IDs retain their semantics.
+Parallel multi-instance execution, dynamic
 cardinality expressions, and graph cycles are rejected. In particular,
 `standardLoopCharacteristics` is always rejected, even when it contains
 `loopMaximum`: BPMN defines that value as a bound on a condition-controlled
@@ -48,6 +52,12 @@ The routing overlay targets an exclusive branch id for native JSON or a
 `sequenceFlow` id for BPMN. Conditions are permitted only on XOR split flows.
 Every XOR is either condition-selected or fully probabilistic; conditions and
 probabilities cannot be mixed for one XOR.
+
+The generator endpoint accepts `dialects: ["bpmn-workflow/v1"]` and returns a
+BPMN package directly. The corresponding `qos-binding/v1` request with the
+same remaining parameters and seed produces a native JSON package with the
+same executable IR digest. This guarantee applies to the generator's paired
+outputs, not to arbitrary user-authored JSON and BPMN files.
 
 The normative external notation remains [OMG BPMN
 2.0.2](https://www.omg.org/spec/BPMN/2.0.2/). BIM supplies the role, schema

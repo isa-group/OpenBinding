@@ -2256,6 +2256,30 @@ def _compile_workflow(
     return {"kind": "bpmnRef", "workflow": reference} if reference else None
 
 
+def _flatten_workflow_sequences(node: dict[str, Any]) -> dict[str, Any]:
+    """Canonicalize associative, unnamed sequence nodes in either notation."""
+    kind = node.get("kind")
+    if kind == "sequence":
+        steps = []
+        for child in node["steps"]:
+            child = _flatten_workflow_sequences(child)
+            if child.get("kind") == "sequence" and "id" not in child:
+                steps.extend(child["steps"])
+            else:
+                steps.append(child)
+        return {**node, "steps": steps}
+    if kind == "parallel":
+        return {**node, "branches": [_flatten_workflow_sequences(child) for child in node["branches"]]}
+    if kind == "exclusive":
+        return {**node, "branches": [
+            {**branch, "flow": _flatten_workflow_sequences(branch["flow"])}
+            for branch in node["branches"]
+        ]}
+    if kind == "repeat":
+        return {**node, "body": _flatten_workflow_sequences(node["body"])}
+    return node
+
+
 def _bpmn_workflow(
     workflow_resource: _Resource,
     process_id: str | None,
@@ -2265,10 +2289,11 @@ def _bpmn_workflow(
     paths: Mapping[str, str],
     diagnostics: list[CompileDiagnostic],
     source_map: dict[str, Any],
+    container: Any | None = None,
 ) -> dict[str, Any] | None:
     root = workflow_resource.xml
-    processes = [element for element in list(root) if element.tag.rsplit("}", 1)[-1] == "process"] if root is not None else []
-    if process_id:
+    processes = [container] if container is not None else [element for element in list(root) if element.tag.rsplit("}", 1)[-1] == "process"] if root is not None else []
+    if process_id and container is None:
         processes = [element for element in processes if element.get("id") == process_id]
     if len(processes) != 1:
         diagnostics.append(_diag("bpmn_process", "BPMN requires exactly one selected process", workflow_resource.path, "/process"))
@@ -2287,6 +2312,7 @@ def _bpmn_workflow(
         "exclusiveGateway",
         "parallelGateway",
         "sequenceFlow",
+        "subProcess",
         "incoming",
         "outgoing",
         "standardLoopCharacteristics",
@@ -2304,6 +2330,8 @@ def _bpmn_workflow(
     seen_ids: dict[str, dict[str, str]] = {}
     flows: list[tuple[str, str, str, str | None]] = []
     for element in list(process):
+        if element.tag.rsplit("}", 1)[-1] in {"multiInstanceLoopCharacteristics", "incoming", "outgoing"}:
+            continue
         element_id = element.get("id")
         if not element_id:
             diagnostics.append(_diag("bpmn_id", "executable BPMN elements require an id", workflow_resource.path, "/process"))
@@ -2362,7 +2390,14 @@ def _bpmn_workflow(
             diagnostics.append(_diag("bpmn_task_ref", f"BPMN task {element_id!r} has no Application task", workflow_resource.path, f"/process/{element_id}"))
 
     def sequence(items: list[dict[str, Any]]) -> dict[str, Any]:
-        values = [item for item in items if item.get("kind") != "empty"]
+        values = []
+        for item in items:
+            if item.get("kind") == "empty":
+                continue
+            if item.get("kind") == "sequence" and "id" not in item:
+                values.extend(item["steps"])
+            else:
+                values.append(item)
         if not values:
             return {"kind": "empty"}
         return values[0] if len(values) == 1 else {"kind": "sequence", "steps": values}
@@ -2453,6 +2488,20 @@ def _bpmn_workflow(
                     diagnostics.append(_diag("bpmn_task_flow", "BPMN task requires one outgoing flow and a task mapping", workflow_resource.path, f"/process/{node_id}"))
                     return None
                 head: dict[str, Any] = {"kind": "task", "task": _ref(application.id, task_map[node_id])}
+                repetition = loop_count(element)
+                if repetition is not None:
+                    if repetition[0] == "invalid":
+                        return None
+                    head = {"kind": "repeat", "body": head, repetition[0]: repetition[1]}
+                tail = walk(successors[0][0], stop)
+                return sequence([head, tail]) if tail else None
+            if local == "subProcess":
+                if len(successors) != 1:
+                    diagnostics.append(_diag("bpmn_subprocess_flow", "BPMN subProcess requires one outgoing flow", workflow_resource.path, f"/process/{node_id}"))
+                    return None
+                head = _bpmn_workflow(workflow_resource, None, application, tasks, roots, paths, diagnostics, source_map, element)
+                if head is None:
+                    return None
                 repetition = loop_count(element)
                 if repetition is not None:
                     if repetition[0] == "invalid":
@@ -4126,6 +4175,8 @@ def _compile_qos_binding(
         else:
             source_workflow_owner = target.id
             workflow = _bpmn_workflow(target, reference.get("id"), application_resource, tasks, routing_roots, routing_paths, diagnostics, source_map)
+    if workflow is not None:
+        workflow = _flatten_workflow_sequences(workflow)
     if workflow is None:
         diagnostics.append(_diag("workflow", "Application has no executable workflow", application_resource.path, "/spec/workflow"))
     routing = _routing(

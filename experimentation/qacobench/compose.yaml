@@ -1,0 +1,144 @@
+name: qacobench-release
+
+x-gateway-environment: &gateway-environment
+  APP_ENV: dev
+  SCHEMAS_DIR: /app/schemas
+  PYTHONPATH: /app/src
+  DATABASE_URL: postgresql+asyncpg://benchmark:${QACOBENCH_PASSWORD:-Benchmark2026!}@postgres:5432/benchmark
+  REDIS_URL: redis://redis:6379/0
+  GATEWAY_JWT_SECRET: ${QACOBENCH_JWT_SECRET:-isolated-qacobench-reproduction-key}
+  BOOTSTRAP_ADMIN_USERNAME: benchmark
+  BOOTSTRAP_ADMIN_EMAIL: benchmark@example.org
+  BOOTSTRAP_ADMIN_PASSWORD: ${QACOBENCH_PASSWORD:-Benchmark2026!}
+  SPACE_ENABLED: "false"
+  SPACE_FAIL_MODE: open
+  LOCAL_PRICING_CATALOG: /app/pricing/openbinding.yml
+  LOCAL_PRICING_PLAN: PRO
+  LOCAL_PRICING_UNMETERED: "true"
+  JOB_DISPATCH_MODE: dramatiq
+  ARTIFACT_ROOT: /var/lib/openbinding/artifacts
+  PUBLIC_BASE_URL: http://gateway:8000
+  ENGINE_MINIZINC_URL: http://engine-minizinc:3000
+  ENGINE_RANDOM_SEARCH_URL: http://engine-random-search:8080
+  ENGINE_EVOLUTIONARY_HEURISTICS_URL: http://engine-evolutionary-heuristics:8080
+  FEDERATION_REQUIRE_HTTPS: "false"
+
+x-runner-environment: &runner-environment
+  OPENBINDING_GATEWAY_URL: http://gateway:8000
+  OPENBINDING_USERNAME: benchmark
+  OPENBINDING_PASSWORD: ${QACOBENCH_PASSWORD:-Benchmark2026!}
+  SCHEMAS_DIR: /workspace/schemas
+
+services:
+  postgres:
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+    environment:
+      POSTGRES_DB: benchmark
+      POSTGRES_USER: benchmark
+      POSTGRES_PASSWORD: ${QACOBENCH_PASSWORD:-Benchmark2026!}
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U benchmark -d benchmark"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    command: [redis-server, --appendonly, "yes"]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  engine-minizinc:
+    build: {context: ../../engines/minizinc-csp, dockerfile: Dockerfile}
+    image: qacobench/minizinc:${QACOBENCH_REVISION:-qfbs-v2}
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:3000/health]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  engine-random-search:
+    build: {context: ../../engines, dockerfile: random-search/Dockerfile}
+    image: qacobench/random-search:${QACOBENCH_REVISION:-qfbs-v2}
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:8080/health]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  engine-evolutionary-heuristics:
+    build: {context: ../../engines, dockerfile: evolutionary-heuristics/Dockerfile}
+    image: qacobench/evolutionary-heuristics:${QACOBENCH_REVISION:-qfbs-v2}
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:8080/health]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  gateway:
+    build: {context: ../.., dockerfile: experimentation/qacobench/Gateway.Dockerfile}
+    image: qacobench/gateway:${QACOBENCH_REVISION:-qfbs-v2}
+    environment: *gateway-environment
+    volumes: [gateway-artifacts:/var/lib/openbinding/artifacts]
+    ports: ["127.0.0.1:${QACOBENCH_GATEWAY_PORT:-18000}:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      engine-minizinc: {condition: service_healthy}
+      engine-random-search: {condition: service_healthy}
+      engine-evolutionary-heuristics: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:8000/health/ready]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  worker:
+    image: qacobench/gateway:${QACOBENCH_REVISION:-qfbs-v2}
+    entrypoint: []
+    command: [dramatiq, openbinding_gateway.worker, --processes, "1", --threads, "4", --queues, default]
+    environment: *gateway-environment
+    volumes: [gateway-artifacts:/var/lib/openbinding/artifacts]
+    depends_on:
+      gateway: {condition: service_healthy}
+
+  seed-engines:
+    image: qacobench/gateway:${QACOBENCH_REVISION:-qfbs-v2}
+    entrypoint: []
+    command: [python, benchmark/seed_engines.py]
+    environment: *gateway-environment
+    depends_on:
+      gateway: {condition: service_healthy}
+
+  runner:
+    build: {context: ../.., dockerfile: experimentation/qacobench/Dockerfile}
+    image: qacobench/runner:${QACOBENCH_REVISION:-qfbs-v2}
+    environment: *runner-environment
+    volumes:
+      - ../../datasets:/workspace/datasets
+      - ../../.artifacts/qacobench:/workspace/.artifacts/qacobench
+    depends_on:
+      seed-engines: {condition: service_completed_successfully}
+      worker: {condition: service_started}
+
+  jupyter:
+    image: qacobench/runner:${QACOBENCH_REVISION:-qfbs-v2}
+    profiles: [jupyter]
+    command: [jupyter, lab, --ip=0.0.0.0, --port=8888, --no-browser, --allow-root]
+    environment: *runner-environment
+    volumes:
+      - ../../datasets:/workspace/datasets:ro
+      - ../../.artifacts/qacobench:/workspace/.artifacts/qacobench
+    ports: ["127.0.0.1:${QACOBENCH_JUPYTER_PORT:-18888}:8888"]
+    depends_on:
+      seed-engines: {condition: service_completed_successfully}
+
+volumes:
+  postgres-data:
+  redis-data:
+  gateway-artifacts:

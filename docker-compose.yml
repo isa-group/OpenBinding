@@ -344,7 +344,7 @@ services:
         <<: *proxy-build-args
     profiles: ["dev"]
     entrypoint: []
-    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "2", "--queues", "default"]
+    command: ["dramatiq", "openbinding_gateway.worker", "--processes", "1", "--threads", "4", "--queues", "default"]
     volumes:
       - ./schemas:/app/schemas:ro
       - ./openbinding-gateway:/app
@@ -479,6 +479,37 @@ services:
       timeout: 3s
       retries: 5
       start_period: 30s
+
+  qacobench-runner:
+    build:
+      context: .
+      dockerfile: experimentation/qacobench/Dockerfile
+      args:
+        <<: *proxy-build-args
+    profiles: ["benchmark", "dev"]
+    ports:
+      - "${QACOBENCH_JUPYTER_PORT:-8888}:8888"
+    volumes:
+      - .:/workspace
+      - ./schemas:/app/schemas:ro
+      - ./openbinding-gateway/src:/app/src:ro
+      - artifacts:/var/lib/openbinding/artifacts
+    environment:
+      - PYTHONPATH=/workspace/openbinding-gateway/src:/workspace
+      - OPENBINDING_GATEWAY_URL=http://gateway-dev:8000
+      - SCHEMAS_DIR=/workspace/schemas
+    networks:
+      - default
+      - space
+    depends_on:
+      gateway-dev:
+        condition: service_healthy
+      engine-minizinc:
+        condition: service_healthy
+      engine-random-search:
+        condition: service_healthy
+      engine-evolutionary-heuristics:
+        condition: service_healthy
 
   frontend-dev:
     build:

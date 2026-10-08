@@ -14,6 +14,7 @@ from _pricing import fake_pricing_gate, pricing_catalog
 from openbinding_gateway.core.settings import Settings
 from openbinding_gateway.db.bootstrap import (
     DEFAULT_ADMIN_PASSWORD,
+    DEFAULT_ADMIN_PLAN,
     DEFAULT_ADMIN_USERNAME,
     ensure_administrator,
     seed_default_administrator,
@@ -46,7 +47,7 @@ async def test_an_administrator_is_seeded_on_the_plan_it_needs(db_session):
         )
     ).scalar_one()
 
-    assert admin.plan_cache == pricing_catalog().default_plan
+    assert admin.plan_cache == DEFAULT_ADMIN_PLAN
 
 
 async def test_the_seeded_password_is_the_documented_one(db_session):
@@ -151,6 +152,25 @@ async def test_an_existing_account_is_promoted_rather_than_duplicated(db_session
     everybody = await users(db_session)
     assert len(everybody) == 1
     assert everybody[0].role is UserRole.ADMIN
+
+
+async def test_an_existing_configured_admin_is_kept_on_operational_plan(db_session):
+    db_session.add(
+        User(
+            username="admin",
+            email="admin@example.org",
+            password_hash="x",
+            role=UserRole.ADMIN,
+            plan_cache="BASIC",
+            contract_pending=False,
+        )
+    )
+    await db_session.flush()
+
+    assert await ensure_administrator(db_session, configured(bootstrap_admin_username="admin")) is True
+    admin = (await db_session.execute(select(User).where(User.username == "admin"))).scalar_one()
+    assert admin.plan_cache == DEFAULT_ADMIN_PLAN
+    assert admin.contract_pending is True
 
 
 async def test_nothing_happens_once_an_administrator_exists(db_session):

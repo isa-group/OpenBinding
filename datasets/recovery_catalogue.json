@@ -1,0 +1,269 @@
+{
+  "catalogue_version": "qacobench/v1",
+  "generated_date": "2026-09-27",
+  "conference": "BenchSOC @ ICSOC 2026",
+  "description": "Recovery catalogue for the seven-suite, 15,450-instance QACOBench release.",
+  "admitted_suites": [
+    {
+      "suite_id": "01_icws",
+      "name": "ICWS 2007 Benchmark Scenarios",
+      "instances_count": 48,
+      "admission_class": "complete QACO",
+      "status": "ADMITTED",
+      "source": {
+        "title": "QoS-driven Web Service Composition Benchmarks (ICWS 2007)",
+        "authors": [
+          "M. Alrifai",
+          "T. Risse",
+          "P. Dolog"
+        ],
+        "year": 2009,
+        "doi": "10.1145/1526709.1526723",
+        "url": "https://doi.org/10.1145/1526709.1526723",
+        "license": "Open Academic Research Benchmark"
+      },
+      "dialects": [],
+      "rationale": "Historical standard for QoS web service composition. Retains sequential task graphs, real-world candidate QoS matrices (response time, throughput, cost, availability, reliability), and linear multi-attribute utility scalarization."
+    },
+    {
+      "suite_id": "02_quantum",
+      "name": "Quantum Service Selection Benchmark",
+      "instances_count": 46,
+      "admission_class": "related QACO",
+      "status": "ADMITTED",
+      "source": {
+        "title": "Quantum Resource Selection as a QoS-Aware Composition Problem",
+        "authors": [
+          "Adrián Romero-Flores",
+          "Alfonso E. Márquez-Chamorro",
+          "Antonio Ruiz-Cortés"
+        ],
+        "year": 2026,
+        "url": "https://doi.org/10.5281/zenodo.21442195",
+        "license": "Open Academic Research Benchmark"
+      },
+      "dialects": [],
+      "rationale": "Exercises domain transfer of QACO to quantum circuit execution. QoS dimensions include gate fidelity, queue wait times, readout error rates, and quantum execution token costs."
+    },
+    {
+      "suite_id": "03_hsc_llm",
+      "name": "HSC-LLM (Hierarchical Service Composition for LLM Workflows)",
+      "instances_count": 10000,
+      "admission_class": "derived composition",
+      "status": "ADMITTED",
+      "source": {
+        "title": "HSC-LLM: Hierarchical Service Composition and Routing for Foundation Model Pipelines",
+        "authors": [
+          "HSC Research Group"
+        ],
+        "year": 2025,
+        "license": "Open Academic Research Benchmark"
+      },
+      "dialects": [],
+      "rationale": "Evaluates multi-agent LLM pipeline routing across heterogeneous models (latency, monetary cost per token, reasoning accuracy, and rate-limit throughput constraints)."
+    },
+    {
+      "suite_id": "04_rprsr15",
+      "name": "RPRSR15 (Ramirez & Parejo Web Service Composition Benchmark)",
+      "instances_count": 60,
+      "admission_class": "complete QACO",
+      "status": "ADMITTED",
+      "source": {
+        "title": "An empirical study of GRASP heuristics for QoS-aware Web service composition / Optimization of service compositions with branches",
+        "authors": [
+          "J. A. Parejo",
+          "A. Ruiz-Cortes",
+          "S. Ramirez",
+          "P. Chicano"
+        ],
+        "year": 2017,
+        "journal": "Expert Systems with Applications",
+        "doi": "10.1016/j.eswa.2017.03.064",
+        "url": "https://doi.org/10.5281/zenodo.10668798",
+        "repository": "https://github.com/joramirez/rprsr15-problemInstances",
+        "license": "GNU LGPL v3.0 / Open Access"
+      },
+      "dialects": [],
+      "rationale": "Lossless conversion of 60 literature instances from Ramirez et al. Features both sequential and exclusive branch (XOR) structures mapped to RoutingOverlay with branch probabilities, 5 QoS metrics, and non-linear utility aggregation."
+    },
+    {
+      "suite_id": "05_iots",
+      "name": "IoTS (IoT Service Composition Dataset)",
+      "instances_count": 6,
+      "admission_class": "complete QACO",
+      "status": "ADMITTED",
+      "source": {
+        "title": "An improved multi-objective optimization algorithm for IoT service composition",
+        "authors": [
+          "M. Tang",
+          "L. Gao",
+          "Z. Xiao"
+        ],
+        "year": 2024,
+        "journal": "Heliyon",
+        "doi": "10.1016/j.heliyon.2024.e24483",
+        "url": "https://doi.org/10.5281/zenodo.10440967",
+        "license": "Creative Commons Attribution 4.0 International (CC-BY-4.0)"
+      },
+      "dialects": [],
+      "rationale": "Scalable real-world IoT service composition benchmark covering 10 to 60 tasks with candidate pools derived from 120 task workbooks. Features ResponseTime, Cost, Reliability, and Availability."
+    },
+    {
+      "suite_id": "06_bws_scp",
+      "name": "BWS-SCP (Cloud Manufacturing Worker-Service Matching Benchmark)",
+      "instances_count": 90,
+      "admission_class": "placement-aware QACO",
+      "status": "ADMITTED",
+      "source": {
+        "title": "Bi-objective worker-service matching in cloud manufacturing considering worker fatigue and skill",
+        "authors": [
+          "F. Mahroo",
+          "M. B. Fakhrzad",
+          "M. R. Farahani"
+        ],
+        "year": 2025,
+        "journal": "Computers & Industrial Engineering",
+        "doi": "10.1016/j.cie.2025.110820",
+        "repository": "https://github.com/FMahroo/BWS-SCP",
+        "license": "Open Academic Research Benchmark"
+      },
+      "dialects": [],
+      "rationale": "Cloud manufacturing service composition with bi-objective time-cost trade-offs and worker-to-service matching. The alpha/beta worker pricing model is deterministically converted into candidate costs."
+    },
+    {
+      "suite_id": "07_qfbs",
+      "name": "QFBS (QACOForge Benchmarking Suite)",
+      "instances_count": 5200,
+      "admission_class": "synthetic benchmark",
+      "status": "ADMITTED",
+      "source": {
+        "title": "QACOBench: A Reusable Benchmark Suite for QoS-Aware Service Composition",
+        "authors": [
+          "Francisco Javier Cavero",
+          "José Antonio Parejo",
+          "Antonio Ruiz-Cortés"
+        ],
+        "year": 2026,
+        "conference": "BenchSOC @ ICSOC 2026",
+        "license": "CC-BY-4.0"
+      },
+      "rationale": "5,200 instances generated directly through the HTTP API: 2,600 feasibility-guaranteed and 2,600 non-guaranteed instances. Each group uses the same 26 configurations at 100 seeds. Versioned requests and the generation manifest support reproduction; no second generation or semantic-pair audit is required."
+    }
+  ],
+  "excluded_or_classified_candidates": [
+    {
+      "dataset_id": "qws_dataset",
+      "name": "QWS Dataset (v1 and v2)",
+      "status": "EXCLUDED",
+      "classification": "QoS catalogue",
+      "source": {
+        "title": "Investigating QoS of Real-World Web Services",
+        "authors": [
+          "E. Al-Masri",
+          "Q. H. Mahmoud"
+        ],
+        "year": 2007,
+        "url": "https://www.uoguelph.ca/~qmahmoud/qws/"
+      },
+      "exclusion_rationale": "QWS is an empirical catalogue of isolated Web service measurements (2,507 services across 9 QoS parameters: response time, availability, throughput, successability, reliability, compliance, best practices, latency, documentation). It lacks business process workflow topologies, task dependency DAGs, candidate-to-task bindings, and composition-level objective criteria. Admitting QWS directly into QACOBench would require inventing artificial workflow structures, which violates our semantic admission contract."
+    },
+    {
+      "dataset_id": "ws_dream",
+      "name": "WS-DREAM Dataset",
+      "status": "EXCLUDED",
+      "classification": "QoS catalogue / Collaborative filtering",
+      "source": {
+        "title": "Collaborative Filtering Service Quality Prediction",
+        "authors": [
+          "Z. Zheng",
+          "Y. Zhang",
+          "M. R. Lyu"
+        ],
+        "year": 2014,
+        "url": "https://github.com/WS-DREAM"
+      },
+      "exclusion_rationale": "WS-DREAM provides distributed client-side QoS observation matrices (User x Service x Time). It is specifically formulated for QoS prediction, matrix factorization, and collaborative filtering tasks, rather than combinatorial workflow service selection and placement. No fixed workflow DAGs or constraint sets are defined."
+    },
+    {
+      "dataset_id": "wsc_challenges",
+      "name": "Web Service Challenges (WSC 2008, 2009, 2010)",
+      "status": "EXCLUDED",
+      "classification": "discovery/composition",
+      "source": {
+        "title": "Web Service Challenge: Evaluation of Semantic Web Service Composition",
+        "authors": [
+          "WSC Organizers"
+        ],
+        "year": 2010
+      },
+      "exclusion_rationale": "WSC benchmarks address semantic discovery and automated workflow synthesis based on IOPE (Inputs, Outputs, Preconditions, Effects). In WSC, the graph topology is unknown and must be discovered by automated planners. QACOBench evaluates QACO (Quality-Aware Service Composition), which solves the orthogonal problem of discrete binding optimization over known, fixed workflow structures. Importing WSC into QACOBench would conflate automated semantic discovery with combinatorial QoS binding."
+    },
+    {
+      "dataset_id": "wsben",
+      "name": "WSBen Benchmark Toolkit",
+      "status": "EXCLUDED",
+      "classification": "discovery benchmark toolkit",
+      "source": {
+        "title": "WSBen: A Web Services Discovery and Composition Benchmark",
+        "authors": [
+          "S. C. Oh",
+          "D. Lee",
+          "S. R. T. Kumara"
+        ],
+        "year": 2008
+      },
+      "exclusion_rationale": "Synthetic ontology generator designed to produce semantic concept graphs for matchmaking and semantic chaining. Does not define QoS multi-criteria utility functions, SLA constraint assertions, or concrete service execution candidates."
+    },
+    {
+      "dataset_id": "ppdrl_2024",
+      "name": "PPDRL Framework",
+      "status": "EXCLUDED",
+      "classification": "algorithmic framework",
+      "source": {
+        "title": "Privacy-Preserving Deep Reinforcement Learning for QoS-Aware Service Composition",
+        "authors": [
+          "Wang et al."
+        ],
+        "year": 2024,
+        "journal": "IEEE Transactions on Services Computing"
+      },
+      "exclusion_rationale": "PPDRL is a neural reinforcement learning framework rather than an independent benchmark dataset. The experimental evaluation in the paper draws raw QoS values from QWS and generates random service graphs dynamically in RAM during training epochs without distributing persistent, reproducible instance packages."
+    },
+    {
+      "dataset_id": "sfc_peerj_603",
+      "name": "SFC Service Function Chaining (PeerJ cs-603)",
+      "status": "EXCLUDED",
+      "classification": "network function chain",
+      "source": {
+        "title": "Service function chain placement and routing in software defined networks",
+        "year": 2021,
+        "journal": "PeerJ Computer Science"
+      },
+      "exclusion_rationale": "Formulates VNF (Virtual Network Function) routing and packet queue scheduling with context-free grammars and packet arrival distributions. Does not map to discrete multi-alternative web service selection with static QoS attributes."
+    },
+    {
+      "dataset_id": "p_mdp_dynamic",
+      "name": "P-MDP (Probabilistic Markov Decision Process for Dynamic Web Services)",
+      "status": "EXCLUDED",
+      "classification": "stochastic control",
+      "source": {
+        "title": "Dynamic Service Composition under Uncertainty using Markov Decision Processes",
+        "year": 2022
+      },
+      "exclusion_rationale": "Focuses on runtime dynamic adaptation under stochastic failure transitions using Bellman value iteration. The decision variables represent dynamic policy actions rather than static or pre-scheduled workflow binding packages."
+    }
+  ],
+  "summary": {
+    "admitted_suites": 7,
+    "admitted_instances": 15450,
+    "active_suite_ids": [
+      "01_icws",
+      "02_quantum",
+      "03_hsc_llm",
+      "04_rprsr15",
+      "05_iots",
+      "06_bws_scp",
+      "07_qfbs"
+    ]
+  }
+}

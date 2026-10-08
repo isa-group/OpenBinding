@@ -1406,6 +1406,35 @@ export class ApiClient {
 // Generator & Legacy Conversion Types
 // ==========================================
 
+type GeneratorDistributionBounds = {
+  minimum: number;
+  maximum: number;
+};
+
+export type GeneratorDistribution = GeneratorDistributionBounds & (
+  { kind: 'uniform'; mean?: never; stddev?: never } |
+  { kind: 'normal'; mean: number; stddev: number }
+);
+
+type GeneratorFeatureBase = {
+  id?: string;
+  count?: number;
+  unit: string;
+  direction: 'minimize' | 'maximize';
+  distribution: GeneratorDistribution;
+  objective?: boolean;
+};
+
+export type GeneratorFeature = GeneratorFeatureBase & (
+  { scope: 'selectedCandidate'; aggregation: { selection: 'sum' | 'product' | 'min' | 'max' } } |
+  { scope: 'invocation'; aggregation: {
+    sequence: 'sum' | 'product' | 'min' | 'max';
+    parallel: 'sum' | 'product' | 'min' | 'max';
+    exclusive: 'weightedSum' | 'weightedProduct' | 'min' | 'max';
+    repeat: 'scale' | 'power' | 'identity';
+  } }
+);
+
 export interface GenerateInstanceParams {
   tasks?: number;
   candidates?: number;
@@ -1415,8 +1444,15 @@ export interface GenerateInstanceParams {
   parallel?: number;
   max_nesting?: number;
   iterations_per_loop?: number;
-  qos_properties?: number;
+  features: GeneratorFeature[];
+  distributions?: {
+    candidate_count?: GeneratorDistribution;
+    loop_iterations?: GeneratorDistribution;
+    branches_per_decision?: GeneratorDistribution;
+    constraint_optimality_percent?: GeneratorDistribution;
+  };
   constraints?: number;
+  constraint_count_mode?: 'exact' | 'expected';
   target_engines?: string[];
   optimization_mode?: 'weighted' | 'pareto' | null;
   guarantee_feasibility?: boolean;
@@ -1441,11 +1477,12 @@ export interface InstanceGeneratedResponse {
   target_engines: string[];
   workload_features: Record<string, unknown>;
   files: Record<string, unknown>;
+  actual_constraint_count?: number | null;
 }
 
 export interface GenerateCorpusParams {
   count?: number;
-  base_config?: GenerateInstanceParams;
+  base_config: GenerateInstanceParams;
   name?: string;
   persist?: boolean;
   project_id?: string | null;
@@ -1463,6 +1500,7 @@ export interface CorpusGeneratedResponse {
     compilation_digest: string;
     snapshot_id?: string | null;
     workload_features: Record<string, unknown>;
+    actual_constraint_count: number;
   }>;
   collection_id?: string | null;
   study_id?: string | null;

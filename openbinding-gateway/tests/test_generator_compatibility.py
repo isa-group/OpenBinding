@@ -15,8 +15,8 @@ def test_empty_target_engines_returns_defaults():
     caps = resolve_engine_capabilities(None)
     assert isinstance(caps, TargetCapabilities)
     assert caps.target_engines == []
-    assert "weighted" in caps.allowed_optimizations
-    assert "pareto" in caps.allowed_optimizations
+    assert "weighted-sum" in caps.allowed_optimizations
+    assert "pareto-front" in caps.allowed_optimizations
 
     caps_empty = resolve_engine_capabilities([])
     assert caps_empty.target_engines == []
@@ -24,19 +24,19 @@ def test_empty_target_engines_returns_defaults():
 
 def test_single_engine_minizinc():
     caps = resolve_engine_capabilities(["minizinc-csp"])
-    assert "weighted" in caps.allowed_optimizations
-    assert "pareto" not in caps.allowed_optimizations
-    assert caps.default_optimization == "weighted"
-    assert caps.default_objective_type == "MONO"
+    assert "weighted-sum" in caps.allowed_optimizations
+    assert "pareto-front" not in caps.allowed_optimizations
+    assert caps.default_optimization == "weighted-sum"
+    assert caps.default_objective_type == "SINGLE"
 
 
 def test_single_engine_many_heuristic():
     caps = resolve_engine_capabilities(["many-heuristic"])
-    assert "pareto" in caps.allowed_optimizations
-    assert "weighted" not in caps.allowed_optimizations
-    assert caps.default_optimization == "pareto"
+    assert "pareto-front" in caps.allowed_optimizations
+    assert "weighted-sum" not in caps.allowed_optimizations
+    assert caps.default_optimization == "pareto-front"
     assert caps.default_objective_type == "MANY"
-    assert caps.min_objectives >= 2
+    assert caps.min_objectives >= 3
 
 
 def test_compatible_multi_engines():
@@ -44,7 +44,22 @@ def test_compatible_multi_engines():
     assert isinstance(caps, TargetCapabilities)
     assert len(caps.target_engines) == 2
     # Both support weighted optimization
-    assert "weighted" in caps.allowed_optimizations
+    assert "weighted-sum" in caps.allowed_optimizations
+
+
+def test_three_engine_common_lane_is_single_weighted_sum():
+    caps = resolve_engine_capabilities([
+        "minizinc-csp",
+        "random-search",
+        "evolutionary-heuristics",
+    ])
+    assert caps.allowed_optimizations == ["weighted-sum"]
+    assert caps.allowed_objective_types == ["SINGLE"]
+    assert caps.mode_by_engine == {
+        "minizinc-csp": "exact-weighted",
+        "random-search": "seeded",
+        "evolutionary-heuristics": "elitist-genetic",
+    }
 
 
 def test_incompatible_engines_disjoint_optimization():

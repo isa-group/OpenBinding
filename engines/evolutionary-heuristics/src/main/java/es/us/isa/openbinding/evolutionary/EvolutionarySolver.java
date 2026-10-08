@@ -11,6 +11,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.TreeMap;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * Elitist categorical genetic search over BIM v1 bindings.
@@ -76,8 +80,6 @@ final class EvolutionarySolver {
     CanonicalEvaluator.Evaluation best = null;
     JsonArray trace = new JsonArray();
     int generation = 0;
-    // At most 512 evenly spaced incumbent checkpoints, plus the final checkpoint.
-    int traceStride = Math.max(1, (int) Math.ceil((double) maxEvaluations / populationSize / 512));
     long evaluations = 0;
     long started = System.nanoTime();
     while (evaluations < maxEvaluations && !expired(started, timeBudgetMs, evaluations)) {
@@ -88,15 +90,15 @@ final class EvolutionarySolver {
         scored.add(evaluation);
         evaluations++;
         if (evaluation.feasible()) {
-          if (best == null || evaluator.comparator().compare(evaluation, best) < 0) best = evaluation;
+          if (best == null || evaluator.comparator().compare(evaluation, best) < 0) {
+            best = evaluation;
+            recordIncumbent(trace, best, evaluations, generation + 1, started);
+          }
           if ("pareto-genetic".equals(algorithm)) updateArchive(archive, evaluation, evaluator, archiveSize);
         }
       }
       if (scored.isEmpty()) break;
       generation++;
-      if (generation == 1 || generation % traceStride == 0) {
-        recordIncumbent(trace, best, evaluations, generation, started);
-      }
       scored.sort(evaluator.comparator());
       List<Map<String, BindingProblem.Ref>> next = new ArrayList<Map<String, BindingProblem.Ref>>();
       // Elitism keeps the best ten percent.  Remaining children come from
@@ -124,9 +126,6 @@ final class EvolutionarySolver {
       population = next;
     }
     if (!"pareto-genetic".equals(algorithm) && best != null) archive.add(best);
-    if (trace.size() == 0 || trace.get(trace.size() - 1).getAsJsonObject().get("eval_index").getAsLong() != evaluations) {
-      recordIncumbent(trace, best, evaluations, generation, started);
-    }
     return new Result(archive, evaluations, (System.nanoTime() - started) / 1000000L, trace);
   }
 
@@ -139,8 +138,25 @@ final class EvolutionarySolver {
     event.addProperty("generation", generation);
     event.addProperty("elapsed_ms", (System.nanoTime() - started) / 1000000L);
     event.add("best_objective", best.objectives().get("score"));
+    event.addProperty("binding_hash", bindingHash(best.binding()));
     event.addProperty("feasible", true);
     trace.add(event);
+  }
+
+  private static String bindingHash(Map<String, BindingProblem.Ref> binding) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      for (Map.Entry<String, BindingProblem.Ref> item : new TreeMap<String, BindingProblem.Ref>(binding).entrySet()) {
+        BindingProblem.Ref ref = item.getValue();
+        digest.update((item.getKey() + "=" + ref.resource() + "/" + ref.id() + "\n")
+            .getBytes(StandardCharsets.UTF_8));
+      }
+      StringBuilder hex = new StringBuilder();
+      for (byte value : digest.digest()) hex.append(String.format("%02x", value & 0xff));
+      return hex.toString();
+    } catch (NoSuchAlgorithmException exception) {
+      throw new IllegalStateException("SHA-256 is unavailable", exception);
+    }
   }
 
   private static Map<String, BindingProblem.Ref> randomDecision(BindingProblem problem,

@@ -211,6 +211,12 @@ def _read_directory(root: Path) -> dict[str, bytes]:
             if path.is_symlink():
                 raise PackageError(f"symlink in package directory: {path}")
             continue
+        if path.name.startswith(".") or path.name in {
+            "benchmark-metadata.json",
+            "qfbs-oracle.json",
+            "README.md",
+        }:
+            continue
         rel = _normal_name(path.relative_to(root).as_posix())
         if rel in result or rel.casefold() in {key.casefold() for key in result}:
             raise PackageError(f"duplicate package path: {rel!r}")

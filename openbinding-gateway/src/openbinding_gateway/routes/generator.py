@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import base64
 import io
 import uuid
 import zipfile
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,6 +42,7 @@ from ..engine_routing.confidence import get_confidence_estimator
 from ..generator.compatibility import (
     IncompatibleTargetEnginesError,
 )
+from ..generator.config import FeatureDefinition, GenerationDistributions, StrictModel, expand_features
 from ..generator.legacy_parser import parse_legacy_file
 from ..generator.postprocessor import BIMPostprocessor
 from ..generator.synthesizer import generate_instance_package
@@ -52,29 +54,94 @@ from .v1 import _persist_snapshot
 router = APIRouter(prefix="/v1/generator", tags=["generator"])
 
 
-class GenerateInstanceRequest(BaseModel):
+class GenerateInstanceRequest(StrictModel):
     tasks: int = Field(default=10, ge=2, le=1000, description="Total number of tasks/activities.")
     candidates: int = Field(default=5, ge=2, le=100, description="Candidate services per task.")
     control_flow: int = Field(default=50, ge=0, le=90, description="Percentage of activities that are control flow.")
-    loops: float = Field(default=30.0, ge=0.0, le=100.0, description="Relative percentage of loops.")
-    branches: float = Field(default=30.0, ge=0.0, le=100.0, description="Relative percentage of branches.")
-    parallel: float = Field(default=20.0, ge=0.0, le=100.0, description="Relative percentage of parallel flows.")
+    loops: float = Field(default=30.0, ge=0.0, le=100.0, allow_inf_nan=False, description="Relative percentage of loops.")
+    branches: float = Field(default=30.0, ge=0.0, le=100.0, allow_inf_nan=False, description="Relative percentage of branches.")
+    parallel: float = Field(default=20.0, ge=0.0, le=100.0, allow_inf_nan=False, description="Relative percentage of parallel flows.")
     max_nesting: int = Field(default=3, ge=1, le=10, description="Maximum control structure nesting level.")
     iterations_per_loop: int = Field(default=5, ge=1, le=50, description="Average iterations per loop.")
-    qos_properties: int = Field(default=5, ge=1, le=5, description="Number of QoS properties.")
-    constraints: int = Field(default=1, ge=0, le=10, description="Number of global constraints.")
+    features: list[FeatureDefinition] = Field(min_length=1, description="Explicit candidate feature definitions.")
+    distributions: GenerationDistributions = Field(default_factory=GenerationDistributions)
+    constraints: int = Field(default=1, ge=0, le=100, description="Exact or expected number of distinct feature constraints.")
+    constraint_count_mode: str = Field(default="exact", pattern="^(exact|expected)$")
     target_engines: list[str] = Field(default_factory=list, description="Target solver engines.")
     optimization_mode: Optional[str] = Field(default=None, description="Optimization mode: 'weighted' or 'pareto'.")
     guarantee_feasibility: bool = Field(default=True, description="Guarantee feasibility using witness solution.")
-    tension: float = Field(default=0.7, ge=0.0, le=1.0, description="Constraint tightness factor in [0, 1].")
+    tension: float = Field(default=0.7, ge=0.0, le=1.0, allow_inf_nan=False, description="Constraint tightness factor in [0, 1].")
     name: str = Field(default="generated_instance", description="Instance name.")
     profile: str = Field(default="qos-binding/v1", description="BIM container profile.")
     dialects: list[str] = Field(default_factory=lambda: ["qos-binding/v1"], description="Allowed dialects.")
-    seed: Optional[int] = Field(default=None, description="Random seed for reproducibility.")
+    seed: Optional[int] = Field(default=None, ge=-(2**63), le=2**63 - 1, description="Random seed for reproducibility.")
     persist: bool = Field(default=False, description="Whether to persist as InstanceSnapshot in DB.")
+    include_file_bytes: bool = Field(default=False, description="Include exact generated file bytes as base64 for reproducible exports.")
     project_id: Optional[uuid.UUID] = Field(default=None, description="Project ID to persist a BindingCase.")
     case_name: Optional[str] = Field(default=None, description="Custom name for the BindingCase if persisted.")
     use_legacy_engine: bool = Field(default=False, description="Run the legacy Java CLI generator.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_removed_fields(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            corrections = {
+                "qos_properties": "define explicit features instead",
+                "templates": "define each feature directly in features",
+                "template": "define the feature directly in features",
+                "weights": "provide optional weights when executing a job, not when generating",
+            }
+            for field, correction in corrections.items():
+                if field in value:
+                    raise ValueError(f"{field}: unsupported generator input; {correction}")
+        return value
+
+    @model_validator(mode="after")
+    def check_generation(self) -> "GenerateInstanceRequest":
+        expanded = expand_features(self.features)
+        if not any(item["objective"] for item in expanded):
+            raise ValueError("features: at least one objective=true is required")
+        if self.constraints > len(expanded):
+            raise ValueError("constraints: cannot exceed expanded features; reduce constraints or add features")
+        abstract_count = max(2, self.tasks * (100 - self.control_flow) // 100)
+        max_candidates = (self.distributions.candidate_count.maximum if self.distributions.candidate_count else self.candidates)
+        if abstract_count * max_candidates * len(expanded) > 1_000_000:
+            raise ValueError("features/candidates/tasks: at most 1,000,000 candidate-feature values; reduce the size")
+        if self.distributions.candidate_count and "candidates" in self.model_fields_set:
+            raise ValueError("candidates: remove it when distributions.candidate_count is set")
+        if self.distributions.loop_iterations and "iterations_per_loop" in self.model_fields_set:
+            raise ValueError("iterations_per_loop: remove it when distributions.loop_iterations is set")
+        possible_cf = min(round(self.tasks * self.control_flow / 100), self.tasks - abstract_count)
+        if possible_cf == 0 and self.control_flow > 0 and "control_flow" in self.model_fields_set:
+            raise ValueError("control_flow: task count leaves no room for control nodes; increase tasks or set control_flow=0")
+        if possible_cf == 0 and self.model_fields_set.intersection({"loops", "branches", "parallel", "max_nesting", "iterations_per_loop"}):
+            raise ValueError("control_flow: no control nodes can be generated; remove loops, branches, parallel, max_nesting and iterations_per_loop")
+        if possible_cf == 0 and (self.distributions.loop_iterations or self.distributions.branches_per_decision):
+            raise ValueError("distributions: control_flow creates no control nodes; increase it or remove structural distributions")
+        if possible_cf and self.loops + self.branches + self.parallel == 0:
+            raise ValueError("loops/branches/parallel: at least one percentage must be positive when control_flow creates nodes")
+        if self.distributions.loop_iterations and self.loops == 0:
+            raise ValueError("distributions.loop_iterations: loops is zero; increase loops or remove the distribution")
+        if self.loops == 0 and "iterations_per_loop" in self.model_fields_set:
+            raise ValueError("iterations_per_loop: loops is zero; remove iterations_per_loop or increase loops")
+        if self.distributions.branches_per_decision and self.branches == 0:
+            raise ValueError("distributions.branches_per_decision: branches is zero; increase branches or remove the distribution")
+        if self.distributions.constraint_optimality_percent:
+            if self.guarantee_feasibility:
+                raise ValueError("guarantee_feasibility: set false to use distributions.constraint_optimality_percent")
+            if self.constraints == 0:
+                raise ValueError("distributions.constraint_optimality_percent: constraints is zero; increase constraints or remove it")
+        if not self.guarantee_feasibility and "tension" in self.model_fields_set:
+            raise ValueError("tension: remove it when guarantee_feasibility is false")
+        if self.constraints == 0 and "tension" in self.model_fields_set:
+            raise ValueError("tension: remove it when constraints is zero")
+        if self.constraints == 0 and "constraint_count_mode" in self.model_fields_set:
+            raise ValueError("constraint_count_mode: remove it when constraints is zero")
+        if self.project_id is not None and not self.persist:
+            raise ValueError("project_id: set persist=true or remove project_id")
+        if self.case_name is not None and (not self.persist or self.project_id is None):
+            raise ValueError("case_name: set persist=true and project_id, or remove case_name")
+        return self
 
 
 class InstanceGeneratedResponse(BaseModel):
@@ -87,17 +154,34 @@ class InstanceGeneratedResponse(BaseModel):
     target_engines: list[str]
     workload_features: dict[str, Any]
     files: dict[str, Any]
+    file_bytes_base64: dict[str, str] | None = None
+    actual_constraint_count: int | None = None
 
 
-class GenerateCorpusRequest(BaseModel):
+class GenerateCorpusRequest(StrictModel):
     count: int = Field(default=5, ge=1, le=100, description="Number of instances to generate.")
-    base_config: GenerateInstanceRequest = Field(default_factory=GenerateInstanceRequest)
+    base_config: GenerateInstanceRequest
     name: str = Field(default="corpus", description="Corpus identifier.")
     persist: bool = Field(default=False, description="Whether to persist instances to DB.")
     project_id: Optional[uuid.UUID] = Field(default=None, description="Project to create Collection and Study in.")
     collection_name: Optional[str] = Field(default=None, description="Name for the Collection.")
     create_study: bool = Field(default=False, description="Whether to create a benchmark Study.")
     as_archive: bool = Field(default=False, description="Return instances as a zip archive.")
+
+    @model_validator(mode="after")
+    def check_seed_range(self) -> "GenerateCorpusRequest":
+        ignored = self.base_config.model_fields_set.intersection({"persist", "project_id", "case_name", "name"})
+        if ignored:
+            raise ValueError(f"base_config.{sorted(ignored)[0]}: corpus controls persistence and names; remove this field from base_config")
+        if self.base_config.seed is not None and self.base_config.seed + self.count - 1 > 2**63 - 1:
+            raise ValueError("base_config.seed: corpus increment exceeds the supported 64-bit seed range; use a smaller seed")
+        if self.project_id is not None and not self.persist:
+            raise ValueError("project_id: set persist=true or remove project_id")
+        if self.collection_name is not None and (not self.persist or self.project_id is None):
+            raise ValueError("collection_name: set persist=true and project_id, or remove collection_name")
+        if self.create_study and (not self.persist or self.project_id is None):
+            raise ValueError("create_study: set persist=true and project_id, or disable create_study")
+        return self
 
 
 class CorpusGeneratedResponse(BaseModel):
@@ -166,8 +250,10 @@ async def generate_instance(
             parallel=request.parallel,
             max_nesting=request.max_nesting,
             iterations_per_loop=request.iterations_per_loop,
-            qos_properties=request.qos_properties,
+            features=expand_features(request.features),
+            distributions=request.distributions.model_dump(exclude_none=True),
             constraints=request.constraints,
+            constraint_count_mode=request.constraint_count_mode,
             target_engines=request.target_engines,
             optimization_mode=request.optimization_mode,
             guarantee_feasibility=request.guarantee_feasibility,
@@ -178,6 +264,7 @@ async def generate_instance(
             seed=request.seed,
             use_legacy_engine=request.use_legacy_engine,
         )
+        compiled = compile_instance(package)
     except IncompatibleTargetEnginesError as exc:
         raise api_error(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -185,8 +272,9 @@ async def generate_instance(
             message=exc.message,
             conflicts=exc.conflicts,
         ) from exc
-
-    compiled = compile_instance(package)
+    except (ValueError, OverflowError) as exc:
+        raise api_error(status_code=422, code="invalid_generation_config",
+                        message=f"features/distributions: {exc}; adjust bounds or aggregation") from exc
     features = extract_features(compiled)
 
     snapshot_id: Optional[str] = None
@@ -221,9 +309,8 @@ async def generate_instance(
             case_id = str(case_obj.id)
 
     files_json = {
-        name: package.json(name)
-        for name in sorted(package.files)
-        if name.endswith(".json")
+        name: package.json(name) if name.endswith(".json") else content.decode("utf-8")
+        for name, content in sorted(package.files.items())
     }
 
     return InstanceGeneratedResponse(
@@ -236,6 +323,8 @@ async def generate_instance(
         target_engines=request.target_engines,
         workload_features=features.to_dict(),
         files=files_json,
+        file_bytes_base64={name: base64.b64encode(content).decode("ascii") for name, content in sorted(package.files.items())} if request.include_file_bytes else None,
+        actual_constraint_count=len(package.json("constraints.json")["spec"]["constraints"]),
     )
 
 
@@ -267,8 +356,10 @@ async def generate_corpus(
                 parallel=base.parallel,
                 max_nesting=base.max_nesting,
                 iterations_per_loop=base.iterations_per_loop,
-                qos_properties=base.qos_properties,
+                features=expand_features(base.features),
+                distributions=base.distributions.model_dump(exclude_none=True),
                 constraints=base.constraints,
+                constraint_count_mode=base.constraint_count_mode,
                 target_engines=base.target_engines,
                 optimization_mode=base.optimization_mode,
                 guarantee_feasibility=base.guarantee_feasibility,
@@ -279,6 +370,7 @@ async def generate_corpus(
                 seed=seed_val,
                 use_legacy_engine=base.use_legacy_engine,
             )
+            compiled = compile_instance(pkg)
         except IncompatibleTargetEnginesError as exc:
             raise api_error(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -286,8 +378,9 @@ async def generate_corpus(
                 message=exc.message,
                 conflicts=exc.conflicts,
             ) from exc
-
-        compiled = compile_instance(pkg)
+        except (ValueError, OverflowError) as exc:
+            raise api_error(status_code=422, code="invalid_generation_config",
+                            message=f"base_config.features/distributions: {exc}; adjust bounds or aggregation") from exc
         features = extract_features(compiled)
         packages.append(pkg)
 
@@ -303,6 +396,7 @@ async def generate_corpus(
             "compilation_digest": compiled.digest,
             "snapshot_id": snap_id,
             "workload_features": features.to_dict(),
+            "actual_constraint_count": len(pkg.json("constraints.json")["spec"]["constraints"]),
         })
 
     collection_id: Optional[str] = None

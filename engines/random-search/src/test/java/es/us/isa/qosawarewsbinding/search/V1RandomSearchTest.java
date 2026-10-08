@@ -25,6 +25,17 @@ class V1RandomSearchTest {
     assertTrue(result.best().feasible());
     assertEquals("catalog-a", result.best().binding().get("t").resource());
     assertEquals(20, result.evaluations());
+    assertTrue(result.trace().size() > 0);
+    double previous = Double.POSITIVE_INFINITY;
+    long previousIndex = 0;
+    for (com.google.gson.JsonElement point : result.trace()) {
+      JsonObject event = point.getAsJsonObject();
+      assertTrue(event.get("best_objective").getAsDouble() < previous);
+      assertTrue(event.get("eval_index").getAsLong() > previousIndex);
+      assertEquals(64, event.get("binding_hash").getAsString().length());
+      previous = event.get("best_objective").getAsDouble();
+      previousIndex = event.get("eval_index").getAsLong();
+    }
   }
 
   @Test void httpAcceptsOnlyBimIrAndReturnsCanonicalDecision() throws Exception {

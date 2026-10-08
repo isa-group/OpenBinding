@@ -37,8 +37,9 @@ public final class TestProblems {
         + "\"catalog-b\":" + catalog("catalog-b", "service", "provider-b", 9, 1, "us") + "},"
         + "\"eligibility\":{\"t\":[{\"resource\":\"catalog-a\",\"id\":\"service\"},{\"resource\":\"catalog-b\",\"id\":\"service\"}]},"
         + "\"routing\":[],\"constraints\":[],\"placement\":[],"
-        + "\"optimization\":{\"resource\":\"optimization\",\"mode\":\"weighted\",\"type\":\"MONO\","
-        + "\"terms\":[{\"metric\":{\"resource\":\"app\",\"id\":\"cost\"},\"direction\":\"minimize\",\"weight\":1}],\"penalties\":[]},"
+        + "\"optimization\":{\"resource\":\"optimization\",\"criteria\":[{\"id\":\"cost\","
+        + "\"feature\":{\"resource\":\"app\",\"id\":\"cost\"},\"direction\":\"minimize\"}],"
+        + "\"penalties\":[]},"
         + "\"extensions\":{},\"sourceMap\":{}}}";
     return new JsonParser().parse(json).getAsJsonObject();
   }
@@ -71,15 +72,23 @@ public final class TestProblems {
         + "\"catalog-b\":" + catalogWithFeatures("catalog-b", "service", "provider-b", 9, 1, "us") + "},"
         + "\"eligibility\":{\"t\":[{\"resource\":\"catalog-a\",\"id\":\"service\"},{\"resource\":\"catalog-b\",\"id\":\"service\"}]},"
         + "\"routing\":[],\"constraints\":[],\"placement\":[],"
-        + "\"optimization\":{\"resource\":\"optimization\",\"mode\":\"weighted\",\"type\":\"MONO\","
-        + "\"terms\":[{\"feature\":{\"resource\":\"app\",\"id\":\"cost\"},\"direction\":\"minimize\",\"weight\":1}],\"penalties\":[]},"
+        + "\"optimization\":{\"resource\":\"optimization\",\"criteria\":[{\"id\":\"cost\","
+        + "\"feature\":{\"resource\":\"app\",\"id\":\"cost\"},\"direction\":\"minimize\"}],"
+        + "\"penalties\":[]},"
         + "\"extensions\":{},\"sourceMap\":{}}}";
     return new JsonParser().parse(json).getAsJsonObject();
   }
 
   public static String envelope(JsonObject problem, String options) {
+    return envelope(problem, "weighted", options);
+  }
+
+  public static String envelope(JsonObject problem, String scalarization, String options) {
     return "{\"apiVersion\":\"bim/v1\",\"kind\":\"BindingProblemRequest\","
-        + "\"protocol\":\"bim-engine/v1\",\"problem\":" + problem + ",\"options\":" + options + "}";
+        + "\"protocol\":\"bim-engine/v1\",\"problem\":" + problem
+        + ",\"optimization\":{\"type\":\"SINGLE\",\"scalarization\":\"" + scalarization
+        + "\",\"weights\":[{\"criteria\":\"cost\",\"value\":1.0}]}"
+        + ",\"options\":" + options + "}";
   }
 
   public static Map<String, BindingProblem.Ref> decision(String catalog) {

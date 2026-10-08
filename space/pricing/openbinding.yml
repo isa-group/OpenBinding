@@ -1,5 +1,5 @@
 # OpenBinding platform pricing, version 0.1.0.
-# Runtime YAML lives in SPHERE and SPACE; the gateway never reads this file.
+# Runtime YAML lives in SPHERE and SPACE; the isolated QACOBench stack also reads this pinned copy.
 syntaxVersion: '3.1'
 saasName: openbinding
 version: 0.1.0
@@ -383,7 +383,7 @@ plans:
       maxTimeoutSeconds: { value: 1800 }
       maxIterations: { value: 10000000 }
       maxPayloadBytes: { value: 536870912 }
-      maxInstanceComplexityLog10: { value: 30 }
+      maxInstanceComplexityLog10: { value: .inf }
       jobHistoryDays: { value: 365 }
       studyRuns: { value: 1000 }
       organizations: { value: 10 }

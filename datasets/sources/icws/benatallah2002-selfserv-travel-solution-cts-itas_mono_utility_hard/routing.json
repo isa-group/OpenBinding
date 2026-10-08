@@ -1,0 +1,39 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "RoutingOverlay",
+  "metadata": {
+    "name": "benatallah2002_selfserv_travel_solution_cts_itas_mono_utility_hard_routing"
+  },
+  "spec": {
+    "entries": [
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_flight_choice_branch_1"
+        },
+        "probability": 0.6
+      },
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_flight_choice_branch_2"
+        },
+        "probability": 0.4
+      },
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_car_choice_branch_1"
+        },
+        "probability": 0.3
+      },
+      {
+        "target": {
+          "resource": "application",
+          "id": "n_car_choice_branch_2"
+        },
+        "probability": 0.7
+      }
+    ]
+  }
+}

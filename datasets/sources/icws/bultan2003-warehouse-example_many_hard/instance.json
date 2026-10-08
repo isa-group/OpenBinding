@@ -1,0 +1,34 @@
+{
+  "apiVersion": "bim/v1",
+  "kind": "Instance",
+  "metadata": {
+    "name": "bultan2003_warehouse_example_many_hard",
+    "version": "1.0.0",
+    "description": "Problem instance derived from Example 2.1 and Example 3.1 (store-bank-warehouse) in Bultan et al., WWW'03.",
+    "annotations": {
+      "paper": {
+        "title": "Conversation Specification: A New Approach to Design and Analysis of E-Service Composition",
+        "authors": "T. Bultan et al.",
+        "year": 2003,
+        "doi": "10.1145/775152.775210"
+      }
+    }
+  },
+  "spec": {
+    "profile": "qos-binding/v1",
+    "resources": {
+      "application": {
+        "application": "application.json"
+      },
+      "candidateCatalog": {
+        "catalog": "candidates.json"
+      },
+      "optimization": {
+        "optimization": "optimization.json"
+      },
+      "constraintSet": {
+        "constraints": "constraints.json"
+      }
+    }
+  }
+}

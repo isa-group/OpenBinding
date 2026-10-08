@@ -6,6 +6,7 @@
 package es.us.isa.qosawarewsbinding;
 
 import java.util.List;
+import java.util.LinkedList;
 
 /**
  *
@@ -13,7 +14,7 @@ import java.util.List;
  */
 public class Flow implements CompositeStructuralComponent {
     
-    private List<StructuralComponent> subcomponents;
+    private List<StructuralComponent> subcomponents = new LinkedList<StructuralComponent>();
 
     
     public List<StructuralComponent> getSubComponents() {

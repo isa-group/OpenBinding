@@ -1,6 +1,8 @@
 """The pricing service, and the seam that keeps it replaceable."""
 
+import os
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Optional
 
 from ..core.settings import Settings
@@ -36,7 +38,16 @@ def build_gate(
     """
     if settings.space_enabled:
         return SpacePricingGate(settings, catalog_resolver=catalog_resolver)
-    return FakePricingGate(catalog)
+    local_catalog = os.environ.get("LOCAL_PRICING_CATALOG")
+    if catalog is None and local_catalog:
+        catalog = PricingCatalog.parse(Path(local_catalog).read_bytes())
+    gate = FakePricingGate(catalog)
+    local_plan = os.environ.get("LOCAL_PRICING_PLAN")
+    if local_plan:
+        if catalog is None or local_plan not in catalog.plans:
+            raise ValueError(f"LOCAL_PRICING_PLAN {local_plan!r} is absent from the local catalog")
+        gate.default_plan = local_plan
+    return gate
 
 
 def set_gate(gate: Optional[PricingGate]) -> None:

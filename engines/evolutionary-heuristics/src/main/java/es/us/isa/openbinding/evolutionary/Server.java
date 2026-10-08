@@ -33,7 +33,8 @@ public final class Server {
     provenance.addProperty("evaluations", result.evaluations);
     provenance.addProperty("elapsed_ms", result.elapsedMs);
     provenance.add("trace", result.trace);
-    provenance.addProperty("trace_kind", "sampled-generation-incumbents");
+    provenance.addProperty("trace_kind", "strict-incumbent-improvements");
+    provenance.addProperty("seed", EngineContract.longOption(request.options(), "seed", 0L));
     return EngineContract.json(EngineContract.response(
         result.solutions.isEmpty() ? "UNKNOWN" : "FEASIBLE", result.solutions, provenance));
   }

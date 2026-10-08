@@ -1,4 +1,4 @@
-FROM maven:3.8-openjdk-8 as builder
+FROM maven:3.8-openjdk-8@sha256:ff18d86faefa15d1445d0fa4874408cc96dec068eb3487a0fc6d07f359a24607 as builder
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NO_PROXY
@@ -32,7 +32,7 @@ RUN mvn -DskipTests \
   -Dhttp.nonProxyHosts="localhost|127.0.0.1|*.int.local|10.*|192.168.*|172.16.*" \
   package
 
-FROM eclipse-temurin:8-jre
+FROM eclipse-temurin:8-jre@sha256:66a7b358772dfdcc1486919a5ede66d6c7275f203a5fefddb39565c2a151a485
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NO_PROXY

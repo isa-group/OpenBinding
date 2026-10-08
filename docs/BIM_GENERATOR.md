@@ -1,118 +1,62 @@
-# OpenBinding QACO BIM v1 Generator & Calibration Architecture
+# Generador BIM v1
 
-The OpenBinding Generator framework bridges legacy Quality-Aware Service Composition (QACO) problem synthesis with the **BIM v1** standard. It features multi-engine capability validation, witness-based feasibility control, platform persistence, and empirical surrogate calibration for the MAPE-K self-adaptive autorouter.
+`POST /v1/generator/instances` genera un paquete BIM con seis recursos. `POST /v1/generator/corpus` recibe la misma configuración en `base_config` y añade una semilla consecutiva a cada entrada. QFBS utiliza exclusivamente el endpoint HTTP de instancias, con una petición por instancia y la salida predeterminada.
 
-## Architecture
+## Contrato
 
-```
-                                +---------------------------+
-                                | Legacy Problem Synthesizer|
-                                | (bim-generator / Python)  |
-                                +-------------+-------------+
-                                              |
-                                              v
-+------------------------+      +---------------------------+
-| Multi-Engine Manifests | ---> | Compatibility Resolver    |
-+------------------------+      +-------------+-------------+
-                                              | (Capability Intersection)
-                                              v
-                                +---------------------------+
-                                | BIM v1 Postprocessor      |
-                                | - 6-Resource Assembly     |
-                                | - Empty Branch Repair     |
-                                | - Probability Normalizing |
-                                | - Witness Feasibility (τ) |
-                                +-------------+-------------+
-                                              |
-                                              v
-                                +---------------------------+
-                                | BIM v1 Package Compiler   |
-                                +-------------+-------------+
-                                              |
-                                              v
-                   +--------------------------+-------------------------+
-                   |                                                    |
-                   v                                                    v
-      +-------------------------+                          +--------------------------+
-      | Platform Persistence    |                          | MAPE-K Autorouter        |
-      | - InstanceSnapshot      |                          | - Feature Vector x(P)    |
-      | - BindingCase / Revision|                          | - Hypervolume / HVR      |
-      | - Collection / Items    |                          | - Surrogate Calibration  |
-      +-------------------------+                          +--------------------------+
+`features` es obligatorio y no puede estar vacío. Cada definición incluye `unit`, `direction` (`minimize` o `maximize`), `scope`, `distribution` y `aggregation`. No se admiten `qos_properties`, plantillas ni pesos en la entrada de generación. Un `id` omitido se asigna como `qos_1`, `qos_2`, etc. `count` expande una definición en dimensiones independientes; con `id: "quality"` y `count: 2` los IDs son `quality_1` y `quality_2`. Los IDs explícitos se conservan literalmente: `ExecTime` y `latency` son diferentes.
+
+- `scope: "selectedCandidate"` requiere únicamente `aggregation.selection` (`sum`, `product`, `min` o `max`). Agrega los candidatos seleccionados una vez por candidato distinto.
+- `scope: "invocation"` requiere exactamente `sequence`, `parallel`, `exclusive` y `repeat`. `sequence` y `parallel` admiten `sum`, `product`, `min`, `max`; `exclusive` admite `weightedSum`, `weightedProduct`, `min`, `max`; `repeat` admite `scale`, `power`, `identity`. La evaluación sigue el árbol del workflow.
+- `objective` vale `true` por defecto. Con `false`, la feature sigue disponible para candidatos y restricciones, pero no aparece en `optimization.json`. Las features objetivas aparecen todas como criterios sin pesos.
+- `distribution` admite `uniform` o `normal`. Ambas declaran `minimum` y `maximum`; `normal` añade `mean` y `stddev > 0`. Los valores normales se acotan a los límites. Una distribución uniforme de cantidades enteras toma enteros inclusivos; una normal se redondea y se acota.
+
+Ejemplo mínimo:
+
+```json
+{
+  "tasks": 8,
+  "features": [
+    {"unit": "EUR", "direction": "minimize", "scope": "selectedCandidate",
+     "distribution": {"kind": "uniform", "minimum": 1, "maximum": 100},
+     "aggregation": {"selection": "sum"}},
+    {"id": "ExecTime", "unit": "ms", "direction": "minimize", "scope": "invocation",
+     "distribution": {"kind": "normal", "minimum": 1, "maximum": 500, "mean": 100, "stddev": 25},
+     "aggregation": {"sequence": "sum", "parallel": "max", "exclusive": "weightedSum", "repeat": "scale"}}
+  ],
+  "constraints": 1,
+  "seed": 42
+}
 ```
 
-## API Endpoints
+`distributions.candidate_count`, `loop_iterations`, `branches_per_decision` y `constraint_optimality_percent` usan el mismo formato. Se muestrean por tarea, bucle, decisión y restricción, respectivamente. Si se omiten las dos primeras se usan los escalares `candidates` e `iterations_per_loop`; enviar a la vez el escalar y su distribución da 422 porque el escalar no tendría efecto. Las ramas por decisión se limitan a 2–10.
 
-All endpoints are mounted under `/v1/generator`.
+`constraint_count_mode: "exact"` (predeterminado) escoge `constraints` features distintas. Con `"expected"`, cada feature se escoge independientemente con probabilidad `constraints / número_de_features`; el número real puede variar de 0 al total y se devuelve en `actual_constraint_count` para la instancia y para cada entrada del corpus. En ambos modos, `constraints` no puede exceder el número de features expandidas.
 
-### 1. `POST /v1/generator/instances`
-Generates a single valid BIM v1 instance package.
+Si se declara `constraint_optimality_percent`, cada umbral se calcula como `mínimo_aggregate + porcentaje/100 × (máximo_aggregate − mínimo_aggregate)`. Los extremos se obtienen evaluando las selecciones extremas con el compilador BIM, por lo que respetan `scope`, workflow, agregaciones y probabilidades. Requiere `guarantee_feasibility: false`; ese valor permite una instancia insatisfacible, pero no la fuerza. Sin la distribución, el porcentaje usado con garantía desactivada es 50. Con garantía activa, `tension` en `[0,1]` determina límites que admiten una misma selección testigo para todas las restricciones. Enviar `tension` expresamente cuando la garantía está desactivada da 422.
 
-- **Request Body (`GenerateInstanceRequest`)**:
-  - `tasks`: Number of abstract tasks (default: 10, min: 2, max: 1000).
-  - `candidates`: Concrete candidates per task (default: 5, min: 2, max: 100).
-  - `control_flow`: Percentage of control flow structures (0-90%).
-  - `loops`, `branches`, `parallel`: Relative percentages of control flow types.
-  - `max_nesting`: Max control structure nesting depth (1-10).
-  - `iterations_per_loop`: Average loop iterations.
-  - `qos_properties`: Number of QoS dimensions (1-5).
-  - `constraints`: Number of global constraints.
-  - `target_engines`: List of target engine IDs (e.g. `["minizinc-csp"]`, `["many-heuristic"]`).
-  - `optimization_mode`: Explicit override (`weighted` or `pareto`).
-  - `guarantee_feasibility`: Ensure at least one feasible solution exists (default: `true`).
-  - `tension`: Feasibility tension factor $\tau \in [0, 1]$ (default: 0.7).
-  - `persist`: Persist as `InstanceSnapshot` in DB (requires authentication).
-  - `project_id`: Project UUID to create a `BindingCase`.
-  - `use_legacy_engine`: Flag to invoke the Java `bim-generator` CLI.
+`target_engines` y `optimization_mode` son pistas opcionales de compatibilidad para validar capacidades antes de generar. El motor efectivo, sus opciones y cualquier peso se proporcionan al crear el job, no al generar la instancia.
 
-- **Engine Compatibility**:
-  If specified engines have disjoint capabilities (e.g. `minizinc-csp` requiring mono-objective `weighted` vs `many-heuristic` requiring `pareto`), the request fails with HTTP 422 and error code `incompatible_target_engines` with explicit conflict diagnostics.
+## Salida JSON o BPMN y exportación
 
-- **Response (`InstanceGeneratedResponse`)**:
-  Contains `name`, `package_digest`, `instance_digest`, `compilation_digest`, `workload_features`, `snapshot_id`, `case_id`, and the complete JSON documents for the 6 BIM v1 resources.
+`dialects: ["qos-binding/v1"]` (predeterminado) devuelve el workflow JSON. Con
+`dialects: ["bpmn-workflow/v1"]`, el propio endpoint devuelve `workflow.bpmn`
+y la referencia correspondiente en `application.json`. El BPMN generado
+incluye subprocesos estructurados anidados, XOR/AND y repeticiones
+secuenciales estáticas. Dos peticiones con el resto de los parámetros y la
+semilla idénticos producen paquetes distintos a nivel de bytes, pero el mismo
+`compilation_digest` y la misma evaluación de cada binding. La equivalencia
+está garantizada para las salidas emparejadas del generador.
 
-### 2. `POST /v1/generator/corpus`
-Synthesizes a corpus of instances across parameter sweeps.
+Para guardar los bytes exactos recibidos por HTTP, envíe
+`include_file_bytes: true` y decodifique cada entrada de
+`file_bytes_base64`. Los objetos `files` siguen disponibles para inspección;
+serializarlos de nuevo no es una forma fiable de reconstruir los bytes del
+paquete. El script de QFBS en `experimentation/qacobench/generate_qfbs.py`
+registra la configuración, semilla y digests devueltos por HTTP para repetir la generación.
 
-- **Request Body (`GenerateCorpusRequest`)**:
-  - `count`: Number of instances to generate.
-  - `base_config`: Template `GenerateInstanceRequest`.
-  - `as_archive`: If true, returns an `application/zip` stream of `.bim.zip` packages.
-  - `persist`: Persist as a `Collection` with `CollectionRevision` and `CollectionItem`s.
-  - `project_id`: Project UUID for collection.
+## Límites y errores
 
-### 3. `POST /v1/generator/convert-legacy`
-Converts legacy raw text format (e.g. `pruebatonta.txt`) into a BIM v1 package.
+Los errores de configuración devuelven HTTP 422 con el campo y la corrección: definiciones incompletas, claves desconocidas (incluidos `qos_properties`, `templates` y `weights`), IDs inválidos o duplicados tras expandir, agregaciones ajenas al `scope`, distribución mal acotada o no finita, ausencia de objetivos, incompatibilidad con motores, parámetros que quedarían sin efecto y exceso de dimensiones. Se admiten hasta 100 features expandidas y 1 000 000 de valores candidato-feature por instancia. Los límites existentes de tareas, candidatos, iteraciones y anidamiento continúan aplicándose.
 
-- **Request Body (`ConvertLegacyRequest`)**:
-  - `raw_text`: Legacy problem definition text.
-  - `guarantee_feasibility`: Witness feasibility enforcement.
-  - `tension`: Constraint tension parameter $\tau$.
-  - `repair_empty_branches`: Automatic empty branch repair.
-
-### 4. `POST /v1/generator/calibrate-engine`
-Calibrates empirical surrogate models for black-box or federated engines.
-
-- **Request Body (`CalibrateEngineRequest`)**:
-  - `engine`: Solver identifier.
-  - `mode`: Solver mode.
-  - `observations`: Historical run observations with `workload_features`, `latency`, `quality` (hypervolume), and `success`.
-
-- **Calibration Computation**:
-  - Computes exact 2D or Monte Carlo $M$-D hypervolume and Hypervolume Ratio (HVR).
-  - Performs OLS regression with Tikhonov regularization on log-latency ($\log \hat{L}$), quality ($\hat{Q}$), and failure risk ($\hat{F}$).
-  - Persists fitted models in `v1_engine_profile_surrogates`.
-  - Injects calibrated surrogates into `EngineProfiler` to override static default estimates in the MAPE-K autorouter loop.
-
-## Witness Feasibility Formulation
-
-Given a synthesized instance with candidates $C_i$ for task $i$, a witness configuration $b^*$ is selected. For each constrained feature $m$ with domain $[d_{min}, d_{max}]$ and aggregated witness value $v_{witness} = \mathcal{A}(b^*, m)$:
-
-- If feature $m$ is minimized:
-  $$\text{bound} = v_{witness} + (1 - \tau) \cdot (\max(d_{max} \cdot |T|, 1.5 \cdot v_{witness}) - v_{witness})$$
-  Constraint: $\text{features}.m \le \text{bound}$
-- If feature $m$ is maximized:
-  $$\text{bound} = v_{witness} - (1 - \tau) \cdot (v_{witness} - \min(d_{min}, 0.5 \cdot v_{witness}))$$
-  Constraint: $\text{features}.m \ge \text{bound}$
-
-Setting $\tau = 1.0$ produces the tightest feasible bound matching the witness solution, while $\tau = 0.0$ relaxes the constraint to maximum slack.
+Las solicitudes de QFBS solo contienen parámetros del contrato BIM descrito aquí. La cobertura estructural real se comprueba sobre cada paquete devuelto, no se deduce de los porcentajes solicitados.

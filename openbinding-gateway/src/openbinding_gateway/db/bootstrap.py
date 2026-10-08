@@ -26,7 +26,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.settings import Settings, get_settings
-from ..pricing_catalog import live_catalog
 from ..security.passwords import hash_password, password_complaint
 from .models import User, UserRole
 
@@ -41,6 +40,7 @@ DEFAULT_ADMIN_PASSWORD = "4dm1n"
 #: and a domain without a dot is rejected - which turned the whole user
 #: listing into a 500 the first time this account appeared in it.
 DEFAULT_ADMIN_EMAIL = "admin@example.org"
+DEFAULT_ADMIN_PLAN = "PRO"
 
 
 async def ensure_administrator(session: AsyncSession, settings: Settings) -> bool:
@@ -49,17 +49,30 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
     if not username:
         return False
 
+    result = await session.execute(select(User).where(User.username == username))
+    account = result.scalars().first()
+
+    # Keep the configured bootstrap administrator on the operational plan
+    # required by the deployment, even when the account predates SPACE.
+    if account is not None and account.role is UserRole.ADMIN:
+        changed = account.plan_cache != DEFAULT_ADMIN_PLAN
+        account.plan_cache = DEFAULT_ADMIN_PLAN
+        if changed:
+            account.contract_pending = True
+            await session.flush()
+            logger.info("Kept '%s' on the %s plan", username, DEFAULT_ADMIN_PLAN)
+        return changed
+
     existing_admins = await session.scalar(
         select(func.count()).select_from(User).where(User.role == UserRole.ADMIN)
     )
     if existing_admins:
         return False
 
-    result = await session.execute(select(User).where(User.username == username))
-    account = result.scalars().first()
-
     if account is not None:
         account.role = UserRole.ADMIN
+        account.plan_cache = DEFAULT_ADMIN_PLAN
+        account.contract_pending = True
         await session.flush()
         logger.info("Promoted '%s' to administrator", username)
         return True
@@ -81,15 +94,14 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
     # Same reason as DEFAULT_ADMIN_EMAIL: a domain with no dot fails the
     # email validation every response model applies.
     email = (settings.bootstrap_admin_email or f"{username}@example.org").lower()
-    plan = (await live_catalog(session, settings)).default_plan
-    session.add(_administrator(username, email, password, plan))
+    session.add(_administrator(username, email, password, DEFAULT_ADMIN_PLAN))
     await session.flush()
     logger.info("Created the first administrator, '%s'", username)
     return True
 
 
 def _administrator(username: str, email: str, password: str, plan: str) -> User:
-    """An administrator on the catalog's free default plan."""
+    """The configured administrator on the deployment's operational plan."""
     return User(
         username=username,
         email=email,
@@ -122,9 +134,8 @@ async def seed_default_administrator(
     if any_user:
         return False
 
-    plan = (await live_catalog(session, settings or get_settings())).default_plan
     session.add(_administrator(
-        DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, plan
+        DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_PLAN
     ))
     await session.flush()
     return True

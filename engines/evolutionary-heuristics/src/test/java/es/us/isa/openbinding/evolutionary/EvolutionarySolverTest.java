@@ -24,12 +24,12 @@ class EvolutionarySolverTest {
     long previousIndex = -1;
     for (var point : trace) {
       var event = point.getAsJsonObject();
-      assertTrue(event.get("best_objective").getAsDouble() <= previous);
+      assertTrue(event.get("best_objective").getAsDouble() < previous);
       assertTrue(event.get("eval_index").getAsLong() > previousIndex);
+      assertEquals(64, event.get("binding_hash").getAsString().length());
       previous = event.get("best_objective").getAsDouble();
       previousIndex = event.get("eval_index").getAsLong();
     }
-    assertEquals(40, previousIndex);
     assertEquals(response.getAsJsonArray("solutions").get(0).getAsJsonObject()
         .getAsJsonObject("objectives").get("score").getAsDouble(), previous);
   }
@@ -45,15 +45,15 @@ class EvolutionarySolverTest {
 
   @Test void paretoAlgorithmRequiresAndReturnsParetoSemantics() {
     JsonObject document = TestProblems.twoCandidates();
-    document.getAsJsonObject("spec").getAsJsonObject("optimization").addProperty("mode", "pareto");
     assertThrows(IllegalArgumentException.class, () -> Server.solvePayload(
-        TestProblems.envelope(document, "{\"algorithm\":\"elitist-genetic\"}")));
+        TestProblems.envelope(document, "pareto-front", "{\"algorithm\":\"elitist-genetic\"}")));
 
     JsonObject response = new JsonParser().parse(Server.solvePayload(TestProblems.envelope(document,
+        "pareto-front",
         "{\"algorithm\":\"pareto-genetic\",\"population_size\":10,"
             + "\"max_evaluations\":40,\"archive_size\":5,\"seed\":7}"))).getAsJsonObject();
     assertEquals("FEASIBLE", response.get("termination").getAsString());
-    assertEquals(0, response.getAsJsonObject("provenance").getAsJsonArray("trace").size());
+    assertTrue(response.getAsJsonObject("provenance").getAsJsonArray("trace").size() > 0);
     assertEquals("catalog-a", response.getAsJsonArray("solutions").get(0).getAsJsonObject()
         .getAsJsonObject("decision").getAsJsonObject("binding")
         .getAsJsonObject("t").get("resource").getAsString());

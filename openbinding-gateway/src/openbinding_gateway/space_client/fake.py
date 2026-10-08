@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
@@ -36,14 +37,19 @@ class FakePricingGate:
 
     def plan_of(self, user_id: uuid.UUID) -> str:
         catalog = self._check_available()
-        return self.plans.get(user_id, catalog.default_plan)
+        return self.plans.get(user_id, self.default_plan)
 
     def _entitlements(self, user_id: uuid.UUID) -> tuple[dict[str, bool], dict[str, float]]:
         catalog = self._check_available()
         try:
-            return catalog.entitlements(
+            features, limits = catalog.entitlements(
                 self.plan_of(user_id), self.add_ons.get(user_id, {})
             )
+            if os.environ.get("LOCAL_PRICING_UNMETERED") == "true":
+                for limit in ("capacityUnits", "taskStarts", "solverSeconds", "concurrentJobs", "federatedTaskStarts"):
+                    if limit in limits:
+                        limits[limit] = float("inf")
+            return features, limits
         except PricingCatalogError as exc:
             raise PricingUnavailable(str(exc)) from exc
 

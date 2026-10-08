@@ -1,0 +1,574 @@
+%#============================= HEADER ======================================#
+% This file contains an instance of the QoS-Aware Web Services Composition Problem  
+% FILE: instance-aws20-mark0-str0.txt
+% Created by: José Antonio Parejo Mestre
+% Thu Jun 19 18:53:06 CEST 2014
+% ----------------------
+% Problem Statistics: 
+% ----------------------
+% Number of activities: 20
+% Number of Candidate Services: 373
+% Number of Constraints: 0
+%#======================= COMPOSITION STRUCTURE =============================#
+% Abstract Services:
+%----------------------
+16
+8
+10
+13
+11
+5
+9
+12
+2
+0
+15
+1
+7
+6
+4
+14
+3
+% CompositionStructure:
+%----------------------
+SEC[
+
+    BRANCH(9.759698502537217E-4;0.9990240301497463;)[
+          SEC[5,13,2,
+              BRANCH(0.6433633019335945;0.3566366980664055;)[
+                    SEC[8,7,6,1,
+                    ]
+              ,
+                    SEC[11,
+                    ]
+              ,
+              ]
+          ,
+          ]
+    ,
+          SEC[
+          ]
+    ,
+    ]
+,
+    BRANCH(0.18430111100968438;0.8156988889903156;)[
+          SEC[9,3,
+          ]
+    ,
+          SEC[4,
+          ]
+    ,
+    ]
+,10,15,14,
+    LOOP(6)[12,0,
+    ]
+,
+]
+%#======================= QOS MODEL =============================#
+QoSModel{
+    Properties{
+         Throughput:POSITIVE-Double[0.1,43.1]
+         Availability:POSITIVE-Double[7.0,100.0]
+         Latency:POSITIVE-Double[-4140.35,4.9E-324]
+         Documentation:POSITIVE-Double[1.0,97.0]
+         Successability:POSITIVE-Double[8.0,100.0]
+         BestPractices:POSITIVE-Double[50.0,95.0]
+         Reliability:POSITIVE-Double[33.0,89.0]
+         ResponseTime:POSITIVE-Double[-4989.67,4.9E-324]
+         Compliance:POSITIVE-Double[33.0,100.0]
+    }
+    AggregationFunctions(
+         Throughput{
+             Loop:SUMPOW
+             Sequence:MIN
+             Flow:MIN
+             Branch:MIN
+         }
+         Availability{
+             Loop:SUMPOW
+             Sequence:PRODUCT
+             Flow:PRODUCT
+             Branch:POW
+         }
+         Latency{
+             Loop:SUMPOW
+             Sequence:SUM
+             Flow:MINAVG
+             Branch:SUMPOW
+         }
+         Documentation{
+             Loop:AVG
+             Sequence:AVG
+             Flow:AVG
+             Branch:AVG
+         }
+         Successability{
+             Loop:SUMPOW
+             Sequence:PRODUCT
+             Flow:PRODUCT
+             Branch:POW
+         }
+         BestPractices{
+             Loop:SUMPOW
+             Sequence:AVG
+             Flow:AVG
+             Branch:AVG
+         }
+         Reliability{
+             Loop:SUMPOW
+             Sequence:MIN
+             Flow:MIN
+             Branch:MIN
+         }
+         ResponseTime{
+             Loop:SUMPOW
+             Sequence:SUM
+             Flow:MIN
+             Branch:SUMPOW
+         }
+         Compliance{
+             Loop:SUMPOW
+             Sequence:AVG
+             Flow:AVG
+             Branch:AVG
+         }
+    )
+    Weights(
+         Throughput:0.0
+         Availability:0.0
+         Latency:0.0
+         Documentation:0.0
+         Successability:0.0
+         BestPractices:0.0
+         Reliability:0.0
+         ResponseTime:0.0
+         Compliance:0.0
+    )
+}
+%#======================= CANDIDATE SERVICES =============================#
+------------------------
+13
+------------------------
+XarayaSoap(Throughput:13.3,Availability:72.0,Latency:-4.0,Documentation:7.0,Successability:72.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-50.0,Compliance:78.0,)
+DataEnhancement(Throughput:18.1,Availability:99.0,Latency:-1.8,Documentation:95.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-63.8,Compliance:78.0,)
+reasoner(Throughput:14.9,Availability:83.0,Latency:-3.0,Documentation:37.0,Successability:84.0,BestPractices:75.0,Reliability:73.0,ResponseTime:-174.0,Compliance:100.0,)
+GoogleSearchService(Throughput:7.8,Availability:94.0,Latency:-8.33,Documentation:5.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-150.0,Compliance:78.0,)
+wordcountService(Throughput:2.4,Availability:87.0,Latency:-52.6,Documentation:2.0,Successability:96.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-270.4,Compliance:100.0,)
+SOAPSend(Throughput:23.9,Availability:90.0,Latency:-9.0,Documentation:9.0,Successability:97.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-154.0,Compliance:78.0,)
+CRMTeeTimeAPI(Throughput:9.2,Availability:56.0,Latency:-29.74,Documentation:3.0,Successability:57.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-171.47,Compliance:78.0,)
+tranalignService(Throughput:1.6,Availability:92.0,Latency:-40.0,Documentation:3.0,Successability:97.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-249.2,Compliance:100.0,)
+RemoteOnlineReadingWS(Throughput:7.4,Availability:83.0,Latency:-3.0,Documentation:5.0,Successability:84.0,BestPractices:87.0,Reliability:73.0,ResponseTime:-750.0,Compliance:100.0,)
+Securlogin(Throughput:29.2,Availability:100.0,Latency:-1.0,Documentation:31.0,Successability:100.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-182.0,Compliance:100.0,)
+Source_x0020_Code_x0020_Community_x0020_WebService(Throughput:2.7,Availability:78.0,Latency:-177.5,Documentation:66.0,Successability:79.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-462.5,Compliance:67.0,)
+WSTCoffeeService(Throughput:3.5,Availability:78.0,Latency:-30.75,Documentation:5.0,Successability:79.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-1314.75,Compliance:78.0,)
+chargeService(Throughput:1.3,Availability:90.0,Latency:-8.4,Documentation:32.0,Successability:97.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-205.8,Compliance:100.0,)
+eSynapsMonitor(Throughput:10.5,Availability:72.0,Latency:-156.5,Documentation:5.0,Successability:72.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-338.0,Compliance:100.0,)
+FrequencyUnit(Throughput:5.6,Availability:94.0,Latency:-2.0,Documentation:10.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-2482.0,Compliance:78.0,)
+StockQuotes(Throughput:4.8,Availability:57.0,Latency:-50.59,Documentation:90.0,Successability:58.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-252.59,Compliance:78.0,)
+wsaTestService(Throughput:15.1,Availability:63.0,Latency:-4.0,Documentation:2.0,Successability:63.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-107.33,Compliance:100.0,)
+Reed_x0020_Affiliates_x0020_WebService(Throughput:2.6,Availability:79.0,Latency:-35.75,Documentation:5.0,Successability:79.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-668.75,Compliance:67.0,)
+hmomentService(Throughput:1.2,Availability:87.0,Latency:-8.6,Documentation:32.0,Successability:96.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-200.0,Compliance:100.0,)
+SentencesService(Throughput:17.1,Availability:94.0,Latency:-2.5,Documentation:1.0,Successability:98.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-148.0,Compliance:100.0,)
+NED(Throughput:12.7,Availability:99.0,Latency:-11.0,Documentation:90.0,Successability:100.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-462.0,Compliance:78.0,)
+WSDBFetchServerLegacyService(Throughput:2.8,Availability:76.0,Latency:-11.57,Documentation:8.0,Successability:76.0,BestPractices:69.0,Reliability:60.0,ResponseTime:-136.71,Compliance:89.0,)
+ContactService(Throughput:7.5,Availability:60.0,Latency:-104.28,Documentation:88.0,Successability:61.0,BestPractices:74.0,Reliability:60.0,ResponseTime:-174.11,Compliance:89.0,)
+WSDLInteropTestRpcEncService(Throughput:10.7,Availability:89.0,Latency:-7.75,Documentation:3.0,Successability:89.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-129.0,Compliance:78.0,)
+EmailVerify(Throughput:2.4,Availability:99.0,Latency:-2.0,Documentation:94.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-126.0,Compliance:78.0,)
+mwfilterService(Throughput:3.2,Availability:96.0,Latency:-48.6,Documentation:5.0,Successability:99.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-262.4,Compliance:100.0,)
+wordmatchService(Throughput:0.9,Availability:92.0,Latency:-41.6,Documentation:2.0,Successability:97.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-251.6,Compliance:100.0,)
+bonjourwsdl(Throughput:19.6,Availability:83.0,Latency:-8.0,Documentation:35.0,Successability:84.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-231.0,Compliance:89.0,)
+VaerkerService(Throughput:5.9,Availability:51.0,Latency:-3.8,Documentation:58.0,Successability:51.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-288.8,Compliance:89.0,)
+------------------------
+12
+------------------------
+fpromlkService(Throughput:1.6,Availability:95.0,Latency:-40.8,Documentation:6.0,Successability:98.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-443.4,Compliance:100.0,)
+ESVService(Throughput:4.4,Availability:43.0,Latency:-14.85,Documentation:1.0,Successability:43.0,BestPractices:75.0,Reliability:73.0,ResponseTime:-334.71,Compliance:89.0,)
+CommuneInfoService(Throughput:10.3,Availability:85.0,Latency:-2.0,Documentation:35.0,Successability:95.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-599.0,Compliance:78.0,)
+getMapwsdl(Throughput:5.6,Availability:46.0,Latency:-1.5,Documentation:34.0,Successability:47.0,BestPractices:75.0,Reliability:73.0,ResponseTime:-392.5,Compliance:89.0,)
+ARTSPDF_Online_Collaboration(Throughput:23.2,Availability:85.0,Latency:-19.0,Documentation:40.0,Successability:95.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-139.5,Compliance:89.0,)
+Securlogin(Throughput:29.2,Availability:100.0,Latency:-1.0,Documentation:31.0,Successability:100.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-182.0,Compliance:100.0,)
+EHCIntegrationService(Throughput:11.8,Availability:72.0,Latency:-9.0,Documentation:11.0,Successability:72.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-275.0,Compliance:89.0,)
+fuzzproService(Throughput:2.3,Availability:93.0,Latency:-5.8,Documentation:42.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-276.6,Compliance:100.0,)
+dregService(Throughput:1.6,Availability:95.0,Latency:-12.8,Documentation:32.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-212.2,Compliance:100.0,)
+VasService(Throughput:29.5,Availability:89.0,Latency:-2.0,Documentation:8.0,Successability:96.0,BestPractices:93.0,Reliability:89.0,ResponseTime:-172.0,Compliance:78.0,)
+interopLabEchoHeader(Throughput:24.2,Availability:87.0,Latency:-2.0,Documentation:7.0,Successability:95.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-120.0,Compliance:89.0,)
+SummaryService(Throughput:5.5,Availability:83.0,Latency:-2.0,Documentation:3.0,Successability:84.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-3343.0,Compliance:89.0,)
+SessionService1(Throughput:13.7,Availability:78.0,Latency:-2.25,Documentation:9.0,Successability:78.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-147.75,Compliance:89.0,)
+fdrawtreeService(Throughput:1.4,Availability:98.0,Latency:-39.6,Documentation:10.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-256.2,Compliance:100.0,)
+twodsweepService(Throughput:1.8,Availability:85.0,Latency:-5.8,Documentation:34.0,Successability:95.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-232.2,Compliance:78.0,)
+X3WS(Throughput:10.1,Availability:89.0,Latency:-2.75,Documentation:11.0,Successability:89.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-72.25,Compliance:78.0,)
+------------------------
+6
+------------------------
+LeftNeighboursService(Throughput:13.3,Availability:94.0,Latency:-4.0,Documentation:9.0,Successability:98.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-149.5,Compliance:100.0,)
+IOHandler(Throughput:13.9,Availability:93.0,Latency:-19.87,Documentation:95.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-158.25,Compliance:78.0,)
+consService(Throughput:10.8,Availability:92.0,Latency:-9.6,Documentation:38.0,Successability:97.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-419.6,Compliance:100.0,)
+GuspmService(Throughput:21.9,Availability:99.0,Latency:-16.44,Documentation:11.0,Successability:100.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-71.16,Compliance:89.0,)
+showdbService(Throughput:2.0,Availability:91.0,Latency:-98.4,Documentation:41.0,Successability:91.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-463.6,Compliance:100.0,)
+DailyDilbert(Throughput:7.6,Availability:79.0,Latency:-186.0,Documentation:9.0,Successability:79.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-484.5,Compliance:100.0,)
+PassportService(Throughput:4.2,Availability:21.0,Latency:-10.77,Documentation:8.0,Successability:22.0,BestPractices:59.0,Reliability:33.0,ResponseTime:-435.33,Compliance:89.0,)
+RSSService(Throughput:3.2,Availability:84.0,Latency:-3.0,Documentation:87.0,Successability:84.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-303.0,Compliance:78.0,)
+XigniteChart(Throughput:6.2,Availability:90.0,Latency:-1.08,Documentation:93.0,Successability:97.0,BestPractices:79.0,Reliability:60.0,ResponseTime:-446.23,Compliance:78.0,)
+JgluService(Throughput:26.2,Availability:100.0,Latency:-5.0,Documentation:6.0,Successability:100.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-315.0,Compliance:89.0,)
+bidlistconnection_web_services(Throughput:1.4,Availability:86.0,Latency:-15.0,Documentation:36.0,Successability:95.0,BestPractices:62.0,Reliability:73.0,ResponseTime:-514.5,Compliance:78.0,)
+WebBlogService(Throughput:10.2,Availability:55.0,Latency:-28.03,Documentation:36.0,Successability:55.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-174.1,Compliance:89.0,)
+Interop(Throughput:1.7,Availability:80.0,Latency:-6.43,Documentation:11.0,Successability:81.0,BestPractices:76.0,Reliability:53.0,ResponseTime:-118.64,Compliance:67.0,)
+Office(Throughput:14.8,Availability:94.0,Latency:-24.5,Documentation:33.0,Successability:98.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-209.0,Compliance:100.0,)
+GoogleSearchService(Throughput:6.7,Availability:90.0,Latency:-12.67,Documentation:2.0,Successability:97.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-146.0,Compliance:78.0,)
+EMSFlightMonitorService(Throughput:0.4,Availability:94.0,Latency:-13.0,Documentation:11.0,Successability:98.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-264.0,Compliance:100.0,)
+vectorstripService(Throughput:1.1,Availability:100.0,Latency:-45.2,Documentation:5.0,Successability:100.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-295.6,Compliance:100.0,)
+SeikaCodePublish(Throughput:3.9,Availability:95.0,Latency:-68.0,Documentation:2.0,Successability:99.0,BestPractices:75.0,Reliability:73.0,ResponseTime:-324.5,Compliance:78.0,)
+DownloadService(Throughput:27.2,Availability:94.0,Latency:-14.0,Documentation:9.0,Successability:98.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-300.0,Compliance:100.0,)
+AutoService(Throughput:13.9,Availability:61.0,Latency:-9.15,Documentation:5.0,Successability:62.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-121.46,Compliance:89.0,)
+CaribbeanT(Throughput:12.6,Availability:90.0,Latency:-1.0,Documentation:90.0,Successability:96.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-151.5,Compliance:100.0,)
+erez2(Throughput:2.6,Availability:56.0,Latency:-37.92,Documentation:58.0,Successability:58.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-174.77,Compliance:78.0,)
+DataGeneration(Throughput:1.8,Availability:85.0,Latency:-1.5,Documentation:34.0,Successability:95.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-49.5,Compliance:78.0,)
+AWSECommerceService(Throughput:6.4,Availability:88.0,Latency:-8.2,Documentation:7.0,Successability:89.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-121.15,Compliance:100.0,)
+SympaSOAP(Throughput:2.8,Availability:30.0,Latency:-88.47,Documentation:6.0,Successability:30.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-994.26,Compliance:78.0,)
+plotconService(Throughput:1.9,Availability:85.0,Latency:-8.8,Documentation:32.0,Successability:95.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-347.2,Compliance:100.0,)
+Fungus(Throughput:8.5,Availability:97.0,Latency:-43.85,Documentation:10.0,Successability:99.0,BestPractices:58.0,Reliability:67.0,ResponseTime:-249.0,Compliance:78.0,)
+iMobilWS(Throughput:8.0,Availability:98.0,Latency:-0.5,Documentation:12.0,Successability:100.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-179.5,Compliance:100.0,)
+getfile2(Throughput:18.1,Availability:83.0,Latency:-25.0,Documentation:9.0,Successability:84.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-206.0,Compliance:89.0,)
+vrnadistanceService(Throughput:2.5,Availability:100.0,Latency:-46.0,Documentation:7.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-251.8,Compliance:100.0,)
+OnlineMessenger(Throughput:7.3,Availability:12.0,Latency:-9.46,Documentation:66.0,Successability:12.0,BestPractices:71.0,Reliability:53.0,ResponseTime:-248.31,Compliance:78.0,)
+ResidentialLookup(Throughput:1.0,Availability:97.0,Latency:-19.5,Documentation:77.0,Successability:99.0,BestPractices:74.0,Reliability:60.0,ResponseTime:-585.5,Compliance:100.0,)
+eUtilsService(Throughput:1.9,Availability:98.0,Latency:-1.5,Documentation:6.0,Successability:99.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-146.43,Compliance:78.0,)
+AdminService(Throughput:33.9,Availability:96.0,Latency:-43.0,Documentation:12.0,Successability:99.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-149.0,Compliance:100.0,)
+------------------------
+5
+------------------------
+zipCodeClass(Throughput:5.2,Availability:89.0,Latency:-77.0,Documentation:3.0,Successability:90.0,BestPractices:69.0,Reliability:60.0,ResponseTime:-216.5,Compliance:89.0,)
+PassportService(Throughput:4.2,Availability:21.0,Latency:-10.77,Documentation:8.0,Successability:22.0,BestPractices:59.0,Reliability:33.0,ResponseTime:-435.33,Compliance:89.0,)
+XmppService(Throughput:3.0,Availability:92.0,Latency:-16.25,Documentation:5.0,Successability:97.0,BestPractices:74.0,Reliability:60.0,ResponseTime:-291.25,Compliance:67.0,)
+Chemistry(Throughput:3.8,Availability:28.0,Latency:-4.36,Documentation:62.0,Successability:28.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-132.86,Compliance:50.0,)
+interopLabEchoHeader(Throughput:3.1,Availability:32.0,Latency:-931.07,Documentation:5.0,Successability:33.0,BestPractices:79.0,Reliability:60.0,ResponseTime:-1034.43,Compliance:78.0,)
+LM_GIS(Throughput:7.6,Availability:67.0,Latency:-2.3,Documentation:41.0,Successability:68.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-42.7,Compliance:89.0,)
+timeDateEmail(Throughput:12.5,Availability:72.0,Latency:-5.5,Documentation:5.0,Successability:72.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-164.5,Compliance:100.0,)
+DEAWebsvcClass(Throughput:1.1,Availability:88.0,Latency:-29.5,Documentation:7.0,Successability:96.0,BestPractices:62.0,Reliability:73.0,ResponseTime:-80.5,Compliance:78.0,)
+rshare(Throughput:7.5,Availability:73.0,Latency:-6.0,Documentation:4.0,Successability:74.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-160.67,Compliance:89.0,)
+MailingList(Throughput:5.6,Availability:99.0,Latency:-46.0,Documentation:4.0,Successability:100.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-338.2,Compliance:100.0,)
+ExampleService(Throughput:6.1,Availability:62.0,Latency:-5.12,Documentation:6.0,Successability:63.0,BestPractices:75.0,Reliability:73.0,ResponseTime:-242.5,Compliance:89.0,)
+FileStoreService(Throughput:3.3,Availability:26.0,Latency:-52.6,Documentation:7.0,Successability:26.0,BestPractices:66.0,Reliability:53.0,ResponseTime:-207.67,Compliance:78.0,)
+GoogleSearchService(Throughput:6.9,Availability:100.0,Latency:-8.0,Documentation:12.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-146.33,Compliance:78.0,)
+seqretsplitService(Throughput:1.1,Availability:99.0,Latency:-9.8,Documentation:33.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-197.4,Compliance:100.0,)
+WSMPsrchService(Throughput:4.0,Availability:78.0,Latency:-23.25,Documentation:4.0,Successability:79.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-1345.5,Compliance:78.0,)
+IOHandler(Throughput:13.9,Availability:93.0,Latency:-19.87,Documentation:95.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-158.25,Compliance:78.0,)
+SearchDnevnikSi(Throughput:2.5,Availability:79.0,Latency:-18.25,Documentation:90.0,Successability:79.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-365.5,Compliance:78.0,)
+HelloWorld(Throughput:36.3,Availability:94.0,Latency:-1.0,Documentation:1.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-100.0,Compliance:100.0,)
+SdsUserAndHardwareService(Throughput:8.5,Availability:95.0,Latency:-10.5,Documentation:3.0,Successability:98.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-326.25,Compliance:78.0,)
+ftreedistService(Throughput:3.9,Availability:93.0,Latency:-44.6,Documentation:4.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-271.0,Compliance:100.0,)
+pepcoilService(Throughput:2.1,Availability:93.0,Latency:-40.6,Documentation:3.0,Successability:98.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-251.4,Compliance:100.0,)
+Resources(Throughput:6.4,Availability:51.0,Latency:-12.4,Documentation:63.0,Successability:51.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-175.6,Compliance:100.0,)
+GoogleSearchService(Throughput:7.5,Availability:85.0,Latency:-11.0,Documentation:10.0,Successability:95.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-124.33,Compliance:78.0,)
+RealTimeStockQuotes(Throughput:11.3,Availability:95.0,Latency:-37.41,Documentation:89.0,Successability:99.0,BestPractices:71.0,Reliability:53.0,ResponseTime:-181.12,Compliance:100.0,)
+showseqService(Throughput:9.4,Availability:86.0,Latency:-12.6,Documentation:39.0,Successability:95.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-447.4,Compliance:100.0,)
+MonsterBusinessGatewayService(Throughput:9.6,Availability:88.0,Latency:-16.36,Documentation:11.0,Successability:96.0,BestPractices:89.0,Reliability:72.0,ResponseTime:-312.43,Compliance:78.0,)
+GLMService(Throughput:8.4,Availability:28.0,Latency:-4.81,Documentation:9.0,Successability:30.0,BestPractices:74.0,Reliability:42.0,ResponseTime:-248.81,Compliance:78.0,)
+------------------------
+14
+------------------------
+AnalysisWSAppLabImplService(Throughput:2.5,Availability:86.0,Latency:-97.09,Documentation:8.0,Successability:86.0,BestPractices:66.0,Reliability:53.0,ResponseTime:-338.87,Compliance:89.0,)
+CanadaAddressVerification(Throughput:2.8,Availability:87.0,Latency:-30.0,Documentation:5.0,Successability:95.0,BestPractices:74.0,Reliability:60.0,ResponseTime:-116.0,Compliance:100.0,)
+ImgCount(Throughput:18.5,Availability:83.0,Latency:-4.0,Documentation:6.0,Successability:84.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-481.0,Compliance:89.0,)
+findkmService(Throughput:1.9,Availability:96.0,Latency:-7.8,Documentation:33.0,Successability:99.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-204.6,Compliance:100.0,)
+DataGeneration(Throughput:5.0,Availability:88.0,Latency:-1.0,Documentation:38.0,Successability:96.0,BestPractices:69.0,Reliability:60.0,ResponseTime:-168.5,Compliance:89.0,)
+ServicioSuma(Throughput:26.9,Availability:83.0,Latency:-1.0,Documentation:12.0,Successability:84.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-305.0,Compliance:89.0,)
+ChebiWebServiceService(Throughput:1.7,Availability:88.0,Latency:-9.75,Documentation:4.0,Successability:96.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-188.25,Compliance:100.0,)
+GoogleSearchService(Throughput:6.6,Availability:85.0,Latency:-10.67,Documentation:7.0,Successability:95.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-481.67,Compliance:78.0,)
+SendPageService(Throughput:12.0,Availability:86.0,Latency:-55.5,Documentation:6.0,Successability:86.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-350.5,Compliance:89.0,)
+ZipCode(Throughput:1.7,Availability:50.0,Latency:-328.57,Documentation:88.0,Successability:51.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-424.57,Compliance:89.0,)
+ICD9ToICD10(Throughput:4.6,Availability:88.0,Latency:-29.5,Documentation:96.0,Successability:96.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-331.5,Compliance:78.0,)
+ITempConverterservice(Throughput:15.9,Availability:72.0,Latency:-11.0,Documentation:11.0,Successability:72.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-134.5,Compliance:89.0,)
+SforceService(Throughput:3.5,Availability:17.0,Latency:-20.0,Documentation:92.0,Successability:17.0,BestPractices:69.0,Reliability:42.0,ResponseTime:-133.04,Compliance:100.0,)
+MapService(Throughput:6.2,Availability:39.0,Latency:-24.87,Documentation:38.0,Successability:39.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-411.12,Compliance:100.0,)
+pepwindowallService(Throughput:1.3,Availability:93.0,Latency:-8.6,Documentation:41.0,Successability:98.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-214.0,Compliance:100.0,)
+soap4buildwsdl(Throughput:5.0,Availability:9.0,Latency:-7.63,Documentation:32.0,Successability:9.0,BestPractices:69.0,Reliability:60.0,ResponseTime:-407.0,Compliance:89.0,)
+biosedService(Throughput:1.8,Availability:91.0,Latency:-38.0,Documentation:2.0,Successability:97.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-268.2,Compliance:100.0,)
+Compound1(Throughput:17.6,Availability:93.0,Latency:-12.0,Documentation:10.0,Successability:98.0,BestPractices:83.0,Reliability:67.0,ResponseTime:-141.5,Compliance:100.0,)
+XigniteEdgar(Throughput:6.8,Availability:85.0,Latency:-137.37,Documentation:41.0,Successability:95.0,BestPractices:69.0,Reliability:60.0,ResponseTime:-456.79,Compliance:78.0,)
+ICD9(Throughput:6.8,Availability:87.0,Latency:-20.2,Documentation:94.0,Successability:96.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-846.0,Compliance:78.0,)
+tbapi(Throughput:12.0,Availability:100.0,Latency:-27.0,Documentation:7.0,Successability:100.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-413.33,Compliance:78.0,)
+SortNumbers(Throughput:13.2,Availability:83.0,Latency:-1.0,Documentation:36.0,Successability:84.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-89.0,Compliance:67.0,)
+JobServices(Throughput:0.1,Availability:42.0,Latency:-0.88,Documentation:1.0,Successability:42.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-150.5,Compliance:89.0,)
+IPasswordservice(Throughput:13.2,Availability:72.0,Latency:-8.0,Documentation:5.0,Successability:72.0,BestPractices:85.0,Reliability:67.0,ResponseTime:-178.5,Compliance:89.0,)
+GoogleSearchService(Throughput:6.8,Availability:87.0,Latency:-14.0,Documentation:8.0,Successability:95.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-172.67,Compliance:78.0,)
+SudokuSolverWS(Throughput:8.4,Availability:78.0,Latency:-6.5,Documentation:65.0,Successability:78.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-127.5,Compliance:89.0,)
+Interop(Throughput:1.5,Availability:81.0,Latency:-2.87,Documentation:11.0,Successability:81.0,BestPractices:79.0,Reliability:60.0,ResponseTime:-135.27,Compliance:67.0,)
+splitterService(Throughput:14.6,Availability:95.0,Latency:-9.4,Documentation:31.0,Successability:99.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-223.6,Compliance:100.0,)
+NRA_x0020_ILA_x0020_News_x0020_and_x0020_Updates_x0020_Syndication(Throughput:25.7,Availability:86.0,Latency:-100.0,Documentation:89.0,Successability:95.0,BestPractices:62.0,Reliability:73.0,ResponseTime:-166.0,Compliance:89.0,)
+ICD10(Throughput:4.4,Availability:96.0,Latency:-33.5,Documentation:87.0,Successability:99.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-641.5,Compliance:78.0,)
+DocApi(Throughput:9.9,Availability:97.0,Latency:-6.92,Documentation:40.0,Successability:99.0,BestPractices:74.0,Reliability:60.0,ResponseTime:-202.04,Compliance:89.0,)
+TGL_x0020_Web_x0020_Services_x0020_v1.0(Throughput:4.9,Availability:97.0,Latency:-1.67,Documentation:97.0,Successability:99.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-120.0,Compliance:100.0,)
+------------------------
+4
+------------------------
+Interop(Throughput:2.3,Availability:80.0,Latency:-6.5,Documentation:10.0,Successability:80.0,BestPractices:76.0,Reliability:53.0,ResponseTime:-131.57,Compliance:67.0,)
+SoapTest(Throughput:3.5,Availability:61.0,Latency:-41.0,Documentation:8.0,Successability:61.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-158.9,Compliance:78.0,)
+interop2B(Throughput:4.1,Availability:90.0,Latency:-30.2,Documentation:58.0,Successability:91.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-121.0,Compliance:78.0,)
+SkyBoT(Throughput:6.9,Availability:63.0,Latency:-11.34,Documentation:37.0,Successability:63.0,BestPractices:75.0,Reliability:73.0,ResponseTime:-287.67,Compliance:89.0,)
+AnalysisWSAppLabImplService(Throughput:4.4,Availability:86.0,Latency:-97.47,Documentation:4.0,Successability:86.0,BestPractices:66.0,Reliability:53.0,ResponseTime:-290.3,Compliance:89.0,)
+DNS(Throughput:11.3,Availability:90.0,Latency:-61.0,Documentation:1.0,Successability:97.0,BestPractices:74.0,Reliability:60.0,ResponseTime:-157.0,Compliance:100.0,)
+pepstatsService(Throughput:1.1,Availability:93.0,Latency:-5.4,Documentation:33.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-218.6,Compliance:100.0,)
+MailService(Throughput:5.8,Availability:28.0,Latency:-48.62,Documentation:86.0,Successability:29.0,BestPractices:62.0,Reliability:60.0,ResponseTime:-195.54,Compliance:78.0,)
+SIMS(Throughput:8.5,Availability:97.0,Latency:-12.61,Documentation:87.0,Successability:99.0,BestPractices:54.0,Reliability:60.0,ResponseTime:-222.47,Compliance:78.0,)
+hts(Throughput:8.9,Availability:99.0,Latency:-2.0,Documentation:7.0,Successability:100.0,BestPractices:83.0,Reliability:80.0,ResponseTime:-413.62,Compliance:89.0,)
+FastCompletion(Throughput:23.4,Availability:100.0,Latency:-2.0,Documentation:4.0,Successability:100.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-165.0,Compliance:100.0,)
+AnalysisWSAppLabImplService(Throughput:1.9,Availability:85.0,Latency:-69.39,Documentation:7.0,Successability:86.0,BestPractices:66.0,Reliability:53.0,ResponseTime:-272.43,Compliance:89.0,)
+SearchCuroCustomerService(Throughput:18.6,Availability:83.0,Latency:-5.0,Documentation:5.0,Successability:84.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-171.0,Compliance:78.0,)
+DatasetBrowser(Throughput:1.9,Availability:56.0,Latency:-7.73,Documentation:89.0,Successability:57.0,BestPractices:79.0,Reliability:60.0,ResponseTime:-1987.0,Compliance:89.0,)
+LitteratursidenServices(Throughput:10.2,Availability:97.0,Latency:-2.0,Documentation:88.0,Successability:99.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-538.0,Compliance:78.0,)
+Location(Throughput:7.8,Availability:52.0,Latency:-88.18,Documentation:94.0,Successability:53.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-148.06,Compliance:89.0,)
+NewsService(Throughput:5.7,Availability:78.0,Latency:-55.0,Documentation:90.0,Successability:78.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-837.25,Compliance:89.0,)
+GoogleSearchService(Throughput:7.1,Availability:94.0,Latency:-10.0,Documentation:10.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-124.33,Compliance:78.0,)
+AreaService(Throughput:31.3,Availability:83.0,Latency:-3.0,Documentation:7.0,Successability:84.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-107.0,Compliance:100.0,)
+DownloadService(Throughput:23.8,Availability:95.0,Latency:-22.0,Documentation:7.0,Successability:98.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-317.0,Compliance:100.0,)
+IWebAPIService(Throughput:6.6,Availability:94.0,Latency:-232.46,Documentation:7.0,Successability:98.0,BestPractices:72.0,Reliability:60.0,ResponseTime:-443.56,Compliance:89.0,)
+LottoDrawings(Throughput:8.6,Availability:72.0,Latency:-117.0,Documentation:10.0,Successability:72.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-240.5,Compliance:89.0,)
+Servicio_C_de_Calidad(Throughput:2.2,Availability:98.0,Latency:-593.2,Documentation:4.0,Successability:95.0,BestPractices:62.0,Reliability:73.0,ResponseTime:-789.8,Compliance:89.0,)
+Service(Throughput:7.4,Availability:73.0,Latency:-72.83,Documentation:8.0,Successability:74.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-238.5,Compliance:89.0,)
+GBNIRHolidayDates(Throughput:12.0,Availability:98.0,Latency:-22.77,Documentation:89.0,Successability:100.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-126.17,Compliance:78.0,)
+JExamInfoServiceService(Throughput:5.9,Availability:34.0,Latency:-35.48,Documentation:9.0,Successability:35.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-262.37,Compliance:89.0,)
+SiteFetchService(Throughput:3.9,Availability:89.0,Latency:-1.4,Documentation:59.0,Successability:96.0,BestPractices:69.0,Reliability:58.0,ResponseTime:-319.2,Compliance:89.0,)
+------------------------
+0
+------------------------
+LostvibeWebService(Throughput:2.4,Availability:78.0,Latency:-2.75,Documentation:11.0,Successability:79.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-2282.75,Compliance:78.0,)
+interopLab(Throughput:3.6,Availability:95.0,Latency:-15.0,Documentation:11.0,Successability:95.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-215.5,Compliance:50.0,)
+eFetchService(Throughput:13.5,Availability:83.0,Latency:-7.0,Documentation:9.0,Successability:84.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-180.0,Compliance:78.0,)
+symgateEngine(Throughput:11.2,Availability:93.0,Latency:-17.0,Documentation:9.0,Successability:93.0,BestPractices:78.0,Reliability:80.0,ResponseTime:-143.67,Compliance:78.0,)
+AccountInfo(Throughput:2.1,Availability:88.0,Latency:-7.33,Documentation:66.0,Successability:89.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-127.0,Compliance:100.0,)
+ConcertWebService(Throughput:7.2,Availability:86.0,Latency:-108.5,Documentation:8.0,Successability:86.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-253.0,Compliance:78.0,)
+shuffleseqService(Throughput:1.4,Availability:100.0,Latency:-6.8,Documentation:32.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-198.8,Compliance:100.0,)
+GeDat(Throughput:3.7,Availability:87.0,Latency:-2.2,Documentation:16.0,Successability:95.0,BestPractices:50.0,Reliability:53.0,ResponseTime:-654.41,Compliance:89.0,)
+danService(Throughput:11.0,Availability:91.0,Latency:-8.6,Documentation:41.0,Successability:97.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-390.2,Compliance:100.0,)
+SdssFields(Throughput:22.7,Availability:99.0,Latency:-6.75,Documentation:95.0,Successability:100.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-82.25,Compliance:78.0,)
+diffseqService(Throughput:13.8,Availability:88.0,Latency:-10.2,Documentation:36.0,Successability:96.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-243.0,Compliance:100.0,)
+SesameService(Throughput:4.9,Availability:46.0,Latency:-11.0,Documentation:12.0,Successability:47.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-232.83,Compliance:89.0,)
+DatabindingPatterns(Throughput:23.4,Availability:83.0,Latency:-3.0,Documentation:7.0,Successability:84.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-108.0,Compliance:100.0,)
+DocApi(Throughput:9.9,Availability:97.0,Latency:-6.92,Documentation:40.0,Successability:99.0,BestPractices:74.0,Reliability:60.0,ResponseTime:-202.04,Compliance:89.0,)
+XigniteRealTime(Throughput:5.8,Availability:91.0,Latency:-162.87,Documentation:86.0,Successability:97.0,BestPractices:74.0,Reliability:60.0,ResponseTime:-474.91,Compliance:78.0,)
+UpdateService(Throughput:5.4,Availability:96.0,Latency:-2.75,Documentation:8.0,Successability:99.0,BestPractices:80.0,Reliability:58.0,ResponseTime:-111.0,Compliance:89.0,)
+SIMS(Throughput:8.5,Availability:97.0,Latency:-12.61,Documentation:87.0,Successability:99.0,BestPractices:54.0,Reliability:60.0,ResponseTime:-222.47,Compliance:78.0,)
+DOTSPhoneAppend(Throughput:1.3,Availability:85.0,Latency:-1.5,Documentation:92.0,Successability:95.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-98.0,Compliance:78.0,)
+Search(Throughput:24.5,Availability:99.0,Latency:-14.5,Documentation:33.0,Successability:100.0,BestPractices:69.0,Reliability:60.0,ResponseTime:-116.0,Compliance:100.0,)
+IAddress2service(Throughput:2.6,Availability:56.0,Latency:-107.5,Documentation:9.0,Successability:57.0,BestPractices:79.0,Reliability:60.0,ResponseTime:-460.0,Compliance:78.0,)
+com.starwood.corona.apps.wdc.AirKiosk(Throughput:1.5,Availability:57.0,Latency:-1.25,Documentation:12.0,Successability:58.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-86.5,Compliance:78.0,)
+prettyplotService(Throughput:1.3,Availability:91.0,Latency:-36.6,Documentation:3.0,Successability:97.0,BestPractices:72.0,Reliability:50.0,ResponseTime:-287.4,Compliance:100.0,)
+Service1(Throughput:8.8,Availability:100.0,Latency:-4.0,Documentation:2.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-2123.0,Compliance:100.0,)
+BankValSOAP(Throughput:9.1,Availability:83.0,Latency:-63.0,Documentation:10.0,Successability:84.0,BestPractices:93.0,Reliability:83.0,ResponseTime:-465.0,Compliance:89.0,)
+------------------------
+7
+------------------------
+TrafficService(Throughput:9.2,Availability:86.0,Latency:-2.0,Documentation:6.0,Successability:86.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-736.5,Compliance:78.0,)
+transeqService(Throughput:14.1,Availability:100.0,Latency:-9.8,Documentation:36.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-228.6,Compliance:100.0,)
+chaosService(Throughput:1.4,Availability:98.0,Latency:-10.2,Documentation:37.0,Successability:99.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-248.4,Compliance:100.0,)
+WSWUBlastService(Throughput:1.6,Availability:88.0,Latency:-41.37,Documentation:6.0,Successability:88.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-1377.55,Compliance:78.0,)
+CWS(Throughput:6.5,Availability:20.0,Latency:-6.8,Documentation:5.0,Successability:21.0,BestPractices:69.0,Reliability:60.0,ResponseTime:-150.4,Compliance:89.0,)
+DNS(Throughput:11.3,Availability:90.0,Latency:-61.0,Documentation:1.0,Successability:97.0,BestPractices:74.0,Reliability:60.0,ResponseTime:-157.0,Compliance:100.0,)
+stretcherService(Throughput:12.9,Availability:93.0,Latency:-8.0,Documentation:38.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-293.8,Compliance:100.0,)
+AreaService(Throughput:24.6,Availability:83.0,Latency:-5.0,Documentation:5.0,Successability:84.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-115.0,Compliance:100.0,)
+ZipCodeLookup(Throughput:24.4,Availability:98.0,Latency:-21.0,Documentation:40.0,Successability:100.0,BestPractices:93.0,Reliability:89.0,ResponseTime:-345.0,Compliance:100.0,)
+ReportService(Throughput:2.1,Availability:89.0,Latency:-39.0,Documentation:6.0,Successability:96.0,BestPractices:62.0,Reliability:73.0,ResponseTime:-124.67,Compliance:78.0,)
+SearchService(Throughput:19.3,Availability:83.0,Latency:-4.0,Documentation:11.0,Successability:84.0,BestPractices:75.0,Reliability:73.0,ResponseTime:-174.0,Compliance:89.0,)
+ClusterfastaService(Throughput:4.3,Availability:94.0,Latency:-123.22,Documentation:11.0,Successability:98.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-193.33,Compliance:89.0,)
+SearchService(Throughput:4.7,Availability:97.0,Latency:-2.0,Documentation:96.0,Successability:99.0,BestPractices:75.0,Reliability:73.0,ResponseTime:-103.67,Compliance:100.0,)
+octanolService(Throughput:12.1,Availability:93.0,Latency:-7.8,Documentation:42.0,Successability:98.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-311.8,Compliance:100.0,)
+VersionService(Throughput:27.0,Availability:83.0,Latency:-2.0,Documentation:9.0,Successability:84.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-165.0,Compliance:89.0,)
+------------------------
+11
+------------------------
+sandriniWebService(Throughput:14.8,Availability:75.0,Latency:-3.33,Documentation:8.0,Successability:76.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-224.0,Compliance:89.0,)
+pepinfoService(Throughput:14.5,Availability:94.0,Latency:-11.4,Documentation:34.0,Successability:98.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-233.0,Compliance:100.0,)
+codcmpService(Throughput:1.9,Availability:88.0,Latency:-5.2,Documentation:35.0,Successability:96.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-240.4,Compliance:100.0,)
+siggenService(Throughput:1.9,Availability:86.0,Latency:-27.6,Documentation:3.0,Successability:95.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-341.4,Compliance:78.0,)
+HoroscopeService(Throughput:28.4,Availability:92.0,Latency:-6.0,Documentation:8.0,Successability:97.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-113.0,Compliance:89.0,)
+edit__descseqService(Throughput:4.6,Availability:89.0,Latency:-59.53,Documentation:4.0,Successability:89.0,BestPractices:66.0,Reliability:53.0,ResponseTime:-243.07,Compliance:89.0,)
+TipoCambio(Throughput:2.4,Availability:92.0,Latency:-41.0,Documentation:87.0,Successability:97.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-145.62,Compliance:100.0,)
+SiteInspectService(Throughput:13.2,Availability:83.0,Latency:-24.0,Documentation:63.0,Successability:84.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-444.0,Compliance:89.0,)
+Service(Throughput:1.5,Availability:91.0,Latency:-19.07,Documentation:91.0,Successability:97.0,BestPractices:79.0,Reliability:60.0,ResponseTime:-3356.5,Compliance:78.0,)
+stretcherService(Throughput:12.3,Availability:90.0,Latency:-12.4,Documentation:39.0,Successability:97.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-292.2,Compliance:100.0,)
+iepService(Throughput:1.2,Availability:94.0,Latency:-8.0,Documentation:41.0,Successability:98.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-235.2,Compliance:100.0,)
+AnalysisWSAppLabImplService(Throughput:0.2,Availability:73.0,Latency:-396.54,Documentation:3.0,Successability:74.0,BestPractices:66.0,Reliability:53.0,ResponseTime:-1567.09,Compliance:89.0,)
+EasyAmazonService(Throughput:7.2,Availability:72.0,Latency:-21.0,Documentation:63.0,Successability:72.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-527.5,Compliance:78.0,)
+wsRegistriCertificati(Throughput:12.3,Availability:100.0,Latency:-0.62,Documentation:28.0,Successability:100.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-205.12,Compliance:78.0,)
+Main(Throughput:13.5,Availability:86.0,Latency:-4.18,Documentation:9.0,Successability:95.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-150.91,Compliance:78.0,)
+GMPubSrvService(Throughput:2.0,Availability:72.0,Latency:-245.5,Documentation:9.0,Successability:72.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-1730.0,Compliance:89.0,)
+GoogleSearchService(Throughput:7.8,Availability:94.0,Latency:-8.33,Documentation:5.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-150.0,Compliance:78.0,)
+twofeatService(Throughput:13.7,Availability:99.0,Latency:-8.6,Documentation:40.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-229.4,Compliance:100.0,)
+infoseqService(Throughput:14.3,Availability:99.0,Latency:-9.6,Documentation:32.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-237.8,Compliance:100.0,)
+eFetchService(Throughput:20.4,Availability:83.0,Latency:-5.0,Documentation:10.0,Successability:84.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-163.0,Compliance:78.0,)
+textsearchService(Throughput:12.5,Availability:91.0,Latency:-8.4,Documentation:39.0,Successability:97.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-302.4,Compliance:100.0,)
+------------------------
+10
+------------------------
+DOTSCurrencyExchange(Throughput:19.4,Availability:89.0,Latency:-1.5,Documentation:96.0,Successability:96.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-104.75,Compliance:78.0,)
+extractfeatService(Throughput:10.8,Availability:92.0,Latency:-12.6,Documentation:35.0,Successability:97.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-391.6,Compliance:100.0,)
+TipoCambio(Throughput:2.4,Availability:92.0,Latency:-41.0,Documentation:87.0,Successability:97.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-145.62,Compliance:100.0,)
+newcpgreportService(Throughput:1.0,Availability:95.0,Latency:-8.4,Documentation:34.0,Successability:99.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-266.4,Compliance:100.0,)
+MyWorld(Throughput:9.2,Availability:50.0,Latency:-3.2,Documentation:66.0,Successability:51.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-77.0,Compliance:89.0,)
+showmyip_lookup(Throughput:11.5,Availability:83.0,Latency:-20.0,Documentation:5.0,Successability:84.0,BestPractices:75.0,Reliability:73.0,ResponseTime:-173.0,Compliance:89.0,)
+SentencesService(Throughput:17.1,Availability:94.0,Latency:-2.5,Documentation:1.0,Successability:98.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-148.0,Compliance:100.0,)
+marscanService(Throughput:1.4,Availability:98.0,Latency:-10.0,Documentation:41.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-209.4,Compliance:100.0,)
+SerClsPeticionSOAPservice(Throughput:25.0,Availability:83.0,Latency:-4.0,Documentation:4.0,Successability:84.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-186.0,Compliance:89.0,)
+AWSECommerceService(Throughput:12.5,Availability:66.0,Latency:-5.31,Documentation:10.0,Successability:66.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-57.42,Compliance:100.0,)
+Hill(Throughput:3.5,Availability:96.0,Latency:-61.34,Documentation:82.0,Successability:99.0,BestPractices:79.0,Reliability:60.0,ResponseTime:-176.67,Compliance:100.0,)
+eFetchService(Throughput:13.5,Availability:83.0,Latency:-7.0,Documentation:9.0,Successability:84.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-180.0,Compliance:78.0,)
+Northwind(Throughput:6.6,Availability:91.0,Latency:-163.5,Documentation:9.0,Successability:91.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-380.83,Compliance:78.0,)
+Blast(Throughput:5.6,Availability:51.0,Latency:-6.6,Documentation:37.0,Successability:51.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-303.2,Compliance:89.0,)
+roconService(Throughput:4.2,Availability:92.0,Latency:-41.6,Documentation:5.0,Successability:97.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-271.4,Compliance:100.0,)
+eUtilsService(Throughput:2.5,Availability:85.0,Latency:-2.59,Documentation:8.0,Successability:95.0,BestPractices:93.0,Reliability:89.0,ResponseTime:-181.42,Compliance:78.0,)
+SiteInspectService(Throughput:13.2,Availability:83.0,Latency:-24.0,Documentation:63.0,Successability:84.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-444.0,Compliance:89.0,)
+------------------------
+2
+------------------------
+TimeService(Throughput:15.8,Availability:71.0,Latency:-61.0,Documentation:2.0,Successability:72.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-119.5,Compliance:89.0,)
+WSDLInteropTestDocLitService(Throughput:7.1,Availability:89.0,Latency:-39.5,Documentation:10.0,Successability:90.0,BestPractices:83.0,Reliability:80.0,ResponseTime:-176.25,Compliance:89.0,)
+DimeInterop(Throughput:7.0,Availability:91.0,Latency:-7.83,Documentation:4.0,Successability:91.0,BestPractices:66.0,Reliability:67.0,ResponseTime:-123.0,Compliance:78.0,)
+WitwService(Throughput:21.6,Availability:100.0,Latency:-16.0,Documentation:60.0,Successability:100.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-541.0,Compliance:89.0,)
+SubjectBrowserService(Throughput:6.3,Availability:75.0,Latency:-7.0,Documentation:62.0,Successability:76.0,BestPractices:66.0,Reliability:53.0,ResponseTime:-622.33,Compliance:89.0,)
+AnalysisWSAppLabImplService(Throughput:3.4,Availability:85.0,Latency:-86.35,Documentation:7.0,Successability:85.0,BestPractices:66.0,Reliability:53.0,ResponseTime:-303.65,Compliance:89.0,)
+SpatialQuery(Throughput:1.4,Availability:91.0,Latency:-11.6,Documentation:62.0,Successability:91.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-165.2,Compliance:100.0,)
+BankValSOAP(Throughput:14.9,Availability:83.0,Latency:-6.0,Documentation:7.0,Successability:84.0,BestPractices:93.0,Reliability:83.0,ResponseTime:-333.0,Compliance:89.0,)
+periodictable(Throughput:1.0,Availability:99.0,Latency:-46.0,Documentation:32.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-201.5,Compliance:78.0,)
+SecureLogin(Throughput:26.4,Availability:83.0,Latency:-4.0,Documentation:5.0,Successability:84.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-65.0,Compliance:89.0,)
+erez3(Throughput:7.7,Availability:57.0,Latency:-13.19,Documentation:61.0,Successability:58.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-144.88,Compliance:78.0,)
+InteropTestExtensibilityRequired(Throughput:33.3,Availability:85.0,Latency:-1.0,Documentation:4.0,Successability:95.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-107.0,Compliance:100.0,)
+GoogleSearchService(Throughput:6.9,Availability:100.0,Latency:-10.0,Documentation:12.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-130.67,Compliance:78.0,)
+WebStoreService(Throughput:5.2,Availability:56.0,Latency:-133.43,Documentation:31.0,Successability:58.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-251.07,Compliance:67.0,)
+OA_DGV(Throughput:7.5,Availability:62.0,Latency:-1.81,Documentation:38.0,Successability:63.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-47.56,Compliance:89.0,)
+TWS-DS(Throughput:11.1,Availability:95.0,Latency:-6.0,Documentation:5.0,Successability:98.0,BestPractices:57.0,Reliability:58.0,ResponseTime:-963.0,Compliance:100.0,)
+FullerData_x0020_High_x0020_Score_x0020_Service(Throughput:18.7,Availability:96.0,Latency:-1.4,Documentation:93.0,Successability:99.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-115.4,Compliance:78.0,)
+WSFastaService(Throughput:3.2,Availability:91.0,Latency:-41.83,Documentation:10.0,Successability:91.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-1383.33,Compliance:78.0,)
+showalignService(Throughput:9.2,Availability:86.0,Latency:-8.8,Documentation:37.0,Successability:95.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-515.2,Compliance:100.0,)
+AWSECommerceService(Throughput:9.1,Availability:80.0,Latency:-5.78,Documentation:11.0,Successability:81.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-64.28,Compliance:100.0,)
+SoapResponder(Throughput:12.8,Availability:83.0,Latency:-541.0,Documentation:64.0,Successability:84.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-627.0,Compliance:89.0,)
+RsomService(Throughput:10.5,Availability:56.0,Latency:-14.0,Documentation:2.0,Successability:56.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-323.5,Compliance:89.0,)
+DimeInterop(Throughput:2.4,Availability:99.0,Latency:-25.16,Documentation:7.0,Successability:100.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-134.83,Compliance:67.0,)
+BlogAPI(Throughput:31.5,Availability:97.0,Latency:-14.0,Documentation:62.0,Successability:99.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-126.0,Compliance:100.0,)
+WSDLInteropTestDocLitParameters(Throughput:8.7,Availability:96.0,Latency:-0.67,Documentation:11.0,Successability:99.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-133.67,Compliance:78.0,)
+GoogleSearchService(Throughput:7.0,Availability:89.0,Latency:-9.67,Documentation:5.0,Successability:96.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-140.0,Compliance:78.0,)
+GeocodeService(Throughput:13.8,Availability:72.0,Latency:-4.5,Documentation:4.0,Successability:72.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-82.0,Compliance:89.0,)
+SendEmailService(Throughput:22.4,Availability:96.0,Latency:-2.0,Documentation:94.0,Successability:99.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-198.0,Compliance:100.0,)
+ICD9ToICD10(Throughput:4.6,Availability:88.0,Latency:-29.5,Documentation:96.0,Successability:96.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-331.5,Compliance:78.0,)
+Calculator(Throughput:9.7,Availability:86.0,Latency:-2.5,Documentation:87.0,Successability:86.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-421.0,Compliance:78.0,)
+DOTSYellowPages(Throughput:1.7,Availability:88.0,Latency:-1.33,Documentation:59.0,Successability:96.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-97.33,Compliance:78.0,)
+------------------------
+9
+------------------------
+GeoBrokr(Throughput:0.7,Availability:76.0,Latency:-30.33,Documentation:39.0,Successability:76.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-198.83,Compliance:78.0,)
+AddressFinder(Throughput:1.1,Availability:92.0,Latency:-5.66,Documentation:60.0,Successability:92.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-155.83,Compliance:100.0,)
+Main(Throughput:13.5,Availability:86.0,Latency:-4.18,Documentation:9.0,Successability:95.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-150.91,Compliance:78.0,)
+embossversionService(Throughput:2.9,Availability:95.0,Latency:-48.6,Documentation:3.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-345.0,Compliance:100.0,)
+K4TAirReservationsWS(Throughput:18.5,Availability:88.0,Latency:-11.0,Documentation:94.0,Successability:96.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-177.0,Compliance:78.0,)
+showseqService(Throughput:13.5,Availability:100.0,Latency:-42.4,Documentation:2.0,Successability:100.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-260.6,Compliance:100.0,)
+AustralianPostCode(Throughput:2.9,Availability:98.0,Latency:-31.0,Documentation:93.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-3150.0,Compliance:78.0,)
+XigniteChart(Throughput:5.8,Availability:88.0,Latency:-1.08,Documentation:90.0,Successability:96.0,BestPractices:79.0,Reliability:60.0,ResponseTime:-490.23,Compliance:78.0,)
+plotconService(Throughput:1.4,Availability:89.0,Latency:-40.0,Documentation:4.0,Successability:96.0,BestPractices:72.0,Reliability:50.0,ResponseTime:-305.4,Compliance:100.0,)
+ServiceTransfert(Throughput:10.8,Availability:100.0,Latency:-6.44,Documentation:5.0,Successability:100.0,BestPractices:62.0,Reliability:50.0,ResponseTime:-252.33,Compliance:100.0,)
+LORAX(Throughput:4.5,Availability:88.0,Latency:-142.25,Documentation:88.0,Successability:96.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-452.75,Compliance:100.0,)
+ItestckvSOAPservice(Throughput:3.9,Availability:63.0,Latency:-239.33,Documentation:6.0,Successability:64.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-1668.0,Compliance:78.0,)
+emowseService(Throughput:15.6,Availability:85.0,Latency:-6.0,Documentation:34.0,Successability:95.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-222.6,Compliance:100.0,)
+EnvioSMS(Throughput:15.2,Availability:95.0,Latency:-13.33,Documentation:9.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-164.33,Compliance:78.0,)
+eUtilsService(Throughput:24.2,Availability:96.0,Latency:-1.5,Documentation:7.0,Successability:99.0,BestPractices:93.0,Reliability:89.0,ResponseTime:-149.0,Compliance:78.0,)
+sixpackService(Throughput:13.9,Availability:98.0,Latency:-10.4,Documentation:39.0,Successability:100.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-229.4,Compliance:100.0,)
+eUtilsService(Throughput:1.9,Availability:98.0,Latency:-1.5,Documentation:6.0,Successability:99.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-146.43,Compliance:78.0,)
+------------------------
+1
+------------------------
+iMobilWS(Throughput:8.0,Availability:98.0,Latency:-0.5,Documentation:12.0,Successability:100.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-179.5,Compliance:100.0,)
+searchService(Throughput:5.2,Availability:88.0,Latency:-19.67,Documentation:9.0,Successability:88.0,BestPractices:75.0,Reliability:73.0,ResponseTime:-108.67,Compliance:89.0,)
+BankValSOAP(Throughput:9.1,Availability:83.0,Latency:-63.0,Documentation:10.0,Successability:84.0,BestPractices:93.0,Reliability:83.0,ResponseTime:-465.0,Compliance:89.0,)
+cutseqService(Throughput:1.2,Availability:87.0,Latency:-7.0,Documentation:40.0,Successability:95.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-357.8,Compliance:100.0,)
+Validator(Throughput:7.3,Availability:100.0,Latency:-3.28,Documentation:83.0,Successability:100.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-376.64,Compliance:100.0,)
+BarCode(Throughput:3.7,Availability:88.0,Latency:-23.0,Documentation:88.0,Successability:96.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-214.0,Compliance:100.0,)
+FaxStatus(Throughput:25.8,Availability:83.0,Latency:-3.0,Documentation:64.0,Successability:84.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-91.0,Compliance:89.0,)
+Inbound(Throughput:2.0,Availability:92.0,Latency:-1.66,Documentation:93.0,Successability:97.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-148.33,Compliance:78.0,)
+DevLeap_x0020_-_x0020_WSCached(Throughput:14.7,Availability:96.0,Latency:-1.0,Documentation:87.0,Successability:99.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-854.0,Compliance:100.0,)
+myService(Throughput:21.6,Availability:83.0,Latency:-7.0,Documentation:62.0,Successability:84.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-137.0,Compliance:89.0,)
+ITempConverterservice(Throughput:21.7,Availability:72.0,Latency:-8.5,Documentation:6.0,Successability:72.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-128.5,Compliance:89.0,)
+showmyip(Throughput:8.9,Availability:83.0,Latency:-11.0,Documentation:7.0,Successability:84.0,BestPractices:75.0,Reliability:73.0,ResponseTime:-145.0,Compliance:89.0,)
+maskseqService(Throughput:0.8,Availability:85.0,Latency:-10.8,Documentation:35.0,Successability:95.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-220.8,Compliance:100.0,)
+TextToImage(Throughput:2.1,Availability:61.0,Latency:-725.67,Documentation:96.0,Successability:62.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-1471.92,Compliance:67.0,)
+SOAP(Throughput:27.6,Availability:83.0,Latency:-1.0,Documentation:58.0,Successability:84.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-189.0,Compliance:89.0,)
+eUtilsService(Throughput:2.5,Availability:85.0,Latency:-2.59,Documentation:8.0,Successability:95.0,BestPractices:93.0,Reliability:89.0,ResponseTime:-181.42,Compliance:78.0,)
+pepwheelService(Throughput:14.6,Availability:90.0,Latency:-8.4,Documentation:35.0,Successability:97.0,BestPractices:75.0,Reliability:58.0,ResponseTime:-220.8,Compliance:100.0,)
+antigenicService(Throughput:1.6,Availability:88.0,Latency:-7.8,Documentation:36.0,Successability:96.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-213.2,Compliance:100.0,)
+TemperatureService(Throughput:29.0,Availability:83.0,Latency:-8.0,Documentation:64.0,Successability:84.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-111.0,Compliance:89.0,)
+wsTravelService(Throughput:1.9,Availability:93.0,Latency:-14.25,Documentation:7.0,Successability:93.0,BestPractices:50.0,Reliability:53.0,ResponseTime:-1783.25,Compliance:67.0,)
+PlaceFinderSample(Throughput:1.1,Availability:66.0,Latency:-73.66,Documentation:56.0,Successability:66.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-529.33,Compliance:100.0,)
+LVISWebService(Throughput:4.3,Availability:92.0,Latency:-13.0,Documentation:2.0,Successability:97.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-175.0,Compliance:78.0,)
+einvertedService(Throughput:1.1,Availability:94.0,Latency:-9.2,Documentation:37.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-208.4,Compliance:100.0,)
+RandomPlayer(Throughput:2.4,Availability:100.0,Latency:-16.8,Documentation:5.0,Successability:100.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-348.0,Compliance:78.0,)
+OTSZip(Throughput:6.4,Availability:91.0,Latency:-319.0,Documentation:90.0,Successability:91.0,BestPractices:62.0,Reliability:73.0,ResponseTime:-561.5,Compliance:78.0,)
+rshare(Throughput:7.5,Availability:73.0,Latency:-6.0,Documentation:4.0,Successability:74.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-160.67,Compliance:89.0,)
+------------------------
+8
+------------------------
+vrnaduplexService(Throughput:1.4,Availability:100.0,Latency:-42.6,Documentation:1.0,Successability:100.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-300.6,Compliance:100.0,)
+WSDLInteropTestDocLitService(Throughput:2.5,Availability:98.0,Latency:-1083.0,Documentation:3.0,Successability:98.0,BestPractices:83.0,Reliability:80.0,ResponseTime:-1177.5,Compliance:89.0,)
+AnalysisWSAppLabImplService(Throughput:2.2,Availability:85.0,Latency:-95.96,Documentation:4.0,Successability:85.0,BestPractices:66.0,Reliability:53.0,ResponseTime:-282.09,Compliance:89.0,)
+AnalysisWSAppLabImplService(Throughput:1.1,Availability:84.0,Latency:-108.96,Documentation:6.0,Successability:84.0,BestPractices:66.0,Reliability:53.0,ResponseTime:-319.83,Compliance:89.0,)
+WitwService(Throughput:7.8,Availability:89.0,Latency:-32.67,Documentation:60.0,Successability:96.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-505.0,Compliance:89.0,)
+HBObauprodukte(Throughput:1.1,Availability:59.0,Latency:-6.0,Documentation:33.0,Successability:60.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-211.75,Compliance:78.0,)
+trimestService(Throughput:1.1,Availability:88.0,Latency:-42.4,Documentation:8.0,Successability:96.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-248.8,Compliance:100.0,)
+Compound2(Throughput:27.4,Availability:87.0,Latency:-2.0,Documentation:11.0,Successability:95.0,BestPractices:80.0,Reliability:58.0,ResponseTime:-111.0,Compliance:89.0,)
+ElementRefinementsService(Throughput:9.0,Availability:83.0,Latency:-6.0,Documentation:7.0,Successability:84.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-1703.0,Compliance:89.0,)
+matcherService(Throughput:13.5,Availability:89.0,Latency:-6.6,Documentation:42.0,Successability:96.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-304.8,Compliance:100.0,)
+Service1(Throughput:36.9,Availability:92.0,Latency:-1.0,Documentation:89.0,Successability:97.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-78.0,Compliance:100.0,)
+SearchService(Throughput:2.7,Availability:35.0,Latency:-2.8,Documentation:8.0,Successability:35.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-272.3,Compliance:67.0,)
+AnalysisWSAppLabImplService(Throughput:3.5,Availability:85.0,Latency:-101.05,Documentation:5.0,Successability:86.0,BestPractices:66.0,Reliability:53.0,ResponseTime:-287.22,Compliance:89.0,)
+SkyNodeWS(Throughput:17.1,Availability:88.0,Latency:-33.09,Documentation:4.0,Successability:96.0,BestPractices:62.0,Reliability:73.0,ResponseTime:-78.82,Compliance:78.0,)
+UserAddModify(Throughput:5.9,Availability:72.0,Latency:-5.0,Documentation:8.0,Successability:72.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-412.5,Compliance:100.0,)
+GreenchoiceNewCustomer(Throughput:13.3,Availability:86.0,Latency:-1.13,Documentation:38.0,Successability:95.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-195.75,Compliance:78.0,)
+needleService(Throughput:2.0,Availability:98.0,Latency:-44.6,Documentation:9.0,Successability:100.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-315.4,Compliance:100.0,)
+QualificationWarranty(Throughput:29.7,Availability:83.0,Latency:-2.0,Documentation:57.0,Successability:84.0,BestPractices:72.0,Reliability:80.0,ResponseTime:-135.0,Compliance:100.0,)
+SearchCuroCustomerService(Throughput:18.6,Availability:83.0,Latency:-5.0,Documentation:5.0,Successability:84.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-171.0,Compliance:78.0,)
+WMLP(Throughput:15.5,Availability:56.0,Latency:-4.0,Documentation:10.0,Successability:56.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-67.25,Compliance:89.0,)
+WSDaliLiteService(Throughput:3.5,Availability:80.0,Latency:-43.0,Documentation:4.0,Successability:81.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-1418.2,Compliance:78.0,)
+------------------------
+3
+------------------------
+GoogleSearchService(Throughput:11.1,Availability:91.0,Latency:-7.0,Documentation:3.0,Successability:97.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-118.33,Compliance:78.0,)
+interop2B(Throughput:4.1,Availability:90.0,Latency:-30.2,Documentation:58.0,Successability:91.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-121.0,Compliance:78.0,)
+Import1(Throughput:24.1,Availability:83.0,Latency:-4.0,Documentation:7.0,Successability:84.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-114.0,Compliance:89.0,)
+CalcService(Throughput:16.1,Availability:86.0,Latency:-2.0,Documentation:91.0,Successability:86.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-167.5,Compliance:78.0,)
+ParaciteSearchService(Throughput:6.1,Availability:63.0,Latency:-3.0,Documentation:11.0,Successability:64.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-136.67,Compliance:78.0,)
+DOTSPackageTracking(Throughput:15.3,Availability:91.0,Latency:-0.93,Documentation:91.0,Successability:97.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-102.62,Compliance:78.0,)
+ndfdXML(Throughput:4.4,Availability:72.0,Latency:-19.0,Documentation:40.0,Successability:72.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-580.5,Compliance:89.0,)
+eBayAPIInterfaceService(Throughput:1.0,Availability:98.0,Latency:-254.5,Documentation:11.0,Successability:98.0,BestPractices:72.0,Reliability:60.0,ResponseTime:-770.6,Compliance:100.0,)
+sbml(Throughput:4.8,Availability:62.0,Latency:-5.5,Documentation:8.0,Successability:63.0,BestPractices:89.0,Reliability:78.0,ResponseTime:-237.12,Compliance:89.0,)
+RenderServer3D(Throughput:9.7,Availability:67.0,Latency:-46.5,Documentation:7.0,Successability:67.0,BestPractices:85.0,Reliability:67.0,ResponseTime:-182.25,Compliance:67.0,)
+Service1(Throughput:3.8,Availability:88.0,Latency:-308.0,Documentation:7.0,Successability:96.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-1316.75,Compliance:100.0,)
+oemsearchxmle(Throughput:5.7,Availability:57.0,Latency:-24.41,Documentation:95.0,Successability:59.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-384.5,Compliance:89.0,)
+SRS(Throughput:7.5,Availability:56.0,Latency:-8.75,Documentation:36.0,Successability:56.0,BestPractices:91.0,Reliability:83.0,ResponseTime:-356.75,Compliance:89.0,)
+RegisterResearchServices(Throughput:40.1,Availability:86.0,Latency:-1.0,Documentation:10.0,Successability:95.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-57.0,Compliance:100.0,)
+------------------------
+15
+------------------------
+WorldTimeService(Throughput:9.7,Availability:87.0,Latency:-65.8,Documentation:10.0,Successability:96.0,BestPractices:62.0,Reliability:73.0,ResponseTime:-178.4,Compliance:89.0,)
+OSSIWS(Throughput:3.7,Availability:73.0,Latency:-0.33,Documentation:12.0,Successability:74.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-303.33,Compliance:78.0,)
+InstantOrder(Throughput:9.2,Availability:78.0,Latency:-82.75,Documentation:42.0,Successability:78.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-221.75,Compliance:67.0,)
+ManageNumbers(Throughput:6.5,Availability:85.0,Latency:-16.3,Documentation:93.0,Successability:95.0,BestPractices:62.0,Reliability:73.0,ResponseTime:-405.0,Compliance:89.0,)
+TWS-DR(Throughput:7.3,Availability:85.0,Latency:-6.5,Documentation:5.0,Successability:95.0,BestPractices:57.0,Reliability:58.0,ResponseTime:-1084.5,Compliance:100.0,)
+w_invoicereceipt(Throughput:7.8,Availability:65.0,Latency:-13.33,Documentation:3.0,Successability:66.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-330.5,Compliance:67.0,)
+SmartPayments(Throughput:15.8,Availability:87.0,Latency:-0.88,Documentation:91.0,Successability:95.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-124.38,Compliance:78.0,)
+RouteCalculationService(Throughput:22.3,Availability:96.0,Latency:-19.5,Documentation:6.0,Successability:99.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-144.5,Compliance:78.0,)
+patmatdbService(Throughput:1.3,Availability:95.0,Latency:-33.8,Documentation:10.0,Successability:98.0,BestPractices:82.0,Reliability:67.0,ResponseTime:-234.8,Compliance:100.0,)
+InstantOrder(Throughput:11.8,Availability:86.0,Latency:-62.5,Documentation:32.0,Successability:95.0,BestPractices:62.0,Reliability:73.0,ResponseTime:-269.5,Compliance:89.0,)
+NetToolsService(Throughput:15.0,Availability:83.0,Latency:-18.0,Documentation:57.0,Successability:84.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-176.0,Compliance:89.0,)
+Domain(Throughput:8.1,Availability:56.0,Latency:-2.25,Documentation:5.0,Successability:57.0,BestPractices:87.0,Reliability:73.0,ResponseTime:-249.0,Compliance:78.0,)
+RetsinfoService(Throughput:10.5,Availability:63.0,Latency:-4.67,Documentation:6.0,Successability:63.0,BestPractices:69.0,Reliability:42.0,ResponseTime:-192.67,Compliance:100.0,)
+RouteFinder(Throughput:0.6,Availability:68.0,Latency:-60.0,Documentation:79.0,Successability:68.0,BestPractices:72.0,Reliability:67.0,ResponseTime:-188.67,Compliance:89.0,)
+ISOcodesSOAP(Throughput:41.2,Availability:83.0,Latency:-2.0,Documentation:10.0,Successability:84.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-82.0,Compliance:89.0,)
+maskfeatService(Throughput:1.7,Availability:94.0,Latency:-5.6,Documentation:41.0,Successability:98.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-222.4,Compliance:100.0,)
+SoapTest(Throughput:4.2,Availability:90.0,Latency:-16.2,Documentation:2.0,Successability:91.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-447.2,Compliance:78.0,)
+AWSECommerceService(Throughput:9.1,Availability:80.0,Latency:-5.78,Documentation:11.0,Successability:81.0,BestPractices:77.0,Reliability:67.0,ResponseTime:-64.28,Compliance:100.0,)
+BNPrice(Throughput:14.5,Availability:98.0,Latency:-55.0,Documentation:4.0,Successability:99.0,BestPractices:84.0,Reliability:73.0,ResponseTime:-538.0,Compliance:78.0,)
+World_x0020_Time_x0020_Service(Throughput:2.9,Availability:70.0,Latency:-61.5,Documentation:92.0,Successability:71.0,BestPractices:80.0,Reliability:73.0,ResponseTime:-234.12,Compliance:67.0,)
+BlueLMSWS(Throughput:13.3,Availability:97.0,Latency:-4.46,Documentation:32.0,Successability:99.0,BestPractices:74.0,Reliability:60.0,ResponseTime:-97.73,Compliance:67.0,)
+InteropTestExtensibilityRequired(Throughput:36.6,Availability:94.0,Latency:-1.0,Documentation:8.0,Successability:98.0,BestPractices:87.0,Reliability:80.0,ResponseTime:-103.0,Compliance:100.0,)
+------------------------
+%#======================= CONSTRAINTS =============================#
+0
+% ----------------------
+% ----------------------

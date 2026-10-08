@@ -71,7 +71,6 @@ export class Solver {
       solutions: [{
         decision: { kind: 'binding', binding },
         features: evaluation.features,
-        metrics: evaluation.metrics,
         objectives: evaluation.objectives,
         penalties: evaluation.penalties,
         violations: evaluation.violations,

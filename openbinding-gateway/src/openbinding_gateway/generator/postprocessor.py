@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from decimal import Decimal
 from typing import Any
 
@@ -55,15 +56,19 @@ class BIMPostprocessor:
         tension: float = 0.7,
         repair_empty_branches: bool = True,
         validate_compile: bool = True,
+        feature_definitions: list[dict] | None = None,
     ):
         self.name = _clean_id(name)
         self.profile = profile
         self.dialects = dialects or ["qos-binding/v1"]
+        if self.dialects not in (["qos-binding/v1"], ["bpmn-workflow/v1"]):
+            raise ValueError("dialects: select qos-binding/v1 or bpmn-workflow/v1 for generated workflows")
         self.capabilities = capabilities or TargetCapabilities(target_engines=[])
         self.guarantee_feasibility = guarantee_feasibility
         self.tension = max(0.0, min(1.0, tension))
         self.repair_empty_branches = repair_empty_branches
         self.validate_compile = validate_compile
+        self.feature_definitions = feature_definitions
 
         self.branch_counter = 0
         self.routing_entries: list[dict[str, Any]] = []
@@ -240,17 +245,21 @@ class BIMPostprocessor:
             }
 
         is_minizinc = "minizinc-csp" in self.capabilities.target_engines
+        custom_by_id = {item["id"]: item for item in self.feature_definitions or []}
 
         for raw_name, prop_spec in raw_props.items():
-            norm_name = self._normalize_feature_name(raw_name)
+            norm_name = raw_name if self.feature_definitions is not None else self._normalize_feature_name(raw_name)
             feature_key_map[raw_name] = norm_name
 
             direction = prop_spec.direction
-            scope = "invocation" if norm_name == "latency" else "selectedCandidate"
-            unit = "ms" if norm_name == "latency" else ("EUR" if norm_name == "cost" else "1")
+            custom = custom_by_id.get(norm_name)
+            scope = custom["scope"] if custom else ("invocation" if norm_name == "latency" else "selectedCandidate")
+            unit = custom["unit"] if custom else ("ms" if norm_name == "latency" else ("EUR" if norm_name == "cost" else "1"))
 
             # Standard aggregations compatible with MiniZinc and Heuristics
-            if norm_name in ("latency", "cost"):
+            if custom:
+                aggr = {key: value for key, value in custom["aggregation"].items() if value is not None}
+            elif norm_name in ("latency", "cost"):
                 aggr = {
                     "sequence": "sum",
                     "parallel": "max" if norm_name == "latency" else "sum",
@@ -277,7 +286,7 @@ class BIMPostprocessor:
                         "selection": "product",
                     }
 
-            seq_op = aggr.get("sequence", "sum")
+            seq_op = aggr.get("sequence", aggr.get("selection", "sum"))
             dom_min = float(prop_spec.domain_min)
             dom_max = float(prop_spec.domain_max)
             if seq_op == "sum":
@@ -285,7 +294,7 @@ class BIMPostprocessor:
                 neutral = 0.0
             elif seq_op == "product":
                 dom_max = max(1.0, dom_max)
-                dom_min = min(0.0, dom_min)
+                dom_min = min(1.0, dom_min)
                 neutral = 1.0
             elif seq_op == "min":
                 neutral = dom_max
@@ -436,10 +445,25 @@ class BIMPostprocessor:
 
             return 0.0
 
-        witness_values: dict[str, float] = {
-            m_id: _eval_witness(workflow_root, m_id)
-            for m_id in features_dict
-        }
+        witness_values: dict[str, float] = {}
+        selected_candidates = list(dict.fromkeys(witness_solution.values()))
+        for m_id, feature in (features_dict.items() if self.feature_definitions is None else []):
+            if feature["scope"] == "selectedCandidate":
+                values = [candidates_dict[candidate]["features"][m_id] for candidate in selected_candidates]
+                op = feature["aggregation"].get("selection", "sum")
+                if op == "product":
+                    value = 1.0
+                    for item in values:
+                        value *= item
+                elif op == "min":
+                    value = min(values, default=feature["neutral"])
+                elif op == "max":
+                    value = max(values, default=feature["neutral"])
+                else:
+                    value = sum(values)
+                witness_values[m_id] = value
+            else:
+                witness_values[m_id] = _eval_witness(workflow_root, m_id)
 
         # 6. Build Constraints
         constraints_spec: dict[str, Any] = {}
@@ -452,11 +476,11 @@ class BIMPostprocessor:
                 continue
             c_index += 1
             direction = features_dict[norm_prop]["direction"]
-            v_witness = witness_values[norm_prop]
+            v_witness = witness_values.get(norm_prop, 0.0)
             m_domain = features_dict[norm_prop]["domain"]
 
             bound_val = constr.value
-            if self.guarantee_feasibility:
+            if self.guarantee_feasibility and self.feature_definitions is None:
                 if direction == "minimize":
                     # bound >= v_witness
                     max_val = max(m_domain["maximum"] * len(all_task_ids), v_witness * 1.5)
@@ -477,18 +501,19 @@ class BIMPostprocessor:
             }
 
         # 7. Build Optimization
-        opt_mode = self.capabilities.default_optimization
-        obj_type = self.capabilities.default_objective_type
-
         # Select only explicitly requested features for optimization criteria.
         criteria = []
-        for m_id, m_spec in list(features_dict.items())[:max(1, self.capabilities.min_objectives)]:
+        objective_ids = ([item["id"] for item in self.feature_definitions if item["objective"]]
+                         if self.feature_definitions is not None else
+                         list(features_dict)[:max(1, self.capabilities.min_objectives)])
+        for m_id in objective_ids:
+            m_spec = features_dict[m_id]
             criterion: dict[str, Any] = {
                 "id": m_id,
                 "feature": {"resource": "application", "id": m_id},
                 "normalize": {
                     "min": m_spec["domain"]["minimum"],
-                    "max": m_spec["domain"]["maximum"],
+                    "max": max(m_spec["domain"]["maximum"], math.nextafter(m_spec["domain"]["minimum"], math.inf)),
                     "clamp": True,
                 },
             }
@@ -591,7 +616,60 @@ class BIMPostprocessor:
         }
 
         package = InstancePackage(files)
+        if self.feature_definitions is not None:
+            package = self._finish_custom(package, problem)
+        if self.dialects == ["bpmn-workflow/v1"]:
+            from .bpmn import workflow_as_bpmn
+            package = workflow_as_bpmn(package, self.name)
         # Validate that compiler can lower it without errors
         if self.validate_compile:
             compile_instance(package)
         return package
+
+    def _finish_custom(self, package: InstancePackage, problem: LegacyProblem) -> InstancePackage:
+        """Use compiled BIM evaluation for aggregate bounds, constraints and objective normalization."""
+        compiled = compile_instance(package)
+        eligibility = compiled.document["spec"]["eligibility"]
+        candidate_values = package.json("candidates.json")["spec"]["candidates"]
+        minima: dict[str, float] = {}
+        maxima: dict[str, float] = {}
+        witness = compiled.evaluate_binding({task_id: options[0] for task_id, options in eligibility.items()})
+        needed = {item["id"] for item in self.feature_definitions or [] if item["objective"]}
+        needed.update(constraint.property_name for constraint in problem.constraints)
+        for feature in self.feature_definitions or []:
+            feature_id = feature["id"]
+            if feature_id not in needed:
+                continue
+            bindings = []
+            for choose_max in (False, True):
+                binding = {}
+                for task_id, options in eligibility.items():
+                    selected = min(options, key=lambda ref: candidate_values[ref["id"]]["features"][feature_id]
+                                   * (-1 if choose_max else 1))
+                    binding[task_id] = selected
+                bindings.append(binding)
+            minima[feature_id] = compiled.evaluate_binding(bindings[0])[feature_id]
+            maxima[feature_id] = compiled.evaluate_binding(bindings[1])[feature_id]
+
+        constraints_doc = package.json("constraints.json")
+        for index, constraint in enumerate(problem.constraints, 1):
+            feature_id = constraint.property_name
+            key = f"c_{index}_{feature_id}"
+            if key not in constraints_doc["spec"]["constraints"]:
+                continue
+            low, high = minima[feature_id], maxima[feature_id]
+            if self.guarantee_feasibility:
+                bound = witness[feature_id] + (1 - self.tension) * (high - witness[feature_id]) if constraint.operator == "<=" else witness[feature_id] - (1 - self.tension) * (witness[feature_id] - low)
+            else:
+                bound = low + constraint.value / 100 * (high - low)
+            constraints_doc["spec"]["constraints"][key]["assert"] = f"features.{feature_id} {constraint.operator} {bound!r}"
+
+        optimization_doc = package.json("optimization.json")
+        for criterion in optimization_doc["spec"]["criteria"]:
+            feature_id = criterion["id"]
+            low, high = minima[feature_id], maxima[feature_id]
+            criterion["normalize"] = {"min": low, "max": high if high > low else math.nextafter(low, math.inf), "clamp": True}
+        files = dict(package.files)
+        files["constraints.json"] = json.dumps(constraints_doc, indent=2).encode("utf-8")
+        files["optimization.json"] = json.dumps(optimization_doc, indent=2).encode("utf-8")
+        return InstancePackage(files)

@@ -236,3 +236,15 @@ space/space-src/
 /openbinding-gateway/tools/analysis-verification.json
 /openbinding-gateway/tools/analysis-reseed-verification.json
 /openbinding-gateway/tools/analysis-browser-benchmark.json
+
+# Generated QACOBench instances
+/datasets/01_icws/
+/datasets/02_quantum/
+/datasets/03_hsc_llm/
+/datasets/04_rprsr15/
+/datasets/05_iots/
+/datasets/06_bws_scp/
+/datasets/07_qfbs/
+
+# macOS metadata
+.DS_Store

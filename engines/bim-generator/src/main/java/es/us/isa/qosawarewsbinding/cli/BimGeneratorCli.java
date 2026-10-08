@@ -33,6 +33,17 @@ import es.us.isa.qosawarewsbinding.util.IntegerUniformDistributionFunction;
 public class BimGeneratorCli {
 
     public static void main(String[] args) {
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equals("--config") && i + 1 < args.length) {
+                try {
+                    System.out.print(ConfigGenerator.generate(Paths.get(args[i + 1])));
+                } catch (Exception e) {
+                    System.err.println("Invalid --config: " + e.getMessage());
+                    System.exit(1);
+                }
+                return;
+            }
+        }
         int tasks = 10;
         int candidates = 5;
         int controlFlow = 50;
@@ -75,7 +86,12 @@ public class BimGeneratorCli {
                     outputPath = args[++i];
                 } else if (arg.equals("--seed") && i + 1 < args.length) {
                     seed = Long.parseLong(args[++i]);
+                } else {
+                    throw new IllegalArgumentException("unknown option or missing value: " + arg);
                 }
+            }
+            if (seed != null) {
+                throw new IllegalArgumentException("--seed requires --config; historical generation has no seeded sampler");
             }
         } catch (Exception e) {
             System.err.println("Invalid parameter: " + e.getMessage());

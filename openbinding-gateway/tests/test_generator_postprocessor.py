@@ -249,8 +249,9 @@ def test_postprocessor_pareto_optimization_for_many_heuristic():
     pp = BIMPostprocessor(name="pareto_pkg", capabilities=caps)
     pkg = pp.process(prob)
     opt_doc = pkg.json("optimization.json")
-    assert opt_doc["spec"]["mode"] == "pareto"
-    assert len(opt_doc["spec"]["terms"]) >= 3
+    assert "mode" not in opt_doc["spec"]
+    assert "terms" not in opt_doc["spec"]
+    assert len(opt_doc["spec"]["criteria"]) >= 3
 
     compiled = compile_instance(pkg)
     assert compiled is not None

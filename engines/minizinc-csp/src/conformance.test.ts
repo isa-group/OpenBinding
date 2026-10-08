@@ -82,8 +82,8 @@ function problem(): any {
       eligibility: { t: [ref('catalog-a', 'same-id'), ref('catalog-b', 'same-id')] },
       routing: [], constraints: [], placement: [],
       optimization: {
-        resource: 'optimization', mode: 'weighted', type: 'MONO',
-        terms: [{ feature: ref('app', 'cost'), metric: ref('app', 'cost'), direction: 'minimize', weight: 1 }],
+        resource: 'optimization', type: 'SINGLE',
+        criteria: [{ id: 'cost-criterion', feature: ref('app', 'cost'), direction: 'minimize' }],
         penalties: [],
       },
       extensions: {}, sourceMap: {},
@@ -91,8 +91,17 @@ function problem(): any {
   };
 }
 
+function execution(): any {
+  return { type: 'SINGLE', scalarization: 'weighted-sum', weights: [{ criteria: 'cost-criterion', value: 1 }] };
+}
+
+function build(value: any, _options: any = {}): any {
+  return new DznBuilder().build(value, {}, execution());
+}
+
 function envelope(value: any = problem(), options: any = {}) {
-  return { apiVersion: 'bim/v1', kind: 'BindingProblemRequest', protocol: 'bim-engine/v1', problem: value, options };
+  return { apiVersion: 'bim/v1', kind: 'BindingProblemRequest', protocol: 'bim-engine/v1',
+    problem: value, options, optimization: execution() };
 }
 
 function digest(seed: string): string {
@@ -159,20 +168,19 @@ function parameter(content: string, name: string): string {
 
 describe('canonical BIM v1 lowering', () => {
   it('preserves catalog-qualified candidate identity', () => {
-    const built = new DznBuilder().build(problem(), {});
+    const built = build(problem(), {});
     assert.deepEqual(built.candidates, [ref('catalog-a', 'same-id'), ref('catalog-b', 'same-id')]);
     assert.equal(parameter(built.dznContent, 'task_candidates'), '[| 1, 2 |]');
   });
 
   it('materializes changed objectives and hard constraints', () => {
     const objective = problem();
-    objective.spec.optimization.terms[0].feature = ref('app', 'latency');
-    objective.spec.optimization.terms[0].metric = ref('app', 'latency');
-    assert.equal(parameter(new DznBuilder().build(objective, {}).dznContent, 'term_metric'), '[2]');
-    objective.spec.optimization.terms[0].normalize = { min: 0, max: 5, clamp: false };
-    assert.equal(parameter(new DznBuilder().build(objective, {}).dznContent, 'term_clamp'), '[false]');
-    delete objective.spec.optimization.terms[0].normalize.clamp;
-    assert.throws(() => new DznBuilder().build(objective, {}), /normalization bounds are invalid/);
+    objective.spec.optimization.criteria[0].feature = ref('app', 'latency');
+    assert.equal(parameter(build(objective, {}).dznContent, 'term_metric'), '[2]');
+    objective.spec.optimization.criteria[0].normalize = { min: 0, max: 5, clamp: false };
+    assert.equal(parameter(build(objective, {}).dznContent, 'term_clamp'), '[false]');
+    delete objective.spec.optimization.criteria[0].normalize.clamp;
+    assert.throws(() => build(objective, {}), /normalization bounds are invalid/);
 
     const constrained = problem();
     constrained.spec.constraints.push({
@@ -183,7 +191,7 @@ describe('canonical BIM v1 lowering', () => {
       },
       enforcement: 'hard',
     });
-    const dzn = new DznBuilder().build(constrained, {}).dznContent;
+    const dzn = build(constrained, {}).dznContent;
     assert.equal(parameter(dzn, 'constraint_left_kind'), '[1]');
     assert.equal(parameter(dzn, 'constraint_left_index'), '[2]');
     assert.equal(parameter(dzn, 'constraint_right_kind'), '[3]');
@@ -196,7 +204,7 @@ describe('canonical BIM v1 lowering', () => {
       kind: 'repeat', count: 0,
       body: { kind: 'task', task: ref('app', 't') },
     };
-    const built = new DznBuilder().build(value, {});
+    const built = build(value, {});
     assert.equal(parameter(built.dznContent, 'node_metric_bound'), '10');
   });
 
@@ -205,20 +213,20 @@ describe('canonical BIM v1 lowering', () => {
     value.spec.application.tasks = { local: { kind: 'local' } };
     value.spec.application.workflow = { kind: 'task', task: ref('app', 'local') };
     value.spec.eligibility = {};
-    const built = new DznBuilder().build(value, {});
+    const built = build(value, {});
     assert.deepEqual(built.tasks, []);
     assert.equal(parameter(built.dznContent, 'n_tasks'), '0');
     assert.equal(parameter(built.dznContent, 'max_candidates_per_task'), '1');
   });
 
   it('keeps empty Placement vacuous and lowers a complete placement model', () => {
-    const empty = new DznBuilder().build(problem(), {}).dznContent;
+    const empty = build(problem(), {}).dznContent;
     assert.equal(parameter(empty, 'n_pool_slots'), '1');
     assert.equal(parameter(empty, 'n_capacity_checks'), '0');
     assert.equal(parameter(empty, 'n_transitions'), '0');
     assert.equal(parameter(empty, 'n_activities'), '0');
 
-    const placed = new DznBuilder().build(placedProblem(), {}).dznContent;
+    const placed = build(placedProblem(), {}).dznContent;
     assert.equal(parameter(placed, 'n_pool_slots'), '3');
     assert.equal(parameter(placed, 'candidate_model'), '[1, 1]');
     assert.equal(parameter(placed, 'candidate_pool'), '[2, 3]');
@@ -232,14 +240,14 @@ describe('canonical BIM v1 lowering', () => {
 
   it('rejects every construct outside the declared exact-weighted mode', () => {
     const source = { apiVersion: 'bim/v1', kind: 'Instance', metadata: {}, spec: {} };
-    assert.throws(() => new DznBuilder().build(source, {}), /only a canonical bim\/v1 BindingProblem/);
+    assert.throws(() => build(source, {}), /only a canonical bim\/v1 BindingProblem/);
 
     const expected = problem();
     expected.spec.application.workflow = {
       kind: 'repeat', expectedCount: 1.5,
       body: { kind: 'task', task: ref('app', 't') },
     };
-    assert.throws(() => new DznBuilder().build(expected, {}), /does not support expectedCount/);
+    assert.throws(() => build(expected, {}), /does not support expectedCount/);
 
     const soft = problem();
     soft.spec.constraints.push({
@@ -247,25 +255,25 @@ describe('canonical BIM v1 lowering', () => {
       assert: { kind: 'literal', value: false }, enforcement: 'soft',
       penalty: { kind: 'literal', value: 1 },
     });
-    assert.throws(() => new DznBuilder().build(soft, {}), /does not support soft constraint/);
+    assert.throws(() => build(soft, {}), /does not support soft constraint/);
 
     const selected = problem();
     selected.spec.application.metrics.cost.scope = 'selectedCandidate';
-    assert.equal(parameter(new DznBuilder().build(selected, {}).dznContent, 'metric_scope'), '[2, 1]');
+    assert.equal(parameter(build(selected, {}).dznContent, 'metric_scope'), '[2, 1]');
 
-    const multi = problem();
-    multi.spec.optimization.type = 'MULTI';
-    assert.throws(() => new DznBuilder().build(multi, {}), /objective type MONO only/);
+    const multi = execution();
+    multi.type = 'MULTI';
+    assert.throws(() => new DznBuilder().build(problem(), {}, multi), /objective type SINGLE only/);
 
-    assert.throws(() => new Solver().validate(problem(), { solver: 'chuffed' }), /must be gecode/);
+    assert.throws(() => new Solver().validate(problem(), { solver: 'chuffed' }, execution()), /must be gecode/);
 
     const implicitRouting = problem();
     implicitRouting.spec.routing = { branch: 1 };
-    assert.throws(() => new DznBuilder().build(implicitRouting, {}), /canonical array/);
+    assert.throws(() => build(implicitRouting, {}), /canonical array/);
 
-    const nonCanonicalWeights = problem();
-    nonCanonicalWeights.spec.optimization.terms[0].weight = 2;
-    assert.throws(() => new DznBuilder().build(nonCanonicalWeights, {}), /normalized to 1/);
+    const nonCanonicalWeights = execution();
+    nonCanonicalWeights.weights[0].value = 2;
+    assert.throws(() => new DznBuilder().build(problem(), {}, nonCanonicalWeights), /normalized to 1/);
   });
 
   it('lowers full routing refs and metric neutrals', () => {
@@ -282,20 +290,20 @@ describe('canonical BIM v1 lowering', () => {
       { target: ref('app', 'local'), probability: 0.5 },
       { target: ref('app', 'service'), probability: 0.5 },
     ];
-    const dzn = new DznBuilder().build(value, {}).dznContent;
+    const dzn = build(value, {}).dznContent;
     assert.equal(parameter(dzn, 'metric_neutral'), '[0, 1]');
     assert.match(parameter(dzn, 'node_weights'), /0\.5/);
 
     value.spec.routing[0].target.resource = 'overlay';
     value.spec.routing[1].target.resource = 'overlay';
-    assert.throws(() => new DznBuilder().build(value, {}), /Missing routing probability/);
+    assert.throws(() => build(value, {}), /Missing routing probability/);
   });
 });
 
 describe('BIM Engine Protocol v1', () => {
   it('rejects source envelopes and missing protocol before queueing', async () => {
     const fake = {
-      validate: (value: any, options: any) => new DznBuilder().build(value, options),
+      validate: (value: any, options: any) => build(value, options),
       solve: async () => ({ termination: 'UNKNOWN', solutions: [] }),
     };
     const app = buildServer(fake);
@@ -326,11 +334,12 @@ describe('BIM Engine Protocol v1', () => {
       }
     }
     const runner = new FakeRunner();
-    const result = await new Solver(runner).solve(problem(), { time_budget_ms: 1234 });
+    const result = await new Solver(runner).solve(problem(), { time_budget_ms: 1234 }, execution());
     assert.equal(result.termination, 'OPTIMAL');
+    assert.deepEqual(Object.keys(result.solutions[0]).sort(),
+      ['decision', 'features', 'objectives', 'penalties', 'violations']);
     assert.deepEqual(result.solutions[0].decision.binding.t, ref('catalog-b', 'same-id'));
     assert.equal(result.solutions[0].features.cost, 9);
-    assert.equal(result.solutions[0].metrics.cost, 9);
     assert.equal(result.solutions[0].objectives.score, 9);
     assert.deepEqual(runner.extraArgs.slice(0, 2), ['--time-limit', '1234']);
   });
@@ -346,14 +355,13 @@ describe('BIM Engine Protocol v1', () => {
       }
     }
     const value = placedProblem();
-    const solved = await new Solver(new PlacementRunner(1, 1)).solve(value, {});
+    const solved = await new Solver(new PlacementRunner(1, 1)).solve(value, {}, execution());
     assert.deepEqual(solved.solutions[0].decision.binding.t, ref('catalog-a', 'same-id'));
     assert.equal(solved.solutions[0].features.latency, 10);
-    assert.equal(solved.solutions[0].metrics.latency, 10);
     assert.equal(solved.solutions[0].objectives.score, 1);
 
     await assert.rejects(
-      () => new Solver(new PlacementRunner(2, 9)).solve(value, {}),
+      () => new Solver(new PlacementRunner(2, 9)).solve(value, {}, execution()),
       /violates a hard placement constraint/,
     );
   });
@@ -369,13 +377,13 @@ describe('BIM Engine Protocol v1', () => {
       }
     }
     const value = problem();
-    value.spec.optimization.terms[0].direction = 'maximize';
-    value.spec.optimization.terms[0].normalize = { min: 0, max: 5, clamp: false };
-    let result = await new Solver(new NormalizedRunner(-0.8)).solve(value, {});
+    value.spec.optimization.criteria[0].direction = 'maximize';
+    value.spec.optimization.criteria[0].normalize = { min: 0, max: 5, clamp: false };
+    let result = await new Solver(new NormalizedRunner(-0.8)).solve(value, {}, execution());
     assert.ok(Math.abs(result.solutions[0].objectives.score + 0.8) < 1e-12);
 
-    value.spec.optimization.terms[0].normalize.clamp = true;
-    result = await new Solver(new NormalizedRunner(0)).solve(value, {});
+    value.spec.optimization.criteria[0].normalize.clamp = true;
+    result = await new Solver(new NormalizedRunner(0)).solve(value, {}, execution());
     assert.equal(result.solutions[0].objectives.score, 0);
   });
 
@@ -387,14 +395,14 @@ describe('BIM Engine Protocol v1', () => {
       }
     }
     const maximize = problem();
-    maximize.spec.optimization.terms[0].direction = 'maximize';
+    maximize.spec.optimization.criteria[0].direction = 'maximize';
     const solved = await new Solver(new StatusRunner(
-      '{"selected_cand":[2],"objective_value":-9}\n----------\n==========\n')).solve(maximize, {});
+      '{"selected_cand":[2],"objective_value":-9}\n----------\n==========\n')).solve(maximize, {}, execution());
     assert.equal(solved.solutions[0].objectives.score, -9);
 
-    const proven = await new Solver(new StatusRunner('=====UNSATISFIABLE=====\n')).solve(problem(), {});
+    const proven = await new Solver(new StatusRunner('=====UNSATISFIABLE=====\n')).solve(problem(), {}, execution());
     assert.equal(proven.termination, 'INFEASIBLE');
-    const unproven = await new Solver(new StatusRunner('')).solve(problem(), {});
+    const unproven = await new Solver(new StatusRunner('')).solve(problem(), {}, execution());
     assert.equal(unproven.termination, 'UNKNOWN');
   });
 
@@ -409,7 +417,7 @@ describe('BIM Engine Protocol v1', () => {
     }
     const ineligible = problem();
     ineligible.spec.eligibility.t = [ref('catalog-a', 'same-id')];
-    await assert.rejects(() => new Solver(new StatusRunner()).solve(ineligible, {}), /ineligible candidate/);
+    await assert.rejects(() => new Solver(new StatusRunner()).solve(ineligible, {}, execution()), /ineligible candidate/);
 
     const constrained = problem();
     constrained.spec.constraints.push({
@@ -422,6 +430,6 @@ describe('BIM Engine Protocol v1', () => {
       },
       enforcement: 'hard',
     });
-    await assert.rejects(() => new Solver(new StatusRunner()).solve(constrained, {}), /violates hard constraint/);
+    await assert.rejects(() => new Solver(new StatusRunner()).solve(constrained, {}, execution()), /violates hard constraint/);
   });
 });

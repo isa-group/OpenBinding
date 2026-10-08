@@ -54,6 +54,8 @@ public final class Controller implements HttpHandler {
     provenance.addProperty("evaluations", result.evaluations());
     provenance.addProperty("elapsed_ms", result.elapsedMs());
     provenance.addProperty("seed", seed);
+    provenance.add("trace", result.trace());
+    provenance.addProperty("trace_kind", "strict-incumbent-improvements");
     return EngineContract.json(EngineContract.response(
         solutions.isEmpty() ? "UNKNOWN" : "FEASIBLE", solutions, provenance));
   }

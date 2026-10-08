@@ -5,8 +5,18 @@
 !schemas/**
 !examples/
 !examples/**
+!experimentation/
+!experimentation/qacobench/
+!experimentation/qacobench/**
+!space/
+!space/pricing/
+!space/pricing/openbinding.yml
+!datasets/
+!datasets/scripts/
+!datasets/scripts/transform_*.py
 
 **/.git
 **/.venv
 **/__pycache__
 **/*.pyc
+experimentation/qacobench/paper/
