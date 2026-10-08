@@ -97,10 +97,10 @@ def test_cel_semantic_errors_point_to_the_offending_node() -> None:
 def test_workflow_catalog_and_optimization_references_are_explicit() -> None:
     problem = compile_instance(load_package(EXAMPLE)).as_dict()
     first = problem["spec"]["application"]["workflow"]["steps"][0]["task"]
-    term = problem["spec"]["optimization"]["terms"][0]
+    criterion = problem["spec"]["optimization"]["criteria"][0]
     binding = problem["spec"]["candidates"]["catalog"]["featureBindings"]["latency"]
     assert first == {"resource": "application", "id": "t1"}
-    assert term["feature"] == {"resource": "application", "id": "latency"}
+    assert criterion["feature"] == {"resource": "application", "id": "latency"}
     assert binding == {"resource": "application", "id": "latency"}
 
 
@@ -116,7 +116,7 @@ def test_unknown_workflow_properties_are_rejected() -> None:
 def _xor_package(*, uniform: bool) -> InstancePackage:
     package = _copy_package()
     instance = _json_file(package, "instance.json")
-    instance["spec"]["resources"]["application"]["routing"] = "routing.json"
+    instance["spec"]["resources"]["candidateCatalog"]["routing"] = "routing.json"
     application = _json_file(package, "application.json")
     application["spec"]["workflow"] = {
         "exclusive": [
@@ -158,7 +158,7 @@ def test_empty_or_absent_xor_routing_never_implies_uniform() -> None:
 
     package = _xor_package(uniform=True)
     instance = _json_file(package, "instance.json")
-    instance["spec"]["resources"]["application"].pop("routing")
+    instance["spec"]["resources"]["candidateCatalog"].pop("routing")
     package.files.pop("routing.json")
     _put_json(package, "instance.json", instance)
     with pytest.raises(CompileError, match="fully probabilistic"):

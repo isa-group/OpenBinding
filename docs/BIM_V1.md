@@ -110,17 +110,17 @@ cardinalities are:
 | Role | Base resource type | Cardinality |
 | --- | --- | --- |
 | `application` | `qos-binding/v1` `Application` | exactly 1 |
-| `application` | `qos-binding/v1` `RoutingOverlay` | 0 or 1 |
 | `application` | BPMN 2.0.2 `BPMN` | 0 or more |
 | `candidateCatalog` | `qos-binding/v1` `CandidateCatalog` | 1 or more |
+| `candidateCatalog` | `qos-binding/v1` `RoutingOverlay` | 0 or 1 |
 | `constraintSet` | `qos-binding/v1` `ConstraintSet` | 0 or more |
 | `optimization` | `qos-binding/v1` `Optimization` | exactly 1 |
 
 These are Profile rules, not permanent BIM rules. All four roles permit
 resource types supplied by installed compatible Dialects. Placement therefore
-composes as a `qos-binding-placement/v1` `Placement` resource in the
-`application` role; it does not change `Instance` or create a second package
-shape.
+composes as a `qos-binding-placement/v1` `Placement` resource (0 or more) in the
+`candidateCatalog` role, next to the `RoutingOverlay`; it does not change
+`Instance` or create a second package shape.
 
 Together, the workflow's service tasks and the candidate catalogs define the
 discrete solution space (the **Binding Space** $S$). For each service task $t$,

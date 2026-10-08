@@ -66,7 +66,7 @@ def _package_with_bpmn(xml: bytes) -> InstancePackage:
         "apiVersion": "qos-binding/v1",
         "kind": "Optimization",
         "metadata": {"name": "optimization"},
-        "spec": {"mode": "satisfy"},
+        "spec": {"criteria": []},
     }
     root = {
         "apiVersion": "bim/v1",

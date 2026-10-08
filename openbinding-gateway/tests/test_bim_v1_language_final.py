@@ -1,10 +1,13 @@
 import json
 from copy import deepcopy
+from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 
 from _repo import REPO_ROOT
 
+from openbinding_gateway.routes.v1 import _resolve_execution_optimization
 from openbinding_gateway.v1.analysis import analyze_neighborhood
 from openbinding_gateway.v1.compiler import (
     CompiledProblem,
@@ -116,10 +119,9 @@ def base_package(*, workflow=None, optimization=None, placement=None):
         "Optimization",
         "opt",
         {
-            "mode": "weighted",
-            "terms": [
-                {"feature": {"resource": "app", "id": "latency"}, "weight": 3, "normalize": {"min": 0, "max": 100, "clamp": False}},
-                {"feature": {"resource": "app", "id": "cost"}, "weight": 1, "normalize": {"min": 0, "max": 20, "clamp": False}},
+            "criteria": [
+                {"id": "latency", "feature": {"resource": "app", "id": "latency"}, "normalize": {"min": 0, "max": 100, "clamp": False}},
+                {"id": "cost", "feature": {"resource": "app", "id": "cost"}, "normalize": {"min": 0, "max": 20, "clamp": False}},
             ],
             "penalties": [{"constraint": {"resource": "soft", "id": "limit"}, "weight": 1}],
         },
@@ -140,73 +142,102 @@ def base_package(*, workflow=None, optimization=None, placement=None):
     }
     if placement is not None:
         documents["placement.json"] = placement
-        resources["application"]["place"] = "placement.json"
+        resources["candidateCatalog"]["place"] = "placement.json"
     return package(documents, resources)
 
 
+EXECUTION_MODE = {
+    "capabilities": {
+        "scalarizations": {
+            "selector": "only",
+            "values": [
+                {"id": "weighted-sum", "objectiveTypes": ["SINGLE"], "weightPolicy": "required"},
+                {"id": "pareto-front", "objectiveTypes": ["MULTI", "MANY"], "weightPolicy": "forbidden"},
+                {"id": "feasibility", "objectiveTypes": ["SINGLE"], "weightPolicy": "forbidden"},
+            ],
+        }
+    }
+}
+
+
+def _problem_with_criteria(count: int):
+    return SimpleNamespace(
+        document={
+            "spec": {
+                "optimization": {
+                    "criteria": [{"id": f"criterion-{index}"} for index in range(count)],
+                }
+            }
+        }
+    )
+
+
 @pytest.mark.parametrize(
-    ("objective_type", "mode", "term_count", "valid"),
+    ("objective_type", "scalarization", "criteria_count", "valid"),
     [
-        ("MONO", "satisfy", 0, True),
-        ("MONO", "weighted", 0, False),
-        ("MONO", "weighted", 1, True),
-        ("MONO", "weighted", 4, True),
-        ("MULTI", "pareto", 1, False),
-        ("MULTI", "pareto", 2, True),
-        ("MULTI", "pareto", 3, True),
-        ("MULTI", "pareto", 4, False),
-        ("MANY", "pareto", 2, False),
-        ("MANY", "pareto", 3, True),
-        ("MANY", "pareto", 4, True),
+        ("SINGLE", "feasibility", 0, True),
+        ("SINGLE", "weighted-sum", 0, False),
+        ("SINGLE", "weighted-sum", 1, True),
+        ("SINGLE", "weighted-sum", 4, True),
+        ("MULTI", "pareto-front", 1, False),
+        ("MULTI", "pareto-front", 2, True),
+        ("MULTI", "pareto-front", 3, True),
+        ("MULTI", "pareto-front", 4, False),
+        ("MANY", "pareto-front", 2, False),
+        ("MANY", "pareto-front", 3, True),
+        ("MANY", "pareto-front", 4, True),
     ],
 )
-def test_objective_type_has_the_declared_source_cardinality(
-    objective_type: str, mode: str, term_count: int, valid: bool
+def test_execution_objective_type_has_the_declared_criteria_cardinality(
+    objective_type: str, scalarization: str, criteria_count: int, valid: bool
 ) -> None:
-    document = envelope(
-        "Optimization",
-        "objective-cardinality",
-        {
-            "mode": mode,
-            "type": objective_type,
-            "terms": [
-                {"feature": {"resource": "app", "id": f"feature-{index}"}}
-                for index in range(term_count)
-            ],
-        },
-    )
-    validator = _schema_validator("Optimization")
-    assert validator is not None
-    assert (not list(validator.iter_errors(document))) is valid
+    # The objective type is chosen at execution time; the Optimization resource
+    # only declares criteria, so cardinality is checked against the compiled IR.
+    problem = _problem_with_criteria(criteria_count)
+    requested = {"type": objective_type, "scalarization": scalarization}
+    if not valid:
+        with pytest.raises(HTTPException) as captured:
+            _resolve_execution_optimization(problem, EXECUTION_MODE, requested)
+        assert captured.value.status_code == 422
+        return
+    resolved = _resolve_execution_optimization(problem, EXECUTION_MODE, requested)
+    assert resolved["type"] == objective_type
+    assert resolved["scalarization"] == scalarization
+    if scalarization == "weighted-sum":
+        assert [item["value"] for item in resolved["weights"]] == [1.0 / criteria_count] * criteria_count
+    else:
+        assert resolved["weights"] == []
 
 
-def test_compiler_defaults_objective_type_and_preserves_explicit_three_term_multi() -> None:
+def test_compiled_optimization_declares_criteria_and_leaves_type_to_execution() -> None:
     value = base_package()
-    weighted = compile_instance(value)
-    assert weighted.document["spec"]["optimization"]["type"] == "MONO"
-    without_type = deepcopy(weighted.document)
-    without_type["spec"]["optimization"].pop("type")
+    compiled = compile_instance(value)
+    assert set(compiled.document["spec"]["optimization"]) == {"resource", "criteria", "penalties"}
     ir_validator = _schema_validator("BindingProblem")
     assert ir_validator is not None
-    assert list(ir_validator.iter_errors(without_type))
+    assert not list(ir_validator.iter_errors(compiled.document))
+    with_type = deepcopy(compiled.document)
+    with_type["spec"]["optimization"]["type"] = "SINGLE"
+    assert list(ir_validator.iter_errors(with_type))
 
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["mode"] = "pareto"
-    optimization["spec"]["terms"] = optimization["spec"]["terms"][:1]
-    value.files["optimization.json"] = json.dumps(optimization).encode()
-    assert compile_instance(value).document["spec"]["optimization"]["type"] == "MONO"
-
-    optimization["spec"]["terms"].append(deepcopy(optimization["spec"]["terms"][0]))
-    value.files["optimization.json"] = json.dumps(optimization).encode()
-    assert compile_instance(value).document["spec"]["optimization"]["type"] == "MULTI"
-
-    optimization["spec"]["terms"].append(deepcopy(optimization["spec"]["terms"][0]))
-    value.files["optimization.json"] = json.dumps(optimization).encode()
-    assert compile_instance(value).document["spec"]["optimization"]["type"] == "MANY"
-
-    optimization["spec"]["type"] = "MULTI"
-    value.files["optimization.json"] = json.dumps(optimization).encode()
-    assert compile_instance(value).document["spec"]["optimization"]["type"] == "MULTI"
+    template = optimization["spec"]["criteria"][0]
+    for count, objective_type in ((1, "SINGLE"), (2, "MULTI"), (3, "MANY")):
+        optimization["spec"]["criteria"] = [
+            {**deepcopy(template), "id": f"latency-{index}"} for index in range(count)
+        ]
+        value.files["optimization.json"] = json.dumps(optimization).encode()
+        problem = compile_instance(value)
+        assert [item["id"] for item in problem.document["spec"]["optimization"]["criteria"]] == [
+            f"latency-{index}" for index in range(count)
+        ]
+        scalarization = "weighted-sum" if objective_type == "SINGLE" else "pareto-front"
+        resolved = _resolve_execution_optimization(
+            problem,
+            EXECUTION_MODE,
+            {"type": objective_type, "scalarization": scalarization},
+        )
+        assert resolved["type"] == objective_type
 
 
 def test_multiple_resources_keep_local_id_identity_and_evaluate_once_selected():
@@ -218,7 +249,37 @@ def test_multiple_resources_keep_local_id_identity_and_evaluate_once_selected():
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-a", "id": "c1"}}
     assert problem.evaluate_binding(binding) == {"latency": 30.0, "cost": 5.0}
     assert problem.evaluate_constraints(binding) == []
-    assert [term["weight"] for term in spec["optimization"]["terms"]] == [0.75, 0.25]
+    assert spec["optimization"]["criteria"] == [
+        {
+            "id": "latency",
+            "feature": {"resource": "app", "id": "latency"},
+            "direction": "minimize",
+            "normalize": {"min": 0.0, "max": 100.0, "clamp": False},
+        },
+        {
+            "id": "cost",
+            "feature": {"resource": "app", "id": "cost"},
+            "direction": "minimize",
+            "normalize": {"min": 0.0, "max": 20.0, "clamp": False},
+        },
+    ]
+    assert spec["optimization"]["penalties"] == [
+        {"constraint": {"resource": "soft", "id": "limit"}, "weight": 1.0}
+    ]
+    # Weights belong to the execution selection, not to the compiled problem.
+    objectives = problem.evaluate_objectives(
+        {"latency": 30.0, "cost": 5.0},
+        [],
+        {
+            "type": "SINGLE",
+            "scalarization": "weighted-sum",
+            "weights": [
+                {"criteria": "latency", "value": 0.75},
+                {"criteria": "cost", "value": 0.25},
+            ],
+        },
+    )
+    assert objectives["score"] == pytest.approx(0.75 * 0.3 + 0.25 * 0.25)
     assert spec["profile"]["output"]["apiVersion"] == "bim/v1"
     assert spec["profile"]["output"]["kind"] == "BindingProblem"
     assert "/spec/candidates/cat-a/c1" in spec["sourceMap"]
@@ -368,7 +429,7 @@ def test_routing_weighted_product_is_geometric_and_not_a_scaled_sum():
         }
     )
     instance = json.loads(value.files["instance.json"])
-    instance["spec"]["resources"]["application"]["routes"] = "routing.json"
+    instance["spec"]["resources"]["candidateCatalog"]["routes"] = "routing.json"
     value.files["instance.json"] = json.dumps(instance).encode()
     value.files["routing.json"] = json.dumps(envelope("RoutingOverlay", "routes", {
         "entries": [
@@ -390,7 +451,9 @@ def test_routing_weighted_product_is_geometric_and_not_a_scaled_sum():
         catalog["spec"]["candidates"]["c1"]["features"]["availability"] = amount
         value.files[path] = json.dumps(catalog).encode()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [{"feature": {"resource": "app", "id": "availability"}, "weight": 1}]
+    optimization["spec"]["criteria"] = [
+        {"id": "availability", "feature": {"resource": "app", "id": "availability"}}
+    ]
     value.files["optimization.json"] = json.dumps(optimization).encode()
     problem = compile_instance(value)
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-b", "id": "c1"}}
@@ -407,7 +470,7 @@ def test_fractional_product_requires_a_nonnegative_metric_domain():
         }
     )
     instance = json.loads(value.files["instance.json"])
-    instance["spec"]["resources"]["application"]["routes"] = "routing.json"
+    instance["spec"]["resources"]["candidateCatalog"]["routes"] = "routing.json"
     value.files["instance.json"] = json.dumps(instance).encode()
     value.files["routing.json"] = json.dumps(envelope("RoutingOverlay", "routes", {
         "entries": [
@@ -429,7 +492,9 @@ def test_fractional_product_requires_a_nonnegative_metric_domain():
         catalog["spec"]["candidates"]["c1"]["features"]["signed"] = amount
         value.files[path] = json.dumps(catalog).encode()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [{"feature": {"resource": "app", "id": "signed"}}]
+    optimization["spec"]["criteria"] = [
+        {"id": "signed", "feature": {"resource": "app", "id": "signed"}}
+    ]
     value.files["optimization.json"] = json.dumps(optimization).encode()
     with pytest.raises(CompileError, match="non-negative domain"):
         compile_instance(value)
@@ -451,7 +516,9 @@ def test_metric_neutral_is_used_for_local_activities():
         catalog["spec"]["candidates"]["c1"]["features"]["quality"] = amount
         value.files[path] = json.dumps(catalog).encode()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [{"feature": {"resource": "app", "id": "quality"}}]
+    optimization["spec"]["criteria"] = [
+        {"id": "quality", "feature": {"resource": "app", "id": "quality"}}
+    ]
     value.files["optimization.json"] = json.dumps(optimization).encode()
     problem = compile_instance(value)
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-a", "id": "c1"}}
@@ -461,7 +528,8 @@ def test_metric_neutral_is_used_for_local_activities():
 def test_objective_normalization_clamp_and_maximize_loss_are_explicit():
     value = base_package()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [{
+    optimization["spec"]["criteria"] = [{
+        "id": "latency",
         "feature": {"resource": "app", "id": "latency"},
         "direction": "maximize",
         "normalize": {"min": 0, "max": 20, "clamp": True},
@@ -471,11 +539,11 @@ def test_objective_normalization_clamp_and_maximize_loss_are_explicit():
     problem = compile_instance(value)
     component = problem.evaluate_objectives({"latency": 30}, [])["components"][0]
     assert component["loss"] == 0
-    assert problem.document["spec"]["optimization"]["terms"][0]["normalize"]["clamp"] is True
+    assert problem.document["spec"]["optimization"]["criteria"][0]["normalize"]["clamp"] is True
 
     unclamped = deepcopy(value)
     document = json.loads(unclamped.files["optimization.json"])
-    document["spec"]["terms"][0]["normalize"]["clamp"] = False
+    document["spec"]["criteria"][0]["normalize"]["clamp"] = False
     unclamped.files["optimization.json"] = json.dumps(document).encode()
     component = compile_instance(unclamped).evaluate_objectives({"latency": 30}, [])["components"][0]
     assert component["loss"] == -0.5
@@ -1122,7 +1190,7 @@ def test_registered_resources_are_exact_digest_pinned_and_source_free_in_ir():
         compile_instance(value)
     wrong = dict(registry)
     wrong[("research.example", "shared-optimization", "1.2.3", pinned)] = RegisteredResource(
-        content.replace(b"weighted", b"pareto"), "application/json"
+        content.replace(b'"cost"', b'"cosx"'), "application/json"
     )
     with pytest.raises(CompileError, match="not pinned"):
         compile_instance(value, wrong)
@@ -1272,8 +1340,8 @@ def test_neighborhood_analysis_reports_interval_moves_as_failures_instead_of_bre
 def test_only_semantically_used_features_are_required():
     value = base_package()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["terms"] = [
-        {"feature": {"resource": "app", "id": "latency"}, "weight": 1}
+    optimization["spec"]["criteria"] = [
+        {"id": "latency", "feature": {"resource": "app", "id": "latency"}}
     ]
     value.files["optimization.json"] = json.dumps(optimization).encode()
     catalog = json.loads(value.files["catalog-b.json"])
@@ -1305,7 +1373,7 @@ def test_task_feature_requirements_are_scoped_and_dynamic_penalties_are_checked(
     soft["spec"]["constraints"] = {}
     value.files["soft.json"] = json.dumps(soft).encode()
     optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"] = {"mode": "satisfy"}
+    optimization["spec"] = {"criteria": []}
     value.files["optimization.json"] = json.dumps(optimization).encode()
     problem = compile_instance(value)
     assert problem.document["spec"]["application"]["requiredFeatures"] == []
@@ -1431,7 +1499,7 @@ def test_placement_rejects_non_executable_workflow_expansion_limits():
         placement=placement,
     )
     instance = json.loads(variants.files["instance.json"])
-    instance["spec"]["resources"]["application"]["routes"] = "routing.json"
+    instance["spec"]["resources"]["candidateCatalog"]["routes"] = "routing.json"
     variants.files["instance.json"] = json.dumps(instance).encode()
     variants.files["routing.json"] = json.dumps(envelope("RoutingOverlay", "routes", {
         "entries": [
@@ -1472,7 +1540,7 @@ def test_placement_membership_is_fail_closed_per_model():
     for feature in ("global", "transition"):
         value = base_package()
         instance = json.loads(value.files["instance.json"])
-        instance["spec"]["resources"]["application"].update({
+        instance["spec"]["resources"]["candidateCatalog"].update({
             "place-a": "place-a.json",
             "place-b": "place-b.json",
         })
@@ -1562,7 +1630,7 @@ def bpmn_package(*, conditions=False, routing=True, loop=False, gateway="exclusi
     instance = json.loads(value.files["instance.json"])
     instance["spec"]["resources"]["application"]["flow"] = "workflow.bpmn"
     if routing:
-        instance["spec"]["resources"]["application"]["routes"] = "routing.json"
+        instance["spec"]["resources"]["candidateCatalog"]["routes"] = "routing.json"
         value.files["routing.json"] = json.dumps(envelope("RoutingOverlay", "routes", {
             "entries": [
                 {"target": {"resource": "flow", "id": "f-left"}, "probability": 0.25},
@@ -1692,27 +1760,36 @@ def test_bpmn_parallel_lowers_to_native_parallel_shape_and_executes():
     assert problem.evaluate_binding(binding)["latency"] == 30
 
 
-@pytest.mark.parametrize("mode", ["satisfy", "weighted", "lexicographic", "pareto"])
-def test_soft_penalty_affects_every_optimization_mode(mode):
+@pytest.mark.parametrize(
+    ("objective_type", "scalarization"),
+    [
+        ("SINGLE", "feasibility"),
+        ("SINGLE", "weighted-sum"),
+        ("MULTI", "lexicographic"),
+        ("MULTI", "pareto-front"),
+    ],
+)
+def test_soft_penalty_affects_every_execution_scalarization(objective_type, scalarization):
     value = base_package()
     soft = json.loads(value.files["soft.json"])
     soft["spec"]["constraints"]["limit"]["assert"] = "tasks.t1.provider.resource == 'never'"
     value.files["soft.json"] = json.dumps(soft).encode()
-    optimization = json.loads(value.files["optimization.json"])
-    optimization["spec"]["mode"] = mode
-    if mode == "satisfy":
-        optimization["spec"].pop("terms")
-    value.files["optimization.json"] = json.dumps(optimization).encode()
     problem = compile_instance(value)
     binding = {"t1": {"resource": "cat-a", "id": "c1"}, "t2": {"resource": "cat-b", "id": "c1"}}
-    objectives = problem.evaluate(binding)["objectives"]
+    execution = {"type": objective_type, "scalarization": scalarization}
+    if scalarization == "weighted-sum":
+        execution["weights"] = [
+            {"criteria": "latency", "value": 0.75},
+            {"criteria": "cost", "value": 0.25},
+        ]
+    objectives = problem.evaluate(binding, execution)["objectives"]
     assert objectives["penalty"] == 2
-    if mode in {"lexicographic", "pareto"}:
-        assert objectives["score"][-1] == 2
-    elif mode == "satisfy":
+    if scalarization == "feasibility":
         assert objectives["score"] == 2
-    else:
+    elif scalarization == "weighted-sum":
         assert objectives["score"] >= 2
+    else:
+        assert objectives["score"][-1] == 2
 
 
 def test_bpmn_and_json_conditions_share_expression_ir_and_are_executable():

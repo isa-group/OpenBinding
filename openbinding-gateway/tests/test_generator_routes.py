@@ -13,6 +13,19 @@ from openbinding_gateway import space_client
 from openbinding_gateway.v1.compiler import compile_instance
 from openbinding_gateway.v1.package import InstancePackage
 from _pricing import fake_pricing_gate, largest_plan
+from _repo import REPO_ROOT
+
+# The legacy generator shells out to a Maven-built jar that is not part of a
+# plain checkout (see generator/synthesizer.py); without it the legacy cases
+# cannot run, which is an environment gap rather than a regression.
+LEGACY_GENERATOR_JAR = REPO_ROOT / "engines/bim-generator/target/bim-generator-0.1.0-SNAPSHOT.jar"
+LEGACY_ENGINE = pytest.param(
+    True,
+    marks=pytest.mark.skipif(
+        not LEGACY_GENERATOR_JAR.is_file(),
+        reason=f"legacy BIM generator jar not built: {LEGACY_GENERATOR_JAR} (run mvn package in engines/bim-generator)",
+    ),
+)
 
 LARGER_PLAN = largest_plan()
 FEATURES = [
@@ -157,7 +170,7 @@ async def test_generate_instance_persist(api_client, registration, platform_gate
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("use_legacy_engine", [False, True])
+@pytest.mark.parametrize("use_legacy_engine", [False, LEGACY_ENGINE])
 async def test_generate_corpus_endpoint(api_client, use_legacy_engine):
     payload = {
         "count": 3,
@@ -212,7 +225,7 @@ async def test_generate_corpus_as_zip_archive(api_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("use_legacy_engine", [False, True])
+@pytest.mark.parametrize("use_legacy_engine", [False, LEGACY_ENGINE])
 async def test_explicit_features_and_distributions_are_seeded(api_client, use_legacy_engine):
     payload = {
         "tasks": 7, "control_flow": 50, "loops": 0, "branches": 100, "parallel": 0,
@@ -279,7 +292,7 @@ async def test_anonymous_feature_count_assigns_stable_ids_without_weights(api_cl
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("use_legacy_engine", [False, True])
+@pytest.mark.parametrize("use_legacy_engine", [False, LEGACY_ENGINE])
 @pytest.mark.parametrize("kind", ["loop", "parallel"])
 async def test_structural_distributions_apply_in_both_synthesizers(api_client, use_legacy_engine, kind):
     payload = {"tasks": 7, "control_flow": 50, "loops": 100 if kind == "loop" else 0,
@@ -353,7 +366,7 @@ async def test_corpus_rejects_ignored_base_configuration(api_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("use_legacy_engine", [False, True])
+@pytest.mark.parametrize("use_legacy_engine", [False, LEGACY_ENGINE])
 async def test_guaranteed_constraints_share_a_feasible_witness(api_client, use_legacy_engine):
     response = await api_client.post("/v1/generator/instances", json={
         "tasks": 5, "features": [FEATURES[0], {**FEATURES[0], "id": "quality", "direction": "maximize"}],
