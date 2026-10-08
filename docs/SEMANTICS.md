@@ -15,9 +15,14 @@ capability-type matching followed by its optional typed predicate. A binding
 decision is a total function `b : T → C` with `b(t) ∈ E(t)`. Local tasks occur
 in the workflow but are not in the domain of `b`.
 
-Every feature definition `m` assigns a finite scalar `q(c,m)` to every eligible
-candidate whose value is required by policy. Missing values are compilation
-errors. Invocation-scoped values are evaluated at each task occurrence;
+Every feature definition `m` assigns a value `q(c,m)` to every eligible
+candidate whose value is required by policy: either a finite scalar or a closed
+interval `[lo, hi]` with `lo ≤ hi`, preserved literally in the IR. Canonical
+evaluation is currently defined only for scalar values: reading `q(c,m)` for a
+selected candidate `c` whose value is an interval is an evaluation error, and
+no optimistic, pessimistic, or midpoint semantics is defined. Engines state
+which value kinds they accept through the `featureValues` capability dimension
+(`scalar`, `interval`). Missing values are compilation errors. Invocation-scoped values are evaluated at each task occurrence;
 selected-candidate values are charged once for each distinct candidate in the
 range of `b`.
 

@@ -19,9 +19,13 @@ deterministic QoS Profile, each mode declares:
   "capabilities": {
     "workflowNodes": {"selector": "all"},
     "aggregations": {"selector": "all"},
-    "metricScopes": {"selector": "all"},
+    "featureScopes": {"selector": "all"},
+    "featureValues": {"selector": "only", "values": ["scalar"]},
     "constraints": {"selector": "all"},
-    "optimization": {"selector": "all"},
+    "scalarizations": {
+      "selector": "only",
+      "values": [{"id": "pareto-front", "objectiveTypes": ["MANY"], "weightPolicy": "forbidden"}]
+    },
     "expressions": {"selector": "all"},
     "placement": {"selector": "all"},
     "irExtensions": {
@@ -31,6 +35,13 @@ deterministic QoS Profile, each mode declares:
   }
 }
 ```
+
+A manifest that omits `featureValues` is rejected with
+`capability_dimension_missing`: an absent dimension is an error, not `none`.
+Engines registered before this dimension existed must update their manifest and
+register again. The `bim-engine/v1` protocol digest also changed with
+`binding-problem.schema.json`, so stored registrations pinned to the previous
+digest are marked `protocol_digest_mismatch` and need re-registration.
 
 The complete mode also contains a closed `optionsSchema`, Profile-defined
 resource `limits`, and truthful `guarantees`. Defaults are applied before
@@ -55,8 +66,14 @@ protected from every extension not named in that list.
 
 For `qos-binding/v1`, the request payload is a closed `bim/v1`
 `BindingProblem`. It contains canonical workflow, candidate eligibility,
-finite scalar features, expression IR, constraints, optimization, optional
-placement/extension data, and the source map required for diagnostics. The IR
+finite features, expression IR, constraints, optimization, optional
+placement/extension data, and the source map required for diagnostics. A feature
+value is a scalar or a literal closed `{min,max}` interval
+(`$defs/featureValue`). The gateway derives `featureValues` from every bound
+slot of every candidate, so an Engine receives intervals only if its mode
+declares `interval`; otherwise the job fails with
+`unsupported_capability_value`. No bundled mode declares it, and the canonical
+evaluator defines no interval semantics. The IR
 also pins the selected Profile and each selected Dialect/adapter revision.
 
 Placement is represented in the closed `spec.placement` field because it is a

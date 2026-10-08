@@ -13,6 +13,40 @@ The following are authoring templates, not normative enums. A different
 Profile or compatible feature Dialect may define other terms without changing
 the BIM core:
 
+## Scalar and interval slot values
+
+`candidates.<id>.features.<slot>` accepts a finite number or a closed interval
+object:
+
+```json
+{"features": {"latency_ms": 120, "cost": {"min": 0.8, "max": 1.2}}}
+```
+
+- The object has exactly the keys `min` and `max`; extra or missing keys are
+  rejected (`feature_interval_shape`).
+- Both endpoints must be finite numbers. Booleans, strings, `null`, `NaN`, and
+  infinity are rejected.
+- `min <= max` is required (`feature_interval_order`). The interval is closed;
+  `min == max` is allowed and is kept as an interval, distinct from a scalar in
+  the canonical digest.
+- Each endpoint is validated against the feature domain
+  (`feature_value_domain`, pointer `.../min` or `.../max`). If `domain.kind` is
+  `integer`, both endpoints must be integers.
+
+The `BindingProblem` keeps the literal interval; it is never replaced by a
+midpoint or approximated. Fractional-product validation uses `min`. The
+canonical evaluator defines no interval semantics (neither optimistic,
+pessimistic, nor midpoint): reading such a feature for a selected candidate
+raises an explicit error, so constraints and objectives that reference it
+compile but fail at evaluation. A candidate whose interval is not bound by the
+selection evaluates normally. Neighborhood analysis reports moves toward an
+interval candidate as failures and errors if the base binding selects one.
+
+Engine compatibility uses the `featureValues` capability dimension (`scalar`,
+`interval`). The bundled modes declare only `scalar`, so a job whose bound
+candidates carry any interval fails closed with
+`unsupported_capability_value`; scalar-only jobs are unchanged.
+
 | Intent | Typical unit | Direction | Scope | Sequence | Parallel | Exclusive | Repeat |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | latency | `ms` | minimize | invocation | sum | max | routing-weighted sum | scale |

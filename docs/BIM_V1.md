@@ -262,7 +262,8 @@ The remaining source semantics described here belong specifically to
 - `Application` declares service/local tasks, capability types, metric
   definitions, and a compact native workflow or BPMN reference.
 - `CandidateCatalog` publishes typed capabilities, properties, providers, and
-  finite scalar metric values. It never lists task ids.
+  finite feature values, each a scalar or a closed `{min,max}` interval. It
+  never lists task ids.
 - `ConstraintSet` contains safe typed CEL or JSON-AST conditions, assertions,
   and explicit hard/soft enforcement.
 - `Optimization` defines `satisfy`, weighted, lexicographic, or Pareto
@@ -282,8 +283,12 @@ BPMN 2.0.2 is preserved broadly but lowered only for the documented structured
 SESE subset. Unsupported constructs produce source-located diagnostics rather
 than silent approximation.
 
-QoS values are finite deterministic scalars. The Profile has no distributions,
-intervals, stochastic scenarios, risk measures, scheduling, telemetry,
+QoS values are deterministic. The syntax admits a closed interval
+`{"min":a,"max":b}` for a candidate feature slot and the `BindingProblem`
+preserves it literally, but the Profile defines no evaluable interval semantics
+(optimistic, pessimistic, or midpoint), and no bundled Engine mode supports
+intervals yet: each declares `featureValues` as `only` `scalar`. The Profile has
+no distributions, stochastic scenarios, risk measures, scheduling, telemetry,
 rebinding, or runtime adaptation. Routing probabilities and `expectedCount`
 remain deterministic workflow multipliers; they are not uncertain QoS values.
 

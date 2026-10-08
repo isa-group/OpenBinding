@@ -117,9 +117,14 @@ evaluated feature. Source workflow blocks are compact keyed forms such as
 `{"sequence":[...]}`; authors do not write the IR-only `kind` field.
 
 CandidateCatalog resources advertise capabilities, typed properties,
-providers, and finite scalar feature slots. They never list task ids. Connect
+providers, and finite feature slots. They never list task ids. Connect
 catalog-local slot names to Application features with `featureBindings` (or
 legacy `metricBindings`).
+A slot is a number or a closed interval, for example
+`"features": {"latency_ms": {"min": 80, "max": 120}}`. Intervals compile and
+are preserved in the IR, but no bundled Engine mode accepts them and the
+canonical evaluator rejects reading one for a selected candidate; use scalars
+for jobs you intend to solve. See [features](FEATURES.md).
 Capability matching and an optional typed predicate construct eligibility
 before optimization.
 
