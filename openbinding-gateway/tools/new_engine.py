@@ -26,6 +26,7 @@ def main() -> None:
             "capabilities": {
                 "workflowNodes": {"selector": "only", "values": ["task", "sequence"]},
                 "metricScopes": {"selector": "only", "values": ["invocation"]},
+                "featureValues": {"selector": "only", "values": ["scalar"]},
                 "aggregations": {"selector": "only", "values": ["sequence.sum"]},
                 "constraints": {"selector": "only", "values": ["hard.aggregate-bound"]},
                 "optimization": {"selector": "only", "values": ["satisfy"]},

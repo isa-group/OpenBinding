@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Iterator, Mapping
 
 import jsonschema
 
@@ -161,6 +161,7 @@ def _all_profile_manifests() -> list[dict[str, Any]]:
                         },
                         "aggregations": {"values": aggregation_values, "openValues": False},
                         "featureScopes": {"values": ["invocation", "selectedCandidate"], "openValues": False},
+                        "featureValues": {"values": ["scalar", "interval"], "openValues": False},
                         "constraints": {
                             "values": [
                                 "hard.aggregate-bound", "hard.expression",
@@ -1926,10 +1927,32 @@ def _validate_feature_value(
     pointer: str,
     diagnostics: list[CompileDiagnostic],
 ) -> None:
+    domain = feature.get("domain", {})
+    if isinstance(value, Mapping):
+        if set(value) != {"min", "max"}:
+            diagnostics.append(_diag("feature_interval_shape", "candidate feature interval must declare exactly min and max", resource, pointer))
+            return
+        valid = [_finite(value[bound], f"{pointer}/{bound}", diagnostics, resource) for bound in ("min", "max")]
+        if not all(valid):
+            return
+        if float(value["min"]) > float(value["max"]):
+            diagnostics.append(_diag("feature_interval_order", "candidate feature interval must satisfy min <= max", resource, pointer))
+        for bound in ("min", "max"):
+            _validate_feature_domain(value[bound], domain, resource, f"{pointer}/{bound}", diagnostics)
+        return
     if not _finite(value, pointer, diagnostics, resource):
         return
+    _validate_feature_domain(value, domain, resource, pointer, diagnostics)
+
+
+def _validate_feature_domain(
+    value: Any,
+    domain: Any,
+    resource: str,
+    pointer: str,
+    diagnostics: list[CompileDiagnostic],
+) -> None:
     numeric = float(value)
-    domain = feature.get("domain", {})
     minimum = domain.get("minimum") if isinstance(domain, Mapping) else None
     maximum = domain.get("maximum") if isinstance(domain, Mapping) else None
     if minimum is not None and numeric < float(minimum):
@@ -2722,6 +2745,8 @@ def _validate_fractional_products(
             for candidate_id in catalog.get("candidates", {}):
                 reference = _ref(catalog_id, candidate_id)
                 value = _resolved_candidate_features(candidates, reference).get(feature_id)
+                if isinstance(value, Mapping):
+                    value = value["min"]
                 if value is not None and value < 0:
                     diagnostics.append(_diag(
                         "fractional_product_value",
@@ -2808,7 +2833,7 @@ def _lookup_candidate(candidates: Mapping[str, Any], reference: Mapping[str, Any
     return values.get(reference.get("id")) if isinstance(values, Mapping) else None
 
 
-def _resolved_candidate_features(candidates: Mapping[str, Any], reference: Mapping[str, Any]) -> dict[str, float]:
+def _resolved_candidate_features(candidates: Mapping[str, Any], reference: Mapping[str, Any]) -> dict[str, float | dict[str, float]]:
     catalog = candidates.get(reference.get("resource"))
     candidate = _lookup_candidate(candidates, reference)
     if not isinstance(catalog, Mapping) or candidate is None:
@@ -2816,10 +2841,50 @@ def _resolved_candidate_features(candidates: Mapping[str, Any], reference: Mappi
     bindings = catalog.get("featureBindings", {})
     slots = candidate.get("features", {})
     return {
-        feature_ref["id"]: float(slots[alias])
+        feature_ref["id"]: _feature_slot_value(slots[alias])
         for alias, feature_ref in bindings.items()
         if isinstance(feature_ref, Mapping) and alias in slots
     }
+
+
+def _feature_slot_value(value: Any) -> float | dict[str, float]:
+    if isinstance(value, Mapping):
+        return {"min": float(value["min"]), "max": float(value["max"])}
+    return float(value)
+
+
+def _interval_feature_error(feature_id: str, reference: Mapping[str, Any]) -> ValueError:
+    return ValueError(
+        f"feature {feature_id!r} of candidate {reference.get('resource')}/{reference.get('id')} declares an interval; "
+        "the canonical evaluator does not define interval semantics yet"
+    )
+
+
+def _scalar_candidate_feature(candidates: Mapping[str, Any], reference: Mapping[str, Any], feature_id: str) -> float:
+    value = _resolved_candidate_features(candidates, reference)[feature_id]
+    if isinstance(value, Mapping):
+        raise _interval_feature_error(feature_id, reference)
+    return value
+
+
+class _TaskFeatures(Mapping[str, Any]):
+    """Expression view of a bound candidate's features that refuses to read intervals."""
+
+    def __init__(self, values: Mapping[str, float | dict[str, float]], reference: Mapping[str, Any]) -> None:
+        self._values = values
+        self._reference = reference
+
+    def __getitem__(self, feature_id: str) -> float:
+        value = self._values[feature_id]
+        if isinstance(value, Mapping):
+            raise _interval_feature_error(feature_id, self._reference)
+        return value
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        return len(self._values)
 
 
 def _placement(
@@ -3537,7 +3602,9 @@ class BindingProblem(CompiledProblem):
             candidate = self._candidate(reference)
             task_context = {
                 "candidate": reference,
-                "features": _resolved_candidate_features(self.document["spec"]["candidates"], reference),
+                "features": _TaskFeatures(
+                    _resolved_candidate_features(self.document["spec"]["candidates"], reference), reference
+                ),
                 "properties": candidate.get("properties", {}),
             }
             if "provider" in candidate:
@@ -3711,9 +3778,9 @@ class BindingProblem(CompiledProblem):
                 candidate = binding[task_id]
                 execution = 0.0
                 if config.get("includeExecution"):
-                    execution = float(_resolved_candidate_features(
-                        self.document["spec"]["candidates"], candidate
-                    )[feature_id])
+                    execution = _scalar_candidate_feature(
+                        self.document["spec"]["candidates"], candidate, feature_id
+                    )
                 output: list[Variant] = []
                 for probability, frontier in variants:
                     start = max(
@@ -3948,8 +4015,7 @@ class BindingProblem(CompiledProblem):
                 task = application["tasks"].get(task_id, {})
                 if task.get("kind") == "local":
                     return float(feature["neutral"])
-                values = _resolved_candidate_features(spec["candidates"], normalized[task_id])
-                return float(values[feature_id])
+                return _scalar_candidate_feature(spec["candidates"], normalized[task_id], feature_id)
             if kind == "empty":
                 return float(feature["neutral"])
             if kind in {"sequence", "parallel"}:
@@ -3982,7 +4048,7 @@ class BindingProblem(CompiledProblem):
             feature = application["features"][feature_id]
             if feature["scope"] == "selectedCandidate":
                 unique: dict[tuple[str, str], dict[str, str]] = {_ref_key(reference): reference for reference in normalized.values()}
-                values = [float(_resolved_candidate_features(spec["candidates"], reference)[feature_id]) for reference in unique.values()]
+                values = [_scalar_candidate_feature(spec["candidates"], reference, feature_id) for reference in unique.values()]
                 value = self._apply_operator(feature["aggregation"]["selection"], values)
             else:
                 value = invocation(feature_id, feature, application["workflow"])

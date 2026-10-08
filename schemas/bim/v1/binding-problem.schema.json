@@ -147,6 +147,29 @@
         "type": "number"
       }
     },
+    "featureValue": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "required": [
+            "min",
+            "max"
+          ],
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "nonnegativeNumberMap": {
       "type": "object",
       "additionalProperties": {
@@ -899,7 +922,10 @@
           "$ref": "#/$defs/scalarMap"
         },
         "features": {
-          "$ref": "#/$defs/numberMap"
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/featureValue"
+          }
         }
       },
       "additionalProperties": false

@@ -11,13 +11,13 @@
       "namespace": "admin",
       "name": "multi-heuristic",
       "version": "1.0.0",
-      "digest": "sha256-56cfef8bc3afb19b8d4e0ccfe09a22562e7ca10c75f0301eec37c420f3a6e1ae"
+      "digest": "sha256-a814744dec0d17122125ec3757b3619a97feadea07f4de9523809cb00be1c624"
     },
     "endpoint": "https://multi-heuristic.example.org",
     "protocol": {
       "id": "bim-engine/v1",
       "mediaType": "application/json",
-      "digest": "sha256-68c0805083caebdbfea967ffc5447b215c63b1e70792cc969cbb8d3768d3d628"
+      "digest": "sha256-28f0f0975917c4ae2df2e94f1abe327e36aece62da11ddf63906d6acfdc29e30"
     },
     "mappings": {
       "request": "/internal/v1/binding-problems",
@@ -34,7 +34,7 @@
         "version": "1.1.0"
       },
       "x-bim-protocol": "bim-engine/v1",
-      "x-bim-protocol-digest": "sha256-68c0805083caebdbfea967ffc5447b215c63b1e70792cc969cbb8d3768d3d628",
+      "x-bim-protocol-digest": "sha256-28f0f0975917c4ae2df2e94f1abe327e36aece62da11ddf63906d6acfdc29e30",
       "paths": {
         "/internal/v1/binding-problems": {
           "post": {

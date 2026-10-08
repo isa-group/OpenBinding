@@ -91,10 +91,24 @@
         "provider": {"$ref": "#/$defs/ref"},
         "provides": {"$ref": "#/$defs/provides"},
         "properties": {"$ref": "#/$defs/propertyMap"},
-        "features": {"type": "object", "additionalProperties": {"type": "number"}},
+        "features": {"type": "object", "additionalProperties": {"$ref": "#/$defs/featureValue"}},
         "extensions": {"type": "object", "additionalProperties": true}
       },
       "additionalProperties": false
+    },
+    "featureValue": {
+      "oneOf": [
+        {"type": "number"},
+        {
+          "type": "object",
+          "required": ["min", "max"],
+          "properties": {
+            "min": {"type": "number"},
+            "max": {"type": "number"}
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "propertyMap": {
       "type": "object",

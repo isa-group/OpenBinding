@@ -3,6 +3,9 @@ from copy import deepcopy
 
 import pytest
 
+from _repo import REPO_ROOT
+
+from openbinding_gateway.v1.analysis import analyze_neighborhood
 from openbinding_gateway.v1.compiler import (
     CompiledProblem,
     CompileError,
@@ -10,6 +13,7 @@ from openbinding_gateway.v1.compiler import (
     ResolvedInstance,
     _schema_root,
     _schema_validator,
+    _validate_feature_value,
     compile_instance,
     installed_dialect_manifests,
     installed_framework_diagnostics,
@@ -22,7 +26,7 @@ from openbinding_gateway.v1.compiler import (
 )
 from openbinding_gateway.v1.canonical import digest
 from openbinding_gateway.v1.expressions import ExpressionError, compile_expression
-from openbinding_gateway.v1.package import InstancePackage, resource_digest
+from openbinding_gateway.v1.package import InstancePackage, load_package, resource_digest
 
 
 def envelope(kind, name, spec):
@@ -1122,6 +1126,147 @@ def test_registered_resources_are_exact_digest_pinned_and_source_free_in_ir():
     )
     with pytest.raises(CompileError, match="not pinned"):
         compile_instance(value, wrong)
+
+
+DEMO = REPO_ROOT / "examples/demo/01_simple_seq"
+DEMO_BINDING = {
+    "t1": {"resource": "catalog", "id": "c1a"},
+    "t2": {"resource": "catalog", "id": "c2a"},
+    "t3": {"resource": "catalog", "id": "c3a"},
+}
+
+
+def demo_package(latency, *, domain=None, extra=None, constraint=None, alternative=None):
+    value = load_package(DEMO)
+    application = json.loads(value.files["application.json"])
+    catalog = json.loads(value.files["candidates.json"])
+    candidates = catalog["spec"]["candidates"]
+    candidates["c1a"]["features"]["latency"] = latency
+    if alternative is not None:
+        candidates["c1b"]["features"]["latency"] = alternative
+    if domain is not None:
+        application["spec"]["features"]["latency"]["domain"] = domain
+    if extra is not None:
+        application["spec"]["features"]["extra"] = {"unit": "ms"}
+        catalog["spec"]["featureBindings"]["extra"] = {"resource": "application", "id": "extra"}
+        candidates["c1a"]["features"]["extra"] = extra
+        candidates["c1b"]["features"]["extra"] = 3
+    value.files["application.json"] = json.dumps(application).encode()
+    value.files["candidates.json"] = json.dumps(catalog).encode()
+    if constraint is not None:
+        instance = json.loads(value.files["instance.json"])
+        instance["spec"]["resources"]["constraintSet"] = {"limits": "constraints.json"}
+        value.files["instance.json"] = json.dumps(instance).encode()
+        value.files["constraints.json"] = json.dumps(
+            envelope("ConstraintSet", "limits", {"constraints": {"limit": {"assert": constraint, "enforcement": "hard"}}})
+        ).encode()
+    return value
+
+
+def stored_latency(problem):
+    return problem.document["spec"]["candidates"]["catalog"]["candidates"]["c1a"]["features"]["latency"]
+
+
+def test_candidate_feature_accepts_a_scalar_or_a_closed_interval_and_the_ir_keeps_it_literal():
+    scalar = compile_instance(demo_package(5))
+    point = compile_instance(demo_package({"min": 5, "max": 5}))
+    interval = compile_instance(demo_package({"min": 8, "max": 12.5}))
+
+    assert stored_latency(scalar) == 5
+    assert stored_latency(point) == {"min": 5, "max": 5}
+    assert stored_latency(interval) == {"min": 8, "max": 12.5}
+    assert digest(stored_latency(point)) != digest(stored_latency(scalar))
+    validator = _schema_validator("BindingProblem")
+    assert validator is not None
+    assert not list(validator.iter_errors(interval.document))
+
+
+@pytest.mark.parametrize(
+    ("latency", "domain", "code", "pointer"),
+    [
+        ({"min": 9, "max": 3}, None, "feature_interval_order", "/features/latency"),
+        ({"min": 1}, None, None, None),
+        ({"max": 1}, None, None, None),
+        ({"min": 1, "max": 2, "mid": 1}, None, None, None),
+        ({"min": "1", "max": 2}, None, None, None),
+        ({"min": -1, "max": 5}, {"kind": "real", "minimum": 0, "maximum": 25}, "feature_value_domain", "/features/latency/min"),
+        ({"min": 1, "max": 50}, {"kind": "real", "minimum": 0, "maximum": 25}, "feature_value_domain", "/features/latency/max"),
+        ({"min": 1.5, "max": 4}, {"kind": "integer"}, "feature_value_domain", "/features/latency/min"),
+        ({"min": 1, "max": 4.5}, {"kind": "integer"}, "feature_value_domain", "/features/latency/max"),
+    ],
+)
+def test_invalid_candidate_feature_intervals_are_rejected(latency, domain, code, pointer):
+    with pytest.raises(CompileError) as captured:
+        compile_instance(demo_package(latency, domain=domain))
+
+    assert captured.value.diagnostics
+    if code is not None:
+        assert any(item.code == code and item.pointer.endswith(pointer) for item in captured.value.diagnostics)
+
+
+def test_integer_feature_accepts_an_interval_with_integral_endpoints():
+    problem = compile_instance(demo_package({"min": 1, "max": 4}, domain={"kind": "integer", "minimum": 0, "maximum": 100}))
+    assert stored_latency(problem) == {"min": 1, "max": 4}
+
+
+def test_feature_interval_validator_rejects_non_finite_and_malformed_endpoints():
+    feature = {"domain": {"kind": "real"}}
+    for value in (
+        {"min": 0, "max": float("inf")},
+        {"min": float("nan"), "max": 1},
+        {"min": True, "max": 2},
+        {"min": None, "max": 2},
+    ):
+        diagnostics = []
+        _validate_feature_value(value, feature, "catalog", "/spec/candidates/c1a/features/latency", diagnostics)
+        assert [item.code for item in diagnostics] == ["finite_number"]
+    diagnostics = []
+    _validate_feature_value({"min": 1}, feature, "catalog", "/spec/candidates/c1a/features/latency", diagnostics)
+    assert [item.code for item in diagnostics] == ["feature_interval_shape"]
+    diagnostics = []
+    _validate_feature_value({"min": 2, "max": 2}, feature, "catalog", "/spec/candidates/c1a/features/latency", diagnostics)
+    assert diagnostics == []
+
+
+def test_canonical_evaluator_rejects_an_interval_with_an_explicit_diagnostic():
+    problem = compile_instance(demo_package({"min": 8, "max": 12}))
+    with pytest.raises(ValueError) as captured:
+        problem.evaluate_binding(DEMO_BINDING)
+
+    message = str(captured.value)
+    assert "latency" in message and "catalog/c1a" in message and "interval" in message
+    assert "float" not in message and "TypeError" not in message
+
+
+def test_canonical_evaluator_still_accepts_an_interval_that_is_not_bound_to_the_selection():
+    problem = compile_instance(demo_package(5, alternative={"min": 8, "max": 12}))
+    assert problem.evaluate_binding(DEMO_BINDING) == {"latency": 25.0}
+
+
+def test_expression_reading_an_interval_compiles_and_is_rejected_by_the_evaluator():
+    problem = compile_instance(
+        demo_package(5, extra={"min": 1, "max": 2}, constraint="tasks.t1.features.extra <= 100")
+    )
+    assert problem.evaluate_binding(DEMO_BINDING) == {"latency": 25.0}
+    with pytest.raises(ValueError) as captured:
+        problem.evaluate_constraints(DEMO_BINDING)
+
+    message = str(captured.value)
+    assert "extra" in message and "catalog/c1a" in message and "interval" in message
+
+
+def test_neighborhood_analysis_reports_interval_moves_as_failures_instead_of_breaking():
+    problem = compile_instance(demo_package(5, alternative={"min": 8, "max": 12}))
+    analysis = analyze_neighborhood(problem, DEMO_BINDING)
+
+    assert analysis["moves"] == []
+    assert [item["to"] for item in analysis["failures"]] == [{"resource": "catalog", "id": "c1b"}]
+    assert "interval" in analysis["failures"][0]["message"]
+    assert analysis["coverage"]["complete"] is False
+
+    selected = compile_instance(demo_package({"min": 8, "max": 12}))
+    with pytest.raises(ValueError, match="interval"):
+        analyze_neighborhood(selected, DEMO_BINDING)
 
 
 def test_only_semantically_used_features_are_required():

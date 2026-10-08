@@ -106,6 +106,7 @@ def test_mode_compatibility_checks_construct_values_and_limits() -> None:
             "workflowNodes": {"selector": "only", "values": ["task"]},
             "aggregations": {"selector": "all"},
             "featureScopes": {"selector": "only", "values": ["invocation"]},
+            "featureValues": {"selector": "only", "values": ["scalar"]},
             "constraints": {"selector": "none"},
             "optimization": {"selector": "only", "values": ["satisfy"]},
             "objectiveTypes": {"selector": "only", "values": ["MONO"]},
@@ -131,6 +132,7 @@ def test_mode_compatibility_accepts_all_only_for_closed_dimensions() -> None:
                 "workflowNodes",
                 "aggregations",
                 "featureScopes",
+                "featureValues",
                 "constraints",
                 "optimization",
                 "objectiveTypes",
@@ -153,6 +155,7 @@ def test_none_selector_accepts_an_unused_feature_category() -> None:
                 "workflowNodes",
                 "aggregations",
                 "featureScopes",
+                "featureValues",
                 "constraints",
                 "optimization",
                 "objectiveTypes",
@@ -791,6 +794,69 @@ def test_open_capability_dimensions_never_accept_an_unbounded_all_claim() -> Non
         and item["pointer"].endswith("/irExtensions/selector")
         for item in diagnostics
     )
+
+
+def _engine_modes() -> list[tuple[str, dict]]:
+    manifests = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(routes._MANIFEST_DIR.glob("*.json"))]
+    manifests.append(json.loads(MULTI_ENGINE.read_text(encoding="utf-8")))
+    return [
+        (f"{manifest['metadata']['name']}/{mode['id']}", mode)
+        for manifest in manifests
+        for mode in manifest["spec"]["modes"]
+    ]
+
+
+def _example_with_latency(value, *, extra: dict | None = None):
+    package = load_package(EXAMPLE)
+    catalog = json.loads(package.files["candidates.json"])
+    catalog["spec"]["candidates"]["c1a"]["features"]["latency"] = value
+    if extra is not None:
+        application = json.loads(package.files["application.json"])
+        application["spec"]["features"]["extra"] = {"unit": "ms"}
+        package.files["application.json"] = json.dumps(application).encode()
+        catalog["spec"]["featureBindings"]["extra"] = {"resource": "application", "id": "extra"}
+        catalog["spec"]["candidates"]["c1a"]["features"]["extra"] = extra
+    package.files["candidates.json"] = json.dumps(catalog).encode()
+    return routes.compile_instance(package)
+
+
+def test_profile_vocabulary_declares_scalar_and_interval_feature_values() -> None:
+    profile = next(item for item in routes.installed_profile_manifests() if item["metadata"]["name"] == "qos-binding")
+    dimensions = profile["spec"]["capabilityVocabulary"]["dimensions"]
+    assert dimensions["featureValues"] == {"values": ["scalar", "interval"], "openValues": False}
+
+
+def test_every_engine_mode_declares_only_scalar_feature_values() -> None:
+    modes = _engine_modes()
+    assert len(modes) == 7
+    for name, mode in modes:
+        assert mode["capabilities"]["featureValues"] == {"selector": "only", "values": ["scalar"]}, name
+
+
+def test_ir_features_report_scalar_and_interval_feature_values() -> None:
+    assert routes._ir_features(_example_with_latency(10))["featureValues"] == {"scalar"}
+    assert routes._ir_features(_example_with_latency({"min": 8, "max": 12}))["featureValues"] == {"scalar", "interval"}
+    only_in_unused_slot = _example_with_latency(10, extra={"min": 1, "max": 2})
+    assert "extra" not in only_in_unused_slot.document["spec"]["application"]["requiredFeatures"]
+    assert routes._ir_features(only_in_unused_slot)["featureValues"] == {"scalar", "interval"}
+
+
+def test_interval_feature_values_fail_closed_against_every_engine_mode() -> None:
+    problem = _example_with_latency({"min": 8, "max": 12})
+    for name, mode in _engine_modes():
+        diagnostics = [
+            item for item in routes._mode_compatibility(problem, mode) if item.get("category") == "featureValues"
+        ]
+        assert [item["code"] for item in diagnostics] == ["unsupported_capability_value"], name
+        assert diagnostics[0]["unsupported"] == ["interval"], name
+        assert diagnostics[0]["allowed"] == ["scalar"], name
+
+
+def test_scalar_feature_values_remain_compatible_with_every_engine_mode() -> None:
+    problem = _example_with_latency(10)
+    for name, mode in _engine_modes():
+        diagnostics = routes._mode_compatibility(problem, mode)
+        assert not [item for item in diagnostics if item.get("category") == "featureValues"], name
 
 
 def test_compiled_ir_pins_complete_dialect_and_adapter_revisions() -> None:

@@ -2836,7 +2836,10 @@
             "additionalProperties": false,
             "properties": {
               "features": {
-                "$ref": "#/components/schemas/BindingProblem/$defs/numberMap"
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/BindingProblem/$defs/featureValue"
+                },
+                "type": "object"
               },
               "name": {
                 "type": "string"
@@ -3420,6 +3423,29 @@
               "neutral"
             ],
             "type": "object"
+          },
+          "featureValue": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "max": {
+                    "type": "number"
+                  },
+                  "min": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "min",
+                  "max"
+                ],
+                "type": "object"
+              }
+            ]
           },
           "globalLatency": {
             "additionalProperties": false,

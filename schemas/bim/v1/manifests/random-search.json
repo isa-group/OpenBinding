@@ -17,6 +17,7 @@
         "capabilities": {
           "workflowNodes": {"selector": "all"},
           "featureScopes": {"selector": "all"},
+          "featureValues": {"selector": "only", "values": ["scalar"]},
           "aggregations": {"selector": "all"},
           "constraints": {"selector": "all"},
           "scalarizations": {"selector": "only", "values": [

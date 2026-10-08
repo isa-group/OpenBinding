@@ -1120,6 +1120,21 @@ def _aggregate_bound(constraint: dict[str, Any]) -> bool:
     ) and any(isinstance(child, dict) and child.get("kind") == "literal" for child in children)
 
 
+def _feature_value_kinds(spec: Mapping[str, Any]) -> set[str]:
+    kinds: set[str] = set()
+    catalogs = spec.get("candidates", {})
+    for catalog in catalogs.values() if isinstance(catalogs, dict) else ():
+        if not isinstance(catalog, dict) or not isinstance(catalog.get("candidates"), dict):
+            continue
+        bindings = catalog.get("featureBindings", {})
+        for candidate in catalog["candidates"].values():
+            slots = candidate.get("features", {}) if isinstance(candidate, dict) else {}
+            for alias, value in slots.items() if isinstance(slots, dict) else ():
+                if isinstance(bindings, dict) and alias in bindings:
+                    kinds.add("interval" if isinstance(value, dict) else "scalar")
+    return kinds
+
+
 def _ir_features(problem: BindingProblem) -> dict[str, set[str]]:
     spec = problem.document.get("spec", {})
     application = spec.get("application", {})
@@ -1188,6 +1203,7 @@ def _ir_features(problem: BindingProblem) -> dict[str, set[str]]:
         "workflowNodes": _workflow_features(workflow, routing),
         "aggregations": aggregations,
         "featureScopes": feature_scopes,
+        "featureValues": _feature_value_kinds(spec),
         "constraints": constraint_features,
         "expressions": expression_features,
         "placement": placement_features,

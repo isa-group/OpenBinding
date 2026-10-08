@@ -31,6 +31,10 @@
             "selector": "only",
             "values": ["selectedCandidate"]
           },
+          "featureValues": {
+            "selector": "only",
+            "values": ["scalar"]
+          },
           "constraints": {
             "selector": "only",
             "values": ["hard.aggregate-bound"]
