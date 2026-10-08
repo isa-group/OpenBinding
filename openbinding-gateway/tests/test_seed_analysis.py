@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import select
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
-from seed_analysis import GALLERY, ensure_analysis_gallery, enumerate_gallery, gallery_package
+from seed_analysis import GALLERY, ensure_analysis_gallery, enumerate_gallery, gallery_execution, gallery_package
 from seed_dev import ensure_users, ensure_organizations, ensure_projects
 from openbinding_gateway.db.models import Job
 from openbinding_gateway.db.platform_models import StudyCell, StudyRun
@@ -24,8 +24,9 @@ def test_gallery_is_deterministic_and_canonically_evaluated(scenario, example, d
     expected = {"tradeoffs": 36, "constraints": 36, "journey": 36, "collinear": 4, "singleton": 1, "empty": 0, "large": 1296,
                 "pooled-overlap": 18, "decision-rules": 6, "power-slice": 36, "geometry-limit": 350, "background": 3000}
     assert len(result["solutions"]) == expected[scenario]
+    execution = gallery_execution(problem, scenario)
     for solution in result["solutions"]:
-        evaluated = problem.evaluate(solution["decision"]["binding"])
+        evaluated = problem.evaluate(solution["decision"]["binding"], execution)
         assert solution["features"] == evaluated["features"]
         assert solution["objectives"] == evaluated["objectives"]
         assert solution["violations"] == evaluated["violations"]
@@ -101,7 +102,8 @@ def test_scale_batches_are_unique_explicit_canonical_assignments():
     assert len({digest(row["decision"]["binding"]) for row in rows}) == 1000
     assert len({row["features"]["cost"] for row in rows}) == 1000
     assert second["provenance"]["analysisFixture"]["evaluatedBindings"] == 500
+    execution = gallery_execution(problem, "scale")
     for row in (rows[0], rows[-1]):
-        assert row["objectives"] == problem.evaluate(row["decision"]["binding"])["objectives"]
+        assert row["objectives"] == problem.evaluate(row["decision"]["binding"], execution)["objectives"]
     with pytest.raises(ValueError, match="fit the model"):
         enumerate_gallery(problem, "scale", "invalid range", offset=99_999, limit=2)

@@ -25,6 +25,21 @@ async def platform_gate():
     space_client.set_gate(previous)
 
 
+def multi_resource_package():
+    """The language-test package with a current Optimization (criteria, not legacy terms)."""
+    from test_bim_v1_language_final import base_package, envelope
+
+    return base_package(optimization=envelope("Optimization", "opt", {
+        "criteria": [
+            {"id": "latency", "feature": {"resource": "app", "id": "latency"},
+             "normalize": {"min": 0, "max": 100, "clamp": False}},
+            {"id": "cost", "feature": {"resource": "app", "id": "cost"},
+             "normalize": {"min": 0, "max": 20, "clamp": False}},
+        ],
+        "penalties": [{"constraint": {"resource": "soft", "id": "limit"}, "weight": 1}],
+    }))
+
+
 async def account(client, registration) -> tuple[dict, dict[str, str]]:
     details = registration()
     created = await client.post("/v1/auth/register", json=details)
@@ -100,7 +115,8 @@ async def test_packages_round_trip_cases_resources_collections_and_artifacts(
                 "slug": "engine-benchmark", "name": "Engine benchmark",
                 "definition": {
                     "case_revision_ids": [case_revision.json()["id"]],
-                    "engines": [routes._engine_ref(routes._manifest("random-search"))],
+                    "engines": [{**routes._engine_ref(routes._manifest("random-search")), "mode": "seeded",
+                                 "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}}],
                     "parameter_sets": [{}], "seeds": [7],
                 },
             },
@@ -242,13 +258,12 @@ async def test_package_manifest_tampering_is_rejected(
 
 
 async def test_library_case_roundtrip_keeps_exact_inputs(api_client, registration, platform_gate, monkeypatch, tmp_path):
-    from test_bim_v1_language_final import base_package
     monkeypatch.setattr(get_settings(), 'artifact_root', str(tmp_path))
     user, headers = await account(api_client, registration)
     platform_gate.plans[uuid.UUID(user['id'])] = largest_plan()
     org, project_slug = await project(api_client, headers, visibility='private')
     base = f'/v1/organizations/{org}/projects/{project_slug}'
-    source = base_package()
+    source = multi_resource_package()
     uses = []
     for role, resources in source.instance()['spec']['resources'].items():
         for alias, path in resources.items():

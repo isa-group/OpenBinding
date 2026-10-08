@@ -91,7 +91,8 @@ async def test_live_report_seed_upgrades_drafts_and_preserves_two_editions(
         response = await api_client.post(base + '/studies', headers=headers, json={
             'slug': 'benchmark', 'name': 'Benchmark', 'definition': {
                 'case_revision_ids': [str(cases['simple-seq'][1].id)],
-                'engines': [{**routes._engine_ref(routes._manifest('random-search')), 'mode': 'seeded'}],
+                'engines': [{**routes._engine_ref(routes._manifest('random-search')), 'mode': 'seeded',
+                             'optimization': {'type': 'SINGLE', 'scalarization': 'weighted-sum'}}],
                 'parameter_sets': [{'iterations': 1}], 'seeds': [1]}})
         assert response.status_code == 201, response.text
         study = await db_session.get(Study, uuid.UUID(response.json()['id']))

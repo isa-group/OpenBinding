@@ -943,11 +943,13 @@ async def execute_real_studies(
     from openbinding_gateway.v1.compiler import compiler_bundle_digest
 
     engine_refs = []
-    for name in ("minizinc-csp", "random-search"):
+    # Study engines pin an exact revision plus an explicit mode and execution optimization.
+    for name, mode in (("minizinc-csp", "exact-weighted"), ("random-search", "seeded")):
         try:
             manifest = routes_v1._manifest(name)
             engine_refs.append({**{key: manifest["metadata"][key] for key in ("namespace", "name", "version")},
-                                "digest": digest(manifest)})
+                                "digest": digest(manifest), "mode": mode,
+                                "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"}})
         except Exception as exc:
             logger.warning("Live study coverage gap for %s: %s", name, exc)
     if not engine_refs:
@@ -1041,15 +1043,17 @@ async def ensure_standalone_jobs(
             manifest = routes_v1._manifest(engine)
             ref = {"namespace": manifest["metadata"]["namespace"], "name": engine,
                    "version": manifest["metadata"]["version"], "digest": digest(manifest)}
-            identity = digest({"generator": 2, "package": snap.package_digest, "evaluator": compiler_bundle_digest(),
-                               "engine": ref, "mode": mode, "options": options})
+            optimization = {"type": "SINGLE", "scalarization": "weighted-sum"}
+            identity = digest({"generator": 3, "package": snap.package_digest, "evaluator": compiler_bundle_digest(),
+                               "engine": ref, "mode": mode, "optimization": optimization, "options": options})
             key = f"development-live-{project.id}-{identity}"
             existing = (await session.execute(select(Job).where(Job.owner_id == user.id, Job.idempotency_key == key))).scalars().first()
             if existing is not None:
                 jobs.append(existing)
                 logger.info("Reused live scenario %s: %s (%s)", engine, existing.id, existing.state.value)
                 continue
-            request = _job_request({"snapshot": str(snap.id), "engine": ref, "mode": mode, "options": options})
+            request = _job_request({"snapshot": str(snap.id), "engine": ref, "mode": mode,
+                                    "optimization": optimization, "options": options})
             request.scope["headers"].append((b"idempotency-key", key.encode()))
             response = _response_payload(await routes_v1.create_job(request, caller=user, session=session))
             job = await session.get(Job, uuid.UUID(str(response["id"])))

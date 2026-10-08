@@ -18,7 +18,7 @@ from openbinding_gateway.v1.package import InstancePackage, load_package
 from openbinding_gateway.v1.compiler import compiler_bundle_digest
 from openbinding_gateway.v1.archive import VERSION as ANALYSIS_VERSION
 
-GENERATOR_VERSION = 3
+GENERATOR_VERSION = 4
 
 GALLERY = [
     ("tradeoffs", "17_analysis_tradeoffs", "All 36 bindings: fronts, weights, Voronoi, dual, hull, hypervolume and neighbors"),
@@ -93,9 +93,23 @@ def gallery_package(examples_dir: Path, scenario: str, example: str) -> Instance
     return InstancePackage(files)
 
 
+def gallery_execution(problem, scenario: str) -> dict:
+    """The execution optimization an archive is evaluated under (the IR only carries criteria).
+
+    The journey replays a scalar incumbent trace; every other archive keeps the full
+    objective vector so fronts and geometry can be analysed.
+    """
+    criteria = [item["id"] for item in problem.document["spec"]["optimization"]["criteria"]]
+    if scenario == "journey":
+        return {"type": "SINGLE", "scalarization": "weighted-sum",
+                "weights": [{"criteria": item, "value": 1.0 / len(criteria)} for item in criteria]}
+    return {"type": "MULTI" if len(criteria) <= 3 else "MANY", "scalarization": "pareto-front", "weights": []}
+
+
 def enumerate_gallery(problem, scenario: str, description: str, *, limit: int | None = None, offset: int = 0) -> dict:
     """Retain actual evaluated candidates, including rejected ones, as a diagnostic archive."""
     spec = problem.document["spec"]
+    execution = gallery_execution(problem, scenario)
     tasks = sorted(problem.binding_space_breakdown)
     cardinality = problem.binding_space_cardinality
     if scenario == "background" and limit is None:
@@ -112,7 +126,7 @@ def enumerate_gallery(problem, scenario: str, description: str, *, limit: int | 
         index = ordinal + 1
         refs = [options[(ordinal // math.prod(len(other) for other in choices[j+1:])) % len(options)] for j, options in enumerate(choices)]
         binding = dict(zip(tasks, refs, strict=True))
-        evaluation = problem.evaluate(binding)
+        evaluation = problem.evaluate(binding, execution)
         objectives = evaluation["objectives"]
         penalties = {tuple(v["constraint"][key] for key in ("resource", "id")): v["penalty"] for v in evaluation["violations"] if v["enforcement"] == "soft"}
         solution = {"decision": {"kind": "binding", "binding": binding}, **evaluation,
@@ -168,6 +182,10 @@ async def ensure_analysis_gallery(session, org, project, user, examples_dir: Pat
                    summary={"cells": len(GALLERY), "analysisFixture": True, "galleryDigest": gallery_digest}, created_by_id=user.id, finished_at=utcnow())
     case_ids = []
     pending_cells = []
+    fixture_ref = {"namespace": "bim.dev", "name": "reference-enumeration", "version": "1", "digest": gallery_digest}
+    # Study engines must select an explicit mode and execution optimization (StudyDefinition).
+    study_engine = {**fixture_ref, "mode": "reference-enumeration",
+                    "optimization": {"type": "MANY", "scalarization": "pareto-front"}}
     for ordinal, (scenario, package, description) in enumerate(packages):
         problem = await routes_v1._compile_resolved(package, session)
         snapshot_id = await routes_v1._persist_snapshot(package, problem, user, session)
@@ -199,7 +217,6 @@ async def ensure_analysis_gallery(session, org, project, user, examples_dir: Pat
                 session.add(CaseArtifact(revision_id=revision.id, role=use.role, alias=use.alias, version_id=version.id, bindings=use.bindings))
         case_ids.append(revision.id)
         result = enumerate_gallery(problem, scenario, description)
-        fixture_ref = {"namespace": "bim.dev", "name": "reference-enumeration", "version": "1", "digest": gallery_digest}
         provenance = {"engine": fixture_ref, "irDigest": problem.digest, "evaluatorDigest": evaluator_digest,
             "compilerDigest": evaluator_digest, "evaluator": "bim-reference-evaluator/v1", "profile": problem.document["spec"]["profile"],
             "packageDigest": package.package_digest, "instanceDigest": (await session.get(InstanceSnapshot, uuid.UUID(snapshot_id))).instance_digest,
@@ -216,12 +233,12 @@ async def ensure_analysis_gallery(session, org, project, user, examples_dir: Pat
         await session.flush()
         session.add(JobProvenance(job_id=job.id, document=provenance, digest=digest(provenance)))
         pending_cells.append(StudyCell(study_run_id=run.id, ordinal=ordinal, binding_case_revision_id=revision.id,
-                              engine_ref=fixture_ref, parameters={}, seed=0,
+                              engine_ref=study_engine, parameters={}, seed=0,
                               fingerprint=digest({"gallery": gallery_digest, "scenario": scenario}), job_id=job.id,
                               state=RunState.COMPLETED, metrics={"status": "completed", "analysisFixture": True,
                               "evaluatedBindings": result["provenance"]["analysisFixture"]["evaluatedBindings"], "analysisScenario": scenario}))
     from openbinding_gateway.studies import seal_study_definition
-    definition = StudyDefinition(case_revision_ids=case_ids, engines=[fixture_ref], parameter_sets=[{}], seeds=[0])
+    definition = StudyDefinition(case_revision_ids=case_ids, engines=[study_engine], parameter_sets=[{}], seeds=[0])
     study.definition_version = await seal_study_definition(session, project, user, study.name, definition,
         current=study.definition_version if study.id else None, analysis_fixture=True)
     session.add(study)

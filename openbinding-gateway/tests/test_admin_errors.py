@@ -49,19 +49,35 @@ async def _register(client, details, db_session=None, *, admin=False) -> tuple[d
     return headers, user_id
 
 
+async def _create_snapshot(client, headers):
+    """Jobs are launched by JSON from a snapshot: ZIP uploads cannot carry `optimization`."""
+    snapshot = await client.post(
+        "/v1/instances",
+        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
+        content=load_package(EXAMPLE).to_zip(),
+    )
+    assert snapshot.status_code == 201, snapshot.text
+    return snapshot.json()["id"]
+
+
+def _job_request(snapshot_id):
+    return {
+        "snapshot": snapshot_id,
+        "engine": "random-search",
+        "mode": "seeded",
+        "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
+    }
+
+
 async def test_solve_returns_402_on_task_quota_exceeded(api_client, db_session, registration, gate):
     details = registration()
     headers, user_id = await _register(api_client, details, db_session)
+    snapshot_id = await _create_snapshot(api_client, headers)
 
     # Exhaust monthly task quota
     gate.exhaust(user_id, "taskStarts")
 
-    package = load_package(EXAMPLE)
-    response = await api_client.post(
-        "/v1/jobs",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
+    response = await api_client.post("/v1/jobs", headers=headers, json=_job_request(snapshot_id))
 
     assert response.status_code == 402, response.text
     body = response.json()
@@ -75,16 +91,12 @@ async def test_solve_returns_402_on_task_quota_exceeded(api_client, db_session, 
 async def test_solve_returns_429_on_concurrency_exceeded(api_client, db_session, registration, gate):
     details = registration()
     headers, user_id = await _register(api_client, details, db_session)
+    snapshot_id = await _create_snapshot(api_client, headers)
 
     # Exhaust concurrent slots
     gate.exhaust(user_id, "concurrentJobs")
 
-    package = load_package(EXAMPLE)
-    response = await api_client.post(
-        "/v1/jobs",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
+    response = await api_client.post("/v1/jobs", headers=headers, json=_job_request(snapshot_id))
 
     assert response.status_code == 429, response.text
     body = response.json()
@@ -97,17 +109,13 @@ async def test_solve_returns_429_on_concurrency_exceeded(api_client, db_session,
 async def test_precedence_commercial_quota_over_concurrency(api_client, db_session, registration, gate):
     details = registration()
     headers, user_id = await _register(api_client, details, db_session)
+    snapshot_id = await _create_snapshot(api_client, headers)
 
     # Exhaust BOTH commercial quota and concurrency slots
     gate.exhaust(user_id, "taskStarts")
     gate.exhaust(user_id, "concurrentJobs")
 
-    package = load_package(EXAMPLE)
-    response = await api_client.post(
-        "/v1/jobs",
-        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
+    response = await api_client.post("/v1/jobs", headers=headers, json=_job_request(snapshot_id))
 
     # Precedence rule: 402 must take priority so user does not wait in vain
     assert response.status_code == 402, response.text
@@ -154,13 +162,9 @@ async def test_admin_error_endpoints_and_overview(api_client, db_session, regist
     user_headers, user_id = await _register(api_client, user_details, db_session)
 
     # Trigger a 402 quota error for user
+    snapshot_id = await _create_snapshot(api_client, user_headers)
     gate.exhaust(user_id, "taskStarts")
-    package = load_package(EXAMPLE)
-    await api_client.post(
-        "/v1/jobs",
-        headers={**user_headers, "Content-Type": "application/vnd.bim+zip"},
-        content=package.to_zip(),
-    )
+    await api_client.post("/v1/jobs", headers=user_headers, json=_job_request(snapshot_id))
 
     # Overview endpoint
     overview_resp = await api_client.get("/v1/admin/errors/overview", headers=admin_headers)

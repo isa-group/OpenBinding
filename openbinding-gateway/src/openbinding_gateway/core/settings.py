@@ -87,6 +87,10 @@ class Settings(BaseSettings):
     bootstrap_admin_username: Optional[str] = None
     bootstrap_admin_email: Optional[str] = None
     bootstrap_admin_password: Optional[str] = None
+    #: Plan the bootstrap administrator is contracted on. The backend names no
+    #: commercial plan: unset, it is the highest-capacity plan of the published
+    #: iPricing (``space/pricing/openbinding.yml``).
+    bootstrap_admin_plan: Optional[str] = None
 
     # -- SPACE (pricing-driven access control) ---------------------------
     space_enabled: bool = False

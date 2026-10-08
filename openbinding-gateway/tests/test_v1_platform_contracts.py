@@ -90,7 +90,7 @@ def _problem(*, placement: bool = False):
                     }
                 },
                 "constraints": [{"enforcement": "soft", "assert": {"kind": "compare"}, "penalty": {"kind": "literal"}}],
-                "optimization": {"mode": "weighted", "type": "MONO", "terms": []},
+                "optimization": {"criteria": [{"id": "latency"}], "penalties": []},
                 "placement": [{"kind": "pool"}] if placement else [],
                 "dialects": [{"id": "qos-binding/v1"}],
             }
@@ -108,8 +108,6 @@ def test_mode_compatibility_checks_construct_values_and_limits() -> None:
             "featureScopes": {"selector": "only", "values": ["invocation"]},
             "featureValues": {"selector": "only", "values": ["scalar"]},
             "constraints": {"selector": "none"},
-            "optimization": {"selector": "only", "values": ["satisfy"]},
-            "objectiveTypes": {"selector": "only", "values": ["MONO"]},
             "expressions": {"selector": "all"},
             "placement": {"selector": "none"},
             "irExtensions": {"selector": "none"},
@@ -118,7 +116,9 @@ def test_mode_compatibility_checks_construct_values_and_limits() -> None:
     }
     diagnostics = routes._mode_compatibility(_problem(placement=True), mode)
     by_category = {item.get("category") for item in diagnostics}
-    assert {"workflowNodes", "featureScopes", "constraints", "optimization", "placement"} <= by_category
+    assert {"workflowNodes", "featureScopes", "constraints", "placement"} <= by_category
+    # Optimization is selected at execution time, so it is no longer an IR capability category.
+    assert not {"optimization", "objectiveTypes"} & set(routes._ir_features(_problem()))
     assert any(item.get("limit") == "maxCandidates" for item in diagnostics)
 
 
@@ -134,8 +134,6 @@ def test_mode_compatibility_accepts_all_only_for_closed_dimensions() -> None:
                 "featureScopes",
                 "featureValues",
                 "constraints",
-                "optimization",
-                "objectiveTypes",
                 "expressions",
                 "placement",
             )
@@ -157,8 +155,6 @@ def test_none_selector_accepts_an_unused_feature_category() -> None:
                 "featureScopes",
                 "featureValues",
                 "constraints",
-                "optimization",
-                "objectiveTypes",
                 "expressions",
             )
         }
@@ -172,28 +168,25 @@ def test_none_selector_accepts_an_unused_feature_category() -> None:
 
 
 @pytest.mark.parametrize(
-    ("objective_type", "objective_count", "many_compatible", "multi_compatible"),
+    ("objective_count", "many_compatible", "multi_compatible"),
     [
-        ("MANY", 2, False, False),
-        ("MANY", 3, True, False),
-        ("MANY", 4, True, False),
-        ("MULTI", 1, False, False),
-        ("MULTI", 2, False, True),
-        ("MULTI", 3, False, True),
-        ("MULTI", 4, False, False),
+        (1, False, False),
+        (2, False, True),
+        (3, True, True),
+        (4, True, False),
     ],
 )
 def test_many_and_multi_modes_are_eligible_only_for_their_declared_objective_class(
-    objective_type: str,
     objective_count: int,
     many_compatible: bool,
     multi_compatible: bool,
 ) -> None:
+    # The objective class is chosen at execution time; the IR only carries the
+    # criteria, so eligibility follows the mode's min/maxObjectives limits.
     problem = _problem()
     problem.document["spec"]["optimization"] = {
-        "mode": "pareto",
-        "type": objective_type,
-        "terms": [{} for _ in range(objective_count)],
+        "criteria": [{"id": f"c{index}"} for index in range(objective_count)],
+        "penalties": [],
     }
     many = copy.deepcopy(routes._manifest("many-heuristic")["spec"]["modes"][0])
     multi = json.loads(MULTI_ENGINE.read_text(encoding="utf-8"))["spec"]["modes"][0]
@@ -892,7 +885,7 @@ def test_gateway_rejects_incomplete_decisions_and_replaces_engine_evaluation() -
                 raise ValueError("binding must contain exactly service tasks")
             return binding
 
-        def evaluate(self, binding):
+        def evaluate(self, binding, execution=None):
             self.validate_binding(binding)
             return {
                 "features": {"latency": 7.0},
@@ -954,10 +947,21 @@ async def test_validate_and_solve_refuse_instance_exceeding_plan_complexity(
     assert validate_resp.status_code == 402, validate_resp.text
     assert validate_resp.json()["title"] == "instance_complexity_too_large"
 
+    # Jobs run from a snapshot: multipart/ZIP uploads cannot carry the execution `optimization`.
+    snapshot = await api_client.post(
+        "/v1/instances",
+        content=package.to_zip(),
+        headers={**headers, "Content-Type": "application/vnd.bim+zip"},
+    )
+    assert snapshot.status_code == 201, snapshot.text
     job_resp = await api_client.post(
         "/v1/jobs",
-        files={"package": ("package.zip", package.to_zip(), "application/zip")},
-        data={"engine": "bim.builtin/minizinc-csp", "mode": "exact-weighted"},
+        json={
+            "snapshot": snapshot.json()["id"],
+            "engine": "random-search",
+            "mode": "seeded",
+            "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
+        },
         headers=headers,
     )
     assert job_resp.status_code == 402, job_resp.text

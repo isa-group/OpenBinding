@@ -42,11 +42,19 @@ def engine(name: str, fill: str) -> dict[str, str]:
     }
 
 
+OPTIMIZATION = {"type": "SINGLE", "scalarization": "weighted-sum"}
+
+
+def study_engine(reference: dict[str, str], mode: str = "seeded") -> dict:
+    """A study engine pins an exact revision plus an explicit mode and execution optimization."""
+    return {**reference, "mode": mode, "optimization": dict(OPTIMIZATION)}
+
+
 def test_matrix_expansion_is_sorted_reproducible_and_fingerprinted() -> None:
     first_case, second_case = uuid.uuid4(), uuid.uuid4()
     definition = StudyDefinition(
         case_revision_ids=[second_case, first_case],
-        engines=[engine("zeta", "b"), engine("alpha", "a")],
+        engines=[study_engine(engine("zeta", "b")), study_engine(engine("alpha", "a"))],
         parameter_sets=[{"temperature": 2}, {"temperature": 1}],
         seeds=[7, 3],
     )
@@ -66,7 +74,7 @@ def test_study_matrix_is_bounded_before_any_jobs_are_created() -> None:
     with pytest.raises(ValidationError, match="10,000"):
         StudyDefinition(
             case_revision_ids=[uuid.uuid4() for _ in range(101)],
-            engines=[engine(f"engine-{index}", "a") for index in range(2)],
+            engines=[study_engine(engine(f"engine-{index}", "a")) for index in range(2)],
             parameter_sets=[{"batch": index} for index in range(50)],
             seeds=[0],
         )
@@ -77,13 +85,24 @@ def test_study_definition_rejects_duplicate_axes_and_malformed_engine_digests() 
     with pytest.raises(ValidationError, match="parameter_sets contains duplicates"):
         StudyDefinition(
             case_revision_ids=[case_id],
-            engines=[engine("exact", "a")],
+            engines=[study_engine(engine("exact", "a"))],
             parameter_sets=[{"iterations": 10}, {"iterations": 10}],
         )
     with pytest.raises(ValidationError, match="engine digest"):
         StudyDefinition(
             case_revision_ids=[case_id],
-            engines=[engine("exact", "x")],
+            engines=[study_engine(engine("exact", "x"))],
+        )
+
+
+def test_study_definition_requires_an_explicit_mode_and_optimization_per_engine() -> None:
+    case_id = uuid.uuid4()
+    with pytest.raises(ValidationError, match="explicit mode"):
+        StudyDefinition(case_revision_ids=[case_id], engines=[engine("exact", "a")])
+    with pytest.raises(ValidationError, match="optimization type and scalarization"):
+        StudyDefinition(
+            case_revision_ids=[case_id],
+            engines=[{**engine("exact", "a"), "mode": "seeded"}],
         )
 
 
@@ -188,7 +207,7 @@ async def test_a_study_can_freeze_case_revisions_from_a_collection(
             "name": "From suite",
             "definition": {
                 "collection_version_id": collection_revision.json()["id"],
-                "engines": [routes._engine_ref(routes._manifest("random-search"))],
+                "engines": [study_engine(routes._engine_ref(routes._manifest("random-search")))],
                 "parameter_sets": [{}],
                 "seeds": [0],
             },
@@ -239,7 +258,7 @@ async def test_a_study_can_freeze_case_revisions_from_a_collection(
             "name": "Forbidden engine",
             "definition": {
                 "case_revision_ids": [revision.json()["id"]],
-                "engines": [routes._engine_ref(routes._manifest("random-search"))],
+                "engines": [study_engine(routes._engine_ref(routes._manifest("random-search")))],
                 "parameter_sets": [{}],
                 "seeds": [0],
             },
@@ -281,7 +300,7 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
         content=package.to_zip(),
     )
     manifest = routes._manifest("random-search")
-    exact_engine = {**routes._engine_ref(manifest, "bim.builtin"), "mode": "seeded"}
+    exact_engine = study_engine(routes._engine_ref(manifest, "bim.builtin"))
     org = await api_client.post(
         "/v1/organizations",
         headers=headers,
@@ -545,7 +564,7 @@ async def test_study_cancel_and_cell_retry_are_http_idempotent(
             "name": "Retry study",
             "definition": {
                 "case_revision_ids": [revision.json()["id"]],
-                "engines": [routes._engine_ref(routes._manifest("random-search"))],
+                "engines": [study_engine(routes._engine_ref(routes._manifest("random-search")))],
                 "parameter_sets": [{}],
                 "seeds": [0],
             },

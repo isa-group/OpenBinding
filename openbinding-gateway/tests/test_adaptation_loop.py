@@ -261,6 +261,7 @@ async def test_create_job_with_engine_auto(api_client, registration, monkeypatch
         json={
             "snapshot": snapshot_id,
             "engine": "auto",
+            "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
             "options": {
                 "routing": {
                     "hardConstraints": {"maxCredits": 20},
@@ -351,6 +352,7 @@ async def test_failed_auto_job_records_observation_and_failure(api_client, regis
         json={
             "snapshot": snapshot_id,
             "engine": "auto",
+            "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
         },
     )
     assert job_req.status_code == 202
@@ -432,6 +434,7 @@ async def test_fallback_engine_activation_on_primary_failure(api_client, registr
         json={
             "snapshot": snapshot_id,
             "engine": "auto",
+            "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
         },
     )
     assert job_req.status_code == 202

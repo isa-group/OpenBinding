@@ -73,7 +73,7 @@ class _FakeProblem:
         if binding != {"task": {"resource": "catalog", "id": "candidate"}}:
             raise ValueError("invalid binding")
 
-    def evaluate(self, binding):
+    def evaluate(self, binding, execution=None):
         self.validate_binding(binding)
         return {
             "features": {"latency": 1.0},
@@ -180,30 +180,30 @@ def test_gateway_downgrades_termination_claims_not_declared_by_the_mode() -> Non
     exact = ["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"]
 
     assert (
-        routes._reevaluate_result(_FakeProblem(), _valid_result("OPTIMAL"), heuristic)[
-            "termination"
-        ]
+        routes._reevaluate_result(
+            _FakeProblem(), _valid_result("OPTIMAL"), allowed_terminations=heuristic
+        )["termination"]
         == "UNKNOWN"
     )
     assert (
         routes._reevaluate_result(
             _FakeProblem(),
             {"termination": "INFEASIBLE", "solutions": []},
-            heuristic,
+            allowed_terminations=heuristic,
         )["termination"]
         == "UNKNOWN"
     )
     assert (
-        routes._reevaluate_result(_FakeProblem(), _valid_result("OPTIMAL"), exact)[
-            "termination"
-        ]
+        routes._reevaluate_result(
+            _FakeProblem(), _valid_result("OPTIMAL"), allowed_terminations=exact
+        )["termination"]
         == "OPTIMAL"
     )
     assert (
         routes._reevaluate_result(
             _FakeProblem(),
             {"termination": "INFEASIBLE", "solutions": []},
-            exact,
+            allowed_terminations=exact,
         )["termination"]
         == "INFEASIBLE"
     )
@@ -242,7 +242,7 @@ async def test_persisted_builtin_job_pins_registration_and_mode_guarantees(
 ) -> None:
     transports = []
 
-    async def solve(transport, _problem, _options, **_kwargs):
+    async def solve(transport, _problem, _options, _optimization, **_kwargs):
         transports.append(transport)
         return {
             "termination": "OPTIMAL",
@@ -269,6 +269,7 @@ async def test_persisted_builtin_job_pins_registration_and_mode_guarantees(
             "snapshot": snapshot_id,
             "engine": "random-search",
             "mode": "seeded",
+            "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
         },
     )
     assert response.status_code == 202, response.text

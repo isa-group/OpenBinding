@@ -21,6 +21,8 @@ exists, so leaving the variables in place is harmless.
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
+from pathlib import Path
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,7 +42,38 @@ DEFAULT_ADMIN_PASSWORD = "4dm1n"
 #: and a domain without a dot is rejected - which turned the whole user
 #: listing into a 500 the first time this account appeared in it.
 DEFAULT_ADMIN_EMAIL = "admin@example.org"
-DEFAULT_ADMIN_PLAN = "PRO"
+
+
+@lru_cache(maxsize=1)
+def _published_operational_plan() -> str:
+    """The highest-capacity plan of the published iPricing, without naming one in code."""
+    from ..pricing_catalog import PricingCatalog, PricingCatalogError
+
+    root = Path(__file__).resolve()
+    for candidate in (
+        Path("/app/space/pricing/openbinding.yml"),
+        Path("/space/pricing/openbinding.yml"),
+        root.parents[4] / "space" / "pricing" / "openbinding.yml",
+        root.parents[3] / "space" / "pricing" / "openbinding.yml",
+    ):
+        if candidate.is_file():
+            catalog = PricingCatalog.parse(candidate.read_bytes())
+            return max(catalog.plans, key=lambda plan: catalog.entitlements(plan)[1]["taskStarts"])
+    raise PricingCatalogError(
+        "No operational plan is configured (BOOTSTRAP_ADMIN_PLAN) and no published iPricing was found"
+    )
+
+
+def operational_plan(settings: Settings | None = None) -> str:
+    """The plan of the bootstrap administrator: configured, else the published catalog's largest."""
+    return (settings or get_settings()).bootstrap_admin_plan or _published_operational_plan()
+
+
+def __getattr__(name: str) -> str:
+    # ``DEFAULT_ADMIN_PLAN`` stays importable, resolved from configuration on first use.
+    if name == "DEFAULT_ADMIN_PLAN":
+        return operational_plan()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 async def ensure_administrator(session: AsyncSession, settings: Settings) -> bool:
@@ -48,6 +81,7 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
     username = (settings.bootstrap_admin_username or "").strip()
     if not username:
         return False
+    plan = operational_plan(settings)
 
     result = await session.execute(select(User).where(User.username == username))
     account = result.scalars().first()
@@ -55,12 +89,12 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
     # Keep the configured bootstrap administrator on the operational plan
     # required by the deployment, even when the account predates SPACE.
     if account is not None and account.role is UserRole.ADMIN:
-        changed = account.plan_cache != DEFAULT_ADMIN_PLAN
-        account.plan_cache = DEFAULT_ADMIN_PLAN
+        changed = account.plan_cache != plan
+        account.plan_cache = plan
         if changed:
             account.contract_pending = True
             await session.flush()
-            logger.info("Kept '%s' on the %s plan", username, DEFAULT_ADMIN_PLAN)
+            logger.info("Kept '%s' on the %s plan", username, plan)
         return changed
 
     existing_admins = await session.scalar(
@@ -71,7 +105,7 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
 
     if account is not None:
         account.role = UserRole.ADMIN
-        account.plan_cache = DEFAULT_ADMIN_PLAN
+        account.plan_cache = plan
         account.contract_pending = True
         await session.flush()
         logger.info("Promoted '%s' to administrator", username)
@@ -94,7 +128,7 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
     # Same reason as DEFAULT_ADMIN_EMAIL: a domain with no dot fails the
     # email validation every response model applies.
     email = (settings.bootstrap_admin_email or f"{username}@example.org").lower()
-    session.add(_administrator(username, email, password, DEFAULT_ADMIN_PLAN))
+    session.add(_administrator(username, email, password, plan))
     await session.flush()
     logger.info("Created the first administrator, '%s'", username)
     return True
@@ -135,7 +169,7 @@ async def seed_default_administrator(
         return False
 
     session.add(_administrator(
-        DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_PLAN
+        DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, operational_plan(settings)
     ))
     await session.flush()
     return True
