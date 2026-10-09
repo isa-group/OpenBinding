@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Simulation bar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div role="region" aria-label="Prototype simulation controls" style="background: #1c1c1e; color: #ffffff; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 12px; line-height: 1.4;">
+<div style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 8px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;">
+<span style="display: inline-flex; align-items: center; gap: 8px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;">Simulation</span>
+<span style="color: #a8a8a8;">Fixture data · no API calls</span>
+</span>
+<label style="display: inline-flex; align-items: center; gap: 6px; color: #a8a8a8;">Persona
+<select value="{{persona}}" onChange="{{pickPersona}}" style="height: 28px; border-radius: 6px; border: 1px solid #4a4a4a; background: #2c2c2c; color: #ffffff; font-family: inherit; font-size: 12px; padding: 0 8px;">
+<option value="visitor">Visitor · signed out</option>
+<option value="lucia">Lucía Vega · RESEARCH · CAS</option>
+<option value="marco">Marco Díaz · BASIC</option>
+<option value="sofia">Sofía Rey · BASIC · viewer</option>
+<option value="nora">Nora Campos · ADVANCED · sponsor</option>
+<option value="iker">Iker Mora · admin · PRO</option>
+<option value="pablo">Pablo Ibáñez · PRO · API</option>
+</select>
+</label>
+<div role="group" aria-label="Screen state" style="display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 8px; background: #2c2c2c;">
+<sc-for list="{{states}}" as="s" hint-placeholder-count="5">
+<sc-if value="{{s.on}}" hint-placeholder-val="{{false}}"><button type="button" aria-pressed="true" onClick="{{s.pick}}" style="height: 24px; padding: 0 10px; border: 0; border-radius: 6px; background: #ffffff; color: #1f1f1f; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer;">{{s.label}}</button></sc-if>
+<sc-if value="{{s.off}}" hint-placeholder-val="{{true}}"><button type="button" aria-pressed="false" onClick="{{s.pick}}" style="height: 24px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #ffffff; font-family: inherit; font-size: 12px; cursor: pointer;">{{s.label}}</button></sc-if>
+<sc-if value="{{s.na}}" hint-placeholder-val="{{false}}"><button type="button" disabled="{{true}}" title="Not applicable to this screen" style="height: 24px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: #8a8a8a; font-family: inherit; font-size: 12px; text-decoration: line-through;">{{s.label}}</button></sc-if>
+</sc-for>
+</div>
+<sc-if value="{{hasScenarios}}" hint-placeholder-val="{{false}}">
+<div role="group" aria-label="Scenario" style="display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px;">
+<span style="color: #a8a8a8;">Scenario</span>
+<sc-for list="{{scenarioItems}}" as="c" hint-placeholder-count="2">
+<sc-if value="{{c.on}}" hint-placeholder-val="{{false}}"><button type="button" aria-pressed="true" onClick="{{c.pick}}" style="height: 24px; padding: 0 8px; border: 1px solid #ffffff; border-radius: 6px; background: #ffffff; color: #1f1f1f; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer;">{{c.label}}</button></sc-if>
+<sc-if value="{{c.off}}" hint-placeholder-val="{{true}}"><button type="button" aria-pressed="false" onClick="{{c.pick}}" style="height: 24px; padding: 0 8px; border: 1px solid #4a4a4a; border-radius: 6px; background: transparent; color: #ffffff; font-family: inherit; font-size: 12px; cursor: pointer;">{{c.label}}</button></sc-if>
+</sc-for>
+</div>
+</sc-if>
+<span style="flex-grow: 1;"></span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #a8a8a8;">{{screen}} · {{route}}</span>
+<a href="SysStates.dc.html" style="color: #ffffff; font-size: 12px;">State gallery</a>
+<a href="Index.dc.html" style="color: #ffffff; font-size: 12px;">Screen index</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"persona":{"editor":null,"default":"visitor"},"state":{"editor":null,"default":"success"},"na":{"editor":null},"scenarios":{"editor":null},"scenario":{"editor":null},"onPersona":{"editor":null},"onState":{"editor":null},"onScenario":{"editor":null},"screen":{"editor":null,"default":"screen-id"},"route":{"editor":null,"default":"/route"},"$preview":{"width":1280,"height":64}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const p = this.props;
+    const state = p.state || "success";
+    const na = p.na || [];
+    const defs = [["loading", "Loading"], ["empty", "Empty"], ["error", "Error"], ["forbidden", "No access"], ["success", "Success"]];
+    const states = defs.map(([key, label]) => {
+      const isNa = na.indexOf(key) >= 0;
+      return {
+        label: label,
+        na: isNa,
+        on: !isNa && key === state,
+        off: !isNa && key !== state,
+        pick: () => { if (p.onState) p.onState(key); }
+      };
+    });
+    const sc = p.scenarios || [];
+    const scenarioItems = sc.map((c) => ({
+      label: c.label,
+      on: c.id === p.scenario,
+      off: c.id !== p.scenario,
+      pick: () => { if (p.onScenario) p.onScenario(c.id); }
+    }));
+    return {
+      persona: p.persona || "visitor",
+      pickPersona: (e) => { if (p.onPersona) p.onPersona(e.target.value); },
+      states: states,
+      hasScenarios: sc.length > 0,
+      scenarioItems: scenarioItems,
+      screen: p.screen || "screen-id",
+      route: p.route || "/route"
+    };
+  }
+}
+</script>
+</body>
+</html>

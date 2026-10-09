@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · API keys</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.ob-skel{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="acct-keys" route="/app/account/keys" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<main style="max-width: 1152px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px;"><div><h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">API keys</h1><p style="margin: 4px 0 0; color: #6a6a6a;">Keys for scripts and CI. A key can never do more than your account.</p></div>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><a href="{{newHref}}" onClick="{{newClick}}" style="display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New key</a></sc-if></div>
+
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><span style="font-size: 16px; font-weight: 500;">Log in to manage API keys</span><a href="AuthLogin.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Log in</a></div></sc-if>
+
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start;">
+<div style="flex: 1 1 220px; max-width: 240px;"><dc-import name="ShellAccountNav" active="keys" hint-size="240px,260px"></dc-import></div>
+<div aria-live="polite" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+<sc-if value="{{banner}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; gap: 10px; border: 1px solid {{bannerBorder}}; background: {{bannerBg}}; border-radius: 12px; padding: 12px 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" stroke-width="2" aria-hidden="true" style="flex-shrink: 0;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16h.01"></path></svg><span>{{banner}}</span></div></sc-if>
+<sc-if value="{{isForbidden}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; gap: 10px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 12px 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" aria-hidden="true" style="flex-shrink: 0;"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><span>This request came from an API key without <code style="font-family: 'JetBrains Mono', monospace;">keys:read</code> (403). Manage keys from a browser session or a key that has keys permissions.</span></div></sc-if>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}"><div class="ob-skel" style="height: 64px; border-radius: 12px; background: #ededed;"></div><div class="ob-skel" style="height: 180px; border-radius: 12px; background: #ededed;"></div><div class="ob-skel" style="height: 180px; border-radius: 12px; background: #ededed;"></div></sc-if>
+<sc-if value="{{showList}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 14px 16px;">
+<span style="font-weight: 500;">Active keys</span>
+<div style="flex: 1; min-width: 160px; height: 8px; border-radius: 9999px; background: #ededed; overflow: hidden;"><div style="height: 8px; width: {{meterPct}}; background: {{meterFill}};"></div></div>
+<span style="font-size: 13px;">{{meterLabel}}</span>
+</div>
+<div style="display: flex; gap: 10px; border: 1px solid #93c5fd; background: #eff6ff; border-radius: 12px; padding: 10px 14px; font-size: 13px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" aria-hidden="true" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg><span>Treat a key like a password: it acts as you within its permissions. The secret is shown only once, when you create or rotate it. We only keep its prefix.</span></div>
+<sc-if value="{{noKeys}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 40px 24px;"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#6a6a6a" stroke-width="1.4" aria-hidden="true"><path d="M15 7a4 4 0 1 1-3.9 5H3v3h3v3h3v-3h2.1A4 4 0 0 1 15 7z"></path></svg><span style="font-weight: 500;">No API keys</span><span style="font-size: 13px; color: #6a6a6a;">Create a key to call OpenBinding from scripts or CI.</span><a href="{{newHref}}" style="font-weight: 500;">Create your first key</a></div></sc-if>
+<sc-if value="{{placeholderNote}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #6a6a6a;">{{placeholderNote}}</span></sc-if>
+<sc-for list="{{keys}}" as="k" hint-placeholder-count="2">
+<article style="border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a4a4a" stroke-width="1.8" aria-hidden="true"><path d="M15 7a4 4 0 1 1-3.9 5H3v3h3v3h3v-3h2.1A4 4 0 0 1 15 7z"></path></svg>
+<span style="font-weight: 600;">{{k.name}}</span>
+<span style="border-radius: 9999px; padding: 0 8px; font-size: 12px; font-weight: 500; border: 1px solid {{k.statusBorder}}; background: {{k.statusBg}};">{{k.status}}</span>
+<sc-if value="{{k.ph}}" hint-placeholder-val="{{false}}"><span style="border-radius: 9999px; background: #fffbeb; border: 1px solid #fcd34d; padding: 0 8px; font-size: 11px; font-weight: 500;">Placeholder</span></sc-if>
+<span style="flex: 1;"></span>
+<sc-if value="{{k.active}}" hint-placeholder-val="{{true}}"><span style="display: flex; gap: 8px;"><button type="button" onClick="{{k.rotate}}" style="height: 32px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 13px; cursor: pointer;">Rotate</button><button type="button" onClick="{{k.revoke}}" style="height: 32px; padding: 0 12px; border: 1px solid #fca5a5; border-radius: 8px; background: #ffffff; color: #b91c1c; font-family: inherit; font-size: 13px; cursor: pointer;">Revoke</button></span></sc-if>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: #4a4a4a;"><code style="border-radius: 4px; background: #fafafa; border: 1px solid #ededed; padding: 1px 8px; font-family: 'JetBrains Mono', monospace; color: #1f1f1f;">{{k.prefix}}…</code><button type="button" onClick="{{k.copy}}" style="border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 12px; font-weight: 500; color: #0077b6; cursor: pointer;">{{k.copyLabel}}</button><span>· created {{k.created}} · last used {{k.lastUsed}} · {{k.expires}}</span></div>
+<div style="display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; font-size: 13px;">
+<span style="color: #6a6a6a;">Permissions</span><span style="display: flex; flex-wrap: wrap; gap: 4px;"><sc-for list="{{k.perms}}" as="p" hint-placeholder-count="3"><span style="border-radius: 9999px; background: #caf0f8; padding: 0 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">{{p}}</span></sc-for></span>
+<span style="color: #6a6a6a;">Engines</span><span>{{k.engines}}</span>
+<span style="color: #6a6a6a;">Limited to</span><span style="display: flex; flex-wrap: wrap; gap: 4px;"><sc-for list="{{k.bounds}}" as="b" hint-placeholder-count="2"><span style="border-radius: 4px; border: 1px solid #b8b8b8; padding: 0 6px; font-size: 12px;">{{b}}</span></sc-for></span>
+</div>
+</article>
+</sc-for>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</main>
+<sc-if value="{{dialog}}" hint-placeholder-val="{{false}}">
+<div style="position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px;">
+<button type="button" aria-label="Cancel" onClick="{{closeDialog}}" style="position: absolute; inset: 0; border: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); cursor: pointer;"></button>
+<div role="dialog" aria-modal="true" aria-labelledby="dlg-title" style="position: relative; width: 100%; max-width: 520px; border: 1px solid #b8b8b8; border-top: 4px solid {{dlg.top}}; border-radius: 16px; background: #ffffff; padding: 24px; box-shadow: 0 16px 48px -8px rgba(0,0,0,0.12); display: flex; flex-direction: column; gap: 12px;">
+<sc-if value="{{dlg.confirm}}" hint-placeholder-val="{{true}}">
+<h2 id="dlg-title" style="margin: 0; font-size: 18px; font-weight: 600;">{{dlg.title}}</h2>
+<span style="color: #4a4a4a;">{{dlg.text}}</span>
+<div style="display: flex; justify-content: flex-end; gap: 8px;"><button type="button" onClick="{{closeDialog}}" style="height: 38px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #fafafa; font-family: inherit; font-size: 14px; cursor: pointer;">Cancel</button><button type="button" onClick="{{dlg.go}}" style="height: 38px; padding: 0 14px; border: 0; border-radius: 8px; background: {{dlg.btnBg}}; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">{{dlg.btn}}</button></div>
+</sc-if>
+<sc-if value="{{dlg.secret}}" hint-placeholder-val="{{false}}">
+<h2 id="dlg-title" style="margin: 0; font-size: 18px; font-weight: 600;">Copy your new secret now</h2>
+<span style="color: #4a4a4a;">This is the only time it's shown. The previous secret of “{{dlg.name}}” has stopped working; permissions didn't change.</span>
+<div style="display: flex; border: 1px solid #fcd34d; border-radius: 8px; overflow: hidden; background: #fffbeb;"><code style="flex: 1; min-width: 0; padding: 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px; overflow-wrap: anywhere;">obk_demo0003_SECRETO-DE-EJEMPLO-NO-VALIDO</code><button type="button" onClick="{{copySecret}}" style="flex-shrink: 0; width: 84px; border: 0; background: #0077b6; color: #ffffff; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer;">{{secretLabel}}</button></div>
+<span style="font-size: 12px; color: #6a6a6a;">Fixture value, clearly not a real key.</span>
+<label style="display: flex; align-items: center; gap: 8px; font-size: 14px;"><input type="checkbox" checked="{{saved}}" onChange="{{toggleSaved}}" style="width: 16px; height: 16px; accent-color: #0077b6;">I've stored the secret somewhere safe</label>
+<button type="button" onClick="{{closeDialog}}" disabled="{{notSaved}}" style="height: 40px; border: 0; border-radius: 8px; background: #0077b6; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; opacity: {{doneOpacity}};">Done</button>
+</sc-if>
+</div>
+</div>
+</sc-if>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "pablo", st: "success", scenario: "ok", revoked: [], dialog: null, saved: false, copied: "", banner: "", secretCopied: false };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "" },
+      lucia: { signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV", count: 2, limit: 25, admin: false },
+      marco: { signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD", count: 1, limit: 1, admin: false },
+      sofia: { signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR", count: 0, limit: 1, admin: false },
+      nora: { signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC", count: 3, limit: 10, admin: false },
+      iker: { signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM", count: 1, limit: Infinity, admin: true },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI", count: 2, limit: Infinity, admin: false }
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+  setPersona(k) { this.setState({ persona: k, revoked: [], banner: "" }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const st = s.st;
+    const sc = s.scenario;
+    const pabloKeys = [
+      { id: "k1", name: "ci-lectura-resultados", prefix: "obk_demo0001", created: "Sep 1, 2026", lastUsed: "Oct 8, 2026", expires: "expires Dec 31, 2026", perms: ["jobs:read", "studies:read", "reports:read", "projects:read"], engines: "All engines, including future ones", bounds: ["GET only", "org isa-demo", "project qos-benchmarks", "jobs, studies, reports"], ph: false },
+      { id: "k2", name: "ejecucion-engine-fijo", prefix: "obk_demo0002", created: "Sep 10, 2026", lastUsed: "never", expires: "no expiry", perms: ["engines:read", "engines:execute", "jobs:read", "instances:validate"], engines: "Only bim.builtin/random-search@1.0.0 (sha256-b2c3…d4e5)", bounds: ["No extra limits"], ph: false }
+    ];
+    let base = s.persona === "pablo" ? pabloKeys : [];
+    let placeholderNote = "";
+    if (s.persona !== "pablo" && who.count > 0) {
+      for (let i = 0; i < who.count; i++) base.push({ id: "p" + i, name: "[key name]", prefix: "obk_[prefix]", created: "[date]", lastUsed: "[date]", expires: "[expiry]", perms: ["[permissions]"], engines: "[engine access]", bounds: ["[limits]"], ph: true });
+      placeholderNote = "The fixtures count " + who.count + (who.count === 1 ? " key" : " keys") + " for " + who.name + " but only detail Pablo's, so these rows are placeholders.";
+    }
+    const keys = base.filter((k) => s.revoked.indexOf(k.id) < 0).map((k) => Object.assign({}, k, {
+      active: true, status: "Active", statusBg: "#f0fdf4", statusBorder: "#86efac",
+      copyLabel: s.copied === k.id ? "Copied" : "Copy prefix",
+      copy: () => this.setState({ copied: k.id }),
+      rotate: () => this.setState({ dialog: { kind: "rotate", id: k.id, name: k.name } }),
+      revoke: () => this.setState({ dialog: { kind: "revoke", id: k.id, name: k.name } })
+    }));
+    const count = keys.length;
+    const full = who.limit !== Infinity && count >= who.limit;
+    const limitHit = full || sc === "402";
+    const dlgDef = s.dialog;
+    let dlg = { confirm: false, secret: false, top: "#0077b6", title: "", text: "", btn: "", btnBg: "#0077b6", go: () => {}, name: "" };
+    if (dlgDef && dlgDef.kind === "rotate") dlg = { confirm: true, secret: false, top: "#0077b6", title: "Rotate “" + dlgDef.name + "”?", text: "You'll get a new secret and the current one stops working immediately. Permissions, engines and limits stay the same. Update anything that uses this key.", btn: "Rotate key", btnBg: "#0077b6", name: dlgDef.name, go: () => { if (sc === "404") { this.setState({ dialog: null, banner: "That key no longer exists or isn't yours (404). The list was refreshed." }); return; } this.setState({ dialog: { kind: "secret", id: dlgDef.id, name: dlgDef.name }, saved: false, secretCopied: false }); } };
+    if (dlgDef && dlgDef.kind === "revoke") dlg = { confirm: true, secret: false, top: "#ef4444", title: "Revoke “" + dlgDef.name + "”?", text: "Anything using this key stops working right away. This can't be undone; create a new key if you need access again.", btn: "Revoke key", btnBg: "#ef4444", name: dlgDef.name, go: () => { if (sc === "404") { this.setState({ dialog: null, banner: "That key no longer exists or isn't yours (404). The list was refreshed." }); return; } this.setState({ dialog: null, revoked: s.revoked.concat([dlgDef.id]), banner: "“" + dlgDef.name + "” was revoked." }); } };
+    if (dlgDef && dlgDef.kind === "secret") dlg = { confirm: false, secret: true, top: "#f59e0b", name: dlgDef.name, title: "", text: "", btn: "", btnBg: "", go: () => {} };
+    const bannerIsOk = s.banner && s.banner.indexOf("revoked") >= 0;
+    const limitBanner = limitHit ? "You've reached your plan's API key limit (" + (who.limit === Infinity ? "∞" : who.limit) + "). Revoke a key or ask for an agreement with more keys; creating one now returns 402." : "";
+    return {
+      persona: s.persona, st: st, na: [],
+      scenarios: [{ id: "ok", label: "Actions succeed" }, { id: "404", label: "404 key gone" }, { id: "402", label: "402 key limit" }],
+      scenario: sc,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState({ st: x }),
+      setScenario: (x) => this.setState({ scenario: x, banner: "" }),
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      newHref: "AcctKeyNew.dc.html",
+      newClick: () => {},
+      banner: s.banner || limitBanner,
+      bannerBg: bannerIsOk ? "#f0fdf4" : "#fffbeb", bannerBorder: bannerIsOk ? "#86efac" : "#fcd34d",
+      isForbidden: st === "forbidden", isLoading: st === "loading",
+      showList: st === "success" || st === "empty" || st === "error",
+      keys: st === "empty" ? [] : keys,
+      noKeys: st === "empty" || count === 0,
+      placeholderNote: st === "empty" ? "" : placeholderNote,
+      meterPct: who.limit === Infinity ? "4%" : Math.min(100, Math.round((st === "empty" ? 0 : count) / who.limit * 100)) + "%",
+      meterFill: limitHit ? "#023e8a" : "#0077b6",
+      meterLabel: (st === "empty" ? 0 : count) + " of " + (who.limit === Infinity ? "unlimited" : who.limit) + " keys",
+      dialog: !!dlgDef, dlg: dlg,
+      closeDialog: () => this.setState({ dialog: null }),
+      saved: s.saved, notSaved: !s.saved, doneOpacity: s.saved ? "1" : "0.4",
+      toggleSaved: () => this.setState({ saved: !s.saved }),
+      copySecret: () => this.setState({ secretCopied: true }),
+      secretLabel: s.secretCopied ? "Copied" : "Copy"
+    };
+  }
+}
+</script>
+</body>
+</html>

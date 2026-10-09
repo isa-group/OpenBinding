@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#ffffff}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-fadeup{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-in{animation:ob-fadeup 300ms ease-out both}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-in{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="position: relative; min-height: 100vh; overflow-x: clip; background: #ffffff; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="pub-home" route="/" hint-size="100%,44px"></dc-import>
+<div aria-hidden="true" style="position: absolute; left: -112px; top: 160px; width: 448px; height: 448px; border-radius: 9999px; background: #ade8f4; opacity: 0.35; filter: blur(140px);"></div>
+<div aria-hidden="true" style="position: absolute; right: -128px; top: 360px; width: 544px; height: 544px; border-radius: 9999px; background: #caf0f8; opacity: 0.5; filter: blur(160px);"></div>
+<dc-import name="ShellPublicHeader" signed-in="{{who.signedIn}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" active="" on-logout="{{logout}}" hint-size="100%,88px"></dc-import>
+<main style="position: relative; max-width: 1240px; margin: 0 auto; box-sizing: border-box; padding: 64px 16px 96px; display: flex; flex-direction: column; gap: 96px;">
+
+<sc-if value="{{expired}}" hint-placeholder-val="{{false}}">
+<div role="status" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border: 1px solid #93c5fd; background: #eff6ff; border-radius: 12px; padding: 12px 14px; margin-bottom: -64px;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>
+<span style="flex: 1; min-width: 200px;">Your session expired, so you're browsing as a visitor. Nothing private is shown on this page.</span>
+<a href="AuthLogin.dc.html" style="font-weight: 500;">Log in again</a>
+</div>
+</sc-if>
+
+<section aria-labelledby="hero-title" style="display: flex; flex-direction: column; gap: 32px;">
+<span style="align-self: flex-start; display: inline-flex; border-radius: 9999px; border: 1px solid rgba(31,31,31,0.1); background: rgba(255,255,255,0.7); padding: 4px 12px; font-size: 10px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: #4a4a4a;">BIM v1 · deterministic QoS binding</span>
+<h1 id="hero-title" style="margin: 0; max-width: 900px; font-family: 'Inter', ui-sans-serif, sans-serif; font-weight: 600; font-size: clamp(2.35rem, 6.4vw, 4.9rem); line-height: 0.95; letter-spacing: -1.5px; color: #1f1f1f;"><span style="display: block;">Describe.</span><span style="display: block; color: #4a4a4a;">Bind.</span><span style="display: block; color: #023e8a;">Reproduce.</span></h1>
+<p style="margin: 0; max-width: 680px; font-size: 18px; line-height: 1.55; color: #4a4a4a;">OpenBinding validates BIM v1 service-composition packages, compiles them into a binding problem and re-evaluates every binding an engine returns, so results can be compared, published and verified by digest.</p>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;">
+<a href="PubWorkbench.dc.html" class="ob-in" style="display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: #1f1f1f; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 20px;">
+<span style="display: flex; align-items: center; justify-content: space-between;"><span style="width: 32px; height: 32px; border-radius: 8px; background: rgba(0,119,182,0.1); color: #0077b6; display: inline-flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg></span><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 9999px; background: #0077b6; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 13px;">↗</span></span>
+<span style="font-size: 18px; font-weight: 500;">Validate a package</span>
+<span style="color: #4a4a4a;">No account needed. Upload a .bim.zip and get localized diagnostics and digests. Nothing is executed.</span>
+</a>
+<a href="PubExplore.dc.html" class="ob-in" style="display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: #1f1f1f; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 20px; animation-delay: 60ms;">
+<span style="display: flex; align-items: center; justify-content: space-between;"><span style="width: 32px; height: 32px; border-radius: 8px; background: rgba(0,119,182,0.1); color: #0077b6; display: inline-flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg></span><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 9999px; border: 1px solid #1f1f1f; color: #1f1f1f; display: inline-flex; align-items: center; justify-content: center; font-size: 13px;">↗</span></span>
+<span style="font-size: 18px; font-weight: 500;">Explore published results</span>
+<span style="color: #4a4a4a;">Public projects, frozen report editions and engines, each one verifiable by its SHA-256 digest.</span>
+</a>
+<sc-if value="{{signedOutHero}}" hint-placeholder-val="{{true}}">
+<a href="AuthRegister.dc.html" class="ob-in" style="display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: #1f1f1f; border: 1px solid #a9d6ea; border-radius: 16px; background: #f1f8fc; padding: 20px; animation-delay: 120ms;">
+<span style="display: flex; align-items: center; justify-content: space-between;"><span style="width: 32px; height: 32px; border-radius: 8px; background: rgba(0,119,182,0.1); color: #0077b6; display: inline-flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg></span><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 9999px; background: #0077b6; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 13px;">↗</span></span>
+<span style="font-size: 18px; font-weight: 500;">Create an account</span>
+<span style="color: #4a4a4a;">Start on BASIC: compose cases, run engines and publish studies. Verified Universidad de Sevilla accounts can get RESEARCH.</span>
+</a>
+</sc-if>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{false}}">
+<a href="AppHome.dc.html" class="ob-in" style="display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: #1f1f1f; border: 1px solid #a9d6ea; border-radius: 16px; background: #f1f8fc; padding: 20px; animation-delay: 120ms;">
+<span style="display: flex; align-items: center; justify-content: space-between;"><span style="width: 32px; height: 32px; border-radius: 9999px; background: #caf0f8; color: #023e8a; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">{{who.initials}}</span><span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 9999px; background: #0077b6; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 13px;">↗</span></span>
+<span style="font-size: 18px; font-weight: 500;">Go to your workspace</span>
+<span style="color: #4a4a4a;">Signed in as {{who.name}} · {{who.plan}} plan. Organizations, projects and jobs live there.</span>
+</a>
+</sc-if>
+</div>
+</section>
+
+<section aria-labelledby="pipe-title" style="display: flex; flex-direction: column; gap: 24px;">
+<span style="align-self: flex-start; display: inline-flex; border-radius: 9999px; border: 1px solid rgba(31,31,31,0.1); background: rgba(255,255,255,0.7); padding: 4px 12px; font-size: 10px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: #4a4a4a;">How it works</span>
+<h2 id="pipe-title" style="margin: 0; max-width: 760px; font-size: 36px; font-weight: 500; line-height: 1.15; letter-spacing: -0.5px;">From a package to evidence anyone can verify</h2>
+<div role="tablist" aria-label="Pipeline stages" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px;">
+<sc-for list="{{pipeline}}" as="n" hint-placeholder-count="6">
+<button type="button" role="tab" aria-selected="{{n.selected}}" onClick="{{n.pick}}" style="{{n.style}}">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #6a6a6a;">{{n.step}}</span>
+<span style="font-size: 15px; font-weight: 500; color: #1f1f1f;">{{n.title}}</span>
+<span style="font-size: 12px; color: #4a4a4a;">{{n.short}}</span>
+</button>
+</sc-for>
+</div>
+<div role="tabpanel" aria-live="polite" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 16px; padding: 20px 24px;">
+<div style="display: flex; flex-direction: column; gap: 4px; max-width: 760px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">{{node.step}} · {{node.title}}</span>
+<span style="font-size: 16px; color: #1f1f1f;">{{node.long}}</span>
+</div>
+<a href="{{node.href}}" style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-size: 14px; font-weight: 500; text-decoration: none;">{{node.cta}}</a>
+</div>
+</section>
+
+<section aria-labelledby="pubs-title" style="display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<span style="align-self: flex-start; display: inline-flex; border-radius: 9999px; border: 1px solid rgba(31,31,31,0.1); background: rgba(255,255,255,0.7); padding: 4px 12px; font-size: 10px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: #4a4a4a;">Recently public</span>
+<h2 id="pubs-title" style="margin: 0; font-size: 28px; font-weight: 500;">Publications and public projects</h2>
+</div>
+<a href="PubExplore.dc.html" style="font-size: 14px; font-weight: 500;">View all in Explore</a>
+</div>
+<div aria-live="polite" aria-busy="{{isLoading}}">
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+<div class="ob-skel" style="height: 148px; border-radius: 16px; background: #ededed;"></div>
+<div class="ob-skel" style="height: 148px; border-radius: 16px; background: #ededed;"></div>
+<div class="ob-skel" style="height: 148px; border-radius: 16px; background: #ededed;"></div>
+</div>
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Loading recent publications</span>
+</sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; border: 1px dashed #a8a8a8; background: rgba(250,250,250,0.5); border-radius: 16px; padding: 48px 24px;">
+<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg>
+<span style="font-size: 14px; font-weight: 500;">Nothing has been published yet</span>
+<span style="font-size: 13px; color: #6a6a6a; max-width: 460px;">When a team freezes a report and publishes it, it appears here with its citation and digest. Meanwhile, the language guide explains what a package contains.</span>
+<a href="LangProfiles.dc.html" style="font-size: 14px; font-weight: 500;">Read the language guide</a>
+</div>
+</sc-if>
+<sc-if value="{{isError}}" hint-placeholder-val="{{false}}">
+<div role="alert" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16h.01"></path></svg>
+<span style="flex: 1; min-width: 220px;">Recent publications couldn't be loaded (503 · the gateway can't reach its database). The rest of the page still works.</span>
+<button type="button" onClick="{{retry}}" style="height: 32px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;">Retry</button>
+</div>
+</sc-if>
+<sc-if value="{{showList}}" hint-placeholder-val="{{true}}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+<a href="PubResolve.dc.html" class="ob-in" style="display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: #1f1f1f; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px;">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: #6a6a6a;"><span style="width: 20px; height: 20px; border-radius: 6px; background: #023e8a; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600;">ID</span>ISA Demo Group <span style="color: #b8b8b8;">/</span> QoS Benchmarks</span>
+<span style="font-size: 15px; font-weight: 500;">Comparativa de engines en checkout (sintética)</span>
+<span style="font-size: 13px; color: #4a4a4a;">Lucía Vega · 2026 · published Sep 25, 2026</span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: #6a6a6a;"><span style="border-radius: 4px; background: #fafafa; padding: 2px 6px;">Report edition</span><span style="border-radius: 4px; background: #fafafa; padding: 2px 6px; font-family: 'JetBrains Mono', monospace;">sha256-e5f6…0718</span><span style="border-radius: 4px; background: #fafafa; padding: 2px 6px;">Public</span></span>
+</a>
+<a href="PubExplore.dc.html" class="ob-in" style="display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: #1f1f1f; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; animation-delay: 60ms;">
+<span style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: #6a6a6a;"><span style="width: 20px; height: 20px; border-radius: 6px; background: #023e8a; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600;">ID</span>ISA Demo Group</span>
+<span style="font-size: 15px; font-weight: 500;">QoS Benchmarks</span>
+<span style="font-size: 13px; color: #4a4a4a;">Casos de referencia de binding con workflow y placement.</span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: #6a6a6a;"><span style="border-radius: 4px; background: #fafafa; padding: 2px 6px;">Public project</span><span style="border-radius: 4px; background: #fafafa; padding: 2px 6px;">1 publication</span></span>
+</a>
+<a href="EngCatalog.dc.html" class="ob-in" style="display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: #1f1f1f; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; animation-delay: 120ms;">
+<span style="font-size: 11px; color: #6a6a6a;">Public engines</span>
+<span style="font-size: 15px; font-weight: 500;">3 built-in engine revisions</span>
+<span style="font-size: 13px; color: #4a4a4a; font-family: 'JetBrains Mono', monospace;">random-search · evolutionary · minizinc</span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: #6a6a6a;"><span style="border-radius: 4px; background: #fafafa; padding: 2px 6px;">bim.builtin</span><span style="border-radius: 4px; background: #fafafa; padding: 2px 6px;">v1.0.0</span></span>
+</a>
+</div>
+</sc-if>
+</div>
+</section>
+
+<section aria-labelledby="plans-title" style="display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<span style="align-self: flex-start; display: inline-flex; border-radius: 9999px; border: 1px solid rgba(31,31,31,0.1); background: rgba(255,255,255,0.7); padding: 4px 12px; font-size: 10px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: #4a4a4a;">Plans</span>
+<h2 id="plans-title" style="margin: 0; font-size: 28px; font-weight: 500;">Free to start, institutional when you scale</h2>
+</div>
+<a href="PubPricing.dc.html" style="font-size: 14px; font-weight: 500;">Compare plans</a>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
+<sc-for list="{{plans}}" as="pl" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 10px; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">{{pl.name}}</span>
+<span style="font-size: 18px; font-weight: 500;">{{pl.price}}</span>
+<span style="font-size: 13px; color: #4a4a4a;">{{pl.how}}</span>
+<span style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{pl.chips}}" as="c" hint-placeholder-count="3"><span style="border-radius: 9999px; background: #caf0f8; padding: 2px 10px; font-size: 12px; font-weight: 500;">{{c}}</span></sc-for></span>
+</div>
+</sc-for>
+</div>
+<span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #6a6a6a;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" aria-hidden="true"><path d="M12 3 2 20h20L12 3z"></path><path d="M12 10v4M12 17h.01"></path></svg>Figures from pricing 0.1.0, a development copy not verified against the live pricing. No checkout: paid plans are arranged by agreement.</span>
+</section>
+
+</main>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":3000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "visitor", st: "success", scenario: "", node: 0 };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "", plan: "" },
+      lucia: { signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV", plan: "RESEARCH" },
+      marco: { signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD", plan: "BASIC" },
+      sofia: { signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR", plan: "BASIC" },
+      nora: { signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC", plan: "ADVANCED" },
+      iker: { signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM", plan: "PRO" },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI", plan: "PRO" }
+    };
+  }
+  componentDidMount() {
+    try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); } catch (e) {}
+  }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+  setPersona(k) {
+    this.setState({ persona: k });
+    try { window.localStorage.setItem("ob.persona", k); } catch (e) {}
+  }
+  renderVals() {
+    const st = this.state.st;
+    const expired = st === "forbidden";
+    const who = expired ? this.personas().visitor : (this.personas()[this.state.persona] || this.personas().visitor);
+    const nodes = [
+      { step: "01", title: "Package", short: ".bim.zip of BIM v1 resources", long: "A portable package of modular BIM v1 resources: the application workflow, candidate catalogs, constraints and the optimization objective.", href: "LangExamples.dc.html", cta: "Browse example packages" },
+      { step: "02", title: "Validation", short: "Localized diagnostics", long: "Every problem is reported where it lives: the resource, a JSON Pointer, a CEL span or a BPMN element, with a suggested fix.", href: "PubWorkbench.dc.html", cta: "Validate a package" },
+      { step: "03", title: "Profile & dialects", short: "Roles and resource types", long: "The Profile fixes which roles the instance must fill and with what cardinality; installed dialects contribute resource types and IR features.", href: "LangProfiles.dc.html", cta: "Open the language guide" },
+      { step: "04", title: "Binding problem", short: "IR with its own digest", long: "The instance is compiled into a BindingProblem IR. Its digest identifies exactly what any engine was asked to solve.", href: "LangSchemas.dc.html", cta: "See the BindingProblem schema" },
+      { step: "05", title: "Engine", short: "Exact revision and mode", long: "Engines are addressed by namespace, name, version and digest, and run in a declared mode with options that carry units.", href: "EngCatalog.dc.html", cta: "Browse engines" },
+      { step: "06", title: "Re-evaluation", short: "The gateway re-checks", long: "The gateway re-evaluates every binding an engine returns, so objectives, penalties and violations don't depend on the engine's own report.", href: "PubExplore.dc.html", cta: "See published results" }
+    ];
+    const sel = this.state.node;
+    const pipeline = nodes.map((n, i) => Object.assign({}, n, {
+      selected: i === sel ? "true" : "false",
+      pick: () => this.setState({ node: i }),
+      style: "display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; min-height: 112px; padding: 14px; border-radius: 16px; font-family: inherit; cursor: pointer; " + (i === sel ? "border: 2px solid #0077b6; background: #ffffff; box-shadow: 0 4px 12px 0 rgba(0,0,0,0.04);" : "border: 1px solid #b8b8b8; background: #ffffff; margin: 1px;")
+    }));
+    const plans = [
+      { name: "Basic", price: "Free", how: "Default plan when you sign up.", chips: ["10 solves / month", "1 concurrent job", "3 study runs / month"] },
+      { name: "Research", price: "Free with verified CAS", how: "For Universidad de Sevilla accounts with a verified CAS identity.", chips: ["50 solves / month", "3 concurrent jobs", "100 study runs / month"] },
+      { name: "Advanced", price: "Contact us", how: "Institutional agreement. Adds advanced analytics.", chips: ["25 solves / month", "2 concurrent jobs", "50 study runs / month"] },
+      { name: "Pro", price: "Contact us", how: "Institutional agreement. Adds the reproducibility archive.", chips: ["Unlimited solves", "8 concurrent jobs", "1,000 study runs / month"] }
+    ];
+    return {
+      persona: this.state.persona,
+      st: st,
+      na: [],
+      scenarios: [],
+      scenario: "",
+      setPersona: (k) => this.setPersona(k),
+      setSt: (s) => this.setState({ st: s }),
+      setScenario: () => {},
+      logout: () => this.setPersona("visitor"),
+      who: who,
+      expired: expired,
+      signedOutHero: !who.signedIn,
+      pipeline: pipeline,
+      node: nodes[sel],
+      isLoading: st === "loading",
+      isEmpty: st === "empty",
+      isError: st === "error",
+      showList: st === "success" || st === "forbidden",
+      retry: () => { this.setState({ st: "loading" }); this.timer = setTimeout(() => this.setState({ st: "success" }), 1200); },
+      plans: plans
+    };
+  }
+}
+</script>
+</body>
+</html>

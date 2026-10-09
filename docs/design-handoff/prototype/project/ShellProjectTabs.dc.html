@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Project tabs</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; color: #1f1f1f; border-bottom: 1px solid #b8b8b8; background: #ffffff;">
+<div style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 0 16px; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px;">
+<nav aria-label="Project sections" style="display: flex; gap: 2px; overflow-x: auto; min-width: 0;">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="7">
+<a href="{{t.href}}" title="{{t.title}}" aria-current="{{t.current}}" style="{{t.style}}">{{t.label}}</a>
+</sc-for>
+</nav>
+<div style="display: flex; gap: 2px; flex-shrink: 0;">
+<a href="ProjPackage.dc.html" aria-current="{{pkgCurrent}}" style="{{pkgStyle}}">Package</a>
+<a href="ProjSettings.dc.html" aria-current="{{setCurrent}}" style="{{setStyle}}">Settings</a>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["overview","cases","library","jobs","studies","reports","files","package","settings"],"default":"overview"},"$preview":{"width":1280,"height":48}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const a = this.props.active || "overview";
+    const st = (on) => "display: inline-flex; align-items: center; height: 44px; padding: 0 14px; font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap; margin-bottom: -1px; " + (on ? "color: #0077b6; border-bottom: 2px solid #0077b6;" : "color: #6a6a6a; border-bottom: 2px solid transparent;");
+    const defs = [
+      ["overview", "Overview", "ProjOverview.dc.html", ""],
+      ["cases", "Cases", "CaseList.dc.html", ""],
+      ["library", "Library", "ProjLibrary.dc.html", ""],
+      ["jobs", "Jobs", "JobList.dc.html", ""],
+      ["studies", "Studies", "StudyList.dc.html", ""],
+      ["reports", "Reports", "RepList.dc.html", ""],
+      ["files", "Files", "ProjFiles.dc.html", ""]
+    ];
+    const tabs = defs.map(([k, label, href, title]) => ({ label: label, href: href, title: title, current: a === k ? "page" : "false", style: st(a === k) }));
+    return {
+      tabs: tabs,
+      pkgCurrent: a === "package" ? "page" : "false", pkgStyle: st(a === "package"),
+      setCurrent: a === "settings" ? "page" : "false", setStyle: st(a === "settings")
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Domain 2 coverage</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<header style="border-bottom: 1px solid #b8b8b8; background: rgba(255,255,255,0.8);"><div style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; min-height: 56px; padding: 0 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;"><span style="font-size: 14px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase;">OpenBinding</span><span style="display: inline-flex; gap: 12px;"><a href="Index.dc.html">Screen index</a><a href="D1Coverage.dc.html">Domain 1 report</a><a href="Main.dc.html">Plan</a></span></div></header>
+<main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 32px;">
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Domain 2 · coverage report</span>
+<h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">Pricing &amp; account</h1>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px;"><div style="font-family: 'PP Editorial Old', Georgia, serif; font-size: 32px;">7 / 7</div><div style="font-size: 12px; font-weight: 500; color: #6a6a6a;">screens prototyped · 0 pending in this domain</div></div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px;"><div style="font-family: 'PP Editorial Old', Georgia, serif; font-size: 32px;">22 / 22</div><div style="font-size: 12px; font-weight: 500; color: #6a6a6a;">API operations mapped to domain 2 represented · 1 shared with domain 1 (CAS start)</div></div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px;"><div style="font-family: 'PP Editorial Old', Georgia, serif; font-size: 32px;">25 / 86</div><div style="font-size: 12px; font-weight: 500; color: #6a6a6a;">screens overall · 61 pending (domains 3–8)</div></div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px;"><div style="font-family: 'PP Editorial Old', Georgia, serif; font-size: 32px;">52 / 220</div><div style="font-size: 12px; font-weight: 500; color: #6a6a6a;">unique operations overall · 168 pending</div></div>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0; font-size: 18px; font-weight: 500;">Screens, states and personas</h2>
+<p style="margin: 0; color: #4a4a4a; max-width: 820px;">Same simulation bar as domain 1. Account screens share the settings sidebar (ShellAccountNav on the System page) and the app header, whose user menu now opens them.</p>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; overflow-x: auto;">
+<table style="width: 100%; min-width: 1040px; border-collapse: collapse; font-size: 13px;">
+<thead><tr style="background: #fafafa; text-align: left;"><th style="padding: 10px 14px; font-size: 12px; color: #6a6a6a;">Screen</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Board</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Loading</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Empty</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Error</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">No access</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Success</th><th style="padding: 10px 14px; font-size: 12px; color: #6a6a6a;">Persona variation</th></tr></thead>
+<tbody>
+<sc-for list="{{screens}}" as="r" hint-placeholder-count="7">
+<tr style="border-top: 1px solid #ededed; vertical-align: top;">
+<td style="padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-weight: 500;">{{r.id}}</td>
+<td style="padding: 10px;"><a href="{{r.file}}">{{r.file}}</a></td>
+<td style="padding: 10px;">{{r.l}}</td><td style="padding: 10px;">{{r.e}}</td><td style="padding: 10px;">{{r.x}}</td><td style="padding: 10px;">{{r.f}}</td><td style="padding: 10px;">{{r.s}}</td>
+<td style="padding: 10px 14px; color: #4a4a4a;">{{r.p}}</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0; font-size: 18px; font-weight: 500;">API operations represented</h2>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; overflow-x: auto;">
+<table style="width: 100%; min-width: 960px; border-collapse: collapse; font-size: 13px;">
+<thead><tr style="background: #fafafa; text-align: left;"><th style="padding: 10px 14px; font-size: 12px; color: #6a6a6a;">Operation</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Kind</th><th style="padding: 10px 14px; font-size: 12px; color: #6a6a6a;">Where it shows in the prototype</th></tr></thead>
+<tbody>
+<sc-for list="{{ops}}" as="o" hint-placeholder-count="22">
+<tr style="border-top: 1px solid #ededed; vertical-align: top;"><td style="padding: 8px 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">{{o.op}}</td><td style="padding: 8px 10px;">{{o.kind}}</td><td style="padding: 8px 14px; color: #4a4a4a;">{{o.where}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</section>
+
+<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px;">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 8px;"><span style="font-weight: 600;">Existing behaviour shown</span><span style="color: #4a4a4a;">Pricing catalog and current release; profile read, update and delete with its 409 cases; API keys list, create, rotate and revoke with a secret shown once; identities list, link and unlink; notifications list, read, read-all and email preference; usage with plan limits; logout.</span></div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 8px;"><span style="font-weight: 600;">Proposed (for implementation)</span><span style="color: #4a4a4a;">Settings sidebar grouping five account routes; five-step key wizard with locked admin-only permissions; typed confirmations for account deletion and for unlinking CAS (“DOWNGRADE RESEARCH”); before/after detail on contract notifications; three limit outcomes explained on Pricing.</span></div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 8px;"><span style="font-weight: 600;">Simulated (fixtures only)</span><span style="color: #4a4a4a;">All usage numbers (Lucía and Marco only; other personas show limits with “used” blank); Pablo's two keys; the example secret <span style="font-family: 'JetBrains Mono', monospace;">obk_demo0003_…NO-VALIDO</span>; LIVE release 0.1.0 digest a1; the CAS link round trip; contact modal (nothing is sent).</span></div>
+</section>
+
+<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px;">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 8px;"><span style="font-weight: 600;">Decisions and deviations</span>
+<ul style="margin: 0; padding-left: 18px; color: #4a4a4a; display: flex; flex-direction: column; gap: 4px;">
+<li>No prices or checkout anywhere: paid plans read “Contact us / Institutional agreement”. Pricing is labelled development copy 0.1.0.</li>
+<li>capacityUnits is flagged “To confirm” because its meaning isn't settled in the handoff.</li>
+<li>The pricing token is internal: Usage shows its state (valid, stale, missing) as plain-language banners, never the token itself.</li>
+<li>Admin-only key permissions appear locked with an explanation, so nothing implies a MANAGEMENT or ALL key from the browser.</li>
+<li>No Expert view: everything in the pricing document is shown visually (plan descriptions, exact values under rounded figures, which features each limit applies to, and what must have room before starting a solve, federated solve or study run). The deprecated GET /v1/pricing isn't used.</li>
+<li>Domain-1 links that pointed to the index now open these screens (header user menu, palette, footer, Home, Register, CAS return, State gallery, Engines).</li>
+</ul></div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 8px;"><span style="font-weight: 600;">Open items in this domain</span>
+<ul style="margin: 0; padding-left: 18px; color: #4a4a4a; display: flex; flex-direction: column; gap: 4px;">
+<li>Usage for Sofía, Nora, Iker and Pablo isn't in the fixtures; their screens show limits only.</li>
+<li>Notification preferences expose a single email switch, the only field in the contract.</li>
+<li>Exact ceilings for each limit are shown in tooltips; a real copy deck would decide the wording.</li>
+<li>Key expiry presets (30/90/365 days, none) are a proposal; the contract accepts any date.</li>
+</ul></div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":2400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const Y = "✓", N = "n/a";
+    const screens = [
+      { id: "pub-pricing", file: "PubPricing.dc.html", l: Y, e: "No LIVE release", x: "503 · 502", f: N, s: Y, p: "Visitor vs signed in: current plan marked, limit states per token; RESEARCH note for CAS users" },
+      { id: "acct-profile", file: "AcctProfile.dc.html", l: Y, e: N, x: "409 email · 422", f: "401 · 409 last owner · 409 last admin", s: Y, p: "Sofía: contract pending; Iker: last-admin block on delete" },
+      { id: "acct-usage", file: "AcctUsage.dc.html", l: Y, e: "No usage yet", x: "Token stale · missing", f: "401", s: Y, p: "Marco at ceilings; Lucía sponsored; others limits only" },
+      { id: "acct-keys", file: "AcctKeys.dc.html", l: Y, e: "No keys", x: "404 revoked", f: "402 key limit", s: Y, p: "Pablo: two keys; others placeholder rows" },
+      { id: "acct-key-new", file: "AcctKeyNew.dc.html", l: Y, e: N, x: "422 engines · escalation · not grantable", f: "402 key limit", s: "Secret shown once", p: "Iker sees admin-only permissions unlocked" },
+      { id: "acct-identities", file: "AcctIdentities.dc.html", l: Y, e: "No identities", x: "409 · 503", f: N, s: Y, p: "Lucía: CAS linked + RESEARCH; others: link CAS" },
+      { id: "acct-notifications", file: "AcctNotifications.dc.html", l: Y, e: "All caught up", x: Y, f: "401", s: Y, p: "Lucía: two notifications; others empty" }
+    ];
+    const ops = [
+      ["GET /v1/pricing/catalog", "screen", "Pricing: plans, features, limits, add-ons"],
+      ["GET /v1/pricing/current", "screen", "Pricing: release badge 0.1.0; Usage: plan limits"],
+      ["GET /v1/pricing (deprecated)", "reference", "Not used (deprecated); catalog and current replace it"],
+      ["GET /v1/users/me/pricing-token", "internal", "Usage: token state banners (never displayed)"],
+      ["GET /v1/users/me/usage", "screen", "Usage: monthly bars, capacity, ceilings, sponsorship"],
+      ["GET /v1/users/me", "screen", "Profile card; header identity"],
+      ["PATCH /v1/users/me", "action", "Profile: email and password forms"],
+      ["DELETE /v1/users/me", "action", "Profile: danger zone with typed username"],
+      ["POST /v1/auth/logout", "action", "Profile: Log out; header user menu"],
+      ["GET /v1/users/me/api-keys", "screen", "API keys list"],
+      ["POST /v1/users/me/api-keys", "action", "New key wizard: Create (secret dialog)"],
+      ["DELETE /v1/users/me/api-keys/{key_id}", "action", "API keys: Revoke dialog"],
+      ["POST /v1/users/me/api-keys/{key_id}/rotate", "action", "API keys: Rotate dialog (new secret once)"],
+      ["GET /v1/users/me/identities", "screen", "Identities: CAS card"],
+      ["DELETE /v1/users/me/identities/{id}", "action", "Identities: Unlink with typed confirmation"],
+      ["POST /v1/auth/cas/link-intent", "action", "Identities: Link Universidad de Sevilla"],
+      ["GET /v1/auth/cas/start (link)", "action", "Identities: redirect step of link flow"],
+      ["GET /v1/notifications", "screen", "Notifications list; header bell"],
+      ["POST /v1/notifications/{id}/read", "action", "Notifications: Mark read"],
+      ["POST /v1/notifications/read-all", "action", "Notifications: Mark all read"],
+      ["GET /v1/notifications/preferences", "screen", "Notifications: email switch state"],
+      ["PUT /v1/notifications/preferences", "action", "Notifications: email switch toggle"]
+    ].map(([op, kind, where]) => ({ op: op, kind: kind, where: where }));
+    return { screens: screens, ops: ops };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Project package</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes ob-spin{to{transform:rotate(360deg)}}
+.ob-grow{transform-origin:left;animation:ob-grow 1400ms cubic-bezier(.4,0,.2,1) both}
+.ob-spin{animation:ob-spin .9s linear infinite}
+@media (prefers-reduced-motion: reduce){.ob-grow,.ob-spin{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="proj-package" route="{{route}}" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="{{ctx}}" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<sc-if value="{{gate}}" hint-placeholder-val="{{false}}"><main style="max-width: 1152px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px;"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><span style="font-size: 16px; font-weight: 500;">{{gateTitle}}</span><span style="max-width: 460px; color: #6a6a6a;">{{gateText}}</span><a href="{{gateHref}}" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">{{gateCta}}</a></div></main></sc-if>
+
+<sc-if value="{{inside}}" hint-placeholder-val="{{true}}">
+<div style="background: #ffffff;"><div style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 20px 16px 12px;"><nav aria-label="Breadcrumb" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: #6a6a6a;"><a href="AppHome.dc.html">Home</a><span>/</span><a href="OrgOverview.dc.html">{{orgName}}</a><span>/</span><a href="ProjOverview.dc.html">{{p.name}}</a><span>/</span><span style="color: #1f1f1f;">Package</span></nav></div></div>
+<dc-import name="ShellProjectTabs" active="package" hint-size="100%,45px"></dc-import>
+<main style="max-width: 1152px; margin: 0 auto; box-sizing: border-box; padding: 24px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div><h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">Portable package</h1><p style="margin: 4px 0 0; color: #6a6a6a; max-width: 720px;">Take this project elsewhere as one verifiable file, or bring one in. Every sealed item carries its fingerprint, so an import can prove nothing changed on the way.</p></div>
+
+<section aria-labelledby="inc-title" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<h2 id="inc-title" style="margin: 0; font-size: 16px; font-weight: 600;">What goes in</h2>
+<sc-for list="{{includes}}" as="i" hint-placeholder-count="5"><div style="display: flex; align-items: center; gap: 10px;"><span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 8px; background: #f1f8fc; border: 1px solid #a9d6ea; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #023e8a;">{{i.n}}</span><span style="flex: 1;">{{i.l}}</span><span style="font-size: 12px; color: #15803d;">✓ sealed</span></div></sc-for>
+</div>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">What stays behind</h2>
+<sc-for list="{{excludes}}" as="x" hint-placeholder-count="4"><div style="display: flex; gap: 10px;"><span aria-hidden="true" style="width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px; background: #fafafa; border: 1px dashed #a8a8a8; display: inline-flex; align-items: center; justify-content: center; color: #6a6a6a;">–</span><span style="font-size: 13px; color: #4a4a4a;"><span style="display: block; font-weight: 500; color: #1f1f1f;">{{x.t}}</span>{{x.d}}</span></div></sc-for>
+</div>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start;">
+<section aria-labelledby="exp-title" style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+<h2 id="exp-title" style="margin: 0; font-size: 18px; font-weight: 500;">Export</h2>
+<span style="font-size: 13px; color: #4a4a4a;">Anyone who can see the project can export it.</span>
+<div role="radiogroup" aria-label="File type" style="display: flex; flex-direction: column; gap: 6px;"><sc-for list="{{formats}}" as="f" hint-placeholder-count="3"><button type="button" role="radio" aria-checked="{{f.checked}}" onClick="{{f.pick}}" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: {{f.border}}; border-radius: 10px; background: {{f.bg}}; font-family: inherit; text-align: left; cursor: pointer;"><span aria-hidden="true" style="width: 16px; height: 16px; flex-shrink: 0; border-radius: 9999px; border: 2px solid {{f.ring}}; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 6px; height: 6px; border-radius: 9999px; background: {{f.fill}};"></span></span><span><span style="display: block; font-weight: 500; color: #1f1f1f;">{{f.l}}</span><span style="display: block; font-size: 12px; color: #6a6a6a;">{{f.d}}</span></span></button></sc-for></div>
+<span style="font-size: 12px; color: #6a6a6a;">Estimated size isn't available in the prototype data.</span>
+<button type="button" onClick="{{doExport}}" style="align-self: flex-start; height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: #0077b6; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">{{exportLabel}}</button>
+<sc-if value="{{exportDone}}" hint-placeholder-val="{{false}}"><div role="status" style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 10px; padding: 10px 12px; font-size: 13px;">Download simulated: {{exportFile}}. Nothing was fetched from a server.</div></sc-if>
+</section>
+
+<section aria-labelledby="imp-title" aria-live="polite" style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+<h2 id="imp-title" style="margin: 0; font-size: 18px; font-weight: 500;">Import</h2>
+<sc-if value="{{cantImport}}" hint-placeholder-val="{{false}}"><div role="note" style="border: 1px solid #fcd34d; background: #fffbeb; border-radius: 10px; padding: 10px 12px; font-size: 13px;">{{cantImportText}}</div></sc-if>
+<sc-if value="{{phaseIdle}}" hint-placeholder-val="{{true}}">
+<div style="border: 2px dashed {{dropBorder}}; border-radius: 14px; background: {{dropBg}}; padding: 28px 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;">
+<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0077b6" stroke-width="1.5" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path></svg>
+<span style="font-weight: 500;">Drop a package here</span><span style="font-size: 12px; color: #6a6a6a;">ZIP, JSON or YAML package · up to {{maxSize}} on your plan</span>
+<button type="button" onClick="{{pick}}" disabled="{{cantImport}}" style="height: 36px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; opacity: {{pickOpacity}};">Choose package</button>
+</div>
+</sc-if>
+<sc-if value="{{phaseChecking}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 8px;"><span style="display: inline-flex; align-items: center; gap: 8px;"><span class="ob-spin" aria-hidden="true" style="width: 16px; height: 16px; box-sizing: border-box; border-radius: 9999px; border: 2px solid #caf0f8; border-top-color: #0077b6;"></span>Checking every fingerprint in qos-benchmarks-package.zip…</span><div style="height: 8px; border-radius: 9999px; background: #ededed; overflow: hidden;"><div class="ob-grow" style="height: 8px; width: 100%; background: #0077b6;"></div></div><span style="font-size: 12px; color: #6a6a6a;">Nothing is written until you confirm.</span></div>
+</sc-if>
+<sc-if value="{{phaseError}}" hint-placeholder-val="{{false}}">
+<div role="alert" style="display: flex; flex-direction: column; gap: 6px; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px;"><span style="font-weight: 600;">{{errTitle}}</span><span style="font-size: 13px;">{{errText}}</span><button type="button" onClick="{{reset}}" style="align-self: flex-start; border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 13px; color: #0077b6; font-weight: 500; cursor: pointer;">Choose another package</button></div>
+</sc-if>
+<sc-if value="{{phaseReview}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-wrap: wrap; gap: 8px;"><span style="border-radius: 9999px; background: #f0fdf4; border: 1px solid #86efac; padding: 2px 10px; font-size: 12px; font-weight: 500;">{{okCount}} verified</span><span style="border-radius: 9999px; background: #f1f8fc; border: 1px solid #a9d6ea; padding: 2px 10px; font-size: 12px; font-weight: 500;">{{reuseCount}} already here · reused</span><span style="border-radius: 9999px; background: #caf0f8; padding: 2px 10px; font-size: 12px; font-weight: 500;">{{newCount}} new</span><span style="border-radius: 9999px; background: #caf0f8; padding: 2px 10px; font-size: 11px; font-weight: 500;">Simulated report</span></div>
+<ul style="margin: 0; padding: 0; list-style: none; border: 1px solid #ededed; border-radius: 12px; overflow: hidden;"><sc-for list="{{report}}" as="r" hint-placeholder-count="5"><li style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid #ededed;"><span aria-hidden="true" style="color: #15803d; font-weight: 700;">✓</span><span style="flex: 1; min-width: 180px;"><span style="display: block; font-weight: 500;">{{r.name}}</span><span style="display: block; font-size: 12px; color: #6a6a6a;">{{r.kind}} · {{r.fp}}</span></span><span style="{{r.chip}}">{{r.what}}</span></li></sc-for></ul>
+<div style="display: flex; gap: 8px;"><button type="button" onClick="{{confirm}}" style="height: 40px; padding: 0 16px; border: 0; border-radius: 8px; background: #0077b6; color: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">Import into {{p.name}}</button><button type="button" onClick="{{reset}}" style="height: 40px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 14px; cursor: pointer;">Cancel</button></div>
+</sc-if>
+<sc-if value="{{phaseDone}}" hint-placeholder-val="{{false}}">
+<div style="border: 1px solid #86efac; background: #f0fdf4; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px;"><span style="font-weight: 600;">Import complete</span><span style="font-size: 13px;">{{newCount}} items added, {{reuseCount}} matched what was already here. The publication record wasn't restored; publish again from the report if needed.</span><a href="ProjOverview.dc.html" style="font-weight: 500; font-size: 13px;">Back to the project</a></div>
+</sc-if>
+</section>
+</div>
+
+<section aria-labelledby="lim-title" style="border: 1px solid #fcd34d; background: #fffbeb; border-radius: 16px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px;">
+<h2 id="lim-title" style="margin: 0; font-size: 16px; font-weight: 600;">Known limits</h2>
+<ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #2c2c2c;"><li>Re-running needs the exact engine revisions; if this deployment doesn't have one, those runs can be read but not repeated.</li><li>Publications can't be restored by import; the reports come back frozen but unpublished.</li><li>Drafts that were never sealed can't be imported.</li></ul>
+</section>
+</main>
+</sc-if>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1700}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "lucia", st: "success", scenario: "ok", project: "qos-benchmarks", fmt: "zip", exported: false, phase: "review" };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "" },
+      lucia: { signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV", admin: false, plan: "RESEARCH" },
+      marco: { signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD", admin: false, plan: "BASIC" },
+      sofia: { signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR", admin: false, plan: "BASIC" },
+      nora: { signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC", admin: false, plan: "ADVANCED" },
+      iker: { signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM", admin: true, plan: "PRO" },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI", admin: false, plan: "PRO" }
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); const p = window.localStorage.getItem("ob.project"); if (p && p !== "__new") this.setState({ project: p }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+  setPersona(k) { this.setState({ persona: k }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const st = s.st, sc = s.scenario;
+    const ORGN = { "isa-demo": "ISA Demo Group", "qos-lab": "QoS Lab (sub-organización)" };
+    const PROJ = { "qos-benchmarks": { org: "isa-demo", slug: "qos-benchmarks", name: "QoS Benchmarks" }, "checkout-privado": { org: "isa-demo", slug: "checkout-privado", name: "Checkout (privado)" }, "placement-edge": { org: "qos-lab", slug: "placement-edge", name: "Placement en el borde" } };
+    const key = PROJ[s.project] ? s.project : "qos-benchmarks";
+    const p = PROJ[key];
+    const ROLE = { lucia: { "isa-demo": "OWNER", "qos-lab": "OWNER" }, marco: { "isa-demo": "MEMBER", "qos-lab": "ADMIN" }, sofia: { "isa-demo": "VIEWER", "qos-lab": "VIEWER" }, nora: {}, iker: {}, pablo: {} }[s.persona] || {};
+    const role = ROLE[p.org] || (who.admin ? "PLATFORM ADMIN" : "");
+    const rank = { VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4, "PLATFORM ADMIN": 4 }[role] || 0;
+    const isQB = key === "qos-benchmarks";
+    const includes = (isQB ? [["1", "case with 2 sealed revisions"], ["1", "library version it uses (Proveedores UE v3)"], ["1", "snapshot"], ["1", "study with its run of 8 cells"], ["1", "frozen report"]] : [["0", "sealed items in the prototype data"]]).map(([n, l]) => ({ n: n, l: l }));
+    const excludes = [
+      { t: "Drafts", d: isQB ? "“Borrador: placement” (revision 3) isn't sealed, so it stays here." : "Anything not sealed stays here." },
+      { t: "People and roles", d: "Members, invitations and sponsor don't travel; the receiving organization decides." },
+      { t: "Publication records", d: "The package says a report was published, but importing can't re-publish it." },
+      { t: "Job history", d: "Individual jobs belong to whoever launched them." }
+    ];
+    const radio = (on) => ({ border: on ? "2px solid #0077b6" : "1px solid #b8b8b8", bg: on ? "rgba(0,119,182,0.05)" : "#ffffff", ring: on ? "#0077b6" : "#a8a8a8", fill: on ? "#0077b6" : "transparent" });
+    const formats = [["zip", "ZIP archive (recommended)", "Everything in one compressed file"], ["json", "Single JSON file", "For tools that read one document"], ["yaml", "Single YAML file", "Same content, easier to diff in text tools"]].map(([k, l, d]) => Object.assign({ l: l, d: d, checked: s.fmt === k ? "true" : "false", pick: () => this.setState({ fmt: k, exported: false }) }, radio(s.fmt === k)));
+    const chip = (bg, bd) => "border-radius: 9999px; padding: 1px 10px; font-size: 12px; font-weight: 500; background: " + bg + "; border: 1px solid " + bd + ";";
+    const report = [
+      ["Flujo de checkout · revision 1", "Case revision", "sha256-a1b2…c3d4", "reuse"],
+      ["Flujo de checkout · revision 2", "Case revision", "sha256-b2c3…d4e5", "reuse"],
+      ["Proveedores UE v3", "Library version", "sha256-a1b2…c3d4", "reuse"],
+      ["Engines × semillas · run 1", "Study run", "sha256-d4e5…f607", "new"],
+      ["Comparativa de engines en checkout", "Frozen report", "sha256-e5f6…0718", "new"]
+    ].map(([n, k, fp, w]) => ({ name: n, kind: k, fp: fp, what: w === "reuse" ? "Already here" : "Will be added", chip: w === "reuse" ? chip("#f1f8fc", "#a9d6ea") : chip("#caf0f8", "#caf0f8") }));
+    const ERR = {
+      "409": ["Unpublished items from another organization (409 · unpublished import)", "The package refers to library versions that were never published, so they can't be brought into a different organization. Ask the source to publish them first."],
+      "collision": ["Name already used with different content", "“Flujo de checkout” exists here with a different fingerprint. Rename one of them before importing."],
+      "digest": ["Fingerprint doesn't match", "“Comparativa de engines en checkout” says sha256-e5f6…0718, but its content hashes to something else. The file was changed or damaged after export; nothing was imported."],
+      "toolchain": ["Engine revision not available here", "Runs in this package used an engine revision this deployment doesn't have. Import still works, but those runs can't be repeated."],
+      "413": ["Package too large (413)", "This package is bigger than your plan allows per request (" + ({ BASIC: "8 MiB", ADVANCED: "64 MiB", RESEARCH: "128 MiB", PRO: "512 MiB" }[who.plan] || "8 MiB") + ")."]
+    };
+    const cantImport = rank < 2 || st === "forbidden";
+    const forcedErr = st === "error" ? (ERR[sc] ? sc : "409") : "";
+    const phase = st === "loading" ? "checking" : (st === "empty" ? "idle" : (forcedErr ? "error" : (cantImport ? "idle" : s.phase)));
+    const member = !!ROLE[p.org] || who.admin;
+    const gate = !who.signedIn || !member;
+    return {
+      persona: s.persona, st: st, na: [],
+      scenarios: [{ id: "ok", label: "Verifies" }, { id: "409", label: "409 unpublished import" }, { id: "collision", label: "Identity collision" }, { id: "digest", label: "Fingerprint mismatch" }, { id: "toolchain", label: "Engine unavailable" }, { id: "413", label: "413 too large" }],
+      scenario: sc,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState({ st: x, phase: x === "success" ? "review" : s.phase }),
+      setScenario: (x) => this.setState({ scenario: x, st: x === "ok" ? "success" : "error", phase: "review" }),
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      route: "/app/" + p.org + "/" + p.slug + "/package",
+      ctx: ORGN[p.org] + " / " + p.name, orgName: ORGN[p.org], p: p,
+      gate: gate, inside: !gate,
+      gateTitle: who.signedIn ? "Project not found" : "Log in to export or import",
+      gateText: who.signedIn ? "It doesn't exist, or you're not a member of its organization." : "Packages are for members of the project's organization.",
+      gateHref: who.signedIn ? "AppHome.dc.html" : "AuthLogin.dc.html", gateCta: who.signedIn ? "Back to Home" : "Log in",
+      includes: includes, excludes: excludes, formats: formats,
+      doExport: () => this.setState({ exported: true }), exportDone: s.exported,
+      exportLabel: s.exported ? "Export again" : "Export package",
+      exportFile: p.slug + "-package." + s.fmt,
+      cantImport: cantImport,
+      cantImportText: st === "forbidden" ? "This API key can't write projects and artifacts (403), so importing is off. Export still works." : "Importing needs MEMBER; you're a VIEWER here. You can still export.",
+      maxSize: { BASIC: "8 MiB", ADVANCED: "64 MiB", RESEARCH: "128 MiB", PRO: "512 MiB" }[who.plan] || "8 MiB",
+      dropBorder: cantImport ? "#b8b8b8" : "#0077b6", dropBg: cantImport ? "#fafafa" : "#f1f8fc", pickOpacity: cantImport ? "0.4" : "1",
+      pick: () => { this.setState({ st: "loading" }); if (this.timer) clearTimeout(this.timer); this.timer = setTimeout(() => this.setState({ st: "success", phase: "review" }), 1500); },
+      phaseIdle: phase === "idle", phaseChecking: phase === "checking", phaseError: phase === "error", phaseReview: phase === "review", phaseDone: phase === "done",
+      errTitle: forcedErr ? ERR[forcedErr][0] : "", errText: forcedErr ? ERR[forcedErr][1] : "",
+      reset: () => this.setState({ st: "empty", phase: "idle" }),
+      report: report, okCount: "5", reuseCount: "3", newCount: "2",
+      confirm: () => this.setState({ phase: "done" })
+    };
+  }
+}
+</script>
+</body>
+</html>

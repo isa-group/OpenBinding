@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · About</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#ffffff}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-fadeup{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-in{animation:ob-fadeup 300ms ease-out both}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-in{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #ffffff; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="pub-about" route="/about?tab={{tab}}" hint-size="100%,44px"></dc-import>
+<dc-import name="ShellPublicHeader" signed-in="{{who.signedIn}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" active="about" on-logout="{{logout}}" hint-size="100%,88px"></dc-import>
+<main style="max-width: 1120px; margin: 0 auto; box-sizing: border-box; padding: 40px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #0077b6;">About</span>
+<h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-weight: 400; font-size: 40px; line-height: 1.1;">People, research and changes behind OpenBinding</h1>
+<p style="margin: 0; max-width: 720px; color: #4a4a4a;">This content is reviewed as data in the repository, not served by the API. The fixtures don't include it, so the cards below show the layout with placeholders.</p>
+</div>
+<div role="tablist" aria-label="About sections" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #b8b8b8;">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><button type="button" role="tab" aria-selected="{{t.selected}}" onClick="{{t.pick}}" style="{{t.style}}">{{t.label}}</button></sc-for>
+</div>
+
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}"><div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;"><div class="ob-skel" style="height: 220px; border-radius: 16px; background: #ededed;"></div><div class="ob-skel" style="height: 220px; border-radius: 16px; background: #ededed;"></div><div class="ob-skel" style="height: 220px; border-radius: 16px; background: #ededed;"></div></div></sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; border: 1px dashed #a8a8a8; background: rgba(250,250,250,0.5); border-radius: 16px; padding: 64px 24px;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><path d="M12 8v4l3 2"></path><circle cx="12" cy="12" r="9"></circle></svg><span style="font-size: 14px; font-weight: 500;">Pending editorial review</span><span style="font-size: 13px; color: #6a6a6a;">Entries for {{tabLabel}} appear once they're reviewed.</span></div></sc-if>
+
+<sc-if value="{{showContent}}" hint-placeholder-val="{{true}}">
+<sc-if value="{{tTeam}}" hint-placeholder-val="{{true}}">
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;">
+<sc-for list="{{team}}" as="p" hint-placeholder-count="3">
+<article class="ob-in" style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; border: 1px solid #b8b8b8; border-radius: 16px; padding: 20px;">
+<span aria-hidden="true" style="width: 96px; height: 96px; border-radius: 9999px; background: #caf0f8; color: #023e8a; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 600;">{{p.initials}}</span>
+<span style="font-size: 16px; font-weight: 500;">{{p.name}}</span>
+<span style="color: #4a4a4a;">{{p.role}}</span>
+<span style="border-radius: 9999px; background: #fafafa; border: 1px solid #ededed; padding: 1px 10px; font-size: 12px;">{{p.aff}}</span>
+<span style="font-size: 12px; color: #6a6a6a;">[profile links]</span>
+</article>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{tResearch}}" hint-placeholder-val="{{false}}">
+<ol style="margin: 0; padding: 0; list-style: none; border-left: 2px solid #a9d6ea; display: flex; flex-direction: column; gap: 16px;">
+<sc-for list="{{research}}" as="r" hint-placeholder-count="2">
+<li style="position: relative; padding-left: 20px;"><span aria-hidden="true" style="position: absolute; left: -7px; top: 6px; width: 12px; height: 12px; border-radius: 9999px; background: #0077b6;"></span>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 12px; color: #6a6a6a;">{{r.kind}} · {{r.year}}</span><span style="font-weight: 500;">{{r.title}}</span><span style="font-size: 13px; color: #4a4a4a;">{{r.authors}} · {{r.venue}}</span></div></li>
+</sc-for>
+</ol>
+</sc-if>
+<sc-if value="{{tFunding}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;">
+<sc-for list="{{funders}}" as="f" hint-placeholder-count="3"><div style="display: flex; flex-direction: column; gap: 10px; border: 1px solid #b8b8b8; border-radius: 16px; padding: 12px;"><div style="height: 96px; border-radius: 16px; border: 1px dashed #a8a8a8; background: #fafafa; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #6a6a6a;">[logo]</div><span style="font-size: 14px; font-weight: 500; color: #4a4a4a; text-align: center;">{{f}}</span></div></sc-for>
+</div>
+</sc-if>
+<sc-if value="{{tContrib}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+<sc-for list="{{contribs}}" as="c" hint-placeholder-count="2"><button type="button" onClick="{{c.open}}" style="display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; font-family: inherit; cursor: pointer;"><span style="font-size: 15px; font-weight: 500; color: #1f1f1f;">{{c.title}}</span><span style="font-size: 13px; color: #4a4a4a;">{{c.summary}}</span><span style="display: flex; gap: 6px;"><sc-for list="{{c.tags}}" as="t" hint-placeholder-count="2"><span style="border-radius: 9999px; background: #caf0f8; padding: 0 8px; font-size: 11px; font-weight: 500; color: #1f1f1f;">{{t}}</span></sc-for></span></button></sc-for>
+</div>
+<sc-if value="{{modalOpen}}" hint-placeholder-val="{{false}}">
+<div style="position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px;">
+<button type="button" aria-label="Close" onClick="{{closeModal}}" style="position: absolute; inset: 0; border: 0; background: rgba(31,31,31,0.3); backdrop-filter: blur(4px); cursor: pointer;"></button>
+<div role="dialog" aria-modal="true" aria-label="Contribution" style="position: relative; width: 100%; max-width: 640px; border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 24px; box-shadow: 0 16px 48px -8px rgba(0,0,0,0.12); display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; justify-content: space-between; gap: 12px;"><span style="font-family: 'PP Editorial Old', Georgia, serif; font-size: 22px;">[Contribution title]</span><button type="button" onClick="{{closeModal}}" aria-label="Close" style="border: 0; background: transparent; font-size: 20px; cursor: pointer;">×</button></div>
+<span style="color: #4a4a4a;">[Description in Markdown from the repository]</span>
+<span style="font-size: 13px;"><span style="color: #6a6a6a;">Supervisor:</span> [Name]</span>
+</div>
+</div>
+</sc-if>
+</sc-if>
+<sc-if value="{{tChangelog}}" hint-placeholder-val="{{false}}">
+<div role="group" aria-label="Stream" style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{streams}}" as="f" hint-placeholder-count="4"><button type="button" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="{{f.style}}">{{f.label}}</button></sc-for></div>
+<ol style="margin: 0; padding: 0; list-style: none; border-left: 2px solid #a9d6ea; display: flex; flex-direction: column; gap: 14px;">
+<sc-for list="{{changes}}" as="c" hint-placeholder-count="3">
+<li style="position: relative; padding-left: 20px;"><span aria-hidden="true" style="position: absolute; left: -7px; top: 6px; width: 12px; height: 12px; border-radius: 9999px; background: #0077b6;"></span>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;">
+<span style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;"><span style="font-family: 'JetBrains Mono', monospace; font-weight: 500;">{{c.version}}</span><span style="border-radius: 9999px; background: #fafafa; border: 1px solid #ededed; padding: 0 8px; font-size: 11px;">{{c.stream}}</span><span style="font-size: 12px; color: #6a6a6a;">{{c.date}}</span><sc-if value="{{c.ph}}" hint-placeholder-val="{{false}}"><span style="border-radius: 9999px; background: #fffbeb; border: 1px solid #fcd34d; padding: 0 8px; font-size: 11px; font-weight: 500;">Placeholder</span></sc-if></span>
+<span style="color: #4a4a4a;">{{c.text}}</span></div></li>
+</sc-for>
+</ol>
+</sc-if>
+</sc-if>
+</main>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "visitor", st: "success", tab: "team", stream: "all", modal: false };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "" },
+      lucia: { signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV" },
+      marco: { signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD" },
+      sofia: { signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR" },
+      nora: { signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC" },
+      iker: { signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM" },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI" }
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); } catch (e) {} }
+  setPersona(k) { this.setState({ persona: k }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const st = s.st;
+    const tabStyle = (on) => "padding: 10px 16px; border: 0; background: transparent; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: -1px; " + (on ? "color: #0077b6; border-bottom: 2px solid #0077b6;" : "color: #6a6a6a; border-bottom: 2px solid transparent;");
+    const labels = { team: "Team", research: "Research", funding: "Funding", contrib: "Contributions", changelog: "Changelog" };
+    const tabs = Object.keys(labels).map((k) => ({ label: labels[k], selected: s.tab === k ? "true" : "false", pick: () => this.setState({ tab: k }), style: tabStyle(s.tab === k) }));
+    const pill = (on) => "height: 30px; padding: 0 12px; border-radius: 12px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; " + (on ? "border: 1px solid rgba(0,119,182,0.3); background: rgba(0,119,182,0.05); color: #0077b6;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #4a4a4a;");
+    const streams = [["all", "All"], ["Platform", "Platform"], ["BIM-Engines", "BIM-Engines"], ["Documentation", "Documentation"]].map(([k, l]) => ({ label: l, pressed: s.stream === k ? "true" : "false", pick: () => this.setState({ stream: k }), style: pill(s.stream === k) }));
+    const allChanges = [
+      { version: "pricing 0.1.0", stream: "Platform", date: "2026-09-01", text: "First pricing document: BASIC, ADVANCED, RESEARCH and PRO plans with usage limits and add-ons (development copy).", ph: false },
+      { version: "gateway API 1.0.0", stream: "Platform", date: "[date]", text: "OpenAPI 3.1 contract for the /v1 gateway: 176 paths and 220 operations.", ph: false },
+      { version: "qos-binding/v1", stream: "BIM-Engines", date: "[date]", text: "Profile for QoS binding of service compositions, used by the fixture case.", ph: false },
+      { version: "[version]", stream: "Documentation", date: "[date]", text: "[Documentation change]", ph: true }
+    ];
+    return {
+      persona: s.persona, st: st, na: ["error", "forbidden"], scenarios: [], scenario: "",
+      setPersona: (k) => this.setPersona(k),
+      setSt: (v) => this.setState({ st: v }),
+      setScenario: () => {},
+      logout: () => this.setPersona("visitor"),
+      who: who,
+      tab: s.tab, tabs: tabs, tabLabel: labels[s.tab].toLowerCase(),
+      isLoading: st === "loading", isEmpty: st === "empty", showContent: st === "success",
+      tTeam: s.tab === "team", tResearch: s.tab === "research", tFunding: s.tab === "funding", tContrib: s.tab === "contrib", tChangelog: s.tab === "changelog",
+      team: [{ initials: "N1", name: "[Name]", role: "[Role]", aff: "[Affiliation]" }, { initials: "N2", name: "[Name]", role: "[Role]", aff: "[Affiliation]" }, { initials: "N3", name: "[Name]", role: "[Role]", aff: "[Affiliation]" }],
+      research: [{ kind: "[Journal]", year: "[Year]", title: "[Publication title]", authors: "[Authors]", venue: "[Venue]" }, { kind: "[Proceedings]", year: "[Year]", title: "[Publication title]", authors: "[Authors]", venue: "[Venue]" }],
+      funders: ["[Funder]", "[Funder]", "[Funder]"],
+      contribs: [{ title: "[Contribution]", summary: "[Short summary]", tags: ["[tag]", "[tag]"], open: () => this.setState({ modal: true }) }, { title: "[Contribution]", summary: "[Short summary]", tags: ["[tag]"], open: () => this.setState({ modal: true }) }],
+      modalOpen: s.modal, closeModal: () => this.setState({ modal: false }),
+      streams: streams,
+      changes: allChanges.filter((c) => s.stream === "all" || c.stream === s.stream)
+    };
+  }
+}
+</script>
+</body>
+</html>

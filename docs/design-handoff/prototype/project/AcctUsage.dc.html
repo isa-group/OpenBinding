@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Usage and plan</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-grow{transform-origin:left;animation:ob-grow 500ms cubic-bezier(.4,0,.2,1) both}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-grow{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="acct-usage" route="/app/account/usage" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<main style="max-width: 1152px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px;"><div><h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">Usage &amp; plan</h1><p style="margin: 4px 0 0; color: #6a6a6a;">What your plan allows and how much is left this month.</p></div><button type="button" onClick="{{refresh}}" style="height: 36px; padding: 0 14px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">Refresh usage</button></div>
+
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><span style="font-size: 16px; font-weight: 500;">Log in to see your usage</span><span style="color: #6a6a6a;">Usage belongs to your account (401 without a session).</span><a href="AuthLogin.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Log in</a></div></sc-if>
+
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start;">
+<div style="flex: 1 1 220px; max-width: 240px;"><dc-import name="ShellAccountNav" active="usage" hint-size="240px,260px"></dc-import></div>
+<div aria-live="polite" aria-busy="{{isLoading}}" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<sc-if value="{{isForbidden}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; gap: 10px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 12px 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" aria-hidden="true" style="flex-shrink: 0;"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg><span>This API key lacks <code style="font-family: 'JetBrains Mono', monospace;">account:read</code> (403), so usage can't be shown for it.</span></div></sc-if>
+<sc-if value="{{isError}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 14px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6M12 16h.01"></path></svg><span style="flex: 1; min-width: 240px;"><span style="font-weight: 500;">We can't read your usage right now (503 · pricing_unavailable).</span> We don't show old figures as your current balance, and this doesn't mean you're out of quota.</span><button type="button" onClick="{{refresh}}" style="height: 32px; padding: 0 12px; border: 1px solid #a8a8a8; border-radius: 8px; background: #ffffff; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;">Try again</button></div></sc-if>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}"><div class="ob-skel" style="height: 120px; border-radius: 12px; background: #ededed;"></div><div class="ob-skel" style="height: 220px; border-radius: 12px; background: #ededed;"></div><div class="ob-skel" style="height: 180px; border-radius: 12px; background: #ededed;"></div></sc-if>
+
+<sc-if value="{{showData}}" hint-placeholder-val="{{true}}">
+<sc-if value="{{d.pending}}" hint-placeholder-val="{{false}}"><div role="status" style="display: flex; gap: 10px; border: 1px solid #93c5fd; background: #eff6ff; border-radius: 12px; padding: 12px 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" aria-hidden="true" style="flex-shrink: 0;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg><span><span style="font-weight: 500;">Your contract is pending.</span> Pricing wasn't reachable when you signed up. It's settled on your next request; until then no feature or limit can be confirmed, and nothing here is shown as allowed or blocked.</span></div></sc-if>
+<sc-if value="{{d.noFixture}}" hint-placeholder-val="{{false}}"><div role="note" style="display: flex; gap: 10px; border: 1px solid #fcd34d; background: #fffbeb; border-radius: 12px; padding: 12px 14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" aria-hidden="true" style="flex-shrink: 0;"><path d="M12 3 2 20h20L12 3z"></path><path d="M12 10v4M12 17h.01"></path></svg><span>The fixtures have no usage figures for {{who.name}}. Limits below come from the {{d.plan}} plan in pricing 0.1.0; amounts used are left blank instead of invented.</span></div></sc-if>
+
+<section style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 20px;">
+<span aria-hidden="true" style="width: 48px; height: 48px; border-radius: 12px; background: rgba(0,119,182,0.1); color: #0077b6; display: inline-flex; align-items: center; justify-content: center; font-weight: 700;">{{d.planInitial}}</span>
+<div style="flex: 1; min-width: 220px;"><div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;"><span style="font-size: 18px; font-weight: 600;">{{d.plan}}</span><span style="border-radius: 9999px; background: #fafafa; border: 1px solid #ededed; padding: 0 8px; font-size: 12px;">{{d.priceLabel}}</span><sc-if value="{{d.badge}}" hint-placeholder-val="{{false}}"><span style="border-radius: 9999px; background: #023e8a; color: #ffffff; padding: 0 8px; font-size: 12px;">Universidad de Sevilla</span></sc-if></div><div style="font-size: 13px; color: #6a6a6a;">Add-ons: none · Pricing 0.1.0 · Contract renews Nov 1, 2026 · New pricing versions apply when it renews</div></div>
+<span style="display: flex; flex-wrap: wrap; gap: 8px;"><a href="PubPricing.dc.html" style="display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f; font-weight: 500; text-decoration: none;">See plans</a><a href="PubPricing.dc.html" style="display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">Request a change</a></span>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px;"><h2 style="margin: 0; font-size: 18px; font-weight: 500;">Features</h2><span style="border-radius: 9999px; padding: 1px 10px; font-size: 12px; font-weight: 500; border: 1px solid {{tokenBorder}}; background: {{tokenBg}};">{{tokenLabel}}</span></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px;">
+<sc-for list="{{features}}" as="f" hint-placeholder-count="6"><div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 10px 12px;"><span style="font-size: 13px;">{{f.name}}</span><span style="border-radius: 9999px; padding: 0 8px; font-size: 12px; font-weight: 500; border: 1px solid {{f.border}}; background: {{f.bg}};">{{f.state}}</span></div></sc-for>
+</div>
+</section>
+
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}"><div style="border: 1px dashed #a8a8a8; border-radius: 12px; background: #ffffff; padding: 24px; color: #4a4a4a;">Your plan declares no usage limits, so there's nothing to track here.</div></sc-if>
+
+<sc-if value="{{hasLimits}}" hint-placeholder-val="{{true}}">
+<section style="display: flex; flex-direction: column; gap: 10px;">
+<div><h2 style="margin: 0; font-size: 18px; font-weight: 500;">This month</h2><p style="margin: 2px 0 0; font-size: 13px; color: #6a6a6a;">Renews {{renewLabel}}.</p></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;">
+<sc-for list="{{monthly}}" as="m" hint-placeholder-count="4">
+<div style="border: 1px solid {{m.border}}; border-radius: 12px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; justify-content: space-between; gap: 8px;"><span style="font-weight: 500;">{{m.name}}</span><span style="font-size: 12px; color: #6a6a6a; font-family: 'JetBrains Mono', monospace;">{{m.unit}}</span></div>
+<div role="meter" aria-label="{{m.name}}" aria-valuemin="0" aria-valuemax="{{m.max}}" aria-valuenow="{{m.now}}" style="height: 8px; border-radius: 9999px; background: #ededed; overflow: hidden;"><div class="ob-grow" style="height: 8px; width: {{m.pct}}; border-radius: 9999px; background: {{m.fill}};"></div></div>
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 13px;"><span>{{m.usedLabel}}</span><span style="font-weight: 600;">{{m.leftLabel}}</span></div>
+<sc-if value="{{m.out}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #2c2c2c;">Used up. New {{m.short}} can't start until it renews; a request now gets a 402.</span></sc-if>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 10px;">
+<div><h2 style="margin: 0; font-size: 18px; font-weight: 500;">Capacity in use</h2><p style="margin: 2px 0 0; font-size: 13px; color: #6a6a6a;">Freed when work finishes or keys are revoked; no renewal date.</p></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;">
+<sc-for list="{{capacity}}" as="m" hint-placeholder-count="3">
+<div style="border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 6px;"><span style="font-weight: 500;">{{m.name}}</span><span style="font-size: 24px; font-weight: 600;">{{m.big}}</span><span style="font-size: 12px; color: #6a6a6a;">{{m.note}}</span><sc-if value="{{m.link}}" hint-placeholder-val="{{false}}"><a href="{{m.href}}" style="font-size: 13px; font-weight: 500;">{{m.link}}</a></sc-if></div>
+</sc-for>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 10px;">
+<div><h2 style="margin: 0; font-size: 18px; font-weight: 500;">Per-request ceilings</h2><p style="margin: 2px 0 0; font-size: 13px; color: #6a6a6a;">Budgets above these are reduced with an OPTION_CLAMPED note; bigger problems are rejected.</p></div>
+<div style="border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; overflow-x: auto;"><table style="width: 100%; min-width: 520px; border-collapse: collapse; font-size: 13px;"><thead><tr style="background: #fafafa; text-align: left;"><th style="padding: 10px 16px; font-size: 12px; color: #6a6a6a;">Ceiling</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Your limit</th><th style="padding: 10px 16px; font-size: 12px; color: #6a6a6a;">Exact value</th></tr></thead><tbody>
+<sc-for list="{{ceilings}}" as="c" hint-placeholder-count="5"><tr style="border-top: 1px solid #ededed;"><td style="padding: 10px 16px;">{{c.name}}</td><td style="padding: 10px; font-weight: 600;">{{c.human}}</td><td style="padding: 10px 16px; font-family: 'JetBrains Mono', monospace; color: #6a6a6a;">{{c.exact}}</td></tr></sc-for>
+</tbody></table></div>
+<span style="font-size: 13px;">Finished jobs are kept for {{d.retention}}. <a href="JobHistory.dc.html" style="font-weight: 500;">Open job history</a></span>
+</section>
+
+<sc-if value="{{d.hasSponsor}}" hint-placeholder-val="{{false}}">
+<section style="display: flex; flex-direction: column; gap: 10px;">
+<div><h2 style="margin: 0; font-size: 18px; font-weight: 500;">Organizations you sponsor</h2><p style="margin: 2px 0 0; font-size: 13px; color: #6a6a6a;">Counted across ISA Demo Group and QoS Lab. Sponsoring pays for usage only; it doesn't give you any role in those organizations.</p></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;">
+<sc-for list="{{sponsor}}" as="m" hint-placeholder-count="7">
+<div style="border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 14px; display: flex; flex-direction: column; gap: 6px;"><div style="display: flex; justify-content: space-between; gap: 8px; font-size: 13px;"><span style="font-weight: 500;">{{m.name}}</span><span>{{m.label}}</span></div><div style="height: 6px; border-radius: 9999px; background: #ededed; overflow: hidden;"><div class="ob-grow" style="height: 6px; width: {{m.pct}}; background: #0077b6;"></div></div></div>
+</sc-for>
+</div>
+</section>
+</sc-if>
+</sc-if>
+</sc-if>
+</div>
+</div>
+</sc-if>
+</main>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":2600}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { persona: "lucia", st: "success", scenario: "present" };
+  }
+  personas() {
+    return {
+      visitor: { signedIn: false, name: "", email: "", initials: "" },
+      lucia: { signedIn: true, name: "Lucía Vega", email: "lucia@example.invalid", initials: "LV", plan: "RESEARCH", admin: false },
+      marco: { signedIn: true, name: "Marco Díaz", email: "marco@example.invalid", initials: "MD", plan: "BASIC", admin: false },
+      sofia: { signedIn: true, name: "Sofía Rey", email: "sofia@example.invalid", initials: "SR", plan: "BASIC", admin: false },
+      nora: { signedIn: true, name: "Nora Campos", email: "nora@example.invalid", initials: "NC", plan: "ADVANCED", admin: false },
+      iker: { signedIn: true, name: "Iker Mora", email: "iker@example.invalid", initials: "IM", plan: "PRO", admin: true },
+      pablo: { signedIn: true, name: "Pablo Ibáñez", email: "pablo@example.invalid", initials: "PI", plan: "PRO", admin: false }
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); }
+  setPersona(k) { this.setState({ persona: k }); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  dur(sec) { if (sec >= 3600) { const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60); return h + " h" + (m ? " " + m + " min" : ""); } if (sec >= 60) return Math.round(sec / 60) + " min"; return sec + " s"; }
+  bytes(b) { if (b >= 1073741824) return (b / 1073741824).toFixed(b % 1073741824 ? 1 : 0) + " GiB"; return Math.round(b / 1048576) + " MiB"; }
+  renderVals() {
+    const s = this.state;
+    const who = this.personas()[s.persona] || this.personas().visitor;
+    const st = s.st;
+    const fmt = (n) => n.toLocaleString("en-US");
+    const PLAN = {
+      BASIC: { taskStarts: 10, solverSeconds: 900, federatedTaskStarts: 5, studyRuns: 3, capacityUnits: 5000, concurrentJobs: 1, federatedEngines: 1, apiKeys: 1, t: 60, it: 10000, pay: 8388608, cx: 9, ret: 7 },
+      ADVANCED: { taskStarts: 25, solverSeconds: 18000, federatedTaskStarts: 10, studyRuns: 50, capacityUnits: 100000, concurrentJobs: 2, federatedEngines: 3, apiKeys: 10, t: 600, it: 500000, pay: 67108864, cx: 15, ret: 90 },
+      RESEARCH: { taskStarts: 50, solverSeconds: 30000, federatedTaskStarts: 100, studyRuns: 100, capacityUnits: 1000000, concurrentJobs: 3, federatedEngines: 5, apiKeys: 25, t: 900, it: 1000000, pay: 134217728, cx: 20, ret: 180 },
+      PRO: { taskStarts: Infinity, solverSeconds: 180000, federatedTaskStarts: 1000, studyRuns: 1000, capacityUnits: 100000, concurrentJobs: 8, federatedEngines: 20, apiKeys: Infinity, t: 1800, it: 10000000, pay: 536870912, cx: Infinity, ret: 365 }
+    };
+    const USED = {
+      lucia: { capacityUnits: 120000, taskStarts: 18, solverSeconds: 7420, federatedTaskStarts: 3, studyRuns: 4, concurrentJobs: 1, federatedEngines: 1, apiKeys: 2 },
+      marco: { taskStarts: 10, solverSeconds: 610, studyRuns: 3, concurrentJobs: 1, apiKeys: 1 }
+    };
+    const pending = s.persona === "sofia";
+    const plan = who.plan || "BASIC";
+    const L = PLAN[plan];
+    const used = USED[s.persona] || null;
+    const noFixture = !used && !pending;
+    let days = 23; try { days = Math.max(0, Math.ceil((Date.UTC(2026, 10, 1) - Date.now()) / 86400000)); } catch (e) {}
+    const monthDefs = [["taskStarts", "Solves", "solve/month", "solves"], ["solverSeconds", "Solver time", "second/month", "solver time"], ["federatedTaskStarts", "Federated solves", "solve/month", "federated solves"], ["studyRuns", "Study runs", "run/month", "study runs"], ["capacityUnits", "Capacity units", "capacity-unit/month", "work"]];
+    const monthly = monthDefs.filter(([k]) => !used || used.hasOwnProperty(k) || noFixture).map(([k, name, unit, short]) => {
+      const lim = L[k]; const u = used ? used[k] : null;
+      const isTime = k === "solverSeconds";
+      const show = (n) => n === Infinity ? "Unlimited" : (isTime ? this.dur(n) : fmt(n));
+      const out = u !== null && u !== undefined && lim !== Infinity && u >= lim;
+      const pct = (u === null || u === undefined || lim === Infinity) ? "0%" : Math.min(100, Math.round(u / lim * 100)) + "%";
+      return {
+        name: name, unit: unit, short: short, out: out,
+        max: lim === Infinity ? "0" : String(lim), now: u === null || u === undefined ? "0" : String(u), pct: pct,
+        fill: out ? "#023e8a" : "#0077b6", border: out ? "#a8a8a8" : "#b8b8b8",
+        usedLabel: u === null || u === undefined ? "Used: not in fixtures" : show(u) + " of " + show(lim) + " used",
+        leftLabel: lim === Infinity ? "Unlimited" : (u === null || u === undefined ? show(lim) + " limit" : (out ? "0 left" : show(lim - u) + " left"))
+      };
+    });
+    const capDefs = [["concurrentJobs", "Concurrent jobs", "Jobs running now", "", ""], ["federatedEngines", "Federated engines", "Engine revisions in use", "My engines", "EngRegistrations.dc.html"], ["apiKeys", "API keys", "Active keys", "Manage keys", "AcctKeys.dc.html"]];
+    const capacity = capDefs.map(([k, name, note, link, href]) => {
+      const lim = L[k]; const u = used ? used[k] : undefined;
+      const limS = lim === Infinity ? "∞" : String(lim);
+      return { name: name, big: (u === undefined ? "–" : u) + " / " + limS, note: u === undefined ? note + " · used not in fixtures" : note, link: link, href: href };
+    });
+    const ceilings = [
+      { name: "Max time per job", human: this.dur(L.t), exact: fmt(L.t) + " s" },
+      { name: "Max iterations", human: fmt(L.it), exact: fmt(L.it) + " iteration" },
+      { name: "Max package size", human: this.bytes(L.pay), exact: fmt(L.pay) + " bytes" },
+      { name: "Max problem size", human: L.cx === Infinity ? "Unlimited" : "10^" + L.cx + " combinations", exact: L.cx === Infinity ? ".inf" : "log10 " + L.cx },
+      { name: "Job history retention", human: L.ret + " days", exact: L.ret + " day" }
+    ];
+    const SP = [["Organizations", 2, 5], ["Unique members", 3, 15], ["Projects", 3, 50], ["Private projects", 2, 30], ["Collections", 1, 50], ["Studies", 1, 25]];
+    const sponsor = SP.map(([n, u, l]) => ({ name: n, label: u + " / " + l, pct: Math.round(u / l * 100) + "%" })).concat([{ name: "Storage", label: "50 MiB / 5 GiB", pct: "1%" }]);
+    const tok = pending ? "absent" : s.scenario;
+    const fnames = [["authoring", "Authoring"], ["solve", "Solve"], ["federatedEngines", "Federated engines"], ["apiAccess", "API access"], ["collaboration", "Collaboration"], ["studies", "Studies"], ["advancedAnalytics", "Advanced analytics"], ["reproducibleExport", "Reproducible export"], ["publishing", "Publishing"], ["reproducibilityArchive", "Reproducibility archive"], ["institutionalBranding", "Institutional identity"]];
+    const off = { BASIC: ["advancedAnalytics", "reproducibilityArchive", "institutionalBranding"], ADVANCED: ["reproducibilityArchive", "institutionalBranding"], RESEARCH: ["reproducibilityArchive"], PRO: ["institutionalBranding"] };
+    const features = fnames.map(([k, n]) => {
+      const on = off[plan].indexOf(k) < 0;
+      if (tok === "present") return { name: n, state: on ? "Enabled" : "Not in plan", bg: on ? "#f0fdf4" : "#ffffff", border: on ? "#86efac" : "#b8b8b8" };
+      if (tok === "loading") return { name: n, state: "Checking…", bg: "#fafafa", border: "#b8b8b8" };
+      return { name: n, state: "Can't confirm", bg: "#fffbeb", border: "#fcd34d" };
+    });
+    const tokenLabels = { present: "From your usage", loading: "Checking…", absent: "Can't confirm features", expired: "Token expired · can't confirm" };
+    const hasLimits = !pending && st !== "empty";
+    return {
+      persona: s.persona, st: st, na: [],
+      scenarios: [{ id: "present", label: "Token present" }, { id: "loading", label: "Token loading" }, { id: "absent", label: "Token absent" }, { id: "expired", label: "Token expired" }],
+      scenario: s.scenario,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState({ st: x }),
+      setScenario: (x) => this.setState({ scenario: x }),
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      refresh: () => { this.setState({ st: "loading" }); this.timer = setTimeout(() => this.setState({ st: "success" }), 1000); },
+      isForbidden: st === "forbidden", isError: st === "error", isLoading: st === "loading", isEmpty: st === "empty",
+      showData: st === "success" || st === "empty",
+      hasLimits: hasLimits,
+      d: { pending: pending, noFixture: noFixture, plan: plan, planInitial: plan.charAt(0), priceLabel: plan === "BASIC" ? "Free" : plan === "RESEARCH" ? "Free with verified CAS" : "Institutional agreement", badge: s.persona === "lucia", retention: L.ret + " days", hasSponsor: s.persona === "lucia" },
+      renewLabel: "Nov 1, 2026 (in " + days + " days)",
+      tokenLabel: tokenLabels[tok], tokenBg: tok === "present" ? "#f0fdf4" : "#fffbeb", tokenBorder: tok === "present" ? "#86efac" : "#fcd34d",
+      features: features, monthly: monthly, capacity: capacity, ceilings: ceilings, sponsor: sponsor
+    };
+  }
+}
+</script>
+</body>
+</html>

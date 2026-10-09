@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Domain 7 coverage</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<header style="border-bottom: 1px solid #b8b8b8; background: rgba(255,255,255,0.8);"><div style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; min-height: 56px; padding: 0 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;"><span style="font-size: 14px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase;">OpenBinding</span><span style="display: inline-flex; gap: 12px;"><a href="Index.dc.html">Screen index</a><a href="D6Coverage.dc.html">Domain 6 report</a><a href="Main.dc.html">Plan</a></span></div></header>
+<main style="max-width: 1280px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px; display: flex; flex-direction: column; gap: 32px;">
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #6a6a6a;">Domain 7 · coverage report</span>
+<h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">Engines &amp; language</h1>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+<sc-for list="{{kpis}}" as="k" hint-placeholder-count="4"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px;"><div style="font-family: 'PP Editorial Old', Georgia, serif; font-size: 32px;">{{k.v}}</div><div style="font-size: 12px; font-weight: 500; color: #6a6a6a;">{{k.l}}</div></div></sc-for>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0; font-size: 18px; font-weight: 500;">Screens, states and personas</h2>
+<p style="margin: 0; color: #4a4a4a; max-width: 820px;">Engines and language extensions belong to the account, not to an organization. Registration state (active, publication requested, deleted) and extension approvals carry across boards and personas in this browser, so an administrator can see what Lucía asked for. Credentials are typed into one-time fields that this prototype never stores or shows back.</p>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; overflow-x: auto;">
+<table style="width: 100%; min-width: 1040px; border-collapse: collapse; font-size: 13px;">
+<thead><tr style="background: #fafafa; text-align: left;"><th style="padding: 10px 14px; font-size: 12px; color: #6a6a6a;">Screen</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Board</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Loading</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Empty</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Error</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">No access</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Success</th><th style="padding: 10px 14px; font-size: 12px; color: #6a6a6a;">Persona variation</th></tr></thead>
+<tbody>
+<sc-for list="{{screens}}" as="r" hint-placeholder-count="4">
+<tr style="border-top: 1px solid #ededed; vertical-align: top;"><td style="padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-weight: 500;">{{r.id}}</td><td style="padding: 10px;"><a href="{{r.file}}">{{r.file}}</a></td><td style="padding: 10px;">{{r.l}}</td><td style="padding: 10px;">{{r.e}}</td><td style="padding: 10px;">{{r.x}}</td><td style="padding: 10px;">{{r.f}}</td><td style="padding: 10px;">{{r.s}}</td><td style="padding: 10px 14px; color: #4a4a4a;">{{r.p}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0; font-size: 18px; font-weight: 500;">API operations represented</h2>
+<div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; overflow-x: auto;">
+<table style="width: 100%; min-width: 960px; border-collapse: collapse; font-size: 13px;">
+<thead><tr style="background: #fafafa; text-align: left;"><th style="padding: 10px 14px; font-size: 12px; color: #6a6a6a;">Operation</th><th style="padding: 10px; font-size: 12px; color: #6a6a6a;">Kind</th><th style="padding: 10px 14px; font-size: 12px; color: #6a6a6a;">Where it shows in the prototype</th></tr></thead>
+<tbody>
+<sc-for list="{{ops}}" as="o" hint-placeholder-count="18"><tr style="border-top: 1px solid #ededed; vertical-align: top;"><td style="padding: 8px 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px;">{{o.op}}</td><td style="padding: 8px 10px;">{{o.kind}}</td><td style="padding: 8px 14px; color: #4a4a4a;">{{o.where}}</td></tr></sc-for>
+</tbody>
+</table>
+</div>
+</section>
+
+<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px;">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="3"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 8px;"><span style="font-weight: 600;">{{c.t}}</span><span style="color: #4a4a4a;">{{c.d}}</span></div></sc-for>
+</section>
+
+<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px;">
+<sc-for list="{{lists}}" as="g" hint-placeholder-count="2"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 8px;"><span style="font-weight: 600;">{{g.t}}</span><ul style="margin: 0; padding-left: 18px; color: #4a4a4a; display: flex; flex-direction: column; gap: 4px;"><sc-for list="{{g.items}}" as="i" hint-placeholder-count="5"><li>{{i.t}}</li></sc-for></ul></div></sc-for>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":2900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const S = {"intro": "Engines and language extensions belong to the account, not to an organization. Registration state (active, publication requested, deleted) and extension approvals carry across boards and personas in this browser, so an administrator can see what Lucía asked for. Credentials are typed into one-time fields that this prototype never stores or shows back.", "height": 2900, "kpis": [["4 / 4", "screens prototyped · 0 pending in this domain"], ["13 / 13", "API operations mapped to domain 7 represented"], ["73 / 86", "screens overall · 13 pending (domain 8)"], ["183 / 220", "unique operations overall · 37 pending"]], "screens": [["eng-register", "EngRegister.dc.html", "Checking conformance", "Step 1, nothing created", "422 ×5 · 402 limit · 403 ×2", "Key without register permission", "Active, publication optional", "Limit meter per plan (1 / 3 / 5 / 20)"], ["eng-registrations", "EngRegistrations.dc.html", "✓", "Leads to the wizard", "503 accounts unavailable", "Review filter: 403 for non-admins; 401", "✓ activate, publish, delete", "Review filter only for Iker"], ["eng-registration-detail", "EngRegistrationDetail.dc.html", "Re-check on activation", "n/a", "409 published · 409 inactive · 422 credential", "Neutral 404 for everyone but the owner", "Credential replaced, publication requested", "Read-only view if published"], ["lang-extensions", "LangExtensions.dc.html", "✓", "No submissions", "422 contract · identity · media type", "Approve: 403 non-admin", "Submitted; approval visible", "Moderation tab only for Iker"]], "ops": [["POST /v1/engines", "action", "Wizard step 1: Create engine revision"], ["POST /v1/engine-registrations", "action", "Wizard step 2: Create registration"], ["PUT …/engine-registrations/{name}/credential", "action", "Wizard step 3; detail: Replace credential (never returned)"], ["POST …/{name}/activate", "action", "Wizard step 4; list and detail: Activate (re-checks)"], ["POST …/{name}/deactivate", "action", "List and detail: Deactivate"], ["POST …/{name}/publication-request", "action", "Wizard end; list; detail: Request publication"], ["GET /v1/engine-registrations (?review=true)", "screen", "My engines; admin review filter"], ["GET …/engine-registrations/{name}", "screen", "Detail by exact namespace, name, version, fingerprint"], ["DELETE …/engine-registrations/{name}", "action", "List and detail: Delete (typed confirmation)"], ["POST /v1/dialects", "action", "Submit a dialect (visual form + schema check)"], ["POST /v1/dialects/{name}/approve", "action", "Moderation tab: Approve (admin)"], ["POST /v1/resources", "action", "Register a resource (file, role, identity)"], ["POST /v1/resources/{name}/approve", "action", "Moderation tab: Approve (admin)"]], "cards": [["Existing behaviour shown", "Immutable engine revisions and registrations, exact identity (namespace, name, version, fingerprint), secret-free deployment description, one-time credential, conformance verification before activation, owner-only use, publication review states, deletion blocked once published, plan limit on federated engines, dialect and resource submission with admin approval."], ["Proposed (for implementation)", "Four-step wizard with stepper; contract checks read from the uploaded OpenAPI file; conformance report as a check list; lifecycle tracks (use and publication); slot meter; live schema check panel for dialects; “what we read from the file” panel for resources."], ["Simulated (fixtures only)", "Conformance check names and timings (fixtures only say “passed”); new revision fingerprints; Lucía's pending dialect and resource; the installed dialect (placeholder); example schema fingerprints; every refusal scenario."]], "lists": [["Decisions and deviations", ["Version fields validate with the contract's pattern (major version 1 or higher). The fixture engine edge-solver 0.3.1 would not pass it: flagged for the backend team.", "Administrators get the same 404 as anyone else for private registrations; they see requests only through the review filter.", "The resource example is governed by the installed placeholder dialect, because a resource must be written in an installed dialect.", "No JSON or YAML view anywhere: manifests are built from fields, chips and tables."]], ["Open items in this domain", ["Dialect catalog contents (none in fixtures).", "Individual conformance checks in the verification report.", "Which roles each dialect resource type defines.", "Whether approval order between a dialect and its resources is enforced."]]]};
+    return {
+      kpis: S.kpis.map(([v, l]) => ({ v: v, l: l })),
+      screens: S.screens.map(([id, file, l, e, x, f, s, p]) => ({ id: id, file: file, l: l, e: e, x: x, f: f, s: s, p: p })),
+      ops: S.ops.map(([op, kind, where]) => ({ op: op, kind: kind, where: where })),
+      cards: S.cards.map(([t, d]) => ({ t: t, d: d })),
+      lists: S.lists.map(([t, items]) => ({ t: t, items: items.map((x) => ({ t: x })) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OpenBinding · Language extensions</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#fafafa}
+a{color:#0077b6}a:hover{color:#023e8a}
+*:focus-visible{outline:2px solid #0077b6;outline-offset:2px}
+@keyframes ob-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes ob-spin{to{transform:rotate(360deg)}}
+@keyframes ob-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes ob-growy{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes ob-fadeup{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.ob-skel{animation:ob-pulse 1.4s ease-in-out infinite}
+.ob-spin{animation:ob-spin .9s linear infinite}
+.ob-grow{transform-origin:left;animation:ob-grow 600ms cubic-bezier(.4,0,.2,1) both}
+.ob-growy{transform-origin:bottom;animation:ob-growy 600ms cubic-bezier(.4,0,.2,1) both}
+.ob-in{animation:ob-fadeup 300ms ease-out both}
+.ob-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: reduce){.ob-skel,.ob-spin,.ob-grow,.ob-growy,.ob-in{animation:none !important}}
+@media (max-width: 767px){.ob-hide-sm{display:none !important}.ob-show-sm{display:inline-flex !important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #fafafa; color: #1f1f1f; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 14px; line-height: 1.5;">
+<dc-import name="ShellSimBar" persona="{{persona}}" state="{{st}}" na="{{na}}" scenarios="{{scenarios}}" scenario="{{scenario}}" on-persona="{{setPersona}}" on-state="{{setSt}}" on-scenario="{{setScenario}}" screen="lang-extensions" route="{{route}}" hint-size="100%,44px"></dc-import>
+<sc-if value="{{who.signedIn}}" hint-placeholder-val="{{true}}"><dc-import name="ShellAppHeader" persona-key="{{persona}}" user-name="{{who.name}}" email="{{who.email}}" initials="{{who.initials}}" is-admin="{{who.admin}}" context="{{ctx}}" active="" on-logout="{{logout}}" hint-size="100%,56px"></dc-import></sc-if>
+<sc-if value="{{visitor}}" hint-placeholder-val="{{false}}"><dc-import name="ShellPublicHeader" signed-in="{{false}}" user-name="" email="" initials="" active="" hint-size="100%,88px"></dc-import></sc-if>
+<sc-if value="{{gate}}" hint-placeholder-val="{{false}}"><main style="max-width: 1152px; margin: 0 auto; box-sizing: border-box; padding: 32px 16px 64px;"><div style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 48px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a8a8a8" stroke-width="1" aria-hidden="true"><path d="{{gateIcon}}"></path></svg><span style="font-size: 16px; font-weight: 500;">{{gateTitle}}</span><span style="max-width: 500px; color: #6a6a6a;">{{gateText}}</span><a href="{{gateHref}}" style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border-radius: 8px; background: #0077b6; color: #ffffff; font-weight: 500; text-decoration: none;">{{gateCta}}</a></div></main></sc-if>
+<sc-if value="{{inside}}" hint-placeholder-val="{{true}}">
+<div style="background: #ffffff; border-bottom: 1px solid #ededed;"><div style="max-width: 1180px; margin: 0 auto; box-sizing: border-box; padding: 20px 16px 12px;"><nav aria-label="Breadcrumb" style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: #6a6a6a;"><sc-for list="{{crumbs}}" as="c" hint-placeholder-count="4"><sc-if value="{{c.link}}" hint-placeholder-val="{{true}}"><a href="{{c.href}}" title="{{c.title}}">{{c.label}}</a><span aria-hidden="true">/</span></sc-if><sc-if value="{{c.cur}}" hint-placeholder-val="{{false}}"><span aria-current="page" style="color: #1f1f1f;">{{c.label}}</span></sc-if></sc-for></nav></div></div>
+<main style="max-width: 1180px; margin: 0 auto; box-sizing: border-box; padding: 24px 16px 64px; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px;">
+<div style="max-width: 680px;"><h1 style="margin: 0; font-family: 'PP Editorial Old', 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 400;">Language extensions</h1><p style="margin: 4px 0 0; color: #6a6a6a;">Teach OpenBinding new kinds of resources. A dialect declares them; registered resources are documents written in them. Each submission is a fixed revision that an administrator approves before anyone can use it.</p></div>
+<a href="LangProfiles.dc.html" style="{{btnSecondary}}">Profiles and installed dialects</a>
+</div>
+<div role="tablist" aria-label="Sections" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #b8b8b8;"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="5"><button type="button" role="tab" aria-selected="{{t.sel}}" onClick="{{t.pick}}" style="{{t.style}}">{{t.label}} <span style="{{t.countStyle}}">{{t.count}}</span></button></sc-for></div>
+<sc-if value="{{errBanner}}" hint-placeholder-val="{{false}}"><div role="alert" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px;"><span style="flex: 1; min-width: 240px;"><span style="display: block; font-weight: 600;">{{errTitle}}</span><span style="font-size: 13px;">{{errText}}</span></span><sc-if value="{{errElsewhere}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{goErr}}" style="{{btnSecondary}}">Show me where</button></sc-if></div></sc-if>
+<sc-if value="{{toast}}" hint-placeholder-val="{{false}}"><div role="status" style="border: 1px solid {{toastBorder}}; background: {{toastBg}}; border-radius: 12px; padding: 10px 14px;">{{toast}}</div></sc-if>
+<sc-if value="{{isLoading}}" hint-placeholder-val="{{false}}"><div style="display: flex; flex-direction: column; gap: 8px;"><sc-for list="{{skel}}" as="k" hint-placeholder-count="3"><div class="ob-skel" style="height: 64px; border-radius: 12px; background: #ededed;"></div></sc-for></div></sc-if>
+
+<sc-if value="{{tMine}}" hint-placeholder-val="{{true}}">
+<sc-if value="{{mineEmpty}}" hint-placeholder-val="{{false}}"><div style="border: 1px dashed #a8a8a8; border-radius: 16px; background: #ffffff; padding: 32px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><span style="font-weight: 500;">You haven't submitted anything</span><span style="max-width: 460px; color: #6a6a6a;">Start with a dialect if you need new resource types, or register a resource for a dialect that's already installed.</span><span style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;"><button type="button" onClick="{{goDialect}}" style="{{btnPrimary}}">Submit a dialect</button><button type="button" onClick="{{goResource}}" style="{{btnSecondary}}">Register a resource</button></span></div></sc-if>
+<sc-if value="{{mineHas}}" hint-placeholder-val="{{true}}"><div style="display: flex; flex-direction: column; gap: 8px;"><sc-for list="{{mine}}" as="m" hint-placeholder-count="2"><div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 12px 14px;"><span style="{{m.kindChip}}">{{m.kind}}</span><span style="flex: 1; min-width: 220px;"><span style="font-weight: 600;">{{m.name}}</span> <span style="font-size: 13px; color: #4a4a4a;">{{m.version}}</span><span style="display: block; font-size: 12px; color: #6a6a6a;">{{m.detail}}</span></span><span style="{{m.statusChip}}">{{m.status}}</span><span style="{{m.srcChip}}">{{m.src}}</span></div></sc-for></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;"><sc-for list="{{flow}}" as="f" hint-placeholder-count="3"><div style="display: flex; gap: 10px; align-items: flex-start; border: 1px solid #ededed; border-radius: 12px; background: #ffffff; padding: 12px;"><span aria-hidden="true" style="width: 24px; height: 24px; flex-shrink: 0; border-radius: 9999px; background: #caf0f8; color: #023e8a; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">{{f.n}}</span><span style="font-size: 13px;"><span style="display: block; font-weight: 600;">{{f.t}}</span>{{f.d}}</span></div></sc-for></div></sc-if>
+</sc-if>
+
+<sc-if value="{{tDialect}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 16px; align-items: start;">
+<div style="display: flex; flex-direction: column; gap: 16px;">
+<section style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">Identity</h2><button type="button" onClick="{{fillExample}}" style="border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 13px; color: #0077b6; font-weight: 500; cursor: pointer;">Fill the rest with example values</button></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 12px; font-weight: 500; color: #6a6a6a;">Namespace</span><span style="height: 38px; display: flex; align-items: center; padding: 0 12px; border-radius: 8px; background: #fafafa; border: 1px solid #ededed; font-family: 'JetBrains Mono', monospace; font-size: 13px;">{{ns}}</span></div>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Name<input value="{{dn}}" onChange="{{typeDn}}" spellcheck="false" style="height: 38px; box-sizing: border-box; padding: 0 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px;"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Version<input value="{{dv}}" onChange="{{typeDv}}" spellcheck="false" style="height: 38px; box-sizing: border-box; padding: 0 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px;"></label>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;"><span style="font-size: 12px; font-weight: 500; color: #6a6a6a;">Works with profiles</span><button type="button" aria-pressed="{{profPressed}}" onClick="{{toggleProf}}" style="{{profStyle}}">qos-binding/v1</button></div>
+</section>
+<section style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">Resource types it adds</h2><button type="button" onClick="{{addRt}}" style="{{btnSecondary}}">Add a resource type</button></div>
+<sc-for list="{{rts}}" as="r" hint-placeholder-count="1"><div style="border: 1px solid #ededed; border-radius: 12px; padding: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #6a6a6a;">Kind<input value="{{r.kind}}" onChange="{{r.setKind}}" style="height: 34px; box-sizing: border-box; padding: 0 10px; border: 1px solid #c7c7c7; border-radius: 6px; font-family: inherit; font-size: 13px;"></label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #6a6a6a;">Roles (comma separated)<input value="{{r.roles}}" onChange="{{r.setRoles}}" style="height: 34px; box-sizing: border-box; padding: 0 10px; border: 1px solid #c7c7c7; border-radius: 6px; font-family: inherit; font-size: 13px;"></label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #6a6a6a;">File format<select value="{{r.mt}}" onChange="{{r.setMt}}" style="height: 34px; border: 1px solid #c7c7c7; border-radius: 6px; background: #ffffff; padding: 0 8px; font-family: inherit; font-size: 13px;"><option value="application/json">JSON</option><option value="application/xml">XML</option><option value="application/vnd.omg.bpmn+xml">BPMN (XML)</option></select></label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #6a6a6a;">Schema fingerprint<input value="{{r.sd}}" onChange="{{r.setSd}}" placeholder="sha256-…" spellcheck="false" style="height: 34px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{r.sdBorder}}; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 12px;"></label>
+<sc-if value="{{r.isXml}}" hint-placeholder-val="{{false}}"><label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #6a6a6a;">XML root element<input value="{{r.root}}" onChange="{{r.setRoot}}" placeholder="required for XML" style="height: 34px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{r.rootBorder}}; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 12px;"></label></sc-if>
+<span style="display: flex; align-items: flex-end;"><button type="button" onClick="{{r.remove}}" style="border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 13px; color: #b91c1c; cursor: pointer;">Remove</button></span>
+</div></sc-for>
+<sc-if value="{{noRts}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #6a6a6a;">No resource types. That's fine if the dialect adds extension points instead.</span></sc-if>
+</section>
+<section style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">Extension points</h2><button type="button" onClick="{{addEp}}" style="{{btnSecondary}}">Add an extension point</button></div>
+<span style="font-size: 13px; color: #6a6a6a;">Places inside an existing kind where your dialect may add fields.</span>
+<sc-for list="{{eps}}" as="x" hint-placeholder-count="0"><div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border: 1px solid #ededed; border-radius: 12px; padding: 10px 12px; font-size: 13px;"><span style="{{x.chip}}">{{x.kind}}</span><span aria-hidden="true">→</span><span style="font-family: 'JetBrains Mono', monospace;">{{x.where}}</span><span style="flex: 1; font-size: 12px; color: #6a6a6a;">schema {{x.sd}}</span><button type="button" onClick="{{x.remove}}" style="border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 13px; color: #b91c1c; cursor: pointer;">Remove</button></div></sc-for>
+</section>
+<section style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">Problem features and adapter</h2>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px;"><span style="font-size: 12px; font-weight: 500; color: #6a6a6a;">Features it adds to problems</span><sc-for list="{{irf}}" as="f" hint-placeholder-count="1"><span style="{{f.chip}}">{{f.dim}} = {{f.val}}</span></sc-for></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Adapter<input value="{{adId}}" onChange="{{typeAdId}}" placeholder="adapter id" spellcheck="false" style="height: 38px; box-sizing: border-box; padding: 0 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px;"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Adapter version<input value="{{adV}}" onChange="{{typeAdV}}" spellcheck="false" style="height: 38px; box-sizing: border-box; padding: 0 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px;"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Adapter binary fingerprint<input value="{{adBd}}" onChange="{{typeAdBd}}" placeholder="sha256-…" spellcheck="false" style="height: 38px; box-sizing: border-box; padding: 0 12px; border: 1px solid {{adBdBorder}}; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px;"></label>
+</div>
+</section>
+</div>
+<aside aria-label="Schema check" style="position: sticky; top: 16px; border: 1px solid #a9d6ea; background: #f1f8fc; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<span style="font-weight: 600;">Schema check</span>
+<ul aria-live="polite" style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px;"><sc-for list="{{rules}}" as="c" hint-placeholder-count="6"><li style="display: flex; gap: 8px; font-size: 13px;"><span aria-hidden="true" style="font-weight: 700; color: {{c.fg}};">{{c.glyph}}</span><span>{{c.label}}<span class="ob-sr">{{c.sr}}</span></span></li></sc-for></ul>
+<span style="font-size: 12px; color: #4a4a4a;">{{rulesSummary}}</span>
+<button type="button" onClick="{{submitDialect}}" disabled="{{cantDialect}}" style="{{btnPrimary}} opacity: {{dialectOpacity}};">Submit for approval</button>
+<span style="font-size: 12px; color: #6a6a6a;">Once submitted, this revision can't be edited. Fix things by submitting a new version.</span>
+</aside>
+</div>
+</sc-if>
+
+<sc-if value="{{tResource}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 16px; align-items: start;">
+<section style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">Register a resource</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px;">
+<div style="display: flex; flex-direction: column; gap: 6px;"><span style="font-size: 12px; font-weight: 500; color: #6a6a6a;">Namespace</span><span style="height: 38px; display: flex; align-items: center; padding: 0 12px; border-radius: 8px; background: #fafafa; border: 1px solid #ededed; font-family: 'JetBrains Mono', monospace; font-size: 13px;">{{ns}}</span></div>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Name<input value="{{rn}}" onChange="{{typeRn}}" spellcheck="false" style="height: 38px; box-sizing: border-box; padding: 0 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px;"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Version<input value="{{rv}}" onChange="{{typeRv}}" spellcheck="false" style="height: 38px; box-sizing: border-box; padding: 0 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px;"></label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 500; color: #6a6a6a;">Role<input value="{{rrole}}" onChange="{{typeRrole}}" spellcheck="false" style="height: 38px; box-sizing: border-box; padding: 0 12px; border: 1px solid #c7c7c7; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px;"></label>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px;"><span style="font-size: 12px; font-weight: 500; color: #6a6a6a;">The document (JSON or XML)</span>
+<div style="border: 2px dashed #0077b6; border-radius: 14px; background: #f1f8fc; padding: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;"><span style="font-weight: 500;">Drop a file, or pick a simulated one</span><div role="radiogroup" aria-label="Simulated file" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;"><sc-for list="{{files}}" as="f" hint-placeholder-count="3"><button type="button" role="radio" aria-checked="{{f.on}}" onClick="{{f.pick}}" style="{{f.style}}">{{f.label}}</button></sc-for></div></div>
+</div>
+<sc-if value="{{rErr}}" hint-placeholder-val="{{false}}"><div role="alert" style="border: 1px solid #fca5a5; background: #fef2f2; border-radius: 12px; padding: 12px 14px; font-size: 13px;">{{rErr}}</div></sc-if>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;"><button type="button" onClick="{{submitResource}}" disabled="{{cantResource}}" style="{{btnPrimary}} opacity: {{resourceOpacity}};">Submit for approval</button><span style="font-size: 12px; color: #6a6a6a;">{{resourceWhy}}</span></div>
+</section>
+<aside aria-label="What we read from the file" style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<span style="font-weight: 600;">What we read from the file</span>
+<sc-if value="{{noFile}}" hint-placeholder-val="{{true}}"><span style="font-size: 13px; color: #6a6a6a;">Pick a file to see its format, the dialect that governs it and its fingerprint.</span></sc-if>
+<sc-for list="{{detected}}" as="d" hint-placeholder-count="0"><div style="display: flex; flex-direction: column; border-bottom: 1px solid #ededed; padding-bottom: 8px;"><span style="font-size: 12px; color: #6a6a6a;">{{d.k}}</span><span style="font-size: 13px; overflow-wrap: anywhere; color: {{d.fg}};">{{d.v}}</span></div></sc-for>
+<span style="font-size: 12px; color: #6a6a6a;">Simulated: the prototype has no resource files.</span>
+</aside>
+</div>
+</sc-if>
+
+<sc-if value="{{tInstalled}}" hint-placeholder-val="{{false}}">
+<section style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;"><h2 style="margin: 0; font-size: 16px; font-weight: 600;">Installed dialects</h2><span style="font-size: 12px; color: #6a6a6a;">Readable by everyone</span></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;"><sc-for list="{{installed}}" as="x" hint-placeholder-count="4"><div style="border: 1px solid #ededed; border-radius: 12px; padding: 10px 12px;"><span style="display: block; font-size: 12px; color: #6a6a6a;">{{x.k}}</span><span style="font-size: 13px;">{{x.v}}</span></div></sc-for></div>
+<span style="font-size: 12px; color: #6a6a6a;"><span style="{{placeholderChip}}">Placeholder</span> The prototype data has no dialect catalog; this entry is assembled from real kinds and the IR extension random-search declares.{{approvedNote}}</span>
+</section>
+<section style="border: 1px solid #b8b8b8; border-radius: 16px; background: #ffffff; padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+<h2 style="margin: 0; font-size: 16px; font-weight: 600;">Published resources</h2>
+<sc-if value="{{pubResEmpty}}" hint-placeholder-val="{{true}}"><span style="color: #6a6a6a;">None in the prototype data yet.</span></sc-if>
+<sc-for list="{{pubRes}}" as="x" hint-placeholder-count="0"><div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px;"><span style="{{x.chip}}">Resource</span><span style="font-weight: 600;">{{x.name}}</span><span style="color: #4a4a4a;">{{x.meta}}</span></div></sc-for>
+</section>
+</sc-if>
+
+<sc-if value="{{tModeration}}" hint-placeholder-val="{{false}}">
+<div role="note" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border: 1px solid #1f1f1f; border-radius: 12px; padding: 10px 14px; font-size: 13px;"><span style="{{adminChip}}">admin</span>Approving is moderation. It needs a platform administrator account and “moderate extensions”. The full queue for engines and extensions is in <a href="AdminModeration.dc.html">Moderation</a>.</div>
+<sc-if value="{{queueEmpty}}" hint-placeholder-val="{{false}}"><div style="border: 1px dashed #a8a8a8; border-radius: 16px; background: #ffffff; padding: 28px; color: #4a4a4a; text-align: center;">Nothing waiting for approval.</div></sc-if>
+<div style="display: flex; flex-direction: column; gap: 8px;"><sc-for list="{{queue}}" as="q" hint-placeholder-count="2"><div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border: 1px solid #b8b8b8; border-radius: 12px; background: #ffffff; padding: 12px 14px;"><span style="{{q.kindChip}}">{{q.kind}}</span><span style="flex: 1; min-width: 220px;"><span style="font-weight: 600;">{{q.name}}</span> <span style="font-size: 13px; color: #4a4a4a;">{{q.version}}</span><span style="display: block; font-size: 12px; color: #6a6a6a;">{{q.detail}}</span></span><span style="{{q.srcChip}}">Simulated</span><button type="button" onClick="{{q.approve}}" style="{{btnPrimary}}">Approve</button></div></sc-for></div>
+</sc-if>
+</main>
+</sc-if>
+<div aria-live="polite" class="ob-sr">{{live}}</div>
+<dc-import name="ShellFooter" hint-size="100%,420px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":2000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ persona: "lucia", st: "success", scenario: "ok", org: "isa-demo", project: "qos-benchmarks", live: "" }, { tab: 'mine', ext: { d: 'pending', r: 'pending' }, subs: [], dn: 'edge-annotations', dv: '1.0.0', prof: true, rts: [{ kind: 'LatencyTable', roles: 'latency-table', mt: 'application/json', sd: '', root: '' }], eps: [], irf: [{ dim: 'placement', val: 'edge' }], adId: '', adV: '', adBd: '', rn: 'eu-edge-placement', rv: '1.0.0', rrole: 'placement', file: '', rErr: '', toast: '', bad: false });
+  }
+  personas() {
+    return {
+      visitor: { key: "visitor", signedIn: false, user: "", name: "", first: "", email: "", initials: "", admin: false, plan: "BASIC" },
+      lucia: { key: "lucia", signedIn: true, user: "lucia.vega", name: "Lucía Vega", first: "Lucía", email: "lucia@example.invalid", initials: "LV", admin: false, plan: "RESEARCH" },
+      marco: { key: "marco", signedIn: true, user: "marco.diaz", name: "Marco Díaz", first: "Marco", email: "marco@example.invalid", initials: "MD", admin: false, plan: "BASIC" },
+      sofia: { key: "sofia", signedIn: true, user: "sofia.rey", name: "Sofía Rey", first: "Sofía", email: "sofia@example.invalid", initials: "SR", admin: false, plan: "BASIC", pending: true },
+      nora: { key: "nora", signedIn: true, user: "nora.campos", name: "Nora Campos", first: "Nora", email: "nora@example.invalid", initials: "NC", admin: false, plan: "ADVANCED" },
+      iker: { key: "iker", signedIn: true, user: "iker.mora", name: "Iker Mora", first: "Iker", email: "iker@example.invalid", initials: "IM", admin: true, plan: "PRO" },
+      pablo: { key: "pablo", signedIn: true, user: "pablo.ci", name: "Pablo Ibáñez", first: "Pablo", email: "pablo@example.invalid", initials: "PI", admin: false, plan: "PRO" }
+    };
+  }
+  fx() {
+    const D = { a1: "sha256-a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4", b2: "sha256-b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5b2c3d4e5", c3: "sha256-c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6c3d4e5f6", d4: "sha256-d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607d4e5f607", e5: "sha256-e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718e5f60718" };
+    const short = { a1: "sha256-a1b2…c3d4", b2: "sha256-b2c3…d4e5", c3: "sha256-c3d4…e5f6", d4: "sha256-d4e5…f607", e5: "sha256-e5f6…0718" };
+    return {
+      D: D, short: short,
+      orgs: {
+        "isa-demo": { slug: "isa-demo", name: "ISA Demo Group", parent: "", sponsor: "lucia", sponsorName: "Lucía Vega" },
+        "qos-lab": { slug: "qos-lab", name: "QoS Lab (sub-organización)", parent: "isa-demo", sponsor: "lucia", sponsorName: "Lucía Vega" },
+        "consultora-demo": { slug: "consultora-demo", name: "Consultora Demo", parent: "", sponsor: "nora", sponsorName: "Nora Campos" }
+      },
+      roles: {
+        lucia: { "isa-demo": "OWNER", "qos-lab": "OWNER" },
+        marco: { "isa-demo": "MEMBER", "qos-lab": "ADMIN", "consultora-demo": "VIEWER" },
+        sofia: { "isa-demo": "VIEWER", "qos-lab": "VIEWER" },
+        nora: { "consultora-demo": "OWNER" }, iker: {}, pablo: {}, visitor: {}
+      },
+      projects: {
+        "qos-benchmarks": { org: "isa-demo", slug: "qos-benchmarks", name: "QoS Benchmarks", desc: "Casos de referencia de binding con workflow y placement.", vis: "public" },
+        "checkout-privado": { org: "isa-demo", slug: "checkout-privado", name: "Checkout (privado)", desc: "Caso interno de pagos con candidatos propietarios.", vis: "private" },
+        "placement-edge": { org: "qos-lab", slug: "placement-edge", name: "Placement en el borde", desc: "Exploración con pools y latencias.", vis: "private" }
+      },
+      cases: {
+        "qos-benchmarks": [{ slug: "checkout-flow", name: "Flujo de checkout", desc: "Pagos con autenticación, stock y envío en paralelo.", revisions: [
+          { n: 1, digest: "a1", date: "Aug 1, 2026", size: 4.2, resources: [["Application", "checkout-app", "3"], ["CandidateCatalog", "providers-eu", "2"], ["ConstraintSet", "sla-hard", "1"], ["Optimization", "weighted-cost-latency", "1"]], change: "First revision." },
+          { n: 2, digest: "b2", date: "Aug 20, 2026", size: 5.1, resources: [["Application", "checkout-app", "3"], ["CandidateCatalog", "providers-eu", "3"], ["ConstraintSet", "sla-hard", "1"], ["Optimization", "weighted-cost-latency", "1"]], change: "Catálogo ampliado de 5 a 8 candidatos para la tarea pago." }
+        ] }]
+      },
+      workflow: [
+        { kind: "task", task: "autenticar", type: "service", cap: "auth", cands: 4 },
+        { kind: "parallel", agg: "max", items: [{ task: "inventario", cap: "stock", cands: 5 }, { task: "calcular-envio", cap: "shipping", cands: 3 }] },
+        { kind: "exclusive", items: [{ task: "pago-tarjeta", branch: "tarjeta", p: 0.7, cap: "payment", cands: 8 }, { task: "pago-transferencia", branch: "transferencia", p: 0.3, cap: "payment", cands: 4 }] },
+        { kind: "task", task: "notificar", type: "local" }
+      ],
+      candidates: [{ id: "payco-eu", latency: 180, cost: 0.021, availability: 99.95 }, { id: "fastpay", latency: 95, cost: 0.034, availability: 99.9 }],
+      constraints: [{ id: "sla-latencia", enf: "hard", text: "Latencia total ≤ 600 ms" }, { id: "sla-disponibilidad", enf: "soft", penalty: 5.0, text: "Disponibilidad ≥ 99.9 %" }],
+      objective: { mode: "weighted-sum", terms: [{ metric: "cost", weight: 0.6, dir: "minimize" }, { metric: "latency", weight: 0.4, dir: "minimize" }] },
+      library: [
+        { id: "d1", org: "isa-demo", kind: "CandidateCatalog", name: "providers-eu", display: "Proveedores UE", versions: [{ ord: 2, version: "2", content: "c3", vdigest: "d4", published: false }, { ord: 3, version: "3", content: "e5", vdigest: "a1", published: true, citation: "Catálogo de proveedores UE (sintético)" }], drafts: [{ id: "d4", rev: 4, basedOn: "3" }] },
+        { id: "d5", org: "isa-demo", kind: "Study", name: "engines-vs-seeds", display: "Engines × semillas", versions: [{ ord: 1, version: "1", published: false }], drafts: [] },
+        { id: "d6", org: "isa-demo", kind: "ExecutionConfiguration", name: "rs-60s", display: "Random Search 60 s", versions: [{ ord: 1, version: "1", published: false }], drafts: [] }
+      ],
+      jobs: [
+        { id: "f1", owner: "lucia", project: "qos-benchmarks", engine: "random-search", label: "Random Search", mode: "sampling", status: "completed", term: "FEASIBLE", created: "Sep 30, 2026, 09:00", dur: "1 min 5 s", durS: 65, sols: 1, clamp: true, req: [["time_budget_ms", 600000, "ms"], ["iterations", 100000, "iterations"]], app: [["time_budget_ms", 60000, "ms"], ["iterations", 100000, "iterations"]] },
+        { id: "f2", owner: "lucia", project: "qos-benchmarks", engine: "minizinc", label: "MiniZinc", mode: "cp", status: "running", term: "", created: "Oct 8, 2026, 08:00", dur: "running", durS: 0, sols: 0, req: [["time_budget_ms", 300000, "ms"]], app: [["time_budget_ms", 300000, "ms"]] },
+        { id: "f3", owner: "marco", project: "checkout-privado", engine: "random-search", label: "Random Search", mode: "sampling", status: "queued", term: "", created: "Oct 8, 2026, 08:10", dur: "waiting", durS: 0, sols: 0, req: [], app: [] },
+        { id: "f4", owner: "marco", project: "checkout-privado", engine: "evolutionary", label: "Evolutionary", mode: "genetic", status: "failed", term: "UNKNOWN", created: "Oct 7, 2026, 15:00", dur: "20 s", durS: 20, sols: 0, error: "The deployment didn't answer within the budget (engine unreachable).", retryable: true, req: [], app: [] },
+        { id: "f5", owner: "marco", project: "checkout-privado", engine: "random-search", label: "Random Search", mode: "sampling", status: "cancelled", term: "", created: "Oct 6, 2026, 12:00", dur: "3 s", durS: 3, sols: 0, retryable: true, req: [], app: [] },
+        { id: "f6", owner: "lucia", project: "qos-benchmarks", engine: "minizinc", label: "MiniZinc", mode: "cp", status: "completed", term: "INFEASIBLE", created: "Oct 1, 2026, 09:00", dur: "40 s", durS: 40, sols: 0, infeas: true, req: [], app: [] }
+      ],
+      study: { slug: "engines-vs-seeds", name: "Engines × semillas", project: "qos-benchmarks", archived: false, cases: ["checkout-flow@1", "checkout-flow@2"], engines: [["random-search", "Random Search", "sampling"], ["evolutionary", "Evolutionary", "genetic"]], params: 1, seeds: [1, 2], cellsN: 8,
+        run: { n: 1, state: "partial", matrix: "d4", created: "Sep 20, 2026, 09:00", finished: "Sep 20, 2026, 09:20", done: 6, failed: 1, cancelled: 1 },
+        cells: [
+          { o: 0, c: 1, e: "random-search", seed: 1, state: "completed", feasible: true, cost: 0.121, lat: 430, rt: 58 },
+          { o: 1, c: 1, e: "random-search", seed: 2, state: "completed", feasible: true, cost: 0.118, lat: 412, rt: 59 },
+          { o: 2, c: 1, e: "evolutionary", seed: 1, state: "completed", feasible: true, cost: 0.112, lat: 440, rt: 120 },
+          { o: 3, c: 1, e: "evolutionary", seed: 2, state: "failed", code: "engine_unreachable", detail: "timeout" },
+          { o: 4, c: 2, e: "random-search", seed: 1, state: "completed", feasible: true, cost: 0.109, lat: 398, rt: 60 },
+          { o: 5, c: 2, e: "random-search", seed: 2, state: "completed", feasible: true, cost: 0.111, lat: 405, rt: 60 },
+          { o: 6, c: 2, e: "evolutionary", seed: 1, state: "completed", feasible: true, cost: 0.104, lat: 420, rt: 118 },
+          { o: 7, c: 2, e: "evolutionary", seed: 2, state: "cancelled" }
+        ],
+        pareto: [[0.104, 420], [0.109, 398]] },
+      reports: [
+        { slug: "engines-vs-seeds-informe", title: "Comparativa de engines en checkout", state: "frozen", run: "Engines × semillas #1", version: "1", digest: "e5", pub: { slug: "checkout-comparativa", title: "Comparativa de engines en checkout (sintética)", authors: "Lucía Vega", year: 2026, date: "Sep 25, 2026" } },
+        { slug: "borrador-placement", title: "Borrador: placement", state: "draft", draftRev: 3 }
+      ],
+      snapshot: { id: "e1", owner: "lucia", instance: "a1", pkg: "b2", ir: "c3", size: 48213, date: "Aug 20, 2026, 10:05" },
+      engines: [
+        { ns: "bim.builtin", name: "random-search", label: "Random Search", version: "1.0.0", digest: "b2", mode: "sampling", vis: "public" },
+        { ns: "bim.builtin", name: "evolutionary", label: "Evolutionary", version: "1.0.0", digest: "c3", mode: "genetic", vis: "public" },
+        { ns: "bim.builtin", name: "minizinc", label: "MiniZinc", version: "1.0.0", digest: "d4", mode: "cp", vis: "public" },
+        { ns: "lucia-vega", name: "edge-solver", label: "edge-solver", version: "0.3.1", digest: "e5", mode: "—", vis: "private", owner: "lucia" }
+      ]
+    };
+  }
+  componentDidMount() { try { const k = window.localStorage.getItem("ob.persona"); if (k && this.personas()[k]) this.setState({ persona: k }); const o = window.localStorage.getItem("ob.org"); if (o && o !== "__new") this.setState({ org: o }); const pj = window.localStorage.getItem("ob.project"); if (pj && pj !== "__new") this.setState({ project: pj }); const ex = window.localStorage.getItem("ob.ext"); if (ex) this.setState({ ext: JSON.parse(ex) }); } catch (e) {} }
+  componentWillUnmount() { if (this.timer) clearTimeout(this.timer); if (this.t2) clearTimeout(this.t2); }
+  setPersona(k) { this.setState(Object.assign({ persona: k }, { tab: 'mine', subs: [], file: '', rErr: '', toast: '', bad: false })); try { window.localStorage.setItem("ob.persona", k); } catch (e) {} }
+  later(ms, fn) { if (this.timer) clearTimeout(this.timer); this.timer = setTimeout(fn, ms); }
+  copy(text, key) { try { if (navigator.clipboard) navigator.clipboard.writeText(text); } catch (e) {} this.setState({ copied: key, live: "Copied." }); if (this.t2) clearTimeout(this.t2); this.t2 = setTimeout(() => this.setState({ copied: "" }), 2000); }
+  renderVals() {
+    const s = this.state;
+    const P = this.personas();
+    const who = P[s.persona] || P.visitor;
+    const st = s.st, sc = s.scenario;
+    const F = this.fx();
+    const SCENMAP = {"ok": "success", "contract": "error", "identity": "error", "media": "error", "approve403": "forbidden"};
+    const RESET = { tab: 'mine', subs: [], file: '', rErr: '', toast: '', bad: false };
+    const projKey = F.projects[s.project] ? s.project : "qos-benchmarks";
+    const p = F.projects[projKey];
+    const orgKey = "app" === "project" ? p.org : (F.orgs[s.org] ? s.org : "isa-demo");
+    const org = F.orgs[orgKey];
+    const myRoles = F.roles[s.persona] || {};
+    const role = myRoles[orgKey] || (who.admin ? "PLATFORM ADMIN" : "");
+    const rank = { VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4, "PLATFORM ADMIN": 4 }[role] || 0;
+    const member = rank > 0;
+    const canMember = rank >= 2, canAdmin = rank >= 3;
+    const chip = (bg, fg, bd) => "display: inline-flex; align-items: center; gap: 4px; border-radius: 9999px; padding: 1px 10px; font-size: 12px; font-weight: 500; background: " + bg + "; color: " + fg + "; border: 1px solid " + bd + ";";
+    const roleChipOf = (r) => "border-radius: 9999px; padding: 1px 10px; font-size: 11px; font-weight: 600; " + ({ OWNER: "background: #023e8a; color: #ffffff;", ADMIN: "background: #0077b6; color: #ffffff;", MEMBER: "background: #caf0f8; color: #023e8a;", VIEWER: "background: #fafafa; color: #4a4a4a; border: 1px solid #b8b8b8;", "PLATFORM ADMIN": "background: #1f1f1f; color: #ffffff;" }[r] || "");
+    const btn = (kind) => "display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 8px; font-family: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; " + (kind === "primary" ? "border: 0; background: #0077b6; color: #ffffff;" : (kind === "danger" ? "border: 1px solid #fca5a5; background: #ffffff; color: #b91c1c;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #1f1f1f;"));
+    const pill = (on) => "height: 30px; padding: 0 12px; border-radius: 9999px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; " + (on ? "border: 1px solid #0077b6; background: #0077b6; color: #ffffff;" : "border: 1px solid #a8a8a8; background: #ffffff; color: #4a4a4a;");
+    const tab = (on) => "padding: 10px 16px; border: 0; background: transparent; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: -1px; " + (on ? "color: #0077b6; border-bottom: 2px solid #0077b6;" : "color: #6a6a6a; border-bottom: 2px solid transparent;");
+    const radio = (on) => ({ border: on ? "2px solid #0077b6" : "1px solid #b8b8b8", bg: on ? "rgba(0,119,182,0.05)" : "#ffffff", ring: on ? "#0077b6" : "#a8a8a8", fill: on ? "#0077b6" : "transparent" });
+    const n = (x) => Number(x).toLocaleString("en-US");
+    const later = (ms, fn) => this.later(ms, fn);
+    const forbiddenGate = false;
+    const allowVisitor = false;
+    const needMember = "app" === "project" || "app" === "org";
+    const gate = (!who.signedIn && !allowVisitor) || (who.signedIn && needMember && !member) || (forbiddenGate && st === "forbidden");
+    const __b = {
+      persona: s.persona, st: st, na: [], scenarios: [{"id": "ok", "label": "Loads"}, {"id": "contract", "label": "422 invalid resource contract"}, {"id": "identity", "label": "422 resource identity"}, {"id": "media", "label": "422 unsupported media type"}, {"id": "approve403", "label": "403 approve without admin"}], scenario: sc,
+      setPersona: (k) => this.setPersona(k),
+      setSt: (x) => this.setState(Object.assign({ st: x }, RESET)),
+      setScenario: (x) => this.setState(Object.assign({ scenario: x, st: SCENMAP[x] || "error" }, RESET)),
+      logout: () => this.setPersona("visitor"),
+      who: who, visitor: !who.signedIn,
+      org: org, p: p, role: role, roleChip: roleChipOf(role),
+      ctx: "app" === "project" ? org.name + " / " + p.name : ("app" === "org" ? org.name : ""),
+      gate: gate, inside: !gate,
+      gateIcon: !who.signedIn ? "M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4" : "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-3.5-3.5",
+      gateTitle: !who.signedIn ? "Log in to extend the language" : (forbiddenGate && st === "forbidden" && member ? "Your role doesn’t reach this (403)" : "Not found"),
+      gateText: !who.signedIn ? "Submitting dialects and resources needs an account. Installed dialects are public on the profiles page." : (forbiddenGate && st === "forbidden" && member ? "Ask an admin of the organization for a higher role." : "It doesn't exist, or you're not a member of the organization it belongs to. We show the same message either way."),
+      gateHref: who.signedIn ? "AppHome.dc.html" : "AuthLogin.dc.html", gateCta: who.signedIn ? "Back to Home" : "Log in",
+      live: s.live
+    };
+    const crumbBase = "app" === "project" ? [["Home", "AppHome.dc.html"], [org.name, "OrgOverview.dc.html"], [p.name, "ProjOverview.dc.html"]] : ("app" === "org" ? [["Home", "AppHome.dc.html"], [org.name, "OrgOverview.dc.html"]] : [["Home", "AppHome.dc.html"]]);
+    const ns = who.user ? who.user.replace(/\./g, "-") : "";
+    const saveExt = (x) => { try { window.localStorage.setItem("ob.ext", JSON.stringify(x)); } catch (e) {} };
+    const X = s.ext;
+    const okDg = (v) => /^sha256-[0-9a-f]{64}$/.test(v);
+    const semver = (v) => /^([1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(v);
+    const isXml = (mt) => /(^|[+/])xml$/.test(mt);
+    const EXD = "sha256-" + "5c1e".repeat(16);
+    const SEED = s.persona === "lucia" ? [
+      { kind: "Dialect", name: "lucia-vega/edge-annotations", version: "1.0.0", detail: "Adds LatencyTable · works with qos-binding/v1", status: X.d },
+      { kind: "Resource", name: "lucia-vega/eu-edge-placement", version: "1.0.0", detail: "Role placement · JSON · governed by [placement dialect]", status: X.r }
+    ] : [];
+    const mineList = SEED.map((m) => Object.assign({ seed: true }, m)).concat(s.subs);
+    const ST = { pending: ["Waiting for approval", chip("#fffbeb", "#92400e", "#fcd34d")], published: ["Approved · published", chip("#f0fdf4", "#15803d", "#86efac")] };
+    const KC = { Dialect: chip("#023e8a", "#ffffff", "#023e8a"), Resource: chip("#caf0f8", "#023e8a", "#a9d6ea") };
+    const dRules = [
+      ["Name and version are valid", /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(s.dn) && semver(s.dv)],
+      ["Works with at least one profile", s.prof],
+      ["Adds at least one resource type or extension point", s.rts.length + s.eps.length > 0],
+      ["Every resource type has a kind, roles and a schema fingerprint", s.rts.every((r) => r.kind.trim() && r.roles.trim() && okDg(r.sd))],
+      ["XML formats name their root element", s.rts.every((r) => !isXml(r.mt) || r.root.trim())],
+      ["Adapter has an id, a version and a binary fingerprint", s.adId.trim() !== "" && s.adV.trim() !== "" && okDg(s.adBd)]
+    ];
+    const dOk = dRules.every((r) => r[1]);
+    const FILES = { json: ["eu-latency.json", "application/json", "JSON"], bpmn: ["routing.bpmn", "application/vnd.omg.bpmn+xml", "BPMN (XML)"], pdf: ["notes.pdf", "application/pdf", "PDF"] };
+    const ERR = {
+      contract: ["resource", "Refused: the document doesn't follow its dialect (422 · invalid_resource_contract)", "It doesn't match the schema its dialect declares for this kind. Fix the file and submit again."],
+      identity: ["resource", "Refused: the names don't match (422 · resource_identity)", "The namespace, name or version you entered differ from the ones written inside the document. They must be identical."],
+      media: ["resource", "Refused: format not supported (422 · unsupported_media_type)", "Resources must be JSON or XML, in a format an installed dialect declares. PDF isn't one."]
+    };
+    const er = st === "error" ? ERR[sc] : null;
+    const forb = st === "forbidden";
+    const setExt = (o, msg) => { const x = Object.assign({}, X, o); saveExt(x); this.setState({ ext: x, toast: msg, bad: false, live: msg }); };
+    const upd = (i, k) => (ev) => { const rts = s.rts.map((r, j) => { if (j !== i) return r; const o = Object.assign({}, r); o[k] = ev.target.value; return o; }); this.setState({ rts: rts }); };
+    const queueItems = [["d", "Dialect", "lucia-vega/edge-annotations", "1.0.0", "Submitted by Lucía Vega · adds LatencyTable"], ["r", "Resource", "lucia-vega/eu-edge-placement", "1.0.0", "Submitted by Lucía Vega · Placement · JSON · governed by [placement dialect]"]].filter((q) => X[q[0]] === "pending");
+    const TABS = [["mine", "My submissions", mineList.length], ["dialect", "Submit a dialect", ""], ["resource", "Register a resource", ""], ["installed", "Installed", 1 + (X.d === "published" ? 1 : 0)]].concat(who.admin ? [["moderation", "Moderation", queueItems.length]] : []);
+    const tabNow = !who.admin && s.tab === "moderation" ? "mine" : s.tab;
+    const show = st !== "loading";
+    const V = {
+      btnPrimary: btn("primary"), btnSecondary: btn(), adminChip: roleChipOf("PLATFORM ADMIN"), placeholderChip: chip("#fafafa", "#4a4a4a", "#b8b8b8"),
+      tabs: TABS.map(([k, l, c]) => ({ label: l, count: c === "" ? "" : String(c), countStyle: c === "" ? "display: none;" : "margin-left: 4px; border-radius: 9999px; background: #ededed; padding: 0 8px; font-size: 12px; color: #4a4a4a;", sel: tabNow === k ? "true" : "false", style: tab(tabNow === k), pick: () => this.setState({ tab: k, toast: "" }) })),
+      errBanner: !!er || forb, errTitle: forb ? (who.admin ? "This key can't approve extensions (403)" : "Only administrators can approve (403 · forbidden)") : (er ? er[1] : ""),
+      errText: forb ? (who.admin ? "Your account is an administrator, but the API key behind this session doesn't include “moderate extensions”." : "You tried to approve a submission. Approval is moderation, reserved for platform administrators. Your own submissions are unaffected.") : (er ? er[2] : ""),
+      errElsewhere: !!er && tabNow !== "resource", goErr: () => this.setState({ tab: "resource", file: sc === "media" ? "pdf" : "json", rErr: "" }),
+      toast: s.toast, toastBorder: s.bad ? "#fca5a5" : "#86efac", toastBg: s.bad ? "#fef2f2" : "#f0fdf4",
+      isLoading: st === "loading", skel: [1, 2, 3],
+      tMine: show && tabNow === "mine", tDialect: show && tabNow === "dialect", tResource: show && tabNow === "resource", tInstalled: show && tabNow === "installed", tModeration: show && tabNow === "moderation",
+      mineEmpty: st === "empty" || mineList.length === 0, mineHas: st !== "empty" && mineList.length > 0,
+      mine: mineList.map((m) => ({ kind: m.kind, kindChip: KC[m.kind], name: m.name, version: m.version, detail: m.detail, status: ST[m.status][0], statusChip: ST[m.status][1], src: m.seed ? "Simulated" : "This session", srcChip: chip("#fafafa", "#6a6a6a", "#ededed") })),
+      flow: [["1", "Submit", "A fixed revision, checked against the rules for dialects or resources."], ["2", "Approval", "A platform administrator approves it."], ["3", "Published", "Everyone can use it. A resource must be written in an installed dialect."]].map(([n, t, d]) => ({ n: n, t: t, d: d })),
+      goDialect: () => this.setState({ tab: "dialect" }), goResource: () => this.setState({ tab: "resource" }),
+      ns: ns, dn: s.dn, dv: s.dv, typeDn: (ev) => this.setState({ dn: ev.target.value }), typeDv: (ev) => this.setState({ dv: ev.target.value }),
+      profPressed: s.prof ? "true" : "false", profStyle: pill(s.prof), toggleProf: () => this.setState({ prof: !s.prof }),
+      fillExample: () => this.setState({ rts: s.rts.map((r) => Object.assign({}, r, { sd: okDg(r.sd) ? r.sd : EXD, root: isXml(r.mt) && !r.root ? "definitions" : r.root })), adId: s.adId || "edge-annotations-adapter", adV: s.adV || "1.0.0", adBd: okDg(s.adBd) ? s.adBd : EXD, live: "Example values filled." }),
+      addRt: () => this.setState({ rts: s.rts.concat([{ kind: "", roles: "", mt: "application/json", sd: "", root: "" }]) }),
+      rts: s.rts.map((r, i) => ({ kind: r.kind, roles: r.roles, mt: r.mt, sd: r.sd, root: r.root, isXml: isXml(r.mt), sdBorder: okDg(r.sd) ? "#c7c7c7" : "#b91c1c", rootBorder: r.root.trim() ? "#c7c7c7" : "#b91c1c",
+        setKind: upd(i, "kind"), setRoles: upd(i, "roles"), setMt: upd(i, "mt"), setSd: upd(i, "sd"), setRoot: upd(i, "root"), remove: () => this.setState({ rts: s.rts.filter((_, j) => j !== i) }) })),
+      noRts: s.rts.length === 0,
+      addEp: () => this.setState({ eps: s.eps.concat([{ kind: "Placement", where: "/spec/annotations", sd: EXD }]) }),
+      eps: s.eps.map((x, i) => ({ kind: x.kind, where: x.where, sd: x.sd.slice(0, 11) + "…", chip: chip("#caf0f8", "#023e8a", "#a9d6ea"), remove: () => this.setState({ eps: s.eps.filter((_, j) => j !== i) }) })),
+      irf: s.irf.map((f) => ({ dim: f.dim, val: f.val, chip: chip("#f1f8fc", "#023e8a", "#a9d6ea") })),
+      adId: s.adId, adV: s.adV, adBd: s.adBd, typeAdId: (ev) => this.setState({ adId: ev.target.value }), typeAdV: (ev) => this.setState({ adV: ev.target.value }), typeAdBd: (ev) => this.setState({ adBd: ev.target.value }),
+      adBdBorder: okDg(s.adBd) ? "#c7c7c7" : "#b91c1c",
+      rules: dRules.map(([l, ok]) => ({ label: l, glyph: ok ? "✓" : "✕", fg: ok ? "#15803d" : "#b91c1c", sr: ok ? " (passes)" : " (fails)" })),
+      rulesSummary: dOk ? "Ready to submit." : dRules.filter((r) => !r[1]).length + " to fix. Fingerprints are sha256- followed by 64 lowercase hex characters.",
+      cantDialect: !dOk, dialectOpacity: dOk ? "1" : "0.5",
+      submitDialect: () => this.setState({ subs: s.subs.concat([{ kind: "Dialect", name: ns + "/" + s.dn, version: s.dv, detail: s.rts.length + " resource type(s) · " + s.eps.length + " extension point(s)", status: "pending" }]), tab: "mine", toast: "Dialect submitted. It's waiting for an administrator's approval.", bad: false, live: "Dialect submitted." }),
+      rn: s.rn, rv: s.rv, rrole: s.rrole, typeRn: (ev) => this.setState({ rn: ev.target.value }), typeRv: (ev) => this.setState({ rv: ev.target.value }), typeRrole: (ev) => this.setState({ rrole: ev.target.value }),
+      files: Object.keys(FILES).map((k) => ({ label: FILES[k][0], on: s.file === k ? "true" : "false", style: pill(s.file === k), pick: () => this.setState({ file: k, rErr: "" }) })),
+      rErr: s.rErr, noFile: !s.file,
+      detected: s.file ? [["Format", FILES[s.file][2] + " · " + FILES[s.file][1], s.file === "pdf" ? "#b91c1c" : "#1f1f1f"], ["Governed by", s.file === "pdf" ? "No installed dialect declares this format" : "[placement dialect] · placeholder", s.file === "pdf" ? "#b91c1c" : "#1f1f1f"], ["Kind", s.file === "json" ? "Placement" : (s.file === "bpmn" ? "RoutingOverlay" : "—"), "#1f1f1f"], ["Fingerprint (computed in your browser)", s.file === "pdf" ? "—" : EXD.slice(0, 11) + "…" + EXD.slice(-4), "#1f1f1f"]].map(([k, v, fg]) => ({ k: k, v: v, fg: fg })) : [],
+      cantResource: !s.file || !s.rn.trim() || !semver(s.rv) || !s.rrole.trim(), resourceOpacity: s.file && s.rn.trim() && semver(s.rv) && s.rrole.trim() ? "1" : "0.5",
+      resourceWhy: !s.file ? "Pick a file first." : (semver(s.rv) ? "Sent as a fixed revision; you can't edit it afterwards." : "Use a version like 1.0.0."),
+      submitResource: () => { if (!s.file) return; if (er) { this.setState({ rErr: er[1] + ". " + er[2], live: "Refused." }); return; } if (s.file === "pdf") { this.setState({ rErr: ERR.media[1] + ". " + ERR.media[2], live: "Refused." }); return; } this.setState({ subs: s.subs.concat([{ kind: "Resource", name: ns + "/" + s.rn, version: s.rv, detail: "Role " + s.rrole + " · " + FILES[s.file][2], status: "pending" }]), tab: "mine", file: "", toast: "Resource submitted. It's waiting for approval.", bad: false, live: "Resource submitted." }); },
+      installed: [["Dialect", "[placement dialect]"], ["Resource types", "Placement, RoutingOverlay"], ["Problem features", "qos-binding-placement/v1"], ["Works with", "qos-binding/v1"]].map(([k, v]) => ({ k: k, v: v })),
+      approvedNote: X.d === "published" ? " lucia-vega/edge-annotations 1.0.0 was approved in this browser's prototype state." : "",
+      pubResEmpty: X.r !== "published", pubRes: X.r === "published" ? [{ name: "lucia-vega/eu-edge-placement 1.0.0", meta: "placement · JSON · approved in this browser's prototype state", chip: KC.Resource }] : [],
+      queueEmpty: queueItems.length === 0,
+      queue: queueItems.map(([k, kind, name, version, detail]) => ({ kind: kind, kindChip: KC[kind], name: name, version: version, detail: detail, srcChip: chip("#fafafa", "#6a6a6a", "#ededed"),
+        approve: () => { if (forb) { this.setState({ toast: "Refused (403): approving needs “moderate extensions”.", bad: true, live: "Refused." }); return; } const o = {}; o[k] = "published"; setExt(o, kind + " approved and published."); } }))
+    };
+    const __crumbs = crumbBase.concat(V.crumbList || [["Language extensions"]]);
+    __b.crumbs = __crumbs.map((c, i) => ({ label: c[0], href: c[1] || "", title: c[2] || "", link: i < __crumbs.length - 1, cur: i === __crumbs.length - 1 }));
+    __b.route = V.route || "/app/language/extensions";
+    return Object.assign(__b, V);
+  }
+}
+</script>
+</body>
+</html>
