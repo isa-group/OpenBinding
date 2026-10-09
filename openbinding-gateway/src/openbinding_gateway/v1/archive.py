@@ -93,15 +93,18 @@ def compact_archive(archive):
 TOTAL_ORDER_MODES = ("weighted", "lexicographic", "feasibility")
 
 
-def ordering_mode(shapes: set[tuple[Any, Any]]) -> str:
+def ordering_mode(shapes: set[tuple]) -> str:
     """Model ordering implied by the execution objective the stored evaluations were scored under.
 
-    The IR no longer carries a mode: the objective type and scalarization are
-    chosen per job execution and recorded in every stored evaluation.
+    The IR no longer carries a mode: the objective type, scalarization and
+    component weights are chosen per job execution and recorded in every stored
+    evaluation. Scores are only comparable when all of them agree, so any
+    difference (including in the weights, the optional third element of a
+    shape) leaves the ordering unknown.
     """
     if len(shapes) != 1:
         return "unknown"
-    objective_type, scalarization = next(iter(shapes))
+    objective_type, scalarization = next(iter(shapes))[:2]
     if objective_type in ("MULTI", "MANY"):
         return "pareto"
     if objective_type != "SINGLE" or not isinstance(scalarization, str):
@@ -134,7 +137,7 @@ def build_archive(sources: list[tuple[AnalysisSource, dict, dict]]) -> Archive:
     candidates: dict[str, Candidate] = {}
     assignment_fragments = {}
     trajectory = []
-    shapes: set[tuple[Any, Any]] = set()
+    shapes: set[tuple] = set()
     for source, _, result in sources:
         solutions = record(result).get("solutions", [])
         if not isinstance(solutions, list):
@@ -168,8 +171,9 @@ def build_archive(sources: list[tuple[AnalysisSource, dict, dict]]) -> Archive:
             else:
                 candidate_id = digest({"job": source.id, "index": index})
             objective = record(solution.get("objectives"))
-            shapes.add((objective.get("type"), objective.get("scalarization")))
             components = objective.get("components", [])
+            weights = digest(safe([record(c).get("weight") for c in components])) if isinstance(components, list) else None
+            shapes.add((objective.get("type"), objective.get("scalarization"), weights))
             expected = [metric_key(record(term).get("feature")) for term in terms]
             actual = [metric_key(record(c).get("feature")) for c in components] if isinstance(components, list) else []
             if actual != expected or objective.get("scalarization") is None:

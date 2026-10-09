@@ -73,6 +73,36 @@ def test_ordering_mode_comes_from_the_stored_execution_objective(shapes, expecte
     assert (mode in TOTAL_ORDER_MODES) == (expected in {"weighted", "lexicographic", "feasibility"})
 
 
+def pooled_weighted_archive(weights):
+    """One archive pooled from jobs of the same IR and evaluator, scored with the given component weights."""
+    terms = [{"id": f"x{j}", "feature": {"resource": "app", "id": f"x{j}"}, "direction": "minimize"} for j in range(2)]
+    document = {"spec": {"optimization": {"criteria": terms, "penalties": []}, "constraints": []}}
+    sources = []
+    for n, weight in enumerate(weights):
+        point = (n / 4, 1 - n / 4)
+        solution = {"decision": {"kind": "binding", "binding": {"task": {"resource": "catalog", "id": str(n)}}},
+            "features": {f"x{j}": x for j, x in enumerate(point)}, "violations": [],
+            "objectives": {"type": "SINGLE", "scalarization": "weighted-sum", "penalty": 0, "score": sum(point) * weight,
+                "components": [{"criteria": t["id"], "feature": t["feature"], "value": point[j], "loss": point[j], "weight": weight}
+                               for j, t in enumerate(terms)]}}
+        result = {"solutions": [solution]}
+        sources.append((AnalysisSource(id=f"job{n}", engine="fixture", state="completed", createdAt="2026-01-01",
+            irDigest=digest(document), evaluatorDigest="verified-evaluator", resultDigest=digest(result), legacy=False), document, result))
+    return build_archive(sources)
+
+
+def test_pooled_jobs_with_the_same_weights_keep_a_total_model_order():
+    archive = pooled_weighted_archive([1, 1])
+    assert len(archive.sources) == 2 and archive.mode == "weighted"
+    assert query_archive(archive, AnalysisQuery(sources=["job0", "job1"]))["modelOrderingAvailable"] is True
+
+
+def test_pooled_jobs_with_different_weights_have_no_comparable_model_order():
+    archive = pooled_weighted_archive([1, 2])
+    assert len(archive.sources) == 2 and archive.mode == "unknown"
+    assert query_archive(archive, AnalysisQuery(sources=["job0", "job1"]))["modelOrderingAvailable"] is False
+
+
 @pytest.mark.parametrize("m", [1, 2, 3])
 def test_fast_front_matches_exhaustive_oracle_with_duplicates_and_ties(m):
     rng = random.Random(42)
