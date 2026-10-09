@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Organization, Project, StudyCell, StudyRun } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
-import { PlatformDashboard, ProjectOverview, ResourcesPage, StudiesPage } from './PlatformPages';
+import { ProjectOverview, ResourcesPage, StudiesPage } from './PlatformPages';
 
 const api = vi.hoisted(() => ({
   cases: vi.fn(),
@@ -11,9 +11,6 @@ const api = vi.hoisted(() => ({
   reports: vi.fn(),
   updateProject: vi.fn(),
   deleteProject: vi.fn(),
-  deleteOrganization: vi.fn(),
-  createOrganization: vi.fn(),
-  createProject: vi.fn(),
   resources: vi.fn(),
   resourceRevisions: vi.fn(),
   createResource: vi.fn(),
@@ -140,59 +137,12 @@ describe('collaborative project pages', () => {
     expect(reload).toHaveBeenCalledOnce();
   });
 
-  it('renders onboarding card when user has 0 organizations and submits first workspace', async () => {
-    outlet.value = { organizations: [], projects: [], organization: undefined, project: undefined, loading: false, reload };
-    api.createOrganization.mockResolvedValue({ id: 'new-org-id', slug: 'my-lab', name: 'My Lab' });
-    api.createProject.mockResolvedValue({ id: 'new-proj-id', slug: 'first-proj', name: 'First Project' });
+  it('shows a project overview that asks for a project when the workspace has none', async () => {
+    outlet.value = { organizations: [organization], projects: [], organization, project: undefined, loading: false, reload };
 
-    render(<MemoryRouter><PlatformDashboard /></MemoryRouter>);
+    render(<MemoryRouter><ProjectOverview /></MemoryRouter>);
 
-    expect(screen.getByText(/Welcome to OpenBinding! Let's set up your workspace/i)).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText(/Organization Name/i), { target: { value: 'My Lab' } });
-    fireEvent.change(screen.getByLabelText(/Organization Slug/i), { target: { value: 'my-lab' } });
-    fireEvent.change(screen.getByLabelText(/Initial Project Name/i), { target: { value: 'First Project' } });
-    fireEvent.change(screen.getByLabelText(/Initial Project Slug/i), { target: { value: 'first-proj' } });
-
-    fireEvent.click(screen.getByRole('button', { name: /Create Organization & Get Started/i }));
-
-    await waitFor(() => expect(api.createOrganization).toHaveBeenCalledWith({
-      name: 'My Lab',
-      slug: 'my-lab',
-      parent_id: null,
-    }));
-    await waitFor(() => expect(api.createProject).toHaveBeenCalledWith('my-lab', {
-      name: 'First Project',
-      slug: 'first-proj',
-      description: '',
-      visibility: 'private',
-    }));
-    expect(reload).toHaveBeenCalledOnce();
-  });
-
-  it('auto-generates project slug from project name when slug is omitted during onboarding', async () => {
-    outlet.value = { organizations: [], projects: [], organization: undefined, project: undefined, loading: false, reload };
-    api.createOrganization.mockResolvedValue({ id: 'new-org-id', slug: 'my-lab', name: 'My Lab' });
-    api.createProject.mockResolvedValue({ id: 'new-proj-id', slug: 'benchmark-studies', name: 'Benchmark Studies' });
-
-    render(<MemoryRouter><PlatformDashboard /></MemoryRouter>);
-
-    fireEvent.change(screen.getByLabelText(/Organization Name/i), { target: { value: 'My Lab' } });
-    fireEvent.change(screen.getByLabelText(/Organization Slug/i), { target: { value: 'my-lab' } });
-    fireEvent.change(screen.getByLabelText(/Initial Project Name/i), { target: { value: 'Benchmark Studies' } });
-
-    fireEvent.click(screen.getByRole('button', { name: /Create Organization & Get Started/i }));
-
-    await waitFor(() => expect(api.createOrganization).toHaveBeenCalledWith({
-      name: 'My Lab',
-      slug: 'my-lab',
-      parent_id: null,
-    }));
-    await waitFor(() => expect(api.createProject).toHaveBeenCalledWith('my-lab', {
-      name: 'Benchmark Studies',
-      slug: 'benchmark-studies',
-      description: '',
-      visibility: 'private',
-    }));
+    expect(await screen.findByRole('heading', { name: 'Create a first project' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Organization settings' })).toHaveAttribute('href', '/app/openbinding/settings');
   });
 });

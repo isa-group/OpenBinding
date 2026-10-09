@@ -35,6 +35,37 @@ export interface OrganizationInvitation {
   token: string;
 }
 
+/** One staged change of `POST /v1/organizations/{org}/members/batch`: a `null` role removes the direct membership. */
+export interface MemberChange {
+  user_id: string;
+  role: OrganizationRole | null;
+}
+
+/** The most changes one batch may carry (`MemberBatchUpdate.maxItems`). */
+export const MEMBER_BATCH_LIMIT = 100;
+
+/**
+ * One row of the organization audit log. The OpenAPI contract types the answer only as an object; this is what
+ * `GET /v1/organizations/{org}/audit` sends in practice (`list_organization_audit_events`).
+ */
+export interface OrganizationAuditEvent {
+  id: string;
+  organizationId: string | null;
+  actorId: string | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  detail: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface OrganizationAuditPage {
+  events: OrganizationAuditEvent[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
 export interface Project {
   id: string;
   organization_id: string;
@@ -341,30 +372,47 @@ export interface EngineRevision {
 const root = (org: string, project?: string) =>
   `/v1/organizations/${encodeURIComponent(org)}${project ? `/projects/${encodeURIComponent(project)}` : ''}`;
 
+// The mutations of an organization throw on a 422 (a refused submission) instead of handing its body back as if it were the result.
 export const platformApi = {
   organizations: () => apiClient.request<Organization[]>('/v1/organizations'),
-  createOrganization: (value: { slug: string; name: string; parent_id?: string | null }) =>
+  /** `billing_sponsor_user_id` omitted: the parent's sponsor, or the caller for a top-level organization. */
+  createOrganization: (value: { slug: string; name: string; parent_id?: string | null; billing_sponsor_user_id?: string | null }) =>
     apiClient.request<Organization>('/v1/organizations', {
       method: 'POST', body: JSON.stringify(value),
-    }),
-  updateOrganization: (org: string, value: { name?: string; parent_id?: string | null; move_to_root?: boolean }) =>
+    }, undefined, true, true),
+  /** Renaming and moving need ADMIN; changing `billing_sponsor_user_id` needs OWNER and moves the whole subtree. */
+  updateOrganization: (org: string, value: { name?: string; parent_id?: string | null; move_to_root?: boolean; billing_sponsor_user_id?: string | null }) =>
     apiClient.request<Organization>(root(org), {
       method: 'PATCH', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
   deleteOrganization: (org: string) =>
-    apiClient.request<void>(root(org), { method: 'DELETE' }),
+    apiClient.request<void>(root(org), { method: 'DELETE' }, undefined, true, true),
+  /** The audit log needs ADMIN. `action` is an exact action name (`organization.member.removed`), filtered by the server. */
+  organizationAudit: (org: string, params: { action?: string; offset?: number; limit?: number } = {}) => {
+    const query = new URLSearchParams();
+    if (params.action) query.set('action', params.action);
+    if (params.offset) query.set('offset', String(params.offset));
+    if (params.limit) query.set('limit', String(params.limit));
+    const suffix = query.toString() ? `?${query}` : '';
+    return apiClient.request<OrganizationAuditPage>(`${root(org)}/audit${suffix}`, {}, undefined, true, true);
+  },
   members: (org: string) =>
     apiClient.request<OrganizationMember[]>(`${root(org)}/members`),
   updateMember: (org: string, userId: string, role: OrganizationRole) =>
     apiClient.request<OrganizationMember>(`${root(org)}/members/${encodeURIComponent(userId)}`, {
       method: 'PUT', body: JSON.stringify({ user_id: userId, role }),
-    }),
+    }, undefined, true, true),
+  /** `POST …/members/batch`: up to {@link MEMBER_BATCH_LIMIT} staged changes, applied together or not at all. Answers with the whole member list. */
+  updateMembersBatch: (org: string, changes: MemberChange[]) =>
+    apiClient.request<OrganizationMember[]>(`${root(org)}/members/batch`, {
+      method: 'POST', body: JSON.stringify({ changes }),
+    }, undefined, true, true),
   removeMember: (org: string, userId: string) =>
-    apiClient.request<void>(`${root(org)}/members/${encodeURIComponent(userId)}`, { method: 'DELETE' }),
+    apiClient.request<void>(`${root(org)}/members/${encodeURIComponent(userId)}`, { method: 'DELETE' }, undefined, true, true),
   inviteMember: (org: string, value: { email: string; role: OrganizationRole }) =>
     apiClient.request<OrganizationInvitation>(`${root(org)}/invitations`, {
       method: 'POST', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
   /**
    * POST /v1/invitations/accept. The token is a secret: it goes in the body only, never in a URL, a log or an error.
    * Answers with the new (or existing) membership; the organization's name is not part of it.

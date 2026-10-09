@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import {
   Archive, ArrowDownToLine, ArrowRight, ArrowUpFromLine, Braces, CheckCircle2, CircleDashed, CircleStop, Clock3, Copy, Database, ExternalLink, Eye, FileArchive, FileText, FlaskConical,
-  FolderKanban, GitCompareArrows, Globe2, History, Layers3, Library, LockKeyhole, Network, Plus,
-  RefreshCw, Rocket, ShieldCheck, Sparkles, Trash2, TriangleAlert, UserRoundPlus, Users,
+  GitCompareArrows, Globe2, History, Layers3, Library, LockKeyhole, Network, Plus,
+  RefreshCw, Rocket, ShieldCheck, Sparkles, Trash2, TriangleAlert, Users,
 } from 'lucide-react';
 import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import {
@@ -17,8 +17,7 @@ import { apiClient, bimResourceKey } from '../../api/client';
 import type { EngineCatalogEntry } from '../../api/client';
 import type {
   Analytics, StoredBlob, BindingCase, CaseRevision, Collection, CollectionItem,
-  CollectionRevision, OrganizationInvitation, OrganizationMember, OrganizationRole,
-  ProjectResource, ProjectResourceRevision, Publication, Report, Study, StudyCell, StudyRun,
+  CollectionRevision, ProjectResource, ProjectResourceRevision, Publication, Report, Study, StudyCell, StudyRun,
 } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { EntityDrawer } from '../../components/Inspection/EntityDrawer';
@@ -37,268 +36,8 @@ function PageHeading({ eyebrow, title, detail, action }: {
   return <header className="platform-page-heading"><div><span>{eyebrow}</span><h1>{title}</h1><p>{detail}</p></div>{action}</header>;
 }
 
-export function PlatformDashboard() {
-  const context = useOutletContext<PlatformOutletContext>();
-  const navigate = useNavigate();
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const createOrganization = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    setCreating(true);
-    setError(null);
-    try {
-      const org = await platformApi.createOrganization({
-        name: String(form.get('name')), slug: String(form.get('slug')),
-        parent_id: String(form.get('parent') || '') || null,
-      });
-      const projName = String(form.get('project_name') || '').trim();
-      let projSlug = String(form.get('project_slug') || '').trim();
-      if (projName && !projSlug) {
-        projSlug = projName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-      }
-      if (projName && projSlug) {
-        await platformApi.createProject(org.slug, {
-          name: projName,
-          slug: projSlug,
-          description: String(form.get('project_desc') || ''),
-          visibility: 'private',
-        });
-        await context.reload();
-        navigate(`/app/${org.slug}/${projSlug}`);
-      } else {
-        await context.reload();
-        navigate(`/app/${org.slug}`);
-      }
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'The organization could not be created.');
-    } finally { setCreating(false); }
-  };
-
-  return <div className="platform-page">
-    <PageHeading eyebrow="Binding observatory" title="Your research workspace"
-      detail="Organize immutable cases, run exact engine revisions and turn their results into reproducible evidence."
-      action={<Link className="platform-primary-action" to={context.project ? `/app/${context.organization?.slug}/${context.project.slug}/workbench` : '/examples'}><Plus aria-hidden="true" />New analysis</Link>} />
-
-    <section className="observatory-pulse" aria-label="Platform workflow">
-      <div className="pulse-copy"><span>Live model</span><h2>From binding question to citable result.</h2><p>The same pinned package moves through validation, compilation, execution, reevaluation and publication.</p></div>
-      <svg viewBox="0 0 720 250" role="img" aria-label="Animated binding analysis topology">
-        <defs><linearGradient id="pulse-line"><stop stopColor="var(--color-accent)"/><stop offset="1" stopColor="var(--color-dialect)"/></linearGradient></defs>
-        <path className="pulse-path" d="M62 126 C160 30 220 218 318 126 S480 30 658 126" />
-        {[62, 190, 318, 470, 658].map((x, index) => <g key={x} className={`pulse-node pulse-node-${index}`}><circle cx={x} cy={index % 2 ? 95 : 126} r="18"/><circle cx={x} cy={index % 2 ? 95 : 126} r="5"/></g>)}
-        <text x="42" y="174">CASE</text><text x="280" y="174">ENGINE</text><text x="620" y="174">REPORT</text>
-      </svg>
-    </section>
-
-    {context.organizations.length === 0 ? (
-      <section className="platform-onboarding-card">
-        <div className="onboarding-header">
-          <Sparkles aria-hidden="true" />
-          <div>
-            <h3>Welcome to OpenBinding! Let&apos;s set up your workspace</h3>
-            <p>
-              When you create an account, you start with a clean slate. OpenBinding structures research hierarchically:
-              Organizations group members and sponsor resources, while Projects contain your cases, studies, and reproducible evidence.
-            </p>
-          </div>
-        </div>
-
-        <div className="onboarding-concepts">
-          <div className="concept-box">
-            <h3><Users aria-hidden="true" /> Organizations</h3>
-            <p>
-              Your research lab, institution, team, or personal umbrella. Organizations own billing, invite members, and isolate project access.
-            </p>
-          </div>
-          <div className="concept-box">
-            <h3><FolderKanban aria-hidden="true" /> Projects</h3>
-            <p>
-              Versioned workspaces within an organization. Each project holds binding cases, datasets, comparative matrices, and published reports.
-            </p>
-          </div>
-        </div>
-
-        <form className="onboarding-form" onSubmit={createOrganization}>
-          <h3>Create your first organization &amp; project</h3>
-          <div className="onboarding-form-grid">
-            <label>
-              Organization Name
-              <input name="name" required minLength={1} maxLength={160} placeholder="e.g. Seville Binding Lab" />
-            </label>
-            <label>
-              Organization Slug
-              <input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="e.g. seville-binding-lab" />
-            </label>
-            <label>
-              Initial Project Name (optional)
-              <input name="project_name" placeholder="e.g. Benchmark Studies" />
-            </label>
-            <label>
-              Initial Project Slug (optional)
-              <input name="project_slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="e.g. benchmark-studies" />
-            </label>
-          </div>
-          {error && <p className="platform-form-error" role="alert">{error}</p>}
-          <div className="onboarding-form-actions">
-            <button className="platform-primary-action" type="submit" disabled={creating}>
-              <Plus aria-hidden="true" /> {creating ? 'Setting up workspace…' : 'Create Organization & Get Started'}
-            </button>
-          </div>
-        </form>
-      </section>
-    ) : (
-      <>
-        <section className="platform-section">
-          <div className="section-title"><div><span>Organizations</span><h2>Spaces you can reach</h2></div><small>{context.organizations.length} visible</small></div>
-          <div className="workspace-card-grid">{context.organizations.map((organization) => {
-            const projects = organization.id === context.organization?.id ? context.projects : [];
-            return <article key={organization.id} className="workspace-card">
-              <header><span>{organization.name.slice(0, 2).toUpperCase()}</span><small>{organization.effective_role}</small></header>
-              <h3>{organization.name}</h3><code>{organization.slug}</code>
-              <div>{projects.slice(0, 3).map((project) => <Link key={project.id} to={`/app/${organization.slug}/${project.slug}`}><FolderKanban aria-hidden="true" /><span>{project.name}<small>{project.visibility}</small></span><ArrowRight aria-hidden="true" /></Link>)}</div>
-              <Link className="card-footer-link" to={`/app/${organization.slug}`}>Open organization <ArrowRight aria-hidden="true" /></Link>
-            </article>;
-          })}</div>
-        </section>
-
-        <details className="inline-create-panel">
-          <summary><Plus aria-hidden="true" /> Create organization</summary>
-          <form onSubmit={createOrganization}>
-            <label>Name<input name="name" required minLength={1} maxLength={160} placeholder="Service Composition Lab" /></label>
-            <label>Slug<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="service-composition-lab" /></label>
-            <label>Parent<select name="parent" defaultValue=""><option value="">Root organization</option>{context.organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></label>
-            {error && <p role="alert">{error}</p>}
-            <button disabled={creating}>{creating ? 'Creating…' : 'Create organization'}</button>
-          </form>
-        </details>
-      </>
-    )}
-  </div>;
-}
-
-export function OrganizationSettingsPage() {
-  const context = useOutletContext<PlatformOutletContext>();
-  const navigate = useNavigate();
-  const organization = context.organization;
-  const [members, setMembers] = useState<OrganizationMember[]>([]);
-  const [invitation, setInvitation] = useState<OrganizationInvitation | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const editable = organization?.effective_role === 'OWNER' || organization?.effective_role === 'ADMIN';
-  const load = useCallback(async () => {
-    if (!organization) return;
-    try { setMembers(await platformApi.members(organization.slug)); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : 'Members could not be loaded.'); }
-  }, [organization]);
-  useEffect(() => { void load(); }, [load]);
-
-  if (!organization) return <div className="platform-page"><Empty title="No organization selected" detail="Create or select an organization before managing collaboration." /></div>;
-
-  const move = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const parent = String(form.get('parent') || '');
-    setBusy('organization'); setError(null);
-    try {
-      await platformApi.updateOrganization(organization.slug, {
-        name: String(form.get('name')),
-        ...(parent ? { parent_id: parent } : { move_to_root: true }),
-      });
-      await context.reload();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Organization update failed.'); }
-    finally { setBusy(null); }
-  };
-
-  const invite = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    setBusy('invite'); setError(null); setInvitation(null);
-    try {
-      setInvitation(await platformApi.inviteMember(organization.slug, {
-        email: String(form.get('email')),
-        role: String(form.get('role')) as OrganizationRole,
-      }));
-      event.currentTarget.reset();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Invitation could not be created.'); }
-    finally { setBusy(null); }
-  };
-
-  const changeRole = async (member: OrganizationMember, role: OrganizationRole) => {
-    setBusy(member.id); setError(null);
-    try { await platformApi.updateMember(organization.slug, member.user_id, role); await load(); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : 'Member role could not be changed.'); }
-    finally { setBusy(null); }
-  };
-
-  const remove = async (member: OrganizationMember) => {
-    if (!window.confirm(`Remove ${member.username ?? member.email ?? member.user_id} from ${organization.name}? Their active API keys will be revoked.`)) return;
-    setBusy(member.id); setError(null);
-    try { await platformApi.removeMember(organization.slug, member.user_id); await load(); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : 'Member could not be removed.'); }
-    finally { setBusy(null); }
-  };
-
-  return <div className="platform-page organization-settings-page">
-    <PageHeading eyebrow="Collaboration boundary" title={organization.name} detail="Manage the explicit membership at this node. Roles inherited from ancestors remain effective in descendants; this screen never creates a deny rule." />
-    {error && <p className="platform-form-error" role="alert">{error}</p>}
-    <div className="organization-settings-grid">
-      <section className="organization-identity-card">
-        <span>Organization identity</span><h2>{organization.slug}</h2>
-        <dl><dt>Your effective role</dt><dd>{organization.effective_role}</dd><dt>Sponsor</dt><dd><code>{organization.billing_sponsor_user_id}</code></dd><dt>Parent</dt><dd>{context.organizations.find((item) => item.id === organization.parent_id)?.name ?? 'Root'}</dd></dl>
-        {editable && <form onSubmit={move}><label>Name<input name="name" defaultValue={organization.name} required /></label><label>Parent<select name="parent" defaultValue={organization.parent_id ?? ''}><option value="">Root organization</option>{context.organizations.filter((item) => item.id !== organization.id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><button disabled={busy === 'organization'}>{busy === 'organization' ? 'Saving…' : 'Save organization'}</button></form>}
-      </section>
-      <section className="member-panel">
-        <header><div><span>Direct membership</span><h2><Users aria-hidden="true" /> {members.length} members</h2></div><small>Inherited access is evaluated separately</small></header>
-        <div className="member-ledger">{members.map((member) => <article key={member.id}><div className="member-avatar" aria-hidden="true">{(member.username ?? member.email ?? 'U').slice(0, 2).toUpperCase()}</div><div><strong>{member.username ?? member.email ?? member.user_id}</strong><small>{member.email ?? member.user_id}</small></div><select aria-label={`Role for ${member.username ?? member.user_id}`} value={member.role} disabled={!editable || busy === member.id} onChange={(event) => void changeRole(member, event.target.value as OrganizationRole)}>{(['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'] as const).map((role) => <option key={role}>{role}</option>)}</select>{editable && <button className="member-remove" type="button" disabled={busy === member.id} onClick={() => void remove(member)}>Remove</button>}</article>)}</div>
-        {!members.length && <Empty title="No direct members" detail="Access may still be inherited from a parent organization." />}
-      </section>
-    </div>
-    {editable && <section className="invitation-panel"><header><UserRoundPlus aria-hidden="true" /><div><span>One-time invitation</span><h2>Invite a collaborator</h2><p>The token is shown once, expires after seven days and only works for the invited email address.</p></div></header><form onSubmit={invite}><label>Email<input name="email" type="email" required /></label><label>Role<select name="role" defaultValue="MEMBER">{(['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'] as const).map((role) => <option key={role}>{role}</option>)}</select></label><button disabled={busy === 'invite'}>{busy === 'invite' ? 'Creating…' : 'Create invitation'}</button></form>{invitation && <div className="invitation-secret" role="status"><div><strong>Invitation for {invitation.email}</strong><small>Expires {new Date(invitation.expires_at).toLocaleString()}</small></div><code>{invitation.token}</code><button type="button" onClick={() => void navigator.clipboard.writeText(invitation.token)}><Copy aria-hidden="true" /> Copy token</button></div>}</section>}
-    {editable && (
-      <section className="danger-zone-section" aria-labelledby="org-danger-zone-title">
-        <div className="danger-zone-header">
-          <TriangleAlert aria-hidden="true" />
-          <h2 id="org-danger-zone-title">Danger Zone</h2>
-        </div>
-        <p className="danger-zone-desc">
-          Deleting an organization permanently removes all descendant organizations, projects, cases, studies, reports, and member associations. This action cannot be undone.
-        </p>
-        <div className="danger-zone-actions">
-          <button
-            type="button"
-            className="btn-danger"
-            disabled={busy === 'delete-org'}
-            onClick={async () => {
-              if (!window.confirm(`Are you sure you want to permanently delete "${organization.name}" (${organization.slug}) and all associated projects? This cannot be undone.`)) {
-                return;
-              }
-              const confirmation = window.prompt(`Type "${organization.slug}" to confirm deletion:`);
-              if (confirmation !== organization.slug) {
-                alert('Organization slug does not match. Deletion cancelled.');
-                return;
-              }
-              setBusy('delete-org');
-              setError(null);
-              try {
-                await platformApi.deleteOrganization(organization.slug);
-                await context.reload();
-                navigate('/app');
-              } catch (caught) {
-                setError(caught instanceof Error ? caught.message : 'Failed to delete organization.');
-                setBusy(null);
-              }
-            }}
-          >
-            <TriangleAlert aria-hidden="true" />
-            {busy === 'delete-org' ? 'Deleting organization…' : 'Delete this organization'}
-          </button>
-        </div>
-      </section>
-    )}
-  </div>;
-}
-
+// The Home (app-home) and the organization screens (org-*) live in pages/AppHome and pages/Organization.
+// What stays here is the project overview (until its own screen is built) and the project pages of the next tasks.
 export function ProjectOverview() {
   const context = useOutletContext<PlatformOutletContext>();
   const navigate = useNavigate();
@@ -1231,17 +970,22 @@ export function AnalyticsPage() {
     ]).then(([nextAnalytics, nextCells]) => { setAnalytics(nextAnalytics); setCells(nextCells); });
   }, [organization, project, selection]);
   const [analysisJob, setAnalysisJob] = useState<string>('');
-  const [analysisResult, setAnalysisResult] = useState<unknown>(null);
-  const [analysisError, setAnalysisError] = useState('');
+  // The outcome remembers which job it belongs to, so choosing another job reads as "loading" without
+  // resetting any state from inside the effect.
+  const [analysisOutcome, setAnalysisOutcome] = useState<{ job: string; result: unknown; error: string } | null>(null);
   const availableCells = cells.filter(cell => cell.job_id);
   const effectiveJob = availableCells.some(cell => cell.job_id === analysisJob) ? analysisJob : availableCells[0]?.job_id ?? '';
+  const currentOutcome = effectiveJob && analysisOutcome?.job === effectiveJob ? analysisOutcome : null;
+  const analysisResult = currentOutcome?.result ?? null;
+  const analysisError = currentOutcome?.error ?? '';
   useEffect(() => {
+    if (!effectiveJob) return undefined;
     let active = true;
-    setAnalysisResult(null);
-    setAnalysisError('');
-    if (effectiveJob) void apiClient.getJobStatus(effectiveJob).then(job => {
-      if (active) setAnalysisResult(job.result);
-    }).catch(error => { if (active) setAnalysisError(error instanceof Error ? error.message : 'Unable to load job'); });
+    void apiClient.getJobStatus(effectiveJob).then(job => {
+      if (active) setAnalysisOutcome({ job: effectiveJob, result: job.result, error: '' });
+    }).catch(error => {
+      if (active) setAnalysisOutcome({ job: effectiveJob, result: null, error: error instanceof Error ? error.message : 'Unable to load job' });
+    });
     return () => { active = false; };
   }, [effectiveJob]);
   if (!organization || !project) return <NoProject />;

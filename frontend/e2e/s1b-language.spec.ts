@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { expect, test, type Page, type Route, type TestInfo } from '@playwright/test';
+import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { zipStore } from '../src/utils/bimZip';
 
 // S1b · public screens, part 2: eng-catalog, eng-detail, lang-profiles, lang-schemas, lang-examples, pub-workbench.
@@ -9,7 +9,6 @@ import { zipStore } from '../src/utils/bimZip';
 const API = 'http://localhost:8000';
 // A full-page capture stitches the page, so the fixed header and skip link would be painted over the content.
 const HIDE_FLOATING = '.site-header, .skip-link { visibility: hidden !important; }';
-const PRICING = readFileSync(new URL('../../space/pricing/openbinding.yml', import.meta.url), 'utf8');
 
 const DIGEST = (seed: string) => `sha256-${seed.repeat(8)}`;
 const RS_DIGEST = DIGEST('b2c3d4e5');
@@ -313,7 +312,9 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
     await page.route(`${API}/v1/organizations/isa-demo/projects`, json([{ id: 'p1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '', visibility: 'private', created_by_id: lucia.id, created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z' }]));
   }
   await page.route(`${API}/v1/explore/engines`, mocks.engines ?? json({ engines: [randomSearch, evolutionary, minizinc] }));
-  await page.route(`${API}/v1/pricing`, (route) => route.fulfill({ status: 200, contentType: 'text/yaml', body: PRICING }));
+  // EngineDetail reads the live catalog (the deprecated YAML at /v1/pricing is no longer requested).
+  await page.route(`${API}/v1/pricing/catalog`, json(catalogFixture));
+  await page.route(`${API}/v1/pricing/current`, json(CURRENT_FIXTURE));
   await page.route(`${API}/v1/profiles`, json({ profiles: [profile] }));
   await page.route(`${API}/v1/dialects`, json({ dialects }));
   await page.route(`${API}/v1/resources`, json({ resources: [resource] }));
