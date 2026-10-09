@@ -15,7 +15,7 @@ The following are counted:
 - workflow-dialect selection, while the irreducible workflow topology is not;
 - constraint formulation and enforcement fields, while identifiers and
   referenced entities are not;
-- optimization mode, authored weights, and normalization controls;
+- optimization criteria, authored weights, and normalization controls;
 - routing policy selection, placement accounting, network direction, and
   global-latency controls.
 
@@ -60,8 +60,8 @@ valid for the reachable workflow blocks.
 |---|---:|---:|---:|
 | Sequence | 12 | 4 | 66.7% |
 | Probabilistic XOR | 13 | 6 | 53.8% |
-| Placement | 62 | 30 | 51.6% |
-| Soft multi-objective | 69 | 32 | 53.6% |
+| Placement | 62 | 29 | 53.2% |
+| Soft multi-objective | 69 | 34 | 50.7% |
 
 ## Equivalence and intentional semantic changes
 
@@ -72,7 +72,7 @@ therefore:
 2. hashes the semantic IR projection after removing only provenance, source
    locations, profile manifests, and resource digests;
 3. evaluates a fixed binding with the authoritative evaluator; and
-4. checks metrics, objective mode and score, normalized penalties, and
+4. checks metrics, objective type, scalarization and score, normalized penalties, and
    constraint violations with a `1e-12` numeric tolerance; and
 5. proves that every reachable objective value stays inside its normalization
    bounds, exhaustively for small binding spaces and by monotone extrema for the

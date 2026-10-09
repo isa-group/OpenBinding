@@ -167,7 +167,9 @@ def test_an_instance_beyond_the_plan_is_refused():
 def test_the_same_instance_is_solvable_on_the_larger_plan():
     base_ceiling = BASE.limit("maxInstanceComplexityLog10")
     large_ceiling = LARGE.limit("maxInstanceComplexityLog10")
-    assert base_ceiling is not None and large_ceiling is not None and large_ceiling > base_ceiling
+    # The largest plan may have no ceiling at all (unbounded entitlement is None).
+    assert base_ceiling is not None
+    assert large_ceiling is None or large_ceiling > base_ceiling
     assert policy.instance_complexity_too_large(base_ceiling + 1, LARGE) is False
 
 

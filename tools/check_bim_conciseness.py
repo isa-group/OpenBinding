@@ -278,10 +278,13 @@ def run_benchmarks() -> dict[str, Any]:
         compiled = compile_instance(load_package(package))
         projection_digest = _projection_digest(compiled.document)
         normalization_ranges = _normalization_ranges(compiled)
-        evaluation = compiled.evaluate(benchmark["probe"]["binding"])
+        evaluation = compiled.evaluate(
+            benchmark["probe"]["binding"], benchmark["probe"].get("execution")
+        )
         actual_probe = {
             "features": evaluation["features"],
-            "mode": evaluation["objectives"]["mode"],
+            "type": evaluation["objectives"]["type"],
+            "scalarization": evaluation["objectives"]["scalarization"],
             "score": evaluation["objectives"]["score"],
             "penalty": evaluation["objectives"]["penalty"],
             "violations": sorted(item["constraint"]["id"] for item in evaluation["violations"]),
