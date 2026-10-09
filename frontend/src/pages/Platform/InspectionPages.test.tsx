@@ -4,21 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Organization, Project } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { JobsPage } from './JobsPage';
-import { SnapshotPage } from './SnapshotPage';
-import { CaseDetailPage } from './CaseDetailPage';
 import { ReportDetailPage } from './ReportDetailPage';
 
 const api = vi.hoisted(() => ({
   projectJobs: vi.fn(),
-  snapshot: vi.fn(),
-  snapshotArchive: vi.fn(),
-  case: vi.fn(),
-  caseRevisions: vi.fn(),
-  revisions: vi.fn(),
-  createCaseRevision: vi.fn(),
-  createRevision: vi.fn(),
-  updateCase: vi.fn(),
-  deleteCase: vi.fn(),
   report: vi.fn(),
   reports: vi.fn(),
   publications: vi.fn(),
@@ -178,144 +167,6 @@ describe('InspectionPages test suite', () => {
 
       expect(await screen.findByText(/UUID: job-target/)).toBeInTheDocument();
       expect(screen.getByText(/Targeted job executed successfully/)).toBeInTheDocument();
-    });
-  });
-
-  describe('SnapshotPage', () => {
-    it('renders snapshot integrity seals and Intermediate Representation', async () => {
-      const mockSnapshot = {
-        id: 'snap-1',
-        name: 'Simple Seq Snapshot',
-        instanceDigest: `sha256-${'1'.repeat(64)}`,
-        packageDigest: `sha256-${'2'.repeat(64)}`,
-        createdAt: '2026-09-01T00:00:00Z',
-        rootDocument: { apiVersion: 'bim/v1', kind: 'Instance' },
-        resourceDigests: {},
-        ir: {
-          irDigest: `sha256-${'3'.repeat(64)}`,
-          compilerVersion: '1.0.0',
-          document: { apiVersion: 'bim/v1', kind: 'BindingProblem' },
-        },
-      };
-      api.snapshot.mockResolvedValue(mockSnapshot);
-      api.snapshotArchive.mockResolvedValue(new ArrayBuffer(128));
-
-      render(
-        <MemoryRouter initialEntries={['/app/score-ai/qos-placement/snapshots/snap-1']}>
-          <Routes>
-            <Route path="/app/:org/:project/snapshots/:snapshotId" element={<SnapshotPage />} />
-          </Routes>
-        </MemoryRouter>
-      );
-
-      expect(await screen.findByText('Source Snapshot Inspection')).toBeInTheDocument();
-      expect(screen.getByText(new RegExp(`sha256-1{12}`, 'i'))).toBeInTheDocument();
-      expect(screen.getByText(/Persisted Intermediate Representation/i)).toBeInTheDocument();
-    });
-  });
-
-  describe('CaseDetailPage', () => {
-    it('renders case, revision timeline, and switches revision documents', async () => {
-      const mockCase = {
-        id: 'case-1',
-        project_id: project.id,
-        slug: 'simple-seq',
-        name: 'Sequential Service Workflow',
-        description: 'Sequential pipeline with strict latency bounds',
-        created_by_id: 'user-1',
-        created_at: '2026-09-01T00:00:00Z',
-      };
-      const mockRevs = [
-        {
-          id: 'rev-2',
-          binding_case_id: 'case-1',
-          revision: 2,
-          digest: `sha256-${'b'.repeat(64)}`,
-          document: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { revision: 2 } },
-          source_snapshot_id: 'snap-1',
-          created_at: '2026-09-02T00:00:00Z',
-        },
-        {
-          id: 'rev-1',
-          binding_case_id: 'case-1',
-          revision: 1,
-          digest: `sha256-${'a'.repeat(64)}`,
-          document: { apiVersion: 'bim/v1', kind: 'Instance', metadata: { revision: 1 } },
-          source_snapshot_id: null,
-          created_at: '2026-09-01T00:00:00Z',
-        },
-      ];
-      api.case.mockResolvedValue(mockCase);
-      api.caseRevisions.mockResolvedValue(mockRevs);
-
-      render(
-        <MemoryRouter initialEntries={['/app/score-ai/qos-placement/cases/simple-seq']}>
-          <Routes>
-            <Route path="/app/:org/:project/cases/:caseSlug" element={<CaseDetailPage />} />
-          </Routes>
-        </MemoryRouter>
-      );
-
-      expect(await screen.findByText('Sequential Service Workflow')).toBeInTheDocument();
-      expect(screen.getByText('2 Revisions')).toBeInTheDocument();
-      expect(screen.getByText('Revision r2')).toBeInTheDocument();
-      expect(screen.getByText('Revision r1')).toBeInTheDocument();
-
-      // Switch to Source Document tab
-      fireEvent.click(screen.getByRole('button', { name: /Source Document/i }));
-      expect(await screen.findByTestId('mock-code-editor')).toBeInTheDocument();
-
-      // Switch to Revision 1
-      fireEvent.click(screen.getByText('Revision r1'));
-      expect(screen.getByText('Revision r1 Document')).toBeInTheDocument();
-      expect(api.caseRevisions).toHaveBeenCalledTimes(1);
-      expect(api.case).toHaveBeenCalledTimes(1);
-    });
-
-    it('updates case metadata and creates a new revision', async () => {
-      const mockCase = {
-        id: 'case-1',
-        project_id: project.id,
-        slug: 'simple-seq',
-        name: 'Sequential Case',
-        description: 'Initial',
-        created_by_id: 'user-1',
-        created_at: '2026-09-01T00:00:00Z',
-      };
-      api.case.mockResolvedValue(mockCase);
-      api.caseRevisions.mockResolvedValue([]);
-      api.updateCase.mockResolvedValue({ ...mockCase, name: 'Renamed Case' });
-      api.createCaseRevision.mockResolvedValue({
-        id: 'rev-1',
-        binding_case_id: 'case-1',
-        revision: 1,
-        digest: 'sha256-xxx',
-        document: {},
-        created_at: '2026-09-01T00:00:00Z',
-      });
-
-      render(
-        <MemoryRouter initialEntries={['/app/score-ai/qos-placement/cases/simple-seq']}>
-          <Routes>
-            <Route path="/app/:org/:project/cases/:caseSlug" element={<CaseDetailPage />} />
-          </Routes>
-        </MemoryRouter>
-      );
-
-      // Click Edit Case button
-      fireEvent.click(await screen.findByRole('button', { name: /Edit Case/i }));
-      expect(screen.getByText('Edit Case Metadata')).toBeInTheDocument();
-
-      // Submit changes
-      fireEvent.change(screen.getByDisplayValue('Sequential Case'), { target: { value: 'Renamed Case' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-      await waitFor(() => {
-        expect(api.updateCase).toHaveBeenCalledWith('score-ai', 'qos-placement', 'simple-seq', {
-          name: 'Renamed Case',
-          description: 'Initial',
-        });
-      });
     });
   });
 

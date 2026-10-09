@@ -134,6 +134,11 @@ describe('route registry', () => {
     expect(live + pendingIds.length).toBe(86);
   });
 
+  it('has rebuilt the case screens and the snapshot', () => {
+    const rebuilt = ['case-list', 'case-detail', 'case-composer', 'case-revision', 'case-compare', 'snap-detail'];
+    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
+  });
+
   // The closing task of the redesign turns this on (VITE_ROUTES_REQUIRE_LIVE=1 pnpm test).
   it.skipIf(!import.meta.env.VITE_ROUTES_REQUIRE_LIVE)('has no pending screen left', () => {
     expect(routeDefinitions.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
@@ -174,8 +179,6 @@ describe('route registry', () => {
     const aliases = Object.fromEntries(routeDefinitions.filter((definition) => definition.paramAliases)
       .map((definition) => [definition.id, definition.paramAliases]));
     expect(aliases).toEqual({
-      'case-detail': { case: 'caseSlug' },
-      'snap-detail': { snapshot: 'snapshotId' },
       'coll-detail': { collection: 'collectionSlug' },
       'job-detail': { job: 'jobId' },
       'rep-detail': { report: 'reportSlug' },

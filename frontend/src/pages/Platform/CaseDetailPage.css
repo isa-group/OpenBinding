@@ -1,353 +1,45 @@
-/* CaseDetailPage.css - OpenBinding Technical Design System */
+/* The case page: its slug and description, the revision timeline. The shared pieces (drawing, figures, buttons) are in Cases.css. */
 
-.case-detail-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6, 1.5rem);
-  color: var(--color-text-primary);
-}
+.case-slug { padding: 1px 10px; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-full); background: var(--tp-surface); color: var(--tp-steel); font-family: var(--font-mono); font-size: 0.75rem; }
 
-.case-detail-breadcrumb {
+.case-description { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--tp-spacing-xs); max-width: 720px; margin: 0; color: var(--tp-slate); }
+.case-description-form { display: flex; max-width: 640px; flex-direction: column; gap: var(--tp-spacing-xs); }
+
+.case-timeline { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.case-rev { position: relative; padding: 0 0 16px 44px; }
+.case-rev::before { content: ''; position: absolute; top: 0; bottom: 0; left: 15px; width: 2px; background: var(--tp-hairline-soft); }
+.case-rev:last-child::before { bottom: 16px; }
+
+.case-rev-dot {
+  position: absolute;
+  top: 4px;
+  left: 0;
   display: inline-flex;
+  width: 32px;
+  height: 32px;
   align-items: center;
-  gap: var(--space-2, 0.4rem);
-  color: var(--color-accent);
-  text-decoration: none;
-  font-size: 0.82rem;
-  font-weight: 600;
-  margin-bottom: var(--space-2, 0.5rem);
-  transition: color 0.15s ease;
-}
-
-.case-detail-breadcrumb:hover {
-  color: var(--color-accent-hover, var(--color-accent));
-}
-
-.case-detail-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: var(--space-4, 1rem);
-  padding-bottom: var(--space-5, 1.25rem);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.case-title-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2, 0.5rem);
-}
-
-.case-title-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-3, 0.75rem);
-}
-
-.case-title-row h1 {
-  margin: 0;
-  font-size: clamp(1.5rem, 2.5vw, 1.85rem);
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--tp-cream-deeper);
+  color: var(--tp-primary-deep);
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--color-text-primary);
 }
 
-.case-description {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.55;
-  max-width: 48rem;
-}
+.case-rev-dot.is-latest { background: var(--tp-primary); color: #fff; }
 
-.case-detail-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2, 0.5rem);
-}
+.case-rev-card { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--tp-hairline); border-radius: 14px; background: var(--tp-canvas); }
+.case-rev-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.case-rev-head a { font-size: 0.9375rem; }
+.case-rev-date { color: var(--tp-steel); font-size: 0.75rem; }
+.case-rev-head code { color: var(--tp-slate); font-family: var(--font-mono); font-size: 0.75rem; }
+.case-rev-change { margin: 0; color: var(--tp-charcoal); font-size: 0.8125rem; overflow-wrap: anywhere; }
 
-.case-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2, 0.4rem);
-  padding: 0.45rem 0.85rem;
-  border-radius: var(--radius-sm, 6px);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  color: var(--color-text-primary);
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 0.15s ease;
-}
+.case-uses { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.case-uses li { display: inline-flex; align-items: center; gap: 6px; padding: 1px 10px; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-full); background: var(--tp-surface); font-size: 0.75rem; }
+.case-uses li span { color: var(--tp-steel); }
+.case-uses li b { font-weight: 500; }
+.case-uses li.is-changed { border-color: var(--tp-severity-warning-border); background: var(--tp-severity-warning-bg); }
 
-.case-action-btn:hover {
-  background: var(--color-bg-tertiary);
-  border-color: var(--color-rule-strong);
-}
-
-.case-action-btn.is-primary {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-bg-primary);
-}
-
-.case-action-btn.is-primary:hover {
-  filter: brightness(1.1);
-}
-
-.case-action-btn.is-danger {
-  border-color: color-mix(in srgb, var(--color-error) 40%, var(--color-border));
-  color: var(--color-error);
-}
-
-.case-action-btn.is-danger:hover {
-  background: color-mix(in srgb, var(--color-error) 10%, transparent);
-}
-
-/* 2-Column Grid */
-.case-detail-grid {
-  display: grid;
-  grid-template-columns: minmax(280px, 340px) 1fr;
-  gap: var(--space-6, 1.5rem);
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .case-detail-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Left Column: Timeline */
-.case-timeline-panel {
-  padding: var(--space-4, 1rem);
-  border-radius: var(--radius-md, 8px);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3, 0.75rem);
-}
-
-.case-panel-title {
-  margin: 0;
-  font-size: 0.88rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-secondary);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2, 0.5rem);
-}
-
-.case-timeline-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2, 0.5rem);
-}
-
-.case-timeline-item {
-  padding: var(--space-3, 0.75rem);
-  border-radius: var(--radius-sm, 6px);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-primary);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  transition: all 0.15s ease;
-}
-
-.case-timeline-item:hover {
-  border-color: var(--color-rule-strong);
-}
-
-.case-timeline-item.is-active {
-  border-color: var(--color-accent);
-  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-primary));
-}
-
-.case-timeline-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.case-timeline-rev {
-  font-weight: 700;
-  font-size: 0.82rem;
-  color: var(--color-text-primary);
-}
-
-.case-timeline-item.is-active .case-timeline-rev {
-  color: var(--color-accent);
-}
-
-.case-timeline-date {
-  font-size: 0.72rem;
-  color: var(--color-text-tertiary);
-}
-
-.case-timeline-digest {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--color-text-secondary);
-}
-
-/* Right Column: Deep Inspector */
-.case-inspector-panel {
-  padding: var(--space-5, 1.25rem);
-  border-radius: var(--radius-md, 8px);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4, 1rem);
-}
-
-.case-inspector-ribbon {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-3, 0.75rem);
-  padding-bottom: var(--space-4, 1rem);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.case-ribbon-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2, 0.5rem);
-}
-
-.case-ribbon-title h2 {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.case-spec-kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--space-3, 0.75rem);
-}
-
-.case-kpi-card {
-  padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
-  border-radius: var(--radius-sm, 6px);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-primary);
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.case-kpi-label {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-tertiary);
-}
-
-.case-kpi-value {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.case-section-box {
-  padding: var(--space-4, 1rem);
-  border-radius: var(--radius-sm, 6px);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-primary);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2, 0.5rem);
-}
-
-.case-section-box h4 {
-  margin: 0;
-  font-size: 0.82rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-secondary);
-}
-
-.case-pill-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2, 0.4rem);
-}
-
-/* Modals */
-.case-modal-card {
-  max-width: 600px;
-  width: 90%;
-  margin: auto;
-  padding: var(--space-6, 1.5rem);
-  margin-top: 8vh;
-  border-radius: var(--radius-md, 8px);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  box-shadow: var(--shadow-lg, 0 10px 25px rgba(0,0,0,0.2));
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4, 1rem);
-}
-
-.case-modal-card h3 {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.case-modal-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3, 0.75rem);
-}
-
-.case-modal-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-.case-modal-form input,
-.case-modal-form textarea {
-  padding: 0.55rem 0.75rem;
-  border-radius: var(--radius-sm, 6px);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  font-family: var(--font-sans);
-  font-size: 0.85rem;
-}
-
-.case-modal-form textarea {
-  font-family: var(--font-mono);
-  resize: vertical;
-}
-
-.case-modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2, 0.5rem);
-  margin-top: var(--space-2, 0.5rem);
-}
+.case-rev-size { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--tp-slate); font-size: 0.75rem; }
+.case-rev-links { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.8125rem; font-weight: 500; }
