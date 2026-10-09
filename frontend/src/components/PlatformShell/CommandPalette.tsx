@@ -1,68 +1,150 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, Search, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import type { Organization, Project } from '../../api/platform';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
+import { Search } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { buildCommands, type PaletteContext } from './paletteCommands';
 import './CommandPalette.css';
 
-interface CommandPaletteProps {
-  organization?: Organization;
-  project?: Project;
-  isAdmin: boolean;
-}
+/** Dispatched on window by the header's search button; Ctrl/Cmd+K opens the palette too. */
+export const OPEN_COMMAND_PALETTE_EVENT = 'openbinding:command';
 
-export function CommandPalette({ organization, project, isAdmin }: CommandPaletteProps) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const input = useRef<HTMLInputElement>(null);
+export function CommandPalette({ organizations, projects, organization, project, isAdmin }: PaletteContext) {
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const root = organization && project ? `/app/${organization.slug}/${project.slug}` : '/app';
-  const commands = useMemo(() => [
-    { label: 'Workspace activity', detail: 'Organizations and recent projects', href: '/app', group: 'Workspace' },
-    { label: 'Project overview', detail: project?.name ?? 'Select a project first', href: root, group: 'Workspace', disabled: !project },
-    { label: 'Open workbench', detail: 'Model, validate and solve a binding case', href: `${root}/workbench`, group: 'Create', disabled: !project },
-    { label: 'Binding cases', detail: 'Create and inspect immutable case histories', href: `${root}/cases`, group: 'Project', disabled: !project },
-    { label: 'Comparative studies', detail: 'Cases × engines × parameters × seeds', href: `${root}/studies`, group: 'Project', disabled: !project },
-    { label: 'Binding analysis', detail: 'Pareto, feasibility, runtime and stability', href: `${root}/analytics`, group: 'Project', disabled: !project },
-    { label: 'Reports', detail: 'Freeze and publish reproducible evidence', href: `${root}/reports`, group: 'Project', disabled: !project },
-    { label: 'Organization settings', detail: 'Hierarchy, roles and invitations', href: organization ? `/app/${organization.slug}/settings` : '/app', group: 'Workspace', disabled: !organization },
-    { label: 'Account settings', detail: 'Quotas, API keys and subscriptions', href: '/app/account', group: 'Workspace' },
-    { label: 'Explore public work', detail: 'Projects and publications', href: '/explore', group: 'Discover' },
-    { label: 'Replication studio', detail: 'Cryptographic provenance, resolver and citation verification', href: '/app/verifier', group: 'System' },
-    { label: 'Platform administration', detail: 'Users, queues and system health', href: '/app/admin', group: 'Administration', disabled: !isAdmin },
-    { label: 'Pricing control room', detail: 'SPHERE and SPACE lifecycle', href: '/app/admin/pricing', group: 'Administration', disabled: !isAdmin },
-  ], [isAdmin, organization, project, root]);
-  const visible = commands.filter((command) => !command.disabled && `${command.label} ${command.detail} ${command.group}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const dialog = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const restoreFocus = useRef(true);
+  const wasOpen = useRef(false);
+
+  const commands = useMemo(
+    () => buildCommands({ organizations, projects, organization, project, isAdmin }),
+    [organizations, projects, organization, project, isAdmin],
+  );
+  const needle = query.trim().toLowerCase();
+  const results = needle ? commands.filter((item) => `${item.label} ${item.desc} ${item.group}`.toLowerCase().includes(needle)) : commands;
+
+  const show = useCallback(() => {
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    restoreFocus.current = true;
+    setQuery('');
+    setOpen(true);
+  }, []);
+  const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
-    const open = () => {
-      setQuery('');
-      dialog.current?.showModal();
-      requestAnimationFrame(() => input.current?.focus());
-    };
-    const keydown = (event: KeyboardEvent) => {
+    const keydown = (event: globalThis.KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        open();
+        if (open) close(); else show();
       }
     };
-    window.addEventListener('openbinding:command', open);
+    window.addEventListener(OPEN_COMMAND_PALETTE_EVENT, show);
     window.addEventListener('keydown', keydown);
     return () => {
-      window.removeEventListener('openbinding:command', open);
+      window.removeEventListener(OPEN_COMMAND_PALETTE_EVENT, show);
       window.removeEventListener('keydown', keydown);
     };
-  }, []);
+  }, [open, show, close]);
 
-  const choose = (href: string) => {
-    dialog.current?.close();
-    navigate(href, { viewTransition: true });
+  useEffect(() => {
+    if (open) {
+      input.current?.focus();
+    } else if (wasOpen.current && restoreFocus.current && opener.current?.isConnected) {
+      opener.current.focus();
+    }
+    wasOpen.current = open;
+  }, [open]);
+
+  const choose = () => {
+    // Navigating moves the user on; do not pull focus back to the control that opened the palette.
+    restoreFocus.current = false;
+    close();
   };
 
-  return <dialog ref={dialog} className="command-palette" aria-label="Search and quick actions" onClick={(event) => { if (event.target === dialog.current) dialog.current.close(); }}>
-    <div className="command-palette-panel">
-      <header><Search aria-hidden="true" /><input ref={input} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search pages and actions…" aria-label="Search commands" /><form method="dialog"><button aria-label="Close command palette"><X aria-hidden="true" /></button></form></header>
-      <div className="command-results">{visible.map((command, index) => <button key={command.label} type="button" className={index === 0 ? 'is-first' : undefined} onClick={() => choose(command.href)}><span>{command.group}</span><div><strong>{command.label}</strong><small>{command.detail}</small></div><ArrowRight aria-hidden="true" /></button>)}{!visible.length && <p>No matching page or action.</p>}</div>
-      <footer><span><kbd>↑</kbd><kbd>↓</kbd> inspect</span><span><kbd>esc</kbd> close</span><small>{organization?.name ?? 'No organization'}{project ? ` / ${project.name}` : ''}</small></footer>
-    </div>
-  </dialog>;
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const panel = dialog.current;
+    if (!panel) return;
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      close();
+      return;
+    }
+    if (event.key === 'Tab') {
+      const focusable = Array.from(panel.querySelectorAll<HTMLElement>('input, button, a[href]'));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const stops: HTMLElement[] = [];
+      if (input.current) stops.push(input.current);
+      stops.push(...Array.from(panel.querySelectorAll<HTMLElement>('.app-palette-result')));
+      const index = stops.indexOf(document.activeElement as HTMLElement);
+      const next = event.key === 'ArrowDown' ? Math.min(index + 1, stops.length - 1) : Math.max(index - 1, 0);
+      stops[next]?.focus();
+    }
+  };
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="app-palette-layer" onKeyDown={handleKeyDown}>
+      <div className="app-palette-backdrop" onClick={close} aria-hidden="true" />
+      <div ref={dialog} className="app-palette" role="dialog" aria-modal="true" aria-label="Command palette">
+        <div className="app-palette-search">
+          <Search aria-hidden="true" />
+          <input
+            ref={input}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && results[0]) {
+                event.preventDefault();
+                choose();
+                navigate(results[0].href, { viewTransition: true });
+              }
+            }}
+            aria-label="Search commands and loaded items"
+            placeholder="Search commands and loaded items..."
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button type="button" className="app-palette-esc" onClick={close} aria-label="Close command palette">ESC</button>
+        </div>
+        <div className="app-palette-results">
+          {results.length === 0 ? (
+            <p className="app-palette-empty">No matches. Search only covers data already loaded on this device.</p>
+          ) : (
+            <ul>
+              {results.map((item) => (
+                <li key={`${item.group}:${item.href}:${item.label}`}>
+                  <Link to={item.href} viewTransition className="app-palette-result" onClick={choose}>
+                    <span className="app-palette-glyph" aria-hidden="true">{item.glyph}</span>
+                    <span className="app-palette-text"><strong>{item.label}</strong><small>{item.desc}</small></span>
+                    <span className="app-palette-group">{item.group}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <p className="sr-only" role="status">{results.length === 0 ? 'No matches' : `${results.length} results`}</p>
+        <div className="app-palette-footer">
+          <span>↑↓ navigate · ↵ open · esc close</span>
+          <span>Local search only</span>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
 }

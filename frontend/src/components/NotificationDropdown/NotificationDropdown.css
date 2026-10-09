@@ -8,31 +8,30 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.3rem;
-  height: 2.3rem;
+  width: 2rem;
+  height: 2rem;
   padding: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border: 0;
+  border-radius: var(--radius-lg);
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--color-text-tertiary);
   cursor: pointer;
   position: relative;
-  transition: background-color var(--transition-fast, 0.15s), border-color var(--transition-fast, 0.15s), color var(--transition-fast, 0.15s);
+  transition: background-color var(--transition-fast, 0.15s), color var(--transition-fast, 0.15s);
 }
 
 .notification-trigger:hover,
-.notification-trigger:focus-visible,
 .notification-trigger.is-open {
-  background: var(--color-bg-elevated);
-  border-color: var(--color-border-hover);
+  background: var(--color-bg-primary);
   color: var(--color-text-primary);
-  outline: none;
 }
 
+.notification-trigger:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
 .notification-icon {
-  width: 1.1rem;
-  height: 1.1rem;
-  stroke-width: 2;
+  width: 1.125rem;
+  height: 1.125rem;
+  stroke-width: 1.8;
   transition: transform 0.15s ease;
 }
 
@@ -46,22 +45,21 @@
 
 .notification-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 1.15rem;
-  height: 1.15rem;
+  top: -2px;
+  right: -2px;
+  min-width: 1rem;
+  height: 1rem;
   padding: 0 0.25rem;
+  box-sizing: border-box;
   border-radius: var(--radius-full);
   background: var(--color-accent);
   color: #ffffff;
-  font-size: 0.62rem;
-  font-weight: 700;
-  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 500;
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 0 2px var(--color-bg-secondary);
   pointer-events: none;
   animation: notification-pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
@@ -73,16 +71,16 @@
 
 .notification-panel {
   position: absolute;
-  top: calc(100% + 0.6rem);
+  top: calc(100% + 0.5rem);
   right: 0;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  width: 370px;
+  width: 320px;
   max-width: calc(100vw - 1.5rem);
   background: var(--color-bg-elevated);
-  border: 1px solid var(--color-rule-strong);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   color: var(--color-text-primary);
   transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), min-height 0.22s cubic-bezier(0.16, 1, 0.3, 1);
@@ -113,19 +111,14 @@
 
 .notification-header-title h3 {
   margin: 0;
-  font-size: 0.88rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 400;
 }
 
 .notification-count-pill {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 600;
-  padding: 0.1rem 0.4rem;
-  border-radius: var(--radius-full);
-  background: var(--color-accent-subtle);
-  color: var(--color-accent-ink);
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
 }
 
 .notification-header-actions {
@@ -360,14 +353,28 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  color: var(--color-text-secondary);
-  font-weight: 600;
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 500;
   text-decoration: none;
   transition: color 0.15s;
 }
 
 .notification-account-link:hover {
-  color: var(--color-accent);
+  color: var(--color-accent-hover);
+}
+
+/* On narrow screens the bell sits mid-header, so the panel spans the viewport instead of overflowing it. */
+@media (max-width: 540px) {
+  .notification-panel,
+  .notification-panel.is-enlarged {
+    position: fixed;
+    top: 3.75rem;
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    max-width: none;
+  }
 }
 
 .notification-account-link svg {

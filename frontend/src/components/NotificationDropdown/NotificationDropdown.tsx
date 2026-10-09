@@ -16,17 +16,17 @@ import './NotificationDropdown.css';
 function formatTimeAgo(isoString: string): string {
   const timestamp = new Date(isoString).getTime();
   const diffMs = Date.now() - timestamp;
-  if (Number.isNaN(timestamp) || diffMs < 0) return 'ahora';
+  if (Number.isNaN(timestamp) || diffMs < 0) return 'now';
 
   const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return 'ahora';
-  if (minutes < 60) return `hace ${minutes}m`;
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m ago`;
 
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `hace ${hours}h`;
+  if (hours < 24) return `${hours}h ago`;
 
   const days = Math.floor(hours / 24);
-  return `hace ${days}d`;
+  return `${days}d ago`;
 }
 
 export function NotificationDropdown() {
@@ -295,11 +295,11 @@ export function NotificationDropdown() {
               <span>Lifetime: 7 days</span>
             </span>
             <Link
-              to="/app/account?tab=services"
+              to="/app/account/notifications"
               className="notification-account-link"
               onClick={() => setIsOpen(false)}
             >
-              <span>Manage in account</span>
+              <span>View all notifications</span>
               <ExternalLink aria-hidden="true" />
             </Link>
           </footer>
