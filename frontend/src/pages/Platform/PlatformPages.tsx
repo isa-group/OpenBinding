@@ -3,11 +3,11 @@ import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysi
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import {
-  Archive, ArrowDownToLine, ArrowRight, ArrowUpFromLine, Braces, CheckCircle2, CircleDashed, CircleStop, Clock3, Copy, Database, ExternalLink, Eye, FileArchive, FileText, FlaskConical,
-  GitCompareArrows, Globe2, History, Layers3, Library, LockKeyhole, Network, Plus,
-  RefreshCw, Rocket, ShieldCheck, Sparkles, Trash2, TriangleAlert, Users,
+  Archive, ArrowDownToLine, ArrowRight, ArrowUpFromLine, CheckCircle2, CircleDashed, CircleStop, Clock3, Copy, Database, ExternalLink, Eye, FileArchive, FileText, FlaskConical,
+  Globe2, History, Layers3, Library, LockKeyhole, Plus,
+  RefreshCw, Sparkles, Trash2, TriangleAlert,
 } from 'lucide-react';
-import { Link, useNavigate, useOutletContext } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import {
   Bar, BarChart, CartesianGrid, ResponsiveContainer,
   Tooltip, XAxis, YAxis,
@@ -36,136 +36,16 @@ function PageHeading({ eyebrow, title, detail, action }: {
   return <header className="platform-page-heading"><div><span>{eyebrow}</span><h1>{title}</h1><p>{detail}</p></div>{action}</header>;
 }
 
-// The Home (app-home) and the organization screens (org-*) live in pages/AppHome and pages/Organization.
-// What stays here is the project overview (until its own screen is built) and the project pages of the next tasks.
-export function ProjectOverview() {
-  const context = useOutletContext<PlatformOutletContext>();
-  const navigate = useNavigate();
-  const { organization, project } = context;
-  const [cases, setCases] = useState<BindingCase[]>([]);
-  const [studies, setStudies] = useState<Study[]>([]);
-  const [reports, setReports] = useState<Report[]>([]);
-  const [visibilityBusy, setVisibilityBusy] = useState(false);
-  const [visibilityError, setVisibilityError] = useState<string | null>(null);
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+// The Home (app-home), the organization screens (org-*) and the project screens (proj-*) live in pages/AppHome,
+// pages/Organization and pages/Project. What stays here are the pages of cases, collections, studies and records
+// that have not been migrated yet.
 
-  useEffect(() => {
-    if (!organization || !project) return;
-    void Promise.all([
-      platformApi.cases(organization.slug, project.slug),
-      platformApi.studies(organization.slug, project.slug, true),
-      platformApi.reports(organization.slug, project.slug),
-    ]).then(([nextCases, nextStudies, nextReports]) => {
-      setCases(nextCases); setStudies(nextStudies); setReports(nextReports);
-    });
-  }, [organization, project]);
-
-  if (!organization || !project) return <NoProject />;
-  const root = `/app/${organization.slug}/${project.slug}`;
-  const canAdminister = organization.effective_role === 'OWNER' || organization.effective_role === 'ADMIN';
-  const toggleVisibility = async () => {
-    setVisibilityBusy(true); setVisibilityError(null);
-    try {
-      await platformApi.updateProject(organization.slug, project.slug, {
-        visibility: project.visibility === 'public' ? 'private' : 'public',
-      });
-      await context.reload();
-    } catch (caught) {
-      setVisibilityError(caught instanceof Error ? caught.message : 'Project visibility could not be changed.');
-    } finally { setVisibilityBusy(false); }
-  };
-  return <div className="platform-page">
-    <PageHeading eyebrow={`${organization.name} / project`} title={project.name} detail={project.description || 'A versioned workspace for binding cases and evidence.'}
-      action={<Link className="platform-primary-action" to={`${root}/workbench`}><Rocket aria-hidden="true" />Open workbench</Link>} />
-    <div className="metric-ribbon">
-      <article><small>Cases</small><strong>{cases.length}</strong><span>immutable problem histories</span></article>
-      <article><small>Studies</small><strong>{studies.length}</strong><span>defined matrices</span></article>
-      <article><small>Reports</small><strong>{reports.length}</strong><span>{reports.filter((item) => item.state === 'frozen').length} frozen</span></article>
-      <article><small>Visibility</small><strong className="metric-word">{project.visibility}</strong><span>{project.visibility === 'public' ? 'discoverable in Explore' : 'members only'}</span></article>
-    </div>
-    {canAdminister && <section className="project-visibility-control"><div><Globe2 aria-hidden="true" /><span><strong>{project.visibility === 'public' ? 'Published in Explore' : 'Private collaboration'}</strong><small>{project.visibility === 'public' ? 'Immutable public revisions and reports can now be discovered.' : 'Only members and scoped API keys can read this project.'}</small></span></div><button type="button" disabled={visibilityBusy} onClick={() => void toggleVisibility()}>{visibilityBusy ? 'Updating…' : project.visibility === 'public' ? 'Make private' : 'Publish project'}</button>{visibilityError && <p role="alert">{visibilityError}</p>}</section>}
-    <section className="project-flow">
-      {[
-        ['01', 'Model', 'Import BIM or BPMN and preserve the exact source snapshot.', Braces],
-        ['02', 'Solve', 'Match compatible modes and dispatch durable, metered jobs.', Network],
-        ['03', 'Compare', 'Expand cases × engines × parameters × seeds deterministically.', GitCompareArrows],
-        ['04', 'Publish', 'Freeze provenance and expose immutable evidence by digest.', ShieldCheck],
-      ].map(([index, title, copy, Icon]) => <article key={String(index)}><span>{String(index)}</span><Icon aria-hidden="true" /><h3>{String(title)}</h3><p>{String(copy)}</p></article>)}
-    </section>
-    <section className="platform-section compact"><div className="section-title"><div><span>Recent material</span><h2>Continue where the project left off</h2></div></div>
-      <div className="recent-ledger">
-        {cases.slice(0, 3).map((item) => <Link key={item.id} to={`${root}/cases`}><span className="ledger-kind">CASE</span><strong>{item.name}</strong><small>{item.description || item.slug}</small><ArrowRight aria-hidden="true" /></Link>)}
-        {studies.slice(0, 3).map((item) => <Link key={item.id} to={`${root}/studies`}><span className="ledger-kind">STUDY</span><strong>{item.name}</strong><small>{item.definition.case_revision_ids.length} cases · {item.definition.engines.length} engines</small><ArrowRight aria-hidden="true" /></Link>)}
-        {!cases.length && !studies.length && <Empty title="The project is empty" detail="Start in the workbench or create a binding case." action={<Link to={`${root}/workbench`}>Open workbench</Link>} />}
-      </div>
-    </section>
-    {canAdminister && (
-      <section className="danger-zone-section" aria-labelledby="proj-danger-zone-title">
-        <div className="danger-zone-header">
-          <TriangleAlert aria-hidden="true" />
-          <h2 id="proj-danger-zone-title">Danger Zone</h2>
-        </div>
-        <p className="danger-zone-desc">
-          Deleting this project permanently destroys all of its binding cases, study matrices, reports, artifacts, and execution histories. This action cannot be undone.
-        </p>
-        <div className="danger-zone-actions">
-          <button
-            type="button"
-            className="btn-danger"
-            disabled={deleteBusy}
-            onClick={async () => {
-              if (!window.confirm(`Are you sure you want to permanently delete project "${project.name}" (${project.slug})? All cases, studies, and artifacts will be permanently lost.`)) {
-                return;
-              }
-              const confirmation = window.prompt(`Type "${project.slug}" to confirm deletion:`);
-              if (confirmation !== project.slug) {
-                alert('Project slug does not match. Deletion cancelled.');
-                return;
-              }
-              setDeleteBusy(true);
-              setDeleteError(null);
-              try {
-                await platformApi.deleteProject(organization.slug, project.slug);
-                await context.reload();
-                navigate(`/app/${organization.slug}`);
-              } catch (caught) {
-                setDeleteError(caught instanceof Error ? caught.message : 'Failed to delete project.');
-                setDeleteBusy(false);
-              }
-            }}
-          >
-            <TriangleAlert aria-hidden="true" />
-            {deleteBusy ? 'Deleting project…' : 'Delete this project'}
-          </button>
-        </div>
-        {deleteError && <p className="platform-form-error" role="alert">{deleteError}</p>}
-      </section>
-    )}
-  </div>;
-}
-
+/** What the pages of a project show when the workspace has no project to open: the way to the new-project screen. */
 function NoProject() {
   const context = useOutletContext<PlatformOutletContext>();
-  const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
   if (context.loading) return <div className="route-loading" role="status"><span className="status-dot" aria-hidden="true" /> Loading workspace…</div>;
   if (!context.organization) return <div className="platform-page"><Empty title="No organization yet" detail="Create an organization from the activity page first." /></div>;
-  const create = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); const form = new FormData(event.currentTarget);
-    try {
-      const slug = String(form.get('slug'));
-      await platformApi.createProject(context.organization!.slug, {
-        name: String(form.get('name')), slug,
-        description: String(form.get('description') || ''), visibility: 'private',
-      });
-      await context.reload();
-      navigate(`/app/${context.organization!.slug}/${slug}`);
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Project creation failed.'); }
-  };
-  return <div className="platform-page"><PageHeading eyebrow={context.organization.name} title="Create a first project" detail="Projects isolate cases, studies, artifacts and permissions." action={<Link className="platform-primary-action" to={`/app/${context.organization.slug}/settings`}><Users aria-hidden="true" />Organization settings</Link>} />
-    <form className="standalone-form" onSubmit={create}><label>Name<input name="name" required /></label><label>Slug<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" /></label><label>Description<textarea name="description" rows={3} /></label>{error && <p role="alert">{error}</p>}<button>Create private project</button></form>
-  </div>;
+  return <div className="platform-page"><PageHeading eyebrow={context.organization.name} title="Create a first project" detail="Projects isolate cases, studies, artifacts and permissions." action={<Link className="platform-primary-action" to={`/app/${context.organization.slug}/new-project`}><Plus aria-hidden="true" />New project</Link>} /></div>;
 }
 
 export function CasesPage() {
@@ -1279,45 +1159,6 @@ export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) 
     }
   };
 
-  const exportPackage = async () => {
-    setBusy('export');
-    setError(null);
-    try {
-      saveBytes(
-        await platformApi.exportPackage(organization.slug, project.slug),
-        `${project.slug}.openbinding.zip`,
-        'application/zip'
-      );
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'The portable package could not be exported.');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const importPackage = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const file = form.get('package');
-    if (!(file instanceof File) || !file.size) {
-      setError('Choose an OpenBinding ZIP package.');
-      return;
-    }
-    setBusy('import');
-    setError(null);
-    setNotice(null);
-    try {
-      const result = await platformApi.importPackage(organization.slug, project.slug, file);
-      event.currentTarget.reset();
-      setNotice(`Imported ${result.casesCreated} cases and ${result.revisionsCreated} immutable revisions.`);
-      await load();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'The portable package could not be imported.');
-    } finally {
-      setBusy(null);
-    }
-  };
-
   return (
     <div className="platform-page">
       <PageHeading
@@ -1340,10 +1181,10 @@ export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) 
               <h2 id="artifact-transfer-heading">Move files without losing provenance</h2>
               <p>Artifacts keep their content digest. Project packages carry the manifest, cases, revisions, reports and referenced files.</p>
             </div>
-            <button type="button" onClick={() => void exportPackage()} disabled={busy === 'export'}>
-              <ArrowDownToLine aria-hidden="true" />
-              {busy === 'export' ? 'Exporting…' : 'Export project ZIP'}
-            </button>
+            <Link className="platform-primary-action" to={`/app/${organization.slug}/${project.slug}/package`}>
+              <FileArchive aria-hidden="true" />
+              Export or import a package
+            </Link>
           </header>
           <div>
             <form onSubmit={upload}>
@@ -1357,17 +1198,6 @@ export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) 
               <button disabled={busy === 'upload'}>
                 <ArrowUpFromLine aria-hidden="true" />
                 {busy === 'upload' ? 'Uploading…' : 'Upload artifact'}
-              </button>
-            </form>
-            <form onSubmit={importPackage}>
-              <label>
-                OpenBinding package
-                <input type="file" name="package" accept=".zip,application/zip" required />
-              </label>
-              <small>Import creates missing cases and checksum-verified revisions. Existing matching revisions are skipped.</small>
-              <button disabled={busy === 'import'}>
-                <ArrowUpFromLine aria-hidden="true" />
-                {busy === 'import' ? 'Importing…' : 'Import project ZIP'}
               </button>
             </form>
           </div>

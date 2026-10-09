@@ -3,14 +3,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Organization, Project, StudyCell, StudyRun } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
-import { ProjectOverview, ResourcesPage, StudiesPage } from './PlatformPages';
+import { ResourcesPage, StudiesPage } from './PlatformPages';
 
 const api = vi.hoisted(() => ({
   cases: vi.fn(),
   studies: vi.fn(),
   reports: vi.fn(),
-  updateProject: vi.fn(),
-  deleteProject: vi.fn(),
   resources: vi.fn(),
   resourceRevisions: vi.fn(),
   createResource: vi.fn(),
@@ -64,16 +62,6 @@ describe('collaborative project pages', () => {
     client.getEngines.mockResolvedValue([]);
   });
 
-  it('publishes a private project through the project settings control', async () => {
-    api.updateProject.mockResolvedValue({ ...project, visibility: 'public' });
-    render(<MemoryRouter><ProjectOverview /></MemoryRouter>);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Publish project' }));
-
-    await waitFor(() => expect(api.updateProject).toHaveBeenCalledWith('openbinding', 'research', { visibility: 'public' }));
-    expect(reload).toHaveBeenCalledOnce();
-  });
-
   it('renders immutable resources and creates a new revision', async () => {
     const resource = {
       id: 'resource-id', project_id: project.id, slug: 'catalogue', name: 'Candidate catalogue',
@@ -123,26 +111,13 @@ describe('collaborative project pages', () => {
     await waitFor(() => expect(api.retryStudyCell).toHaveBeenCalledWith('openbinding', 'research', 'engines', 'run-id', 'cell-id'));
   });
 
-  it('deletes a project through the danger zone after confirmation', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    vi.spyOn(window, 'prompt').mockReturnValue('research');
-    api.deleteProject.mockResolvedValue({});
-
-    render(<MemoryRouter><ProjectOverview /></MemoryRouter>);
-
-    const deleteBtn = await screen.findByRole('button', { name: 'Delete this project' });
-    fireEvent.click(deleteBtn);
-
-    await waitFor(() => expect(api.deleteProject).toHaveBeenCalledWith('openbinding', 'research'));
-    expect(reload).toHaveBeenCalledOnce();
-  });
-
-  it('shows a project overview that asks for a project when the workspace has none', async () => {
+  it('sends a project page to the new-project screen when the workspace has no project', async () => {
     outlet.value = { organizations: [organization], projects: [], organization, project: undefined, loading: false, reload };
 
-    render(<MemoryRouter><ProjectOverview /></MemoryRouter>);
+    render(<MemoryRouter><ResourcesPage /></MemoryRouter>);
 
     expect(await screen.findByRole('heading', { name: 'Create a first project' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Organization settings' })).toHaveAttribute('href', '/app/openbinding/settings');
+    expect(screen.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/openbinding/new-project');
+    expect(api.resources).not.toHaveBeenCalled();
   });
 });

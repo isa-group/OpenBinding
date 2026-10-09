@@ -369,6 +369,18 @@ export interface EngineRevision {
   } | null;
 }
 
+export type PackageFormat = 'zip' | 'json' | 'yaml';
+
+const PACKAGE_CONTENT_TYPES: Record<PackageFormat, string> = {
+  zip: 'application/zip', json: 'application/json', yaml: 'application/yaml',
+};
+
+/**
+ * What the import answers. The contract only says “an object”; the gateway sends
+ * `{ imported: { cases: 1, caseRevisions: 2, … }, packageDigest }`, but a screen must not rely on it.
+ */
+export type PackageImportResult = Record<string, unknown>;
+
 const root = (org: string, project?: string) =>
   `/v1/organizations/${encodeURIComponent(org)}${project ? `/projects/${encodeURIComponent(project)}` : ''}`;
 
@@ -422,16 +434,21 @@ export const platformApi = {
       method: 'POST', body: JSON.stringify({ token }),
     }, undefined, true, true),
   projects: (org: string) => apiClient.request<Project[]>(`${root(org)}/projects`),
+  /** One project. 404 whether it does not exist or the account is not in its organization. */
+  project: (org: string, project: string) => apiClient.request<Project>(root(org, project)),
+  /** Needs MEMBER. 409 `slug_conflict`, 402 when the sponsor has no (private) project left, 503 when limits can't be checked. */
   createProject: (org: string, value: { slug: string; name: string; description: string; visibility: Visibility }) =>
     apiClient.request<Project>(`${root(org)}/projects`, {
       method: 'POST', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
+  /** Needs ADMIN. Making a public project private is a 402 when the sponsor has no private project left. */
   updateProject: (org: string, project: string, value: { name?: string; description?: string; visibility?: Visibility }) =>
     apiClient.request<Project>(root(org, project), {
       method: 'PATCH', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
+  /** Needs ADMIN. 409 `historical_references` while the project has sealed history. */
   deleteProject: (org: string, project: string) =>
-    apiClient.request<void>(root(org, project), { method: 'DELETE' }),
+    apiClient.request<void>(root(org, project), { method: 'DELETE' }, undefined, true, true),
   cases: (org: string, project: string) =>
     apiClient.request<BindingCase[]>(`${root(org, project)}/cases`),
   createCase: (org: string, project: string, value: { slug: string; name: string; description: string }) =>
@@ -563,14 +580,19 @@ export const platformApi = {
     apiClient.request<{ revisions: EngineRevision[] }>('/v1/engines/revisions'),
   engineRevision: (namespace: string, name: string, version: string) =>
     apiClient.request<EngineRevision>(`/v1/engines/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/revisions/${encodeURIComponent(version)}`),
-  exportPackage: (org: string, project: string) =>
-    apiClient.requestBinary(`${root(org, project)}/package`),
-  importPackage: (org: string, project: string, file: File) =>
-    apiClient.request<{ casesCreated: number; revisionsCreated: number }>(`${root(org, project)}/package`, {
+  /** `GET …/package?format=`: the bytes of a ZIP, JSON or YAML package (the content is for a file, never for the page). */
+  exportPackage: (org: string, project: string, format: PackageFormat = 'zip') =>
+    apiClient.requestBinary(`${root(org, project)}/package?format=${format}`),
+  /**
+   * `POST …/package`: the raw bytes of a ZIP, JSON or YAML package, checked digest by digest by the gateway. Needs MEMBER
+   * and `projects:write`. The answer is untyped in the contract; read it with `packageImportCounts`.
+   */
+  importPackage: (org: string, project: string, file: Blob, format: PackageFormat = 'zip') =>
+    apiClient.request<PackageImportResult>(`${root(org, project)}/package`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/zip' },
+      headers: { 'Content-Type': PACKAGE_CONTENT_TYPES[format] },
       body: file,
-    }),
+    }, undefined, true, true),
   studyRuns: (org: string, project: string, study: string) =>
     apiClient.request<StudyRun[]>(`${root(org, project)}/studies/${encodeURIComponent(study)}/runs`),
   studyCells: (org: string, project: string, study: string, run: string) =>

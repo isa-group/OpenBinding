@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { live, pending } from './define';
+import { live } from './define';
 import type { RouteDefinition } from './types';
 
 // D3 · Organization & collaboration (10 screens)
@@ -10,8 +10,10 @@ const OrgOverview = lazy(() => import('../pages/Organization/OrgOverview').then(
 const OrgSettings = lazy(() => import('../pages/Organization/OrgSettings').then((module) => ({ default: module.OrgSettings })));
 const OrgMembers = lazy(() => import('../pages/Organization/OrgMembers').then((module) => ({ default: module.OrgMembers })));
 const OrgAudit = lazy(() => import('../pages/Organization/OrgAudit').then((module) => ({ default: module.OrgAudit })));
-// The project screens are rebuilt in the next task; the project overview still renders the current page.
-const ProjectOverview = lazy(() => import('../pages/Platform/PlatformPages').then((module) => ({ default: module.ProjectOverview })));
+const ProjectCreate = lazy(() => import('../pages/Project/ProjectCreate').then((module) => ({ default: module.ProjectCreate })));
+const ProjectOverview = lazy(() => import('../pages/Project/ProjectOverview').then((module) => ({ default: module.ProjectOverview })));
+const ProjectSettings = lazy(() => import('../pages/Project/ProjectSettings').then((module) => ({ default: module.ProjectSettings })));
+const ProjectPackage = lazy(() => import('../pages/Project/ProjectPackage').then((module) => ({ default: module.ProjectPackage })));
 
 export const d3Routes: RouteDefinition[] = [
   live('app-home', '/app', <AppHome />),
@@ -20,8 +22,8 @@ export const d3Routes: RouteDefinition[] = [
   live('org-settings', '/app/:org/settings', <OrgSettings />),
   live('org-members', '/app/:org/settings/members', <OrgMembers />),
   live('org-audit', '/app/:org/settings/audit', <OrgAudit />),
-  pending('proj-create', '/app/:org/new-project'),
+  live('proj-create', '/app/:org/new-project', <ProjectCreate />),
   live('proj-overview', '/app/:org/:project', <ProjectOverview />),
-  pending('proj-settings', '/app/:org/:project/settings'),
-  pending('proj-package', '/app/:org/:project/package'),
+  live('proj-settings', '/app/:org/:project/settings', <ProjectSettings />),
+  live('proj-package', '/app/:org/:project/package', <ProjectPackage />),
 ];
