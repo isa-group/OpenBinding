@@ -1,0 +1,77 @@
+.states-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tp-spacing-xl);
+  width: min(100%, 1280px);
+  margin: 0 auto;
+  padding: var(--tp-spacing-xxl) var(--tp-spacing-md) var(--tp-spacing-section);
+}
+
+.states-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  gap: var(--tp-spacing-sm);
+  align-items: start;
+}
+
+.states-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.states-missing {
+  padding: 0 8px;
+  border: 1px solid var(--tp-severity-error-border);
+  border-radius: var(--tp-radius-full);
+  background: var(--tp-severity-error-bg);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.states-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+.states-table th { padding: 4px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 600; text-align: left; }
+.states-table td, .states-table tbody th { padding: 6px 4px; border-top: 1px solid var(--tp-hairline-soft); color: var(--tp-ink); font-weight: 400; }
+.states-table th:first-child, .states-table td:first-child { padding-left: 0; }
+
+.states-dates { display: flex; flex-direction: column; gap: 6px; color: var(--tp-charcoal); }
+.states-dates strong { font-weight: 500; }
+
+.states-anatomy { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); }
+.states-anatomy h2 { font-family: var(--font-body); font-size: 1.125rem; font-weight: 500; letter-spacing: 0; line-height: 1.3; }
+.states-anatomy > p { max-width: 47.5rem; color: var(--tp-slate); }
+
+.states-anatomy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: var(--tp-spacing-sm);
+}
+
+.states-anatomy-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--tp-spacing-md);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-xl);
+  background: var(--tp-canvas);
+}
+
+.states-anatomy-card > strong { font-weight: 600; }
+.states-anatomy-card > span { color: var(--tp-steel); font-size: 0.75rem; }
+.states-anatomy-card ul { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+
+.states-anatomy-card li {
+  display: grid;
+  grid-template-columns: minmax(0, 150px) 18px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--tp-spacing-xs);
+  font-size: 0.8125rem;
+}
+
+.states-from,
+.states-to { padding: 4px 8px; border-radius: var(--tp-radius-md); }
+.states-from { border: 1px solid var(--tp-hairline-soft); background: var(--tp-surface); }
+.states-to { border: 1px solid var(--tp-beige-deep); background: var(--tp-cream); }
+.states-arrow { color: var(--tp-primary); text-align: center; }
+
+@media (max-width: 520px) {
+  .states-anatomy-card li { grid-template-columns: minmax(0, 1fr); }
+  .states-arrow { text-align: left; }
+}

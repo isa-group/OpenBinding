@@ -23,6 +23,7 @@ import type {
   UserProfile,
 } from './auth';
 import type { AdminErrorOverview, AdminErrorListResponse } from '../pages/Admin/types';
+import { rememberCasFlow } from '../utils/authFlow';
 
 /** One solve in an account's history. */
 export type Termination = 'OPTIMAL' | 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN';
@@ -596,11 +597,17 @@ export class ApiClient {
     return error;
   }
 
+  /**
+   * `retryOnUnauthorized` turns off the silent refresh (a login form has no session to renew);
+   * `throwOnValidation` makes a 422 an HttpError instead of a body handed back to the caller
+   * (a form needs to know that its submission was refused).
+   */
   async request<T>(
     endpoint: string,
     options: RequestInit = {},
     timeoutMs?: number,
-    retryOnUnauthorized = true
+    retryOnUnauthorized = true,
+    throwOnValidation = false,
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
@@ -624,12 +631,15 @@ export class ApiClient {
       // once and try again. A second 401 means the session is genuinely over.
       if (response.status === 401 && retryOnUnauthorized && this.getAccessToken()) {
         if (await this.refreshSession()) {
-          return this.request<T>(endpoint, options, timeoutMs, false);
+          return this.request<T>(endpoint, options, timeoutMs, false, throwOnValidation);
         }
         this.endSession();
       }
 
       // Handle validation errors (422) specially
+      if (response.status === 422 && throwOnValidation) {
+        throw await this.errorFor(response);
+      }
       if (response.status === 422) {
         const errorData = await response.json();
         // Return the error data as-is so the caller can handle violations
@@ -981,14 +991,14 @@ export class ApiClient {
     return this.request<UserProfile>('/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify(details),
-    });
+    }, undefined, false, true);
   }
 
   async login(usernameOrEmail: string, password: string): Promise<TokenPair> {
     const tokens = await this.request<TokenPair>('/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username_or_email: usernameOrEmail, password }),
-    });
+    }, undefined, false, true);
     this.setTokens(tokens);
     return tokens;
   }
@@ -1026,13 +1036,13 @@ export class ApiClient {
   async requestPasswordReset(email: string): Promise<{ accepted: boolean; delivery: string; token?: string }> {
     return this.request('/v1/auth/password-reset/request', {
       method: 'POST', body: JSON.stringify({ email }),
-    });
+    }, undefined, false, true);
   }
 
   async completePasswordReset(token: string, newPassword: string): Promise<void> {
     await this.request('/v1/auth/password-reset/complete', {
       method: 'POST', body: JSON.stringify({ token, new_password: newPassword }),
-    });
+    }, undefined, false, true);
   }
 
   casStartUrl(mode: 'login' | 'link' = 'login'): string {
@@ -1041,13 +1051,15 @@ export class ApiClient {
 
   async createCasLinkIntent(): Promise<string> {
     const response = await this.request<{ url: string }>('/v1/auth/cas/link-intent', { method: 'POST' });
+    // The caller navigates to this URL next; the callback page needs to know it is a link, not a login.
+    rememberCasFlow('link');
     return response.url;
   }
 
   async exchangeCasCode(code: string): Promise<void> {
     const tokens = await this.request<TokenPair>('/v1/auth/cas/exchange', {
       method: 'POST', body: JSON.stringify({ code }),
-    });
+    }, undefined, false, true);
     this.setTokens(tokens);
   }
 

@@ -96,6 +96,15 @@ describe('route registry', () => {
     }
   });
 
+  it('lets only the invitation link switch header with the session, without ever requiring one', () => {
+    const adaptive = routeDefinitions.filter((definition) => definition.sessionHeader);
+    expect(adaptive.map((definition) => definition.id)).toEqual(['org-invite-accept']);
+    for (const definition of adaptive) {
+      expect(definition.layout, definition.id).toBe('public');
+      expect(definition.requireAuth, definition.id).toBe(false);
+    }
+  });
+
   it('requires an administrator for every admin screen and for nothing else', () => {
     const admin = routeDefinitions.filter((definition) => definition.id.startsWith('admin-'));
     expect(admin).toHaveLength(13);

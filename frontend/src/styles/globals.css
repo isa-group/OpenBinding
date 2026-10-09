@@ -210,7 +210,7 @@ body {
 #root { min-height: 100vh; display: flex; flex-direction: column; }
 
 /* The redesigned public screens sit on white, as in the prototype. */
-.app-container:has(> .main-content > :is(.home-page, .explore-page, .resolve-page, .status-page, .about-page)) { background: var(--tp-canvas); }
+.app-container:has(> .main-content > :is(.home-page, .explore-page, .resolve-page, .status-page, .about-page, .auth-split, .auth-card-page)) { background: var(--tp-canvas); }
 ::selection { color: var(--color-text-primary); background: var(--color-accent-subtle); }
 
 h1, h2, h3, h4, h5, h6 {

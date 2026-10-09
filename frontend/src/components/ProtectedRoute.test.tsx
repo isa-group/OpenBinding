@@ -20,9 +20,9 @@ function SignIn() {
   return <h1>Sign in{from ? ` (from ${from})` : ''}</h1>;
 }
 
-function renderGuard(user: UserProfile | null, requireAdmin = false, loading = false) {
+function renderGuard(user: UserProfile | null, requireAdmin = false, loading = false, entry = '/protected') {
   return render(
-    <MemoryRouter initialEntries={['/protected']}>
+    <MemoryRouter initialEntries={[entry]}>
       <AuthContext.Provider value={{
         user,
         loading,
@@ -47,6 +47,11 @@ describe('ProtectedRoute', () => {
     renderGuard(null);
     expect(screen.getByRole('heading', { name: 'Sign in (from /protected)' })).toBeInTheDocument();
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+  });
+
+  it('remembers the query string too, so a deep link survives the sign-in detour', () => {
+    renderGuard(null, false, false, '/protected?tab=queue');
+    expect(screen.getByRole('heading', { name: 'Sign in (from /protected?tab=queue)' })).toBeInTheDocument();
   });
 
   it('waits for the stored session instead of bouncing a signed-in user to sign in', () => {

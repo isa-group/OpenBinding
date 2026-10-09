@@ -1,0 +1,135 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PricingUnavailableError, QuotaError } from './auth';
+import { ApiClient, HttpError } from './client';
+import { platformApi } from './platform';
+import { forgetCasFlow, readCasFlow } from '../utils/authFlow';
+
+function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } });
+}
+
+describe('authentication requests', () => {
+  const client = new ApiClient('https://gateway.example');
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    localStorage.clear();
+    forgetCasFlow();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  it('throws a 422 from login instead of storing tokens that are not there', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: [{ loc: ['body', 'password'], msg: 'field required' }] }, 422));
+
+    await expect(client.login('alice', '')).rejects.toMatchObject({ status: 422 });
+    expect(localStorage.getItem('openbinding-access-token')).toBeNull();
+  });
+
+  it('keeps the field-level answer of a 422 on the error', async () => {
+    const body = { detail: [{ loc: ['body', 'email'], msg: 'bad email' }] };
+    fetchMock.mockResolvedValueOnce(jsonResponse(body, 422));
+
+    const error = await client.register({ username: 'alice', email: 'x', password: 'long-enough-password' }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(HttpError);
+    expect((error as HttpError).problem).toEqual(body);
+  });
+
+  it('reads the code of a detail-object refusal (weak password)', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: { code: 'weak_password', error: 'Too common.' } }, 422));
+
+    const error = await client.register({ username: 'alice', email: 'a@example.org', password: 'password1234' }).catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({ status: 422, code: 'weak_password' });
+    expect((error as HttpError).message).toContain('Too common.');
+  });
+
+  it('reads the title of a problem+json refusal as the code', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ type: 'about:blank', title: 'reset_token_invalid', status: 401, detail: 'Reset token is invalid or expired.' }, 401));
+
+    await expect(client.completePasswordReset('obr_a_b', 'long-enough-password')).rejects.toMatchObject({ status: 401, code: 'reset_token_invalid' });
+  });
+
+  it('does not try to renew a session while logging in with a stale token lying around', async () => {
+    localStorage.setItem('openbinding-access-token', 'stale');
+    localStorage.setItem('openbinding-refresh-token', 'stale-refresh');
+    const ended = vi.fn();
+    window.addEventListener('openbinding:session-ended', ended);
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: { code: 'invalid_credentials', error: 'no' } }, 401));
+
+    await expect(client.login('alice', 'wrong')).rejects.toMatchObject({ status: 401, code: 'invalid_credentials' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(ended).not.toHaveBeenCalled();
+    window.removeEventListener('openbinding:session-ended', ended);
+  });
+
+  it('stores the tokens a CAS exchange returns, and throws what it refuses', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ access_token: 'a', refresh_token: 'r', token_type: 'bearer', expires_in: 60 }));
+    await client.exchangeCasCode('x'.repeat(32));
+    expect(localStorage.getItem('openbinding-access-token')).toBe('a');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ code: 'x'.repeat(32) });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: { code: 'cas_code_invalid', error: 'used' } }, 401));
+    await expect(client.exchangeCasCode('y'.repeat(32))).rejects.toMatchObject({ status: 401, code: 'cas_code_invalid' });
+  });
+
+  it('remembers that a CAS link leaves the app, and builds the start URL for either mode', async () => {
+    expect(client.casStartUrl()).toBe('https://gateway.example/v1/auth/cas/start?mode=login');
+    expect(client.casStartUrl('link')).toBe('https://gateway.example/v1/auth/cas/start?mode=link');
+    fetchMock.mockResolvedValueOnce(jsonResponse({ url: '/api/v1/auth/cas/start?mode=link&intent=abc' }));
+
+    await client.createCasLinkIntent();
+
+    expect(readCasFlow()?.mode).toBe('link');
+  });
+});
+
+describe('invitation acceptance', () => {
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    localStorage.clear();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  it('posts the token in the body, never in the URL', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'm', organization_id: 'o', user_id: 'u', role: 'MEMBER', created_at: '2026-10-09T00:00:00Z' }));
+
+    const member = await platformApi.acceptInvitation('obi_secret_value');
+
+    const [url, request] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/v1\/invitations\/accept$/);
+    expect(String(url)).not.toContain('obi_secret_value');
+    expect(request?.method).toBe('POST');
+    expect(JSON.parse(String(request?.body))).toEqual({ token: 'obi_secret_value' });
+    expect(member.role).toBe('MEMBER');
+  });
+
+  it('turns the sponsor’s full quota into a QuotaError with its limit', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      detail: { code: 'sponsor_quota_exceeded', error: 'The sponsor contract allows 15 members.', quota: { limit_id: 'members', limit: 15, used: 16 } },
+    }, 402));
+
+    const error = await platformApi.acceptInvitation('obi_secret_value').catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(QuotaError);
+    expect(error).toMatchObject({ code: 'sponsor_quota_exceeded', quota: { limit: 15, used: 16 } });
+  });
+
+  it('throws the 404 the gateway gives every unusable token, and the 422 of a short one', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: { code: 'not_found', error: 'Invitation is invalid or expired.' } }, 404));
+    await expect(platformApi.acceptInvitation('obi_secret_value')).rejects.toMatchObject({ status: 404 });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: [{ loc: ['body', 'token'], msg: 'too short' }] }, 422));
+    await expect(platformApi.acceptInvitation('short')).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('keeps a pricing outage apart from a refusal', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: { code: 'pricing_unavailable', error: 'down' } }, 503));
+
+    await expect(platformApi.acceptInvitation('obi_secret_value')).rejects.toBeInstanceOf(PricingUnavailableError);
+  });
+});

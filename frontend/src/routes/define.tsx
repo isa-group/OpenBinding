@@ -18,6 +18,7 @@ function define(status: ScreenStatus, id: string, path: string, element: ReactNo
     requireAuth: layout === 'app',
     requireAdmin: options.requireAdmin ?? false,
     paramAliases: options.paramAliases,
+    sessionHeader: options.sessionHeader ?? false,
   };
 }
 

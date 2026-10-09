@@ -26,12 +26,7 @@ vi.mock('../pages/Account/Account', async () => {
 });
 vi.mock('../pages/Auth/Login', async () => {
   const { createElement } = await import('react');
-  return {
-    Login: () => createElement('h1', null, 'Sign in screen'),
-    CasCallback: () => null,
-    PasswordResetRequestPage: () => null,
-    PasswordResetCompletePage: () => null,
-  };
+  return { Login: () => createElement('h1', null, 'Sign in screen') };
 });
 
 const person: UserProfile = {
@@ -134,6 +129,34 @@ describe('AppRoutes', () => {
     expect(await pendingHeading()).toBeInTheDocument();
     expect(document.querySelector(`[data-screen-id="${target.id}"]`)).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent(target.path);
+  });
+
+  it('serves the invitation link inside the public layout when there is no session', async () => {
+    renderAt('/invitations/accept?token=abc', null);
+
+    expect(await screen.findByRole('heading', { name: 'Log in to accept' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull();
+    expect(screen.getByTestId('location')).toHaveTextContent('/invitations/accept');
+  });
+
+  it('serves the invitation link inside the application layout when signed in', async () => {
+    renderAt('/invitations/accept');
+
+    expect(await screen.findByRole('heading', { name: 'Paste your invitation' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
+  });
+
+  it('shows the state gallery inside the application layout, and sends visitors to sign in', async () => {
+    const view = renderAt('/app/system/states');
+    expect(await screen.findByRole('heading', { level: 1, name: 'States and recoverable errors' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
+    view.unmount();
+
+    renderAt('/app/system/states', null);
+    expect(await screen.findByRole('heading', { name: 'Sign in screen' })).toBeInTheDocument();
+    expect(screen.getByTestId('location')).toHaveTextContent('/login');
   });
 
   it('shows a not-found page for addresses that no longer exist', async () => {

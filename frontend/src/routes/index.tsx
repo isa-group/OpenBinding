@@ -5,6 +5,7 @@ import { ProtectedRoute } from '../components/ProtectedRoute';
 import { NotFoundScreen } from './NotFoundScreen';
 import { ParamAliases } from './ParamAliases';
 import { routeDefinitions } from './registry';
+import { SessionLayout } from './SessionLayout';
 import type { RouteDefinition } from './types';
 
 function screenElement(definition: RouteDefinition) {
@@ -20,7 +21,8 @@ function screenElement(definition: RouteDefinition) {
   return element;
 }
 
-const publicScreens = routeDefinitions.filter((definition) => definition.layout === 'public');
+const publicScreens = routeDefinitions.filter((definition) => definition.layout === 'public' && !definition.sessionHeader);
+const sessionScreens = routeDefinitions.filter((definition) => definition.layout === 'public' && definition.sessionHeader);
 const appScreens = routeDefinitions.filter((definition) => definition.layout === 'app');
 
 export function AppRoutes() {
@@ -31,6 +33,11 @@ export function AppRoutes() {
           <Route key={definition.id} path={definition.path} element={screenElement(definition)} />
         ))}
         <Route path="*" element={<NotFoundScreen />} />
+      </Route>
+      <Route element={<SessionLayout />}>
+        {sessionScreens.map((definition) => (
+          <Route key={definition.id} path={definition.path} element={screenElement(definition)} />
+        ))}
       </Route>
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         {appScreens.map((definition) => (

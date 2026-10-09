@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { apiClient, SESSION_ENDED_EVENT } from '../api/client';
 import type { UserProfile } from '../api/auth';
+import { clearSessionEnded, markSessionEnded } from '../utils/authFlow';
 import { AuthContext } from './auth';
 
 /**
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       setUser(await apiClient.getOwnProfile());
+      clearSessionEnded();
     } catch {
       // A token that no longer identifies anybody is no session at all.
       apiClient.clearTokens();
@@ -49,7 +51,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // The client ends a session when a refresh fails. Listening rather than
     // returning a flag means every tab notices, not only the one that asked.
-    const onSessionEnded = () => setUser(null);
+    const onSessionEnded = () => {
+      // The sign-in page tells the person why they are back there.
+      markSessionEnded();
+      setUser(null);
+    };
     window.addEventListener(SESSION_ENDED_EVENT, onSessionEnded);
     return () => window.removeEventListener(SESSION_ENDED_EVENT, onSessionEnded);
   }, []);

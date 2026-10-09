@@ -365,6 +365,14 @@ export const platformApi = {
     apiClient.request<OrganizationInvitation>(`${root(org)}/invitations`, {
       method: 'POST', body: JSON.stringify(value),
     }),
+  /**
+   * POST /v1/invitations/accept. The token is a secret: it goes in the body only, never in a URL, a log or an error.
+   * Answers with the new (or existing) membership; the organization's name is not part of it.
+   */
+  acceptInvitation: (token: string) =>
+    apiClient.request<OrganizationMember>('/v1/invitations/accept', {
+      method: 'POST', body: JSON.stringify({ token }),
+    }, undefined, true, true),
   projects: (org: string) => apiClient.request<Project[]>(`${root(org)}/projects`),
   createProject: (org: string, value: { slug: string; name: string; description: string; visibility: Visibility }) =>
     apiClient.request<Project>(`${root(org)}/projects`, {

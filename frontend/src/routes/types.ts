@@ -21,9 +21,15 @@ export interface RouteDefinition {
    * (`{ case: 'caseSlug' }`). Lets a page keep working while its route moves to the new pattern.
    */
   paramAliases?: Record<string, string>;
+  /**
+   * A public address that also serves signed-in people (an invitation link): it renders inside the
+   * application layout when there is a session and inside the public layout when there is not.
+   */
+  sessionHeader?: boolean;
 }
 
 export interface ScreenOptions {
   requireAdmin?: boolean;
   paramAliases?: Record<string, string>;
+  sessionHeader?: boolean;
 }
