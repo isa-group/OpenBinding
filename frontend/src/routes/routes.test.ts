@@ -158,6 +158,13 @@ describe('route registry', () => {
     expect(routesByDomain.D4.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
   });
 
+  it('has rebuilt the execution screens, which closes domain 5', () => {
+    const rebuilt = ['job-launch', 'job-list', 'job-detail', 'job-history'];
+    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
+    expect(routeDefinitions.find((definition) => definition.id === 'job-detail')?.paramAliases).toBeUndefined();
+    expect(routesByDomain.D5.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
+  });
+
   // The closing task of the redesign turns this on (VITE_ROUTES_REQUIRE_LIVE=1 pnpm test).
   it.skipIf(!import.meta.env.VITE_ROUTES_REQUIRE_LIVE)('has no pending screen left', () => {
     expect(routeDefinitions.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
@@ -198,7 +205,6 @@ describe('route registry', () => {
     const aliases = Object.fromEntries(routeDefinitions.filter((definition) => definition.paramAliases)
       .map((definition) => [definition.id, definition.paramAliases]));
     expect(aliases).toEqual({
-      'job-detail': { job: 'jobId' },
       'rep-detail': { report: 'reportSlug' },
     });
   });

@@ -3,11 +3,9 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Organization, Project } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
-import { JobsPage } from './JobsPage';
 import { ReportDetailPage } from './ReportDetailPage';
 
 const api = vi.hoisted(() => ({
-  projectJobs: vi.fn(),
   report: vi.fn(),
   reports: vi.fn(),
   publications: vi.fn(),
@@ -70,104 +68,6 @@ describe('InspectionPages test suite', () => {
       loading: false,
       reload: vi.fn(),
     };
-  });
-
-  describe('JobsPage', () => {
-    it('renders jobs, applies filters, and displays terminal logs for selected job', async () => {
-      const mockJobs = [
-        {
-          id: 'job-1',
-          organization_id: organization.id,
-          project_id: project.id,
-          billing_sponsor_user_id: 'user-1',
-          owner_id: 'user-1',
-          engine_id: 'minizinc-csp',
-          service_url: 'http://engine:3000',
-          state: 'completed',
-          status: 'completed',
-          termination: 'OPTIMAL',
-          options: { solver: 'gecode', time_budget_ms: 5000 },
-          result: {
-            termination: 'OPTIMAL',
-            solutions: [{ decision: { kind: 'binding' }, objectives: { cost: 42.5 } }],
-            logs: '[2026-09-07] Optimal solution proven.',
-          },
-          cancellation_requested: false,
-          created_at: '2026-09-07T10:00:00Z',
-          finished_at: '2026-09-07T10:00:02Z',
-        },
-        {
-          id: 'job-2',
-          organization_id: organization.id,
-          project_id: project.id,
-          billing_sponsor_user_id: 'user-1',
-          owner_id: 'user-1',
-          engine_id: 'random-search',
-          service_url: 'http://engine:8080',
-          state: 'running',
-          status: 'running',
-          options: { iterations: 1000 },
-          result: { logs: '[2026-09-07] Search in progress...' },
-          cancellation_requested: false,
-          created_at: '2026-09-07T10:05:00Z',
-        },
-      ];
-      api.projectJobs.mockResolvedValue(mockJobs);
-
-      render(
-        <MemoryRouter initialEntries={['/app/score-ai/qos-placement/jobs']}>
-          <Routes>
-            <Route path="/app/:org/:project/jobs" element={<JobsPage />} />
-          </Routes>
-        </MemoryRouter>
-      );
-
-      expect(await screen.findByText('Project Solver Jobs')).toBeInTheDocument();
-      expect((await screen.findAllByText(/minizinc-csp/)).length).toBeGreaterThan(0);
-      expect(screen.getByText(/random-search/)).toBeInTheDocument();
-      expect(screen.getByText(/Optimal solution proven/)).toBeInTheDocument();
-
-      // Test status filter buttons
-      const runningFilterBtn = screen.getByRole('button', { name: /running \(1\)/i });
-      fireEvent.click(runningFilterBtn);
-
-      // Verify running job is shown and completed job is filtered out
-      expect(screen.getAllByText(/random-search/).length).toBeGreaterThan(0);
-      expect(screen.queryByText(/UUID: job-1/)).not.toBeInTheDocument();
-    });
-
-    it('deep-links to specific jobId via URL params', async () => {
-      const mockJobs = [
-        {
-          id: 'job-target',
-          organization_id: organization.id,
-          project_id: project.id,
-          billing_sponsor_user_id: 'user-1',
-          owner_id: 'user-1',
-          engine_id: 'minizinc-targeted',
-          service_url: 'http://engine:3000',
-          state: 'completed',
-          status: 'completed',
-          termination: 'OPTIMAL',
-          options: {},
-          result: { logs: 'Targeted job executed successfully' },
-          cancellation_requested: false,
-          created_at: '2026-09-07T12:00:00Z',
-        },
-      ];
-      api.projectJobs.mockResolvedValue(mockJobs);
-
-      render(
-        <MemoryRouter initialEntries={['/app/score-ai/qos-placement/jobs/job-target']}>
-          <Routes>
-            <Route path="/app/:org/:project/jobs/:jobId" element={<JobsPage />} />
-          </Routes>
-        </MemoryRouter>
-      );
-
-      expect(await screen.findByText(/UUID: job-target/)).toBeInTheDocument();
-      expect(screen.getByText(/Targeted job executed successfully/)).toBeInTheDocument();
-    });
   });
 
   describe('ReportDetailPage', () => {
