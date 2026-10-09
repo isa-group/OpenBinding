@@ -65,6 +65,48 @@ describe('BIM v1 Engine API client', () => {
     expect(JSON.parse(String(request?.body))).toEqual(manifest);
   });
 
+  it('throws a refused Engine (422) with the gateway’s code and the places it points at, not a missing-pin message', async () => {
+    const manifest: EngineManifest = {
+      apiVersion: 'bim/v1',
+      kind: 'Engine',
+      metadata: { namespace: 'research.team', name: 'solver', version: '1.0.0' },
+      spec: { modes: [] },
+    };
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      type: 'https://openbinding.dev/problems/invalid_engine',
+      title: 'invalid_engine',
+      status: 422,
+      detail: 'Engine manifest does not satisfy bim/v1',
+      diagnostics: [{ code: 'capability_dimension_missing', pointer: '/spec/modes/0/capabilities', message: 'mode must explicitly select capability dimension \'featureValues\'' }],
+    }, 422));
+
+    await expect(client.createEngine(manifest)).rejects.toMatchObject({
+      status: 422,
+      code: 'invalid_engine',
+      diagnostics: [expect.objectContaining({ pointer: '/spec/modes/0/capabilities' })],
+    });
+  });
+
+  it('throws a refused credential (422) and a refused registration (422) the same way', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ title: 'invalid_credential', status: 422, detail: 'credential payload requires a non-empty secret' }, 422));
+    await expect(client.setEngineRegistrationCredential(REF, '')).rejects.toMatchObject({ status: 422, code: 'invalid_credential' });
+
+    fetchMock.mockResolvedValue(jsonResponse({ title: 'secret_in_document', status: 422, detail: 'credentials must be supplied through the secret store' }, 422));
+    await expect(client.createEngineRegistration({
+      apiVersion: 'bim/v1',
+      kind: 'EngineRegistration',
+      metadata: { namespace: 'research.team', name: 'solver-deployment', version: '2.1.0' },
+      spec: {
+        engine: REF,
+        endpoint: 'https://solver.example',
+        protocol: { id: 'bim-engine/v1', mediaType: 'application/json', digest: DIGEST },
+        mappings: { request: '/solve', health: '/health', openapi: '/openapi.json' },
+        auth: { scheme: 'none' },
+        openapi: {},
+      },
+    })).rejects.toMatchObject({ status: 422, code: 'secret_in_document' });
+  });
+
   it('refuses to invent a missing immutable pin in a publication response', async () => {
     const manifest: EngineManifest = {
       apiVersion: 'bim/v1',

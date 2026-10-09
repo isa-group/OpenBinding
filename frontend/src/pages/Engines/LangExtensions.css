@@ -1,0 +1,101 @@
+/* lang-extensions */
+
+.lang-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tp-spacing-md);
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding: var(--tp-spacing-md) var(--tp-spacing-md) var(--tp-spacing-section);
+  box-sizing: border-box;
+}
+
+.lang-page > * { min-width: 0; }
+.lang-page .is-mono, .lang-page code { font-family: var(--font-mono); }
+.lang-page .ui-page-header { padding: 0; }
+
+.lang-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--tp-spacing-sm); }
+
+.lang-kpis > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-xl);
+  background: var(--tp-canvas);
+}
+
+.lang-kpis strong { font-family: var(--font-display); font-size: 1.75rem; font-weight: 400; line-height: 1.2; }
+.lang-kpis span { color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }
+
+.lang-controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-sm); margin-bottom: var(--tp-spacing-sm); }
+.lang-search { position: relative; flex: 1; min-width: 14rem; max-width: 25rem; }
+.lang-search svg { position: absolute; top: 10px; left: var(--tp-spacing-sm); width: 16px; height: 16px; color: var(--tp-steel); pointer-events: none; }
+.lang-search input { box-sizing: border-box; width: 100%; height: 36px; padding: 0 var(--tp-spacing-sm) 0 36px; border-radius: var(--tp-radius-lg); font-size: 0.875rem; }
+.lang-skeleton { display: flex; flex-direction: column; gap: var(--tp-spacing-xs); }
+
+.lang-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: var(--tp-spacing-sm); margin: 0; padding: 0; list-style: none; }
+.lang-grid > li { display: flex; align-self: start; min-width: 0; }
+.lang-grid > li > .lang-card { width: 100%; }
+
+.lang-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--tp-spacing-xs);
+  min-width: 0;
+  padding: var(--tp-spacing-md);
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-xl);
+  background: var(--tp-canvas);
+}
+
+.lang-card > header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--tp-spacing-xs); }
+.lang-card-title { display: flex; flex-direction: column; min-width: 0; }
+.lang-card h3 { margin: 0; font-family: var(--font-body); font-size: 1rem; font-weight: 600; letter-spacing: 0; overflow-wrap: anywhere; }
+.lang-card h3 > span, .lang-version { color: var(--tp-slate); font-size: 0.8125rem; font-weight: 400; }
+.lang-card h4 { margin: var(--tp-spacing-xs) 0 0; font-family: var(--font-body); font-size: 0.8125rem; font-weight: 600; letter-spacing: 0; color: var(--tp-slate); }
+.lang-card p { margin: 0; color: var(--tp-slate); font-size: 0.8125rem; }
+.lang-ref { display: block; color: var(--tp-steel); font-size: 0.75rem; overflow-wrap: anywhere; }
+.lang-chips { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lang-toggle { align-self: flex-start; }
+
+.lang-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin: 0; }
+.lang-facts > div { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-lg); min-width: 0; }
+.lang-facts dt { color: var(--tp-steel); font-size: 0.75rem; }
+.lang-facts dd { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; font-size: 0.8125rem; overflow-wrap: anywhere; }
+
+.lang-details { display: flex; flex-direction: column; gap: var(--tp-spacing-xs); padding-top: var(--tp-spacing-xs); border-top: 1px solid var(--tp-hairline-soft); min-width: 0; }
+.lang-points { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.lang-points > li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--tp-hairline-soft); border-radius: var(--tp-radius-lg); font-size: 0.8125rem; }
+.lang-points small { flex: 1; color: var(--tp-steel); font-size: 0.75rem; font-family: var(--font-mono); }
+
+.lang-flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--tp-spacing-xs); }
+
+.lang-flow > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--tp-hairline-soft);
+  border-radius: var(--tp-radius-xl);
+  background: var(--tp-canvas);
+  font-size: 0.8125rem;
+}
+
+.lang-flow > div > span:first-child {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--tp-radius-full);
+  background: var(--tp-severity-info-bg);
+  color: var(--tp-primary-deep);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lang-flow strong { display: block; font-weight: 600; }

@@ -178,6 +178,22 @@ describe('route registry', () => {
     expect(routesByDomain.D6.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
   });
 
+  it('has rebuilt the engine registration and language extension screens, which closes domain 7', () => {
+    const rebuilt = ['eng-register', 'eng-registrations', 'eng-registration-detail', 'lang-extensions'];
+    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
+    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.paramAliases, id).toBeUndefined();
+    expect(routesByDomain.D7.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
+  });
+
+  it('reads the registration detail below the registrations list and /engines/new as the form', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+    const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;
+
+    expect(resolve('/app/engines/registrations')).toBe('eng-registrations');
+    expect(resolve('/app/engines/registrations/edge-solver')).toBe('eng-registration-detail');
+    expect(resolve('/app/language/extensions')).toBe('lang-extensions');
+  });
+
   it('reads /studies/new as the builder and any other address below /studies as a study', () => {
     const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
     const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;

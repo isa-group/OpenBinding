@@ -155,6 +155,16 @@ export interface CapabilitySelector {
   values?: string[];
 }
 
+/**
+ * One objective scalarization an engine mode offers (`capabilities.scalarizations.values`). That dimension is the one
+ * whose values are objects rather than names, so it is read from the document, not through `EngineCapabilities`.
+ */
+export interface ScalarizationDeclaration {
+  id: string;
+  objectiveTypes: Array<'SINGLE' | 'MULTI' | 'MANY'>;
+  weightPolicy: 'required' | 'optional' | 'forbidden';
+}
+
 export interface EngineCapabilities {
   workflowNodes: CapabilitySelector;
   metricScopes: CapabilitySelector;
@@ -165,6 +175,9 @@ export interface EngineCapabilities {
   expressions: CapabilitySelector;
   placement: CapabilitySelector;
   irExtensions: CapabilitySelector;
+  /** `scalar`, `interval` (a range). The gateway makes this dimension mandatory for the qos-binding profile. */
+  featureValues?: CapabilitySelector;
+  featureScopes?: CapabilitySelector;
 }
 
 export interface EngineMode {
@@ -1313,13 +1326,16 @@ export class ApiClient {
 
   // -- Immutable Engine and EngineRegistration resources ---------------
 
-  /** Publish a portable bim/v1 Engine document without inventing UI-only fields. */
+  /**
+   * Publish a portable bim/v1 Engine document without inventing UI-only fields.
+   * A refused document (422 `invalid_engine`) throws an HttpError whose `diagnostics` say where.
+   */
   async createEngine(manifest: EngineManifest): Promise<EngineRevision> {
     return this.requireExactResourceRef(this.orThrow(
       await this.request<EngineRevision>('/v1/engines', {
         method: 'POST',
         body: JSON.stringify(manifest),
-      })
+      }, undefined, true, true)
     ));
   }
 
@@ -1358,7 +1374,7 @@ export class ApiClient {
       await this.request<EngineRegistrationRevision>('/v1/engine-registrations', {
         method: 'POST',
         body: JSON.stringify(manifest),
-      })
+      }, undefined, true, true)
     ));
   }
 
@@ -1418,7 +1434,7 @@ export class ApiClient {
     return this.requireExactResourceRef(await this.request<EngineRegistrationRevision>(this.engineRegistrationEndpoint(ref, 'credential'), {
       method: 'PUT',
       body: JSON.stringify({ secret }),
-    }));
+    }, undefined, true, true));
   }
 
   async adminListEngineRegistrations(): Promise<EngineRegistrationRevision[]> {
