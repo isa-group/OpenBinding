@@ -53,3 +53,16 @@ export async function computeRawSha256(buffer: ArrayBuffer): Promise<string> {
   const hex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   return `sha256-${hex}`;
 }
+
+/** The SHA-256 of a file's bytes, computed here: the file is read, never uploaded. */
+export async function computeFileSha256(file: Blob): Promise<string> {
+  const bytes = typeof file.arrayBuffer === 'function'
+    ? await file.arrayBuffer()
+    : await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(file);
+    });
+  return computeRawSha256(bytes);
+}

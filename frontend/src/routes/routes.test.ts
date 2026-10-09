@@ -169,7 +169,13 @@ describe('route registry', () => {
     const rebuilt = ['study-list', 'study-builder', 'study-detail', 'study-run', 'study-cell', 'study-analytics'];
     for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
     for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.paramAliases, id).toBeUndefined();
-    expect(routesByDomain.D6.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual(['analysis-workspace', 'proj-publications']);
+  });
+
+  it('has rebuilt the analysis, report, publication and verifier screens, which closes domain 6', () => {
+    const rebuilt = ['analysis-sources', 'analysis-workspace', 'rep-list', 'rep-detail', 'proj-publications', 'verifier'];
+    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
+    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.paramAliases, id).toBeUndefined();
+    expect(routesByDomain.D6.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
   });
 
   it('reads /studies/new as the builder and any other address below /studies as a study', () => {
@@ -219,11 +225,9 @@ describe('route registry', () => {
     for (const path of legacy) expect(matchRoutes(config, path), path).toBeNull();
   });
 
-  it('declares the legacy parameter names the live detail pages still read', () => {
+  it('declares no legacy parameter names: every live detail page reads the prototype ones', () => {
     const aliases = Object.fromEntries(routeDefinitions.filter((definition) => definition.paramAliases)
       .map((definition) => [definition.id, definition.paramAliases]));
-    expect(aliases).toEqual({
-      'rep-detail': { report: 'reportSlug' },
-    });
+    expect(aliases).toEqual({});
   });
 });

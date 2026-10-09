@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { live, pending } from './define';
+import { live } from './define';
 import type { RouteDefinition } from './types';
 
 // D6 · Studies, analysis, reports & publications (12 screens)
@@ -10,10 +10,12 @@ const StudyDetail = lazy(() => import('../pages/Studies/StudyDetail').then((modu
 const StudyRun = lazy(() => import('../pages/Studies/StudyRun').then((module) => ({ default: module.StudyRun })));
 const StudyCell = lazy(() => import('../pages/Studies/StudyCell').then((module) => ({ default: module.StudyCell })));
 const StudyAnalytics = lazy(() => import('../pages/Studies/StudyAnalytics').then((module) => ({ default: module.StudyAnalytics })));
-const ProjectRecordsPage = lazy(() => import('../pages/Platform/PlatformPages').then((module) => ({ default: module.ProjectRecordsPage })));
-const AnalysisPage = lazy(() => import('../pages/Platform/AnalysisPage').then((module) => ({ default: module.AnalysisPage })));
-const ReportDetailPage = lazy(() => import('../pages/Platform/ReportDetailPage').then((module) => ({ default: module.ReportDetailPage })));
-const VerifierPage = lazy(() => import('../pages/Platform/VerifierPage').then((module) => ({ default: module.VerifierPage })));
+const AnalysisSources = lazy(() => import('../pages/Analysis/AnalysisSources').then((module) => ({ default: module.AnalysisSources })));
+const AnalysisWorkspace = lazy(() => import('../pages/Analysis/AnalysisWorkspace').then((module) => ({ default: module.AnalysisWorkspace })));
+const RepList = lazy(() => import('../pages/Reports/RepList').then((module) => ({ default: module.RepList })));
+const RepDetail = lazy(() => import('../pages/Reports/RepDetail').then((module) => ({ default: module.RepDetail })));
+const ProjPublications = lazy(() => import('../pages/Reports/ProjPublications').then((module) => ({ default: module.ProjPublications })));
+const Verifier = lazy(() => import('../pages/Reports/Verifier').then((module) => ({ default: module.Verifier })));
 
 export const d6Routes: RouteDefinition[] = [
   live('study-list', '/app/:org/:project/studies', <StudyList />),
@@ -22,10 +24,10 @@ export const d6Routes: RouteDefinition[] = [
   live('study-run', '/app/:org/:project/studies/:study/runs/:run', <StudyRun />),
   live('study-cell', '/app/:org/:project/studies/:study/runs/:run/cells/:cell', <StudyCell />),
   live('study-analytics', '/app/:org/:project/studies/:study/runs/:run/analytics', <StudyAnalytics />),
-  live('analysis-sources', '/app/analysis', <AnalysisPage />),
-  pending('analysis-workspace', '/app/analysis/workspace'),
-  live('rep-list', '/app/:org/:project/reports', <ProjectRecordsPage kind="reports" />),
-  live('rep-detail', '/app/:org/:project/reports/:report', <ReportDetailPage />, { paramAliases: { report: 'reportSlug' } }),
-  pending('proj-publications', '/app/:org/:project/publications'),
-  live('verifier', '/app/verifier', <VerifierPage />),
+  live('analysis-sources', '/app/analysis', <AnalysisSources />),
+  live('analysis-workspace', '/app/analysis/workspace', <AnalysisWorkspace />),
+  live('rep-list', '/app/:org/:project/reports', <RepList />),
+  live('rep-detail', '/app/:org/:project/reports/:report', <RepDetail />),
+  live('proj-publications', '/app/:org/:project/publications', <ProjPublications />),
+  live('verifier', '/app/verifier', <Verifier />),
 ];

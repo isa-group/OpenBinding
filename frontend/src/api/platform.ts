@@ -580,26 +580,43 @@ export const platformApi = {
     apiClient.request<Report>(`${root(org, project)}/reports`, {
       method: 'POST', body: JSON.stringify(value),
     }, undefined, true, true),
+  /**
+   * Needs MEMBER. 409 `report_frozen` once sealed, 409 `draft_conflict` when `draft_revision` is not the current one. A 422 throws:
+   * the old body-as-data answer made a refused save look like a saved report.
+   */
   updateReport: (org: string, project: string, report: string, value: { title?: string; document?: Record<string, unknown>; draft_revision?: number }) =>
     apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}`, {
       method: 'PATCH', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
+  /** Needs ADMIN. 409 `report_history_retained` once an edition was sealed. */
   deleteReport: (org: string, project: string, report: string) =>
-    apiClient.request<void>(`${root(org, project)}/reports/${encodeURIComponent(report)}`, { method: 'DELETE' }),
+    apiClient.request<void>(`${root(org, project)}/reports/${encodeURIComponent(report)}`, { method: 'DELETE' }, undefined, true, true),
+  /** VIEWER can read. 404 whether the report is missing or the account is not in the organization. */
   report: (org: string, project: string, reportSlug: string) =>
-    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(reportSlug)}`),
+    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(reportSlug)}`, {}, undefined, true, true),
+  /** Needs MEMBER. A new editable draft from the sealed edition (or the open draft, when there is one). */
   createReportDraft: (org: string, project: string, report: string) =>
-    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}/drafts`, { method: 'POST' }),
+    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}/drafts`, { method: 'POST' }, undefined, true, true),
+  /**
+   * Needs MEMBER. 422 `incomplete_provenance`, `invalid_provenance`, `study_provenance_mismatch`, `incomplete_evidence`, `invalid_evidence`,
+   * `nonterminal_evidence`, `evidence_digest_mismatch` or `foreign_evidence`: the document must carry exact provenance and finished evidence.
+   */
   freezeReport: (org: string, project: string, report: string) =>
-    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}/freeze`, { method: 'POST' }),
+    apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}/freeze`, { method: 'POST' }, undefined, true, true),
+  /** Withdrawn publications are listed too: `withdrawn` says which. */
   publications: (org: string, project: string) =>
     apiClient.request<Publication[]>(`${root(org, project)}/publications`),
+  /**
+   * Needs ADMIN. 409 `report_not_frozen`, 409 `publication_conflict`, 409 `publication_withdrawn`, 422 `private_evidence`,
+   * `private_engine_dependency`, `private_dependency` or `private_case_dependency`: everything a public edition cites must be public.
+   */
   publishReport: (org: string, project: string, value: { report_id: string; version_id?: string; slug: string; citation: Record<string, unknown> }) =>
     apiClient.request<Publication>(`${root(org, project)}/publications`, {
       method: 'POST', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
+  /** Needs ADMIN. This withdraws: the publication, its link, citation and fingerprint stay; it only leaves the listings. */
   deletePublication: (org: string, project: string, publication: string) =>
-    apiClient.request<void>(`${root(org, project)}/publications/${encodeURIComponent(publication)}`, { method: 'DELETE' }),
+    apiClient.request<void>(`${root(org, project)}/publications/${encodeURIComponent(publication)}`, { method: 'DELETE' }, undefined, true, true),
   /** The project's files (content-addressed blobs), newest first. VIEWER can read. */
   artifacts: (org: string, project: string) =>
     apiClient.request<StoredBlob[]>(`${root(org, project)}/blobs`),
@@ -747,6 +764,21 @@ export const platformApi = {
       body: arrayBuffer,
     });
   },
+  /**
+   * `POST /v1/verifier/inspect` with the request the contract defines (`digest`, `document`). A 422 throws; 401 ends the session.
+   * Not `inspectVerifier`: that one sends field names the gateway rejects.
+   */
+  verifierCheck: (payload: VerifierCheckRequest) =>
+    apiClient.request<VerifierVerdict>('/v1/verifier/inspect', {
+      method: 'POST', body: JSON.stringify(payload),
+    }, undefined, true, true),
+  /** `POST /v1/verifier/inspect-file`: the raw bytes of a file, hashed by the gateway. 413 when the file is too large, 422 for a refused body. */
+  verifierCheckFile: (file: Blob, filename: string) =>
+    apiClient.request<VerifierVerdict>('/v1/verifier/inspect-file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': encodeURIComponent(filename) },
+      body: file,
+    }, undefined, true, true),
   resolveElement: (kind: string, digest: string, limit = 20, offset = 0) =>
     apiClient.request<ResolveResponse>(
       `/v1/resolve/${encodeURIComponent(kind)}/${encodeURIComponent(digest)}?limit=${limit}&offset=${offset}`,
@@ -860,4 +892,38 @@ export interface VerifierInspectRequest {
   target_kind?: string;
   target_digest?: string;
   document?: Record<string, unknown> | unknown[];
+}
+
+/** What `POST /v1/verifier/inspect` accepts (`VerifierInspectRequest` of the contract): a digest, a document, or both to compare them. */
+export interface VerifierCheckRequest {
+  digest?: string | null;
+  document?: unknown;
+  kind?: string | null;
+  entity_id?: string | null;
+}
+
+export type VerifierStatus = 'verified' | 'computed' | 'mismatch' | 'not_found';
+
+/** One element the gateway recorded with the fingerprint (`VerifierEntityMatch`). `entity_type` is `case`, `snapshot`, `collection`, `report`, `artifact`, `engine` or `study_run`. */
+export interface VerifierEntity {
+  entity_type: string;
+  id: string;
+  slug?: string | null;
+  title_or_name?: string | null;
+  organization_slug?: string | null;
+  project_slug?: string | null;
+  revision?: number | null;
+  created_at?: string | null;
+}
+
+/** The answer of the verifier (`VerifierInspectResponse` of the contract). */
+export interface VerifierVerdict {
+  status: VerifierStatus;
+  digest: string;
+  matches: boolean;
+  verified_at: string;
+  detail?: string | null;
+  canonical_json?: string | null;
+  entities?: VerifierEntity[];
+  citation?: ReplicationCitation | null;
 }
