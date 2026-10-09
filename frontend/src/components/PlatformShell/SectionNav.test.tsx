@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { AccountNav, type AccountSection } from './AccountNav';
 import { OrgNav, type OrgSection } from './OrgNav';
+import { ProjectLibraryNav, type ProjectLibrarySection } from '../ui/SectionNav';
 import { ProjectTabs, type ProjectSection } from './ProjectTabs';
 
 const currentOf = (nav: HTMLElement) => within(nav).queryAllByRole('link').filter((link) => link.getAttribute('aria-current') === 'page');
@@ -66,6 +67,32 @@ describe('OrgNav', () => {
     const audit = screen.getByRole('link', { name: /Audit log/ });
     expect(within(audit).getByText('ADMIN')).toHaveAttribute('title', 'Needs ADMIN');
     expect(screen.getByRole('link', { name: 'General' })).not.toHaveTextContent('ADMIN');
+  });
+});
+
+describe('ProjectLibraryNav', () => {
+  it('names the screens around the library of a project, and the current one is not a link', () => {
+    render(<MemoryRouter><ProjectLibraryNav current="library" orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
+
+    const nav = screen.getByRole('navigation', { name: 'Library sections' });
+    expect(within(nav).getAllByRole('link').map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['Collections', '/app/isa-demo/qos/collections'],
+      ['Project resources (older view)', '/app/isa-demo/qos/resources'],
+      ['Organization library', '/app/isa-demo/library'],
+      ['Workbench', '/app/isa-demo/qos/workbench'],
+    ]);
+    expect(within(nav).getByText('Library used here')).toHaveAttribute('aria-current', 'page');
+  });
+
+  it.each([
+    ['collections', 'Collections'],
+    ['resources', 'Project resources (older view)'],
+  ] as Array<[ProjectLibrarySection, string]>)('marks %s as the current page', (current, label) => {
+    render(<MemoryRouter><ProjectLibraryNav current={current} orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
+
+    const nav = screen.getByRole('navigation', { name: 'Library sections' });
+    expect(within(nav).getByText(label)).toHaveAttribute('aria-current', 'page');
+    expect(within(nav).getByRole('link', { name: 'Library used here' })).toHaveAttribute('href', '/app/isa-demo/qos/library');
   });
 });
 

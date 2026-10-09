@@ -506,7 +506,7 @@ export function StudiesPage() {
                 </div>
                 <h2>{study.name}</h2>
                 <p>{study.description || 'Exact comparative matrix.'}</p>
-                <Link to={`/app/${organization.slug}/library?artifact=${study.definition_artifact_id}&version=${study.definition_version_id}`}>Open versioned definition</Link>
+                <Link to={`/app/${organization.slug}/library/${study.definition_artifact_id}/versions/${study.definition_version_id}`}>Open versioned definition</Link>
                 {study.state === 'ready' && <details><summary>Select definition version</summary>
                   <ArtifactVersionPicker org={organization.slug} kind="Study" artifactId={study.definition_artifact_id} versionId={study.definition_version_id} onSelect={(_, version) => {
                     void platformApi.updateStudy(organization.slug, project.slug, study.slug, { definition_version_id: version.id })

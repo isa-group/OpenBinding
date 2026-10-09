@@ -7,6 +7,12 @@ import { CodeEditor } from '../../components/CodeEditor/CodeEditor';
 import { jsonChanges, sourceDiff } from '../../utils/workspaceViews';
 import './PlatformPages.css';
 
+/**
+ * The first library page, with the items, drafts, versions, publication and associations all on one screen driven by `?artifact=&version=`.
+ * The library screens of the redesign (src/pages/Library: lib-list, lib-artifact, lib-draft, lib-version, proj-library) replace it. Only the
+ * `proj-resources` route still renders it, until the task that rebuilds that screen swaps it out; what it does is kept as it was (nothing that
+ * `proj-resources` might need was removed) and the file can be deleted then. The old `/library?artifact=…` addresses are redirected by `lib-list`.
+ */
 export default function ArtifactLibraryPage() {
   const { organization, project } = useOutletContext<PlatformOutletContext>();
   const [params, setParams] = useSearchParams();
