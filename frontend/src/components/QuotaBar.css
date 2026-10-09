@@ -58,6 +58,34 @@
   color: var(--color-text-secondary, #666);
 }
 
+/* The boxed allowance of the usage screen */
+.quota-card {
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--tp-hairline, #b8b8b8);
+  border-radius: 12px;
+  background: var(--tp-canvas, #fff);
+}
+
+.quota-card.is-spent { border-color: var(--tp-hairline-strong, #a8a8a8); }
+.quota-card .quota-head { align-items: center; }
+.quota-unit { color: var(--tp-steel, #6a6a6a); font-family: var(--font-mono); font-size: 0.75rem; }
+.quota-card .quota-track { background: var(--tp-hairline-soft, #ededed); }
+.quota-card .quota-fill-fine,
+.quota-card .quota-fill-low { background: var(--tp-primary, #0077b6); }
+.quota-card .quota-fill-spent { background: var(--tp-primary-deep, #023e8a); }
+
+.quota-card-figures {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.quota-card-figures strong { font-weight: 600; }
+.quota-spent-note { color: var(--tp-charcoal, #2c2c2c); font-size: 0.75rem; }
+
 @media (prefers-reduced-motion: reduce) {
   .quota-fill { transition-duration: 1ms; }
 }

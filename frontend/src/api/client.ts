@@ -16,6 +16,8 @@ import type {
   MaintenancePreview,
   Notification,
   NotificationPreferences,
+  PricingCatalog,
+  PricingCurrentView,
   RoleName,
   TokenPair,
   UsageResyncResult,
@@ -490,6 +492,8 @@ export class ApiClient {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(PRICING_TOKEN_KEY);
+    // Whoever shows the state of the pricing token (the usage screen) learns that there is none.
+    window.dispatchEvent(new CustomEvent(PRICING_TOKEN_UPDATED_EVENT));
   }
 
   private authHeaders(): Record<string, string> {
@@ -1022,6 +1026,7 @@ export class ApiClient {
     return this.request<UserProfile>('/v1/users/me');
   }
 
+  /** A refused submission (422 weak password) throws instead of being read as the new profile. */
   async updateOwnProfile(changes: {
     email?: string;
     current_password?: string;
@@ -1030,7 +1035,7 @@ export class ApiClient {
     return this.request<UserProfile>('/v1/users/me', {
       method: 'PATCH',
       body: JSON.stringify(changes),
-    });
+    }, undefined, true, true);
   }
 
   async requestPasswordReset(email: string): Promise<{ accepted: boolean; delivery: string; token?: string }> {
@@ -1075,7 +1080,7 @@ export class ApiClient {
   async deleteOwnAccount(confirmation: string, currentPassword?: string): Promise<void> {
     await this.request('/v1/users/me', {
       method: 'DELETE', body: JSON.stringify({ confirmation, current_password: currentPassword || null }),
-    });
+    }, undefined, true, true);
   }
 
   async listNotifications(unreadOnly = false): Promise<Notification[]> {
@@ -1097,7 +1102,7 @@ export class ApiClient {
   }
 
   async updateNotificationPreferences(value: NotificationPreferences): Promise<NotificationPreferences> {
-    return this.request('/v1/notifications/preferences', { method: 'PUT', body: JSON.stringify(value) });
+    return this.request('/v1/notifications/preferences', { method: 'PUT', body: JSON.stringify(value) }, undefined, true, true);
   }
 
   async listApiKeys(): Promise<ApiKeySummary[]> {
@@ -1107,10 +1112,11 @@ export class ApiClient {
 
   /** The response carries the secret. It is the only one that ever will. */
   async createApiKey(payload: CreateApiKeyRequest): Promise<CreatedApiKey> {
+    // A 422 (engines missing for the chosen permissions, past expiry) throws: its body is not a key.
     return this.request<CreatedApiKey>('/v1/users/me/api-keys', {
       method: 'POST',
       body: JSON.stringify(payload),
-    });
+    }, undefined, true, true);
   }
 
   async revokeApiKey(keyId: string): Promise<void> {
@@ -1140,11 +1146,27 @@ export class ApiClient {
   }
 
   /**
-   * The Pricing2Yaml document this gateway is sold under.
+   * The active Pricing2Yaml document, digest-verified by the gateway and served as JSON.
    *
    * Fetched rather than bundled, so the plans page cannot drift from the
    * document SPACE was actually given. Public: a pricing nobody can read
    * before signing up is not much of a pricing.
+   */
+  async getPricingCatalog(): Promise<PricingCatalog> {
+    return this.request<PricingCatalog>('/v1/pricing/catalog');
+  }
+
+  /** The live public release: version, content digest and where SPHERE publishes it. 404 when none is live. */
+  async getCurrentPricing(): Promise<PricingCurrentView> {
+    return this.request<PricingCurrentView>('/v1/pricing/current');
+  }
+
+  /**
+   * The Pricing2Yaml document as raw YAML.
+   *
+   * @deprecated `GET /v1/pricing` is marked deprecated in the API contract. The plans page and the
+   * engine ceilings use `getPricingCatalog` and `getCurrentPricing`; this stays only for the
+   * administration screen that still reads the YAML.
    */
   async getPricingDocument(): Promise<string> {
     return this.requestText('/v1/pricing');

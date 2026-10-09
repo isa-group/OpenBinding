@@ -1,0 +1,36 @@
+.history-panel { display: flex; flex-direction: column; gap: var(--tp-spacing-md); }
+.history-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--tp-spacing-sm); }
+.history-head h2, .history-head h3 { margin: 0; font-size: 1.125rem; font-weight: 500; }
+.history-head p { margin: 2px 0 0; color: var(--tp-steel); font-size: 0.875rem; }
+.history-icon { width: 0.8125rem; height: 0.8125rem; }
+
+.history-engine { color: var(--tp-primary-deep); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; }
+.history-termination { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; }
+.history-solution-row > td { padding: var(--tp-spacing-lg); background: var(--tp-surface); }
+
+.history-solution { display: flex; flex-direction: column; gap: var(--tp-spacing-md); }
+.history-solution-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-md); }
+.history-solution-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-sm); color: var(--tp-slate); font-size: 0.8125rem; }
+.history-solution-meta strong { color: var(--tp-ink); font-family: var(--font-mono); }
+.history-solution-empty { margin: 0; color: var(--tp-steel); font-size: 0.8125rem; }
+
+.history-metrics { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-sm); }
+
+.history-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-sm);
+  background: var(--tp-canvas);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+
+.history-metric span { color: var(--tp-steel); text-transform: uppercase; }
+
+.history-binding { max-height: 18rem; overflow: auto; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-sm); background: var(--tp-canvas); }
+.history-binding table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.history-binding th, .history-binding td { padding: 8px var(--tp-spacing-sm); border-bottom: 1px solid var(--tp-hairline); text-align: left; }
+.history-binding th { position: sticky; top: 0; background: var(--tp-canvas); color: var(--tp-steel); font-size: 0.625rem; letter-spacing: 0.04em; text-transform: uppercase; }

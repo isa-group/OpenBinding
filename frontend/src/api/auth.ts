@@ -119,6 +119,28 @@ export interface UsageView {
   limits: Record<string, LimitUsage>;
 }
 
+/**
+ * The active Pricing2Yaml document exactly as `GET /v1/pricing/catalog` serves it, as JSON.
+ * Infinite limits (`.inf` in the YAML) arrive as `null`: the gateway has no legal JSON for them.
+ */
+export type PricingCatalog = Record<string, unknown>;
+
+/** `GET /v1/pricing/current`: which public release is live, and the fingerprint of its content. */
+export interface PricingCurrentView {
+  version: string;
+  digest: string;
+  url: string;
+}
+
+/** What a `contract.changed` notification carries in its payload (admin routes, `_apply_subscription`). */
+export interface ContractChangePayload {
+  reason?: string | null;
+  detail?: string | null;
+  previous?: { plan?: string; addOns?: Record<string, number> };
+  current?: { plan?: string; addOns?: Record<string, number> };
+  pricingVersion?: string;
+}
+
 export interface AdminUserView extends UserProfile {
   contract_pending: boolean;
   api_key_count: number;

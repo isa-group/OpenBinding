@@ -28,11 +28,14 @@ function numeric(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-/** A plan's own value for a limit, or the document's default when the plan does not override it. */
+/**
+ * A plan's own value for a limit, or the document's default when the plan does not override it.
+ * An unlimited plan (`.inf`, which the catalog serves as `null`) has no ceiling to preview: `null`, not the default.
+ */
 function limitOf(pricing: Record<string, unknown>, plan: Record<string, unknown>, id: string): number | null {
   const ownLimits: Record<string, unknown> = isRecord(plan.usageLimits) ? plan.usageLimits : {};
   const own = ownLimits[id];
-  if (isRecord(own) && numeric(own.value) !== null) return numeric(own.value);
+  if (isRecord(own) && 'value' in own) return numeric(own.value);
   const sharedLimits: Record<string, unknown> = isRecord(pricing.usageLimits) ? pricing.usageLimits : {};
   const shared = sharedLimits[id];
   return isRecord(shared) ? numeric(shared.defaultValue) : null;

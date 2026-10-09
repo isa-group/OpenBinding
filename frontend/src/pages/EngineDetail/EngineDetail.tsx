@@ -129,10 +129,8 @@ export function EngineDetail() {
   const username = user?.username ?? null;
   const { copy, status: copyStatus } = useCopy();
   const detail = useResource(`engine:${namespace}/${name}/${version}:${username ?? 'visitor'}`, () => loadEngine(username, namespace, name, version));
-  const pricing = useResource('plan-ceilings', async () => {
-    const { retrievePricingFromYaml } = await import('pricing4ts');
-    return planCeilings(retrievePricingFromYaml(await apiClient.getPricingDocument()));
-  });
+  // The live catalog (GET /v1/pricing/catalog); the deprecated YAML endpoint is no longer read.
+  const pricing = useResource('plan-ceilings', async () => planCeilings(await apiClient.getPricingCatalog()));
   const registrations = useResource(`engine-registrations:${username ?? 'visitor'}`, async () => (
     username ? apiClient.listEngineRegistrations() : []
   ));

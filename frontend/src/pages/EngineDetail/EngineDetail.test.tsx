@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { retrievePricingFromYaml } from 'pricing4ts';
 import source from '../../../../space/pricing/openbinding.yml?raw';
 import type { UserProfile } from '../../api/auth';
 import { HttpError, type EngineCatalogEntry, type EngineMode } from '../../api/client';
@@ -12,7 +13,7 @@ const api = vi.hoisted(() => ({
   getCatalogEngines: vi.fn(),
   listEngineRegistrations: vi.fn(),
   getEngineRegistrationReport: vi.fn(),
-  getPricingDocument: vi.fn(),
+  getPricingCatalog: vi.fn(),
 }));
 const platform = vi.hoisted(() => ({ engineRevision: vi.fn(), organizations: vi.fn(), projects: vi.fn() }));
 
@@ -20,6 +21,8 @@ vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof impor
 vi.mock('../../api/platform', () => ({ platformApi: platform }));
 
 const DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
+// What GET /v1/pricing/catalog serves: the active document as JSON.
+const catalog = JSON.parse(JSON.stringify(retrievePricingFromYaml(source))) as Record<string, unknown>;
 
 const lucia: UserProfile = {
   id: 'u1', username: 'lucia', email: 'lucia@example.test', role: 'user', is_active: true, plan: 'RESEARCH', created_at: '2026-01-01T00:00:00Z',
@@ -75,7 +78,7 @@ describe('engine revision detail', () => {
     api.getPublicEngines.mockResolvedValue([engine('bim.builtin', 'random-search', '1.0.0'), engine('bim.builtin', 'evolutionary', '1.0.0', [mode('genetic')])]);
     api.getCatalogEngines.mockResolvedValue({ engines: [engine('bim.builtin', 'random-search', '1.0.0'), engine('lucia', 'edge-solver', '0.3.1')], fellBackToPublic: false });
     api.listEngineRegistrations.mockResolvedValue([]);
-    api.getPricingDocument.mockResolvedValue(source);
+    api.getPricingCatalog.mockResolvedValue(catalog);
     platform.engineRevision.mockResolvedValue({
       id: 'r1', namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: DIGEST, state: 'published', createdAt: null, document: {}, registration: null,
     });

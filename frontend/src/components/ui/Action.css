@@ -1,0 +1,59 @@
+.ui-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tp-spacing-xs);
+  border: 1px solid transparent;
+  border-radius: var(--tp-radius-md);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.ui-action.is-sm { min-height: 2rem; padding: 0 0.75rem; font-size: 0.8125rem; }
+.ui-action.is-md { min-height: 2.5rem; padding: 0 1rem; }
+.ui-action:hover { text-decoration: none; }
+.ui-action:disabled, .ui-action[aria-disabled='true'] { cursor: not-allowed; opacity: 0.45; }
+
+.ui-action.is-primary { background: var(--tp-primary); color: var(--tp-on-primary); }
+.ui-action.is-primary:hover:not(:disabled) { background: var(--tp-primary-deep); color: var(--tp-on-primary); }
+
+.ui-action.is-secondary { border-color: var(--tp-hairline-strong); background: var(--tp-canvas); color: var(--tp-ink); }
+.ui-action.is-secondary:hover:not(:disabled) { border-color: var(--tp-stone); background: var(--tp-surface); color: var(--tp-ink); }
+
+.ui-action.is-danger { background: var(--tp-severity-error); color: #fff; }
+.ui-action.is-danger:hover:not(:disabled) { background: var(--color-error); color: #fff; }
+
+.ui-action.is-danger-outline { border-color: var(--tp-severity-error-border); background: var(--tp-canvas); color: var(--color-error); }
+.ui-action.is-danger-outline:hover:not(:disabled) { background: var(--tp-severity-error-bg); color: var(--color-error); }
+
+.ui-action.is-ghost { background: transparent; color: var(--tp-slate); }
+.ui-action.is-ghost:hover:not(:disabled) { background: var(--tp-surface); color: var(--tp-ink); }
+
+.ui-action.is-link { min-height: 0; padding: 0; background: none; color: var(--tp-link); }
+.ui-action.is-link:hover:not(:disabled) { color: var(--tp-primary-deep); text-decoration: underline; }
+
+.ui-action-spinner {
+  width: 0.875rem;
+  height: 0.875rem;
+  box-sizing: border-box;
+  border: 2px solid rgb(255 255 255 / 0.4);
+  border-top-color: currentColor;
+  border-radius: 9999px;
+  animation: ui-action-spin 0.9s linear infinite;
+}
+
+.ui-action.is-secondary .ui-action-spinner,
+.ui-action.is-ghost .ui-action-spinner,
+.ui-action.is-danger-outline .ui-action-spinner { border-color: rgb(0 0 0 / 0.15); border-top-color: currentColor; }
+
+@keyframes ui-action-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-action-spinner { animation-duration: 3s; }
+}

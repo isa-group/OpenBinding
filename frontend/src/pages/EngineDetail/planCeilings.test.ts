@@ -59,6 +59,16 @@ describe('plan ceilings read from the pricing document', () => {
     expect(previewOption(fact, null).ceiling).toBe('Not mapped');
   });
 
+  it('reads the catalog the gateway serves: JSON, with an unlimited allowance as null', () => {
+    const catalog = JSON.parse(JSON.stringify(retrievePricingFromYaml(source))) as Record<string, unknown>;
+    expect(planCeilings(catalog).plans).toEqual(ceilings.plans);
+
+    const unlimited = JSON.parse(JSON.stringify(catalog)) as { plans: Record<string, { usageLimits: Record<string, { value: number | null }> }> };
+    unlimited.plans.PRO.usageLimits.maxIterations.value = null;
+    // No ceiling to preview, rather than the document's default (10,000) for a plan that has none.
+    expect(planCeilings(unlimited).plans.find((item) => item.plan === 'PRO')).toMatchObject({ maxTimeoutSeconds: 1800, maxIterations: null });
+  });
+
   it('reads nothing from a document that is not a pricing', () => {
     expect(planCeilings(null)).toEqual({ version: null, plans: [] });
     expect(planCeilings({ plans: 'no' })).toEqual({ version: null, plans: [] });
