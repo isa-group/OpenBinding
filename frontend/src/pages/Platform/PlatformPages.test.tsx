@@ -3,16 +3,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Organization, Project, StudyCell, StudyRun } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
-import { ResourcesPage, StudiesPage } from './PlatformPages';
+import { StudiesPage } from './PlatformPages';
 
 const api = vi.hoisted(() => ({
   cases: vi.fn(),
   studies: vi.fn(),
   reports: vi.fn(),
-  resources: vi.fn(),
-  resourceRevisions: vi.fn(),
-  createResource: vi.fn(),
-  createResourceRevision: vi.fn(),
   revisions: vi.fn(),
   studyRuns: vi.fn(),
   studyCells: vi.fn(),
@@ -54,32 +50,10 @@ describe('collaborative project pages', () => {
     api.cases.mockResolvedValue([]);
     api.studies.mockResolvedValue([]);
     api.reports.mockResolvedValue([]);
-    api.resources.mockResolvedValue([]);
-    api.resourceRevisions.mockResolvedValue([]);
     api.revisions.mockResolvedValue([]);
     api.studyRuns.mockResolvedValue([]);
     api.studyCells.mockResolvedValue([]);
     client.getEngines.mockResolvedValue([]);
-  });
-
-  it('renders immutable resources and creates a new revision', async () => {
-    const resource = {
-      id: 'resource-id', project_id: project.id, slug: 'catalogue', name: 'Candidate catalogue',
-      description: 'Candidates used by the study.', kind: 'CandidateCatalog', created_by_id: 'user-id',
-      created_at: '2026-09-01T00:00:00Z',
-    };
-    api.resources.mockResolvedValue([resource]);
-    api.resourceRevisions.mockResolvedValue([{ id: 'revision-id', project_resource_id: resource.id, revision: 1, digest: `sha256-${'a'.repeat(64)}`, document: {}, created_at: '2026-09-01T00:00:00Z' }]);
-    api.createResourceRevision.mockResolvedValue({});
-    render(<MemoryRouter><ResourcesPage /></MemoryRouter>);
-
-    expect(await screen.findByRole('heading', { name: 'Candidate catalogue' })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Resource document'), { target: { value: '{"kind":"CandidateCatalog"}' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Create immutable revision' }));
-
-    await waitFor(() => expect(api.createResourceRevision).toHaveBeenCalledWith(
-      'openbinding', 'research', 'catalogue', { kind: 'CandidateCatalog' },
-    ));
   });
 
   it('cancels an active study run and retries only failed cells', async () => {
@@ -114,10 +88,10 @@ describe('collaborative project pages', () => {
   it('sends a project page to the new-project screen when the workspace has no project', async () => {
     outlet.value = { organizations: [organization], projects: [], organization, project: undefined, loading: false, reload };
 
-    render(<MemoryRouter><ResourcesPage /></MemoryRouter>);
+    render(<MemoryRouter><StudiesPage /></MemoryRouter>);
 
     expect(await screen.findByRole('heading', { name: 'Create a first project' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/openbinding/new-project');
-    expect(api.resources).not.toHaveBeenCalled();
+    expect(api.studies).not.toHaveBeenCalled();
   });
 });

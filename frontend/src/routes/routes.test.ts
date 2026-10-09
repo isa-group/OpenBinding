@@ -144,6 +144,12 @@ describe('route registry', () => {
     for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
   });
 
+  it('has rebuilt the files, resources and collections screens', () => {
+    const rebuilt = ['proj-files', 'proj-resources', 'proj-resource-detail', 'coll-list', 'coll-detail'];
+    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
+    expect(routeDefinitions.find((definition) => definition.id === 'coll-detail')?.paramAliases).toBeUndefined();
+  });
+
   // The closing task of the redesign turns this on (VITE_ROUTES_REQUIRE_LIVE=1 pnpm test).
   it.skipIf(!import.meta.env.VITE_ROUTES_REQUIRE_LIVE)('has no pending screen left', () => {
     expect(routeDefinitions.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
@@ -184,7 +190,6 @@ describe('route registry', () => {
     const aliases = Object.fromEntries(routeDefinitions.filter((definition) => definition.paramAliases)
       .map((definition) => [definition.id, definition.paramAliases]));
     expect(aliases).toEqual({
-      'coll-detail': { collection: 'collectionSlug' },
       'job-detail': { job: 'jobId' },
       'rep-detail': { report: 'reportSlug' },
     });

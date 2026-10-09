@@ -1,4 +1,5 @@
-.ui-table-wrap { overflow-x: auto; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-xl); background: var(--tp-canvas); }
+/* Positioned so that visually hidden text inside a cell (an "Actions" header) stays inside the scroller instead of widening the page. */
+.ui-table-wrap { position: relative; overflow-x: auto; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-xl); background: var(--tp-canvas); }
 
 .ui-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
 .ui-table thead tr { background: var(--tp-surface); text-align: left; }

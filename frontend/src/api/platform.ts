@@ -481,45 +481,64 @@ export const platformApi = {
       `${root(org, project)}/cases/${encodeURIComponent(bindingCase)}/revisions`,
       { method: 'POST', body: JSON.stringify({ document, source_snapshot_id: source_snapshot_id ?? null, resources }) },
     ),
+  /** The project's older resources: library items of kinds the library screens don't own. VIEWER can read. */
   resources: (org: string, project: string) =>
     apiClient.request<ProjectResource[]>(`${root(org, project)}/resources`),
+  /** One resource by its address. 404 whether it is missing or not in this project. */
+  resource: (org: string, project: string, resourceSlug: string) =>
+    apiClient.request<ProjectResource>(`${root(org, project)}/resources/${encodeURIComponent(resourceSlug)}`, {}, undefined, true, true),
+  /** Needs MEMBER. 409 `slug_conflict` when the address is taken anywhere in the organization; 422 for an invalid address, name or kind. */
   createResource: (org: string, project: string, value: { slug: string; name: string; description: string; kind: string }) =>
     apiClient.request<ProjectResource>(`${root(org, project)}/resources`, {
       method: 'POST', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
+  /** Needs MEMBER. */
   updateResource: (org: string, project: string, resourceSlug: string, value: { name?: string; description?: string; kind?: string }) =>
     apiClient.request<ProjectResource>(`${root(org, project)}/resources/${encodeURIComponent(resourceSlug)}`, {
       method: 'PATCH', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
+  /** Needs ADMIN. Takes the resource out of the project; its library versions stay. */
   deleteResource: (org: string, project: string, resourceSlug: string) =>
-    apiClient.request<void>(`${root(org, project)}/resources/${encodeURIComponent(resourceSlug)}`, { method: 'DELETE' }),
+    apiClient.request<void>(`${root(org, project)}/resources/${encodeURIComponent(resourceSlug)}`, { method: 'DELETE' }, undefined, true, true),
   resourceRevisions: (org: string, project: string, resource: string) =>
     apiClient.request<ProjectResourceRevision[]>(
       `${root(org, project)}/resources/${encodeURIComponent(resource)}/revisions`,
     ),
+  /** Needs MEMBER. A document identical to an existing revision answers with that revision instead of a new one. */
   createResourceRevision: (org: string, project: string, resource: string, document: Record<string, unknown>) =>
     apiClient.request<ProjectResourceRevision>(
       `${root(org, project)}/resources/${encodeURIComponent(resource)}/revisions`,
       { method: 'POST', body: JSON.stringify({ document }) },
+      undefined, true, true,
     ),
   collections: (org: string, project: string) =>
     apiClient.request<Collection[]>(`${root(org, project)}/collections`),
+  /** One collection by its address. 404 whether it is missing or not in this project. */
+  collection: (org: string, project: string, collection: string) =>
+    apiClient.request<Collection>(`${root(org, project)}/collections/${encodeURIComponent(collection)}`, {}, undefined, true, true),
+  /** Needs MEMBER. 402 when the sponsor has no collection left, 409 `slug_conflict`, 422 for an invalid address or name. */
   createCollection: (org: string, project: string, value: { slug: string; name: string; description: string }) =>
     apiClient.request<Collection>(`${root(org, project)}/collections`, {
       method: 'POST', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
+  /** Needs MEMBER. */
   updateCollection: (org: string, project: string, collection: string, value: { name?: string; description?: string }) =>
     apiClient.request<Collection>(`${root(org, project)}/collections/${encodeURIComponent(collection)}`, {
       method: 'PATCH', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
+  /** Needs ADMIN. Takes the collection out of the project; what it pointed to is untouched. */
   deleteCollection: (org: string, project: string, collection: string) =>
-    apiClient.request<void>(`${root(org, project)}/collections/${encodeURIComponent(collection)}`, { method: 'DELETE' }),
+    apiClient.request<void>(`${root(org, project)}/collections/${encodeURIComponent(collection)}`, { method: 'DELETE' }, undefined, true, true),
   collectionRevisions: (org: string, project: string, collection: string) =>
     apiClient.request<CollectionRevision[]>(`${root(org, project)}/collections/${encodeURIComponent(collection)}/revisions`),
+  /**
+   * Needs MEMBER. Only `case` and `resource` items are accepted. 422 for a repeated target (`a collection revision cannot repeat a target`),
+   * `invalid_collection_target`, `collection_target_mismatch` (the pinned fingerprint is not the target's) and `unsupported_collection_target`.
+   */
   createCollectionRevision: (org: string, project: string, collection: string, items: CollectionItem[]) =>
     apiClient.request<CollectionRevision>(`${root(org, project)}/collections/${encodeURIComponent(collection)}/revisions`, {
       method: 'POST', body: JSON.stringify({ items }),
-    }),
+    }, undefined, true, true),
   studies: (org: string, project: string, includeArchived = false) =>
     apiClient.request<Study[]>(`${root(org, project)}/studies?include_archived=${includeArchived}`),
   createStudy: (org: string, project: string, value: Pick<Study, 'slug' | 'name' | 'description'> & ({ definition: Study['definition'] } | { definition_version_id: string })) =>
@@ -558,18 +577,24 @@ export const platformApi = {
     }),
   deletePublication: (org: string, project: string, publication: string) =>
     apiClient.request<void>(`${root(org, project)}/publications/${encodeURIComponent(publication)}`, { method: 'DELETE' }),
+  /** The project's files (content-addressed blobs), newest first. VIEWER can read. */
   artifacts: (org: string, project: string) =>
     apiClient.request<StoredBlob[]>(`${root(org, project)}/blobs`),
+  /**
+   * Needs MEMBER and, for a key, `artifacts:write`. Uploading the same bytes twice keeps one copy. 402 `storage_quota_exceeded`
+   * when the sponsor's storage would run out, 413 `artifact_too_large` above the actor's per-request ceiling.
+   */
   uploadArtifact: (org: string, project: string, file: File, makePublic: boolean) =>
     apiClient.request<StoredBlob>(`${root(org, project)}/blobs?public=${makePublic}`, {
       method: 'POST',
       headers: { 'Content-Type': file.type || 'application/octet-stream' },
       body: file,
-    }),
+    }, undefined, true, true),
   downloadArtifact: (org: string, project: string, digest: string) =>
     apiClient.requestBinary(`${root(org, project)}/blobs/${encodeURIComponent(digest)}`),
+  /** Needs ADMIN. */
   deleteArtifact: (org: string, project: string, digest: string) =>
-    apiClient.request<void>(`${root(org, project)}/blobs/${encodeURIComponent(digest)}`, { method: 'DELETE' }),
+    apiClient.request<void>(`${root(org, project)}/blobs/${encodeURIComponent(digest)}`, { method: 'DELETE' }, undefined, true, true),
   projectJobs: (org: string, project: string, jobId?: string) =>
     apiClient.request<Job[]>(`${root(org, project)}/jobs?${jobId ? `job_id=${encodeURIComponent(jobId)}` : 'include_results=false'}`),
   snapshot: (id: string) =>

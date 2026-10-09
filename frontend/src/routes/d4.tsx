@@ -10,15 +10,16 @@ const SnapshotDetail = lazy(() => import('../pages/Cases/SnapshotDetail').then((
 const CaseComposer = lazy(() => import('../pages/Cases/CaseComposer').then((module) => ({ default: module.CaseComposer })));
 const CaseRevision = lazy(() => import('../pages/Cases/CaseRevision').then((module) => ({ default: module.CaseRevision })));
 const CaseCompare = lazy(() => import('../pages/Cases/CaseCompare').then((module) => ({ default: module.CaseCompare })));
-const CollectionsPage = lazy(() => import('../pages/Platform/PlatformPages').then((module) => ({ default: module.CollectionsPage })));
-const CollectionDetailPage = lazy(() => import('../pages/Platform/CollectionDetailPage').then((module) => ({ default: module.CollectionDetailPage })));
+const ProjFiles = lazy(() => import('../pages/Resources/ProjFiles').then((module) => ({ default: module.ProjFiles })));
+const ProjResources = lazy(() => import('../pages/Resources/ProjResources').then((module) => ({ default: module.ProjResources })));
+const ProjResourceDetail = lazy(() => import('../pages/Resources/ProjResourceDetail').then((module) => ({ default: module.ProjResourceDetail })));
+const CollList = lazy(() => import('../pages/Resources/CollList').then((module) => ({ default: module.CollList })));
+const CollDetail = lazy(() => import('../pages/Resources/CollDetail').then((module) => ({ default: module.CollDetail })));
 const LibList = lazy(() => import('../pages/Library/LibList').then((module) => ({ default: module.LibList })));
 const LibArtifact = lazy(() => import('../pages/Library/LibArtifact').then((module) => ({ default: module.LibArtifact })));
 const LibDraft = lazy(() => import('../pages/Library/LibDraft').then((module) => ({ default: module.LibDraft })));
 const LibVersion = lazy(() => import('../pages/Library/LibVersion').then((module) => ({ default: module.LibVersion })));
 const ProjLibrary = lazy(() => import('../pages/Library/ProjLibrary').then((module) => ({ default: module.ProjLibrary })));
-// The older library page: only `proj-resources` still points to it, until the task that rebuilds that screen replaces it.
-const ArtifactLibraryPage = lazy(() => import('../pages/Platform/ArtifactLibraryPage'));
 const Playground = lazy(() => import('../pages/Playground/Playground').then((module) => ({ default: module.Playground })));
 
 export const d4Routes: RouteDefinition[] = [
@@ -34,10 +35,10 @@ export const d4Routes: RouteDefinition[] = [
   live('lib-draft', '/app/:org/library/:artifact/drafts/:draft', <LibDraft />),
   live('lib-version', '/app/:org/library/:artifact/versions/:version', <LibVersion />),
   live('proj-library', '/app/:org/:project/library', <ProjLibrary />),
-  pending('proj-files', '/app/:org/:project/files'),
-  live('proj-resources', '/app/:org/:project/resources', <ArtifactLibraryPage />),
-  pending('proj-resource-detail', '/app/:org/:project/resources/:resource'),
-  live('coll-list', '/app/:org/:project/collections', <CollectionsPage />),
-  live('coll-detail', '/app/:org/:project/collections/:collection', <CollectionDetailPage />, { paramAliases: { collection: 'collectionSlug' } }),
+  live('proj-files', '/app/:org/:project/files', <ProjFiles />),
+  live('proj-resources', '/app/:org/:project/resources', <ProjResources />),
+  live('proj-resource-detail', '/app/:org/:project/resources/:resource', <ProjResourceDetail />),
+  live('coll-list', '/app/:org/:project/collections', <CollList />),
+  live('coll-detail', '/app/:org/:project/collections/:collection', <CollDetail />),
   pending('gen-lab', '/app/generator'),
 ];

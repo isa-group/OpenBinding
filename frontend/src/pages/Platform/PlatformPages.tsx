@@ -3,8 +3,8 @@ import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysi
 import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import {
-  Archive, ArrowDownToLine, ArrowRight, ArrowUpFromLine, CheckCircle2, CircleDashed, CircleStop, Clock3, Copy, Database, ExternalLink, Eye, FileArchive, FileText, FlaskConical,
-  Globe2, History, Layers3, Library, LockKeyhole, Plus,
+  ArrowRight, CheckCircle2, CircleDashed, CircleStop, Clock3, Copy, Eye, FileArchive, FileText, FlaskConical,
+  Globe2, Layers3, LockKeyhole, Plus,
   RefreshCw, Sparkles, Trash2, TriangleAlert,
 } from 'lucide-react';
 import { Link, useOutletContext } from 'react-router-dom';
@@ -16,8 +16,7 @@ import { platformApi } from '../../api/platform';
 import { apiClient, bimResourceKey } from '../../api/client';
 import type { EngineCatalogEntry } from '../../api/client';
 import type {
-  Analytics, StoredBlob, BindingCase, CaseRevision, Collection, CollectionItem,
-  CollectionRevision, ProjectResource, ProjectResourceRevision, Publication, Report, Study, StudyCell, StudyRun,
+  Analytics, BindingCase, CaseRevision, Publication, Report, Study, StudyCell, StudyRun,
 } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { EntityDrawer } from '../../components/Inspection/EntityDrawer';
@@ -36,9 +35,9 @@ function PageHeading({ eyebrow, title, detail, action }: {
   return <header className="platform-page-heading"><div><span>{eyebrow}</span><h1>{title}</h1><p>{detail}</p></div>{action}</header>;
 }
 
-// The Home (app-home), the organization screens (org-*), the project screens (proj-*) and the case screens (case-*,
-// snap-detail) live in pages/AppHome, pages/Organization, pages/Project, pages/Cases (their styles are in pages/Platform/{CaseDetailPage,SnapshotPage}.css).
-// What stays here are the pages of resources, collections, studies and records that have not been migrated yet.
+// The Home (app-home), the organization screens (org-*), the project screens (proj-*), the case screens (case-*, snap-detail) and the
+// files, resources and collections live in pages/AppHome, pages/Organization, pages/Project, pages/Cases and pages/Resources (their styles
+// are in pages/Platform/{CaseDetailPage,SnapshotPage}.css). What stays here are the pages of studies, analytics and reports that have not been migrated yet.
 
 /** What the pages of a project show when the workspace has no project to open: the way to the new-project screen. */
 function NoProject() {
@@ -46,358 +45,6 @@ function NoProject() {
   if (context.loading) return <div className="route-loading" role="status"><span className="status-dot" aria-hidden="true" /> Loading workspace…</div>;
   if (!context.organization) return <div className="platform-page"><Empty title="No organization yet" detail="Create an organization from the activity page first." /></div>;
   return <div className="platform-page"><PageHeading eyebrow={context.organization.name} title="Create a first project" detail="Projects isolate cases, studies, artifacts and permissions." action={<Link className="platform-primary-action" to={`/app/${context.organization.slug}/new-project`}><Plus aria-hidden="true" />New project</Link>} /></div>;
-}
-
-export function ResourcesPage() {
-  const { organization, project } = useOutletContext<PlatformOutletContext>();
-  const [resources, setResources] = useState<ProjectResource[]>([]);
-  const [revisions, setRevisions] = useState<Record<string, ProjectResourceRevision[]>>({});
-  const [error, setError] = useState<string | null>(null);
-  const [inspectResource, setInspectResource] = useState<ProjectResource | null>(null);
-  const [inspectResRevision, setInspectResRevision] = useState<{ res: ProjectResource; revision: ProjectResourceRevision } | null>(null);
-
-  const load = useCallback(async () => {
-    if (!organization || !project) return;
-    try {
-      const next = await platformApi.resources(organization.slug, project.slug);
-      setResources(next);
-      setRevisions(Object.fromEntries(await Promise.all(next.map(async (item) => [
-        item.id,
-        await platformApi.resourceRevisions(organization.slug, project.slug, item.slug),
-      ]))));
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Resources could not be loaded.');
-    }
-  }, [organization, project]);
-  useEffect(() => {
-    if (!organization || !project) return;
-    let active = true;
-    void platformApi.resources(organization.slug, project.slug)
-      .then(async (next) => {
-        const nextRevisions = Object.fromEntries(await Promise.all(next.map(async (item) => [
-          item.id,
-          await platformApi.resourceRevisions(organization.slug, project.slug, item.slug),
-        ])));
-        if (active) {
-          setResources(next);
-          setRevisions(nextRevisions);
-        }
-      })
-      .catch((caught) => {
-        if (active) setError(caught instanceof Error ? caught.message : 'Resources could not be loaded.');
-      });
-    return () => { active = false; };
-  }, [organization, project]);
-  if (!organization || !project) return <NoProject />;
-
-  const create = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); const form = new FormData(event.currentTarget); setError(null);
-    try {
-      await platformApi.createResource(organization.slug, project.slug, {
-        name: String(form.get('name')),
-        slug: String(form.get('slug')),
-        description: String(form.get('description') || ''),
-        kind: String(form.get('kind') || 'bim-resource'),
-      });
-      event.currentTarget.reset(); await load();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Resource creation failed.'); }
-  };
-  const addRevision = async (event: FormEvent<HTMLFormElement>, resource: ProjectResource) => {
-    event.preventDefault(); const form = new FormData(event.currentTarget); setError(null);
-    try {
-      const document = JSON.parse(String(form.get('document'))) as Record<string, unknown>;
-      await platformApi.createResourceRevision(organization.slug, project.slug, resource.slug, document);
-      event.currentTarget.reset(); await load();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Resource revision failed.'); }
-  };
-
-  return (
-    <div className="platform-page resources-page">
-      <PageHeading eyebrow="Reusable project material" title="Resources" detail="Catalogues, datasets, constraints and other supporting documents keep their own immutable, digest-addressed revision history." />
-      {error && <p className="platform-form-error" role="alert">{error}</p>}
-      <div className="case-grid">
-        {resources.map((resource) => (
-          <article key={resource.id}>
-            <header>
-              <span>{resource.kind}</span>
-              <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={() => setInspectResource(resource)}
-                  className="hash-badge"
-                  style={{ cursor: 'pointer', padding: '3px 7px' }}
-                  title="Inspect & Edit Resource"
-                >
-                  <Eye size={12} /> Inspect
-                </button>
-                <Database aria-label="Versioned resource" />
-              </div>
-            </header>
-            <h2>{resource.name}</h2>
-            <p>{resource.description || resource.slug}</p>
-            <div className="case-revisions">
-              <strong><History aria-hidden="true" /> {revisions[resource.id]?.length ?? 0} revisions</strong>
-              {revisions[resource.id]?.slice(-3).reverse().map((revision) => (
-                <div key={revision.id} style={{ marginTop: '2px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setInspectResRevision({ res: resource, revision })}
-                    className="hash-badge"
-                    style={{ cursor: 'pointer' }}
-                    title="Inspect revision JSON document"
-                  >
-                    r{revision.revision} · {revision.digest.slice(0, 16)}…
-                  </button>
-                </div>
-              ))}
-              <details>
-                <summary>Attach JSON revision</summary>
-                <form onSubmit={(event) => void addRevision(event, resource)}>
-                  <label>Resource document<textarea name="document" required rows={7} spellCheck={false} placeholder={'{\n  "apiVersion": "openbinding.dev/qos-binding/v1",\n  "kind": "CandidateCatalog",\n  "spec": {}\n}'} /></label>
-                  <button>Create immutable revision</button>
-                </form>
-              </details>
-            </div>
-            <footer>
-              <small>{resource.slug}</small>
-              <LockKeyhole aria-label="Immutable by digest" />
-            </footer>
-          </article>
-        ))}
-      </div>
-      {!resources.length && <Empty title="No project resources" detail="Create a named resource, then attach checksum-verified revisions for collections and reproducible packages." />}
-      <details className="inline-create-panel"><summary><Plus aria-hidden="true" /> New project resource</summary><form onSubmit={create}><label>Name<input name="name" required /></label><label>Slug<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" /></label><label>Kind<input name="kind" defaultValue="bim-resource" required /></label><label>Description<textarea name="description" rows={3} /></label><button>Create resource</button></form></details>
-
-      {/* Slide-over Drawer for Resource */}
-      {inspectResource && (
-        <EntityDrawer
-          isOpen={Boolean(inspectResource)}
-          onClose={() => setInspectResource(null)}
-          title={inspectResource.name}
-          subtitle={`Resource Slug: ${inspectResource.slug}`}
-          badge={{ label: inspectResource.kind.toUpperCase(), variant: 'default' }}
-          metadata={[
-            { label: 'Slug', value: inspectResource.slug },
-            { label: 'Kind', value: inspectResource.kind },
-            { label: 'Name', value: inspectResource.name },
-            { label: 'Created At', value: new Date(inspectResource.created_at).toLocaleString() },
-            { label: 'Description', value: inspectResource.description || 'None' },
-            { label: 'Total Revisions', value: String(revisions[inspectResource.id]?.length ?? 0) },
-          ]}
-          editable={{
-            fields: [
-              { key: 'name', label: 'Resource Name', initialValue: inspectResource.name },
-              { key: 'kind', label: 'Kind', initialValue: inspectResource.kind },
-              { key: 'description', label: 'Description', type: 'textarea', initialValue: inspectResource.description || '' },
-            ],
-            onSave: async (vals) => {
-              await platformApi.updateResource(organization.slug, project.slug, inspectResource.slug, {
-                name: vals.name,
-                kind: vals.kind,
-                description: vals.description,
-              });
-              await load();
-            },
-          }}
-          deletable={{
-            confirmMessage: `Permanently delete resource "${inspectResource.name}" and all its revisions?`,
-            onDelete: async () => {
-              await platformApi.deleteResource(organization.slug, project.slug, inspectResource.slug);
-              await load();
-            },
-          }}
-        />
-      )}
-
-      {/* Slide-over Drawer for Resource Revision */}
-      {inspectResRevision && (
-        <EntityDrawer
-          isOpen={Boolean(inspectResRevision)}
-          onClose={() => setInspectResRevision(null)}
-          title={`${inspectResRevision.res.name} · Revision r${inspectResRevision.revision.revision}`}
-          subtitle={`Digest: ${inspectResRevision.revision.digest}`}
-          badge={{ label: `REVISION r${inspectResRevision.revision.revision}`, variant: 'default' }}
-          metadata={[
-            { label: 'Resource', value: inspectResRevision.res.name },
-            { label: 'Revision Number', value: `r${inspectResRevision.revision.revision}` },
-            { label: 'Digest', value: inspectResRevision.revision.digest },
-            { label: 'Created At', value: new Date(inspectResRevision.revision.created_at).toLocaleString() },
-          ]}
-          jsonDocument={inspectResRevision.revision.document}
-        />
-      )}
-    </div>
-  );
-}
-
-export function CollectionsPage() {
-  const { organization, project } = useOutletContext<PlatformOutletContext>();
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [revisions, setRevisions] = useState<Record<string, CollectionRevision[]>>({});
-  const [error, setError] = useState<string | null>(null);
-  const [inspectCollection, setInspectCollection] = useState<Collection | null>(null);
-  const [inspectColRevision, setInspectColRevision] = useState<{ col: Collection; revision: CollectionRevision } | null>(null);
-
-  const load = useCallback(async () => {
-    if (!organization || !project) return;
-    const next = await platformApi.collections(organization.slug, project.slug);
-    setCollections(next);
-    setRevisions(Object.fromEntries(await Promise.all(next.map(async (item) => [item.id, await platformApi.collectionRevisions(organization.slug, project.slug, item.slug)]))));
-  }, [organization, project]);
-  useEffect(() => { void load(); }, [load]);
-  if (!organization || !project) return <NoProject />;
-
-  const create = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); const form = new FormData(event.currentTarget); setError(null);
-    try { await platformApi.createCollection(organization.slug, project.slug, { name: String(form.get('name')), slug: String(form.get('slug')), description: String(form.get('description') || '') }); event.currentTarget.reset(); await load(); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : 'Collection creation failed.'); }
-  };
-  const addRevision = async (event: FormEvent<HTMLFormElement>, collection: Collection) => {
-    event.preventDefault(); const form = new FormData(event.currentTarget); setError(null);
-    try {
-      const items = JSON.parse(String(form.get('items'))) as CollectionItem[];
-      if (!Array.isArray(items)) throw new Error('Collection items must be a JSON array.');
-      await platformApi.createCollectionRevision(organization.slug, project.slug, collection.slug, items);
-      event.currentTarget.reset(); await load();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Collection revision failed.'); }
-  };
-
-  return (
-    <div className="platform-page collections-page">
-      <PageHeading eyebrow="Curated evidence" title="Collections" detail="A collection is an ordered, versioned set of immutable case, resource, result or report references. It never executes work; a study may pin one of its revisions as input." />
-      {error && <p className="platform-form-error" role="alert">{error}</p>}
-      <div className="collection-grid">
-        {collections.map((collection) => {
-          const latest = revisions[collection.id]?.[0];
-          return (
-            <article key={collection.id}>
-              <header>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Library aria-hidden="true" />
-                  <span>{collection.slug}</span>
-                </div>
-                <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    onClick={() => setInspectCollection(collection)}
-                    className="hash-badge"
-                    style={{ cursor: 'pointer', padding: '3px 7px' }}
-                    title="Inspect & Edit Collection"
-                  >
-                    <Eye size={12} /> Inspect
-                  </button>
-                  <Link
-                    to={`/app/${organization.slug}/${project.slug}/collections/${collection.slug}`}
-                    className="hash-badge"
-                    style={{ textDecoration: 'none', padding: '3px 7px' }}
-                    title="Open full page view"
-                  >
-                    <ExternalLink size={12} /> Full view
-                  </Link>
-                  <small>{revisions[collection.id]?.length ?? 0} revisions</small>
-                </div>
-              </header>
-              <h2>{collection.name}</h2>
-              <p>{collection.description || 'No description yet.'}</p>
-              {latest ? (
-                <div
-                  className="collection-latest"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setInspectColRevision({ col: collection, revision: latest })}
-                  title="Click to inspect immutable collection revision"
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                    <span>Latest revision</span>
-                    <span className="hash-badge" style={{ fontSize: '0.72rem', padding: '1px 5px' }}>
-                      <Eye size={10} /> Inspect r{latest.revision}
-                    </span>
-                  </div>
-                  <strong>r{latest.revision} · {latest.items.length} references</strong>
-                  <code>{latest.digest}</code>
-                </div>
-              ) : (
-                <div className="collection-latest is-empty">No curated revision yet.</div>
-              )}
-              <details>
-                <summary><Plus aria-hidden="true" /> New immutable revision</summary>
-                <form onSubmit={(event) => void addRevision(event, collection)}>
-                  <label>Ordered reference array<textarea name="items" required rows={8} spellCheck={false} placeholder={'[\n  {\n    "target_kind": "case",\n    "target_digest": "sha256-…",\n    "target_ref": { "case": "checkout", "revision": 3 }\n  }\n]'} /></label>
-                  <button>Create revision</button>
-                </form>
-              </details>
-            </article>
-          );
-        })}
-      </div>
-      {!collections.length && <Empty title="No collections yet" detail="Create one when you need a stable, curated corpus across cases, resources or published results." />}
-      <details className="inline-create-panel"><summary><Plus aria-hidden="true" /> New collection</summary><form onSubmit={create}><label>Name<input name="name" required /></label><label>Slug<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" /></label><label>Description<textarea name="description" rows={3} /></label><button>Create collection</button></form></details>
-
-      {/* Slide-over Drawer for Collection */}
-      {inspectCollection && (
-        <EntityDrawer
-          isOpen={Boolean(inspectCollection)}
-          onClose={() => setInspectCollection(null)}
-          title={inspectCollection.name}
-          subtitle={`Collection Slug: ${inspectCollection.slug}`}
-          badge={{ label: `${revisions[inspectCollection.id]?.length ?? 0} REVISIONS`, variant: 'default' }}
-          fullPageUrl={`/app/${organization.slug}/${project.slug}/collections/${inspectCollection.slug}`}
-          metadata={[
-            { label: 'Slug', value: inspectCollection.slug },
-            { label: 'Name', value: inspectCollection.name },
-            { label: 'Created At', value: new Date(inspectCollection.created_at).toLocaleString() },
-            { label: 'Description', value: inspectCollection.description || 'None' },
-            { label: 'Total Revisions', value: String(revisions[inspectCollection.id]?.length ?? 0) },
-          ]}
-          editable={{
-            fields: [
-              { key: 'name', label: 'Collection Name', initialValue: inspectCollection.name },
-              { key: 'description', label: 'Description', type: 'textarea', initialValue: inspectCollection.description || '' },
-            ],
-            onSave: async (vals) => {
-              await platformApi.updateCollection(organization.slug, project.slug, inspectCollection.slug, {
-                name: vals.name,
-                description: vals.description,
-              });
-              await load();
-            },
-          }}
-          deletable={{
-            confirmMessage: `Permanently delete collection "${inspectCollection.name}" and all its revisions?`,
-            onDelete: async () => {
-              await platformApi.deleteCollection(organization.slug, project.slug, inspectCollection.slug);
-              await load();
-            },
-          }}
-          jsonDocument={revisions[inspectCollection.id]?.[0] ? (revisions[inspectCollection.id][0] as unknown as Record<string, unknown>) : null}
-        />
-      )}
-
-      {/* Slide-over Drawer for Collection Revision */}
-      {inspectColRevision && (
-        <EntityDrawer
-          isOpen={Boolean(inspectColRevision)}
-          onClose={() => setInspectColRevision(null)}
-          title={`${inspectColRevision.col.name} · Revision r${inspectColRevision.revision.revision}`}
-          subtitle={`Digest: ${inspectColRevision.revision.digest}`}
-          badge={{ label: `REVISION r${inspectColRevision.revision.revision}`, variant: 'default' }}
-          metadata={[
-            { label: 'Collection', value: inspectColRevision.col.name },
-            { label: 'Collection Slug', value: inspectColRevision.col.slug },
-            { label: 'Revision Number', value: `r${inspectColRevision.revision.revision}` },
-            { label: 'Total References', value: String(inspectColRevision.revision.items.length) },
-            { label: 'Digest', value: <code className="hash-badge" title={inspectColRevision.revision.digest}>{inspectColRevision.revision.digest}</code> },
-            { label: 'Created At', value: new Date(inspectColRevision.revision.created_at).toLocaleString() },
-          ]}
-          jsonDocument={{
-            collection: inspectColRevision.col.slug,
-            revision: inspectColRevision.revision.revision,
-            digest: inspectColRevision.revision.digest,
-            items: inspectColRevision.revision.items,
-          }}
-        />
-      )}
-    </div>
-  );
 }
 
 export function StudiesPage() {
@@ -811,27 +458,21 @@ export function AnalyticsPage() {
   </div>;
 }
 
-export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) {
+// The project files (`proj-files`) live in pages/Resources; this is the list of reports until the task that rebuilds it replaces it.
+export function ProjectRecordsPage({ kind }: { kind: 'reports' }) {
   const { organization, project } = useOutletContext<PlatformOutletContext>();
   const [reports, setReports] = useState<Report[]>([]);
-  const [artifacts, setArtifacts] = useState<StoredBlob[]>([]);
   const [publications, setPublications] = useState<Publication[]>([]);
   const [runOptions, setRunOptions] = useState<Array<{ id: string; label: string }>>([]);
   const [inspectReport, setInspectReport] = useState<Report | null>(null);
-  const [inspectArtifact, setInspectArtifact] = useState<StoredBlob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!organization || !project) return;
     setLoading(true);
     try {
-      if (kind === 'artifacts') {
-        setArtifacts(await platformApi.artifacts(organization.slug, project.slug));
-        return;
-      }
       const [nextReports, nextStudies, nextPublications] = await Promise.all([
         platformApi.reports(organization.slug, project.slug),
         platformApi.studies(organization.slug, project.slug, true),
@@ -861,7 +502,6 @@ export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) 
   }, [load]);
 
   if (!organization || !project) return <NoProject />;
-  const records = kind === 'reports' ? reports : artifacts;
 
   const create = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -915,104 +555,19 @@ export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) 
     }
   };
 
-  const saveBytes = (bytes: ArrayBuffer, name: string, mediaType: string) => {
-    const url = URL.createObjectURL(new Blob([bytes], { type: mediaType }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = name;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const upload = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const file = form.get('artifact');
-    if (!(file instanceof File) || !file.size) {
-      setError('Choose a file to upload.');
-      return;
-    }
-    setBusy('upload');
-    setError(null);
-    setNotice(null);
-    try {
-      await platformApi.uploadArtifact(organization.slug, project.slug, file, form.get('public') === 'on');
-      event.currentTarget.reset();
-      setNotice(`${file.name} is stored by digest.`);
-      await load();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'The artifact could not be uploaded.');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const downloadArtifact = async (artifact: StoredBlob) => {
-    setBusy(artifact.id);
-    setError(null);
-    try {
-      saveBytes(
-        await platformApi.downloadArtifact(organization.slug, project.slug, artifact.digest),
-        artifact.digest,
-        artifact.media_type
-      );
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'The artifact could not be downloaded.');
-    } finally {
-      setBusy(null);
-    }
-  };
-
   return (
     <div className="platform-page">
       <PageHeading
         eyebrow="Reproducibility"
-        title={kind === 'reports' ? 'Reports' : 'Artifacts'}
-        detail={
-          kind === 'reports'
-            ? 'Freeze a human-readable analysis with exact BIM, engine, dataset and parameter provenance.'
-            : 'Content-addressed files use immutable public URLs or authenticated private delivery.'
-        }
+        title="Reports"
+        detail="Freeze a human-readable analysis with exact BIM, engine, dataset and parameter provenance."
       />
       {error && <p className="platform-form-error" role="alert">{error}</p>}
-      {notice && <p className="platform-form-notice" role="status">{notice}</p>}
-
-      {kind === 'artifacts' && (
-        <section className="artifact-transfer" aria-labelledby="artifact-transfer-heading">
-          <header>
-            <div>
-              <span>Portable evidence</span>
-              <h2 id="artifact-transfer-heading">Move files without losing provenance</h2>
-              <p>Artifacts keep their content digest. Project packages carry the manifest, cases, revisions, reports and referenced files.</p>
-            </div>
-            <Link className="platform-primary-action" to={`/app/${organization.slug}/${project.slug}/package`}>
-              <FileArchive aria-hidden="true" />
-              Export or import a package
-            </Link>
-          </header>
-          <div>
-            <form onSubmit={upload}>
-              <label>
-                File
-                <input type="file" name="artifact" required />
-              </label>
-              <label className="artifact-public">
-                <input type="checkbox" name="public" /> Publish by immutable digest
-              </label>
-              <button disabled={busy === 'upload'}>
-                <ArrowUpFromLine aria-hidden="true" />
-                {busy === 'upload' ? 'Uploading…' : 'Upload artifact'}
-              </button>
-            </form>
-          </div>
-        </section>
-      )}
 
       {loading && <p className="record-loading" role="status">Reading {kind}…</p>}
 
       <div className="record-ledger">
-        {kind === 'reports'
-          ? reports.map((item) => {
+        {reports.map((item) => {
               const publication = publications.find((candidate) => candidate.report_id === item.id);
               return (
                 <article
@@ -1073,100 +628,52 @@ export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) 
                   </div>
                 </article>
               );
-            })
-          : artifacts.map((item) => {
-              const isZip = item.media_type === 'application/zip' || item.media_type === 'application/x-zip-compressed' || item.digest.endsWith('.zip');
-              return (
-                <article
-                  key={item.id}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setInspectArtifact(item)}
-                  title={isZip ? 'Click to inspect and decompress artifact files' : 'Click to inspect artifact content'}
-                >
-                  <FileArchive />
-                  <div>
-                    <span className={`hash-badge ${item.public ? 'glow-completed' : ''}`}>
-                      {item.public ? 'public' : 'private'} · {item.media_type}
-                    </span>
-                    <h2>{item.digest.slice(0, 24)}…</h2>
-                    <code>{(item.size_bytes / 1024).toFixed(1)} KB</code>
-                  </div>
-                  <small>{new Date(item.created_at).toLocaleDateString()}</small>
-                  <div className="record-actions" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      onClick={() => setInspectArtifact(item)}
-                      title={isZip ? 'Inspect & decompress ZIP in browser' : 'Inspect document content'}
-                    >
-                      {isZip ? <Archive size={13} aria-hidden="true" /> : <Eye size={13} aria-hidden="true" />}
-                      {isZip ? ' Inspect & Decompress' : ' Inspect Content'}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy === item.id}
-                      onClick={() => void downloadArtifact(item)}
-                    >
-                      <ArrowDownToLine aria-hidden="true" />
-                      {busy === item.id ? 'Preparing…' : 'Download'}
-                    </button>
-                  </div>
-                </article>
-              );
             })}
       </div>
 
-      {!loading && !records.length && (
-        <Empty
-          title={`No ${kind} yet`}
-          detail={
-            kind === 'reports'
-              ? 'Create a report from a study run, then freeze it before publication.'
-              : 'Upload a result or import a portable project package to begin the evidence ledger.'
-          }
-        />
+      {!loading && !reports.length && (
+        <Empty title="No reports yet" detail="Create a report from a study run, then freeze it before publication." />
       )}
 
-      {kind === 'reports' && (
-        <details className="report-builder">
-          <summary>
-            <Plus aria-hidden="true" /> Draft report
-          </summary>
-          <form onSubmit={create}>
-            <label>
-              Title
-              <input name="title" required />
-            </label>
-            <label>
-              Slug
-              <input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" />
-            </label>
-            <label>
-              Study run
-              <select name="run" defaultValue="">
-                <option value="">No run pinned</option>
-                {runOptions.map((run) => (
-                  <option key={run.id} value={run.id}>
-                    {run.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="report-document">
-              Report document (JSON)
-              <textarea
-                name="document"
-                rows={8}
-                required
-                spellCheck={false}
-                defaultValue={'{\n  "summary": "",\n  "findings": [],\n  "provenance": {}\n}'}
-              />
-            </label>
-            <button disabled={busy === 'create'}>
-              {busy === 'create' ? 'Creating…' : 'Create draft'}
-            </button>
-          </form>
-        </details>
-      )}
+      <details className="report-builder">
+        <summary>
+          <Plus aria-hidden="true" /> Draft report
+        </summary>
+        <form onSubmit={create}>
+          <label>
+            Title
+            <input name="title" required />
+          </label>
+          <label>
+            Slug
+            <input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" />
+          </label>
+          <label>
+            Study run
+            <select name="run" defaultValue="">
+              <option value="">No run pinned</option>
+              {runOptions.map((run) => (
+                <option key={run.id} value={run.id}>
+                  {run.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="report-document">
+            Report document (JSON)
+            <textarea
+              name="document"
+              rows={8}
+              required
+              spellCheck={false}
+              defaultValue={'{\n  "summary": "",\n  "findings": [],\n  "provenance": {}\n}'}
+            />
+          </label>
+          <button disabled={busy === 'create'}>
+            {busy === 'create' ? 'Creating…' : 'Create draft'}
+          </button>
+        </form>
+      </details>
 
       {/* Slide-over Drawer for Report */}
       {inspectReport && (() => {
@@ -1291,74 +798,6 @@ export function ProjectRecordsPage({ kind }: { kind: 'reports' | 'artifacts' }) 
           />
         );
       })()}
-
-      {/* Slide-over Drawer for StoredBlob */}
-      {inspectArtifact && (
-        <EntityDrawer
-          isOpen={Boolean(inspectArtifact)}
-          onClose={() => setInspectArtifact(null)}
-          title={`Blob ${inspectArtifact.digest.slice(0, 16)}…`}
-          subtitle={`Digest: ${inspectArtifact.digest}`}
-          badge={{
-            label: inspectArtifact.public ? 'PUBLIC' : 'PRIVATE',
-            variant: inspectArtifact.public ? 'completed' : 'default',
-          }}
-          metadata={[
-            {
-              label: 'Digest',
-              value: <code className="hash-badge" title={inspectArtifact.digest}>{inspectArtifact.digest}</code>,
-            },
-            {
-              label: 'Visibility',
-              value: inspectArtifact.public ? 'Public (Immutable digest URL)' : 'Private (Authenticated delivery)',
-            },
-            { label: 'Media Type', value: inspectArtifact.media_type },
-            {
-              label: 'File Size',
-              value: `${(inspectArtifact.size_bytes / 1024).toFixed(2)} KB (${inspectArtifact.size_bytes.toLocaleString()} bytes)`,
-            },
-            { label: 'Created At', value: new Date(inspectArtifact.created_at).toLocaleString() },
-            {
-              label: 'Direct Delivery URL',
-              value: (
-                <code className="hash-badge" style={{ fontSize: '0.75rem' }}>
-                  /v1/organizations/{organization.slug}/projects/{project.slug}/blobs/{inspectArtifact.digest}
-                </code>
-              ),
-            },
-          ]}
-          fetchArchiveBlob={() => platformApi.downloadArtifact(organization.slug, project.slug, inspectArtifact.digest)}
-          archiveFilename={
-            (inspectArtifact.media_type === 'application/zip' || inspectArtifact.media_type === 'application/x-zip-compressed' || inspectArtifact.digest.endsWith('.zip'))
-              ? `${inspectArtifact.digest.slice(0, 12)}.zip`
-              : `${inspectArtifact.digest.slice(0, 12)}.${inspectArtifact.media_type === 'application/json' ? 'json' : inspectArtifact.media_type === 'text/csv' ? 'csv' : 'txt'}`
-          }
-          deletable={{
-            confirmMessage: `Permanently delete artifact "${inspectArtifact.digest.slice(0, 20)}…"?`,
-            onDelete: async () => {
-              await platformApi.deleteArtifact(organization.slug, project.slug, inspectArtifact.digest);
-              await load();
-            },
-          }}
-          actions={[
-            {
-              label: 'Download File',
-              icon: <ArrowDownToLine size={13} />,
-              onClick: () => {
-                void downloadArtifact(inspectArtifact);
-              },
-            },
-            {
-              label: 'Copy Digest',
-              icon: <Copy size={13} />,
-              onClick: () => {
-                void navigator.clipboard.writeText(inspectArtifact.digest);
-                setNotice(`Copied digest: ${inspectArtifact.digest}`);
-              },
-            },
-          ]}
-        />
-      )}
     </div>
   );
 }
