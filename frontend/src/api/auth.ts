@@ -231,6 +231,27 @@ export interface AdminAuditPage {
   limit: number;
 }
 
+/** What `POST /v1/admin/organizations/{id}/sponsor` answers: the organization, now with its new sponsor. */
+export interface AdminSponsorTransferResult {
+  id: string;
+  slug: string;
+  name: string;
+  parent_id: string | null;
+  billing_sponsor_user_id: string;
+  effective_role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' | null;
+  created_at: string;
+}
+
+/**
+ * `GET /v1/admin/moderation`: how many revisions sit in each publication state, per kind. The contract only says
+ * “an object”; the gateway answers `{ engines, dialects, registrations }`, each a map of status → count.
+ */
+export interface AdminModerationOverview {
+  engines: Record<string, number>;
+  dialects: Record<string, number>;
+  registrations: Record<string, number>;
+}
+
 export interface AdminQueueStatus {
   counts: Record<string, number>;
   oldestInFlight: Array<{

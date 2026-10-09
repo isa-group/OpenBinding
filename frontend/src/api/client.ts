@@ -7,8 +7,10 @@ import type {
   AdminUserView,
   ApiKeySummary,
   AdminAuditPage,
+  AdminModerationOverview,
   AdminOverview,
   AdminQueueStatus,
+  AdminSponsorTransferResult,
   CreateApiKeyRequest,
   CreatedApiKey,
   ContractChangeReason,
@@ -1217,15 +1219,18 @@ export class ApiClient {
     return this.request<AdminUserView>(`/v1/admin/users/${userId}`, {
       method: 'PATCH',
       body: JSON.stringify(changes),
-    });
+    }, undefined, true, true);
   }
 
-  /** Apply an administrator-authorized SPACE contract novation. */
+  /**
+   * Apply an administrator-authorized SPACE contract novation, keeping the add-ons the account already has.
+   * A 422 (`invalid_subscription`) throws instead of coming back as if it were the answer.
+   */
   async adminChangePlan(userId: string, plan: string): Promise<AdminUserView> {
     return this.request<AdminUserView>(`/v1/admin/users/${userId}/plan`, {
       method: 'POST',
       body: JSON.stringify({ plan }),
-    });
+    }, undefined, true, true);
   }
 
   async adminGetSubscription(userId: string): Promise<AdminSubscriptionView> {
@@ -1244,7 +1249,7 @@ export class ApiClient {
     return this.request<AdminSubscriptionView>(`/v1/admin/users/${userId}/subscription`, {
       method: 'POST',
       body: JSON.stringify(value),
-    });
+    }, undefined, true, true);
   }
 
   async adminGetUserUsage(userId: string): Promise<UsageView> {
@@ -1267,13 +1272,39 @@ export class ApiClient {
     return this.request('/v1/admin/overview');
   }
 
-  async adminAudit(action?: string): Promise<AdminAuditPage> {
-    const query = action ? `?action=${encodeURIComponent(action)}` : '';
-    return this.request(`/v1/admin/audit${query}`);
+  /**
+   * The platform audit log (events that belong to no organization), newest first. `action` is an exact action name;
+   * the gateway's page is 100 events unless `limit` (at most 500) says otherwise.
+   */
+  async adminAudit(filter?: string | { action?: string; offset?: number; limit?: number }): Promise<AdminAuditPage> {
+    const { action, offset, limit } = typeof filter === 'string' ? { action: filter, offset: undefined, limit: undefined } : filter ?? {};
+    const query = new URLSearchParams();
+    if (action) query.set('action', action);
+    if (offset) query.set('offset', String(offset));
+    if (limit) query.set('limit', String(limit));
+    const suffix = query.toString() ? `?${query}` : '';
+    return this.request(`/v1/admin/audit${suffix}`);
   }
 
   async adminQueues(): Promise<AdminQueueStatus> {
     return this.request('/v1/admin/queues');
+  }
+
+  /** How many engines, dialects and engine registrations sit in each publication state. */
+  async adminModeration(): Promise<AdminModerationOverview> {
+    return this.request('/v1/admin/moderation');
+  }
+
+  /**
+   * Move the billing sponsorship of an organization and its whole subtree to another active account.
+   * 404 unknown organization, 422 `invalid_sponsor` (not active), 402 `sponsor_quota_exceeded` (the new sponsor's
+   * limits would be passed; a {@link QuotaError} naming the first dimension), 503 when limits can't be read.
+   */
+  async adminTransferSponsor(organizationId: string, sponsorUserId: string): Promise<AdminSponsorTransferResult> {
+    return this.request<AdminSponsorTransferResult>(`/v1/admin/organizations/${encodeURIComponent(organizationId)}/sponsor`, {
+      method: 'POST',
+      body: JSON.stringify({ billing_sponsor_user_id: sponsorUserId }),
+    }, undefined, true, true);
   }
 
   async adminMaintenancePreview(retentionDays = 365): Promise<MaintenancePreview> {

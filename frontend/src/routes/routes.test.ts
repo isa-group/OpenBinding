@@ -185,6 +185,31 @@ describe('route registry', () => {
     expect(routesByDomain.D7.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
   });
 
+  it('has rebuilt the first seven administration screens and leaves the other six of domain 8 to their own task', () => {
+    const rebuilt = ['admin-overview', 'admin-users', 'admin-user-detail', 'admin-audit', 'admin-errors', 'admin-queues', 'admin-sponsor'];
+    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
+    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.paramAliases, id).toBeUndefined();
+    expect(routesByDomain.D8.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([
+      'admin-moderation', 'admin-maintenance', 'admin-routing', 'admin-pricing-draft', 'admin-pricing-release',
+    ]);
+    // The pricing control room keeps its existing page.
+    expect(routeDefinitions.find((definition) => definition.id === 'admin-pricing')?.status).toBe('live');
+  });
+
+  it('reads each administration address as its own screen, with accounts and organizations named in the path', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+    const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;
+
+    expect(resolve('/app/admin')).toBe('admin-overview');
+    expect(resolve('/app/admin/users')).toBe('admin-users');
+    expect(resolve('/app/admin/users/00000000-0000-4000-8000-000000000002')).toBe('admin-user-detail');
+    expect(resolve('/app/admin/users/marco.diaz')).toBe('admin-user-detail');
+    expect(resolve('/app/admin/audit')).toBe('admin-audit');
+    expect(resolve('/app/admin/errors')).toBe('admin-errors');
+    expect(resolve('/app/admin/queues')).toBe('admin-queues');
+    expect(resolve('/app/admin/organizations/isa-demo/sponsor')).toBe('admin-sponsor');
+  });
+
   it('reads the registration detail below the registrations list and /engines/new as the form', () => {
     const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
     const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;

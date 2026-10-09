@@ -404,6 +404,8 @@ const root = (org: string, project?: string) =>
 // The mutations of an organization throw on a 422 (a refused submission) instead of handing its body back as if it were the result.
 export const platformApi = {
   organizations: () => apiClient.request<Organization[]>('/v1/organizations'),
+  /** One organization by slug or id. 403 for an account that is not in it, platform administrators included. */
+  organization: (org: string) => apiClient.request<Organization>(root(org)),
   /** `billing_sponsor_user_id` omitted: the parent's sponsor, or the caller for a top-level organization. */
   createOrganization: (value: { slug: string; name: string; parent_id?: string | null; billing_sponsor_user_id?: string | null }) =>
     apiClient.request<Organization>('/v1/organizations', {
