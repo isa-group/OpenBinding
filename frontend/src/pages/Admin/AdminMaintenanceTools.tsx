@@ -6,115 +6,250 @@ import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { formatDate } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
+import { ConfirmDialog } from '../Engines/EngineDialogs';
 import { FailureNotice, Tag } from './AdminChrome';
-import { count, describeAdminFailure } from './adminModel';
+import { count, describeAdminFailure, humanize, type Failure } from './adminModel';
 
 const CONFIRMATION = 'PURGE EXPIRED';
+const DEFAULT_RETENTION = 365;
+const DEFAULT_ERROR_RETENTION = 90;
+
+type Message = { tone: 'success' | 'info' | 'error' | 'warning'; title?: string; text: string };
+
+/** Maintenance refuses with 409 while another run holds the work, and with 503 when the database or SPACE doesn’t answer. */
+function maintenanceFailure(error: unknown, what: string): Failure {
+  const base = describeAdminFailure(error, what);
+  if (base.status === 409) {
+    return { ...base, title: base.code ? `Another maintenance run is in progress (409 · ${base.code})` : 'Another maintenance run is in progress (409)', text: `${base.text} Wait for it to finish, then preview again. Nothing was changed.` };
+  }
+  if (base.status === 503) return { ...base, title: base.code ? `A dependency is down (503 · ${base.code})` : 'A dependency is down (503)' };
+  return base;
+}
+
+const whole = (text: string, min: number, max: number) => /^\d+$/.test(text.trim()) && Number(text) >= min && Number(text) <= max;
+
+/** The counters a maintenance answer carries, as tiles: the gateway names them, so none is invented. */
+function Counters({ result, label }: { result: Record<string, number>; label: string }) {
+  const entries = Object.entries(result).filter(([, value]) => typeof value === 'number');
+  if (entries.length === 0) return null;
+  return (
+    <dl className="adm-tiles" aria-label={label}>
+      {entries.map(([name, value]) => <div key={name}><dt>{humanize(name)}</dt><dd>{count(value)}</dd></div>)}
+    </dl>
+  );
+}
 
 /**
- * What maintenance would touch, and the two actions on it: settle abandoned jobs, and purge expired data after typing
- * the confirmation the gateway demands. The preview is what a purge is limited to.
+ * Preview first, then act: the impact of a retention period, the purge of expired data (after typing the confirmation the
+ * gateway demands), the settling of abandoned jobs and the renewal of expired contracts onto the LIVE pricing.
  */
 export function AdminMaintenanceTools() {
-  const [days, setDays] = useState(365);
-  const [busy, setBusy] = useState<'reconcile' | 'purge' | null>(null);
-  const [asking, setAsking] = useState(false);
+  const [retention, setRetention] = useState(String(DEFAULT_RETENTION));
+  const [days, setDays] = useState(DEFAULT_RETENTION);
+  const [errorRetention, setErrorRetention] = useState(String(DEFAULT_ERROR_RETENTION));
+  const [busy, setBusy] = useState<'purge' | 'jobs' | 'contracts' | null>(null);
+  const [asking, setAsking] = useState<'purge' | 'contracts' | null>(null);
   const [typed, setTyped] = useState('');
-  const [message, setMessage] = useState<{ tone: 'success' | 'error' | 'warning'; title?: string; text: string } | null>(null);
+  const [purged, setPurged] = useState<{ result: Record<string, number>; message: Message } | null>(null);
+  const [jobsMessage, setJobsMessage] = useState<Message | null>(null);
+  const [contracts, setContracts] = useState<{ result: Record<string, number> | null; message: Message } | null>(null);
   const typedId = useId();
-  const valid = Number.isInteger(days) && days >= 7 && days <= 3650;
+  const retentionId = useId();
+  const errorId = useId();
 
-  const preview = useResource(`admin-maintenance:${valid ? days : 'invalid'}`, async () => (valid ? apiClient.adminMaintenancePreview(days) : null));
+  const retentionValid = whole(retention, 7, 3650);
+  const errorValid = whole(errorRetention, 1, 3650);
+
+  const preview = useResource(`admin-maintenance:${days}`, () => apiClient.adminMaintenancePreview(days));
+  const live = useResource('admin-maintenance-live', async () => {
+    try { return (await apiClient.getCurrentPricing()).version; } catch { return null; }
+  });
   const data = preview.data ?? preview.stale;
-  const failure = preview.status === 'error' ? describeAdminFailure(preview.error, 'The maintenance preview couldn’t be calculated') : null;
+  const failure = preview.status === 'error' ? maintenanceFailure(preview.error, 'The maintenance preview couldn’t be calculated') : null;
+  const calculating = preview.status === 'loading';
+  const nothing = data !== undefined && !calculating && !failure && data.expiredArtifacts + data.expiredApiKeys + data.terminalJobs + data.abandonedJobs === 0;
+  // A purge is limited to what its preview counted, so the period typed must be the one previewed.
+  const ready = Boolean(preview.data) && retentionValid && Number(retention) === days;
 
-  const reconcile = async () => {
-    setBusy('reconcile');
-    setMessage(null);
+  const runPreview = () => {
+    if (!retentionValid) return;
+    if (Number(retention) === days) preview.reload();
+    else setDays(Number(retention));
+  };
+
+  const reconcileJobs = async () => {
+    setBusy('jobs');
+    setJobsMessage(null);
     try {
       const result = await apiClient.adminReconcileJobs();
-      setMessage({ tone: 'success', text: `${result.settled} abandoned job${result.settled === 1 ? '' : 's'} reconciled.` });
+      setJobsMessage({ tone: 'success', text: `${result.settled} abandoned job${result.settled === 1 ? '' : 's'} settled. Recorded in the audit log.` });
       preview.reload();
     } catch (error: unknown) {
-      const refused = describeAdminFailure(error, 'Job reconciliation failed');
-      setMessage({ tone: refused.tone, title: refused.title, text: `${refused.text} Inspect the worker and SPACE health before retrying.` });
+      const refused = maintenanceFailure(error, 'Job reconciliation failed');
+      setJobsMessage({ tone: refused.tone, title: refused.title, text: `${refused.text} Inspect the worker and SPACE health before retrying.` });
     } finally {
       setBusy(null);
+    }
+  };
+
+  const reconcileContracts = async () => {
+    setBusy('contracts');
+    setContracts(null);
+    try {
+      const result = await apiClient.adminReconcileContracts();
+      const moved = Object.values(result).reduce((sum, value) => sum + (typeof value === 'number' ? value : 0), 0);
+      setContracts({
+        result,
+        message: { tone: moved > 0 ? 'success' : 'info', text: moved > 0 ? 'Expired contracts were renewed onto the LIVE pricing. Recorded in the audit log.' : 'Nothing to move: no contract has expired yet. Contracts renew on their own dates.' },
+      });
+    } catch (error: unknown) {
+      const refused = maintenanceFailure(error, 'Contracts weren’t reconciled');
+      setContracts({ result: null, message: { tone: refused.tone, title: refused.title, text: `${refused.text} Check the audit log before retrying.` } });
+    } finally {
+      setBusy(null);
+      setAsking(null);
     }
   };
 
   const purge = async (event: FormEvent) => {
     event.preventDefault();
-    if (typed !== CONFIRMATION) return;
+    if (typed !== CONFIRMATION || !retentionValid || !errorValid) return;
     setBusy('purge');
-    setMessage(null);
+    setPurged(null);
     try {
-      const result = await apiClient.adminPurgeExpired(typed, days);
-      setMessage({ tone: 'success', text: `Purged ${result.artifacts ?? 0} artifacts, ${result.apiKeys ?? 0} keys and ${result.jobs ?? 0} jobs.` });
-      setAsking(false);
+      const result = await apiClient.adminPurgeExpired(typed, days, Number(errorRetention));
+      setPurged({ result, message: { tone: 'success', text: 'Purged. Recorded in the audit log; the next preview shows what is left.' } });
+      setAsking(null);
       setTyped('');
       preview.reload();
     } catch (error: unknown) {
-      const refused = describeAdminFailure(error, 'Expired data was not purged');
-      setMessage({ tone: refused.tone, title: refused.title, text: `${refused.text} Run the preview again and check the audit log.` });
-      setAsking(false);
+      const refused = maintenanceFailure(error, 'Expired data was not purged');
+      setPurged({ result: {}, message: { tone: refused.tone, title: refused.title, text: `${refused.text} Run the preview again and check the audit log.` } });
+      setAsking(null);
     } finally {
       setBusy(null);
     }
   };
 
-  const tiles: Array<[string, number | undefined]> = [
-    ['Expired artifacts', data?.expiredArtifacts],
-    ['Expired API keys', data?.expiredApiKeys],
-    ['Terminal jobs', data?.terminalJobs],
-    ['Abandoned jobs', data?.abandonedJobs],
+  const impact: Array<[string, number | undefined, string]> = [
+    ['Expired artifacts', data?.expiredArtifacts, 'Past their expiry; their stored files go with them.'],
+    ['Expired API keys', data?.expiredApiKeys, 'Past their expiry date.'],
+    ['Finished jobs to purge', data?.terminalJobs, `Finished before ${data ? formatDate(data.terminalJobCutoff) ?? '—' : '—'}, more than ${days} days ago.`],
+    ['Abandoned jobs', data?.abandonedJobs, 'Running or queued far past their time budget.'],
   ];
 
   return (
-    <section className="adm-card" aria-labelledby="adm-maintenance-title">
-      <div className="adm-card-head">
-        <h2 id="adm-maintenance-title">Maintenance</h2>
-        <span className="adm-muted">Cutoff {data ? formatDate(data.terminalJobCutoff) ?? '—' : '—'}</span>
+    <>
+      <section className="adm-card" aria-labelledby="adm-preview-title">
+        <h2 id="adm-preview-title">1 · Preview the impact</h2>
+        <div className="adm-toolbar">
+          <div className="adm-field">
+            <label className="adm-label" htmlFor={retentionId}>Keep finished jobs for (days)</label>
+            <input id={retentionId} className="adm-narrow" value={retention} onChange={(event) => setRetention(event.target.value)} inputMode="numeric" aria-invalid={!retentionValid || undefined} aria-describedby={`${retentionId}-hint`} />
+          </div>
+          <Action variant="primary" onClick={runPreview} disabled={!retentionValid}>Preview</Action>
+          <Action variant="link" onClick={() => { setRetention('7'); setDays(7); }}>Try 7 days</Action>
+        </div>
+        <span id={`${retentionId}-hint`} className={retentionValid ? 'adm-muted' : 'adm-muted is-bad'}>
+          {retentionValid ? 'Between 7 and 3,650. Default 365.' : 'Use a whole number from 7 to 3,650 (the API refuses anything else).'}
+        </span>
+
+        {calculating && <div role="status" className="adm-busy"><span className="adm-spinner" aria-hidden="true" />Calculating what would change…</div>}
+        {failure && <FailureNotice failure={failure} onRetry={preview.reload} />}
+        {data && !calculating && !failure && (
+          <>
+            <div className="adm-impact" role="list" aria-label="Maintenance preview">
+              {impact.map(([label, value, detail]) => (
+                <div key={label} role="listitem" className={`adm-impact-tile${value ? ' is-attention' : ''}`}>
+                  <span>{label}</span>
+                  <strong>{count(value)}</strong>
+                  <span>{detail}</span>
+                  <Tag tone="info">Counted by the server</Tag>
+                </div>
+              ))}
+            </div>
+            {nothing && <p className="adm-muted">Nothing to purge with these retention periods.</p>}
+          </>
+        )}
+      </section>
+
+      <div className="adm-grid">
+        <section className="adm-card is-danger" aria-labelledby="adm-purge-title">
+          <h2 id="adm-purge-title" className="adm-danger-title">2 · Purge expired data</h2>
+          <p>Removes what the preview counts, plus the error events older than the period below. Audit records stay. This can’t be undone.</p>
+          {data && (
+            <ul className="adm-bullets" aria-label="What a purge would remove">
+              <li>{count(data.expiredArtifacts)} expired artifacts and {count(data.expiredApiKeys)} expired API keys</li>
+              <li>{count(data.terminalJobs)} finished jobs older than {days} days</li>
+              <li>Error events older than {errorValid ? errorRetention : '—'} days (their count isn’t in the preview)</li>
+            </ul>
+          )}
+          <div className="adm-field">
+            <label className="adm-label" htmlFor={errorId}>Keep error events for (days)</label>
+            <input id={errorId} className="adm-narrow" value={errorRetention} onChange={(event) => setErrorRetention(event.target.value)} inputMode="numeric" aria-invalid={!errorValid || undefined} aria-describedby={`${errorId}-hint`} />
+            <span id={`${errorId}-hint`} className={errorValid ? 'adm-muted' : 'adm-muted is-bad'}>{errorValid ? 'Between 1 and 3,650. Default 90. Not part of the preview.' : 'Use a whole number from 1 to 3,650.'}</span>
+          </div>
+          {purged && <Notice tone={purged.message.tone} title={purged.message.title}>{purged.message.text}</Notice>}
+          {purged && <Counters result={purged.result} label="What was purged" />}
+          <div className="adm-buttons">
+            <Action variant="danger-outline" disabled={!ready || !errorValid || busy !== null} onClick={() => { setTyped(''); setAsking('purge'); }}><Trash2 aria-hidden="true" />Purge…</Action>
+            <span className="adm-muted">{ready ? 'You’ll be asked to type a confirmation.' : 'Preview first.'}</span>
+          </div>
+        </section>
+
+        <section className="adm-card" aria-labelledby="adm-jobs-title">
+          <h2 id="adm-jobs-title">3 · Reconcile abandoned jobs</h2>
+          <p>Settles jobs that stopped reporting and frees the concurrency slots they hold.</p>
+          <p className="adm-muted">{data ? `${count(data.abandonedJobs)} abandoned job${data.abandonedJobs === 1 ? '' : 's'} found by the preview.` : 'The preview counts them.'}</p>
+          {jobsMessage && <Notice tone={jobsMessage.tone} title={jobsMessage.title}>{jobsMessage.text}</Notice>}
+          <div className="adm-buttons">
+            <Action variant="primary" busy={busy === 'jobs'} disabled={busy !== null} onClick={() => void reconcileJobs()}>Reconcile jobs</Action>
+          </div>
+        </section>
+
+        <section className="adm-card" aria-labelledby="adm-contracts-title">
+          <h2 id="adm-contracts-title">4 · Move expired contracts to LIVE</h2>
+          <p>
+            Contracts stay on the pricing version they were made under until they renew. This renews the expired ones now,
+            onto LIVE pricing {live.data ?? live.stale ? <strong className="is-mono">{live.data ?? live.stale}</strong> : 'the active release'}.
+          </p>
+          {contracts && <Notice tone={contracts.message.tone} title={contracts.message.title}>{contracts.message.text}</Notice>}
+          {contracts?.result && <Counters result={contracts.result} label="What was moved" />}
+          <div className="adm-buttons">
+            <Action variant="secondary" busy={busy === 'contracts'} disabled={busy !== null} onClick={() => setAsking('contracts')}>Reconcile contracts</Action>
+          </div>
+        </section>
       </div>
-      <p className="adm-muted">Preview first, then act. A purge removes only what the preview counts; the audit log stays.</p>
 
-      {message && <Notice tone={message.tone} title={message.title}>{message.text}</Notice>}
-      {failure && <FailureNotice failure={failure} onRetry={preview.reload} />}
-
-      <dl className="adm-tiles" aria-label="Maintenance preview">
-        {tiles.map(([label, value]) => (
-          <div key={label}><dt>{label}</dt><dd>{count(value)}</dd></div>
-        ))}
-      </dl>
-
-      <label className="adm-field adm-retention">
-        <span className="adm-label">Terminal job retention (days)</span>
-        <input type="number" min={7} max={3650} value={Number.isNaN(days) ? '' : days} onChange={(event) => setDays(event.target.valueAsNumber)} aria-invalid={!valid || undefined} />
-      </label>
-      {!valid && <span className="adm-muted">Retention is between 7 and 3,650 days.</span>}
-
-      <div className="adm-buttons">
-        <Action variant="secondary" busy={busy === 'reconcile'} onClick={() => void reconcile()}>Reconcile abandoned jobs</Action>
-        <Action variant="danger-outline" disabled={!valid || busy !== null} onClick={() => setAsking(true)}><Trash2 aria-hidden="true" />Purge expired data</Action>
-        <Tag tone={data && data.abandonedJobs > 0 ? 'warning' : 'plain'}>{data ? `${data.abandonedJobs} abandoned` : '…'}</Tag>
-      </div>
-
-      {asking && (
-        <Modal title="Purge expired data?" tone="danger" onClose={() => { setAsking(false); setTyped(''); }}>
+      {asking === 'purge' && (
+        <Modal title="Purge expired data?" tone="danger" onClose={() => { if (busy !== 'purge') { setAsking(null); setTyped(''); } }}>
           <form className="adm-confirm" onSubmit={(event) => void purge(event)}>
             <p>
-              This permanently removes expired artifacts, expired API keys and finished jobs older than {days} days. Only the items in the latest preview are
-              eligible. Audit records remain.
+              {data ? `${count(data.expiredArtifacts)} expired artifacts, ${count(data.expiredApiKeys)} expired API keys and ${count(data.terminalJobs)} finished jobs older than ${days} days` : 'The expired data'}
+              {' '}and the error events older than {errorRetention} days will be deleted permanently. Audit records remain. This can’t be undone.
             </p>
             <label htmlFor={typedId}>Type <strong className="is-mono">{CONFIRMATION}</strong> to confirm</label>
             <input id={typedId} className="eng-dialog-input" value={typed} onChange={(event) => setTyped(event.target.value)} autoComplete="off" spellCheck={false} />
+            <span className="adm-muted">The API accepts only this exact phrase.</span>
             <div className="ui-modal-actions">
-              <Action variant="secondary" onClick={() => { setAsking(false); setTyped(''); }}>Cancel</Action>
-              <Action type="submit" variant="danger" busy={busy === 'purge'} disabled={typed !== CONFIRMATION}>Confirm purge</Action>
+              <Action variant="secondary" onClick={() => { setAsking(null); setTyped(''); }} disabled={busy === 'purge'}>Cancel</Action>
+              <Action type="submit" variant="danger" busy={busy === 'purge'} disabled={typed !== CONFIRMATION}>Purge permanently</Action>
             </div>
           </form>
         </Modal>
       )}
-    </section>
+
+      {asking === 'contracts' && (
+        <ConfirmDialog
+          title="Move expired contracts to LIVE?"
+          confirmLabel="Reconcile contracts"
+          busy={busy === 'contracts'}
+          onConfirm={() => void reconcileContracts()}
+          onClose={() => setAsking(null)}
+        >
+          <p>Every expired contract is renewed now onto the LIVE pricing instead of waiting for its account’s next request. Contracts that haven’t expired are left alone.</p>
+        </ConfirmDialog>
+      )}
+    </>
   );
 }

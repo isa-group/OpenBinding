@@ -9,10 +9,7 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
-import { AdminAutoRouter } from './AdminAutoRouter';
 import { AdminFrame, AdminOnly, Meter, Tag } from './AdminChrome';
-import { AdminEngineReview } from './AdminEngineReview';
-import { AdminMaintenanceTools } from './AdminMaintenanceTools';
 import { ageLabel, count, describeAdminFailure, shortId, statusTone } from './adminModel';
 
 const PLAN_ORDER = ['BASIC', 'ADVANCED', 'RESEARCH', 'PRO'];
@@ -88,7 +85,6 @@ function SponsorshipTool() {
 }
 
 function OverviewScreen() {
-  const [showRouter, setShowRouter] = useState(false);
   const overview = useResource('admin-overview', () => apiClient.adminOverview());
   const queues = useResource('admin-overview-queues', async () => ({ status: await apiClient.adminQueues(), at: Date.now() }));
   const moderation = useResource('admin-overview-moderation', () => apiClient.adminModeration());
@@ -141,8 +137,8 @@ function OverviewScreen() {
     ['Audit log', 'Every contract, pricing and maintenance change.', '/app/admin/audit'],
     ['Errors', 'Error codes, routes and trends, without request bodies.', '/app/admin/errors'],
     ['Queues', 'Jobs by state and the oldest ones waiting.', '/app/admin/queues'],
-    ['Moderation', 'Engine publication requests, dialects and resources.', '/app/admin/moderation'],
-    ['Maintenance', 'Preview, then purge or reconcile.', '/app/admin/maintenance'],
+    ['Moderation', 'Review engine publication requests, and approve dialects and resources.', '/app/admin/moderation'],
+    ['Maintenance', 'Preview, then purge expired data or reconcile jobs and contracts.', '/app/admin/maintenance'],
     ['Engine routing', 'Router health, observations and recalibration.', '/app/admin/engine-routing'],
     ['Pricing control room', 'Drafts, releases, deployment, LIVE and contracts.', '/app/admin/pricing'],
     ['New pricing draft', 'Template or fork, edit, validate, draft, publish.', '/app/admin/pricing/drafts/new'],
@@ -252,20 +248,6 @@ function OverviewScreen() {
         </div>
       </section>
 
-      <section aria-labelledby="adm-here-title" className="adm-tools">
-        <h2 id="adm-here-title">Still here until their own screens arrive</h2>
-        <p className="adm-muted">Publication review, maintenance and the engine router keep working from this page.</p>
-        <AdminEngineReview />
-        <AdminMaintenanceTools />
-        <section className="adm-card" aria-labelledby="adm-router-title">
-          <div className="adm-card-head">
-            <h2 id="adm-router-title">Engine routing</h2>
-            <Action size="sm" variant="secondary" aria-expanded={showRouter} onClick={() => setShowRouter((value) => !value)}>{showRouter ? 'Hide AutoRouter' : 'Show AutoRouter'}</Action>
-          </div>
-          <p className="adm-muted">Router health, adaptation observations and recalibration of the predictive models.</p>
-          {showRouter && <AdminAutoRouter />}
-        </section>
-      </section>
     </AdminFrame>
   );
 }

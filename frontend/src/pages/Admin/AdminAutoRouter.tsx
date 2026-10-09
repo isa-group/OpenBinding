@@ -1,522 +1,304 @@
-import { Fragment, useCallback, useEffect, useState } from 'react';
-import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
-  Compass,
-  Layers,
-  RefreshCw,
-  Sparkles,
-} from 'lucide-react';
-import {
-  apiClient,
-  type AdaptationObservationItem,
-  type EngineRoutingMetricsResponse,
-} from '../../api/client';
-import { Card } from '../../components/ui/Card';
-import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
-import { Alert } from '../../components/ui/Alert';
+import { Fragment, useState } from 'react';
+import { Compass, RefreshCw } from 'lucide-react';
+import { apiClient, type AdaptationObservationItem, type EngineRoutingMetricSnapshot } from '../../api/client';
+import { Action } from '../../components/ui/Action';
+import { DataTable } from '../../components/ui/DataTable';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { FilterPills } from '../../components/ui/FilterPills';
+import { Notice } from '../../components/ui/Notice';
+import { Skeleton } from '../../components/ui/Skeleton';
+import { formatDateTime } from '../../utils/format';
+import { useResource } from '../../utils/useResource';
+import { ConfirmDialog } from '../Engines/EngineDialogs';
+import { AdminFrame, FailureNotice, Meter, Pager, Tag } from './AdminChrome';
+import { count, describeAdminFailure, type Failure } from './adminModel';
 
+const PAGE_SIZE = 15;
+
+const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+const fixed = (value: unknown, digits: number, fallback = '—', suffix = '') => (isNumber(value) ? `${value.toFixed(digits)}${suffix}` : fallback);
+const percent = (value: unknown) => (isNumber(value) ? `${(value * 100).toFixed(1)}%` : '—');
+const signed = (value: unknown, digits: number, suffix = '') => (isNumber(value) ? `${value > 0 ? '+' : ''}${value.toFixed(digits)}${suffix}` : '—');
+
+/** How long an observed run took, in seconds, when the gateway recorded it. */
+function runTimeOf(observation: AdaptationObservationItem): number | null {
+  const actual = observation.actualMetrics;
+  const value = actual?.actualLatency ?? actual?.latency;
+  return isNumber(value) ? value : null;
+}
+
+function confidenceTone(confidence: number): 'success' | 'warning' | 'error' {
+  return confidence > 0.7 ? 'success' : confidence > 0.4 ? 'warning' : 'error';
+}
+
+function EngineCard({ id, snapshot, runs, scale }: { id: string; snapshot: EngineRoutingMetricSnapshot; runs: Array<{ seconds: number; failed: boolean }>; scale: number }) {
+  const confidence = isNumber(snapshot.confidence) ? snapshot.confidence : 0.5;
+  const healthy = snapshot.healthStatus === 'HEALTHY';
+  const failures = runs.filter((run) => run.failed).length;
+  return (
+    <li className="adm-engine" aria-label={id}>
+      <div className="adm-engine-head">
+        <strong className="is-mono">{id}</strong>
+        <Tag tone={healthy ? 'success' : 'error'}>{snapshot.healthStatus || 'UNKNOWN'}</Tag>
+      </div>
+      <div className="adm-engine-meta">
+        <span>{snapshot.available ? 'Online' : 'Offline'}</span>
+        <span>{snapshot.activeJobs ?? 0} active job{snapshot.activeJobs === 1 ? '' : 's'}</span>
+      </div>
+      <div className="adm-engine-confidence">
+        <span className="adm-label">Confidence</span>
+        <Meter value={confidence * 100} tone={confidenceTone(confidence)} />
+        <strong>{Math.round(confidence * 100)}%</strong>
+      </div>
+      <dl className="adm-engine-stats">
+        <div><dt>Failures, last hour</dt><dd>{isNumber(snapshot.oneHourFailureRate) ? percent(snapshot.oneHourFailureRate) : '0.0%'}</dd></div>
+        <div><dt>Average latency</dt><dd>{fixed(snapshot.avgLatency, 2, 'N/A', ' s')}</dd></div>
+        <div><dt>Drift (CUSUM)</dt><dd>{snapshot.driftAlarm ? <Tag tone="warning">Drift alarm</Tag> : `Stable · S⁺ ${fixed(snapshot.cusumSPlus, 2, '0.00')}`}</dd></div>
+      </dl>
+      <div className="adm-dots" aria-hidden="true">
+        {runs.map((run, index) => (
+          <span key={index} className={run.failed ? 'is-failed' : undefined} style={{ left: `${Math.min(100, (run.seconds / scale) * 100)}%` }} />
+        ))}
+      </div>
+      <span className="adm-dots-axis" aria-hidden="true"><span>0 s</span><span>run time</span><span>{Math.round(scale)} s</span></span>
+      <span className="sr-only">
+        {runs.length === 0 ? `${id}: no run times in the observations shown.` : `${id}: ${runs.length} run time${runs.length === 1 ? '' : 's'} in the observations shown, ${failures} failed.`}
+      </span>
+    </li>
+  );
+}
+
+function Candidates({ observation }: { observation: AdaptationObservationItem }) {
+  if (observation.candidateEvaluations.length === 0) return <p className="adm-muted">No candidate evaluations were recorded.</p>;
+  return (
+    <DataTable label="Candidate solver evaluations" minWidth={640}>
+      <thead>
+        <tr>
+          <th scope="col">Engine</th>
+          <th scope="col">Admissible</th>
+          <th scope="col">Predicted latency</th>
+          <th scope="col">Predicted quality</th>
+          <th scope="col">Failure risk</th>
+          <th scope="col">Utility</th>
+          <th scope="col">Rejection reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {observation.candidateEvaluations.map((candidate, index) => (
+          <tr key={`${candidate.engine}-${index}`}>
+            <td className="is-mono">{candidate.engine}</td>
+            <td><Tag tone={candidate.admissible ? 'success' : 'error'}>{candidate.admissible ? 'Yes' : 'Rejected'}</Tag></td>
+            <td>{fixed(candidate.predicted?.latency, 2, '—', ' s')}</td>
+            <td>{fixed(candidate.predicted?.quality, 2)}</td>
+            <td>{percent(candidate.predicted?.failureRisk)}</td>
+            <td><strong>{fixed(candidate.utility, 3)}</strong></td>
+            <td>{candidate.rejectionReason || '—'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </DataTable>
+  );
+}
+
+function withFallbackNote(failure: Failure): Failure {
+  return failure.status === 401 || failure.status === 403 ? failure : { ...failure, text: `${failure.text} Engine suggestions keep working with the last calibration.` };
+}
+
+/**
+ * admin-routing: how the AutoRouter is doing. Each engine’s health and drift as the router monitors them, the observations it learns from
+ * (what it chose, what the run then did, how far the prediction was off), and the recalibration that refits it on everything observed.
+ */
 export function AdminAutoRouter() {
-  const [metrics, setMetrics] = useState<EngineRoutingMetricsResponse | null>(null);
-  const [observations, setObservations] = useState<AdaptationObservationItem[]>([]);
-  const [totalObs, setTotalObs] = useState(0);
-  const [obsOffset, setObsOffset] = useState(0);
-  const [selectedEngineFilter, setSelectedEngineFilter] = useState<string>('');
-  const [loading, setLoading] = useState(true);
-  const [recalibrating, setRecalibrating] = useState(false);
-  const [expandedObsId, setExpandedObsId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [engine, setEngine] = useState('');
+  const [offset, setOffset] = useState(0);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [recalibrated, setRecalibrated] = useState<{ status: string; at: string; processed: number; engines: string[] } | null>(null);
+  const [recalibrateFailure, setRecalibrateFailure] = useState<Failure | null>(null);
 
-  const PAGE_SIZE = 15;
+  const metrics = useResource('admin-routing-metrics', () => apiClient.adminGetEngineRoutingMetrics());
+  const observations = useResource(`admin-routing-observations:${engine}:${offset}`, () => apiClient.adminListEngineRoutingObservations({ engine: engine || undefined, limit: PAGE_SIZE, offset }));
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const snapshot = metrics.data ?? metrics.stale;
+  const page = observations.data ?? observations.stale;
+  const engines = Object.entries(snapshot?.engines ?? {});
+  const rows = page?.observations ?? [];
+  const metricsFailure = metrics.status === 'error' ? withFallbackNote(describeAdminFailure(metrics.error, 'Routing metrics couldn’t be loaded')) : null;
+  const observationsFailure = observations.status === 'error' ? describeAdminFailure(observations.error, 'Observations couldn’t be loaded') : null;
+  const refreshing = (metrics.status === 'loading' && Boolean(snapshot)) || (observations.status === 'loading' && Boolean(page));
+
+  const refresh = () => { metrics.reload(); observations.reload(); };
+
+  const runsOf = (id: string) => rows.filter((row) => row.engineSelected === id).flatMap((row) => {
+    const seconds = runTimeOf(row);
+    return seconds === null ? [] : [{ seconds, failed: row.outcome !== 'success' }];
+  });
+  const allRuns = rows.map(runTimeOf).filter(isNumber);
+  const scale = Math.max(10, Math.ceil(Math.max(0, ...allRuns) / 10) * 10);
+
+  const summary = snapshot?.summary;
+  const healthy = summary?.healthyEngines ?? engines.filter(([, item]) => item.healthStatus === 'HEALTHY').length;
+  const degraded = summary?.degradedEngines ?? engines.filter(([, item]) => item.healthStatus === 'DEGRADED').length;
+  const total = page?.total ?? 0;
+  const nothingObserved = Boolean(snapshot) && Boolean(page) && engines.length === 0 && total === 0 && engine === '';
+
+  const recalibrate = async () => {
+    setBusy(true);
+    setRecalibrateFailure(null);
     try {
-      const [mRes, oRes] = await Promise.all([
-        apiClient.adminGetEngineRoutingMetrics().catch((err) => {
-          console.warn('Metrics failed to load:', err);
-          return null;
-        }),
-        apiClient.adminListEngineRoutingObservations({
-          engine: selectedEngineFilter || undefined,
-          limit: PAGE_SIZE,
-          offset: obsOffset,
-        }).catch((err) => {
-          console.warn('Observations failed to load:', err);
-          return { total: 0, limit: PAGE_SIZE, offset: 0, observations: [] };
-        }),
-      ]);
-
-      if (mRes) setMetrics(mRes);
-      if (oRes) {
-        setObservations(oRes.observations || []);
-        setTotalObs(oRes.total || 0);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load AutoRouter telemetry.');
+      const result = await apiClient.adminRecalibrateEngineRouting();
+      setRecalibrated({ status: result.status, at: result.recalibratedAt, processed: result.observationsProcessed, engines: result.calibratedEngines });
+      refresh();
+    } catch (error: unknown) {
+      setRecalibrated(null);
+      setRecalibrateFailure(describeAdminFailure(error, 'Recalibration failed'));
     } finally {
-      setLoading(false);
-    }
-  }, [selectedEngineFilter, obsOffset]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  const handleRecalibrate = async () => {
-    setRecalibrating(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const res = await apiClient.adminRecalibrateEngineRouting();
-      setNotice(
-        `Recalibration complete: ${res.observationsProcessed} observation(s) processed. Calibrated engines: ${
-          res.calibratedEngines.length > 0 ? res.calibratedEngines.join(', ') : 'None'
-        }.`
-      );
-      await loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Recalibration failed.');
-    } finally {
-      setRecalibrating(false);
+      setBusy(false);
+      setAsking(false);
     }
   };
 
-  const engines = metrics?.engines ? Object.entries(metrics.engines) : [];
+  const filters = [{ id: '', label: 'All' }, ...engines.map(([id]) => ({ id, label: id }))];
 
   return (
-    <div className="admin-operations-container" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Header with Title and Recalibrate Trigger */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          paddingBottom: '1rem',
-          borderBottom: '1px solid var(--color-border)',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Compass size={22} color="var(--color-primary)" />
-            <h2 style={{ margin: 0, fontSize: '1.4rem' }}>AutoRouter · Autonomic MAPE-K Controller</h2>
-            <Badge variant="info">Self-Adaptive</Badge>
-          </div>
-          <p style={{ margin: '0.25rem 0 0 0', color: 'var(--color-muted)', fontSize: '0.9rem' }}>
-            Monitor solver runtime health, detect CUSUM concept drift, inspect adaptation observations, and recalibrate predictive models.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <Button
-            variant="secondary"
-            onClick={() => void loadData()}
-            disabled={loading}
-            title="Refresh telemetry"
-          >
-            <RefreshCw size={15} className={loading ? 'spin' : ''} /> Refresh
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleRecalibrate}
-            disabled={recalibrating || loading}
-            title="Trigger autonomic model recalibration using historical residuals"
-          >
-            <Sparkles size={15} className={recalibrating ? 'spin' : ''} />
-            {recalibrating ? 'Recalibrating…' : 'Recalibrate Models'}
-          </Button>
-        </div>
-      </div>
-
-      {/* Notices and Alerts */}
-      {notice && (
-        <Alert variant="success" onClose={() => setNotice(null)}>
-          {notice}
-        </Alert>
+    <AdminFrame
+      section="routing"
+      trail={[{ label: 'Administration', to: '/app/admin' }, { label: 'Engine routing' }]}
+      title="Engine routing"
+      lede="The router learns from finished runs how long each engine takes and how often it fails, and uses that to suggest engines. Recalibrating refits it on everything observed so far."
+      actions={(
+        <>
+          <Action variant="secondary" onClick={refresh} busy={refreshing}><RefreshCw aria-hidden="true" />Refresh</Action>
+          <Action variant="primary" onClick={() => setAsking(true)} disabled={busy}>Recalibrate…</Action>
+        </>
       )}
-      {error && (
-        <Alert variant="error" onClose={() => setError(null)}>
-          {error}
-        </Alert>
+    >
+      {recalibrated && (
+        <Notice tone="success" title="Recalibrated">
+          The router was refitted. Recorded in the audit log.
+        </Notice>
+      )}
+      {recalibrated && (
+        <dl className="adm-tiles" aria-label="Recalibration result">
+          <div><dt>Status</dt><dd className="is-text">{recalibrated.status}</dd></div>
+          <div><dt>Observations processed</dt><dd>{count(recalibrated.processed)}</dd></div>
+          <div><dt>Engines calibrated</dt><dd className="is-text">{recalibrated.engines.length > 0 ? recalibrated.engines.join(', ') : 'None'}</dd></div>
+          <div><dt>Recalibrated at</dt><dd className="is-text">{formatDateTime(recalibrated.at) ?? recalibrated.at}</dd></div>
+        </dl>
+      )}
+      {recalibrateFailure && <FailureNotice failure={recalibrateFailure} />}
+      {metricsFailure && <FailureNotice failure={metricsFailure} onRetry={metrics.reload} />}
+      {metrics.status === 'loading' && !snapshot && <div aria-busy="true" className="adm-skeleton"><span className="sr-only">Loading routing metrics</span><Skeleton variant="panel" /></div>}
+
+      {nothingObserved && (
+        <EmptyState icon={<Compass />} title="No observations yet" dashed>
+          The router needs finished runs before it can calibrate. Launch a job with <code>engine: "auto"</code> to start its telemetry.
+        </EmptyState>
       )}
 
-      {/* KPI Overview Summary */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
-        }}
-      >
-        <Card style={{ padding: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-muted)', fontSize: '0.85rem' }}>
-            <Layers size={16} /> Total Monitored Engines
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginTop: '0.35rem' }}>
-            {metrics?.summary?.totalEngines ?? engines.length}
-          </div>
-          <small style={{ color: 'var(--color-muted)' }}>Registered solver candidates</small>
-        </Card>
+      {snapshot && !nothingObserved && (
+        <>
+          <dl className="adm-tiles adm-tiles-wide" aria-label="Router health">
+            <div><dt>Monitored engines</dt><dd>{count(summary?.totalEngines ?? engines.length)}</dd></div>
+            <div><dt>Healthy</dt><dd>{count(healthy)}</dd></div>
+            <div className={degraded > 0 ? 'is-attention' : undefined}><dt>Degraded</dt><dd>{count(degraded)}</dd></div>
+            <div><dt>Running now</dt><dd>{count(summary?.activeJobs ?? 0)}</dd></div>
+          </dl>
 
-        <Card style={{ padding: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-success)', fontSize: '0.85rem' }}>
-            <CheckCircle2 size={16} /> Healthy Engines
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginTop: '0.35rem', color: 'var(--color-success)' }}>
-            {metrics?.summary?.healthyEngines ?? engines.filter(([, e]) => e.healthStatus === 'HEALTHY').length}
-          </div>
-          <small style={{ color: 'var(--color-muted)' }}>Within operating thresholds</small>
-        </Card>
+          {engines.length === 0
+            ? <p className="adm-muted">No engine metrics reported yet.</p>
+            : (
+              <ul className="adm-engines" aria-label="Engines">
+                {engines.map(([id, item]) => <EngineCard key={id} id={id} snapshot={item} runs={runsOf(id)} scale={scale} />)}
+              </ul>
+            )}
+          <span className="adm-muted">Dots are run times of the observations shown below (red: the run didn’t succeed). The fit quality of the models isn’t reported by the API.</span>
+        </>
+      )}
 
-        <Card style={{ padding: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-error)', fontSize: '0.85rem' }}>
-            <AlertTriangle size={16} /> Degraded / Trips
+      {(page || observations.status === 'loading' || observationsFailure) && !nothingObserved && (
+        <section className="adm-card" aria-labelledby="adm-obs-title">
+          <div className="adm-card-head">
+            <h2 id="adm-obs-title">Observations</h2>
+            {engines.length > 0 && <FilterPills ariaLabel="Engine" options={filters} value={engine} onChange={(id) => { setEngine(id); setOffset(0); setExpanded(null); }} />}
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginTop: '0.35rem', color: 'var(--color-error)' }}>
-            {metrics?.summary?.degradedEngines ?? engines.filter(([, e]) => e.healthStatus === 'DEGRADED').length}
-          </div>
-          <small style={{ color: 'var(--color-muted)' }}>Circuit breaker or timeout trips</small>
-        </Card>
-
-        <Card style={{ padding: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-primary)', fontSize: '0.85rem' }}>
-            <Activity size={16} /> Active Routing Concurrency
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 'bold', marginTop: '0.35rem' }}>
-            {metrics?.summary?.activeJobs ?? 0}
-          </div>
-          <small style={{ color: 'var(--color-muted)' }}>In-flight solver executions</small>
-        </Card>
-      </div>
-
-      {/* Engine Health and CUSUM Drift Monitor */}
-      <Card style={{ padding: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Candidate Engines Health & Statistical Drift (CUSUM)</h3>
-            <p style={{ margin: '0.2rem 0 0 0', color: 'var(--color-muted)', fontSize: '0.85rem' }}>
-              Real-time autonomic monitoring of solver availability, empirical observation confidence, and cumulative drift alarms.
-            </p>
-          </div>
-          <Badge variant="default">MAPE-K Monitor</Badge>
-        </div>
-
-        {engines.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-muted)' }}>
-            No engine metrics reported yet. Execute a job with <code>engine: "auto"</code> to initialize telemetry.
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+          {observationsFailure && <FailureNotice failure={observationsFailure} onRetry={observations.reload} />}
+          {observations.status === 'loading' && !page && <div aria-busy="true" className="adm-skeleton"><span className="sr-only">Loading observations</span><Skeleton variant="tile" /></div>}
+          {page && rows.length === 0 && <p className="adm-muted">{engine ? `No observation selected ${engine}.` : 'No adaptation observations recorded yet.'}</p>}
+          {rows.length > 0 && (
+            <DataTable label="Observations" minWidth={760}>
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left', color: 'var(--color-muted)' }}>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>Engine Name</th>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>Health Status</th>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>Availability</th>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>Confidence (γ)</th>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>1h Failure Rate</th>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>Avg Latency</th>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>Active Jobs</th>
-                  <th style={{ padding: '0.6rem 0.75rem' }}>CUSUM Drift</th>
+                <tr>
+                  <th scope="col">Recorded</th>
+                  <th scope="col">Engine selected</th>
+                  <th scope="col">Outcome</th>
+                  <th scope="col">Workload</th>
+                  <th scope="col">Residuals (Δ latency · Δ quality)</th>
+                  <th scope="col"><span className="sr-only">Details</span></th>
                 </tr>
               </thead>
               <tbody>
-                {engines.map(([engineId, snapshot]) => {
-                  const isHealthy = snapshot.healthStatus === 'HEALTHY';
-                  const hasAlarm = Boolean(snapshot.driftAlarm);
+                {rows.map((row) => {
+                  const features = row.workloadFeatures ?? {};
+                  const residuals = row.residuals ?? {};
+                  const open = expanded === row.id;
                   return (
-                    <tr key={engineId} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-                      <td style={{ padding: '0.75rem', fontWeight: 600 }}>
-                        <code>{engineId}</code>
-                      </td>
-                      <td style={{ padding: '0.75rem' }}>
-                        <Badge variant={isHealthy ? 'success' : 'error'}>
-                          {snapshot.healthStatus || 'UNKNOWN'}
-                        </Badge>
-                      </td>
-                      <td style={{ padding: '0.75rem' }}>
-                        {snapshot.available ? (
-                          <span style={{ color: 'var(--color-success)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <CheckCircle2 size={13} /> Online
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--color-error)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <AlertTriangle size={13} /> Offline
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '0.75rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span>{((snapshot.confidence ?? 0.5) * 100).toFixed(0)}%</span>
-                          <div
-                            style={{
-                              width: '50px',
-                              height: '6px',
-                              backgroundColor: 'var(--color-border)',
-                              borderRadius: '3px',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: `${Math.min(100, Math.max(0, (snapshot.confidence ?? 0.5) * 100))}%`,
-                                height: '100%',
-                                backgroundColor:
-                                  (snapshot.confidence ?? 0.5) > 0.7
-                                    ? 'var(--color-success)'
-                                    : (snapshot.confidence ?? 0.5) > 0.4
-                                    ? 'var(--color-warning)'
-                                    : 'var(--color-error)',
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: '0.75rem' }}>
-                        {snapshot.oneHourFailureRate != null
-                          ? `${(snapshot.oneHourFailureRate * 100).toFixed(1)}%`
-                          : '0.0%'}
-                      </td>
-                      <td style={{ padding: '0.75rem' }}>
-                        {snapshot.avgLatency != null ? `${snapshot.avgLatency.toFixed(2)}s` : 'N/A'}
-                      </td>
-                      <td style={{ padding: '0.75rem' }}>{snapshot.activeJobs ?? 0}</td>
-                      <td style={{ padding: '0.75rem' }}>
-                        {hasAlarm ? (
-                          <Badge variant="warning">
-                            <AlertTriangle size={12} style={{ marginRight: '0.25rem' }} />
-                            DRIFT ALARM
-                          </Badge>
-                        ) : (
-                          <span style={{ color: 'var(--color-muted)', fontSize: '0.85rem' }}>
-                            Stable (S⁺: {snapshot.cusumSPlus?.toFixed(2) ?? '0.00'})
-                          </span>
-                        )}
-                      </td>
-                    </tr>
+                    <Fragment key={row.id}>
+                      <tr aria-label={`${row.engineSelected} ${row.id}`}>
+                        <td>{row.createdAt ? formatDateTime(row.createdAt) ?? row.createdAt : 'N/A'}</td>
+                        <td className="is-mono">{row.engineSelected}</td>
+                        <td><Tag tone={row.outcome === 'success' ? 'success' : 'error'}>{row.outcome}</Tag></td>
+                        <td className="is-mono">S {fixed(features.S, 1)} · D<sub>c</sub> {fixed(features.D_constr, 2)} · {fixed(features.N_tasks, 0)} tasks</td>
+                        <td className="is-mono">{signed(residuals.latency, 2, ' s')} · {signed(residuals.quality, 2)}</td>
+                        <td><Action size="sm" variant="link" aria-expanded={open} onClick={() => setExpanded(open ? null : row.id)}>{open ? 'Hide' : 'Inspect'}</Action></td>
+                      </tr>
+                      {open && (
+                        <tr className="adm-expanded">
+                          <td colSpan={6}>
+                            <div className="adm-obs-detail">
+                              <dl className="adm-detail">
+                                <div><dt>Adaptation loop</dt><dd className="is-mono">{row.adaptationLoopId}</dd></div>
+                                {row.jobId && <div><dt>Job</dt><dd className="is-mono">{row.jobId}</dd></div>}
+                              </dl>
+                              <Candidates observation={row} />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+            </DataTable>
+          )}
+          {page && rows.length > 0 && <Pager offset={offset} limit={PAGE_SIZE} total={total} shown={rows.length} noun="observations" onPage={(next) => { setOffset(next); setExpanded(null); }} />}
+        </section>
+      )}
 
-      {/* Historical MAPE-K Adaptation Observations Log */}
-      <Card style={{ padding: '1.25rem' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '1rem',
-            marginBottom: '1rem',
-          }}
+      <section className="adm-card" aria-labelledby="adm-policy-title">
+        <h2 id="adm-policy-title">How the router decides</h2>
+        <p className="adm-muted">
+          For each job started with <code>engine: "auto"</code> the router scores the candidate engines on predicted latency, quality and failure risk, drops the ones
+          that can’t meet the job, and picks the best utility. After the run it records how far the prediction was off, and a CUSUM test raises a drift alarm when an engine
+          keeps running slower or faster than expected. The weights and thresholds of that policy aren’t exposed by the API, so this screen shows what the router observed and
+          chose, not how it is configured.
+        </p>
+      </section>
+
+      {asking && (
+        <ConfirmDialog
+          title="Recalibrate the router?"
+          confirmLabel="Recalibrate"
+          busy={busy}
+          onConfirm={() => void recalibrate()}
+          onClose={() => setAsking(false)}
         >
-          <div>
-            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Historical Adaptation Observations</h3>
-            <p style={{ margin: '0.2rem 0 0 0', color: 'var(--color-muted)', fontSize: '0.85rem' }}>
-              Persistent Knowledge store of workload vectors, multi-criteria evaluations, and execution residuals.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <label style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              Filter by Engine:
-              <select
-                value={selectedEngineFilter}
-                onChange={(e) => {
-                  setSelectedEngineFilter(e.target.value);
-                  setObsOffset(0);
-                }}
-                style={{
-                  padding: '0.35rem 0.5rem',
-                  borderRadius: '4px',
-                  border: '1px solid var(--color-border)',
-                  backgroundColor: 'var(--color-surface)',
-                  color: 'inherit',
-                }}
-              >
-                <option value="">All Engines</option>
-                {engines.map(([eId]) => (
-                  <option key={eId} value={eId}>
-                    {eId}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </div>
-
-        {observations.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--color-muted)' }}>
-            No adaptation observations recorded yet.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--color-border)', textAlign: 'left', color: 'var(--color-muted)' }}>
-                    <th style={{ padding: '0.5rem' }}>Recorded At</th>
-                    <th style={{ padding: '0.5rem' }}>Engine Selected</th>
-                    <th style={{ padding: '0.5rem' }}>Outcome</th>
-                    <th style={{ padding: '0.5rem' }}>Workload Vector</th>
-                    <th style={{ padding: '0.5rem' }}>Residuals (Δ Latency / Δ Quality)</th>
-                    <th style={{ padding: '0.5rem', textAlign: 'right' }}>Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {observations.map((obs) => {
-                    const isExpanded = expandedObsId === obs.id;
-                    const wf = obs.workloadFeatures || {};
-                    const res = obs.residuals || {};
-                    const isSuccess = obs.outcome === 'success';
-
-                    return (
-                      <Fragment key={obs.id}>
-                        <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--color-border-subtle)' }}>
-                          <td style={{ padding: '0.6rem 0.5rem', whiteSpace: 'nowrap', color: 'var(--color-muted)' }}>
-                            {obs.createdAt ? new Date(obs.createdAt).toLocaleString() : 'N/A'}
-                          </td>
-                          <td style={{ padding: '0.6rem 0.5rem', fontWeight: 600 }}>
-                            <code>{obs.engineSelected}</code>
-                          </td>
-                          <td style={{ padding: '0.6rem 0.5rem' }}>
-                            <Badge variant={isSuccess ? 'success' : 'error'}>
-                              {obs.outcome.toUpperCase()}
-                            </Badge>
-                          </td>
-                          <td style={{ padding: '0.6rem 0.5rem' }}>
-                            <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                              S={typeof wf.S === 'number' ? wf.S.toFixed(1) : wf.S == null ? '—' : String(wf.S)}, D_c=
-                              {typeof wf.D_constr === 'number' ? wf.D_constr.toFixed(2) : wf.D_constr == null ? '—' : String(wf.D_constr)}, Tasks=
-                              {wf.N_tasks == null ? '—' : String(wf.N_tasks)}
-                            </span>
-                          </td>
-                          <td style={{ padding: '0.6rem 0.5rem' }}>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>
-                              ΔL: {typeof res.latency === 'number' ? `${res.latency > 0 ? '+' : ''}${res.latency.toFixed(2)}s` : '0.00s'} ·
-                              ΔQ: {typeof res.quality === 'number' ? `${res.quality > 0 ? '+' : ''}${res.quality.toFixed(2)}` : '0.00'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '0.6rem 0.5rem', textAlign: 'right' }}>
-                            <Button
-                              variant="secondary"
-                              size="small"
-                              onClick={() => setExpandedObsId(isExpanded ? null : obs.id)}
-                            >
-                              {isExpanded ? 'Hide' : 'Inspect'}
-                            </Button>
-                          </td>
-                        </tr>
-
-                        {isExpanded && (
-                          <tr>
-                            <td colSpan={6} style={{ padding: '1rem', backgroundColor: 'var(--color-surface-subtle)' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                  <div>
-                                    <strong>Adaptation Loop ID:</strong> <code>{obs.adaptationLoopId}</code>
-                                  </div>
-                                  {obs.jobId && (
-                                    <div>
-                                      <strong>Job ID:</strong> <code>{obs.jobId}</code>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Candidate Evaluations Breakdown */}
-                                {obs.candidateEvaluations && obs.candidateEvaluations.length > 0 && (
-                                  <div>
-                                    <strong style={{ fontSize: '0.85rem' }}>Candidate Solver Evaluations (Multi-Criteria):</strong>
-                                    <table style={{ width: '100%', marginTop: '0.4rem', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                                      <thead>
-                                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--color-border)', color: 'var(--color-muted)' }}>
-                                          <th style={{ padding: '0.3rem' }}>Engine</th>
-                                          <th style={{ padding: '0.3rem' }}>Admissible</th>
-                                          <th style={{ padding: '0.3rem' }}>Predicted Latency</th>
-                                          <th style={{ padding: '0.3rem' }}>Predicted Quality</th>
-                                          <th style={{ padding: '0.3rem' }}>Failure Risk</th>
-                                          <th style={{ padding: '0.3rem' }}>Utility Score</th>
-                                          <th style={{ padding: '0.3rem' }}>Rejection Reason</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {obs.candidateEvaluations.map((cand, cIdx) => (
-                                          <tr key={cIdx} style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
-                                            <td style={{ padding: '0.3rem', fontWeight: 600 }}>{cand.engine}</td>
-                                            <td style={{ padding: '0.3rem' }}>
-                                              <Badge variant={cand.admissible ? 'success' : 'error'}>
-                                                {cand.admissible ? 'YES' : 'REJECTED'}
-                                              </Badge>
-                                            </td>
-                                            <td style={{ padding: '0.3rem' }}>
-                                              {cand.predicted?.latency != null ? `${Number(cand.predicted.latency).toFixed(2)}s` : '—'}
-                                            </td>
-                                            <td style={{ padding: '0.3rem' }}>
-                                              {cand.predicted?.quality != null ? Number(cand.predicted.quality).toFixed(2) : '—'}
-                                            </td>
-                                            <td style={{ padding: '0.3rem' }}>
-                                              {cand.predicted?.failureRisk != null ? `${(Number(cand.predicted.failureRisk) * 100).toFixed(1)}%` : '—'}
-                                            </td>
-                                            <td style={{ padding: '0.3rem', fontWeight: 'bold' }}>
-                                              {cand.utility != null ? Number(cand.utility).toFixed(3) : '—'}
-                                            </td>
-                                            <td style={{ padding: '0.3rem', color: 'var(--color-error)' }}>
-                                              {cand.rejectionReason || '—'}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>
-                Showing {obsOffset + 1}–{Math.min(obsOffset + PAGE_SIZE, totalObs)} of {totalObs} observations
-              </span>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <Button
-                  variant="secondary"
-                  size="small"
-                  disabled={obsOffset === 0}
-                  onClick={() => setObsOffset((prev) => Math.max(0, prev - PAGE_SIZE))}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="small"
-                  disabled={obsOffset + PAGE_SIZE >= totalObs}
-                  onClick={() => setObsOffset((prev) => prev + PAGE_SIZE)}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Card>
-    </div>
+          <p>
+            It refits on all {engine === '' && page ? `${count(total)} ` : ''}observations. Engine suggestions may change for everyone as soon as it finishes. Recorded in the audit log.
+          </p>
+        </ConfirmDialog>
+      )}
+    </AdminFrame>
   );
 }

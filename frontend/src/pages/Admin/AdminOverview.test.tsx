@@ -195,16 +195,19 @@ describe('admin-overview · how the platform is doing', () => {
     await waitFor(() => expect(api.adminQueues).toHaveBeenCalledTimes(2));
   });
 
-  it('keeps the publication review and maintenance on the page, and loads the router only when asked', async () => {
+  it('no longer carries the publication review, maintenance or the router: each has its own screen', async () => {
     renderAdmin(<AdminOverview />);
-    expect(await screen.findByRole('heading', { name: 'Engine publication requests' })).toBeInTheDocument();
-    expect(await screen.findByText('Nothing is waiting for publication review')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Maintenance' })).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: 'Reconcile abandoned jobs' })).toBeInTheDocument();
+    await within(block('Moderation')).findByText('Engine publication requests');
+    expect(screen.queryByRole('heading', { name: 'Engine publication requests' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Maintenance' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reconcile abandoned jobs' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show AutoRouter' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Still here until their own screens arrive')).not.toBeInTheDocument();
+    expect(within(block('Moderation')).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/admin/moderation');
+    expect(api.adminListEngineRegistrations).not.toHaveBeenCalled();
+    expect(api.adminMaintenancePreview).not.toHaveBeenCalled();
     expect(api.adminGetEngineRoutingMetrics).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Show AutoRouter' }));
-    await waitFor(() => expect(api.adminGetEngineRoutingMetrics).toHaveBeenCalled());
-    expect(screen.getByRole('button', { name: 'Hide AutoRouter' })).toHaveAttribute('aria-expanded', 'true');
+    expect(api.adminListEngineRoutingObservations).not.toHaveBeenCalled();
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {

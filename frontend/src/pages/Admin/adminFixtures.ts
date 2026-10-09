@@ -143,6 +143,11 @@ export const MODERATION: AdminModerationOverview = {
   registrations: { private: 2, pending_review: 1 },
 };
 
+/** An engine registration its owner submitted for publication. */
+export const PENDING_ENGINE = {
+  namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1', digest: `sha256-${'e5f6'.repeat(16)}`, status: 'pending_review' as const, active: true,
+};
+
 const hour = (offset: number) => new Date(Date.UTC(2026, 9, 9, 12 - offset)).toISOString();
 
 export const ERROR_OVERVIEW: AdminErrorOverview = {

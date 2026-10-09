@@ -1315,11 +1315,30 @@ export class ApiClient {
     return this.request('/v1/admin/maintenance/reconcile-jobs', { method: 'POST' });
   }
 
-  async adminPurgeExpired(confirmation: string, retentionDays = 365): Promise<Record<string, number>> {
+  /** `errorRetentionDays` is how long error events are kept (1–3650, the gateway defaults to 90); it isn't part of the preview. */
+  async adminPurgeExpired(confirmation: string, retentionDays = 365, errorRetentionDays?: number): Promise<Record<string, number>> {
     return this.request('/v1/admin/maintenance/purge', {
       method: 'POST',
-      body: JSON.stringify({ confirmation, terminal_job_retention_days: retentionDays }),
+      body: JSON.stringify({
+        confirmation,
+        terminal_job_retention_days: retentionDays,
+        ...(errorRetentionDays === undefined ? {} : { error_retention_days: errorRetentionDays }),
+      }),
     });
+  }
+
+  /** Renew the expired contracts onto the LIVE pricing release now. The answer is a map of counters. 503 when accounts or pricing can't be read. */
+  async adminReconcileContracts(): Promise<Record<string, number>> {
+    return this.request('/v1/admin/maintenance/reconcile-contracts', { method: 'POST' });
+  }
+
+  /**
+   * Publish a Dialect or registered resource revision that waits for review (`extensions:moderate`). The gateway lists no pending
+   * dialects or resources, so the exact revision is named by the caller; there is no reject for them.
+   */
+  async adminApproveExtension(kind: 'dialect' | 'resource', ref: { namespace: string; name: string; version: string; revision: string }): Promise<{ namespace: string; name: string; version: string; digest: string; status: string }> {
+    const query = new URLSearchParams({ namespace: ref.namespace, version: ref.version, revision: ref.revision });
+    return this.request(`/v1/${kind === 'dialect' ? 'dialects' : 'resources'}/${encodeURIComponent(ref.name)}/approve?${query.toString()}`, { method: 'POST' }, undefined, true, true);
   }
 
   /**

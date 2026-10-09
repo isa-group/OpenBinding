@@ -185,15 +185,20 @@ describe('route registry', () => {
     expect(routesByDomain.D7.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
   });
 
-  it('has rebuilt the first seven administration screens and leaves the other six of domain 8 to their own task', () => {
-    const rebuilt = ['admin-overview', 'admin-users', 'admin-user-detail', 'admin-audit', 'admin-errors', 'admin-queues', 'admin-sponsor'];
+  it('has rebuilt every administration screen, which closes domain 8', () => {
+    const rebuilt = [
+      'admin-overview', 'admin-users', 'admin-user-detail', 'admin-audit', 'admin-errors', 'admin-queues', 'admin-moderation',
+      'admin-maintenance', 'admin-routing', 'admin-sponsor', 'admin-pricing', 'admin-pricing-draft', 'admin-pricing-release',
+    ];
     for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
     for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.paramAliases, id).toBeUndefined();
-    expect(routesByDomain.D8.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([
-      'admin-moderation', 'admin-maintenance', 'admin-routing', 'admin-pricing-draft', 'admin-pricing-release',
-    ]);
-    // The pricing control room keeps its existing page.
-    expect(routeDefinitions.find((definition) => definition.id === 'admin-pricing')?.status).toBe('live');
+    expect(routesByDomain.D8.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
+  });
+
+  it('leaves no pending screen in any domain', () => {
+    for (const [domain, list] of Object.entries(routesByDomain)) {
+      expect(list.filter((definition) => definition.status === 'pending').map((definition) => definition.id), domain).toEqual([]);
+    }
   });
 
   it('reads each administration address as its own screen, with accounts and organizations named in the path', () => {
@@ -208,6 +213,12 @@ describe('route registry', () => {
     expect(resolve('/app/admin/errors')).toBe('admin-errors');
     expect(resolve('/app/admin/queues')).toBe('admin-queues');
     expect(resolve('/app/admin/organizations/isa-demo/sponsor')).toBe('admin-sponsor');
+    expect(resolve('/app/admin/moderation')).toBe('admin-moderation');
+    expect(resolve('/app/admin/maintenance')).toBe('admin-maintenance');
+    expect(resolve('/app/admin/engine-routing')).toBe('admin-routing');
+    expect(resolve('/app/admin/pricing')).toBe('admin-pricing');
+    expect(resolve('/app/admin/pricing/drafts/new')).toBe('admin-pricing-draft');
+    expect(resolve('/app/admin/pricing/0.1.0')).toBe('admin-pricing-release');
   });
 
   it('reads the registration detail below the registrations list and /engines/new as the form', () => {

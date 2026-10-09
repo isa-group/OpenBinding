@@ -86,6 +86,30 @@ export function describeAdminFailure(error: unknown, what: string): Failure {
   }
 }
 
+/**
+ * A failure of moderation. A key needs the moderation permission for what it decides, not the accounts one, and a 409 here
+ * usually means somebody else decided first.
+ */
+export function describeModerationFailure(error: unknown, what: string, scope: 'engines' | 'extensions'): Failure {
+  const base = describeAdminFailure(error, what);
+  if (base.status === 403) {
+    const [label, permission] = scope === 'engines' ? ['moderate engines', 'engines:moderate'] : ['moderate extensions', 'extensions:moderate'];
+    return {
+      ...base,
+      title: 'This key can’t moderate (403)',
+      text: `The account is an administrator, but the API key behind this session doesn’t include “${label}” (${permission}).`,
+    };
+  }
+  if (base.status === 409) {
+    return {
+      ...base,
+      title: base.code ? `This can’t be decided now (409 · ${base.code})` : 'This can’t be decided now (409)',
+      text: `${base.text} Another administrator may have decided it first; refresh to see its current state.`,
+    };
+  }
+  return base;
+}
+
 // -- Small formatters ----------------------------------------------------------------------------------
 
 /** `3f2a91c0…`: enough of an identifier to tell two apart in a list. */
@@ -168,7 +192,8 @@ const dictOf = (value: unknown): Dict => (isDict(value) ? value : {});
 const textOf = (value: unknown): string => (typeof value === 'string' ? value : '');
 const textsOf = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []);
 
-function humanize(id: string): string {
+/** `expiredApiKeys` and `COMPUTE_PACK` as a sentence: “Expired api keys”, “Compute pack”. */
+export function humanize(id: string): string {
   const words = id.replace(/[_-]+/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }

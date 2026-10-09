@@ -713,18 +713,20 @@ export const platformApi = {
     valid: boolean; version: string | null; digest: string | null; plans: string[];
     add_ons: string[]; errors: string[]; warnings: string[];
   }>('/v1/admin/pricing/validate', { method: 'POST', body: JSON.stringify({ yaml }) }),
+  /** A 422 throws (a refused draft must not read as a saved one); 409 is a version that already exists. */
   createPricingDraft: (yaml: string, changelog: string, migration_manifest: Record<string, unknown>) =>
     apiClient.request<{ release: PricingRelease; message: string }>('/v1/admin/pricing/drafts', {
       method: 'POST', body: JSON.stringify({ yaml, changelog, migration_manifest }),
-    }),
+    }, undefined, true, true),
   previewPricing: (version: string) =>
     apiClient.requestText(`/v1/admin/pricing/versions/${encodeURIComponent(version)}/preview`),
-  syncPricing: () => apiClient.request<{ created: number }>('/v1/admin/pricing/sync', { method: 'POST' }),
+  syncPricing: () => apiClient.request<{ created: number }>('/v1/admin/pricing/sync', { method: 'POST' }, undefined, true, true),
   forkPricing: (source: string, version: string, changelog: string) =>
     apiClient.request<{ release: PricingRelease; message: string }>(
       `/v1/admin/pricing/drafts/${encodeURIComponent(source)}/fork`,
-      { method: 'POST', body: JSON.stringify({ version, changelog }) },
+      { method: 'POST', body: JSON.stringify({ version, changelog }) }, undefined, true, true,
     ),
+  /** 422 for a version or a changelog the gateway refuses; 409 when a prerequisite of the draft isn’t met. */
   publishPricing: (
     draft_version: string,
     version: string,
@@ -732,20 +734,20 @@ export const platformApi = {
     migration_manifest: Record<string, unknown>,
   ) => apiClient.request<{ release: PricingRelease; message: string }>('/v1/admin/pricing/publish', {
     method: 'POST', body: JSON.stringify({ draft_version, version, changelog, migration_manifest }),
-  }),
+  }, undefined, true, true),
   pricingAction: (version: string, action: 'deploy' | 'activate' | 'drain') =>
     apiClient.request<{ release: PricingRelease; message: string }>(
       `/v1/admin/pricing/versions/${encodeURIComponent(version)}/${action}`,
-      { method: 'POST' },
+      { method: 'POST' }, undefined, true, true,
     ),
   archivePricing: (version: string, fallback: Record<string, unknown> = {}) =>
     apiClient.request<{ release: PricingRelease; message: string }>(
       `/v1/admin/pricing/versions/${encodeURIComponent(version)}/archive`,
-      { method: 'POST', body: JSON.stringify({ fallback }) },
+      { method: 'POST', body: JSON.stringify({ fallback }) }, undefined, true, true,
     ),
   deletePricingDraft: (version: string) => apiClient.request<void>(
     `/v1/admin/pricing/drafts/${encodeURIComponent(version)}`,
-    { method: 'DELETE', body: JSON.stringify({ confirmation: version }) },
+    { method: 'DELETE', body: JSON.stringify({ confirmation: version }) }, undefined, true, true,
   ),
   inspectVerifier: (payload: VerifierInspectRequest) =>
     apiClient.request<VerifierInspectResponse>('/v1/verifier/inspect', {
