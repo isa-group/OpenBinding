@@ -1,0 +1,133 @@
+/* The workflow editor: bpmn-js ships its own light chrome; here its palette, context pad, popups and canvas take the page's tokens,
+   and the toolbar above and the panel beside the canvas are drawn with them from the start. */
+
+.wb-bpmn { display: flex; min-width: 0; flex-direction: column; }
+
+.wb-bpmn-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tp-spacing-sm);
+  padding: var(--tp-spacing-xs) var(--tp-spacing-sm);
+  border-bottom: 1px solid var(--tp-hairline-soft);
+  background: var(--tp-surface);
+}
+
+.wb-bpmn-group { display: inline-flex; overflow: hidden; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-md); background: var(--tp-canvas); }
+
+.wb-bpmn-group button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 0;
+  border-right: 1px solid var(--tp-hairline-soft);
+  background: transparent;
+  color: var(--tp-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.wb-bpmn-group button:last-child { border-right: 0; }
+.wb-bpmn-group button:hover:not(:disabled) { background: var(--tp-surface-cream); color: var(--tp-primary-deep); }
+.wb-bpmn-group button:focus-visible { outline: 2px solid var(--tp-primary); outline-offset: -2px; }
+.wb-bpmn-group button:disabled { color: var(--tp-muted); cursor: not-allowed; }
+.wb-bpmn-group svg { width: 15px; height: 15px; }
+.wb-bpmn-hint { color: var(--tp-steel); font-size: 0.75rem; }
+
+.wb-bpmn-stage { display: flex; min-width: 0; flex-wrap: wrap; }
+.wb-bpmn-stage .bpmn-modeler { min-width: 0; height: 560px; flex: 999 1 420px; background: var(--tp-canvas); }
+
+.wb-bpmn-panel {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 100%;
+  padding: var(--tp-spacing-md);
+  border-left: 1px solid var(--tp-hairline-soft);
+  background: var(--tp-surface);
+  font-size: 0.8125rem;
+}
+
+.wb-bpmn-panel strong { font-size: 0.9375rem; font-weight: 600; }
+.wb-bpmn-panel code { width: fit-content; max-width: 100%; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 0.75rem; }
+.wb-bpmn-panel p { margin: 0; color: var(--tp-slate); }
+.wb-bpmn-panel label { margin-top: 6px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }
+
+.wb-bpmn-panel input {
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--tp-input-border);
+  border-radius: var(--tp-radius-md);
+  background: var(--tp-input-bg);
+  color: var(--tp-ink);
+  font: inherit;
+}
+
+.wb-bpmn-eyebrow { color: var(--tp-steel); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; }
+
+/* The canvas and the shapes bpmn-js draws */
+.wb-bpmn .djs-container { font-family: var(--font-body); }
+.wb-bpmn .bpmn-modeler { --djs-ink: var(--tp-ink); }
+.wb-bpmn .bjs-container { background-image: radial-gradient(var(--tp-hairline-soft) 1px, transparent 1px); background-size: 16px 16px; }
+.wb-bpmn .djs-element .djs-visual > :is(rect, circle, polygon, path):first-child { stroke: var(--tp-ink-tint) !important; }
+.wb-bpmn .djs-element.selected .djs-outline { stroke: var(--tp-primary); stroke-width: 2px; }
+.wb-bpmn .djs-element.hover .djs-outline { stroke: var(--tp-sunshine-800); }
+.wb-bpmn .djs-element .djs-visual text { fill: var(--tp-ink) !important; font-family: var(--font-body) !important; }
+
+/* The palette is the editor's toolbox */
+.wb-bpmn .djs-palette {
+  top: 12px;
+  left: 12px;
+  overflow: hidden;
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-lg);
+  background: var(--tp-canvas);
+  box-shadow: var(--tp-shadow-elevation-2);
+}
+
+.wb-bpmn .djs-palette .djs-palette-entries { padding: 4px; }
+.wb-bpmn .djs-palette .separator { margin: 4px 6px; border-bottom: 1px solid var(--tp-hairline-soft); }
+.wb-bpmn .djs-palette .entry { border-radius: var(--tp-radius-md); color: var(--tp-slate); }
+.wb-bpmn .djs-palette .entry:hover { background: var(--tp-surface-cream); color: var(--tp-primary-deep); }
+.wb-bpmn .djs-palette .highlighted-entry { background: var(--tp-cream-deeper); color: var(--tp-primary-deep); }
+.wb-bpmn .djs-palette-toggle { background: var(--tp-surface); color: var(--tp-steel); }
+
+/* The pad that appears next to a selected shape, and the menus it opens */
+.wb-bpmn .djs-context-pad .entry {
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-md);
+  background: var(--tp-canvas);
+  color: var(--tp-slate);
+  box-shadow: var(--tp-shadow-elevation-1);
+}
+
+.wb-bpmn .djs-context-pad .entry:hover { border-color: var(--tp-primary); background: var(--tp-surface-cream); color: var(--tp-primary-deep); }
+
+.wb-bpmn .djs-popup, .wb-bpmn .djs-popup-body { font-family: var(--font-body); }
+
+.wb-bpmn .djs-popup {
+  border: 1px solid var(--tp-hairline);
+  border-radius: var(--tp-radius-lg);
+  background: var(--tp-canvas);
+  box-shadow: var(--tp-shadow-elevation-3);
+}
+
+.wb-bpmn .djs-popup .entry:hover, .wb-bpmn .djs-popup .entry.active { background: var(--tp-surface-cream); color: var(--tp-primary-deep); }
+.wb-bpmn .djs-direct-editing-content { border-radius: var(--tp-radius-sm); font-family: var(--font-body); }
+.wb-bpmn .djs-search-container { border-radius: var(--tp-radius-md); background: var(--tp-canvas); }
+
+/* The bpmn.io watermark is part of the library's licence and stays visible; it only gets quieter */
+.wb-bpmn .bjs-powered-by { opacity: 0.7; }
+
+@media (max-width: 720px) {
+  .wb-bpmn-stage .bpmn-modeler { height: 420px; flex-basis: 100%; }
+  .wb-bpmn-panel { border-top: 1px solid var(--tp-hairline-soft); border-left: 0; }
+  .wb-bpmn-hint { display: none; }
+}

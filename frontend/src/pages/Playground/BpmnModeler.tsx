@@ -1,3 +1,5 @@
+// DEAD (S5d): nothing imports this any more. The workflow editor is src/pages/Workbench/BpmnModeler.tsx (same behaviour, drawn with the
+// page's tokens, plus a toolbar and a panel for the selected element). Kept because deleting is not part of this task.
 import { useEffect, useRef } from 'react';
 import Modeler from 'bpmn-js/lib/Modeler';
 import 'bpmn-js/dist/assets/diagram-js.css';

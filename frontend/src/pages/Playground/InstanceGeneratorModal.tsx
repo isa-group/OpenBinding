@@ -1,3 +1,6 @@
+// DEAD (S5d): nothing renders this dialog any more. Generating and converting happen in the Generator lab (`gen-lab`, /app/generator,
+// src/pages/Generator/**), which hands the package to the workbench of a project ("Open in Workbench"). Kept, with its test, because deleting
+// is not part of this task.
 import { useState } from 'react';
 import {
   FileCode,

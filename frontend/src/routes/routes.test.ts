@@ -150,6 +150,14 @@ describe('route registry', () => {
     expect(routeDefinitions.find((definition) => definition.id === 'coll-detail')?.paramAliases).toBeUndefined();
   });
 
+  it('has rebuilt the workbench and the generator lab, which closes domain 4', () => {
+    const rebuilt = ['wb-workbench', 'gen-lab'];
+    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
+    expect(routeDefinitions.find((definition) => definition.id === 'wb-workbench')?.path).toBe('/app/:org/:project/workbench');
+    expect(routeDefinitions.find((definition) => definition.id === 'gen-lab')?.path).toBe('/app/generator');
+    expect(routesByDomain.D4.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
+  });
+
   // The closing task of the redesign turns this on (VITE_ROUTES_REQUIRE_LIVE=1 pnpm test).
   it.skipIf(!import.meta.env.VITE_ROUTES_REQUIRE_LIVE)('has no pending screen left', () => {
     expect(routeDefinitions.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);

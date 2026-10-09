@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { live, pending } from './define';
+import { live } from './define';
 import type { RouteDefinition } from './types';
 
 // D4 · Authoring, cases & library (18 screens)
@@ -20,7 +20,8 @@ const LibArtifact = lazy(() => import('../pages/Library/LibArtifact').then((modu
 const LibDraft = lazy(() => import('../pages/Library/LibDraft').then((module) => ({ default: module.LibDraft })));
 const LibVersion = lazy(() => import('../pages/Library/LibVersion').then((module) => ({ default: module.LibVersion })));
 const ProjLibrary = lazy(() => import('../pages/Library/ProjLibrary').then((module) => ({ default: module.ProjLibrary })));
-const Playground = lazy(() => import('../pages/Playground/Playground').then((module) => ({ default: module.Playground })));
+const Workbench = lazy(() => import('../pages/Workbench/Workbench').then((module) => ({ default: module.Workbench })));
+const GeneratorLab = lazy(() => import('../pages/Generator/GeneratorLab').then((module) => ({ default: module.GeneratorLab })));
 
 export const d4Routes: RouteDefinition[] = [
   live('case-list', '/app/:org/:project/cases', <CaseList />),
@@ -28,7 +29,7 @@ export const d4Routes: RouteDefinition[] = [
   live('case-composer', '/app/:org/:project/cases/:case/compose', <CaseComposer />),
   live('case-revision', '/app/:org/:project/cases/:case/revisions/:revision', <CaseRevision />),
   live('case-compare', '/app/:org/:project/cases/:case/compare', <CaseCompare />),
-  live('wb-workbench', '/app/:org/:project/workbench', <Playground />),
+  live('wb-workbench', '/app/:org/:project/workbench', <Workbench />),
   live('snap-detail', '/app/:org/:project/snapshots/:snapshot', <SnapshotDetail />),
   live('lib-list', '/app/:org/library', <LibList />),
   live('lib-artifact', '/app/:org/library/:artifact', <LibArtifact />),
@@ -40,5 +41,5 @@ export const d4Routes: RouteDefinition[] = [
   live('proj-resource-detail', '/app/:org/:project/resources/:resource', <ProjResourceDetail />),
   live('coll-list', '/app/:org/:project/collections', <CollList />),
   live('coll-detail', '/app/:org/:project/collections/:collection', <CollDetail />),
-  pending('gen-lab', '/app/generator'),
+  live('gen-lab', '/app/generator', <GeneratorLab />),
 ];
