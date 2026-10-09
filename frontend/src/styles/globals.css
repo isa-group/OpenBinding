@@ -208,6 +208,9 @@ body {
 }
 
 #root { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* The redesigned public screens sit on white, as in the prototype. */
+.app-container:has(> .main-content > :is(.home-page, .explore-page, .resolve-page, .status-page, .about-page)) { background: var(--tp-canvas); }
 ::selection { color: var(--color-text-primary); background: var(--color-accent-subtle); }
 
 h1, h2, h3, h4, h5, h6 {
@@ -418,28 +421,10 @@ table { font-variant-numeric: tabular-nums; }
   animation-delay: 170ms;
 }
 
-.home-hero-copy > * {
-  animation: editorial-enter var(--duration-reveal) var(--ease-spring-out) both;
-}
-
-.home-hero-copy > :nth-child(2) { animation-delay: 60ms; }
-.home-hero-copy > :nth-child(3) { animation-delay: 110ms; }
-.home-hero-copy > :nth-child(4) { animation-delay: 160ms; }
-.home-hero-copy > :nth-child(5) { animation-delay: 210ms; }
-
-.pipeline-field {
-  animation: field-enter 640ms var(--ease-spring-out) 90ms both;
-  transform-origin: right center;
-}
-
 /* During SPA navigation the root snapshot owns the choreography. */
 html:active-view-transition :where(.page-intro, .page-header, .pricing-hero, .playground-header) > *,
-html:active-view-transition .home-hero-copy > *,
-html:active-view-transition .pipeline-field,
 html:active-view-transition .auth-card,
 html:active-view-transition :where(
-  .pipeline-detail,
-  .workflow-route,
   .role-detail,
   .dialect-detail,
   .mode-contract,
@@ -464,7 +449,6 @@ html:active-view-transition :where(
 /* Narrative sections reveal as they enter the reading viewport. */
 @supports (animation-timeline: view()) {
   :where(
-    .home-page > section:not(.home-hero),
     .profiles-page > section,
     .examples-page > section:not(.lesson-catalog),
     .engines-page > section,
@@ -501,10 +485,7 @@ html:active-view-transition :where(
     animation-name: none !important;
   }
   :where(.page-intro, .page-header, .pricing-hero, .playground-header) > *,
-  .home-hero-copy > *,
-  .pipeline-field,
   :where(
-    .home-page > section:not(.home-hero),
     .profiles-page > section,
     .examples-page > section:not(.lesson-catalog),
     .engines-page > section,

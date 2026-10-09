@@ -1,0 +1,18 @@
+.ui-skeleton {
+  border-radius: var(--tp-radius-xl);
+  background: var(--tp-hairline-soft);
+  animation: ui-pulse 1.4s ease-in-out infinite;
+}
+
+.ui-skeleton-card { height: 148px; }
+.ui-skeleton-panel { height: 220px; }
+.ui-skeleton-tile { height: 64px; border-radius: var(--tp-radius-lg); }
+
+@keyframes ui-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-skeleton { animation: none; }
+}

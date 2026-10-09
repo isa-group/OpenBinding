@@ -15,7 +15,10 @@ import type { RouteDefinition } from './types';
 
 // D1 · Core, public & authentication (18 screens)
 
-const ExplorePage = lazy(() => import('../pages/Public/PublicPages').then((module) => ({ default: module.ExplorePage })));
+const ExplorePage = lazy(() => import('../pages/Public/Explore').then((module) => ({ default: module.ExplorePage })));
+const Resolve = lazy(() => import('../pages/Resolve/Resolve').then((module) => ({ default: module.Resolve })));
+const About = lazy(() => import('../pages/About/About').then((module) => ({ default: module.About })));
+const Status = lazy(() => import('../pages/Status/Status').then((module) => ({ default: module.Status })));
 const WorkbenchPage = lazy(() => import('../pages/Public/PublicPages').then((module) => ({ default: module.WorkbenchPage })));
 // The schema reference does not read :kind yet, so every kind opens on its default selection.
 const Schemas = lazy(() => import('../pages/Schemas/Schemas').then((module) => ({ default: module.Schemas })));
@@ -23,15 +26,15 @@ const Schemas = lazy(() => import('../pages/Schemas/Schemas').then((module) => (
 export const d1Routes: RouteDefinition[] = [
   live('pub-home', '/', <Home />),
   live('pub-explore', '/explore', <ExplorePage />),
-  pending('pub-resolve', '/resolve/:kind/:digest'),
+  live('pub-resolve', '/resolve/:kind/:digest', <Resolve />),
   live('eng-catalog', '/engines', <Engines />),
   pending('eng-detail', '/engines/:namespace/:name/:version'),
   live('lang-profiles', '/language', <Profiles />),
   live('lang-schemas', '/language/schemas/:kind', <Schemas />),
   live('lang-examples', '/examples', <Examples />),
   live('pub-workbench', '/workbench', <WorkbenchPage />),
-  pending('pub-about', '/about'),
-  pending('pub-status', '/status'),
+  live('pub-about', '/about', <About />),
+  live('pub-status', '/status', <Status />),
   live('auth-login', '/login', <Login />),
   live('auth-register', '/register', <Register />),
   live('auth-reset-request', '/password-reset', <PasswordResetRequestPage />),

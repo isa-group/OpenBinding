@@ -1,0 +1,40 @@
+.ui-copy-field {
+  position: relative;
+  display: flex;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--tp-input-border);
+  border-radius: var(--tp-radius-md);
+  background: var(--tp-canvas);
+}
+
+.ui-copy-field code {
+  flex: 1;
+  min-width: 0;
+  padding: var(--tp-spacing-xs) 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.ui-copy-field code.is-truncated { overflow: hidden; overflow-wrap: normal; text-overflow: ellipsis; white-space: nowrap; }
+
+.ui-copy-field button {
+  flex: none;
+  width: 4.5rem;
+  border: 0;
+  background: var(--tp-primary);
+  color: var(--tp-on-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.ui-copy-field button:hover { background: var(--tp-primary-deep); }
+.ui-copy-field button.is-copied { background: var(--color-success); }
+.ui-copy-field button.is-failed { background: var(--color-error); }
+.ui-copy-field button:focus-visible { outline-offset: -3px; outline-color: var(--tp-on-primary); }

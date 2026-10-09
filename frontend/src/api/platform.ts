@@ -532,7 +532,7 @@ export const platformApi = {
     organization: { slug: string; name: string };
     project: { slug: string; name: string; description: string };
   }>>('/v1/explore/projects'),
-  publicPublications: () => apiClient.request<Array<Record<string, unknown>>>('/v1/explore/publications'),
+  publicPublications: () => apiClient.request<PublicPublication[]>('/v1/explore/publications'),
   pricingControlRoom: () => apiClient.request<PricingControlRoom>('/v1/admin/pricing/control-room'),
   validatePricing: (yaml: string) => apiClient.request<{
     valid: boolean; version: string | null; digest: string | null; plans: string[];
@@ -598,7 +598,24 @@ export const platformApi = {
     ),
   resolveContentUrl: (kind: string, digest: string) =>
     `/v1/resolve/${encodeURIComponent(kind)}/${encodeURIComponent(digest)}/content`,
+  /** The raw bytes of a resolved element, fetched with the caller's session so private content stays private. */
+  resolveContent: (kind: string, digest: string) =>
+    apiClient.requestBinary(`/v1/resolve/${encodeURIComponent(kind)}/${encodeURIComponent(digest)}/content`),
 };
+
+/**
+ * One row of GET /v1/explore/publications. Only public, non-withdrawn publications are listed; the
+ * organization and project are slugs, and `citation` is whatever the publisher recorded, so every field is optional.
+ */
+export interface PublicPublication {
+  slug?: string;
+  citation?: Record<string, unknown> | null;
+  report?: { title?: string; digest?: string; version_id?: string } | null;
+  project?: string;
+  organization?: string;
+  publishedAt?: string | null;
+  [key: string]: unknown;
+}
 
 export interface ResolveOrganizationRef {
   id: string;
