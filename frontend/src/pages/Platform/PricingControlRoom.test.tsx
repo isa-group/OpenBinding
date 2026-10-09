@@ -20,10 +20,6 @@ vi.mock('../../api/platform', () => ({
   },
 }));
 
-vi.mock('../../contexts/theme', () => ({
-  useTheme: () => ({ theme: 'light', toggleTheme: vi.fn() }),
-}));
-
 describe('PricingControlRoomPage external SPACE integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();

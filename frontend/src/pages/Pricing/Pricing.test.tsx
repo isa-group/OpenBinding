@@ -26,10 +26,6 @@ vi.mock('../../contexts/auth', () => ({
   useAuth: () => auth,
 }));
 
-vi.mock('../../contexts/theme', () => ({
-  useTheme: () => ({ theme: 'light', toggleTheme: vi.fn() }),
-}));
-
 function makeToken(features: Record<string, { eval: boolean }>): string {
   const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const payload = btoa(

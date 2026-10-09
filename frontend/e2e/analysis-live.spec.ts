@@ -58,7 +58,7 @@ test('decision, budgets, Pareto, preferences, evidence and recorded reports', as
   await liveExpect(page.getByText('Unexplored space: unknown')).toBeVisible();
   await page.screenshot({ path: '/tmp/openbinding-decision-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'dark' });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await expect(inspector.getByText('What contributes to this choice?')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   await page.getByRole('button', { name: 'Budgets', exact: true }).focus();

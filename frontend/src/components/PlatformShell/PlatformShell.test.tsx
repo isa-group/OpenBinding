@@ -3,7 +3,6 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { AuthContext } from '../../contexts/auth';
-import { ThemeContext } from '../../contexts/theme';
 import { PlatformShell } from './PlatformShell';
 import { platformApi } from '../../api/platform';
 
@@ -32,21 +31,19 @@ const adminUser: UserProfile = {
 function renderShell(currentUser: UserProfile, initialPath = '/app') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
-      <ThemeContext.Provider value={{ theme: 'light', setTheme: vi.fn(), toggleTheme: vi.fn() }}>
-        <AuthContext.Provider
-          value={{
-            user: currentUser,
-            loading: false,
-            signIn: vi.fn(),
-            register: vi.fn(),
-            signOut: vi.fn(),
-            refresh: vi.fn(),
-            isAdmin: currentUser.role === 'admin',
-          }}
-        >
-          <PlatformShell />
-        </AuthContext.Provider>
-      </ThemeContext.Provider>
+      <AuthContext.Provider
+        value={{
+          user: currentUser,
+          loading: false,
+          signIn: vi.fn(),
+          register: vi.fn(),
+          signOut: vi.fn(),
+          refresh: vi.fn(),
+          isAdmin: currentUser.role === 'admin',
+        }}
+      >
+        <PlatformShell />
+      </AuthContext.Provider>
     </MemoryRouter>,
   );
 }
@@ -96,6 +93,14 @@ describe('PlatformShell System Navigation', () => {
       .find((link) => link.closest('.account-menu') !== null);
     expect(dropdownAccountLink).toBeInTheDocument();
     expect(dropdownAccountLink).toHaveAttribute('href', '/app/account');
+  });
+
+  it('offers no theme switch in the account menu', async () => {
+    renderShell(user);
+
+    const menu = document.querySelector('.account-menu') as HTMLElement;
+    expect(menu.textContent).not.toMatch(/theme|dark|light/i);
+    expect(document.documentElement).not.toHaveAttribute('data-theme');
   });
 
   it('renders zero-state workspace buttons when organizations or projects are empty', async () => {

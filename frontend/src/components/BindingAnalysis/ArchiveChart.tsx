@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { formatNumber as fmt, shortId, type ArchiveResponse, type ArchiveQuery, type Point } from '../../analysis/archive';
-import { useTheme } from '../../contexts/theme';
 import { clipPolygon } from '../../analysis/constraints';
 
 const LEFT = 65, TOP = 30, WIDTH = 575, HEIGHT = 370;
@@ -8,7 +7,6 @@ const LEFT = 65, TOP = 30, WIDTH = 575, HEIGHT = 370;
 export function ArchiveChart({ data, query, select, change }: {
   data: ArchiveResponse; query: ArchiveQuery; select: (id: string) => void; change: (value: Partial<ArchiveQuery>) => void;
 }) {
-  const { theme } = useTheme();
   const canvas = useRef<HTMLCanvasElement>(null), svg = useRef<SVGSVGElement>(null);
   const hatch = useId().replaceAll(':', ''), clipId = `${hatch}-clip`;
   const [drag, setDrag] = useState<Point | null>(null);
@@ -46,7 +44,7 @@ export function ArchiveChart({ data, query, select, change }: {
         WIDTH / resolution + .3, HEIGHT / resolution + .3);
     }
     context.globalAlpha = 1;
-  }, [data.plot, budgets, power, theme]);
+  }, [data.plot, budgets, power]);
   function location(event: React.PointerEvent<SVGSVGElement> | React.MouseEvent<SVGSVGElement>): Point {
     const rect = svg.current!.getBoundingClientRect();
     return [bounds[0] + ((event.clientX - rect.left) / rect.width * 700 - LEFT) / WIDTH * (bounds[2] - bounds[0]),

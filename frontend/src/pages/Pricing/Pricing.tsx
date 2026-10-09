@@ -7,7 +7,6 @@ import type { Pricing as PricingModel } from 'pricing4ts';
 import 'pricing-renderer/styles.css';
 import { apiClient } from '../../api/client';
 import { useAuth } from '../../contexts/auth';
-import { useTheme } from '../../contexts/theme';
 import { Alert } from '../../components/ui/Alert';
 import './Pricing.css';
 
@@ -25,7 +24,6 @@ import './Pricing.css';
  */
 export function Pricing() {
   const { user } = useAuth();
-  const { theme } = useTheme();
   const navigate = useNavigate();
   const [yaml, setYaml] = useState<string | null>(null);
   const [pricing, setPricing] = useState<PricingModel | null>(null);
@@ -84,7 +82,7 @@ export function Pricing() {
           {yaml ? (
             <PricingRenderer
               yaml={yaml}
-              theme={theme}
+              theme="light"
               pricingPath="/pricing"
               onAction={(event: CustomEvent) => {
                 // Nothing to check out. Whoever is interested either needs an

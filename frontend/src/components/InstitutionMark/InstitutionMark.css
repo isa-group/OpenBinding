@@ -1,0 +1,17 @@
+.institution-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  text-decoration: none;
+}
+
+.institution-mark img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.institution-mark--compact img { height: 1.75rem; }
+.institution-mark--wide img { height: 2.75rem; max-width: 12rem; }

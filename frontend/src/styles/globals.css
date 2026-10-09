@@ -1,49 +1,151 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+/*
+ * Visual foundation: light theme only, taken from docs/design-handoff tokens.json.
+ *
+ * --tp-*        exact design tokens (tokens.json name without the "color-" prefix:
+ *               color-tp-primary -> --tp-primary; spacing-md -> --tp-spacing-md;
+ *               radius-lg -> --tp-radius-lg; shadow-elevation-2 -> --tp-shadow-elevation-2).
+ * --color-*     legacy names kept so existing page styles recolour without edits:
+ *   bg-primary -> tp-surface        bg-secondary -> tp-cream      bg-tertiary -> tp-hairline-soft
+ *   bg-elevated / surface-strong -> tp-canvas
+ *   ink / text-primary -> tp-ink    text-secondary -> tp-slate    text-tertiary -> tp-steel
+ *   border -> tp-hairline           border-hover -> tp-stone      rule-strong -> tp-hairline-strong
+ *   accent -> tp-primary            accent-hover / accent-ink -> tp-primary-deep
+ *   accent-subtle -> tp-cream-deeper
+ *   dialect -> tp-primary-deep      core -> tp-slate
+ *   success / warning / error / info (+ -bg): tp-severity-* backgrounds; the foreground
+ *   variables use a deeper shade of the same hue so text reaches 4.5:1 (the raw token
+ *   colours are 2.2-3.8:1 on white and are exposed as --tp-severity-* for icons and fills).
+ *   --shadow-sm/md/lg/xl -> elevation 1/2/3/4; --radius-* -> radius scale (sm 6, md 8, lg 12, xl 16).
+ */
 :root {
   color-scheme: light;
 
-  /* A technical field guide: paper, ink, one binding seam and one dialect signal. */
-  --color-bg-primary: #f3f2ec;
-  --color-bg-secondary: #eaeae3;
-  --color-bg-tertiary: #dedfd8;
-  --color-bg-elevated: #fbfaf6;
-  --color-surface-strong: #ffffff;
-  --color-ink: #17211d;
+  /* Design tokens */
+  --tp-primary: #0077b6;
+  --tp-primary-deep: #023e8a;
+  --tp-on-primary: #ffffff;
+  --tp-sunshine-300: #ade8f4;
+  --tp-sunshine-500: #48cae4;
+  --tp-sunshine-700: #00b4d8;
+  --tp-sunshine-800: #0096c7;
+  --tp-sunshine-900: #0090c8;
+  --tp-yellow-saturated: #90e0ef;
+  --tp-cream: #f1f8fc;
+  --tp-cream-light: #f5fbfd;
+  --tp-cream-deeper: #caf0f8;
+  --tp-beige-deep: #a9d6ea;
+  --tp-block-5: #ade8f4;
+  --tp-block-6: #90e0ef;
+  --tp-block-7: #0096c7;
+  --tp-ink: #1f1f1f;
+  --tp-ink-tint: #3d3d3d;
+  --tp-charcoal: #2c2c2c;
+  --tp-slate: #4a4a4a;
+  --tp-steel: #6a6a6a;
+  --tp-stone: #8a8a8a;
+  --tp-muted: #a8a8a8;
+  --tp-hairline: #b8b8b8;
+  --tp-hairline-soft: #ededed;
+  --tp-hairline-strong: #a8a8a8;
+  --tp-canvas: #ffffff;
+  --tp-surface: #fafafa;
+  --tp-surface-cream: #f1f8fc;
+  --tp-surface-cream-soft: #f5fbfd;
+  --tp-surface-code: #1c1c1e;
+  --tp-on-dark: #ffffff;
+  --tp-on-dark-muted: #a8a8a8;
+  --tp-on-cream: #1f1f1f;
+  --tp-footer-cream: #f1f8fc;
+  --tp-input-bg: #ffffff;
+  --tp-input-border: #c7c7c7;
+  --tp-link: #0077b6;
+  --tp-severity-error: #ef4444;
+  --tp-severity-error-bg: #fef2f2;
+  --tp-severity-error-border: #fca5a5;
+  --tp-severity-warning: #f59e0b;
+  --tp-severity-warning-bg: #fffbeb;
+  --tp-severity-warning-border: #fcd34d;
+  --tp-severity-info: #3b82f6;
+  --tp-severity-info-bg: #eff6ff;
+  --tp-severity-info-border: #93c5fd;
+  --tp-severity-success: #22c55e;
+  --tp-severity-success-bg: #f0fdf4;
+  --tp-severity-success-border: #86efac;
+
+  --tp-spacing-xxs: 4px;
+  --tp-spacing-xs: 8px;
+  --tp-spacing-sm: 12px;
+  --tp-spacing-md: 16px;
+  --tp-spacing-lg: 20px;
+  --tp-spacing-xl: 24px;
+  --tp-spacing-xxl: 32px;
+  --tp-spacing-xxxl: 40px;
+  --tp-spacing-section-sm: 48px;
+  --tp-spacing-section: 64px;
+  --tp-spacing-section-lg: 96px;
+  --tp-spacing-hero: 120px;
+
+  --tp-radius-xs: 4px;
+  --tp-radius-sm: 6px;
+  --tp-radius-md: 8px;
+  --tp-radius-lg: 12px;
+  --tp-radius-xl: 16px;
+  --tp-radius-xxl: 20px;
+  --tp-radius-full: 9999px;
+
+  --tp-shadow-elevation-0: none;
+  --tp-shadow-elevation-1: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --tp-shadow-elevation-2: 0 4px 12px 0 rgba(0, 0, 0, 0.04);
+  --tp-shadow-elevation-3: 0 12px 24px -4px rgba(0, 0, 0, 0.08);
+  --tp-shadow-elevation-4: 0 16px 48px -8px rgba(0, 0, 0, 0.12);
+
+  /* Application palette (legacy names, new values) */
+  --color-bg-primary: var(--tp-surface);
+  --color-bg-secondary: var(--tp-cream);
+  --color-bg-tertiary: var(--tp-hairline-soft);
+  --color-bg-elevated: var(--tp-canvas);
+  --color-surface-strong: var(--tp-canvas);
+  --color-ink: var(--tp-ink);
   --color-text-primary: var(--color-ink);
-  --color-text-secondary: #52605a;
-  --color-text-tertiary: #77827c;
-  --color-border: #c9cdc6;
-  --color-border-hover: #9da69f;
-  --color-rule-strong: #7d8981;
-  --color-accent: #d75b35;
-  --color-accent-hover: #b94120;
-  --color-accent-subtle: #f5ded5;
-  --color-accent-ink: #65200f;
-  --color-dialect: #0e7b75;
-  --color-dialect-hover: #075e5a;
-  --color-dialect-subtle: #d8ebe7;
-  --color-core: #315b65;
-  --color-core-subtle: #dce8e9;
-  --color-success: #2a7853;
-  --color-success-bg: #dcebe2;
-  --color-success-text: #174d34;
-  --color-warning: #b77517;
-  --color-warning-bg: #f5e8c9;
-  --color-warning-text: #684108;
-  --color-error: #b93f36;
-  --color-error-bg: #f4dedb;
-  --color-error-text: #74251f;
-  --color-info: #356a79;
-  --color-info-bg: #dce9ed;
-  --color-info-text: #214a56;
-  --shadow-sm: 0 1px 0 rgb(23 33 29 / 0.08);
-  --shadow-md: 0 12px 28px rgb(23 33 29 / 0.08);
-  --shadow-lg: 0 24px 56px rgb(23 33 29 / 0.12);
-  --shadow-xl: 0 36px 80px rgb(23 33 29 / 0.14);
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --radius-lg: 8px;
-  --radius-xl: 14px;
-  --radius-full: 999px;
+  --color-text-secondary: var(--tp-slate);
+  --color-text-tertiary: var(--tp-steel);
+  --color-border: var(--tp-hairline);
+  --color-border-hover: var(--tp-stone);
+  --color-rule-strong: var(--tp-hairline-strong);
+  --color-accent: var(--tp-primary);
+  --color-accent-hover: var(--tp-primary-deep);
+  --color-accent-subtle: var(--tp-cream-deeper);
+  --color-accent-ink: var(--tp-primary-deep);
+  --color-dialect: var(--tp-primary-deep);
+  --color-dialect-hover: var(--tp-primary);
+  --color-dialect-subtle: var(--tp-cream-deeper);
+  --color-core: var(--tp-slate);
+  --color-core-subtle: var(--tp-hairline-soft);
+  --color-success: #15803d;
+  --color-success-bg: var(--tp-severity-success-bg);
+  --color-success-text: #14532d;
+  --color-warning: #b45309;
+  --color-warning-bg: var(--tp-severity-warning-bg);
+  --color-warning-text: #78350f;
+  --color-error: #b91c1c;
+  --color-error-bg: var(--tp-severity-error-bg);
+  --color-error-text: #7f1d1d;
+  --color-info: #1d4ed8;
+  --color-info-bg: var(--tp-severity-info-bg);
+  --color-info-text: #1e3a8a;
+  --shadow-sm: var(--tp-shadow-elevation-1);
+  --shadow-md: var(--tp-shadow-elevation-2);
+  --shadow-lg: var(--tp-shadow-elevation-3);
+  --shadow-xl: var(--tp-shadow-elevation-4);
+  --radius-sm: var(--tp-radius-sm);
+  --radius-md: var(--tp-radius-md);
+  --radius-lg: var(--tp-radius-lg);
+  --radius-xl: var(--tp-radius-xl);
+  --radius-full: var(--tp-radius-full);
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -56,10 +158,17 @@
   --space-16: 4rem;
   --space-20: 5rem;
   --space-24: 6rem;
-  --font-body: "Avenir Next", Avenir, "Segoe UI Variable", "Segoe UI", sans-serif;
-  --font-display: "Avenir Next Condensed", "Arial Narrow", "Roboto Condensed", var(--font-body);
+
+  /* Type: PP Editorial Old is declared only; with no font file the browser falls back to Georgia. */
+  --font-display: 'PP Editorial Old', 'Times New Roman', Georgia, serif;
+  --font-body: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-body);
   --font-family: var(--font-body);
-  --font-mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  --tp-font-display: var(--font-display);
+  --tp-font-body: var(--font-body);
+  --tp-font-mono: var(--font-mono);
+
   --duration-micro: 80ms;
   --duration-quick: 150ms;
   --duration-fast: 220ms;
@@ -80,46 +189,6 @@
   --tabs-ease: var(--ease-smooth-out);
 }
 
-[data-theme="dark"] {
-  color-scheme: dark;
-  --color-bg-primary: #111713;
-  --color-bg-secondary: #18201b;
-  --color-bg-tertiary: #243029;
-  --color-bg-elevated: #161e19;
-  --color-surface-strong: #1b2520;
-  --color-ink: #edf0e9;
-  --color-text-secondary: #b5beb7;
-  --color-text-tertiary: #89958d;
-  --color-border: #35423a;
-  --color-border-hover: #58675e;
-  --color-rule-strong: #76847a;
-  --color-accent: #ec7852;
-  --color-accent-hover: #ff9671;
-  --color-accent-subtle: #49281e;
-  --color-accent-ink: #ffd7c9;
-  --color-dialect: #55bcb3;
-  --color-dialect-hover: #7dd7d0;
-  --color-dialect-subtle: #173b38;
-  --color-core: #82b2bb;
-  --color-core-subtle: #20383d;
-  --color-success: #64b78b;
-  --color-success-bg: #173829;
-  --color-success-text: #a9dfbf;
-  --color-warning: #d8a34e;
-  --color-warning-bg: #422f13;
-  --color-warning-text: #f2d18d;
-  --color-error: #e27569;
-  --color-error-bg: #43231f;
-  --color-error-text: #f2b4ad;
-  --color-info: #6da7b7;
-  --color-info-bg: #1c343c;
-  --color-info-text: #b0d4df;
-  --shadow-sm: 0 1px 0 rgb(0 0 0 / 0.35);
-  --shadow-md: 0 14px 34px rgb(0 0 0 / 0.28);
-  --shadow-lg: 0 26px 60px rgb(0 0 0 / 0.36);
-  --shadow-xl: 0 40px 90px rgb(0 0 0 / 0.42);
-}
-
 @layer reset {
   *, *::before, *::after { box-sizing: border-box; }
   * { margin: 0; padding: 0; }
@@ -136,18 +205,6 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color var(--transition-base), color var(--transition-base);
-}
-
-body::before {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  content: "";
-  pointer-events: none;
-  opacity: 0.55;
-  background-image: linear-gradient(to right, transparent calc(100% - 1px), rgb(23 33 29 / 0.035) 1px);
-  background-size: min(8vw, 120px) 100%;
 }
 
 #root { min-height: 100vh; display: flex; flex-direction: column; }
@@ -155,15 +212,21 @@ body::before {
 
 h1, h2, h3, h4, h5, h6 {
   color: var(--color-text-primary);
-  font-family: var(--font-display);
-  font-weight: 650;
-  line-height: 1.05;
+  font-family: var(--font-body);
+  font-weight: 500;
+  line-height: 1.2;
   text-wrap: balance;
 }
 
-h1 { font-size: clamp(2.6rem, 6vw, 5.75rem); letter-spacing: -0.055em; }
-h2 { font-size: clamp(1.85rem, 3vw, 3.15rem); letter-spacing: -0.04em; }
-h3 { font-size: clamp(1.15rem, 1.8vw, 1.55rem); letter-spacing: -0.025em; }
+h1, h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+h1 { font-size: clamp(2.5rem, 6vw, 5.25rem); letter-spacing: -0.02em; line-height: 1.05; }
+h2 { font-size: clamp(1.85rem, 3vw, 3.25rem); letter-spacing: -0.015em; }
+h3 { font-size: clamp(1.15rem, 1.8vw, 1.55rem); letter-spacing: -0.01em; }
 h4 { font-size: 1.05rem; }
 h5, h6 { font-size: 0.95rem; }
 p { color: var(--color-text-secondary); }
@@ -181,9 +244,9 @@ button, summary, select { -webkit-tap-highlight-color: transparent; }
 button, a, summary, select { touch-action: manipulation; }
 
 input, textarea, select {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--tp-input-border);
   border-radius: var(--radius-md);
-  background: var(--color-bg-elevated);
+  background: var(--tp-input-bg);
   color: var(--color-text-primary);
 }
 
@@ -422,7 +485,6 @@ html:active-view-transition :where(
 
 @media (max-width: 760px) {
   .page-intro { grid-template-columns: 1fr; align-items: start; }
-  body::before { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

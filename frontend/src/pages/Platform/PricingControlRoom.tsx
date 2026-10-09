@@ -11,7 +11,6 @@ import 'pricing-renderer/styles.css';
 import { platformApi } from '../../api/platform';
 import type { PricingControlRoom } from '../../api/platform';
 import { config } from '../../config';
-import { useTheme } from '../../contexts/theme';
 import './PricingControlRoom.css';
 
 interface Validation {
@@ -45,7 +44,6 @@ function operationMessage(result: unknown) {
 }
 
 export function PricingControlRoomPage() {
-  const { theme } = useTheme();
   const [room, setRoom] = useState<PricingControlRoom | null>(null);
   const [selected, setSelected] = useState<string>('');
   const [yaml, setYaml] = useState('');
@@ -211,7 +209,7 @@ export function PricingControlRoomPage() {
           </section>
           <section className="pricing-preview">
             <header><div><span>pricing-renderer 0.1.0</span><h3>Customer preview</h3></div><small>{validation?.valid ? 'validated' : 'awaiting validation'}</small></header>
-            <div>{validation?.valid && yaml ? <PricingRenderer yaml={yaml} locale="en-US" pricingPath="/pricing" theme={theme} selectionEnabled={false} ctaEnabled={false} /> : <div className="preview-placeholder"><Play aria-hidden="true" /><strong>Validate to render</strong><p>Preview uses the same renderer exposed on the public pricing page.</p></div>}</div>
+            <div>{validation?.valid && yaml ? <PricingRenderer yaml={yaml} locale="en-US" pricingPath="/pricing" theme="light"selectionEnabled={false} ctaEnabled={false} /> : <div className="preview-placeholder"><Play aria-hidden="true" /><strong>Validate to render</strong><p>Preview uses the same renderer exposed on the public pricing page.</p></div>}</div>
           </section>
         </div>
 

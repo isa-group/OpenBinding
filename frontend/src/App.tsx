@@ -1,6 +1,5 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { SpaceProviderWrapper } from './contexts/SpaceProviderWrapper';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -134,15 +133,13 @@ function AppSurface() {
 
 function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <SpaceProviderWrapper>
-          <BrowserRouter>
-            <AppSurface />
-          </BrowserRouter>
-        </SpaceProviderWrapper>
-      </AuthProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <SpaceProviderWrapper>
+        <BrowserRouter>
+          <AppSurface />
+        </BrowserRouter>
+      </SpaceProviderWrapper>
+    </AuthProvider>
   );
 }
 

@@ -7,7 +7,7 @@ import { Link, matchPath, NavLink, Outlet, useLocation, useNavigate } from 'reac
 import { platformApi } from '../../api/platform';
 import type { Organization, Project } from '../../api/platform';
 import { useAuth } from '../../contexts/auth';
-import { useTheme } from '../../contexts/theme';
+import { InstitutionMark } from '../InstitutionMark';
 import { CommandPalette } from './CommandPalette';
 import { NotificationDropdown } from '../NotificationDropdown/NotificationDropdown';
 import './PlatformShell.css';
@@ -41,7 +41,6 @@ const RESERVED_SLUGS = new Set([
 
 export function PlatformShell() {
   const { user, isAdmin, signOut } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const isExcludedPath = location.pathname.startsWith('/app/admin') || location.pathname.startsWith('/app/account');
@@ -95,8 +94,6 @@ export function PlatformShell() {
     organizations, projects: orgProjects, organization, project, loading, reload: load,
   }), [organizations, orgProjects, organization, project, loading, load]);
 
-  const isResearch = Boolean(user && (user.plan === 'RESEARCH' || user.institutional_branding));
-
   const chooseOrganization = (slug: string) => {
     if (slug === '__new__') {
       navigate('/app', { viewTransition: true });
@@ -121,14 +118,7 @@ export function PlatformShell() {
           <Link to="/" className="platform-brand" viewTransition aria-label="OpenBinding home">
             <span className="brand-symbol" aria-hidden="true"><i /><i /><b /></span>
             <span><strong>Open</strong>Binding</span>
-            {isResearch && (
-              <span
-                className="platform-institution-mark"
-                title="Institutional account · Universidad de Sevilla"
-              >
-                <img src="/brands/us-fama.png" alt="Universidad de Sevilla" />
-              </span>
-            )}
+            <InstitutionMark variant="compact" className="platform-institution-mark" />
           </Link>
         </div>
         <div className="workspace-switchers" aria-label="Current workspace">
@@ -175,7 +165,6 @@ export function PlatformShell() {
             <div>
               <strong>{user?.username}</strong><small>{user?.plan}</small>
               <Link to="/app/account">Account</Link>
-              <button type="button" onClick={toggleTheme}>{theme === 'light' ? 'Dark' : 'Light'} theme</button>
               <button type="button" onClick={() => void signOut()}>Sign out</button>
             </div>
           </details>
@@ -208,12 +197,7 @@ export function PlatformShell() {
           <NavLink to="/app/verifier" end><Fingerprint aria-hidden="true" />Replication studio</NavLink>
           {isAdmin && <NavLink to="/app/admin/pricing"><Settings aria-hidden="true" />Pricing control</NavLink>}
         </nav>
-        {isResearch && (
-          <a className="us-institution" href="https://www.us.es" target="_blank" rel="noreferrer" title="Institutional account · Universidad de Sevilla">
-            <img src="/brands/universidad-sevilla.svg" alt="Universidad de Sevilla" />
-            <small>Institutional account</small>
-          </a>
-        )}
+        <InstitutionMark variant="wide" className="us-institution" />
         <div className="platform-help"><Command aria-hidden="true" /><span><strong>Quick actions</strong><small>Press ⌘ K anywhere</small></span></div>
       </aside>
 
@@ -234,7 +218,7 @@ export function PlatformShell() {
           {organization && <Link to={`/app/${organization.slug}/settings`}>Organization</Link>}
           <Link to="/app/account">Account</Link>
           {isAdmin && <Link to="/app/admin">Administration</Link>}
-          {isResearch && <a className="mobile-us-brand" href="https://www.us.es" target="_blank" rel="noreferrer" title="Institutional account · Universidad de Sevilla"><img src="/brands/universidad-sevilla.svg" alt="Universidad de Sevilla" /></a>}
+          <InstitutionMark variant="wide" className="mobile-us-brand" />
         </nav>
       </details>
 
