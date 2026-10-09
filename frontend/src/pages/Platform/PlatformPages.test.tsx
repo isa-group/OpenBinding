@@ -1,32 +1,21 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Organization, Project, StudyCell, StudyRun } from '../../api/platform';
+import type { Organization, Project, Report } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
-import { StudiesPage } from './PlatformPages';
+import { ProjectRecordsPage } from './PlatformPages';
 
+// The studies (study-*) are tested with their screens in pages/Studies; what stays here is the list of reports.
 const api = vi.hoisted(() => ({
-  cases: vi.fn(),
   studies: vi.fn(),
   reports: vi.fn(),
-  revisions: vi.fn(),
+  publications: vi.fn(),
   studyRuns: vi.fn(),
-  studyCells: vi.fn(),
-  runStudy: vi.fn(),
-  cancelStudyRun: vi.fn(),
-  retryStudyCell: vi.fn(),
-  createStudy: vi.fn(),
 }));
 
-vi.mock('../../api/library', () => ({ libraryApi: { list: vi.fn().mockResolvedValue([]), versions: vi.fn().mockResolvedValue([]) } }));
-const client = vi.hoisted(() => ({ getEngines: vi.fn() }));
 const outlet = vi.hoisted(() => ({ value: null as PlatformOutletContext | null }));
 
 vi.mock('../../api/platform', () => ({ platformApi: api }));
-vi.mock('../../api/client', async () => ({
-  ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
-  apiClient: client,
-}));
 vi.mock('react-router-dom', async () => ({
   ...await vi.importActual<typeof import('react-router-dom')>('react-router-dom'),
   useOutletContext: () => outlet.value,
@@ -43,55 +32,37 @@ const project: Project = {
 };
 const reload = vi.fn();
 
+const draft: Report = {
+  artifact_id: 'artifact-1', version_id: null, draft_id: 'draft-1', draft_revision: 1, id: 'report-1', project_id: project.id, study_run_id: 'run-1',
+  slug: 'engines-report', title: 'Engines report', document: {}, digest: '', state: 'draft', created_at: '2026-09-02T00:00:00Z',
+};
+
 describe('collaborative project pages', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     outlet.value = { organizations: [organization], projects: [project], organization, project, loading: false, reload };
-    api.cases.mockResolvedValue([]);
     api.studies.mockResolvedValue([]);
     api.reports.mockResolvedValue([]);
-    api.revisions.mockResolvedValue([]);
+    api.publications.mockResolvedValue([]);
     api.studyRuns.mockResolvedValue([]);
-    api.studyCells.mockResolvedValue([]);
-    client.getEngines.mockResolvedValue([]);
   });
 
-  it('cancels an active study run and retries only failed cells', async () => {
-    const study = {
-      id: 'study-id', archived: false, definition_artifact_id: 'study-artifact', definition_version_id: 'study-version-1', project_id: project.id, slug: 'engines', name: 'Engine comparison', description: '',
-      definition: { case_revision_ids: ['revision-id'], engines: [{}], parameter_sets: [{}], seeds: [0] },
-      state: 'active', created_by_id: 'user-id', created_at: '2026-09-01T00:00:00Z',
-    };
-    const run: StudyRun = {
-      id: 'run-id', definition_version_id: 'study-version-1', study_id: study.id, run_number: 1, state: 'running', matrix_digest: `sha256-${'b'.repeat(64)}`,
-      cells: 1, summary: {}, created_at: '2026-09-01T00:00:00Z', finished_at: null,
-    };
-    const failedCell: StudyCell = {
-      id: 'cell-id', study_run_id: run.id, ordinal: 0, binding_case_revision_id: 'revision-id',
-      engine_ref: {}, parameters: {}, seed: 0, fingerprint: 'fingerprint', job_id: 'job-id', state: 'failed', metrics: {},
-    };
-    api.studies.mockResolvedValue([study]);
-    api.studyRuns.mockResolvedValue([run]);
-    api.studyCells.mockResolvedValue([failedCell]);
-    api.cancelStudyRun.mockResolvedValue({ ...run, state: 'cancelled' });
-    api.retryStudyCell.mockResolvedValue({ id: failedCell.id, state: 'queued', fingerprint: failedCell.fingerprint });
-    render(<MemoryRouter><StudiesPage /></MemoryRouter>);
+  it('lists the reports of the project with the way to open each one', async () => {
+    api.reports.mockResolvedValue([draft]);
+    render(<MemoryRouter><ProjectRecordsPage kind="reports" /></MemoryRouter>);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Cancel run' }));
-    await waitFor(() => expect(api.cancelStudyRun).toHaveBeenCalledWith('openbinding', 'research', 'engines', 'run-id'));
-
-    fireEvent.click(screen.getByText('1 retryable cell'));
-    fireEvent.click(screen.getByRole('button', { name: /Cell 1/ }));
-    await waitFor(() => expect(api.retryStudyCell).toHaveBeenCalledWith('openbinding', 'research', 'engines', 'run-id', 'cell-id'));
+    expect(await screen.findByRole('link', { name: 'Engines report' })).toHaveAttribute('href', '/app/openbinding/research/reports/engines-report');
+    expect(screen.getByText('Unfrozen draft')).toBeInTheDocument();
+    expect(api.reports).toHaveBeenCalledWith('openbinding', 'research');
   });
 
   it('sends a project page to the new-project screen when the workspace has no project', async () => {
     outlet.value = { organizations: [organization], projects: [], organization, project: undefined, loading: false, reload };
 
-    render(<MemoryRouter><StudiesPage /></MemoryRouter>);
+    render(<MemoryRouter><ProjectRecordsPage kind="reports" /></MemoryRouter>);
 
     expect(await screen.findByRole('heading', { name: 'Create a first project' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'New project' })).toHaveAttribute('href', '/app/openbinding/new-project');
-    expect(api.studies).not.toHaveBeenCalled();
+    expect(api.reports).not.toHaveBeenCalled();
   });
 });

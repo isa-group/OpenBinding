@@ -165,6 +165,24 @@ describe('route registry', () => {
     expect(routesByDomain.D5.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
   });
 
+  it('has rebuilt the study screens with the ids and routes of the prototype', () => {
+    const rebuilt = ['study-list', 'study-builder', 'study-detail', 'study-run', 'study-cell', 'study-analytics'];
+    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
+    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.paramAliases, id).toBeUndefined();
+    expect(routesByDomain.D6.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual(['analysis-workspace', 'proj-publications']);
+  });
+
+  it('reads /studies/new as the builder and any other address below /studies as a study', () => {
+    const config = routeDefinitions.map((definition) => ({ id: definition.id, path: definition.path }));
+    const resolve = (path: string) => matchRoutes(config, path)?.at(-1)?.route.id;
+
+    expect(resolve('/app/acme/atlas/studies/new')).toBe('study-builder');
+    expect(resolve('/app/acme/atlas/studies/engines-vs-seeds')).toBe('study-detail');
+    expect(resolve('/app/acme/atlas/studies/engines-vs-seeds/runs/r1')).toBe('study-run');
+    expect(resolve('/app/acme/atlas/studies/engines-vs-seeds/runs/r1/cells/c1')).toBe('study-cell');
+    expect(resolve('/app/acme/atlas/studies/engines-vs-seeds/runs/r1/analytics')).toBe('study-analytics');
+  });
+
   // The closing task of the redesign turns this on (VITE_ROUTES_REQUIRE_LIVE=1 pnpm test).
   it.skipIf(!import.meta.env.VITE_ROUTES_REQUIRE_LIVE)('has no pending screen left', () => {
     expect(routeDefinitions.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);

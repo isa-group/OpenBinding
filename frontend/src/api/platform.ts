@@ -230,6 +230,23 @@ export interface StudyCell {
   metrics: Record<string, unknown>;
 }
 
+/** What `POST …/cells/{cell}/retry` answers: the cell queued again, and the new job when the gateway named it. */
+export interface StudyCellRetry {
+  id: string;
+  state: RunState;
+  fingerprint: string;
+  jobId?: string;
+  /** The cell had already been retried: nothing new was started. */
+  idempotent?: boolean;
+}
+
+/** What `POST …/cells/{cell}/result` answers once a finished job is attached as the cell's result. */
+export interface StudyCellAttached {
+  id: string;
+  state: RunState;
+  metrics: Record<string, unknown>;
+}
+
 export interface CaseComplexity {
   id: string;
   slug: string;
@@ -541,22 +558,28 @@ export const platformApi = {
     }, undefined, true, true),
   studies: (org: string, project: string, includeArchived = false) =>
     apiClient.request<Study[]>(`${root(org, project)}/studies?include_archived=${includeArchived}`),
+  /**
+   * Needs MEMBER. 402 `quota_exceeded` when the sponsor has no study definition left, 403 `api_key_engine_forbidden`, 409 `slug_conflict`,
+   * 422 for an empty or foreign selection (`empty_study_cases`, `foreign_case_revision`, `unavailable_collection`) or a matrix over 10,000 cells (`study_matrix_too_large`).
+   */
   createStudy: (org: string, project: string, value: Pick<Study, 'slug' | 'name' | 'description'> & ({ definition: Study['definition'] } | { definition_version_id: string })) =>
     apiClient.request<Study>(`${root(org, project)}/studies`, {
       method: 'POST', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
+  /** Needs MEMBER. Changing `definition_version_id` picks another sealed version of the same Study artifact. */
   updateStudy: (org: string, project: string, study: string, value: { name?: string; description?: string; definition_version_id?: string; archived?: boolean }) =>
     apiClient.request<Study>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, {
       method: 'PATCH', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
+  /** Needs ADMIN. 409 `study_history_retained` once the study has runs: archive it instead. */
   deleteStudy: (org: string, project: string, study: string) =>
-    apiClient.request<void>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, { method: 'DELETE' }),
+    apiClient.request<void>(`${root(org, project)}/studies/${encodeURIComponent(study)}`, { method: 'DELETE' }, undefined, true, true),
   reports: (org: string, project: string) =>
     apiClient.request<Report[]>(`${root(org, project)}/reports`),
   createReport: (org: string, project: string, value: { slug: string; title: string; study_run_id: string | null; document: Record<string, unknown> }) =>
     apiClient.request<Report>(`${root(org, project)}/reports`, {
       method: 'POST', body: JSON.stringify(value),
-    }),
+    }, undefined, true, true),
   updateReport: (org: string, project: string, report: string, value: { title?: string; document?: Record<string, unknown>; draft_revision?: number }) =>
     apiClient.request<Report>(`${root(org, project)}/reports/${encodeURIComponent(report)}`, {
       method: 'PATCH', body: JSON.stringify(value),
@@ -622,26 +645,44 @@ export const platformApi = {
     apiClient.request<StudyRun[]>(`${root(org, project)}/studies/${encodeURIComponent(study)}/runs`),
   studyCells: (org: string, project: string, study: string, run: string) =>
     apiClient.request<StudyCell[]>(
-      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${run}/cells`,
+      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells`,
+    ),
+  /** One cell of a run. 404 whether the cell is missing or belongs to another run. */
+  studyCell: (org: string, project: string, study: string, run: string, cell: string) =>
+    apiClient.request<StudyCell>(
+      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}`,
+      {}, undefined, true, true,
     ),
   analytics: (org: string, project: string, study: string, run: string) =>
     apiClient.request<Analytics>(
-      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${run}/analytics`,
+      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/analytics`,
     ),
+  /**
+   * Needs MEMBER. 202 with the new run. 402 `quota_exceeded` (study runs of the month), 429 `concurrency_limit_exceeded`, 403 `feature_not_entitled`
+   * or `api_key_engine_forbidden`, 409 `study_archived` or `evidence_only_study`, 503 `pricing_unavailable`.
+   */
   runStudy: (org: string, project: string, study: string, version: string) =>
     apiClient.request<StudyRun>(
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs?definition_version_id=${encodeURIComponent(version)}`,
-      { method: 'POST' },
+      { method: 'POST' }, undefined, true, true,
     ),
+  /** Needs MEMBER. 409 `sealed_evidence` when a sealed report cites the run, 409 `terminal_run` once it ended. */
   cancelStudyRun: (org: string, project: string, study: string, run: string) =>
     apiClient.request<StudyRun>(
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cancel`,
-      { method: 'POST' },
+      { method: 'POST' }, undefined, true, true,
     ),
+  /** Needs MEMBER. Only failed or cancelled cells: 409 `cell_not_retryable` otherwise, 409 `sealed_evidence`, 422 when the cell can't be launched again. */
   retryStudyCell: (org: string, project: string, study: string, run: string, cell: string) =>
-    apiClient.request<{ id: string; state: RunState; fingerprint: string }>(
+    apiClient.request<StudyCellRetry>(
       `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}/retry`,
-      { method: 'POST' },
+      { method: 'POST' }, undefined, true, true,
+    ),
+  /** Needs MEMBER. Attaches a finished job of the caller as the cell's result: 404 for a job that isn't theirs, 409 `job_not_finished`, 409 `sealed_evidence`. */
+  attachStudyCellResult: (org: string, project: string, study: string, run: string, cell: string, jobId: string) =>
+    apiClient.request<StudyCellAttached>(
+      `${root(org, project)}/studies/${encodeURIComponent(study)}/runs/${encodeURIComponent(run)}/cells/${encodeURIComponent(cell)}/result`,
+      { method: 'POST', body: JSON.stringify({ job_id: jobId }) }, undefined, true, true,
     ),
   publicProjects: () => apiClient.request<Array<{
     organization: { slug: string; name: string };
