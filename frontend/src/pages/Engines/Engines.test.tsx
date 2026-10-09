@@ -8,18 +8,21 @@ import { AuthContext } from '../../contexts/auth';
 import { Engines } from './Engines';
 
 const api = vi.hoisted(() => ({
-  getEngines: vi.fn(),
+  getPublicEngines: vi.fn(),
+  getCatalogEngines: vi.fn(),
   listEngineRegistrations: vi.fn(),
   activateEngineRegistration: vi.fn(),
   deactivateEngineRegistration: vi.fn(),
   requestEngineRegistrationPublication: vi.fn(),
   setEngineRegistrationCredential: vi.fn(),
 }));
+const platform = vi.hoisted(() => ({ engineRevisions: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({
   ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
   apiClient: api,
 }));
+vi.mock('../../api/platform', () => ({ platformApi: platform }));
 
 const admin: UserProfile = {
   id: 'admin-id',
@@ -35,7 +38,7 @@ function registration(name: string, status: EngineRegistrationRevision['status']
   return { namespace, name, version: '1.0.0', digest: `sha256-${name.padEnd(64, 'a').slice(0, 64)}`, status, active };
 }
 
-function mode(id: string): EngineMode {
+function mode(id: string, options: Record<string, Record<string, unknown>> = {}): EngineMode {
   const all = { selector: 'all' as const };
   return {
     id,
@@ -43,31 +46,23 @@ function mode(id: string): EngineMode {
     ir: { apiVersion: 'bim/v1', kind: 'BindingProblem' },
     algorithm: `${id}-algorithm`,
     capabilities: {
-      workflowNodes: all,
-      metricScopes: all,
-      aggregations: all,
-      constraints: all,
-      optimization: all,
-      objectiveTypes: all,
-      expressions: all,
-      placement: all,
-      irExtensions: all,
+      workflowNodes: all, metricScopes: all, aggregations: all, constraints: all, optimization: all, objectiveTypes: all, expressions: all,
+      placement: all, irExtensions: { selector: 'only', values: ['qos-binding-placement/v1'] },
     },
-    optionsSchema: { type: 'object', properties: {}, additionalProperties: false },
+    optionsSchema: { type: 'object', properties: options, additionalProperties: false },
     limits: { tasks: 100 },
     guarantees: { termination: ['FEASIBLE'], exact: false },
   };
 }
 
-function engine(name: string, modes: EngineMode[]): EngineCatalogEntry {
-  const ref = {
-    namespace: 'bim.builtin',
-    name,
-    version: '1.0.0',
-    digest: `sha256-${name.padEnd(64, 'b').slice(0, 64)}`,
-  };
-  return { ...ref, id: `${ref.namespace}/${name}`, ref, modes };
+function engine(namespace: string, name: string, version: string, modes: EngineMode[], seed = 'b'): EngineCatalogEntry {
+  const ref = { namespace, name, version, digest: `sha256-${seed.repeat(64)}` };
+  return { ...ref, id: `${namespace}/${name}`, ref, modes };
 }
+
+const randomSearch = engine('bim.builtin', 'random-search', '1.0.0', [mode('sampling', { time_budget_ms: { type: 'integer', default: 30000, unit: 'ms' }, iterations: { type: 'integer', default: 100000 } })], 'b');
+const evolutionary = engine('bim.builtin', 'evolutionary', '1.0.0', [mode('genetic', { population: { type: 'integer', default: 64 } })], 'c');
+const edge = engine('admin', 'edge-solver', '0.3.1', [mode('sampling')], 'e');
 
 function renderPage(user: UserProfile | null) {
   return render(
@@ -87,11 +82,97 @@ function renderPage(user: UserProfile | null) {
   );
 }
 
-describe('federated deployment management', () => {
+describe('engine catalog for a visitor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.getPublicEngines.mockResolvedValue([randomSearch, evolutionary]);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('lists the public revisions as cards with their modes and exact identity', async () => {
+    renderPage(null);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Engine catalog' })).toBeInTheDocument();
+    const list = await screen.findByRole('region', { name: 'Engines' });
+    expect(within(list).getByText('2 engine revisions')).toBeInTheDocument();
+    const [first] = within(list).getAllByRole('link');
+    expect(first).toHaveAttribute('href', '/engines/bim.builtin/random-search/1.0.0');
+    expect(first).toHaveTextContent('mode · sampling');
+    expect(first).toHaveTextContent('sha256-bbbb…bbbb');
+    expect(first).toHaveTextContent('Public');
+    expect(screen.getByText('Showing public engines. Log in to also see private engines you own.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
+    expect(api.getCatalogEngines).not.toHaveBeenCalled();
+    expect(api.listEngineRegistrations).not.toHaveBeenCalled();
+    expect(screen.queryByRole('heading', { name: 'My deployments' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Register engine' })).not.toBeInTheDocument();
+  });
+
+  it('searches and filters by family', async () => {
+    renderPage(null);
+    const list = await screen.findByRole('region', { name: 'Engines' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Evolutionary' }));
+    expect(within(list).getByText('1 engine revision')).toBeInTheDocument();
+    expect(within(list).queryByText(/random-search/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search engines' }), { target: { value: 'no-match' } });
+    expect(await screen.findByText('No revision matches “no-match”.')).toBeInTheDocument();
+  });
+
+  it('compares two modes side by side, never more than two', async () => {
+    renderPage(null);
+    await screen.findByRole('region', { name: 'Engines' });
+    const table = screen.getByRole('region', { name: 'Capabilities by mode' });
+    expect(within(table).getByRole('row', { name: /random-search · sampling/ })).toHaveTextContent('time_budget_ms (ms, 30,000) · iterations (100,000)');
+    expect(within(table).getByRole('row', { name: /evolutionary · genetic/ })).toHaveTextContent('qos-binding-placement/v1');
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Compare random-search · sampling' }));
+    expect(screen.queryByLabelText('Comparison')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Compare evolutionary · genetic' }));
+    const comparison = screen.getByLabelText('Comparison');
+    expect(within(comparison).getByText('random-search · sampling')).toBeInTheDocument();
+    expect(within(comparison).getByText('evolutionary · genetic')).toBeInTheDocument();
+  });
+
+  it('lists the revisions with visibility and publication, linking each to its detail', async () => {
+    renderPage(null);
+    const table = await screen.findByRole('region', { name: 'Engine revisions' });
+    const row = within(table).getByRole('row', { name: /random-search/ });
+    expect(row).toHaveTextContent('bim.builtin');
+    expect(row).toHaveTextContent('Public');
+    expect(row).toHaveTextContent('Published');
+    expect(within(row).getByRole('link', { name: 'Open random-search 1.0.0' })).toHaveAttribute('href', '/engines/bim.builtin/random-search/1.0.0');
+  });
+
+  it('says so when no engine is visible', async () => {
+    api.getPublicEngines.mockResolvedValue([]);
+    renderPage(null);
+    expect(await screen.findByText('No engines visible to you')).toBeInTheDocument();
+    expect(screen.getByText(/BASIC: 1 engine/)).toBeInTheDocument();
+  });
+
+  it('reports a failed load and recovers on Retry', async () => {
+    api.getPublicEngines.mockRejectedValueOnce(new HttpError(503, 'unavailable'));
+    renderPage(null);
+    expect(await screen.findByText('The catalog couldn’t be loaded (HTTP 503).')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('region', { name: 'Engines' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+describe('engine catalog for a signed-in account', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    api.getEngines.mockResolvedValue([]);
+    api.getCatalogEngines.mockResolvedValue({ engines: [randomSearch, edge], fellBackToPublic: false });
+    api.listEngineRegistrations.mockResolvedValue([]);
+    platform.engineRevisions.mockResolvedValue({ revisions: [] });
     api.activateEngineRegistration.mockImplementation(async (ref: EngineRegistrationRevision) => ({ ...ref, active: true }));
     api.deactivateEngineRegistration.mockImplementation(async (ref: EngineRegistrationRevision) => ({ ...ref, active: false }));
     api.requestEngineRegistrationPublication.mockImplementation(async (ref: EngineRegistrationRevision) => ({ ...ref, status: 'pending_review' }));
@@ -102,12 +183,58 @@ describe('federated deployment management', () => {
     vi.restoreAllMocks();
   });
 
-  it('keeps deployment management out of the anonymous catalogue', async () => {
-    renderPage(null);
+  it('shows the account view with ownership, registration and conformance of a private engine', async () => {
+    api.listEngineRegistrations.mockResolvedValue([registration('edge-solver', 'private', true)].map((item) => ({ ...item, version: '0.3.1' })));
+    platform.engineRevisions.mockResolvedValue({
+      revisions: [
+        { id: '1', namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: randomSearch.digest, state: 'published', createdAt: null, document: {}, registration: null },
+        { id: '2', namespace: 'admin', name: 'edge-solver', version: '0.3.1', digest: edge.digest, state: 'private', createdAt: null, document: {}, registration: { id: 'r', verificationReport: { status: 'verified' } } },
+      ],
+    });
+    renderPage(admin);
 
-    expect(await screen.findByText('No Engine revisions advertised')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'My deployments' })).not.toBeInTheDocument();
-    expect(api.listEngineRegistrations).not.toHaveBeenCalled();
+    const list = await screen.findByRole('region', { name: 'Engines' });
+    expect(screen.getByText(/Showing engines visible to your account: public revisions plus private ones you own\./)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Log in' })).not.toBeInTheDocument();
+    const card = within(list).getByRole('link', { name: /edge-solver/ });
+    for (const chip of ['Private · yours', 'Registration active', 'Conformance passed', 'Publication not requested']) {
+      expect(within(card).getByText(chip)).toBeInTheDocument();
+    }
+    expect(screen.getByRole('link', { name: 'My registrations' })).toHaveAttribute('href', '/app/engines/registrations');
+    expect(screen.getByRole('link', { name: 'Register engine' })).toHaveAttribute('href', '/app/engines/new');
+    const table = screen.getByRole('region', { name: 'Engine revisions' });
+    expect(within(table).getByRole('row', { name: /edge-solver/ })).toHaveTextContent('Private');
+    expect(within(table).getByRole('row', { name: /edge-solver/ })).toHaveTextContent('Not requested');
+  });
+
+  it('says the session expired when the gateway falls back to the public list', async () => {
+    api.getCatalogEngines.mockResolvedValue({ engines: [randomSearch], fellBackToPublic: true });
+    renderPage(admin);
+    expect(await screen.findByText(/Your session expired \(401\), so the catalog fell back to the public view/)).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Log in' }).length).toBeGreaterThan(0);
+  });
+
+  it('explains a 403 and offers the keys page', async () => {
+    api.getCatalogEngines.mockRejectedValue(new HttpError(403, 'forbidden'));
+    renderPage(admin);
+    expect(await screen.findByText('This API key can’t list engines (403 · insufficient_api_key_permission)')).toBeInTheDocument();
+    expect(screen.getByText('engines:read')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Manage API keys' })).toHaveAttribute('href', '/app/account/keys');
+    expect(screen.queryByRole('region', { name: 'Engines' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the last list when a refresh fails with 503', async () => {
+    api.listEngineRegistrations.mockResolvedValue([registration('inactive-deployment', 'private', false)]);
+    renderPage(admin);
+    await screen.findByRole('region', { name: 'Engines' });
+
+    api.getCatalogEngines.mockRejectedValueOnce(new HttpError(503, 'unavailable'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Activate inactive-deployment' }));
+
+    expect(await screen.findByText('The catalog couldn’t refresh (503). You’re seeing the last list loaded.')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Engines' })).toHaveTextContent('edge-solver');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.queryByText(/The catalog couldn’t refresh/)).not.toBeInTheDocument());
   });
 
   it('shows only the signed-in namespace and applies owner lifecycle actions', async () => {
@@ -122,6 +249,7 @@ describe('federated deployment management', () => {
     renderPage(admin);
 
     expect(await screen.findByRole('heading', { name: 'My deployments' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'pending-deployment' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'someone-elses-deployment' })).not.toBeInTheDocument();
 
     const expectedStates = [
@@ -188,35 +316,5 @@ describe('federated deployment management', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Activate legacy-deployment' }));
 
     expect(await screen.findByText(/registration must include the deployment OpenAPI document/)).toBeInTheDocument();
-  });
-
-  it('keeps filtered details in the result set and exposes keyboard-operable mode tabs', async () => {
-    api.getEngines.mockResolvedValue([
-      engine('alpha-engine', [mode('first'), mode('second')]),
-      engine('beta-engine', [mode('only')]),
-    ]);
-    renderPage(null);
-
-    const firstTab = await screen.findByRole('tab', { name: /first/i });
-    const secondTab = screen.getByRole('tab', { name: /second/i });
-    const panel = screen.getByRole('tabpanel');
-    expect(firstTab).toHaveAttribute('tabindex', '0');
-    expect(secondTab).toHaveAttribute('tabindex', '-1');
-    expect(firstTab).toHaveAttribute('aria-controls', panel.id);
-    expect(panel).toHaveAttribute('aria-labelledby', firstTab.id);
-
-    firstTab.focus();
-    fireEvent.keyDown(firstTab, { key: 'ArrowRight' });
-    expect(secondTab).toHaveFocus();
-    expect(secondTab).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', secondTab.id);
-
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search engine revisions' }), { target: { value: 'beta' } });
-    expect(screen.getByRole('heading', { name: 'beta-engine' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'alpha-engine' })).not.toBeInTheDocument();
-
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search engine revisions' }), { target: { value: 'no-match' } });
-    expect(screen.getByText('No revision matches “no-match”.')).toBeInTheDocument();
-    expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
   });
 });

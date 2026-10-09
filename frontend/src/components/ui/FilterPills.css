@@ -1,0 +1,16 @@
+.ui-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.ui-pills button {
+  height: 30px;
+  padding: 0 var(--tp-spacing-sm);
+  border: 1px solid var(--tp-hairline-strong);
+  border-radius: var(--tp-radius-lg);
+  background: var(--tp-canvas);
+  color: var(--tp-slate);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ui-pills button:hover { border-color: var(--tp-stone); }
+.ui-pills button[aria-pressed='true'] { border-color: rgb(0 119 182 / 0.3); background: rgb(0 119 182 / 0.05); color: var(--tp-primary); }

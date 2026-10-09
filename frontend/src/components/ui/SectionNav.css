@@ -1,0 +1,13 @@
+.ui-section-nav { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xxs); font-size: 0.8125rem; }
+
+.ui-section-nav a,
+.ui-section-nav span {
+  padding: 4px 10px;
+  border-radius: var(--tp-radius-full);
+  background: var(--tp-surface);
+  color: var(--tp-slate);
+  text-decoration: none;
+}
+
+.ui-section-nav a:hover { background: var(--tp-cream-deeper); color: var(--tp-ink); }
+.ui-section-nav [aria-current='page'] { background: var(--tp-primary); color: var(--tp-on-primary); }

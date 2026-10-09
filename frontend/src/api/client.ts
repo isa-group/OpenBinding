@@ -244,6 +244,45 @@ export interface EngineRegistrationReport extends EngineRegistrationRevision {
   report: Record<string, unknown> | null;
 }
 
+/** One published, immutable resource listed by GET /v1/resources. */
+export interface RegisteredResource extends BimResourceRef {
+  role: string;
+  apiVersion: string;
+  kind: string;
+  dialect: string;
+  mediaType: string;
+  status: 'published';
+}
+
+/** The engine list, and whether it is the public one because the session could not be used (401). */
+export interface EngineCatalogResult {
+  engines: EngineCatalogEntry[];
+  fellBackToPublic: boolean;
+}
+
+/** 200 from POST /v1/instances/validate: the package compiled and is pinned by these digests. */
+export interface PackageValidation {
+  valid: true;
+  instanceDigest: string;
+  packageDigest: string;
+  fileDigests: Record<string, string>;
+  resourceDigests: Record<string, string>;
+  irDigest: string;
+  diagnostics: Array<Record<string, unknown>>;
+}
+
+/** 422 from the same endpoint: the package was read and found invalid; each diagnostic says where. */
+export interface PackageRefusal {
+  status: number;
+  code: string;
+  message: string;
+  diagnostics: Array<Record<string, unknown>>;
+}
+
+export type PackageValidationOutcome =
+  | { valid: true; result: PackageValidation }
+  | { valid: false; refusal: PackageRefusal };
+
 export const BIM_SCHEMA_KINDS = [
   'Instance',
   'Profile',
@@ -707,6 +746,34 @@ export class ApiClient {
     }
   }
 
+  /**
+   * The engines this caller may see. A rejected session (401) falls back to the public list, as `getEngines` does,
+   * but says so: the catalog screen tells the reader that their private engines are hidden.
+   */
+  async getCatalogEngines(): Promise<EngineCatalogResult> {
+    try {
+      const body = await this.request<{ engines: EngineCatalogEntry[] }>('/v1/engines');
+      return { engines: body.engines || [], fellBackToPublic: false };
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 401) {
+        return { engines: await this.getPublicEngines(), fellBackToPublic: true };
+      }
+      throw error;
+    }
+  }
+
+  /** Published registered resources (GET /v1/resources); public. */
+  async getRegisteredResources(): Promise<RegisteredResource[]> {
+    const body = await this.request<{ resources: RegisteredResource[] }>('/v1/resources');
+    return body.resources || [];
+  }
+
+  /** The exact published bytes of one registered resource, fetched by all four pins. */
+  async getRegisteredResourceContent(ref: BimResourceRef): Promise<ArrayBuffer> {
+    const query = new URLSearchParams({ namespace: ref.namespace, version: ref.version, revision: ref.digest });
+    return this.requestBinary(`/v1/resources/${encodeURIComponent(ref.name)}?${query}`);
+  }
+
   async getProfiles(): Promise<BimProfile[]> {
     const body = await this.request<{ profiles: BimProfile[] }>('/v1/profiles');
     return body.profiles || [];
@@ -727,6 +794,53 @@ export class ApiClient {
       headers: { 'Content-Type': 'application/vnd.bim+zip' },
       body: archive as unknown as BodyInit,
     });
+  }
+
+  /**
+   * Validate a package without an account and without running an engine (POST /v1/instances/validate).
+   *
+   * A package the gateway reads and rejects answers 422 with diagnostics; that is a result, not a failure, so it
+   * comes back as `{ valid: false }`. Too large (413), wrong media type (415) and rate limits (429) throw HttpError.
+   */
+  async validatePackage(archive: Uint8Array, signal?: AbortSignal): Promise<PackageValidationOutcome> {
+    const body = await this.request<Record<string, unknown>>('/v1/instances/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/vnd.bim+zip' },
+      body: archive as unknown as BodyInit,
+      signal,
+    });
+    if (isRecord(body) && body.valid === true) {
+      return {
+        valid: true,
+        result: {
+          valid: true,
+          instanceDigest: String(body.instanceDigest ?? ''),
+          packageDigest: String(body.packageDigest ?? ''),
+          fileDigests: isRecord(body.fileDigests) ? body.fileDigests as Record<string, string> : {},
+          resourceDigests: isRecord(body.resourceDigests) ? body.resourceDigests as Record<string, string> : {},
+          irDigest: String(body.irDigest ?? ''),
+          diagnostics: Array.isArray(body.diagnostics) ? body.diagnostics.filter(isRecord) : [],
+        },
+      };
+    }
+    const detail = isRecord(body) ? body.detail : undefined;
+    const detailRecord = isRecord(detail) ? detail : undefined;
+    const diagnostics = isRecord(body) && Array.isArray(body.diagnostics)
+      ? body.diagnostics
+      : Array.isArray(detailRecord?.diagnostics) ? detailRecord.diagnostics : [];
+    return {
+      valid: false,
+      refusal: {
+        status: typeof body?.status === 'number' ? body.status : 422,
+        code: (typeof body?.title === 'string' ? body.title : undefined)
+          ?? (typeof detailRecord?.code === 'string' ? detailRecord.code : undefined) ?? 'invalid_request',
+        message: (typeof detail === 'string' ? detail : undefined)
+          ?? (typeof detailRecord?.message === 'string' ? detailRecord.message : undefined)
+          ?? (typeof detailRecord?.error === 'string' ? detailRecord.error : undefined)
+          ?? 'The package could not be validated.',
+        diagnostics: diagnostics.filter(isRecord),
+      },
+    };
   }
 
   async analyzeBimPackage(archive: Uint8Array): Promise<BimAnalysisResponse> {

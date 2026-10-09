@@ -20,15 +20,15 @@ const Resolve = lazy(() => import('../pages/Resolve/Resolve').then((module) => (
 const About = lazy(() => import('../pages/About/About').then((module) => ({ default: module.About })));
 const Status = lazy(() => import('../pages/Status/Status').then((module) => ({ default: module.Status })));
 const WorkbenchPage = lazy(() => import('../pages/Public/PublicPages').then((module) => ({ default: module.WorkbenchPage })));
-// The schema reference does not read :kind yet, so every kind opens on its default selection.
 const Schemas = lazy(() => import('../pages/Schemas/Schemas').then((module) => ({ default: module.Schemas })));
+const EngineDetail = lazy(() => import('../pages/EngineDetail/EngineDetail').then((module) => ({ default: module.EngineDetail })));
 
 export const d1Routes: RouteDefinition[] = [
   live('pub-home', '/', <Home />),
   live('pub-explore', '/explore', <ExplorePage />),
   live('pub-resolve', '/resolve/:kind/:digest', <Resolve />),
   live('eng-catalog', '/engines', <Engines />),
-  pending('eng-detail', '/engines/:namespace/:name/:version'),
+  live('eng-detail', '/engines/:namespace/:name/:version', <EngineDetail />),
   live('lang-profiles', '/language', <Profiles />),
   live('lang-schemas', '/language/schemas/:kind', <Schemas />),
   live('lang-examples', '/examples', <Examples />),
