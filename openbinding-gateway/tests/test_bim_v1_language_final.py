@@ -16,6 +16,7 @@ from openbinding_gateway.v1.compiler import (
     ResolvedInstance,
     _schema_root,
     _schema_validator,
+    _TaskFeatures,
     _validate_feature_value,
     compile_instance,
     installed_dialect_manifests,
@@ -29,7 +30,7 @@ from openbinding_gateway.v1.compiler import (
 )
 from openbinding_gateway.v1.canonical import digest
 from openbinding_gateway.v1.expressions import ExpressionError, compile_expression
-from openbinding_gateway.v1.package import InstancePackage, load_package, resource_digest
+from openbinding_gateway.v1.package import InstancePackage, PackageError, load_package, resource_digest
 
 
 def envelope(kind, name, spec):
@@ -1321,6 +1322,100 @@ def test_expression_reading_an_interval_compiles_and_is_rejected_by_the_evaluato
 
     message = str(captured.value)
     assert "extra" in message and "catalog/c1a" in message and "interval" in message
+
+
+def test_task_features_membership_does_not_read_interval_values():
+    features = _TaskFeatures({"cost": {"min": 1.0, "max": 2.0}, "latency": 3.0}, {"resource": "catalog", "id": "c1a"})
+
+    assert "cost" in features and "latency" in features and "missing" not in features
+    with pytest.raises(ValueError, match="interval"):
+        features["cost"]
+
+
+@pytest.mark.xfail(
+    strict=True,
+    raises=ValueError,
+    reason="expressions._path_value reads value[segment] right after the membership check, so has() still "
+    "reads the interval; fixing it needs a change in v1/expressions.py",
+)
+def test_has_on_an_interval_slot_is_true_without_reading_the_value():
+    present = compile_instance(
+        demo_package(5, extra={"min": 1, "max": 2}, constraint="has(tasks.t1.features.extra)")
+    )
+    assert present.evaluate_constraints(DEMO_BINDING) == []
+
+    # `!has(...)` is violated only if has() evaluated to true for the interval slot.
+    negated = compile_instance(
+        demo_package(5, extra={"min": 1, "max": 2}, constraint="!has(tasks.t1.features.extra)")
+    )
+    violations = negated.evaluate_constraints(DEMO_BINDING)
+    assert [item["enforcement"] for item in violations] == ["hard"]
+
+
+def test_selected_candidate_scope_rejects_a_selected_interval_with_an_explicit_error():
+    def selected_scope(latency):
+        value = demo_package(latency)
+        application = json.loads(value.files["application.json"])
+        application["spec"]["features"]["latency"].update({"scope": "selectedCandidate", "aggregation": "sum"})
+        value.files["application.json"] = json.dumps(application).encode()
+        return compile_instance(value)
+
+    scalar = selected_scope(5)
+    assert scalar.document["spec"]["application"]["features"]["latency"]["scope"] == "selectedCandidate"
+    assert scalar.evaluate_binding(DEMO_BINDING) == {"latency": 25.0}
+    with pytest.raises(ValueError) as captured:
+        selected_scope({"min": 8, "max": 12}).evaluate_binding(DEMO_BINDING)
+
+    message = str(captured.value)
+    assert "latency" in message and "catalog/c1a" in message and "interval" in message
+
+
+def test_placement_execution_time_rejects_a_selected_interval_with_an_explicit_error():
+    placement = envelope(
+        "Placement",
+        "place",
+        {
+            "pools": {"edge": {"capacity": {}}},
+            "groups": {
+                f"g{index}": {
+                    "pool": {"resource": "place", "id": "edge"},
+                    "capability": f"service/t{index}",
+                    "resources": {},
+                }
+                for index in (1, 2, 3)
+            },
+            "globalLatency": {
+                "feature": {"resource": "application", "id": "latency"},
+                "includeExecution": True,
+                "exclusive": "routing",
+                "parallel": "max",
+            },
+        },
+    )
+    value = demo_package({"min": 8, "max": 12})
+    value.files["placement.json"] = json.dumps(placement).encode()
+    instance = json.loads(value.files["instance.json"])
+    instance["spec"]["resources"]["candidateCatalog"]["place"] = "placement.json"
+    value.files["instance.json"] = json.dumps(instance).encode()
+    problem = compile_instance(value)
+
+    # evaluate_binding would fail earlier in the invocation aggregation of the
+    # same required feature, so the placement derivation is called directly.
+    with pytest.raises(ValueError) as captured:
+        problem._placement_feature_overrides(DEMO_BINDING)
+
+    message = str(captured.value)
+    assert "latency" in message and "catalog/c1a" in message and "interval" in message
+
+
+@pytest.mark.parametrize("bound", ["min", "max"])
+@pytest.mark.parametrize("endpoint", [float("nan"), float("inf"), float("-inf")])
+def test_non_finite_interval_endpoint_never_reaches_the_compiler(bound, endpoint):
+    # The package layer refuses the non-finite JSON constants before the
+    # compiler could report finite_number; that code is covered by the direct
+    # validator test above.
+    with pytest.raises(PackageError, match="candidates.json"):
+        compile_instance(demo_package({"min": 1, "max": 2, bound: endpoint}))
 
 
 def test_neighborhood_analysis_reports_interval_moves_as_failures_instead_of_breaking():

@@ -41,7 +41,9 @@ A manifest that omits `featureValues` is rejected with
 Engines registered before this dimension existed must update their manifest and
 register again. The `bim-engine/v1` protocol digest also changed with
 `binding-problem.schema.json`, so stored registrations pinned to the previous
-digest are marked `protocol_digest_mismatch` and need re-registration.
+digest are not marked: they are rejected with `409 protocol_digest_mismatch`
+when they are verified or activated (also when publication is requested or
+approved), and they need re-registration.
 
 The complete mode also contains a closed `optionsSchema`, Profile-defined
 resource `limits`, and truthful `guarantees`. Defaults are applied before

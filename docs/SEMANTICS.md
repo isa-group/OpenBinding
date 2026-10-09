@@ -22,7 +22,8 @@ evaluation is currently defined only for scalar values: reading `q(c,m)` for a
 selected candidate `c` whose value is an interval is an evaluation error, and
 no optimistic, pessimistic, or midpoint semantics is defined. Engines state
 which value kinds they accept through the `featureValues` capability dimension
-(`scalar`, `interval`). Missing values are compilation errors. Invocation-scoped values are evaluated at each task occurrence;
+(`scalar`, `interval`). Missing values are compilation errors.
+Invocation-scoped values are evaluated at each task occurrence;
 selected-candidate values are charged once for each distinct candidate in the
 range of `b`.
 

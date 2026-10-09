@@ -852,6 +852,43 @@ def test_scalar_feature_values_remain_compatible_with_every_engine_mode() -> Non
         assert not [item for item in diagnostics if item.get("category") == "featureValues"], name
 
 
+def _feature_values_diagnostics(problem, mode) -> list[dict]:
+    return [item for item in routes._mode_compatibility(problem, mode) if item.get("category") == "featureValues"]
+
+
+def test_manifest_without_feature_values_is_rejected_and_never_matches_a_problem() -> None:
+    engine = copy.deepcopy(routes._manifest("random-search"))
+    del engine["spec"]["modes"][0]["capabilities"]["featureValues"]
+
+    missing = [item for item in routes._engine_contract_diagnostics(engine) if item["code"] == "capability_dimension_missing"]
+    assert len(missing) == 1
+    assert missing[0]["pointer"] == "/spec/modes/0/capabilities"
+    assert "featureValues" in missing[0]["message"]
+
+    # A manifest stored before the dimension existed still fails closed at match time.
+    diagnostics = _feature_values_diagnostics(_example_with_latency(10), engine["spec"]["modes"][0])
+    assert [item["code"] for item in diagnostics] == ["missing_capability_selector"]
+
+
+def test_feature_values_all_accepts_intervals_and_none_rejects_every_value() -> None:
+    engine = copy.deepcopy(routes._manifest("random-search"))
+    mode = engine["spec"]["modes"][0]
+    problem = _example_with_latency({"min": 8, "max": 12})
+
+    mode["capabilities"]["featureValues"] = {"selector": "all"}
+    assert not [
+        item for item in routes._engine_contract_diagnostics(engine)
+        if "featureValues" in item["pointer"] or "featureValues" in item["message"]
+    ]
+    assert _feature_values_diagnostics(problem, mode) == []
+
+    # `none` is not the `only` branch: it reports unsupported_capability, not unsupported_capability_value.
+    mode["capabilities"]["featureValues"] = {"selector": "none"}
+    diagnostics = _feature_values_diagnostics(problem, mode)
+    assert [item["code"] for item in diagnostics] == ["unsupported_capability"]
+    assert diagnostics[0]["unsupported"] == ["interval", "scalar"]
+
+
 def test_compiled_ir_pins_complete_dialect_and_adapter_revisions() -> None:
     problem = routes.compile_instance(load_package(EXAMPLE))
     installed = routes._builtin_dialects()[0]

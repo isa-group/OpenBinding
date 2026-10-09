@@ -9,10 +9,6 @@ example, `featureBindings.latency_ms` may reference
 `{ "resource": "application", "id": "latency" }`, after which each candidate's
 `features.latency_ms` supplies that Application feature.
 
-The following are authoring templates, not normative enums. A different
-Profile or compatible feature Dialect may define other terms without changing
-the BIM core:
-
 ## Scalar and interval slot values
 
 `candidates.<id>.features.<slot>` accepts a finite number or a closed interval
@@ -22,14 +18,18 @@ object:
 {"features": {"latency_ms": 120, "cost": {"min": 0.8, "max": 1.2}}}
 ```
 
-- The object has exactly the keys `min` and `max`; extra or missing keys are
-  rejected (`feature_interval_shape`).
-- Both endpoints must be finite numbers. Booleans, strings, `null`, `NaN`, and
-  infinity are rejected.
-- `min <= max` is required (`feature_interval_order`). The interval is closed;
-  `min == max` is allowed and is kept as an interval, distinct from a scalar in
-  the canonical digest.
-- Each endpoint is validated against the feature domain
+- The JSON Schema of the catalog (`schemas/bim/v1/candidate-catalog.schema.json`,
+  diagnostic code `schema`) requires the object to have exactly the keys `min`
+  and `max`, so extra or missing keys are rejected there. It also requires both
+  endpoints to be JSON numbers, which rejects booleans, strings, and `null`.
+  The compiler keeps a `feature_interval_shape` check on the same key set as an
+  additional defense; it is not reached through `compile_instance`, because the
+  schema rejects such a value first.
+- The compiler rejects `NaN` and infinite endpoints (`finite_number`).
+- `min <= max` is required; the compiler rejects a violation with
+  `feature_interval_order`. The interval is closed; `min == max` is allowed and
+  is kept as an interval, distinct from a scalar in the canonical digest.
+- The compiler validates each endpoint against the feature domain
   (`feature_value_domain`, pointer `.../min` or `.../max`). If `domain.kind` is
   `integer`, both endpoints must be integers.
 
@@ -43,9 +43,18 @@ selection evaluates normally. Neighborhood analysis reports moves toward an
 interval candidate as failures and errors if the base binding selects one.
 
 Engine compatibility uses the `featureValues` capability dimension (`scalar`,
-`interval`). The bundled modes declare only `scalar`, so a job whose bound
-candidates carry any interval fails closed with
-`unsupported_capability_value`; scalar-only jobs are unchanged.
+`interval`). The gateway computes `featureValues` from every bound slot of
+every candidate of every catalog in the problem, not only from the selected
+candidates or from the required features (see `MANIFESTS.md`). The bundled
+modes declare only `scalar`, so a job in which any bound slot of any candidate
+is an interval fails closed with `unsupported_capability_value`; scalar-only
+jobs are unchanged.
+
+## Authoring templates
+
+The following are authoring templates, not normative enums. A different
+Profile or compatible feature Dialect may define other terms without changing
+the BIM core:
 
 | Intent | Typical unit | Direction | Scope | Sequence | Parallel | Exclusive | Repeat |
 | --- | --- | --- | --- | --- | --- | --- | --- |

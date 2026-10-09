@@ -2880,6 +2880,9 @@ class _TaskFeatures(Mapping[str, Any]):
             raise _interval_feature_error(feature_id, self._reference)
         return value
 
+    def __contains__(self, feature_id: object) -> bool:
+        return feature_id in self._values
+
     def __iter__(self) -> Iterator[str]:
         return iter(self._values)
 
