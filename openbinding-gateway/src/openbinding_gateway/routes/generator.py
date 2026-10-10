@@ -60,7 +60,7 @@ from ..generator.synthesizer import generate_instance_package
 from ..models.errors import ErrorResponse, api_error
 from ..v1.compiler import compile_instance
 from ..v1.package import InstancePackage
-from .v1 import _persist_snapshot
+from ..services.snapshots import persist_snapshot
 
 router = APIRouter(prefix="/v1/generator", tags=["generator"])
 
@@ -294,7 +294,7 @@ async def generate_instance(
     if request.persist:
         if caller is None:
             raise HTTPException(status_code=401, detail="Authentication required to persist instances")
-        snapshot_id = await _persist_snapshot(package, compiled, caller, session)
+        snapshot_id = await persist_snapshot(package, compiled, caller, session)
         if request.project_id is not None:
             await _verify_project_member(session, request.project_id, caller)
             case_slug = f"case-{uuid.uuid4().hex[:8]}"
@@ -397,7 +397,7 @@ async def generate_corpus(
 
         snap_id: Optional[str] = None
         if request.persist:
-            snap_id = await _persist_snapshot(pkg, compiled, caller, session)
+            snap_id = await persist_snapshot(pkg, compiled, caller, session)
             if snap_id:
                 snapshot_ids.append(snap_id)
 
@@ -507,7 +507,7 @@ async def convert_legacy(
     if request.persist:
         if caller is None:
             raise HTTPException(status_code=401, detail="Authentication required to persist instances")
-        snapshot_id = await _persist_snapshot(package, compiled, caller, session)
+        snapshot_id = await persist_snapshot(package, compiled, caller, session)
 
         if request.project_id is not None:
             await _verify_project_member(session, request.project_id, caller)

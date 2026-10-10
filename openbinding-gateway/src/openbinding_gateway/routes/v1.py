@@ -13,7 +13,6 @@ import logging
 import math
 import time
 import uuid
-from datetime import datetime, timezone
 from email.parser import BytesParser
 from email.policy import default as email_policy
 from typing import Any, Mapping
@@ -39,7 +38,6 @@ from ..db.models import (
     EngineCredential,
     EngineRegistrationRevision,
     EngineRevision,
-    InstanceResource,
     InstanceSnapshot,
     Job,
     JobProvenance,
@@ -54,16 +52,13 @@ from ..db.models import (
 from ..job_dispatch import dispatch_persisted_job
 from ..models.problem import VALIDATION_ERROR, problem_response, split_detail
 from ..security.apikeys import allows_engine
-from ..domain import idempotency
+from ..domain import entitlements, idempotency
 from ..v1.canonical import CanonicalizationError, canonical_json, digest, digest_bytes
 from ..v1.compiler import (
     BindingProblem,
-    CompileError,
     RegisteredResource,
     compile_instance,
     compiler_bundle_digest,
-    _dialect_descriptor,
-    _profile_descriptor,
     _dialect_type_matches,
     _dialect_xml_type_matches,
     _resource_schema_diagnostics,
@@ -84,6 +79,20 @@ from ..v1.package import (
     strict_json_loads,
 )
 from ..v1.remote import RemoteEngineError, RemoteRegistration, fetch_remote_document, solve_remote, validate_endpoint
+from ..services.snapshots import (
+    CUSTOM_RESOURCES,
+    compile_package,
+    compile_resolved,
+    installed_registered_resources,
+    instance_identity,
+    owned_snapshot,
+    persist_snapshot,
+    registered_keys,
+    snapshot_payload,
+    snapshot_problem,
+    snapshot_resource_contract,
+    source_resource_digests,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,11 +101,24 @@ router = APIRouter(prefix="/v1", tags=["BIM v1"])
 _SNAPSHOTS: dict[str, dict[str, Any]] = {}
 _JOBS: dict[str, dict[str, Any]] = {}
 _BUILTIN_REGISTRATIONS: dict[tuple[str, str, str, str], dict[str, Any]] = {}
-_CUSTOM_RESOURCES: dict[tuple[str, str, str, str], RegisteredResource] = {}
+_CUSTOM_RESOURCES = CUSTOM_RESOURCES  # the same dict the snapshot service reads
 _CUSTOM_RESOURCE_RECORDS: dict[tuple[str, str, str, str], dict[str, Any]] = {}
 _MANIFEST_DIR = _schema_root() / "manifests"
 _ENGINE_PROTOCOL_PATH = _schema_root().parents[1] / "engine-contract.openapi.yaml"
 _BIM_ZIP_TYPES = {"application/zip", "application/octet-stream", "application/vnd.bim+zip", "application/x-bim+zip"}
+
+# Compatibility aliases: the snapshot code lives in services.snapshots.
+_compile = compile_package
+_registered_keys = registered_keys
+_installed_registered_resources = installed_registered_resources
+_compile_resolved = compile_resolved
+_snapshot_payload = snapshot_payload
+_source_resource_digests = source_resource_digests
+_snapshot_resource_contract = snapshot_resource_contract
+_persist_snapshot = persist_snapshot
+_snapshot_problem = snapshot_problem
+_owned_snapshot = owned_snapshot
+_instance_identity = instance_identity
 
 
 def _problem(
@@ -108,12 +130,6 @@ def _problem(
     headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     return problem_response(status_code, code, detail, diagnostics, headers=headers, extra=extra)
-
-
-def _instance_identity(package: InstancePackage) -> str:
-    """Identity of the strict root index plus every package resource."""
-    portable = load_package(package.to_zip())
-    return instance_digest(portable.instance(), portable.resource_digests)
 
 
 def _protocol_document() -> dict[str, Any]:
@@ -1643,309 +1659,6 @@ def _multipart_zip(body: bytes, content_type: str) -> bytes:
     if len(files) != 1:
         raise PackageError("multipart request must contain exactly one ZIP file part")
     return files[0]
-
-
-def _compile(
-    package: InstancePackage,
-    registered_resources: Mapping[tuple[str, str, str, str], RegisteredResource] | None = None,
-) -> BindingProblem:
-    try:
-        return compile_instance(package, registered_resources)
-    except CompileError as exc:
-        raise HTTPException(status_code=422, detail={"code": "invalid_instance", "diagnostics": [item.as_dict() for item in exc.diagnostics]}) from exc
-
-
-def _registered_keys(package: InstancePackage) -> set[tuple[str, str, str, str]]:
-    instance = package.instance()
-    resources = instance.get("spec", {}).get("resources", {})
-    if not isinstance(resources, dict):
-        return set()
-    keys: set[tuple[str, str, str, str]] = set()
-    for group in resources.values():
-        if not isinstance(group, dict):
-            continue
-        for target in group.values():
-            if isinstance(target, dict) and all(
-                isinstance(target.get(key), str)
-                for key in ("namespace", "name", "version", "digest")
-            ):
-                keys.add((target["namespace"], target["name"], target["version"], target["digest"]))
-    return keys
-
-
-async def _installed_registered_resources(
-    package: InstancePackage,
-    session: AsyncSession | None,
-    caller: User | None = None,
-) -> dict[tuple[str, str, str, str], RegisteredResource]:
-    library_resources = {}
-    if session is not None:
-        from ..artifacts import resolve_version, version_content
-        from ..models.artifacts import ArtifactRef
-        for group in package.instance().get("spec", {}).get("resources", {}).values():
-            for target in group.values() if isinstance(group, dict) else []:
-                if isinstance(target, dict) and "versionDigest" in target:
-                    _, version = await resolve_version(session, ArtifactRef.model_validate(target), caller)
-                    content, media_type = await version_content(session, version)
-                    key = tuple(target[field] for field in ("namespace", "name", "version", "versionDigest"))
-                    library_resources[key] = RegisteredResource(content, media_type, version.manifest)
-    keys = _registered_keys(package)
-    resolved = {**library_resources, **{key: value for key, value in _CUSTOM_RESOURCES.items() if key in keys}}
-    if not keys or session is None:
-        return resolved
-    digests = {key[3] for key in keys}
-    rows = (
-        await session.execute(
-            select(RegisteredResourceRevision).where(
-                RegisteredResourceRevision.state == "published",
-                RegisteredResourceRevision.digest.in_(digests),
-            )
-        )
-    ).scalars().all()
-    for row in rows:
-        key = (row.namespace, row.name, row.version, row.digest)
-        if key in keys:
-            resolved[key] = RegisteredResource(row.content, row.media_type)
-    return resolved
-
-
-async def _compile_resolved(
-    package: InstancePackage,
-    session: AsyncSession | None,
-    caller: User | None = None,
-) -> BindingProblem:
-    return _compile(package, await _installed_registered_resources(package, session, caller))
-
-
-def _snapshot_payload(package: InstancePackage, problem: BindingProblem) -> dict[str, Any]:
-    portable = load_package(package.to_zip())
-    return {
-        "package": portable,
-        "problem": problem,
-        "digest": _instance_identity(portable),
-        "packageDigest": portable.package_digest,
-        "fileDigests": portable.resource_digests,
-        "resourceDigests": _source_resource_digests(problem),
-        "createdAt": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-def _source_resource_digests(problem: BindingProblem) -> dict[str, str]:
-    resources = problem.document.get("spec", {}).get("instance", {}).get("resources", {})
-    return {
-        resource_id: descriptor["digest"]
-        for resource_id, descriptor in sorted(resources.items())
-        if isinstance(descriptor, dict) and isinstance(descriptor.get("digest"), str)
-    }
-
-
-def _snapshot_resource_contract(
-    problem: BindingProblem,
-    descriptor: Mapping[str, Any],
-    role: str,
-    media_type: str,
-) -> tuple[str, str, str]:
-    """Resolve the exact installed-and-pinned Dialect for one IR resource."""
-    api_version = descriptor.get("apiVersion")
-    kind = descriptor.get("kind")
-    if not isinstance(api_version, str) or not api_version:
-        raise RuntimeError("compiled resource is missing apiVersion")
-    if not isinstance(kind, str) or not kind:
-        raise RuntimeError("compiled resource is missing kind")
-    if descriptor.get("role") != role:
-        raise RuntimeError("compiled resource role does not match the Instance index")
-
-    pinned_dialects = {
-        item.get("id"): item
-        for item in problem.document.get("spec", {}).get("dialects", [])
-        if isinstance(item, Mapping) and isinstance(item.get("id"), str)
-    }
-    matches = [
-        manifest_id(dialect)
-        for dialect, resource_type in _dialect_type_matches(
-            installed_dialect_manifests(), api_version, kind, media_type
-        )
-        if role in resource_type.get("roles", [])
-        and pinned_dialects.get(manifest_id(dialect)) == _dialect_descriptor(dialect)
-    ]
-    if len(matches) != 1:
-        raise RuntimeError(
-            "compiled resource does not resolve to exactly one installed and pinned Dialect"
-        )
-    return api_version, kind, matches[0]
-
-
-async def _persist_snapshot(
-    package: InstancePackage,
-    problem: BindingProblem,
-    caller: User | None,
-    session: AsyncSession | None,
-) -> str | None:
-    """Persist a source snapshot and its canonical IR when accounts are enabled."""
-    if session is None:
-        return None
-    archive = package.to_zip()
-    portable = load_package(archive)
-    instance = portable.instance()
-    instance_hash = _instance_identity(package)
-    package_hash = digest_bytes(archive)
-    from ..v1.compiler import compiler_bundle_digest
-    compilation_hash = digest({"packageDigest": package_hash,
-        "profile": problem.document.get("spec", {}).get("profile"),
-        "dialects": problem.document.get("spec", {}).get("dialects", []),
-        "compilerDigest": compiler_bundle_digest()})
-    owner_id = caller.id if caller else None
-    query = select(InstanceSnapshot).where(
-        InstanceSnapshot.package_digest == package_hash,
-        InstanceSnapshot.compilation_digest == compilation_hash,
-        InstanceSnapshot.owner_id == owner_id,
-    )
-    existing = (await session.execute(query)).scalars().first()
-    if existing is not None:
-        return str(existing.id)
-
-    snapshot = InstanceSnapshot(
-        owner_id=owner_id,
-        name=instance.get("metadata", {}).get("name", "instance"),
-        instance_digest=instance_hash,
-        package_digest=package_hash,
-        root_document=portable.json("instance.json"),
-        resource_digests=_source_resource_digests(problem),
-        source_archive=archive,
-        compilation_digest=compilation_hash,
-    )
-    try:
-        async with session.begin_nested():
-            session.add(snapshot)
-            await session.flush()
-    except IntegrityError:
-        existing = await session.scalar(query)
-        if existing is not None:
-            return str(existing.id)
-        raise
-
-
-    resources = instance.get("spec", {}).get("resources", {})
-    manifest = problem.document.get("spec", {}).get("instance", {}).get("resources", {})
-    installed_registered = await _installed_registered_resources(portable, session, caller)
-    for role, group in resources.items() if isinstance(resources, dict) else []:
-        if not isinstance(group, dict):
-            continue
-        for resource_id, target in group.items():
-            path = target if isinstance(target, str) else None
-            registered = target if isinstance(target, dict) else None
-            descriptor = manifest.get(resource_id, {}) if isinstance(manifest, dict) else {}
-            if isinstance(path, str):
-                content = portable.bytes(path)
-                document = None
-                if path.lower().endswith(".json"):
-                    try:
-                        document = portable.json(path)
-                    except PackageError:
-                        document = None
-                media_type = (
-                    "application/json"
-                    if path.lower().endswith(".json")
-                    else "application/xml" if path.lower().endswith(".xml") else "application/vnd.omg.bpmn+xml"
-                )
-                resource_digest = portable.digest(path)
-            elif registered is not None:
-                key = tuple(
-                    registered.get(field, "")
-                    for field in ("namespace", "name", "version", "versionDigest" if "versionDigest" in registered else "digest")
-                )
-                resolved = installed_registered.get(key)
-                if resolved is None:
-                    raise RuntimeError("compiled registered resource is no longer published locally")
-                content = resolved.content
-                media_type = resolved.media_type
-                resource_digest = resolved.version_manifest["contentDigest"] if resolved.version_manifest else registered["digest"]
-                document = None
-                if media_type == "application/json":
-                    parsed = strict_json_loads(content)
-                    document = parsed if isinstance(parsed, dict) else None
-            else:
-                continue
-            api_version, kind, dialect_id = _snapshot_resource_contract(
-                problem, descriptor, role, media_type
-            )
-            session.add(
-                InstanceResource(
-                    snapshot_id=snapshot.id,
-                    resource_id=resource_id,
-                    role=role,
-                    api_version=api_version,
-                    kind=kind,
-                    dialect_id=dialect_id,
-                    path=path,
-                    digest=resource_digest,
-                    registered_namespace=registered.get("namespace") if registered else None,
-                    registered_name=registered.get("name") if registered else None,
-                    registered_version=registered.get("version") if registered else None,
-                    registered_digest=registered.get("versionDigest", registered.get("digest")) if registered else None,
-                    media_type=media_type,
-                    document=document,
-                    content=content,
-                )
-            )
-    session.add(
-        BindingIRSnapshot(
-            snapshot_id=snapshot.id,
-            ir_digest=problem.digest,
-            document=problem.document,
-            source_map=problem.source_map,
-            compiler_version="bim-compiler/v1",
-        )
-    )
-    await session.flush()
-    return str(snapshot.id)
-
-
-async def _snapshot_problem(snapshot: InstanceSnapshot, session: AsyncSession) -> BindingProblem:
-    """A snapshot is already compiled. Never reinterpret it using current sources."""
-    ir = await session.scalar(select(BindingIRSnapshot).where(BindingIRSnapshot.snapshot_id == snapshot.id))
-    if ir is None:
-        raise HTTPException(409, detail={"code": "snapshot_ir_missing", "message": "Snapshot IR is unavailable"})
-    if ir.document.get('apiVersion') != 'bim/v1' or ir.document.get('kind') != 'BindingProblem':
-        raise HTTPException(422, detail={"code": "execution_capability_unavailable", "message": "This output has no installed execution evaluator"})
-    semantic = json.loads(json.dumps(ir.document))
-    semantic.pop('metadata', None)
-    for key in ('instance', 'dialects', 'sourceMap'):
-        semantic.get('spec', {}).pop(key, None)
-    if digest(semantic) != ir.ir_digest:
-        raise HTTPException(409, detail={"code": "snapshot_ir_integrity", "message": "Stored IR does not match its semantic digest"})
-    spec = ir.document.get("spec", {})
-    profile = spec.get("profile", {})
-    if profile not in [_profile_descriptor(item) for item in installed_profile_manifests()]:
-        raise HTTPException(409, detail={"code": "contract_not_installed", "message": "The exact snapshot Profile is not installed"})
-    available = [_dialect_descriptor(item) for item in installed_dialect_manifests()]
-    if any(item not in available for item in spec.get("dialects", [])):
-        raise HTTPException(409, detail={"code": "contract_not_installed", "message": "An exact snapshot Dialect is not installed"})
-    return BindingProblem(document=ir.document, digest=ir.ir_digest, source_map=ir.source_map)
-
-
-async def _owned_snapshot(snapshot_id: str, caller: User | None, session: AsyncSession | None):
-    if session is None or caller is None:
-        return None
-    try:
-        parsed = uuid.UUID(str(snapshot_id))
-    except ValueError:
-        return None
-    snapshot = await session.get(InstanceSnapshot, parsed)
-    if snapshot is None or snapshot.owner_id == caller.id:
-        return snapshot
-    # Sharing a case grants organization members access to its fixed inputs.
-    # Project visibility alone never exposes private resource dependencies.
-    from ..db.models import BindingCase, BindingCaseRevision, Project
-    from ..collaboration import effective_role
-    organizations = (await session.scalars(select(Project.organization_id).join(
-        BindingCase, BindingCase.project_id == Project.id).join(
-        BindingCaseRevision, BindingCaseRevision.binding_case_id == BindingCase.id).where(
-        BindingCaseRevision.source_snapshot_id == snapshot.id).distinct())).all()
-    for organization_id in organizations:
-        if await effective_role(session, organization_id, caller):
-            return snapshot
-    return None
 
 
 async def _owned_job(job_id: str, caller: User | None, session: AsyncSession | None):
@@ -4900,34 +4613,13 @@ async def create_job(
                 await metering.release(space_client.get_gate(), reservation)
                 return raced
         if not verdict.allowed:
-            if verdict.limit is not None:
-                if verdict.limit.limit_id == "concurrentJobs":
-                    return _problem(
-                        429,
-                        "concurrency_limit_exceeded",
-                        verdict.reason or "Concurrency limit exceeded.",
-                        extra={"concurrency": {"limit_id": "concurrentJobs", "limit": verdict.limit.limit, "used": verdict.limit.used}},
-                        headers={"Retry-After": "15"},
-                    )
-                else:
-                    return _problem(
-                        402,
-                        "quota_exceeded",
-                        verdict.reason or "Solve quota exhausted.",
-                        extra={
-                            "quota": {
-                                "limit_id": verdict.limit.limit_id,
-                                "limit": verdict.limit.limit,
-                                "used": verdict.limit.used,
-                                "unit": verdict.limit.unit,
-                                "renews_at": verdict.limit.renews_at,
-                            }
-                        },
-                    )
+            refusal = entitlements.refusal_for_verdict(verdict)
             return _problem(
-                403,
-                "feature_not_entitled",
-                verdict.reason or "The current plan does not entitle this feature.",
+                refusal.status,
+                refusal.code,
+                refusal.detail,
+                extra=refusal.extra or None,
+                headers=refusal.headers or None,
             )
     if session is not None and caller is not None:
         try:

@@ -16,6 +16,7 @@ from ..access import metering
 from ..access.dependencies import get_current_user, session_dependency
 from ..db import base as db_base
 from ..db.models import Job, JobProvenance, JobState, User, utcnow
+from ..domain import entitlements
 from ..job_dispatch import dispatch_persisted_job
 from ..models.errors import api_error
 from ..models.platform import JobView, job_view
@@ -109,32 +110,13 @@ async def retry_job(
     except space_client.PricingUnavailable as exc:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
     if not verdict.allowed:
-        if verdict.limit is not None:
-            if verdict.limit.limit_id == "concurrentJobs":
-                raise api_error(
-                    status.HTTP_429_TOO_MANY_REQUESTS,
-                    "concurrency_limit_exceeded",
-                    verdict.reason or "Concurrency limit exceeded.",
-                    headers={"Retry-After": "15"},
-                    concurrency={"limit_id": "concurrentJobs", "limit": verdict.limit.limit, "used": verdict.limit.used},
-                )
-            else:
-                raise api_error(
-                    status.HTTP_402_PAYMENT_REQUIRED,
-                    "quota_exceeded",
-                    verdict.reason or "Solve quota exhausted.",
-                    quota={
-                        "limit_id": verdict.limit.limit_id,
-                        "limit": verdict.limit.limit,
-                        "used": verdict.limit.used,
-                        "unit": verdict.limit.unit,
-                        "renews_at": verdict.limit.renews_at,
-                    },
-                )
+        refusal = entitlements.refusal_for_verdict(verdict)
         raise api_error(
-            status.HTTP_403_FORBIDDEN,
-            "feature_not_entitled",
-            verdict.reason or "The current plan does not entitle this feature.",
+            refusal.status,
+            refusal.code,
+            refusal.detail,
+            headers=refusal.headers or None,
+            **refusal.extra,
         )
     replacement = Job(
         owner_id=user.id, engine_id=original.engine_id, engine_job_id=str(uuid.uuid4()),

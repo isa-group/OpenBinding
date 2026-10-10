@@ -349,7 +349,7 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
 async def materialize_case(session, user, organization, document, uses):
     """Build a closed BIM archive from refs, never from a second editable copy."""
     from copy import deepcopy
-    from .routes.v1 import _compile_resolved, _persist_snapshot
+    from .services.snapshots import compile_resolved, persist_snapshot
     from .v1.compiler import manifest_id
     if document.get('kind') != 'Instance' or document.get('apiVersion') != 'bim/v1':
         raise api_error(422, 'instance_required', 'A case composition requires a BIM Instance index.')
@@ -411,8 +411,8 @@ async def materialize_case(session, user, organization, document, uses):
     root['spec'] = spec
     files['instance.json'] = canonical_json(root)
     package = InstancePackage(files)
-    problem = await _compile_resolved(package, session)
-    snapshot_id = await _persist_snapshot(package, problem, user, session)
+    problem = await compile_resolved(package, session)
+    snapshot_id = await persist_snapshot(package, problem, user, session)
     source = {**root, 'spec': source_spec}
     return source, uuid.UUID(snapshot_id), rows
 

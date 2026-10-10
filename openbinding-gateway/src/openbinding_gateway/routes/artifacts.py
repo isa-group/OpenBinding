@@ -842,7 +842,7 @@ async def import_project_package(
     }
     from ..artifacts import case_composition_digest, resolve_version, seal_draft
     from ..models.artifacts import ArtifactRef, DraftContent
-    from ..routes.v1 import _compile_resolved, _persist_snapshot
+    from ..services.snapshots import compile_resolved, persist_snapshot
     from ..v1.package import load_package
     from fastapi import HTTPException
     async def import_library_entry(entry) -> bool:
@@ -924,10 +924,10 @@ async def import_project_package(
             raise api_error(422, 'invalid_portable_package', 'Invalid snapshot archive.') from exc
         if digest_bytes(archive_bytes) != entry.get('packageDigest'):
             raise api_error(422, 'checksum_mismatch', 'Snapshot archive digest mismatch.')
-        problem = await _compile_resolved(source, session, user)
+        problem = await compile_resolved(source, session, user)
         if problem.digest != entry.get('irDigest') or problem.document != entry.get('ir'):
             raise api_error(409, 'toolchain_mismatch', 'The exact original compilation is not available.')
-        restored_id = await _persist_snapshot(source, problem, user, session)
+        restored_id = await persist_snapshot(source, problem, user, session)
         snapshot = await session.get(InstanceSnapshot, uuid.UUID(restored_id))
         if snapshot.compilation_digest != entry.get('compilationDigest'):
             raise api_error(409, 'toolchain_mismatch', 'The original snapshot toolchain is not installed.')

@@ -25,6 +25,7 @@ from .db.models import (
     User,
     utcnow,
 )
+from .services.snapshots import persist_snapshot, snapshot_problem
 from .studies import aggregate_metrics
 from .v1.package import PackageError, load_package
 
@@ -235,13 +236,13 @@ async def launch_study_cell(
         )
     try:
         package = load_package(source.source_archive)
-        problem = await v1._snapshot_problem(source, session)
+        problem = await snapshot_problem(source, session)
     except (HTTPException, PackageError, RuntimeError) as exc:
         raise StudyLaunchError("invalid_case_revision", str(exc)) from exc
 
     # A project member may run a teammate's case. Persisting the same immutable
     # package for the actor keeps the existing owner-scoped snapshot contract.
-    snapshot_id = await v1._persist_snapshot(package, problem, user, session)
+    snapshot_id = await persist_snapshot(package, problem, user, session)
     if snapshot_id is None:
         raise StudyLaunchError("snapshot_persistence_failed", "The BIM snapshot could not be persisted.")
 

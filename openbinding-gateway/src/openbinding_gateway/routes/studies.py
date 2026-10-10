@@ -45,6 +45,7 @@ from ..db.models import (
     User,
     utcnow,
 )
+from ..domain import entitlements
 from ..models.errors import ErrorResponse, api_error
 from ..models.platform import (
     AnalyticsView,
@@ -619,32 +620,17 @@ async def run_study(
     except PricingUnavailable as exc:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
     if not verdict.allowed:
-        if verdict.limit is not None:
-            if verdict.limit.limit_id == "concurrentJobs":
-                raise api_error(
-                    status.HTTP_429_TOO_MANY_REQUESTS,
-                    "concurrency_limit_exceeded",
-                    verdict.reason or "Concurrency limit exceeded.",
-                    headers={"Retry-After": "15"},
-                    concurrency={"limit_id": "concurrentJobs", "limit": verdict.limit.limit, "used": verdict.limit.used},
-                )
-            else:
-                raise api_error(
-                    status.HTTP_402_PAYMENT_REQUIRED,
-                    "quota_exceeded",
-                    verdict.reason or "Study-run quota exhausted.",
-                    quota={
-                        "limit_id": verdict.limit.limit_id,
-                        "limit": verdict.limit.limit,
-                        "used": verdict.limit.used,
-                        "unit": verdict.limit.unit,
-                        "renews_at": verdict.limit.renews_at,
-                    },
-                )
+        refusal = entitlements.refusal_for_verdict(
+            verdict,
+            default_quota_detail="Study-run quota exhausted.",
+            default_not_entitled_detail="The current plan does not entitle studies.",
+        )
         raise api_error(
-            status.HTTP_403_FORBIDDEN,
-            "feature_not_entitled",
-            verdict.reason or "The current plan does not entitle studies.",
+            refusal.status,
+            refusal.code,
+            refusal.detail,
+            headers=refusal.headers or None,
+            **refusal.extra,
         )
     if selected_version.manifest['kind'] != 'Study':
         raise api_error(409, 'evidence_only_study', 'This gallery contains stored evidence and is not an executable study definition.')
