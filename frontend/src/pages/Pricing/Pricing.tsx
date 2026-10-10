@@ -160,7 +160,7 @@ function Matrix({ view, highlight, plan }: { view: PricingView; highlight: strin
                             )}
                           </th>
                           {row.cells.map((cell, index) => (
-                            <td key={view.plans[index].id} className={highlightIndex === index ? 'is-picked' : undefined} title={cell.kind === 'value' ? cell.exact : undefined}>
+                            <td key={view.plans[index].id} data-plan={view.plans[index].id} className={highlightIndex === index ? 'is-picked' : undefined} title={cell.kind === 'value' ? cell.exact : undefined}>
                               <CellView cell={cell} />
                             </td>
                           ))}

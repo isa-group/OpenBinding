@@ -362,3 +362,18 @@
   .pricing-matrix { --pricing-first: 148px; min-width: 620px; }
   .pricing-table th[scope='row'] { padding: 10px 12px; }
 }
+
+/* On a phone there is no room for four plan columns (about 118 px each), so nothing scrolls sideways: the plans are a 2 × 2 grid and
+   every row of the matrix becomes one block, its name on top and one labelled value per plan beneath. */
+@media (max-width: 640px) {
+  .pricing-scroller { overflow-x: visible; }
+  .pricing-matrix { min-width: 0; }
+  .pricing-plans { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--tp-spacing-sm) var(--tp-spacing-xs); }
+  .pricing-plans > span[aria-hidden='true'] { display: none; }
+  .pricing-plan-tile { height: 104px; }
+  .pricing-table, .pricing-table tbody { display: block; }
+  .pricing-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px var(--tp-spacing-xs); padding: 12px 14px; }
+  .pricing-table th[scope='row'] { grid-column: 1 / -1; width: auto; padding: 0; }
+  .pricing-table td { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 8px; border-radius: var(--tp-radius-md); text-align: left; }
+  .pricing-table td::before { content: attr(data-plan); color: var(--tp-steel); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; }
+}

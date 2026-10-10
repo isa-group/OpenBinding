@@ -27,7 +27,7 @@
     "pricing4ts": "0.11.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^7.13.0",
+    "react-router-dom": "^7.18.4",
     "recharts": "^2.15.4",
     "space-react-client": "^0.3.3"
   },

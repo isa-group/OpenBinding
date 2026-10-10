@@ -380,7 +380,10 @@ function watchCriticalErrors(page: Page) {
   return critical;
 }
 
-/** A capture of the current state: the whole page, its first `height` pixels, or one area; then a check that nothing scrolls sideways. */
+/**
+ * A capture of the current state: with E2E_SCREENSHOTS=1 the whole page, its first `height` pixels, or one area, saved for a person to
+ * look at; always a check that nothing scrolls sideways.
+ */
 async function capture(page: Page, testInfo: TestInfo, name: string, options: { height?: number; area?: Locator } = {}) {
   await page.evaluate(async () => {
     await document.fonts.ready;
@@ -389,7 +392,9 @@ async function capture(page: Page, testInfo: TestInfo, name: string, options: { 
   });
   const path = testInfo.outputPath(`${name}.png`);
   const width = page.viewportSize()?.width ?? 0;
-  if (options.area) {
+  if (!process.env.E2E_SCREENSHOTS) {
+    // No picture: the page is still measured below.
+  } else if (options.area) {
     await options.area.screenshot({ path, animations: 'disabled' });
   } else if (options.height) {
     const total = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -404,7 +409,6 @@ async function capture(page: Page, testInfo: TestInfo, name: string, options: { 
 
 // Each test walks a screen through its states while the dev server compiles on demand.
 test.setTimeout(150_000);
-
 const viewports = [
   { name: 'desktop', viewport: { width: 1440, height: 900 }, isMobile: false, deviceScaleFactor: 1 },
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
@@ -416,6 +420,8 @@ const cells = cellsFixture();
 
 for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S7b analysis and reports`, () => {
+    // One worker per viewport: with every test in parallel the browsers starve each other and the same walk takes twice as long.
+    test.describe.configure({ mode: 'default' });
     test.use({ viewport, isMobile, deviceScaleFactor });
 
     test('analysis-sources /app/analysis · groups by model, a preselected cell and the way into the decision space', async ({ page }, testInfo) => {
@@ -841,7 +847,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(publish.getByLabel('Authors')).toHaveValue('lucia.vega');
       await publish.getByLabel('DOI or link (optional)').fill('10.1000/placement');
       state.refuse.publish = detail(422, 'private_evidence', 'Job evidence must belong to a public project before report publication.');
-      await page.screenshot({ path: testInfo.outputPath(`report-${name}-publish-dialog.png`), animations: 'disabled' });
+      if (process.env.E2E_SCREENSHOTS) await page.screenshot({ path: testInfo.outputPath(`report-${name}-publish-dialog.png`), animations: 'disabled' });
       await publish.getByRole('button', { name: 'Publish' }).click();
       await expect(publish.getByText('Some of the evidence is private (422 · private_evidence)')).toBeVisible();
       await capture(page, testInfo, `report-${name}-publish-422`);

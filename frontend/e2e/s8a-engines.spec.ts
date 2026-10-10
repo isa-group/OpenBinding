@@ -238,7 +238,6 @@ async function capture(page: Page, testInfo: TestInfo, name: string, options: { 
 
 // Each test walks a screen through its states while the dev server compiles on demand.
 test.setTimeout(150_000);
-
 const viewports = [
   { name: 'desktop', viewport: { width: 1440, height: 900 }, isMobile: false, deviceScaleFactor: 1 },
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
@@ -253,6 +252,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   const tall = (height: number) => (isMobile ? Math.round(height * 1.9) : height);
 
   test.describe(`${name} · S8a engines and language`, () => {
+    // One worker per viewport: with every test in parallel the browsers starve each other and the same walk takes twice as long.
+    test.describe.configure({ mode: 'default' });
     test.use({ viewport, isMobile, deviceScaleFactor });
 
     test('eng-register /app/engines/new · the four steps from the engine to an active deployment', async ({ page }, testInfo) => {

@@ -438,7 +438,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Project settings' })).toBeVisible();
       await expect(main.getByText('QoS Benchmarks · your role')).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page');
+      const settingsTab = main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Settings' });
+      await expect(settingsTab).toHaveAttribute('aria-current', 'page');
+      // On a phone the row of tabs scrolls: the current one is brought into view, not left cut off at the edge.
+      await expect(settingsTab).toBeInViewport({ ratio: 1 });
       await expect(main.getByLabel('Name', { exact: true })).toHaveValue('QoS Benchmarks');
       await expect(main.getByText('/app/isa-demo/qos-benchmarks', { exact: true })).toBeVisible();
       await expect(main.getByRole('button', { name: 'Save' })).toBeDisabled();
@@ -525,7 +528,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('#platform-main');
 
       await expect(main.getByRole('heading', { level: 1, name: 'Portable package' })).toBeVisible();
-      await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Package' })).toHaveAttribute('aria-current', 'page');
+      const packageTab = main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Package' });
+      await expect(packageTab).toHaveAttribute('aria-current', 'page');
+      await expect(packageTab).toBeInViewport({ ratio: 1 });
       await expect(main.getByText('case with 2 sealed revisions')).toBeVisible();
       await expect(main.getByText('People and roles')).toBeVisible();
       await expect(main.getByText('ZIP, JSON or YAML package · up to 128 MiB on your plan')).toBeVisible();

@@ -60,12 +60,12 @@ function watchCriticalErrors(page: Page) {
   return critical;
 }
 
-/** Full-page capture of the current state, after checking that nothing scrolls sideways. */
+/** Check that nothing scrolls sideways and, with E2E_SCREENSHOTS=1, save a full-page picture of the current state for a person to look at. */
 async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.evaluate(() => document.fonts.ready);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow, `${name} should not scroll sideways`).toBeLessThanOrEqual(1);
-  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
+  if (process.env.E2E_SCREENSHOTS) await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
 }
 
 test.setTimeout(60_000);
@@ -111,6 +111,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(monthly.getByRole('row', { name: /Capacity units/ })).not.toContainText('To confirm');
       await capture(page, testInfo, `pricing-${name}-visitor`);
       if (isMobile) {
+        // The plans stack instead of scrolling: the page is as wide as the device, the matrix has nothing to scroll, and no plan is cut off.
+        const fit = await page.evaluate((deviceWidth) => {
+          const scroller = document.querySelector('.pricing-scroller') as HTMLElement;
+          const reach = (selector: string) => Math.max(...Array.from(document.querySelectorAll(selector)).map((element) => element.getBoundingClientRect().right));
+          return {
+            page: document.documentElement.scrollWidth - deviceWidth,
+            scroller: scroller.scrollWidth - scroller.clientWidth,
+            tiles: reach('.pricing-plan-tile') - deviceWidth,
+            cells: reach('.pricing-table td') - deviceWidth,
+          };
+        }, viewport.width);
+        expect(fit.page, 'the page should not scroll sideways').toBeLessThanOrEqual(1);
+        expect(fit.scroller, 'the matrix should not scroll sideways').toBeLessThanOrEqual(1);
+        expect(fit.tiles, 'no plan tile should be cut off on the right').toBeLessThanOrEqual(0);
+        expect(fit.cells, 'no value should be cut off on the right').toBeLessThanOrEqual(0);
+        await expect(plans.getByRole('listitem')).toHaveCount(4);
         expect(critical).toEqual([]);
         return;
       }

@@ -47,10 +47,12 @@
 .adm-nav a:hover { border-color: var(--tp-stone); background: var(--tp-surface); }
 .adm-nav [aria-current='page'] { border-color: var(--tp-ink); background: var(--tp-ink); color: var(--tp-on-dark); }
 
-/* On a phone the ten sections are one row that scrolls (the current one is brought into view), not four rows above the title. */
+/* On a phone the ten sections are one row that scrolls (the current one is brought into view), not four rows above the title.
+   The bar must be a single-line column: a wrapping column is multi-line, and its line is as wide as the widest item (the whole row of pills). */
 @media (max-width: 640px) {
-  .adm-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .adm-bar { flex-flow: column nowrap; align-items: flex-start; gap: 8px; }
   .adm-nav {
+    min-width: 0;
     flex-wrap: nowrap;
     align-self: stretch;
     margin-inline: calc(var(--tp-spacing-md) * -1);

@@ -78,7 +78,8 @@
 
 /* On a narrow screen every tab is one row that scrolls sideways (ProjectTabs brings the current one into view). */
 @media (max-width: 760px) {
-  .project-tabs-inner { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  /* The tabs sit 1 px over the border below them; a row that scrolls clips that pixel, so it gets a pixel of its own, taken back from the margin. */
+  .project-tabs-inner { margin-bottom: -1px; padding-bottom: 1px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
   .project-tabs-inner::-webkit-scrollbar { display: none; }
   .project-tabs-main { flex: none; overflow: visible; }
 }

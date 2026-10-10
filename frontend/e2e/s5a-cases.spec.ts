@@ -289,14 +289,14 @@ function watchCriticalErrors(page: Page) {
   return critical;
 }
 
-/** Full-page capture of the current state, then a check that nothing scrolls sideways. */
+/** With E2E_SCREENSHOTS=1, a full-page picture of the current state for a person to look at; always a check that nothing scrolls sideways. */
 async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.evaluate(async () => {
     await document.fonts.ready;
     (document.activeElement as HTMLElement | null)?.blur();
     window.scrollTo(0, 0);
   });
-  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
+  if (process.env.E2E_SCREENSHOTS) await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow, `${name} should not scroll sideways`).toBeLessThanOrEqual(1);
 }
@@ -305,7 +305,8 @@ const request = (page: Page, method: string, path: string) => page.waitForReques
 
 // Each test walks a screen through its states while the dev server compiles on demand.
 test.setTimeout(120_000);
-
+// One worker for the whole file: with every test in parallel the browsers starve each other and the same walk takes twice as long.
+test.describe.configure({ mode: 'default' });
 const viewports = [
   { name: 'desktop', viewport: { width: 1440, height: 900 }, isMobile: false, deviceScaleFactor: 1 },
   { name: 'mobile', viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 2 },
