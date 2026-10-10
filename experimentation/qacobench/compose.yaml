@@ -1,12 +1,11 @@
 name: qacobench-release
 
-x-gateway-environment: &gateway-environment
+x-worker-environment: &worker-environment
   APP_ENV: dev
   SCHEMAS_DIR: /app/schemas
   PYTHONPATH: /app/src
   DATABASE_URL: postgresql+asyncpg://benchmark:${QACOBENCH_PASSWORD:-Benchmark2026!}@postgres:5432/benchmark
   REDIS_URL: redis://redis:6379/0
-  GATEWAY_JWT_SECRET: ${QACOBENCH_JWT_SECRET:-isolated-qacobench-reproduction-key}
   BOOTSTRAP_ADMIN_USERNAME: benchmark
   BOOTSTRAP_ADMIN_EMAIL: benchmark@example.org
   BOOTSTRAP_ADMIN_PASSWORD: ${QACOBENCH_PASSWORD:-Benchmark2026!}
@@ -22,6 +21,11 @@ x-gateway-environment: &gateway-environment
   ENGINE_RANDOM_SEARCH_URL: http://engine-random-search:8080
   ENGINE_EVOLUTIONARY_HEURISTICS_URL: http://engine-evolutionary-heuristics:8080
   FEDERATION_REQUIRE_HTTPS: "false"
+
+# Workers never sign or verify session tokens; only the gateway gets the JWT secret.
+x-gateway-environment: &gateway-environment
+  <<: *worker-environment
+  GATEWAY_JWT_SECRET: ${QACOBENCH_JWT_SECRET:-isolated-qacobench-reproduction-key}
 
 x-runner-environment: &runner-environment
   OPENBINDING_GATEWAY_URL: http://gateway:8000
@@ -102,7 +106,7 @@ services:
     image: qacobench/gateway:${QACOBENCH_REVISION:-qfbs-v2}
     entrypoint: []
     command: [dramatiq, openbinding_gateway.worker, --processes, "1", --threads, "4", --queues, default]
-    environment: *gateway-environment
+    environment: *worker-environment
     volumes: [gateway-artifacts:/var/lib/openbinding/artifacts]
     depends_on:
       gateway: {condition: service_healthy}

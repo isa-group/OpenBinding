@@ -296,7 +296,6 @@ services:
     environment:
       - SCHEMAS_DIR=/app/schemas
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
-      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET before starting the prod profile}
       - REDIS_URL=redis://redis:6379/0
       - JOB_DISPATCH_MODE=dramatiq
       - SPACE_ENABLED=${SPACE_ENABLED:-false}
@@ -355,7 +354,6 @@ services:
       - SCHEMAS_DIR=/app/schemas
       - PYTHONPATH=/app/src
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
-      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:-development-secret-do-not-use-in-production}
       - REDIS_URL=redis://redis:6379/0
       - JOB_DISPATCH_MODE=dramatiq
       - SPACE_ENABLED=${SPACE_ENABLED:-false}
