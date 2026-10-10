@@ -16,6 +16,7 @@ from openbinding_gateway.db.base import Base
 from openbinding_gateway.db.models import EngineRegistrationRevision, User, UserRole
 from openbinding_gateway.main import app
 from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services import engines as engine_service
 from openbinding_gateway.space_client import PlanCaps
 from openbinding_gateway.v1.canonical import digest
 from openbinding_gateway.v1.compiler import compile_instance
@@ -53,7 +54,7 @@ def _deployment_openapi(contract: dict) -> dict:
 
 def test_protocol_digest_pins_the_external_binding_problem_schema(monkeypatch) -> None:
     installed = routes._protocol_digest()
-    monkeypatch.setattr(routes, "digest_bytes", lambda value: "sha256-" + "f" * 64)
+    monkeypatch.setattr(engine_service, "digest_bytes", lambda value: "sha256-" + "f" * 64)
 
     assert routes._protocol_digest() != installed
 

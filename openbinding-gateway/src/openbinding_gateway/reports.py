@@ -58,7 +58,7 @@ async def report_evidence(session, artifact, document, user):
     from types import SimpleNamespace
     from .db.models import Job, Project, Study
     from .routes.studies import _validate_report_provenance
-    from .routes.v1 import _owned_job
+    from .services.engines import owned_job
     evidence = []
     if document.get('kind') == 'binding-decision':
         sources = document.get('sources')
@@ -69,7 +69,7 @@ async def report_evidence(session, artifact, document, user):
                 identity = uuid.UUID(source['id'])
             except (KeyError, ValueError, TypeError) as exc:
                 raise api_error(422, 'invalid_evidence', 'Invalid job evidence reference.') from exc
-            job = await _owned_job(str(identity), user, session)
+            job = await owned_job(str(identity), user, session)
             if job is None or job.state.value not in {'completed', 'failed', 'cancelled'} or job.result is None:
                 raise api_error(422, 'nonterminal_evidence', 'Report evidence must have a stored terminal result.')
             from .v1.archive import safe

@@ -23,7 +23,6 @@ ALLOWED_LEGACY = frozenset(
         "job_dispatch",
         "pricing_bootstrap",
         "reports",
-        "studies",
         "study_jobs",
     }
 )

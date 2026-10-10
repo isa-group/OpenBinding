@@ -145,8 +145,8 @@ def validate_content(kind: str, payload: DraftContent) -> tuple[bytes, list[dict
                 if not isinstance(document.get('engine'), dict) or not isinstance(document.get('mode'), str):
                     raise api_error(422, 'invalid_configuration', 'Execution configuration requires an exact engine and mode.')
         elif kind in {'Profile', 'Dialect', 'Engine', 'EngineRegistration'}:
-            from .routes.v1 import _schema_diagnostics
-            errors = _schema_diagnostics(document, kind)
+            from .services.engines import schema_diagnostics
+            errors = schema_diagnostics(document, kind)
             if document.get('kind') != kind or errors:
                 raise api_error(422, 'invalid_contract', str(errors or 'Contract kind mismatch.'))
             if kind in {'Profile', 'Dialect'}:
@@ -281,7 +281,7 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
                 raise api_error(422, 'case_not_executable', f'Member {position} has no materialized snapshot.')
             case_references.append((position, member.caseRevisionId))
         if artifact.kind == 'Study':
-            from .routes.v1 import _engine_mode
+            from .services.engines import engine_mode
             definition = StudyArtifactContent.model_validate(payload.content)
             if definition.collection:
                 if definition.collection not in payload.dependencies:
@@ -295,14 +295,14 @@ async def seal_draft(session: AsyncSession, artifact: Artifact, draft: ArtifactD
                     raise api_error(422, 'collection_case_mismatch', 'The study must include every exact case from its source collection.')
             for engine in definition.engines:
                 for parameters in definition.parameter_sets:
-                    await _engine_mode(engine['name'], engine.get('mode'), parameters, session,
+                    await engine_mode(engine['name'], engine.get('mode'), parameters, session,
                         caller=user, namespace=engine['namespace'], version=engine['version'], manifest_digest=engine['digest'])
     if artifact.kind == 'ExecutionConfiguration':
-        from .routes.v1 import _engine_mode
+        from .services.engines import engine_mode
         engine = payload.content['engine']
         if set(engine) != {'namespace', 'name', 'version', 'digest'}:
             raise api_error(422, 'invalid_configuration', 'Engine reference must be exact.')
-        await _engine_mode(engine['name'], payload.content['mode'], payload.content.get('options', {}),
+        await engine_mode(engine['name'], payload.content['mode'], payload.content.get('options', {}),
             session, caller=user, namespace=engine['namespace'], version=engine['version'], manifest_digest=engine['digest'])
     ordinal = int(await session.scalar(select(func.max(ArtifactVersion.ordinal)).where(
         ArtifactVersion.artifact_id == artifact.id)) or 0) + 1

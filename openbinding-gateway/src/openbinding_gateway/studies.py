@@ -107,7 +107,7 @@ async def seal_study_definition(session, project, user, name, definition, *, cur
     from .artifacts import seal_draft, reference
     from .db.models import Artifact, ArtifactDraft, ArtifactVersion, BindingCaseRevision, ProjectArtifact
     from .models.artifacts import DraftContent
-    from .routes.v1 import _engine_mode
+    from .services.engines import engine_mode
     from .v1.canonical import digest
 
     definition = StudyDefinition.model_validate(definition)
@@ -125,7 +125,7 @@ async def seal_study_definition(session, project, user, name, definition, *, cur
             cases.append({'caseRevisionId': str(case.id), 'compositionDigest': case.digest})
         engines = []
         for engine in definition.engines:
-            _, mode, _ = await _engine_mode(engine['name'], engine.get('mode'), definition.parameter_sets[0], session, caller=user,
+            _, mode, _ = await engine_mode(engine['name'], engine.get('mode'), definition.parameter_sets[0], session, caller=user,
                 namespace=engine['namespace'], version=engine['version'], manifest_digest=engine['digest'])
             engines.append({**engine, 'mode': mode['id']})
         content = {'apiVersion': 'openbinding/study/v1', 'cases': cases, 'engines': engines,

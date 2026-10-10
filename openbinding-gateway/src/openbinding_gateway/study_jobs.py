@@ -25,6 +25,7 @@ from .db.models import (
     User,
     utcnow,
 )
+from .services.engines import engine_mode, manifest_async
 from .services.snapshots import persist_snapshot, snapshot_problem
 from .studies import aggregate_metrics
 from .v1.package import PackageError, load_package
@@ -82,11 +83,9 @@ async def _mode_takes_seed(
 ) -> bool:
     """Whether the cell's engine mode accepts a seed; unknown counts as yes."""
 
-    from .routes import v1
-
     reference = cell.engine_ref
     try:
-        manifest = await v1._manifest_async(
+        manifest = await manifest_async(
             reference["name"],
             session,
             caller=user,
@@ -250,7 +249,7 @@ async def launch_study_cell(
     requested_mode = engine.pop("mode", None)
     execution_optimization = engine.pop("optimization", None)
     try:
-        _, selected_mode, _ = await v1._engine_mode(
+        _, selected_mode, _ = await engine_mode(
             engine["name"],
             requested_mode,
             cell.parameters,

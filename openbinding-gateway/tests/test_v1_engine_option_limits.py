@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 
 from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services import engines
 
 
 @pytest.mark.asyncio
@@ -35,7 +36,7 @@ async def test_v1_option_names_are_bounded_by_their_declared_mode_limit(
     async def installed_manifest(*_args, **_kwargs):
         return manifest
 
-    monkeypatch.setattr(routes, "_manifest_async", installed_manifest)
+    monkeypatch.setattr(engines, "manifest_async", installed_manifest)
 
     with pytest.raises(HTTPException) as raised:
         await routes._engine_mode("bounded-engine", "bounded", {option: 101})

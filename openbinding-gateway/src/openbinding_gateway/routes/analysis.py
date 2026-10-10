@@ -29,7 +29,7 @@ from ..models.platform import ReportCreate, ReportView
 from ..security.apikeys import allows_engine, allows_request, authenticated_api_key
 from ..v1.archive import VERSION, build_archive, candidate_detail, compact_archive, decide, query_archive, record, row_view, safe
 from ..v1.canonical import digest
-from .v1 import _owned_job
+from ..services.engines import owned_job
 
 router = APIRouter(prefix="/v1/analysis", tags=["Binding analysis"])
 _SLOTS = asyncio.Semaphore(2)
@@ -105,7 +105,7 @@ async def load_archive(query, caller, session):
         loaded_jobs = {str(job.id): job for job, _ in loaded}
     records, snapshots = [], {}
     for job_id in ids:
-        job = loaded_jobs.get(job_id) if loaded_jobs else await _owned_job(job_id, caller, session)
+        job = loaded_jobs.get(job_id) if loaded_jobs else await owned_job(job_id, caller, session)
         if job is None:
             raise HTTPException(404, "One or more analysis sources are unavailable")
         enforce_boundary(caller, job, project=job.project_id, organization=job.organization_id)
@@ -195,7 +195,7 @@ async def sources(
 ):
     anchor = None
     if compatible_with:
-        anchor_job = await _owned_job(compatible_with, caller, session)
+        anchor_job = await owned_job(compatible_with, caller, session)
         if anchor_job is None:
             raise HTTPException(404, "Analysis source unavailable")
         enforce_boundary(caller, anchor_job, project=anchor_job.project_id, organization=anchor_job.organization_id)
@@ -352,7 +352,7 @@ async def owned_task(task_id, caller, session, *, cancelling=False):
         raise HTTPException(404, "Analysis task unavailable")
     if cancelling and task.state in ("queued", "running"):
         for source_id in task.request["sources"]:
-            job = await _owned_job(source_id, caller, session)
+            job = await owned_job(source_id, caller, session)
             if job is None:
                 if authenticated_api_key(caller) is not None:
                     raise HTTPException(404, "Analysis source unavailable")
