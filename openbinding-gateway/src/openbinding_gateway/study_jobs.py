@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
@@ -155,7 +155,7 @@ async def cell_job_mismatches(
     return mismatches
 
 
-def _job_request(payload: dict[str, Any]) -> Request:
+def _job_request(payload: dict[str, Any], idempotency_key: str | None = None) -> Request:
     body = json.dumps(payload, separators=(",", ":")).encode()
     delivered = False
 
@@ -166,6 +166,9 @@ def _job_request(payload: dict[str, Any]) -> Request:
         delivered = True
         return {"type": "http.request", "body": body, "more_body": False}
 
+    headers = [(b"content-type", b"application/json")]
+    if idempotency_key is not None:
+        headers.append((b"idempotency-key", idempotency_key.encode()))
     return Request(
         {
             "type": "http",
@@ -176,7 +179,7 @@ def _job_request(payload: dict[str, Any]) -> Request:
             "path": "/v1/jobs",
             "raw_path": b"/v1/jobs",
             "query_string": b"",
-            "headers": [(b"content-type", b"application/json")],
+            "headers": headers,
             "client": ("study-orchestrator", 0),
             "server": ("gateway", 80),
         },
@@ -210,6 +213,14 @@ async def launch_study_cell(
     # Import lazily: the v1 router owns compilation and engine selection, while
     # the router imports the durable dispatcher that later calls us back.
     from .routes import v1
+
+    existing = (
+        await session.execute(select(Job).where(Job.study_cell_id == cell.id))
+    ).scalars().first()
+    if existing is not None:
+        cell.job_id = existing.id
+        await session.flush()
+        return existing
 
     revision = await session.get(BindingCaseRevision, cell.binding_case_revision_id)
     if revision is None or revision.source_snapshot_id is None:
@@ -263,8 +274,17 @@ async def launch_study_cell(
         "optimization": execution_optimization,
         "options": options,
     }
+    # Deterministic, so launching a cell again is a replay and not a second job.
+    # A retry detaches the previous job from the cell first; each earlier launch
+    # leaves its key behind, and the next one gets a numbered key.
+    key = f"study-cell:{cell.id}"
+    earlier = await session.scalar(
+        select(func.count()).select_from(Job).where(Job.idempotency_key.startswith(key, autoescape=True))
+    )
+    if earlier:
+        key = f"{key}:{earlier}"
     created = _response_payload(
-        await v1.create_job(_job_request(payload), caller=user, session=session)
+        await v1.create_job(_job_request(payload, key), caller=user, session=session)
     )
     try:
         job_id = uuid.UUID(str(created["id"]))
@@ -275,6 +295,7 @@ async def launch_study_cell(
         raise StudyLaunchError("job_not_persisted", "The study job was not persisted.")
     job.organization_id = organization.id
     job.project_id = project_id
+    job.study_cell_id = cell.id
     job.billing_sponsor_user_id = organization.billing_sponsor_user_id
     cell.job_id = job.id
     await session.flush()
@@ -312,9 +333,15 @@ async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
                         StudyCell.state == RunState.QUEUED,
                     )
                     .order_by(StudyCell.ordinal)
+                    .limit(1)
+                    .with_for_update(skip_locked=True)
+                    .execution_options(populate_existing=True)
                 )
             ).scalars().first()
-            if queued_cell is not None:
+            # populate_existing reloads the row as the lock saw it, so a launch
+            # committed by another worker meanwhile shows up in job_id here
+            # (SQLite ignores the lock).
+            if queued_cell is not None and queued_cell.job_id is None:
                 user = await session.get(User, run_obj.created_by_id)
                 org = await session.get(Organization, job.organization_id)
                 if user and org and job.project_id:

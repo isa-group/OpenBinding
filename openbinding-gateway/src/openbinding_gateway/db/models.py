@@ -38,6 +38,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -187,6 +188,13 @@ class Job(Base):
             name="ck_jobs_termination",
         ),
         Index("ix_jobs_state_lease_until", "state", "lease_until"),
+        Index(
+            "uq_jobs_study_cell_id",
+            "study_cell_id",
+            unique=True,
+            sqlite_where=text("study_cell_id IS NOT NULL"),
+            postgresql_where=text("study_cell_id IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -251,6 +259,13 @@ class Job(Base):
     )
     billing_sponsor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    #: The study cell this job was launched for. The partial unique index below
+    #: is what keeps two racing launches from both reserving a job for one cell.
+    #: ``use_alter`` because study_cells.job_id points back at jobs.
+    study_cell_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("study_cells.id", ondelete="SET NULL", name="fk_jobs_study_cell_id", use_alter=True),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

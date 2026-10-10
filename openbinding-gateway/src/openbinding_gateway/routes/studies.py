@@ -694,6 +694,9 @@ async def run_study(
                 ),
                 "seed": cell.seed,
             }
+    if cells and all(cell.state is RunState.FAILED and cell.job_id is None for cell in cells):
+        # Nothing was launched, so the run should not cost a studyRuns unit.
+        await get_gate().adjust_usage(user.id, {"studyRuns": -1})
     terminal = {RunState.COMPLETED, RunState.FAILED, RunState.CANCELLED}
     if all(cell.state in terminal for cell in cells):
         run.state = (
@@ -934,6 +937,10 @@ async def retry_study_cell(
     previous_job_id = cell.job_id
     cell.state = RunState.QUEUED
     cell.job_id = None
+    if current_job is not None:
+        # One job per cell: the superseded job gives up its claim on the cell.
+        current_job.study_cell_id = None
+        await session.flush()
     cell.metrics = {}
     run.state = RunState.QUEUED
     run.finished_at = None
