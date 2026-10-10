@@ -159,7 +159,7 @@ export function Register() {
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
-          placeholder="e.g. lucia.vega"
+          placeholder="e.g. ada.lovelace"
           value={username}
           onChange={(event) => setUsername(event.target.value)}
           disabled={busy}

@@ -368,4 +368,7 @@
 @media (max-width: 760px) {
   .pricing-page { padding-top: var(--tp-spacing-xxl); }
   .pricing-skeleton-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* The matrix still scrolls sideways, but its name column is no longer most of the first screen. */
+  .pricing-matrix { --pricing-first: 148px; min-width: 620px; }
+  .pricing-table th[scope='row'] { padding: 10px 12px; }
 }

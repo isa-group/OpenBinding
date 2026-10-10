@@ -1,4 +1,4 @@
-/* BindingSpaceBadge.css - Dynamic visual styles and effects for Binding Space */
+/* BindingSpaceBadge.css - how big a binding space is, as a badge or a card (light theme: tokens only). */
 
 .binding-space-badge {
   position: relative;
@@ -6,67 +6,37 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.25rem 0.65rem;
-  border-radius: 9999px;
-  font-family: var(--font-mono, monospace);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-elevated);
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: -0.01em;
-  background: var(--color-bg-elevated, #161b22);
-  border: 1px solid var(--color-border, #30363d);
   cursor: help;
   user-select: none;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: border-color var(--transition-base);
 }
 
 .binding-space-badge:hover,
 .binding-space-badge:focus-visible {
-  transform: translateY(-1px);
-  outline: none;
+  border-color: var(--tier-color, var(--color-border-hover));
 }
 
-/* Tier-specific colors and glow effects */
-.binding-space-badge.tier-micro {
-  --tier-color: #10b981;
-  --tier-bg: rgba(16, 185, 129, 0.08);
-  border-color: rgba(16, 185, 129, 0.3);
-}
+/* Tier colours: calm for small spaces, warmer as the space grows. Text always uses the deeper shade of the hue. */
+.binding-space-badge.tier-micro, .binding-space-card.tier-micro { --tier-color: var(--color-success); }
+.binding-space-badge.tier-small, .binding-space-card.tier-small { --tier-color: var(--tp-primary); }
+.binding-space-badge.tier-medium, .binding-space-card.tier-medium { --tier-color: var(--tp-primary-deep); }
+.binding-space-badge.tier-large, .binding-space-card.tier-large { --tier-color: var(--color-warning); }
+.binding-space-badge.tier-massive, .binding-space-card.tier-massive { --tier-color: var(--color-error); }
 
-.binding-space-badge.tier-small {
-  --tier-color: #06b6d4;
-  --tier-bg: rgba(6, 182, 212, 0.08);
-  border-color: rgba(6, 182, 212, 0.3);
-}
-
-.binding-space-badge.tier-medium {
-  --tier-color: #3b82f6;
-  --tier-bg: rgba(59, 130, 246, 0.08);
-  border-color: rgba(59, 130, 246, 0.3);
-}
-
-.binding-space-badge.tier-large {
-  --tier-color: #8b5cf6;
-  --tier-bg: rgba(139, 92, 246, 0.1);
-  border-color: rgba(139, 92, 246, 0.35);
-  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
-}
-
+.binding-space-badge.tier-micro,
+.binding-space-badge.tier-small,
+.binding-space-badge.tier-medium,
+.binding-space-badge.tier-large,
 .binding-space-badge.tier-massive {
-  --tier-color: #f59e0b;
-  --tier-bg: rgba(245, 158, 11, 0.1);
-  border-color: rgba(245, 158, 11, 0.4);
-  box-shadow: 0 0 16px rgba(245, 158, 11, 0.2);
-  animation: pulse-massive 3s infinite ease-in-out;
-}
-
-@keyframes pulse-massive {
-  0%, 100% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.15); }
-  50% { box-shadow: 0 0 18px rgba(245, 158, 11, 0.35); }
-}
-
-.binding-space-badge:hover {
-  border-color: var(--tier-color);
-  box-shadow: 0 0 14px var(--tier-bg);
+  --tier-bg: color-mix(in srgb, var(--tier-color) 10%, transparent);
+  border-color: color-mix(in srgb, var(--tier-color) 35%, var(--color-border));
 }
 
 .binding-space-icon {
@@ -81,14 +51,14 @@
 }
 
 .binding-space-label {
-  color: var(--color-text-tertiary, #8b949e);
+  color: var(--color-text-tertiary);
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .binding-space-value {
-  color: var(--color-text-primary, #f0f6fc);
+  color: var(--color-text-primary);
   font-weight: 700;
 }
 
@@ -104,46 +74,43 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--color-border, #30363d);
-  transition: all 0.2s ease;
+  background: var(--color-border);
 }
 
 .binding-space-meter-dot.is-active {
   background: var(--tier-color);
-  box-shadow: 0 0 4px var(--tier-color);
 }
 
 /* Card variant (larger for metrics rail / overview) */
 .binding-space-card {
+  position: relative;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  background: var(--color-bg-elevated, #161b22);
-  border: 1px solid var(--color-border, #30363d);
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  transition: border-color 0.2s, box-shadow 0.2s;
-  position: relative;
   overflow: visible;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  transition: border-color var(--transition-base);
 }
 
 .binding-space-card::before {
   content: '';
   position: absolute;
   top: 0;
+  bottom: 0;
   left: 0;
   width: 3px;
-  height: 100%;
-  background: var(--tier-color, #3b82f6);
-  border-top-left-radius: 9px;
-  border-bottom-left-radius: 9px;
+  border-top-left-radius: calc(var(--radius-lg) - 1px);
+  border-bottom-left-radius: calc(var(--radius-lg) - 1px);
+  background: var(--tier-color, var(--tp-primary));
 }
 
-.binding-space-card:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+.binding-space-card:hover,
+.binding-space-card:focus-visible {
+  border-color: var(--color-border-hover);
 }
 
 .binding-space-card-main {
@@ -153,109 +120,113 @@
 }
 
 .binding-space-card-title {
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
   font-size: 0.65rem;
-  font-family: var(--font-mono, monospace);
-  text-transform: uppercase;
-  color: var(--color-text-tertiary, #8b949e);
   letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .binding-space-card-val {
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
   font-size: 1.25rem;
-  font-family: var(--font-display, inherit);
-  font-weight: 700;
-  color: var(--color-text-primary, #f0f6fc);
+  font-weight: 600;
 }
 
 .binding-space-card-desc {
-  font-size: 0.7rem;
-  color: var(--color-text-secondary, #c9d1d9);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
 }
 
-/* Interactive Floating Tooltip */
+/* Floating tooltip */
 .binding-space-tooltip {
   position: absolute;
   top: calc(100% + 8px);
-  bottom: auto;
   right: 0;
   left: auto;
-  transform: translateY(-4px);
+  z-index: 20;
   min-width: 240px;
   max-width: 340px;
   padding: 0.65rem 0.85rem;
-  background: var(--color-bg-elevated, #ffffff);
-  border: 1px solid var(--color-border, #c9cdc6);
-  border-radius: 8px;
-  box-shadow: var(--shadow-lg, 0 10px 25px rgba(23, 33, 29, 0.12));
-  pointer-events: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-lg);
   opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
-  z-index: 99999;
+  pointer-events: none;
   text-align: left;
+  transform: translateY(-4px);
+  transition: opacity var(--transition-base), transform var(--transition-base), visibility var(--transition-base);
+  visibility: hidden;
 }
 
 .binding-space-badge:hover .binding-space-tooltip,
 .binding-space-badge:focus-visible .binding-space-tooltip {
   opacity: 1;
-  visibility: visible;
   transform: translateY(0);
+  visibility: visible;
 }
 
 .binding-space-card .binding-space-tooltip {
-  left: 0;
   right: 0;
+  left: 0;
   width: 100%;
-  max-width: 100%;
   min-width: 0;
-  transform: translateY(-4px);
+  max-width: 100%;
   box-sizing: border-box;
 }
 
 .binding-space-card:hover .binding-space-tooltip,
 .binding-space-card:focus-visible .binding-space-tooltip {
   opacity: 1;
-  visibility: visible;
   transform: translateY(0);
+  visibility: visible;
 }
 
 .binding-space-tooltip-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 0.35rem;
   padding-bottom: 0.25rem;
-  border-bottom: 1px solid var(--color-border, #c9cdc6);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .binding-space-tooltip-title {
+  color: var(--tier-color, var(--tp-primary));
   font-size: 0.68rem;
   font-weight: 700;
-  color: var(--tier-color, #3b82f6);
-  text-transform: uppercase;
   letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .binding-space-tooltip-tier {
-  font-size: 0.6rem;
   padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--tier-bg);
-  color: var(--tier-color);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--tier-color, var(--tp-primary)) 10%, transparent);
+  color: var(--tier-color, var(--tp-primary));
+  font-size: 0.65rem;
   font-weight: 600;
 }
 
 .binding-space-tooltip-exact {
-  font-family: var(--font-mono, monospace);
+  margin-bottom: 0.25rem;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
   font-size: 0.8rem;
   font-weight: 700;
-  color: var(--color-text-primary, #17211d);
   word-break: break-all;
-  margin-bottom: 0.25rem;
 }
 
 .binding-space-tooltip-info {
-  font-size: 0.68rem;
-  color: var(--color-text-secondary, #52605a);
-  line-height: 1.35;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.binding-space-tooltip-tasks {
+  margin-top: 0.35rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--color-border);
 }

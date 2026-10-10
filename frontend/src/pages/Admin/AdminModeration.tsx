@@ -85,7 +85,7 @@ function ExtensionApproval({ waiting, onDecided }: { waiting: number | null; onD
         </label>
         <label className="adm-field">
           <span className="adm-label">Namespace</span>
-          <input value={form.namespace} onChange={set('namespace')} autoComplete="off" spellCheck={false} placeholder="lucia-vega" />
+          <input value={form.namespace} onChange={set('namespace')} autoComplete="off" spellCheck={false} placeholder="ada-lovelace" />
         </label>
         <label className="adm-field">
           <span className="adm-label">Name</span>

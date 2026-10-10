@@ -47,6 +47,22 @@
 .adm-nav a:hover { border-color: var(--tp-stone); background: var(--tp-surface); }
 .adm-nav [aria-current='page'] { border-color: var(--tp-ink); background: var(--tp-ink); color: var(--tp-on-dark); }
 
+/* On a phone the ten sections are one row that scrolls (the current one is brought into view), not four rows above the title. */
+@media (max-width: 640px) {
+  .adm-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .adm-nav {
+    flex-wrap: nowrap;
+    align-self: stretch;
+    margin-inline: calc(var(--tp-spacing-md) * -1);
+    padding-inline: var(--tp-spacing-md);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .adm-nav::-webkit-scrollbar { display: none; }
+  .adm-nav a, .adm-nav span { flex: none; white-space: nowrap; }
+}
+
 .adm-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--tp-spacing-sm); }
 .adm-header-copy { flex: 1 1 24rem; min-width: 0; }
 .adm-title-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }

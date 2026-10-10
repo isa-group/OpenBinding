@@ -1,5 +1,7 @@
 import { Bell, BarChart3, Fingerprint, KeyRound, User, type LucideIcon } from 'lucide-react';
+import { useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useCurrentIntoView } from './useCurrentIntoView';
 import './SectionNav.css';
 
 export type AccountSection = 'profile' | 'usage' | 'keys' | 'identities' | 'notifications';
@@ -14,8 +16,10 @@ const sections: ReadonlyArray<{ key: AccountSection; label: string; to: string; 
 
 /** Side navigation shared by the account screens. */
 export function AccountNav({ active = 'profile' }: { active?: AccountSection }) {
+  const nav = useRef<HTMLElement>(null);
+  useCurrentIntoView(nav, active);
   return (
-    <nav className="section-nav" aria-label="Account">
+    <nav ref={nav} className="section-nav" aria-label="Account">
       <span className="section-nav-title">Account</span>
       {sections.map(({ key, label, to, icon: Icon }) => (
         <Link key={key} to={to} viewTransition className="section-nav-link" aria-current={active === key ? 'page' : undefined}>

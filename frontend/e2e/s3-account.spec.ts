@@ -491,7 +491,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('2 of 25 keys')).toBeVisible();
       const first = main.getByRole('article', { name: 'ci-lectura-resultados' });
       await expect(first.getByText('obk_demo0001…')).toBeVisible();
-      await expect(first.getByText(/created Sep 1, 2026 · last used Oct 8, 2026 · expires Dec 31, 2099/)).toBeVisible();
+      await expect(first.getByText('created Sep 1, 2026')).toBeVisible();
+      await expect(first.getByText('last used Oct 8, 2026')).toBeVisible();
+      await expect(first.getByText('expires Dec 31, 2099')).toBeVisible();
       for (const label of ['GET only', 'org isa-demo', 'project qos-benchmarks', 'jobs, studies, reports']) await expect(first.getByText(label, { exact: true })).toBeVisible();
       await expect(first.getByText('All engines, including future ones')).toBeVisible();
       const second = main.getByRole('article', { name: 'ejecucion-engine-fijo' });

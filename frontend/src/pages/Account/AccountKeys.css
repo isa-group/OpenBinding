@@ -36,6 +36,8 @@
 
 .key-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs); color: var(--tp-slate); font-size: 0.8125rem; }
 
+.key-dates { display: inline-flex; flex-wrap: wrap; gap: 0 var(--tp-spacing-md); }
+.key-dates > span { white-space: nowrap; }
 .key-card-meta code {
   padding: 1px 8px;
   border: 1px solid var(--tp-hairline-soft);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { catalogFixture } from '../Pricing/pricingFixture';
-import { ancestorsOf, atLeast, buildForest, descendantsOf, flatten, initialsOf, pathOf, roleSource, slugFromName, sponsorName } from './orgModel';
+import {
+  TILE_COLOURS, ancestorsOf, atLeast, buildForest, descendantsOf, flatten, initialsOf, pathOf, roleSource, slugFromName, sponsorName, tileColour,
+} from './orgModel';
 import { roomFromCatalog, roomFromUsage, roomText, roomTone } from './roomModel';
 import { auditFixture } from './auditFixture';
 import { changesOf, describeEvent, kindOf, toCsv } from './auditModel';
@@ -54,6 +56,13 @@ describe('names', () => {
     expect(initialsOf('ISA Demo Group')).toBe('ID');
     expect(initialsOf('QoS Lab (sub-organización)')).toBe('QL');
     expect(initialsOf('Consultora')).toBe('CO');
+  });
+
+  it('gives an organization the same tile colour everywhere, never the light brand blue that fails with white initials', () => {
+    expect(tileColour('isa-demo')).toBe(tileColour('isa-demo'));
+    const used = new Set(['isa-demo', 'qos-lab', 'partner-lab', 'read-lab', 'a', 'b', 'c', 'd', 'e'].map(tileColour));
+    expect([...used].every((colour) => (TILE_COLOURS as readonly string[]).includes(colour))).toBe(true);
+    expect(TILE_COLOURS).not.toContain('var(--tp-sunshine-800)');
   });
 
   it('names the sponsor from the account, then from a member list', () => {

@@ -48,7 +48,12 @@ export function initialsOf(name: string): string {
   return (words[0] ?? name).slice(0, 2).toUpperCase() || '··';
 }
 
-const TILE_COLOURS = ['var(--tp-primary-deep)', 'var(--tp-primary)', 'var(--tp-sunshine-800)'] as const;
+/** The brand blues the prototype uses for tiles; the lightest is deepened so the white initials keep 4.5:1 (the raw token is 3.4:1). */
+export const TILE_COLOURS = [
+  'var(--tp-primary-deep)',
+  'var(--tp-primary)',
+  'color-mix(in srgb, var(--tp-sunshine-800) 60%, var(--tp-primary-deep))',
+] as const;
 
 /** A stable brand colour per organization, so the same one looks the same on every screen. */
 export function tileColour(slug: string): string {

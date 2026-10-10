@@ -15,10 +15,11 @@
   white-space: nowrap;
 }
 
-.eng-chip.is-info { border-color: var(--tp-severity-info-border); background: var(--tp-severity-info-bg); color: var(--tp-severity-info); }
-.eng-chip.is-success { border-color: var(--tp-severity-success-border); background: var(--tp-severity-success-bg); color: var(--tp-severity-success); }
-.eng-chip.is-warning { border-color: var(--tp-severity-warning-border); background: var(--tp-severity-warning-bg); color: var(--tp-severity-warning); }
-.eng-chip.is-error { border-color: var(--tp-severity-error-border); background: var(--tp-severity-error-bg); color: var(--tp-severity-error); }
+/* The text uses the deeper shade of each hue (4.5:1 on its pale fill); the raw severity colours are for borders and icons. */
+.eng-chip.is-info { border-color: var(--tp-severity-info-border); background: var(--tp-severity-info-bg); color: var(--color-info); }
+.eng-chip.is-success { border-color: var(--tp-severity-success-border); background: var(--tp-severity-success-bg); color: var(--color-success); }
+.eng-chip.is-warning { border-color: var(--tp-severity-warning-border); background: var(--tp-severity-warning-bg); color: var(--color-warning); }
+.eng-chip.is-error { border-color: var(--tp-severity-error-border); background: var(--tp-severity-error-bg); color: var(--color-error); }
 
 .eng-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--tp-steel); font-size: 0.75rem; }
 .eng-crumb { display: inline-flex; align-items: center; gap: 8px; min-width: 0; overflow-wrap: anywhere; }

@@ -1,6 +1,6 @@
 import { configure, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Admin } from './Admin';
+import { AdminOverview as Admin } from './AdminOverview';
 import { LUCIA, queuesAt } from './adminFixtures';
 import { renderAdmin } from './adminTestUtils';
 

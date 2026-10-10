@@ -137,7 +137,7 @@
 }
 
 .an-rank-main:hover { background: var(--tp-surface); }
-.an-badge { display: inline-flex; width: 28px; height: 28px; flex: none; align-items: center; justify-content: center; border-radius: var(--tp-radius-full); background: var(--tp-muted); color: var(--tp-on-primary); font-size: 0.8125rem; font-weight: 700; }
+.an-badge { display: inline-flex; width: 28px; height: 28px; flex: none; align-items: center; justify-content: center; border-radius: var(--tp-radius-full); background: var(--tp-steel); color: var(--tp-on-primary); font-size: 0.8125rem; font-weight: 700; }
 .an-badge.is-top { background: var(--tp-primary); }
 .an-rank-text { display: flex; min-width: 140px; flex: 1; flex-direction: column; overflow-wrap: anywhere; }
 .an-rank-text small { color: var(--tp-steel); font-size: 0.75rem; }
@@ -209,6 +209,10 @@
 .an-export > summary::-webkit-details-marker { display: none; }
 .an-export-menu { position: absolute; z-index: 5; right: 0; top: calc(100% + 4px); display: flex; min-width: 220px; flex-direction: column; align-items: stretch; padding: 6px; border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-lg); background: var(--tp-canvas); box-shadow: var(--tp-shadow-elevation-3); }
 .an-export-menu .ui-action { justify-content: flex-start; }
+/* On a phone the buttons wrap to the left edge: open the menu rightwards from its button instead of off the screen. */
+@media (max-width: 640px) {
+  .an-export-menu { right: auto; left: 0; max-width: calc(100vw - 2 * var(--tp-spacing-md)); }
+}
 .an-save { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); }
 .an-save p { margin: 0; color: var(--tp-slate); font-size: 0.875rem; }
 

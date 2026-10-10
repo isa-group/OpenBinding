@@ -39,7 +39,7 @@
 
 .examples-card-head { display: flex; align-items: center; gap: 10px; }
 .examples-card-head > div { flex: 1; min-width: 0; }
-.examples-glyph { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--tp-radius-lg); background: var(--tp-severity-info-bg); color: var(--tp-primary); font-size: 0.6875rem; font-weight: 600; }
+.examples-glyph { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: var(--tp-radius-lg); background: var(--tp-severity-info-bg); color: var(--tp-primary-deep); font-size: 0.6875rem; font-weight: 600; }
 .examples-path { font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 500; overflow-wrap: anywhere; }
 .examples-note { color: var(--tp-steel); font-size: 0.75rem; }
 .examples-level { flex: none; padding: 0 8px; border-radius: var(--tp-radius-full); background: var(--tp-cream-deeper); font-size: 0.6875rem; font-weight: 500; }

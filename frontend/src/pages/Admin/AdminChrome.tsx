@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { useCurrentIntoView } from '../../components/PlatformShell/useCurrentIntoView';
 import { Action } from '../../components/ui/Action';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Notice } from '../../components/ui/Notice';
@@ -43,12 +44,14 @@ interface FrameProps {
 
 /** What every administration screen shares: where it sits, the platform-admin bar with the section pills, and the headline. */
 export function AdminFrame({ section, trail, title, lede, badges, actions, children }: FrameProps) {
+  const nav = useRef<HTMLElement>(null);
+  useCurrentIntoView(nav, section);
   return (
     <div className="adm-page">
       <Crumbs items={[{ label: 'Home', to: '/app' }, ...trail]} />
       <div className="adm-bar">
         <span className="adm-admin-chip">Platform admin</span>
-        <nav aria-label="Administration" className="adm-nav">
+        <nav ref={nav} aria-label="Administration" className="adm-nav">
           {ADMIN_SECTIONS.map((item) => (
             item.id === section
               ? <span key={item.id} aria-current="page">{item.label}</span>

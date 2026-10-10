@@ -67,13 +67,18 @@ describe('API keys', () => {
     const first = within(await card('ci-lectura-resultados'));
     expect(first.getByText('Active')).toBeInTheDocument();
     expect(first.getByText('obk_demo0001…')).toBeInTheDocument();
-    expect(first.getByText('· created Sep 1, 2026 · last used Oct 8, 2026 · expires Dec 31, 2099')).toBeInTheDocument();
+    expect(first.getByText('created Sep 1, 2026')).toBeInTheDocument();
+    expect(first.getByText('last used Oct 8, 2026')).toBeInTheDocument();
+    expect(first.getByText('expires Dec 31, 2099')).toBeInTheDocument();
+    // No typed bullets: they would start a line when the facts wrap on a phone.
+    expect(first.getByText('created Sep 1, 2026').parentElement?.textContent).not.toMatch(/·/);
     expect(first.getByText('jobs:read')).toBeInTheDocument();
     expect(first.getByText('All engines, including future ones')).toBeInTheDocument();
     for (const label of ['GET only', 'org isa-demo', 'jobs, studies']) expect(first.getByText(label)).toBeInTheDocument();
 
     const second = within(await card('ejecucion-engine-fijo'));
-    expect(second.getByText(/last used never · no expiry/)).toBeInTheDocument();
+    expect(second.getByText('last used never')).toBeInTheDocument();
+    expect(second.getByText('no expiry')).toBeInTheDocument();
     expect(second.getByText('Only bim.builtin/random-search@1.0.0 (sha256-b2c3…d4e5)')).toBeInTheDocument();
     expect(second.getByText('No extra limits')).toBeInTheDocument();
   });

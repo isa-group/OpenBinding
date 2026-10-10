@@ -3,7 +3,9 @@
 .proj-frame { display: flex; flex-direction: column; }
 
 /* The band above the tabs: breadcrumb and, on the overview, the project's title */
-.proj-band { background: var(--tp-canvas); }
+.proj-band { background: var(--tp-canvas); border-bottom: 1px solid var(--tp-hairline-soft); }
+/* With the project tabs right below, the tabs draw the line; the overview's title band keeps its own. */
+.proj-band:has(+ .project-tabs) { border-bottom: 0; }
 .proj-band.has-header { border-bottom: 1px solid var(--tp-hairline-soft); }
 
 .proj-band-inner {
@@ -343,11 +345,12 @@
 .proj-seg label {
   position: relative;
   display: inline-flex;
-  height: 38px;
+  min-height: 38px;
   align-items: center;
-  padding: 0 18px;
+  padding: 6px 18px;
   background: var(--tp-canvas);
   color: var(--tp-slate);
+  line-height: 1.3;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;

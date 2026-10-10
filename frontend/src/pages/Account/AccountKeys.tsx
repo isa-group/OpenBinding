@@ -68,9 +68,11 @@ function KeyCard({ apiKey, expired, onRotate, onRevoke }: {
         <button type="button" className="key-copy" onClick={() => void copy(apiKey.prefix, apiKey.id)} aria-label={`Copy prefix of ${apiKey.name}`}>
           {state === 'copied' ? 'Copied' : state === 'failed' ? 'Copy failed' : 'Copy prefix'}
         </button>
-        <span>
-          · created {formatDate(apiKey.created_at) ?? '—'} · last used {formatDate(apiKey.last_used_at) ?? 'never'} ·{' '}
-          {apiKey.expires_at ? `${expired ? 'expired' : 'expires'} ${formatDate(apiKey.expires_at)}` : 'no expiry'}
+        {/* Three facts, spaced by the row's gap: a bullet typed between them lands at the start of a line when the row wraps. */}
+        <span className="key-dates">
+          <span>created {formatDate(apiKey.created_at) ?? '—'}</span>
+          <span>last used {formatDate(apiKey.last_used_at) ?? 'never'}</span>
+          <span>{apiKey.expires_at ? `${expired ? 'expired' : 'expires'} ${formatDate(apiKey.expires_at)}` : 'no expiry'}</span>
         </span>
       </div>
       <dl className="key-card-grid">

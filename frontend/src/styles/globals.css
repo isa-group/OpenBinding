@@ -221,7 +221,8 @@ h1, h2, h3, h4, h5, h6 {
   text-wrap: balance;
 }
 
-h1, h2 {
+/* Only the title of a screen is set in the display face; section and card headings are body text, as in the prototype. */
+h1 {
   font-family: var(--font-display);
   font-weight: 400;
   line-height: 1.1;

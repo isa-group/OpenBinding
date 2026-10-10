@@ -79,6 +79,8 @@
 
 @media (max-width: 520px) {
   .notif-row { flex-wrap: wrap; }
+  /* The text takes the whole row beside the icon, so the date wraps under it instead of squeezing it into a narrow column. */
+  .notif-main { flex-basis: calc(100% - 54px); }
   .notif-when { margin-left: 54px; }
   .notif-detail { padding-left: var(--tp-spacing-md); }
 }
