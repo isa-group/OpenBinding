@@ -12,7 +12,6 @@ from fastapi import APIRouter, Depends, Query, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy import delete, func, select, update
-from sqlalchemy.orm import defer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..collaboration import (
@@ -88,6 +87,7 @@ from ..models.platform import (
 )
 from .. import sponsor_proposals
 from ..access import public_read
+from ..repositories import jobs as job_repository
 from ..access.dependencies import get_current_user, session_dependency
 from ..v1.canonical import digest
 from ..artifacts import store_blob, version_content
@@ -1463,10 +1463,7 @@ async def list_project_jobs(
 ) -> list[JobView]:
     organization = await _required_org(session, org)
     found_project = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
-    query = select(Job).where(Job.project_id == found_project.id).order_by(Job.created_at.desc())
-    if job_id is not None:
-        query = query.where(Job.id == job_id)
-    if not include_results:
-        query = query.options(defer(Job.result), defer(Job.original_request), defer(Job.provenance))
-    rows = (await session.execute(query)).scalars().all()
+    rows = await job_repository.list_for_project(
+        session, found_project.id, job_id=job_id, include_results=include_results
+    )
     return [job_view(job, user, include_results=include_results) for job in rows]

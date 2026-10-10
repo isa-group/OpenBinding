@@ -8,7 +8,6 @@ import uuid
 
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import space_client
@@ -20,6 +19,7 @@ from ..domain import entitlements
 from ..job_dispatch import dispatch_persisted_job
 from ..models.errors import api_error
 from ..models.platform import JobView, job_view
+from ..repositories import jobs as job_repository
 from ..v1.canonical import digest
 
 router = APIRouter(prefix="/v1/jobs", tags=["Jobs"])
@@ -36,10 +36,7 @@ async def _owned(
     *,
     lock: bool = False,
 ) -> Job:
-    query = select(Job).where(Job.id == job_id, Job.owner_id == user_id)
-    if lock:
-        query = query.with_for_update()
-    job = (await session.execute(query)).scalars().first()
+    job = await job_repository.get_owned(session, job_id, user_id, lock=lock)
     if job is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Job not found.")
     return job
@@ -52,10 +49,7 @@ async def list_jobs(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[JobView]:
-    query = select(Job).where(Job.owner_id == user.id)
-    if state is not None:
-        query = query.where(Job.state == state)
-    rows = (await session.execute(query.order_by(Job.created_at.desc()).limit(max(1, min(limit, 500))))).scalars().all()
+    rows = await job_repository.list_owned(session, user.id, state=state, limit=limit)
     return [_view(row, user) for row in rows]
 
 
@@ -86,14 +80,7 @@ async def retry_job(
     original = await _owned(session, job_id, user.id, lock=True)
     if original.state not in {JobState.FAILED, JobState.CANCELLED}:
         raise api_error(status.HTTP_409_CONFLICT, "job_not_retryable", "Only failed or cancelled jobs may be retried.")
-    existing = (
-        await session.execute(
-            select(Job)
-            .where(Job.owner_id == user.id, Job.retry_of_id == original.id)
-            .order_by(Job.created_at.desc())
-            .limit(1)
-        )
-    ).scalars().first()
+    existing = await job_repository.find_retry_of(session, user.id, original.id)
     if existing is not None:
         return _view(existing, user)
     provenance = dict(original.provenance or {})
