@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Action } from '../../components/ui/Action';
+import { Notice } from '../../components/ui/Notice';
 import { FeatureCell } from '../Library/FeatureCell';
 import {
   DEFAULT_AST_ASSERTION, DEFAULT_CEL_ASSERTION, IDENTIFIER_PATTERN, candidateFeatures, isRecord, isRegisteredResourceRef, nextIdentifier, optionalNumber,
@@ -12,6 +13,10 @@ import {
   ConstraintExpressionEditor, EmptyFormState, FormCard, FormSection, JsonObjectEditor, NumberMapEditor, ReferenceEditor, ReferenceListEditor,
   RenameField,
 } from './formParts';
+import {
+  bindingIsDeclared, candidatesMissingValues, chooseProvider, criteriaNeedingScale, declareProvider, declaredProviders, featureKey, findFeature,
+  normalizedCriteria, providerIsDeclared, removeProvider, scaleFor, unboundFeatures, withPenaltyFor, type PackageContext,
+} from './packageContext';
 
 /** One form per kind of document a package holds. They edit the document in place and never see raw JSON unless the person asks for the source. */
 
@@ -19,11 +24,13 @@ interface CommonResourceFormProps {
   document: BimDocument;
   onChange: (next: BimDocument) => void;
   availablePaths: string[];
+  /** What the other documents of the package hold, for the parts a form writes that must agree with them. */
+  context: PackageContext;
 }
 
-type SpecProps = { spec: BimSpecDocument; updateSpec: (next: BimSpecDocument) => void };
+type SpecProps = { spec: BimSpecDocument; updateSpec: (next: BimSpecDocument) => void; context: PackageContext };
 
-export function CommonResourceForm({ document, onChange, availablePaths }: CommonResourceFormProps) {
+export function CommonResourceForm({ document, onChange, availablePaths, context }: CommonResourceFormProps) {
   const setName = (name: string) => onChange({ ...document, metadata: { ...document.metadata, name } });
   const setOptionalMetadata = (key: 'description' | 'version', value: string) => {
     const metadata = { ...document.metadata };
@@ -40,12 +47,29 @@ export function CommonResourceForm({ document, onChange, availablePaths }: Commo
           <label className="form-field-wide">Description<textarea value={document.metadata?.description || ''} onChange={(event) => setOptionalMetadata('description', event.target.value)} placeholder="What role does this resource play?" /></label>
         </div>
       </FormSection>
-      <SpecificResourceForm document={document} onChange={onChange} availablePaths={availablePaths} />
+      <SpecificResourceForm document={document} onChange={onChange} availablePaths={availablePaths} context={context} />
     </div>
   );
 }
 
-function ConstraintSetForm({ spec, updateSpec }: SpecProps) {
+/** A soft rule the Optimization does not list under its penalties: the compiler refuses the package (`inert_soft`) until it does. */
+function SoftRuleLink({ id, context }: { id: string; context: PackageContext }) {
+  const rule = context.unlinkedRules.find((item) => item.id === id && item.resource === context.selfId);
+  if (!rule) return null;
+  return <Notice
+    tone="warning"
+    title="The Optimization does not list this rule yet"
+    action={context.optimizationPath
+      ? <Action variant="secondary" size="sm" onClick={() => context.update((files) => withPenaltyFor(files, context, rule))}>Add {id} to the Optimization</Action>
+      : undefined}
+  >
+    A rule that should hold only counts when the Optimization lists it under its penalties. {context.optimizationPath
+      ? `Add it with weight 1 to ${context.optimizationPath}; you can change the weight there.`
+      : 'This package has no Optimization yet: add one to the Instance, then list the rule in it.'}
+  </Notice>;
+}
+
+function ConstraintSetForm({ spec, updateSpec, context }: SpecProps) {
   const constraints = spec.constraints ?? {};
   const updateConstraint = (id: string, next: ConstraintDocument) => updateSpec({ ...spec, constraints: { ...constraints, [id]: next } });
   const removeConstraint = (id: string) => {
@@ -78,6 +102,7 @@ function ConstraintSetForm({ spec, updateSpec }: SpecProps) {
       </div>
       <ConstraintExpressionEditor id={id} label="assertion" value={constraint.assert} onChange={(assertion) => updateConstraint(id, { ...constraint, assert: assertion })} />
       {constraint.enforcement === 'soft' && <ConstraintExpressionEditor id={id} label="penalty" value={constraint.penalty ?? { literal: 1 }} onChange={(penalty) => updateConstraint(id, { ...constraint, penalty })} />}
+      {constraint.enforcement === 'soft' && <SoftRuleLink id={id} context={context} />}
     </FormCard>)}</div>
     <div className="form-add-bar">
       <div><strong>Add a rule</strong><small>CEL is concise; AST is portable and structurally validated.</small></div>
@@ -86,13 +111,33 @@ function ConstraintSetForm({ spec, updateSpec }: SpecProps) {
   </FormSection>;
 }
 
-function OptimizationForm({ spec, updateSpec }: SpecProps) {
+/** The Application declares no feature to point to: say so, and offer to go and declare one. */
+function NoFeaturesNotice({ context, what }: { context: PackageContext; what: string }) {
+  const application = context.applicationPath;
+  return <Notice
+    tone="warning"
+    title="The Application declares no features"
+    action={application ? <Action variant="secondary" size="sm" onClick={() => context.open(application)}>Open {application}</Action> : undefined}
+  >
+    {what} needs a feature of the Application to point to. Declare one there first.
+  </Notice>;
+}
+
+function OptimizationForm({ spec, updateSpec, context }: SpecProps) {
   const criteria = spec.criteria ?? [];
   const penalties = spec.penalties ?? [];
-  const defaultCriterion = (): OptimizationCriterionDocument => ({
-    id: nextIdentifier(Object.fromEntries(criteria.map((criterion) => [criterion.id ?? '', true])), 'criterion'),
-    feature: { resource: 'application', id: 'latency' },
-  });
+  const pointable = context.features.length > 0;
+  const defaultCriterion = (): OptimizationCriterionDocument => {
+    const used = new Set(criteria.map((criterion) => featureKey(criterion.feature)));
+    const feature = context.features.find((option) => !used.has(featureKey(option))) ?? context.features[0];
+    return {
+      id: nextIdentifier(Object.fromEntries(criteria.map((criterion) => [criterion.id ?? '', true])), 'criterion'),
+      feature: feature ? { resource: feature.resource, id: feature.id } : { resource: 'application', id: 'latency' },
+    };
+  };
+  const needingScale = criteriaNeedingScale(criteria, context);
+  const takenRules = (except: number) => new Set(penalties.flatMap((penalty, index) => (index === except ? [] : [featureKey(penalty.constraint)])));
+  const unlinked = context.unlinkedRules.filter((rule) => !penalties.some((penalty) => featureKey(penalty.constraint) === featureKey(rule)));
   const updateCriterion = (index: number, criterion: OptimizationCriterionDocument) => updateSpec({ ...spec, criteria: criteria.map((current, itemIndex) => itemIndex === index ? criterion : current) });
   const updatePenalty = (index: number, penalty: OptimizationPenaltyDocument) => updateSpec({ ...spec, penalties: penalties.map((current, itemIndex) => itemIndex === index ? penalty : current) });
 
@@ -113,8 +158,18 @@ function OptimizationForm({ spec, updateSpec }: SpecProps) {
             validate={(nextId) => criteria.some((other, otherIndex) => otherIndex !== index && other.id === nextId) ? `The ${nextId} criterion already exists.` : undefined}
             onCommit={(nextId) => updateCriterion(index, { ...criterion, id: nextId })}
           />
-          <label>Feature resource<input aria-label={`Criterion ${index + 1} feature resource`} value={criterion.feature?.resource || ''} onChange={(event) => updateCriterion(index, { ...criterion, feature: { ...criterion.feature, resource: event.target.value } })} /></label>
-          <label>Feature id<input aria-label={`Criterion ${index + 1} feature id`} value={criterion.feature?.id || ''} onChange={(event) => updateCriterion(index, { ...criterion, feature: { ...criterion.feature, id: event.target.value } })} /></label>
+          {context.featuresKnown
+            ? <label>Feature<select aria-label={`Criterion ${index + 1} feature`} value={featureKey(criterion.feature)} onChange={(event) => {
+              const feature = context.features.find((option) => featureKey(option) === event.target.value);
+              if (feature) updateCriterion(index, { ...criterion, feature: { resource: feature.resource, id: feature.id } });
+            }}>
+              {!findFeature(context, criterion.feature) && <option value={featureKey(criterion.feature)}>{featureKey(criterion.feature)} (not declared)</option>}
+              {context.features.map((option) => <option key={featureKey(option)} value={featureKey(option)}>{option.id} · {option.unit}</option>)}
+            </select></label>
+            : <>
+              <label>Feature resource<input aria-label={`Criterion ${index + 1} feature resource`} value={criterion.feature?.resource || ''} onChange={(event) => updateCriterion(index, { ...criterion, feature: { ...criterion.feature, resource: event.target.value } })} /></label>
+              <label>Feature id<input aria-label={`Criterion ${index + 1} feature id`} value={criterion.feature?.id || ''} onChange={(event) => updateCriterion(index, { ...criterion, feature: { ...criterion.feature, id: event.target.value } })} /></label>
+            </>}
           <label>Direction<select aria-label={`Criterion ${index + 1} direction`} value={criterion.direction || ''} onChange={(event) => {
             const next = { ...criterion };
             if (event.target.value) next.direction = event.target.value as OptimizationCriterionDocument['direction'];
@@ -124,7 +179,7 @@ function OptimizationForm({ spec, updateSpec }: SpecProps) {
         </div>
         <label className="check-field"><input aria-label={`Criterion ${index + 1} normalize`} type="checkbox" checked={Boolean(criterion.normalize)} onChange={(event) => {
           const next = { ...criterion };
-          if (event.target.checked) next.normalize = { min: 0, max: 1, clamp: false };
+          if (event.target.checked) next.normalize = scaleFor(findFeature(context, criterion.feature), context);
           else delete next.normalize;
           updateCriterion(index, next);
         }} /> Normalize this feature explicitly</label>
@@ -140,7 +195,15 @@ function OptimizationForm({ spec, updateSpec }: SpecProps) {
           <label className="check-field"><input aria-label={`Criterion ${index + 1} normalization clamp`} type="checkbox" checked={Boolean(criterion.normalize.clamp)} onChange={(event) => updateCriterion(index, { ...criterion, normalize: { min: criterion.normalize!.min, max: criterion.normalize!.max, clamp: event.target.checked } })} /> Clamp outside values</label>
         </div>}
       </FormCard>)}</div>
-      <div className="form-add-bar"><div><strong>Add a criterion</strong><small>Criteria with different units need an explicit normalization.</small></div><Action variant="secondary" onClick={() => updateSpec({ ...spec, criteria: [...criteria, defaultCriterion()] })}>Add criterion</Action></div>
+      {needingScale.length > 0 && <Notice
+        tone="warning"
+        title="These criteria need a scale"
+        action={<Action variant="secondary" size="sm" onClick={() => updateSpec({ ...spec, criteria: normalizedCriteria(criteria, context) })}>Normalize</Action>}
+      >
+        {needingScale.map((index) => `${criteria[index].id || `criterion ${index + 1}`} (${findFeature(context, criteria[index].feature)?.unit})`).join(', ')} use units that differ from the other criteria, and the compiler refuses to compare different units without a normalization. Normalize sets a scale from the domain of the feature or from the values of the candidates; adjust the minimum and maximum afterwards.
+      </Notice>}
+      {context.featuresKnown && !pointable && <NoFeaturesNotice context={context} what="A criterion" />}
+      <div className="form-add-bar"><div><strong>Add a criterion</strong><small>Criteria with different units need an explicit normalization.</small></div><Action variant="secondary" disabled={context.featuresKnown && !pointable} onClick={() => updateSpec({ ...spec, criteria: [...criteria, defaultCriterion()] })}>Add criterion</Action></div>
     </FormSection>
 
     <FormSection eyebrow="Policy cost" title="Soft-constraint penalties" description="Optional weights link soft constraint violations into the optimization utility." count={penalties.length}>
@@ -152,8 +215,13 @@ function OptimizationForm({ spec, updateSpec }: SpecProps) {
         actions={<Action variant="ghost" size="sm" onClick={() => updateSpec({ ...spec, penalties: penalties.filter((_, itemIndex) => itemIndex !== index) })}>Remove penalty</Action>}
       >
         <div className="form-grid">
-          <label>Constraint resource<input aria-label={`Penalty ${index + 1} constraint resource`} value={penalty.constraint?.resource || ''} onChange={(event) => updatePenalty(index, { ...penalty, constraint: { ...penalty.constraint, resource: event.target.value } })} /></label>
-          <label>Constraint id<input aria-label={`Penalty ${index + 1} constraint id`} value={penalty.constraint?.id || ''} onChange={(event) => updatePenalty(index, { ...penalty, constraint: { ...penalty.constraint, id: event.target.value } })} /></label>
+          <label>Soft rule<select aria-label={`Penalty ${index + 1} rule`} value={featureKey(penalty.constraint)} onChange={(event) => {
+            const rule = context.softRules.find((option) => featureKey(option) === event.target.value);
+            if (rule) updatePenalty(index, { ...penalty, constraint: { resource: rule.resource, id: rule.id } });
+          }}>
+            {!context.softRules.some((option) => featureKey(option) === featureKey(penalty.constraint)) && <option value={featureKey(penalty.constraint)}>{featureKey(penalty.constraint)} (not a soft rule of this package)</option>}
+            {context.softRules.map((option) => <option key={featureKey(option)} value={featureKey(option)} disabled={takenRules(index).has(featureKey(option))}>{option.id} · {option.resource}</option>)}
+          </select></label>
           <label>Weight<input aria-label={`Penalty ${index + 1} weight`} type="number" min="0" step="any" value={penalty.weight ?? ''} onChange={(event) => {
             const next = { ...penalty };
             const weight = optionalNumber(event.target.value);
@@ -163,7 +231,14 @@ function OptimizationForm({ spec, updateSpec }: SpecProps) {
           }} placeholder="relative" /></label>
         </div>
       </FormCard>)}</div>
-      <div className="form-add-bar"><div><strong>Link a soft rule</strong><small>Use the resource id and constraint id declared in the package.</small></div><Action variant="secondary" onClick={() => updateSpec({ ...spec, penalties: [...penalties, { constraint: { resource: 'constraints', id: 'constraint1' }, weight: 1 }] })}>Add penalty</Action></div>
+      {unlinked.length > 0 && <Notice
+        tone="warning"
+        title="Soft rules without a penalty"
+        action={<Action variant="secondary" size="sm" onClick={() => updateSpec({ ...spec, penalties: [...penalties, ...unlinked.map((rule) => ({ constraint: { resource: rule.resource, id: rule.id }, weight: 1 }))] })}>Add {unlinked.length === 1 ? 'penalty' : 'penalties'} for {unlinked.map((rule) => rule.id).join(', ')}</Action>}
+      >
+        {unlinked.map((rule) => rule.id).join(', ')} should hold but {unlinked.length === 1 ? 'is' : 'are'} not listed here, and the compiler refuses a soft rule that the Optimization does not list.
+      </Notice>}
+      <div className="form-add-bar"><div><strong>Link a soft rule</strong><small>Pick one of the soft rules of the constraint sets in this package.</small></div><Action variant="secondary" disabled={unlinked.length === 0} onClick={() => updateSpec({ ...spec, penalties: [...penalties, { constraint: { resource: unlinked[0].resource, id: unlinked[0].id }, weight: 1 }] })}>Add penalty</Action></div>
     </FormSection>
   </>;
 }
@@ -354,8 +429,8 @@ function ApplicationForm({ spec, updateSpec }: SpecProps) {
     }}>Add task</Action></div>
     </FormSection>
 
-    <FormSection eyebrow="Quality model" title="Metrics" description="Define units and aggregation once; catalogs provide candidate values through metric bindings." count={Object.keys(metrics).length}>
-    {Object.keys(metrics).length === 0 && <EmptyFormState>No quality metrics are declared.</EmptyFormState>}
+    <FormSection eyebrow="Quality model" title="Features" description="Define units and aggregation once; catalogs provide candidate values through feature bindings." count={Object.keys(metrics).length}>
+    {Object.keys(metrics).length === 0 && <EmptyFormState>No features are declared.</EmptyFormState>}
     <div className="form-card-list">
       {Object.entries(metrics).map(([id, metric]) => {
         const domain = typeof metric.domain === 'string' ? metric.domain : isRecord(metric.domain) ? 'custom' : '';
@@ -365,7 +440,7 @@ function ApplicationForm({ spec, updateSpec }: SpecProps) {
           eyebrow={`${metric.direction || 'profile direction'} · ${metric.scope || 'profile scope'}`}
           title={<code>{id}</code>}
           summary={`${metric.unit || 'unit not set'} · ${aggregation || 'aggregation not set'}`}
-          actions={<Action variant="ghost" size="sm" onClick={() => removeMetric(id)}>Remove metric</Action>}
+          actions={<Action variant="ghost" size="sm" onClick={() => removeMetric(id)}>Remove feature</Action>}
         >
           <div className="form-grid">
             <label>Unit<input aria-label={`${id} unit`} value={metric.unit || ''} onChange={(event) => setMetricField(id, metric, 'unit', event.target.value)} placeholder="For example, ms…" /></label>
@@ -383,8 +458,8 @@ function ApplicationForm({ spec, updateSpec }: SpecProps) {
       })}
     </div>
     <div className="form-add-bar form-add-bar-fields">
-      <div><strong>Add quality metric</strong><small>Identifiers become stable references in catalogs, constraints and objectives.</small></div>
-      <div className="form-grid"><label>New metric id<input aria-label="New metric id" value={newMetricId} pattern="[A-Za-z][A-Za-z0-9_.-]*" onChange={(event) => setNewMetricId(event.target.value)} /></label></div>
+      <div><strong>Add feature</strong><small>Identifiers become stable references in catalogs, constraints and the Optimization.</small></div>
+      <div className="form-grid"><label>New feature id<input aria-label="New feature id" value={newMetricId} pattern="[A-Za-z][A-Za-z0-9_.-]*" onChange={(event) => setNewMetricId(event.target.value)} /></label></div>
       <Action variant="secondary" disabled={!IDENTIFIER_PATTERN.test(newMetricId) || Boolean(metrics[newMetricId])} onClick={() => {
       updateSpec({
         ...spec,
@@ -394,11 +469,11 @@ function ApplicationForm({ spec, updateSpec }: SpecProps) {
         },
       });
       setNewMetricId(nextIdentifier({ ...metrics, [newMetricId]: {} }, 'metric'));
-      }}>Add metric</Action>
+      }}>Add feature</Action>
     </div>
     </FormSection>
 
-    <FormSection eyebrow="Control flow" title="Workflow" description="The workflow orders task invocations and feeds metric aggregation.">
+    <FormSection eyebrow="Control flow" title="Workflow" description="The workflow orders task invocations and feeds feature aggregation.">
       {isRecord(spec.workflow) && isRecord(spec.workflow.bpmn)
         ? <ReferenceEditor id="application workflow" label="BPMN process" value={spec.workflow.bpmn as InternalReference} onChange={(bpmn) => updateSpec({ ...spec, workflow: { ...spec.workflow as Record<string, unknown>, bpmn } })} />
         : <div className="workflow-form-summary"><strong>Structured BIM workflow</strong><p>Edit its nested sequence, parallel, exclusive and repeat nodes in the Workflow JSON view under View source.</p></div>}
@@ -415,16 +490,28 @@ function capabilityType(value: CapabilityDocument): string {
   return typeof value === 'string' ? value : value.type || '';
 }
 
-function CandidateCatalogForm({ spec, updateSpec }: SpecProps) {
+const NEW_PROVIDER = '__new__';
+const UNDECLARED_PROVIDER = '__undeclared__';
+
+function CandidateCatalogForm({ spec, updateSpec, context }: SpecProps) {
   const candidates = spec.candidates || {};
-  const metricBindings = spec.featureBindings || {};
-  const [newMetricAlias, setNewMetricAlias] = useState('metric');
+  const bindings = spec.featureBindings || {};
+  const providers = spec.providers || {};
+  const declared = declaredProviders(spec);
+  const unbound = unboundFeatures(spec, context);
+  const missingValues = candidatesMissingValues(spec, context);
+  const [newFeatureAlias, setNewFeatureAlias] = useState('feature');
+  const [featureToBind, setFeatureToBind] = useState('');
+  const [newProviderId, setNewProviderId] = useState('');
+  const [creating, setCreating] = useState<{ candidate: string; name: string } | null>(null);
+  const toBind = unbound.find((feature) => featureKey(feature) === featureToBind) ?? unbound[0];
   const updateCandidate = (id: string, next: CandidateDocument) => updateSpec({ ...spec, candidates: { ...candidates, [id]: next } });
-  const updateBinding = (alias: string, next: InternalReference) => updateSpec({ ...spec, featureBindings: { ...metricBindings, [alias]: next } });
+  const updateBinding = (alias: string, next: InternalReference) => updateSpec({ ...spec, featureBindings: { ...bindings, [alias]: next } });
+  const providerUses = (provider: string) => Object.values(candidates).filter((candidate) => candidate.provider?.id === provider).length;
 
   const replaceMetricAlias = (alias: string, nextAlias: string) => {
-    if (nextAlias === alias || !IDENTIFIER_PATTERN.test(nextAlias) || metricBindings[nextAlias]) return;
-    const nextBindings = Object.fromEntries(Object.entries(metricBindings).map(([key, value]) => [key === alias ? nextAlias : key, value]));
+    if (nextAlias === alias || !IDENTIFIER_PATTERN.test(nextAlias) || bindings[nextAlias]) return;
+    const nextBindings = Object.fromEntries(Object.entries(bindings).map(([key, value]) => [key === alias ? nextAlias : key, value]));
     const nextCandidates = Object.fromEntries(Object.entries(candidates).map(([id, candidate]) => {
       const features = candidateFeatures(candidate);
       if (alias in features) {
@@ -437,7 +524,7 @@ function CandidateCatalogForm({ spec, updateSpec }: SpecProps) {
   };
 
   const removeMetricBinding = (alias: string) => {
-    const nextBindings = { ...metricBindings };
+    const nextBindings = { ...bindings };
     delete nextBindings[alias];
     const nextCandidates = Object.fromEntries(Object.entries(candidates).map(([id, candidate]) => {
       const features = candidateFeatures(candidate);
@@ -448,44 +535,107 @@ function CandidateCatalogForm({ spec, updateSpec }: SpecProps) {
   };
 
   return <>
-    <FormSection eyebrow="Metric bridge" title="Metric bindings" description="Aliases connect every candidate QoS column to a metric declared by the Application." count={Object.keys(metricBindings).length}>
-    {Object.keys(metricBindings).length === 0 && <EmptyFormState>No metric aliases. Candidates can still be selected, but they provide no QoS values.</EmptyFormState>}
-    <div className="form-card-list form-card-list-compact">{Object.entries(metricBindings).map(([alias, reference], index) => <FormCard
+    <FormSection eyebrow="Feature bridge" title="Feature bindings" description="Aliases connect every candidate QoS column to a feature declared by the Application." count={Object.keys(bindings).length}>
+    {Object.keys(bindings).length === 0 && <EmptyFormState>No feature aliases. Candidates can still be selected, but they provide no QoS values.</EmptyFormState>}
+    <div className="form-card-list form-card-list-compact">{Object.entries(bindings).map(([alias, reference], index) => <FormCard
       key={alias}
       eyebrow={`Binding ${String(index + 1).padStart(2, '0')}`}
       title={<code>{alias}</code>}
-      summary={`${reference.resource || 'resource'}/${reference.id || 'metric'}`}
-      actions={<Action variant="ghost" size="sm" onClick={() => removeMetricBinding(alias)}>Remove metric binding</Action>}
+      summary={`${reference.resource || 'resource'}/${reference.id || 'feature'}`}
+      actions={<Action variant="ghost" size="sm" onClick={() => removeMetricBinding(alias)}>Remove feature binding</Action>}
     >
       <div className="form-grid">
         <RenameField
           label="Alias"
-          ariaLabel={`${alias} metric alias`}
+          ariaLabel={`${alias} feature alias`}
           value={alias}
-          validate={(nextAlias) => nextAlias !== alias && nextAlias in metricBindings
-            ? `The ${nextAlias} metric alias already exists.`
+          validate={(nextAlias) => nextAlias !== alias && nextAlias in bindings
+            ? `The ${nextAlias} feature alias already exists.`
             : undefined}
           onCommit={(nextAlias) => replaceMetricAlias(alias, nextAlias)}
         />
-        <label>Metric resource<input aria-label={`${alias} metric resource`} value={reference.resource || ''} onChange={(event) => updateBinding(alias, { ...reference, resource: event.target.value })} /></label>
-        <label>Metric id<input aria-label={`${alias} metric id`} value={reference.id || ''} onChange={(event) => updateBinding(alias, { ...reference, id: event.target.value })} /></label>
+        {context.featuresKnown
+          ? <label>Application feature<select aria-label={`${alias} feature`} value={featureKey(reference)} onChange={(event) => {
+            const feature = context.features.find((option) => featureKey(option) === event.target.value);
+            if (feature) updateBinding(alias, { resource: feature.resource, id: feature.id });
+          }}>
+            {!bindingIsDeclared(reference, context) && <option value={featureKey(reference)}>{featureKey(reference)} (not declared)</option>}
+            {context.features.map((option) => <option
+              key={featureKey(option)}
+              value={featureKey(option)}
+              // A feature is bound by one alias only: the compiler refuses two aliases for the same feature.
+              disabled={featureKey(option) !== featureKey(reference) && Object.entries(bindings).some(([other, bound]) => other !== alias && featureKey(bound) === featureKey(option))}
+            >{option.id} · {option.unit}</option>)}
+          </select></label>
+          : <>
+            <label>Feature resource<input aria-label={`${alias} feature resource`} value={reference.resource || ''} onChange={(event) => updateBinding(alias, { ...reference, resource: event.target.value })} /></label>
+            <label>Feature id<input aria-label={`${alias} feature id`} value={reference.id || ''} onChange={(event) => updateBinding(alias, { ...reference, id: event.target.value })} /></label>
+          </>}
       </div>
+      {!bindingIsDeclared(reference, context) && <Notice tone="warning" title="The Application does not declare this feature">
+        {featureKey(reference)} is not a feature of the Application, so the compiler refuses the binding. Pick one of the declared features{context.applicationPath ? ` or declare it in ${context.applicationPath}` : ''}.
+      </Notice>}
+    </FormCard>)}</div>
+    {context.featuresKnown
+      ? <div className="form-add-bar form-add-bar-fields">
+        <div><strong>Bind a feature</strong><small>Only features the Application declares can be bound. The alias is named after the feature and becomes a QoS column on every candidate card.</small></div>
+        {unbound.length > 0 && <div className="form-grid"><label>Feature to bind<select aria-label="Feature to bind" value={toBind ? featureKey(toBind) : ''} onChange={(event) => setFeatureToBind(event.target.value)}>
+          {unbound.map((option) => <option key={featureKey(option)} value={featureKey(option)}>{option.id} · {option.unit}</option>)}
+        </select></label></div>}
+        <Action variant="secondary" disabled={!toBind} onClick={() => {
+          if (!toBind) return;
+          const alias = bindings[toBind.id] ? nextIdentifier(bindings, toBind.id) : toBind.id;
+          updateSpec({ ...spec, featureBindings: { ...bindings, [alias]: { resource: toBind.resource, id: toBind.id } } });
+          setFeatureToBind('');
+        }}>Add feature binding</Action>
+        {unbound.length === 0 && (context.features.length === 0
+          ? <NoFeaturesNotice context={context} what="A feature binding" />
+          : <small>Every feature of the Application is bound.</small>)}
+      </div>
+      : <div className="form-add-bar form-add-bar-fields">
+        <div><strong>Add feature alias</strong><small>The alias becomes a QoS column on every candidate card. This package has no Application to read features from, so name the feature yourself.</small></div>
+        <div className="form-grid"><label>New feature alias<input aria-label="New feature alias" value={newFeatureAlias} onChange={(event) => setNewFeatureAlias(event.target.value)} /></label></div>
+        <Action variant="secondary" disabled={!IDENTIFIER_PATTERN.test(newFeatureAlias) || Boolean(bindings[newFeatureAlias])} onClick={() => {
+          updateSpec({ ...spec, featureBindings: { ...bindings, [newFeatureAlias]: { resource: 'application', id: newFeatureAlias } } });
+          setNewFeatureAlias(nextIdentifier({ ...bindings, [newFeatureAlias]: {} }, 'feature'));
+        }}>Add feature binding</Action>
+      </div>}
+    </FormSection>
+
+    <FormSection eyebrow="Ownership" title="Providers" description="Who offers the candidates. A candidate points to one of the providers declared here." count={declared.length}>
+    {declared.length === 0 && <EmptyFormState>No providers declared. Candidates can still be selected without one.</EmptyFormState>}
+    <div className="form-card-list form-card-list-compact">{declared.map((provider) => <FormCard
+      key={provider}
+      eyebrow={`Used by ${providerUses(provider)} candidate${providerUses(provider) === 1 ? '' : 's'}`}
+      title={<code>{provider}</code>}
+      actions={<Action variant="ghost" size="sm" onClick={() => updateSpec(removeProvider(spec, provider))}>Remove provider</Action>}
+    >
+      <div className="form-grid"><label>Display name<input aria-label={`${provider} provider name`} value={providers[provider]?.name || ''} placeholder="Optional label" onChange={(event) => {
+        const next = { ...providers[provider] };
+        if (event.target.value) next.name = event.target.value;
+        else delete next.name;
+        updateSpec({ ...spec, providers: { ...providers, [provider]: next } });
+      }} /></label></div>
     </FormCard>)}</div>
     <div className="form-add-bar form-add-bar-fields">
-      <div><strong>Add metric alias</strong><small>The alias becomes a QoS column on every candidate card.</small></div>
-      <div className="form-grid"><label>New metric alias<input aria-label="New metric alias" value={newMetricAlias} onChange={(event) => setNewMetricAlias(event.target.value)} /></label></div>
-      <Action variant="secondary" disabled={!IDENTIFIER_PATTERN.test(newMetricAlias) || Boolean(metricBindings[newMetricAlias])} onClick={() => {
-        updateSpec({ ...spec, featureBindings: { ...metricBindings, [newMetricAlias]: { resource: 'application', id: newMetricAlias } } });
-        setNewMetricAlias(nextIdentifier({ ...metricBindings, [newMetricAlias]: {} }, 'metric'));
-      }}>Add metric binding</Action>
+      <div><strong>Declare a provider</strong><small>Or pick New provider… on a candidate to declare it and use it in one step.</small></div>
+      <div className="form-grid"><label>New provider id<input aria-label="New provider id" value={newProviderId} pattern="[A-Za-z][A-Za-z0-9_.-]*" onChange={(event) => setNewProviderId(event.target.value)} /></label></div>
+      <Action variant="secondary" disabled={!IDENTIFIER_PATTERN.test(newProviderId) || declared.includes(newProviderId)} onClick={() => {
+        updateSpec(declareProvider(spec, newProviderId));
+        setNewProviderId('');
+      }}>Add provider</Action>
     </div>
     </FormSection>
 
     <FormSection eyebrow="Supply" title="Candidates" description="Capabilities determine eligibility; QoS values let engines compare the eligible implementations." count={Object.keys(candidates).length}>
     {Object.keys(candidates).length === 0 && <EmptyFormState>No candidate implementations are available.</EmptyFormState>}
+    {missingValues.length > 0 && <Notice tone="warning" title="Some candidates give no value to a feature the Optimization uses">
+      {missingValues.map((item) => `${item.candidate}: ${item.missing.join(', ')}`).join(' · ')}. The compiler refuses a candidate that can serve a task and lacks a value the Optimization asks for.
+    </Notice>}
     <div className="form-card-list candidate-list">{Object.entries(candidates).map(([id, candidate], candidateIndex) => {
       const capabilities = capabilityItems(candidate.provides);
-      const aliases = Array.from(new Set([...Object.keys(metricBindings), ...Object.keys(candidateFeatures(candidate))]));
+      const undeclared = !providerIsDeclared(spec, candidate, context.selfId);
+      const aliases = Array.from(new Set([...Object.keys(bindings), ...Object.keys(candidateFeatures(candidate))]));
       const setCapabilities = (next: CapabilityDocument[]) => updateCandidate(id, {
         ...candidate,
         provides: Array.isArray(candidate.provides) || next.length > 1 ? next : next[0],
@@ -520,26 +670,40 @@ function CandidateCatalogForm({ spec, updateSpec }: SpecProps) {
         <div className="form-subgroup">
           <div className="form-subgroup-heading"><div><span className="micro-label">Ownership</span><h5>Provider</h5></div></div>
           <div className="form-grid">
-          <label>Provider resource<input aria-label={`${id} provider resource`} value={candidate.provider?.resource || ''} onChange={(event) => {
-            const next = { ...candidate };
-            const resource = event.target.value;
-            if (resource || candidate.provider?.id) next.provider = { resource, id: candidate.provider?.id || '' };
-            else delete next.provider;
-            updateCandidate(id, next);
-          }} /></label>
-          <label>Provider id<input aria-label={`${id} provider id`} value={candidate.provider?.id || ''} onChange={(event) => {
-            const next = { ...candidate };
-            const providerId = event.target.value;
-            if (providerId || candidate.provider?.resource) next.provider = { resource: candidate.provider?.resource || '', id: providerId };
-            else delete next.provider;
-            updateCandidate(id, next);
-          }} /></label>
+          <label>Provider<select aria-label={`${id} provider`} value={creating?.candidate === id ? NEW_PROVIDER : undeclared ? UNDECLARED_PROVIDER : candidate.provider?.id ?? ''} onChange={(event) => {
+            const chosen = event.target.value;
+            if (chosen === NEW_PROVIDER) {
+              setCreating({ candidate: id, name: '' });
+              return;
+            }
+            setCreating(null);
+            if (chosen !== UNDECLARED_PROVIDER) updateSpec(chooseProvider(spec, id, chosen || null, context.selfId));
+          }}>
+            <option value="">No provider</option>
+            {declared.map((provider) => <option key={provider} value={provider}>{provider}</option>)}
+            {undeclared && <option value={UNDECLARED_PROVIDER}>{candidate.provider?.resource || '?'}/{candidate.provider?.id || '?'} (not declared)</option>}
+            <option value={NEW_PROVIDER}>New provider…</option>
+          </select></label>
+          {creating?.candidate === id && <>
+            <label>New provider id<input aria-label={`${id} new provider id`} value={creating.name} pattern="[A-Za-z][A-Za-z0-9_.-]*" onChange={(event) => setCreating({ candidate: id, name: event.target.value })} /></label>
+            <Action variant="secondary" size="sm" disabled={!IDENTIFIER_PATTERN.test(creating.name)} onClick={() => {
+              updateSpec(chooseProvider(spec, id, creating.name, context.selfId));
+              setCreating(null);
+            }}>Create and use</Action>
+          </>}
           </div>
+          {undeclared && <Notice
+            tone="warning"
+            title="This provider is not declared in the catalog"
+            action={<Action variant="secondary" size="sm" onClick={() => updateSpec(chooseProvider(spec, id, candidate.provider?.id || null, context.selfId))}>{candidate.provider?.id ? `Declare ${candidate.provider.id}` : 'Remove the provider'}</Action>}
+          >
+            A candidate's provider must be one the catalog declares, under the id the Instance gives the catalog ({context.selfId}); the compiler refuses it otherwise.
+          </Notice>}
           <JsonObjectEditor id={id} label="properties" value={candidate.properties} onChange={(properties) => updateCandidate(id, { ...candidate, properties: properties as ScalarMap })} />
         </div>
         <div className="form-subgroup qos-subgroup">
           <div className="form-subgroup-heading"><div><span className="micro-label">Quality values</span><h5>QoS matrix</h5></div></div>
-          {aliases.length === 0 && <EmptyFormState>Add a metric binding to expose QoS inputs.</EmptyFormState>}
+          {aliases.length === 0 && <EmptyFormState>Add a feature binding to expose QoS inputs.</EmptyFormState>}
           <div className="form-grid">{aliases.map((alias) => <div className="qos-field" key={alias}>
             <span className="qos-name">{alias}</span>
             <FeatureCell
@@ -789,7 +953,7 @@ function PlacementForm({ spec, updateSpec }: SpecProps) {
           <ReferenceEditor id={`${id} transition`} label="From" value={transition.from} onChange={(from) => updateSpec({ ...spec, transitions: { ...transitions, [id]: { ...transition, from } } })} />
           <ReferenceEditor id={`${id} transition`} label="To" value={transition.to} onChange={(to) => updateSpec({ ...spec, transitions: { ...transitions, [id]: { ...transition, to } } })} />
         </div>
-        <ReferenceEditor id={`${id} transition`} label="Latency metric" value={transition.feature} onChange={(feature) => updateSpec({ ...spec, transitions: { ...transitions, [id]: { ...transition, feature } } })} />
+        <ReferenceEditor id={`${id} transition`} label="Latency feature" value={transition.feature} onChange={(feature) => updateSpec({ ...spec, transitions: { ...transitions, [id]: { ...transition, feature } } })} />
         <div className="form-grid">
           <label>Maximum<input aria-label={`${id} transition maximum`} type="number" min="0" step="any" value={transition.maximum ?? 0} onChange={(event) => {
             const maximum = optionalNumber(event.target.value);
@@ -830,15 +994,15 @@ function PlacementForm({ spec, updateSpec }: SpecProps) {
       <div className="form-add-bar"><div><strong>Add accounting rule</strong><small>List one or more comma-separated resource dimensions.</small></div><Action variant="secondary" onClick={() => updateSpec({ ...spec, capacityRules: [...capacityRules, { resources: ['memory'], scope: 'selectedCandidate' }] })}>Add capacity rule</Action></div>
     </FormSection>
 
-    <FormSection eyebrow="End-to-end model" title="Global latency" description="Optionally derive one workflow-level latency metric from execution time, routing and pool topology.">
+    <FormSection eyebrow="End-to-end model" title="Global latency" description="Optionally derive one workflow-level latency feature from execution time, routing and pool topology.">
       <label className="choice-card global-latency-toggle"><input type="checkbox" aria-label="Enable global latency" checked={Boolean(spec.globalLatency)} onChange={(event) => {
         const next = { ...spec };
         if (event.target.checked) next.globalLatency = { feature: { resource: 'application', id: 'latency' }, includeExecution: true, exclusive: 'routing', parallel: 'max' };
         else delete next.globalLatency;
         updateSpec(next);
-      }} /><span><strong>Compute global latency</strong><small>Fold placement and workflow timing into the selected metric.</small></span></label>
+      }} /><span><strong>Compute global latency</strong><small>Fold placement and workflow timing into the selected feature.</small></span></label>
       {spec.globalLatency && <div className="global-latency-panel">
-        <ReferenceEditor id="global latency" label="Output metric" value={spec.globalLatency.feature} onChange={(feature) => updateSpec({ ...spec, globalLatency: { ...spec.globalLatency!, feature } })} />
+        <ReferenceEditor id="global latency" label="Output feature" value={spec.globalLatency.feature} onChange={(feature) => updateSpec({ ...spec, globalLatency: { ...spec.globalLatency!, feature } })} />
         <div className="form-grid">
           <label className="check-field"><input aria-label="Global latency include execution" type="checkbox" checked={Boolean(spec.globalLatency.includeExecution)} onChange={(event) => updateSpec({ ...spec, globalLatency: { ...spec.globalLatency!, includeExecution: event.target.checked } })} /> Include candidate execution latency</label>
           <label>Exclusive branches<select aria-label="Global latency exclusive" value={spec.globalLatency.exclusive || 'routing'} onChange={(event) => updateSpec({ ...spec, globalLatency: { ...spec.globalLatency!, exclusive: event.target.value as PlacementGlobalLatencyDocument['exclusive'] } })}><option value="routing">probability-weighted routing</option><option value="condition">static conditions</option></select></label>
@@ -849,36 +1013,36 @@ function PlacementForm({ spec, updateSpec }: SpecProps) {
   </>;
 }
 
-function SpecificResourceForm({ document, onChange, availablePaths }: CommonResourceFormProps) {
+function SpecificResourceForm({ document, onChange, availablePaths, context }: CommonResourceFormProps) {
   const spec = document.spec || {};
   const updateSpec = (nextSpec: BimSpecDocument) => onChange({ ...document, spec: nextSpec });
 
   if (document.apiVersion === 'qos-binding/v1' && document.kind === 'Application') {
-    return <ApplicationForm spec={spec} updateSpec={updateSpec} />;
+    return <ApplicationForm spec={spec} updateSpec={updateSpec} context={context} />;
   }
 
   if (document.apiVersion === 'qos-binding/v1' && document.kind === 'CandidateCatalog') {
-    return <CandidateCatalogForm spec={spec} updateSpec={updateSpec} />;
+    return <CandidateCatalogForm spec={spec} updateSpec={updateSpec} context={context} />;
   }
 
   if (document.apiVersion === 'qos-binding/v1' && document.kind === 'ConstraintSet') {
-    return <ConstraintSetForm spec={spec} updateSpec={updateSpec} />;
+    return <ConstraintSetForm spec={spec} updateSpec={updateSpec} context={context} />;
   }
 
   if (document.apiVersion === 'qos-binding/v1' && document.kind === 'Optimization') {
-    return <OptimizationForm spec={spec} updateSpec={updateSpec} />;
+    return <OptimizationForm spec={spec} updateSpec={updateSpec} context={context} />;
   }
 
   if (document.apiVersion === 'qos-binding/v1' && document.kind === 'RoutingOverlay') {
-    return <RoutingOverlayForm spec={spec} updateSpec={updateSpec} />;
+    return <RoutingOverlayForm spec={spec} updateSpec={updateSpec} context={context} />;
   }
 
   if (document.apiVersion === 'qos-binding-placement/v1' && document.kind === 'Placement') {
-    return <PlacementForm spec={spec} updateSpec={updateSpec} />;
+    return <PlacementForm spec={spec} updateSpec={updateSpec} context={context} />;
   }
 
   if (document.apiVersion === 'bim/v1' && document.kind === 'Instance') {
-    return <InstanceForm spec={spec} updateSpec={updateSpec} availablePaths={availablePaths} />;
+    return <InstanceForm spec={spec} updateSpec={updateSpec} context={context} availablePaths={availablePaths} />;
   }
 
   return <p className="workspace-hint">This dialect has no form yet, so it is edited in View source where its versioned contract stays explicit.</p>;

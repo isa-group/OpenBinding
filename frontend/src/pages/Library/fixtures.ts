@@ -43,10 +43,17 @@ export function draftOf(id: string, revision: number, content: ArtifactDraft['pa
 export const catalogContent = (): JsonObject => ({
   apiVersion: 'qos-binding/v1', kind: 'CandidateCatalog', metadata: { name: 'providers-eu' },
   spec: {
+    providers: { payco: {}, fastpay: {}, stockly: {} },
+    featureBindings: {
+      latency_ms: { resource: 'application', id: 'latency_ms' },
+      cost_eur: { resource: 'application', id: 'cost_eur' },
+      availability: { resource: 'application', id: 'availability' },
+    },
     candidates: {
       'payco-eu': { provides: 'service/payment', features: { latency_ms: 180, cost_eur: 0.021, availability: 99.95 }, provider: { resource: 'catalog', id: 'payco' } },
       fastpay: { provides: 'service/payment', features: { latency_ms: 95, cost_eur: 0.034, availability: 99.9 }, provider: { resource: 'catalog', id: 'fastpay' } },
-      'stockly-1': { provides: 'service/stock', features: { latency_ms: 40, cost_eur: 0.002, availability: 99.99 }, provider: { resource: 'catalog', id: 'stockly' } },    },
+      'stockly-1': { provides: 'service/stock', features: { latency_ms: 40, cost_eur: 0.002, availability: 99.99 }, provider: { resource: 'catalog', id: 'stockly' } },
+    },
   },
 });
 

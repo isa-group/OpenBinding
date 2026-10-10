@@ -8,7 +8,10 @@ import { ROOT, analysis, openWorkbench } from './workbenchTestKit';
 // The contract between the workbench and the compiler of the gateway. `src/test/fixtures/bim-package` holds the package the workbench
 // writes (the default one, and variants after typical edits of its forms); `openbinding-gateway/tests/test_b6_workbench_package.py`
 // compiles those very files with the real compiler. So a change of what the forms write fails here until the fixtures follow it, and
-// the fixtures only ever change together with a package the compiler accepts.
+// the fixtures only ever change together with a package the compiler accepts. The `form-flow` variant is a package built with nothing but
+// the forms, including the parts the compiler checks across documents (a provider the catalog declares, a binding to a feature of the
+// Application, a penalty for a soft rule, a scale for criteria in different units); `test_b7_form_flows.py` compiles it and refuses the
+// same package without each of those parts.
 
 const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), caseRevisions: vi.fn(), snapshotArchive: vi.fn() }));
 const client = vi.hoisted(() => ({
@@ -113,14 +116,89 @@ describe('Workbench · the package it writes is the package the compiler is test
     fireEvent.change(screen.getByLabelText('constraint2 enforcement'), { target: { value: 'soft' } });
 
     fireEvent.click(screen.getByRole('button', { name: /optimization\.json/i }));
+    // The penalty form offers the soft rules of the package: the soft one is the only choice, and it is already chosen.
     fireEvent.click(screen.getByRole('button', { name: 'Add penalty' }));
-    fireEvent.change(screen.getByLabelText('Penalty 1 constraint id'), { target: { value: 'constraint2' } });
+    expect(screen.getByLabelText('Penalty 1 rule')).toHaveValue('constraints/constraint2');
 
     const files = await validated();
     for (const path of ['instance.json', 'constraints.json', 'optimization.json']) {
       expect(JSON.parse(files[path]), path).toEqual(referenceJson(`with-rules/${path}`));
     }
     for (const path of ['application.json', 'candidates.json']) expect(JSON.parse(files[path]), path).toEqual(referenceJson(path));
+  });
+
+  it('writes a complete package with only the forms: provider, candidates, a hard and a soft rule with its penalty, and two normalized criteria', async () => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      ...DEFAULT_FILES,
+      'constraints.json': JSON.stringify({
+        apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', metadata: { name: 'hello-constraints' }, spec: { constraints: {} },
+      }),
+    }));
+    await openWorkbench();
+
+    // A second feature, in another unit.
+    fireEvent.click(screen.getByRole('button', { name: /application\.json/i }));
+    fireEvent.change(screen.getByLabelText('New feature id'), { target: { value: 'cost' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add feature' }));
+    fireEvent.change(screen.getByLabelText('cost unit'), { target: { value: 'eur' } });
+
+    // The rules file joins the package.
+    fireEvent.click(screen.getByRole('button', { name: /instance\.json/i }));
+    fireEvent.change(screen.getByLabelText('New resource id'), { target: { value: 'constraints' } });
+    fireEvent.change(screen.getByLabelText('New resource package file'), { target: { value: 'constraints.json' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add local reference' }));
+
+    // A hard rule and a soft one; the soft one is listed in the Optimization with one click, from the rules.
+    fireEvent.click(await screen.findByRole('button', { name: /constraints\.json/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add CEL constraint' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add AST constraint' }));
+    fireEvent.change(screen.getByLabelText('constraint2 enforcement'), { target: { value: 'soft' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add constraint2 to the Optimization' }));
+    expect(screen.queryByRole('button', { name: 'Add constraint2 to the Optimization' })).not.toBeInTheDocument();
+
+    // A feature binding for the new feature, a provider declared on the way, and a second candidate that uses it.
+    fireEvent.click(screen.getByRole('button', { name: /candidates\.json/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add feature binding' }));
+    fireEvent.change(screen.getByLabelText('service-a QoS cost'), { target: { value: '0.5' } });
+    fireEvent.change(screen.getByLabelText('service-a provider'), { target: { value: '__new__' } });
+    fireEvent.change(screen.getByLabelText('service-a new provider id'), { target: { value: 'acme' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create and use' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add candidate' }));
+    fireEvent.change(screen.getByLabelText('candidate2 capability 1 type'), { target: { value: 'http' } });
+    fireEvent.change(screen.getByLabelText('candidate2 provider'), { target: { value: 'acme' } });
+    fireEvent.change(screen.getByLabelText('candidate2 QoS latency'), { target: { value: '20' } });
+    fireEvent.change(screen.getByLabelText('candidate2 QoS cost'), { target: { value: '0.8' } });
+    expect(screen.queryByText('Some candidates give no value to a feature the Optimization uses')).not.toBeInTheDocument();
+
+    // Two criteria in different units: the form asks for a scale, and Normalize writes it.
+    fireEvent.click(screen.getByRole('button', { name: /optimization\.json/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add criterion' }));
+    expect(screen.getByText('These criteria need a scale')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Normalize' }));
+    expect(screen.queryByText('These criteria need a scale')).not.toBeInTheDocument();
+
+    const files = await validated();
+    for (const path of ['instance.json', 'application.json', 'candidates.json', 'constraints.json', 'optimization.json']) {
+      expect(JSON.parse(files[path]), path).toEqual(referenceJson(`form-flow/${path}`));
+    }
+    expect(files['workflow.bpmn'].trim()).toBe(reference('workflow.bpmn').trim());
+  }, 15000);
+
+  it('declares the provider a candidate is given in the catalog, and offers no binding when every feature is bound', async () => {
+    await openWorkbench();
+    fireEvent.click(screen.getByRole('button', { name: /candidates\.json/i }));
+    // The default package binds its only feature, so the form has nothing left to bind.
+    expect(screen.getByRole('button', { name: 'Add feature binding' })).toBeDisabled();
+    expect(screen.getByText('Every feature of the Application is bound.')).toBeInTheDocument();
+    // Giving a candidate a provider declares it: the candidate points to the catalog that declares it.
+    fireEvent.change(screen.getByLabelText('service-a provider'), { target: { value: '__new__' } });
+    fireEvent.change(screen.getByLabelText('service-a new provider id'), { target: { value: 'acme' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create and use' }));
+    expect(screen.getByLabelText('service-a provider')).toHaveValue('acme');
+
+    const catalog = JSON.parse((await validated())['candidates.json']);
+    expect(catalog.spec.providers).toEqual({ acme: {} });
+    expect(catalog.spec.candidates['service-a'].provider).toEqual({ resource: 'catalog', id: 'acme' });
   });
 
   it('writes the criterion renamed and normalized as the schema names them', async () => {

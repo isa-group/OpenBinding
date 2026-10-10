@@ -288,6 +288,8 @@ const problem = (title: string, status: number, diagnostics: unknown[]): Handler
 
 // Each test walks a screen through its states while the dev server compiles on demand.
 test.setTimeout(150_000);
+// One worker for the whole file: with every test in parallel the browsers starve each other and the same walk takes twice as long.
+test.describe.configure({ mode: 'default' });
 
 const viewports = [
   { name: 'desktop', viewport: { width: 1440, height: 900 }, isMobile: false, deviceScaleFactor: 1 },
@@ -450,7 +452,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `editor-${name}-resources`);
 
       await index.getByRole('button', { name: /candidates\.json/ }).click();
-      await expect(main.getByRole('heading', { name: 'Metric bindings' })).toBeVisible();
+      await expect(main.getByRole('heading', { name: 'Feature bindings' })).toBeVisible();
       await expect(main.getByLabel('service-a QoS latency')).toHaveValue('10');
       await main.getByLabel('service-a QoS latency').fill('12');
       await main.getByRole('button', { name: 'Add candidate' }).click();

@@ -67,6 +67,8 @@ function Editor({ organization, item, server, versions }: {
   ];
 
   const blocking = checks.find((check) => check.blocking);
+  // What the schema still asks for does not stop the draft from being saved; it stops it from being sealed.
+  const incomplete = checks.filter((check) => check.blocksSeal);
 
   useEffect(() => {
     if (!dirty) return undefined;
@@ -248,7 +250,7 @@ function Editor({ organization, item, server, versions }: {
         <div className="proj-actions">
           <Action variant="secondary" disabled={readOnly || !dirty || saving} onClick={discard}>Discard changes</Action>
           <Action variant="secondary" disabled={readOnly || !dirty || Boolean(blocking)} busy={saving} onClick={() => void save()} title={blocking ? 'Fix the ranges first' : undefined}>Save draft</Action>
-          <Action variant="primary" disabled={readOnly || Boolean(conflict) || gone || Boolean(blocking)} title={blocking ? 'Fix the ranges first' : undefined} onClick={() => { setSealError(undefined); setSealOpen(true); }}>Seal version…</Action>
+          <Action variant="primary" disabled={readOnly || Boolean(conflict) || gone || Boolean(blocking) || incomplete.length > 0} title={blocking ? 'Fix the ranges first' : incomplete.length ? 'Finish the draft first' : undefined} onClick={() => { setSealError(undefined); setSealOpen(true); }}>Seal version…</Action>
         </div>
       </header>
 
@@ -266,6 +268,12 @@ function Editor({ organization, item, server, versions }: {
       )}
       {problem && !conflict && <Notice tone="error">{problem}</Notice>}
       {blocking && !readOnly && <Notice tone="error" title="Fix the ranges to save or seal">{blocking.text} A draft with an invalid range can’t be saved or sealed.</Notice>}
+      {incomplete.length > 0 && !blocking && !readOnly && (
+        <Notice tone="warning" title="Finish the draft to seal it">
+          You can save it as it is. Before it can be sealed:
+          <ul>{incomplete.map((check) => <li key={check.text}>{check.text}</li>)}</ul>
+        </Notice>
+      )}
       {gone && (
         <Notice tone="warning" title="This draft is no longer open" action={<Action to={itemPath(slug, key)} variant="secondary" size="sm">Back to {item.display_name}</Action>}>
           It was sealed or discarded while you were editing. Your copy is still on this page; copy what you need before leaving.

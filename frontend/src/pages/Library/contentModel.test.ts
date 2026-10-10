@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   addCandidate, addRule, brief, catalogOf, checksFor, differences, freezeLines, parseContent, parseNumber, removeCandidate, renameCandidate, rulesOf,
-  setCandidateFeature, setCandidateProvider, setRuleField, summarizeXml, templateFor, updateAt, type Json, type JsonObject,
+  setCandidateFeature, setCandidateProvider, setRuleEnforcement, setRuleField, summarizeXml, templateFor, updateAt, type Json, type JsonObject,
 } from './contentModel';
 import { bpmnContent, catalogContent, rulesContent } from './fixtures';
 
@@ -79,6 +79,32 @@ describe('candidate catalogs as rows', () => {
     expect(((provider.spec as JsonObject).candidates as JsonObject).fastpay).toMatchObject({ provider: { resource: 'catalog', id: 'fast-pay' } });
   });
 
+  it('declares the provider a candidate is given, so the compiler finds it in the catalog', () => {
+    const named = setCandidateProvider(addCandidate(catalog(), 'service/payment'), 'new-provider', 'acme');
+    const spec = named.spec as JsonObject;
+    expect((spec.candidates as JsonObject)['new-provider']).toMatchObject({ provider: { resource: 'catalog', id: 'acme' } });
+    expect(spec.providers).toEqual({ payco: {}, fastpay: {}, stockly: {}, acme: {} });
+    // Renaming it declares the new one and drops the one nobody uses; a provider somebody else uses stays.
+    const renamed = setCandidateProvider(named, 'new-provider', 'acme-2');
+    expect((renamed.spec as JsonObject).providers).toEqual({ payco: {}, fastpay: {}, stockly: {}, 'acme-2': {} });
+    const shared = setCandidateProvider(setCandidateProvider(named, 'fastpay', 'acme'), 'new-provider', 'other');
+    expect((shared.spec as JsonObject).providers).toMatchObject({ acme: {}, other: {} });
+    // A provider with something in it is the person's own declaration, and stays.
+    const described = updateAt(named, ['spec', 'providers', 'acme', 'name'], 'Acme Ltd');
+    expect((setCandidateProvider(described, 'new-provider', '').spec as JsonObject).providers).toMatchObject({ acme: { name: 'Acme Ltd' } });
+    expect(((setCandidateProvider(named, 'new-provider', '').spec as JsonObject).candidates as JsonObject)['new-provider']).not.toHaveProperty('provider');
+    expect((setCandidateProvider(named, 'new-provider', '').spec as JsonObject).providers).not.toHaveProperty('acme');
+  });
+
+  it('binds the first value of a quality to the feature of the same name', () => {
+    const quality = setCandidateFeature(setCandidateProvider(addCandidate(templateFor('CandidateCatalog', 'x').content as JsonObject, 'service/payment'), 'new-provider', 'acme'), 'new-provider', 'latency_ms', 12);
+    expect((quality.spec as JsonObject).featureBindings).toEqual({ latency_ms: { resource: 'application', id: 'latency_ms' } });
+    // A binding the catalog already has is not touched, and removing a value keeps it.
+    const other = updateAt(quality, ['spec', 'featureBindings', 'latency_ms'], { resource: 'app', id: 'delay' });
+    expect(((setCandidateFeature(other, 'new-provider', 'latency_ms', 20).spec as JsonObject).featureBindings as JsonObject).latency_ms).toEqual({ resource: 'app', id: 'delay' });
+    expect(((setCandidateFeature(quality, 'new-provider', 'latency_ms', null).spec as JsonObject).featureBindings as JsonObject).latency_ms).toBeDefined();
+  });
+
   it('renames a candidate in place and refuses a name already used', () => {
     const renamed = renameCandidate(catalog(), 'fastpay', 'quick-pay');
     expect(Object.keys((renamed.spec as JsonObject).candidates as JsonObject)).toEqual(['payco-eu', 'quick-pay', 'stockly-1']);
@@ -107,6 +133,15 @@ describe('rules as rows', () => {
     expect(rulesOf({ spec: { constraints: [{ assert: 'x', enforcement: 'hard' }] } })).toBeNull();
   });
 
+  it('writes the penalty a rule that should hold needs, and removes it from one that must hold', () => {
+    const soft = setRuleEnforcement(rulesContent(), 'sla-latency', 'soft');
+    expect(rulesOf(soft)?.[0]).toEqual({ id: 'sla-latency', condition: 'features.latency_ms <= 600', enforcement: 'soft', penalty: 1 });
+    expect(rulesOf(setRuleEnforcement(soft, 'sla-latency', 'hard'))?.[0]).toEqual({ id: 'sla-latency', condition: 'features.latency_ms <= 600', enforcement: 'hard', penalty: null });
+    // A penalty the rule already has is kept when it is chosen again.
+    expect(rulesOf(setRuleEnforcement(rulesContent(), 'sla-availability', 'soft'))?.[1].penalty).toBe(5);
+    expect(rulesOf(setRuleEnforcement(rulesContent(), 'sla-availability', 'hard'))?.[1].penalty).toBeNull();
+  });
+
   it('adds a rule and changes a field', () => {
     const added = addRule(rulesContent());
     expect(rulesOf(added)?.at(-1)).toEqual({ id: 'new-rule', condition: '', enforcement: 'hard', penalty: null });
@@ -123,10 +158,36 @@ describe('checks before sealing', () => {
     expect(checks[0]).toEqual({ level: 'ok', text: '3 providers in 2 capabilities' });
   });
 
-  it('warns about an empty catalog and rules without a condition', () => {
-    expect(checksFor('CandidateCatalog', templateFor('CandidateCatalog', 'x').content)[0]).toEqual({ level: 'warn', text: 'No providers yet' });
+  it('asks for a provider in an empty catalog and for a condition in every rule, before sealing', () => {
+    expect(checksFor('CandidateCatalog', templateFor('CandidateCatalog', 'x').content)[0]).toEqual({ level: 'error', text: 'Add at least one provider', blocksSeal: true });
     const blank = addRule(templateFor('ConstraintSet', 'x').content as JsonObject);
-    expect(checksFor('ConstraintSet', blank).map((check) => check.text)).toContain('1 rule has no condition');
+    expect(checksFor('ConstraintSet', blank)).toContainEqual({ level: 'error', text: '1 rule has no condition', blocksSeal: true });
+  });
+
+  it('says what a blank draft of each kind still lacks, and only for the kinds that have minimums', () => {
+    const missing = (kind: string) => checksFor(kind, templateFor(kind, 'x').content).filter((check) => check.blocksSeal).map((check) => check.text);
+    expect(missing('Application')).toEqual(['Add at least one task', 'Add the workflow: the order in which the tasks run']);
+    expect(missing('CandidateCatalog')).toEqual(['Add at least one provider']);
+    expect(missing('Placement')).toEqual(['Add at least one pool']);
+    expect(missing('ConstraintSet')).toEqual([]);
+    expect(missing('Optimization')).toEqual([]);
+    expect(missing('RoutingOverlay')).toEqual([]);
+    const application = updateAt(templateFor('Application', 'x').content as JsonObject, ['spec', 'tasks', 'pay'], 'service/payment');
+    expect(checksFor('Application', updateAt(application, ['spec', 'workflow', 'task'], { resource: 'application', id: 'pay' })).some((check) => check.blocksSeal)).toBe(false);
+    expect(missing('RoutingOverlay')).toEqual([]);
+    expect(checksFor('RoutingOverlay', { apiVersion: 'qos-binding/v1', kind: 'RoutingOverlay', metadata: { name: 'x' }, spec: { entries: [] } }).filter((check) => check.blocksSeal).map((check) => check.text))
+      .toEqual(['Add at least one entry, or choose uniform routing']);
+  });
+
+  it('refuses names the schema would refuse, and soft rules that lack their penalty', () => {
+    const odd = setCandidateProvider(catalog(), 'fastpay', 'Fast Pay');
+    expect(checksFor('CandidateCatalog', odd).find((check) => check.blocksSeal)?.text).toContain('“Fast Pay” can’t be a candidate or provider id');
+    const soft = setRuleEnforcement(addRule(templateFor('ConstraintSet', 'x').content as JsonObject), 'new-rule', 'soft');
+    const unpriced = setRuleField(setRuleField(soft, 'new-rule', 'assert', 'features.latency >= 0'), 'new-rule', 'penalty', undefined);
+    expect(checksFor('ConstraintSet', unpriced)).toContainEqual({ level: 'error', text: '1 soft rule has no penalty', blocksSeal: true });
+    const negative = setRuleField(unpriced, 'new-rule', 'penalty', -1);
+    expect(checksFor('ConstraintSet', negative)).toContainEqual({ level: 'error', text: '1 soft rule has a negative penalty', blocksSeal: true });
+    expect(checksFor('ConstraintSet', soft).some((check) => check.level === 'warn' && check.text.includes('also needs an entry under penalties'))).toBe(true);
   });
 
   it('requires an exact engine for run settings and content for the kinds that cannot be empty', () => {

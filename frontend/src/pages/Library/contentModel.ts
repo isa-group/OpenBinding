@@ -156,19 +156,52 @@ export function renameCandidate(document: JsonObject, from: string, to: string):
   return withCandidates(document, renameKey(candidates, from, to));
 }
 
-export function setCandidateProvider(document: JsonObject, id: string, provider: string): JsonObject {
-  const current = candidatesOf(document)[id];
-  const previous = isObject(current) && isObject(current.provider) ? current.provider : { resource: 'catalog' };
-  return updateAt(document, ['spec', 'candidates', id, 'provider'], provider ? { ...previous, id: provider } : undefined);
+/** The name a catalog has in the package when nothing else says so; a candidate's `provider` points to a declaration of that catalog with it. */
+export const CATALOG_RESOURCE = 'catalog';
+/** The name the Application has in the package when nothing else says so; a quality is bound to the Application feature of the same name. */
+export const APPLICATION_RESOURCE = 'application';
+
+const providersOf = (document: JsonObject): JsonObject => (isObject(document.spec) && isObject(document.spec.providers) ? document.spec.providers : {});
+
+/** A provider nobody points to and that says nothing about itself is not worth keeping (`spec.providers` entries are `{}` until named). */
+function withoutUnusedProvider(document: JsonObject, provider: string): JsonObject {
+  const declared = providersOf(document)[provider];
+  if (!isObject(declared) || Object.keys(declared).length > 0) return document;
+  const used = Object.values(candidatesOf(document)).some((candidate) => isObject(candidate) && isObject(candidate.provider) && candidate.provider.id === provider);
+  if (used) return document;
+  const { [provider]: removed, ...others } = providersOf(document);
+  void removed;
+  return updateAt(document, ['spec', 'providers'], Object.keys(others).length ? others : undefined);
 }
 
-/** Sets one quality of a candidate to a number or a range; `null` removes it. A range is written with its keys in the order `min`, `max`. */
+/**
+ * Names the provider of a candidate. The compiler wants the provider declared in this catalog (`spec.providers`) and the candidate to point
+ * to that declaration with `{ resource, id }`, so both are written together; the declaration the candidate stopped using is dropped when it
+ * was empty and nobody else uses it. An empty name removes the provider of the candidate.
+ */
+export function setCandidateProvider(document: JsonObject, id: string, provider: string): JsonObject {
+  const current = candidatesOf(document)[id];
+  const reference = isObject(current) && isObject(current.provider) ? current.provider : null;
+  const before = reference && typeof reference.id === 'string' ? reference.id : '';
+  const name = provider.trim();
+  let next = updateAt(document, ['spec', 'candidates', id, 'provider'], name ? { resource: typeof reference?.resource === 'string' && reference.resource ? reference.resource : CATALOG_RESOURCE, id: name } : undefined);
+  if (name && !(name in providersOf(next))) next = updateAt(next, ['spec', 'providers'], { ...providersOf(next), [name]: {} });
+  return before && before !== name ? withoutUnusedProvider(next, before) : next;
+}
+
+/**
+ * Sets one quality of a candidate to a number or a range; `null` removes it. A range is written with its keys in the order `min`, `max`.
+ * A candidate can only give a quality the catalog binds to an Application feature (`spec.featureBindings`), so the first value of a quality
+ * binds it to the feature of the same name.
+ */
 export function setCandidateFeature(document: JsonObject, id: string, feature: string, value: FeatureSlot | null): JsonObject {
   if (value === null) return updateAt(document, ['spec', 'candidates', id, 'features', feature], undefined);
   const written: Json = typeof value === 'number' ? value : Object.fromEntries(
     (['min', 'max'] as const).filter((end) => value[end] !== undefined).map((end) => [end, value[end] as number | null]),
   );
-  return updateAt(document, ['spec', 'candidates', id, 'features', feature], written);
+  const bindings = isObject(document.spec) && isObject(document.spec.featureBindings) ? document.spec.featureBindings : {};
+  const bound = feature in bindings ? document : updateAt(document, ['spec', 'featureBindings'], { ...bindings, [feature]: { resource: APPLICATION_RESOURCE, id: feature } });
+  return updateAt(bound, ['spec', 'candidates', id, 'features', feature], written);
 }
 
 export function addCandidate(document: JsonObject, capability: string): JsonObject {
@@ -217,6 +250,20 @@ export function setRuleField(document: JsonObject, id: string, field: 'assert' |
   return updateAt(document, ['spec', 'constraints', id, field], value);
 }
 
+/** The penalty a rule that should hold starts with. */
+export const DEFAULT_PENALTY = 1;
+
+/**
+ * Makes a rule one that must hold or one that should. The schema asks a "should" rule for a penalty and refuses one on a "must" rule, so the
+ * penalty is written (the default, or the one it had) or removed together with the kind.
+ */
+export function setRuleEnforcement(document: JsonObject, id: string, enforcement: Enforcement): JsonObject {
+  const rule = constraintsOf(document)[id];
+  const penalty = isObject(rule) && typeof rule.penalty === 'number' ? rule.penalty : DEFAULT_PENALTY;
+  const kind = updateAt(document, ['spec', 'constraints', id, 'enforcement'], enforcement);
+  return updateAt(kind, ['spec', 'constraints', id, 'penalty'], enforcement === 'soft' ? penalty : undefined);
+}
+
 export function addRule(document: JsonObject): JsonObject {
   const rules = constraintsOf(document);
   const id = uniqueKey(Object.keys(rules), 'new-rule');
@@ -234,9 +281,41 @@ export interface Check {
   text: string;
   /** A problem the draft can't be saved or sealed with (a range that isn't valid); other errors are for the gateway to judge. */
   blocking?: boolean;
+  /** Something the schema asks for that is still missing: the draft can be saved as it is, but not sealed until it is there. */
+  blocksSeal?: boolean;
 }
 
 const MUST_NOT_BE_EMPTY = new Set(['Report', 'Collection', 'Study', 'BindingDecision', 'ExecutionConfiguration', 'AnalysisConfiguration']);
+
+/** The names the schemas allow for the candidates and providers of a catalog, the tasks of an application and so on. */
+const IDENTIFIER = /^[A-Za-z][A-Za-z0-9_.-]{0,127}$/;
+
+const countOf = (value: Json | undefined): number => (isObject(value) ? Object.keys(value).length : Array.isArray(value) ? value.length : 0);
+
+/**
+ * The minimums of the schemas that can be checked looking at one document: the parts a blank draft of the kind still lacks. They say what
+ * to add; whether the parts agree with the other documents of a package is for the compiler, which sees them all.
+ */
+function minimumChecks(kind: string, content: JsonObject): Check[] {
+  const spec = isObject(content.spec) ? content.spec : {};
+  const missing = (text: string): Check => ({ level: 'error', text, blocksSeal: true });
+  switch (kind) {
+    case 'Application': {
+      const checks: Check[] = [];
+      if (countOf(spec.tasks) === 0) checks.push(missing('Add at least one task'));
+      if (countOf(spec.workflow) === 0) checks.push(missing('Add the workflow: the order in which the tasks run'));
+      return checks;
+    }
+    case 'CandidateCatalog':
+      return countOf(spec.candidates) === 0 ? [missing('Add at least one provider')] : [];
+    case 'Placement':
+      return countOf(spec.pools) === 0 ? [missing('Add at least one pool')] : [];
+    case 'RoutingOverlay':
+      return Array.isArray(spec.entries) && spec.entries.length === 0 ? [missing('Add at least one entry, or choose uniform routing')] : [];
+    default:
+      return [];
+  }
+}
 
 /** What can be said about a draft without asking the gateway; the gateway's own verdict (a 422 at seal) is added by the screen. */
 export function checksFor(kind: string, content: Content): Check[] {
@@ -254,7 +333,7 @@ export function checksFor(kind: string, content: Content): Check[] {
   if (catalog) {
     const rows = catalog.groups.flatMap((group) => group.rows);
     const incomplete = rows.filter((row) => catalog.columns.some((column) => row.features[column] === undefined));
-    checks.push(rows.length ? { level: 'ok', text: `${rows.length} ${rows.length === 1 ? 'provider' : 'providers'} in ${catalog.groups.length} ${catalog.groups.length === 1 ? 'capability' : 'capabilities'}` } : { level: 'warn', text: 'No providers yet' });
+    checks.push(rows.length ? { level: 'ok', text: `${rows.length} ${rows.length === 1 ? 'provider' : 'providers'} in ${catalog.groups.length} ${catalog.groups.length === 1 ? 'capability' : 'capabilities'}` } : { level: 'error', text: 'Add at least one provider', blocksSeal: true });
     checks.push(incomplete.length
       ? { level: 'error', text: `${incomplete.length} ${incomplete.length === 1 ? 'provider is' : 'providers are'} missing a quality` }
       : { level: 'ok', text: 'Every provider has the same qualities' });
@@ -270,19 +349,30 @@ export function checksFor(kind: string, content: Content): Check[] {
     if (unnamed.length) checks.push({ level: 'warn', text: `${unnamed.length} ${unnamed.length === 1 ? 'candidate has' : 'candidates have'} no provider id` });
     const loose = catalog.groups.find((group) => group.capability === NO_CAPABILITY);
     if (loose) checks.push({ level: 'warn', text: 'Some candidates provide no capability' });
+    const badNames = [...rows.map((row) => row.id), ...rows.map((row) => row.provider.trim()).filter(Boolean)].filter((name) => !IDENTIFIER.test(name));
+    if (badNames.length) {
+      checks.push({ level: 'error', text: `“${badNames[0]}” can’t be a candidate or provider id: start with a letter and use only letters, numbers, dots, underscores or hyphens`, blocksSeal: true });
+    }
     return checks;
   }
   if (rules) {
     const blank = rules.filter((rule) => !rule.condition.trim());
-    const unpriced = rules.filter((rule) => rule.enforcement === 'soft' && rule.penalty === null);
+    const soft = rules.filter((rule) => rule.enforcement === 'soft');
+    const unpriced = soft.filter((rule) => rule.penalty === null);
+    const negative = soft.filter((rule) => rule.penalty !== null && rule.penalty < 0);
     checks.push(rules.length ? { level: 'ok', text: `${rules.length} ${rules.length === 1 ? 'rule' : 'rules'}` } : { level: 'warn', text: 'No rules yet' });
-    checks.push(blank.length ? { level: 'error', text: `${blank.length} ${blank.length === 1 ? 'rule has' : 'rules have'} no condition` } : { level: 'ok', text: 'Every rule has a condition' });
-    if (unpriced.length) checks.push({ level: 'warn', text: `${unpriced.length} soft ${unpriced.length === 1 ? 'rule has' : 'rules have'} no penalty` });
+    checks.push(blank.length ? { level: 'error', text: `${blank.length} ${blank.length === 1 ? 'rule has' : 'rules have'} no condition`, blocksSeal: true } : { level: 'ok', text: 'Every rule has a condition' });
+    if (unpriced.length) checks.push({ level: 'error', text: `${unpriced.length} soft ${unpriced.length === 1 ? 'rule has' : 'rules have'} no penalty`, blocksSeal: true });
+    if (negative.length) checks.push({ level: 'error', text: `${negative.length} soft ${negative.length === 1 ? 'rule has' : 'rules have'} a negative penalty`, blocksSeal: true });
+    if (soft.length) {
+      checks.push({ level: 'warn', text: `${soft.length === 1 ? 'The soft rule' : 'Every soft rule'} also needs an entry under penalties in the goal (Optimization) used with these rules, or the package is refused` });
+    }
     return checks;
   }
   const empty = Object.keys(content).length === 0;
   if (MUST_NOT_BE_EMPTY.has(kind) && empty) checks.push({ level: 'error', text: 'The content can’t be empty for this kind' });
   else checks.push({ level: 'ok', text: empty ? 'No fields yet' : `${Object.keys(content).length} top-level ${Object.keys(content).length === 1 ? 'field' : 'fields'}` });
+  checks.push(...minimumChecks(kind, content));
   if (kind === 'ExecutionConfiguration') {
     const engine = content.engine;
     const exact = isObject(engine) && ['namespace', 'name', 'version', 'digest'].every((key) => typeof engine[key] === 'string' && engine[key] !== '');

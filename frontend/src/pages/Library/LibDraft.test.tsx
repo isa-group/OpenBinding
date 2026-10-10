@@ -4,7 +4,7 @@ import { HttpError } from '../../api/client';
 import { org, renderProjectScreen } from '../Project/testKit';
 import { LibDraft } from './LibDraft';
 import { templateFor, updateAt, type JsonObject } from './contentModel';
-import { bpmnContent, catalogContent, draftOf, itemOf, versionOf } from './fixtures';
+import { bpmnContent, catalogContent, draftOf, itemOf, rulesContent, versionOf } from './fixtures';
 
 const lib = vi.hoisted(() => ({ list: vi.fn(), versions: vi.fn(), drafts: vi.fn(), saveDraft: vi.fn(), seal: vi.fn() }));
 vi.mock('../../api/libraryItems', () => ({ libraryItemsApi: lib }));
@@ -188,13 +188,63 @@ describe('Draft editor', () => {
     renderDraft();
 
     expect(await screen.findByText(/^Blank draft\. Name a capability/)).toBeInTheDocument();
-    expect(within(screen.getByRole('region', { name: 'Checks' })).getByText('No providers yet')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Checks' })).getByText('Add at least one provider')).toBeInTheDocument();
+    // The blank draft can be saved as it is, but not sealed, and it says what is missing.
+    expect(screen.getByRole('button', { name: 'Seal version…' })).toBeDisabled();
+    expect(screen.getByText('Finish the draft to seal it')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('New capability'), { target: { value: 'service/payment' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add capability' }));
     const capability = screen.getByRole('region', { name: 'Capability service/payment' });
     expect(within(capability).getByText('No providers yet. Add the providers that can do this job, with their measured qualities.')).toBeInTheDocument();
     fireEvent.click(within(capability).getByRole('button', { name: 'Add provider' }));
     expect(screen.getByLabelText('Provider of new-provider')).toBeInTheDocument();
+  });
+
+  it('declares the provider that is typed and the feature a new quality is bound to, and can then be sealed', async () => {
+    lib.drafts.mockResolvedValue([draftOf('draft-4', 1, templateFor('CandidateCatalog', 'providers-eu').content as Record<string, unknown>)]);
+    lib.saveDraft.mockResolvedValue({ id: 'draft-4', revision: 2 });
+    renderDraft();
+    await screen.findByText(/^Blank draft\. Name a capability/);
+
+    fireEvent.change(screen.getByLabelText('New capability'), { target: { value: 'service/payment' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add capability' }));
+    fireEvent.change(screen.getByLabelText('New quality'), { target: { value: 'latency_ms' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add quality' }));
+    fireEvent.click(within(screen.getByRole('region', { name: 'Capability service/payment' })).getByRole('button', { name: 'Add provider' }));
+    fireEvent.change(screen.getByLabelText('Provider of new-provider'), { target: { value: 'acme' } });
+    fireEvent.change(screen.getByLabelText('latency_ms for new-provider'), { target: { value: '40' } });
+
+    expect(screen.getByRole('button', { name: 'Seal version…' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    await screen.findByText('Draft revision 2');
+    expect(lib.saveDraft.mock.calls[0][2].content).toEqual({
+      apiVersion: 'qos-binding/v1',
+      kind: 'CandidateCatalog',
+      metadata: { name: 'providers-eu' },
+      spec: {
+        featureBindings: { latency_ms: { resource: 'application', id: 'latency_ms' } },
+        candidates: { 'new-provider': { provides: 'service/payment', features: { latency_ms: 40 }, provider: { resource: 'catalog', id: 'acme' } } },
+        providers: { acme: {} },
+      },
+    });
+  });
+
+  it('gives a rule that should hold the penalty the schema asks for, takes it from one that must hold, and reminds that the goal lists it', async () => {
+    lib.drafts.mockResolvedValue([draftOf('draft-r1', 1, rulesContent())]);
+    renderDraft(rules, group, '/app/isa-demo/library/sla-hard/drafts/draft-r1');
+    await screen.findByRole('heading', { level: 1, name: 'SLA hard · draft' });
+    const checks = screen.getByRole('region', { name: 'Checks' });
+
+    fireEvent.change(screen.getByLabelText('Kind of sla-latency'), { target: { value: 'soft' } });
+    expect(screen.getByLabelText('Penalty of sla-latency')).toHaveValue('1');
+    expect(screen.getByLabelText('Kind of sla-latency')).toHaveValue('soft');
+    expect(within(checks).getByText(/Every soft rule also needs an entry under penalties/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Kind of sla-availability'), { target: { value: 'hard' } });
+    expect(screen.getByLabelText('Penalty of sla-availability')).toBeDisabled();
+    expect(screen.getByLabelText('Penalty of sla-availability')).toHaveValue('');
+    fireEvent.change(screen.getByLabelText('Kind of sla-latency'), { target: { value: 'hard' } });
+    expect(within(checks).queryByText(/entry under penalties/)).not.toBeInTheDocument();
   });
 
   it('compares the two copies when someone saved first, and keeps mine on top of theirs', async () => {

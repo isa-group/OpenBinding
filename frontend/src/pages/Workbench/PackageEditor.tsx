@@ -6,6 +6,7 @@ import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { TabBar, TabPanel } from '../../components/ui/TabBar';
 import { RESOURCE_ROLE_LABELS, registeredResourceLabel } from './bimDocuments';
+import { packageContext } from './packageContext';
 import { CommonResourceForm } from './resourceForms';
 import { SourcePanel } from './SourcePanel';
 import type { EditorTab, Workbench } from './useWorkbench';
@@ -25,6 +26,9 @@ export function PackageEditor({ wb }: { wb: Workbench }) {
     resources: wb.resources.filter((resource) => resource.role === role),
   }));
   const paths = Object.keys(wb.files).filter((path) => path !== 'instance.json' && /\.(?:json|bpmn|xml)$/i.test(path));
+  // The forms write parts that must agree with the other documents of the package (a provider the catalog declares, a feature the
+  // Application declares, a penalty the Optimization lists); this is what they read to do it.
+  const context = packageContext(wb.files, wb.resources, wb.selectedPath, { open: (path) => wb.selectResource(path), update: wb.updateWorkspace });
 
   return (
     <section className="wb-card wb-editor" id="wb-editor" aria-labelledby="wb-editor-title">
@@ -94,7 +98,7 @@ export function PackageEditor({ wb }: { wb: Workbench }) {
             {tab === 'form' && (
               <div className="wb-pane">
                 {wb.selectedDocument
-                  ? <CommonResourceForm document={wb.selectedDocument} onChange={wb.updateSelectedDocument} availablePaths={paths} />
+                  ? <CommonResourceForm document={wb.selectedDocument} onChange={wb.updateSelectedDocument} availablePaths={paths} context={context} />
                   : <Notice tone="error">{wb.selectedPath} is not a JSON document, so it has no form. Open View source to repair or read it.</Notice>}
               </div>
             )}

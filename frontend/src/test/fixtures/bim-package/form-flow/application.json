@@ -1,0 +1,35 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Application",
+  "metadata": {
+    "name": "hello-app"
+  },
+  "spec": {
+    "tasks": {
+      "hello": "http"
+    },
+    "features": {
+      "latency": {
+        "unit": "ms",
+        "domain": "real",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum"
+      },
+      "cost": {
+        "type": "number",
+        "unit": "eur",
+        "domain": "real",
+        "direction": "minimize",
+        "scope": "invocation",
+        "aggregation": "sum"
+      }
+    },
+    "workflow": {
+      "bpmn": {
+        "resource": "workflow",
+        "id": "Process_1"
+      }
+    }
+  }
+}

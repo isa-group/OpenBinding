@@ -582,6 +582,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `draft-${name}-fields`);
       await page.goto(`${LIB}/checkout-app/drafts/draft-a1`);
       await expect(main.getByText('Nothing here yet.').first()).toBeVisible();
+      // A blank draft says what the schema still asks for, and cannot be sealed until it is there.
+      await expect(main.getByRole('region', { name: 'Checks' }).getByText('Add at least one task')).toBeVisible();
+      await expect(main.getByRole('button', { name: 'Seal version…' })).toBeDisabled();
       await capture(page, testInfo, `draft-${name}-blank`);
 
       // The key can't write: the editor turns read-only.

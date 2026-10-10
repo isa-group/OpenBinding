@@ -1,7 +1,8 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { unzipPackage } from '../../utils/bimZip';
 import { project } from '../Project/testKit';
+import { DEFAULT_FILES } from './bimDocuments';
 import { ROOT, analysis, openWorkbench } from './workbenchTestKit';
 
 // The forms of the editor: they edit the documents of the package in place, and what the gateway receives is what they wrote.
@@ -64,14 +65,16 @@ describe('Workbench · forms of the editor', () => {
     expect(resourceId).toHaveValue('application');
     expect(screen.getByText('The application/workflow reference already exists.')).toHaveAttribute('role', 'alert');
 
+    fireEvent.click(screen.getByRole('button', { name: /application\.json/i }));
+    fireEvent.change(screen.getByLabelText('New feature id'), { target: { value: 'cost' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add feature' }));
     fireEvent.click(screen.getByRole('button', { name: /candidates\.json/i }));
-    fireEvent.change(screen.getByLabelText('New metric alias'), { target: { value: 'cost' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add metric binding' }));
-    const alias = screen.getByLabelText('latency metric alias');
+    fireEvent.click(screen.getByRole('button', { name: 'Add feature binding' }));
+    const alias = screen.getByLabelText('latency feature alias');
     fireEvent.change(alias, { target: { value: 'cost' } });
     fireEvent.blur(alias);
     expect(alias).toHaveValue('latency');
-    expect(screen.getByRole('alert')).toHaveTextContent('cost metric alias already exists');
+    expect(screen.getByRole('alert')).toHaveTextContent('cost feature alias already exists');
   });
 
   it('edits Instance metadata, profile, local resources, and registered references transactionally', async () => {
@@ -109,14 +112,49 @@ describe('Workbench · forms of the editor', () => {
   });
 
   it('edits Optimization criteria, normalization, and explicit penalties with the keys of the schema', async () => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      ...DEFAULT_FILES,
+      'instance.json': JSON.stringify({
+        apiVersion: 'bim/v1',
+        kind: 'Instance',
+        metadata: { name: 'goal-editor' },
+        spec: {
+          profile: 'qos-binding/v1',
+          resources: {
+            application: { application: 'application.json' },
+            constraintSet: { qualityConstraints: 'constraints.json' },
+            optimization: { optimization: 'optimization.json' },
+          },
+        },
+      }),
+      'application.json': JSON.stringify({
+        apiVersion: 'qos-binding/v1',
+        kind: 'Application',
+        metadata: { name: 'app' },
+        spec: {
+          tasks: { hello: 'http' },
+          features: { latency: { unit: 'ms' }, duration: { unit: 'ms' }, cost: { unit: 'eur' } },
+          workflow: { task: { resource: 'application', id: 'hello' } },
+        },
+      }),
+      'constraints.json': JSON.stringify({
+        apiVersion: 'qos-binding/v1',
+        kind: 'ConstraintSet',
+        metadata: { name: 'constraints' },
+        spec: { constraints: { softLatency: { assert: 'features.latency >= 0', enforcement: 'soft', penalty: 1 }, hardCost: { assert: 'features.cost >= 0', enforcement: 'hard' } } },
+      }),
+    }));
     await openWorkbench();
-    fireEvent.click(screen.getByRole('button', { name: /optimization\.json/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /optimization\.json/i }));
 
     // The strategy and its weights are chosen when the package runs: the Optimization has no such controls.
     expect(screen.queryByLabelText('Strategy')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Objective type')).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Criterion 1 feature id'), { target: { value: 'duration' } });
+    // A criterion points to a feature the Application declares: those are the options.
+    const feature = screen.getByLabelText('Criterion 1 feature');
+    expect(within(feature).getAllByRole('option').map((option) => option.textContent)).toEqual(['latency · ms', 'duration · ms', 'cost · eur']);
+    fireEvent.change(feature, { target: { value: 'application/duration' } });
     fireEvent.change(screen.getByLabelText('Criterion 1 direction'), { target: { value: 'maximize' } });
     fireEvent.click(screen.getByLabelText('Criterion 1 normalize'));
     fireEvent.change(screen.getByLabelText('Criterion 1 normalization minimum'), { target: { value: '-5' } });
@@ -127,17 +165,19 @@ describe('Workbench · forms of the editor', () => {
     fireEvent.blur(criterionId);
 
     fireEvent.click(screen.getByRole('button', { name: 'Add criterion' }));
-    fireEvent.change(screen.getByLabelText('Criterion 2 feature resource'), { target: { value: 'application' } });
-    fireEvent.change(screen.getByLabelText('Criterion 2 feature id'), { target: { value: 'cost' } });
+    // The new criterion starts on a feature that no other criterion uses.
+    expect(screen.getByLabelText('Criterion 2 feature')).toHaveValue('application/latency');
+    fireEvent.change(screen.getByLabelText('Criterion 2 feature'), { target: { value: 'application/cost' } });
     const duplicate = screen.getByLabelText('Criterion 2 id');
     fireEvent.change(duplicate, { target: { value: 'duration' } });
     fireEvent.blur(duplicate);
     expect(duplicate).toHaveValue('criterion2');
     expect(screen.getByRole('alert')).toHaveTextContent('The duration criterion already exists.');
 
+    // The soft rule is offered as a penalty, the hard one is not, and a rule can be linked only once.
     fireEvent.click(screen.getByRole('button', { name: 'Add penalty' }));
-    fireEvent.change(screen.getByLabelText('Penalty 1 constraint resource'), { target: { value: 'qualityConstraints' } });
-    fireEvent.change(screen.getByLabelText('Penalty 1 constraint id'), { target: { value: 'softLatency' } });
+    expect(within(screen.getByLabelText('Penalty 1 rule')).getAllByRole('option').map((option) => option.textContent)).toEqual(['softLatency · qualityConstraints']);
+    expect(screen.getByRole('button', { name: 'Add penalty' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Penalty 1 weight'), { target: { value: '3' } });
 
     validate();
@@ -164,7 +204,7 @@ describe('Workbench · forms of the editor', () => {
     expect(JSON.parse((await checkedFiles())['optimization.json']).spec).toEqual({ criteria: [] });
   });
 
-  it('authors Application tasks, typed predicates, and metric definitions in the compact form', async () => {
+  it('authors Application tasks, typed predicates, and feature definitions in the compact form', async () => {
     await openWorkbench();
     fireEvent.click(screen.getByRole('button', { name: /application\.json/i }));
 
@@ -177,8 +217,8 @@ describe('Workbench · forms of the editor', () => {
     fireEvent.change(screen.getByLabelText('latency aggregation'), { target: { value: 'product' } });
     fireEvent.change(screen.getByLabelText('latency neutral'), { target: { value: '1' } });
 
-    fireEvent.change(screen.getByLabelText('New metric id'), { target: { value: 'availability' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add metric' }));
+    fireEvent.change(screen.getByLabelText('New feature id'), { target: { value: 'availability' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add feature' }));
     fireEvent.change(screen.getByLabelText('availability unit'), { target: { value: 'ratio' } });
     fireEvent.change(screen.getByLabelText('availability direction'), { target: { value: 'maximize' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add task' }));
@@ -200,12 +240,18 @@ describe('Workbench · forms of the editor', () => {
 
   it('authors catalog bindings, capabilities, properties, QoS values, and candidate deletion', async () => {
     await openWorkbench();
+    fireEvent.click(screen.getByRole('button', { name: /application\.json/i }));
+    fireEvent.change(screen.getByLabelText('New feature id'), { target: { value: 'cost' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add feature' }));
     fireEvent.click(screen.getByRole('button', { name: /candidates\.json/i }));
 
-    fireEvent.blur(screen.getByLabelText('latency metric alias'), { target: { value: 'responseTime' } });
-    fireEvent.change(screen.getByLabelText('responseTime metric id'), { target: { value: 'latency' } });
-    fireEvent.change(screen.getByLabelText('New metric alias'), { target: { value: 'cost' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add metric binding' }));
+    fireEvent.blur(screen.getByLabelText('latency feature alias'), { target: { value: 'responseTime' } });
+    // A binding names a feature the Application declares: the cost one is bound by choosing it, under its own name.
+    expect(within(screen.getByLabelText('responseTime feature')).getAllByRole('option').map((option) => option.textContent)).toEqual(['latency · ms', 'cost · 1']);
+    fireEvent.change(screen.getByLabelText('Feature to bind'), { target: { value: 'application/cost' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add feature binding' }));
+    // A feature is bound by one alias only.
+    expect(within(screen.getByLabelText('responseTime feature')).getByRole('option', { name: 'cost · 1' })).toBeDisabled();
     expect(screen.getByLabelText('service-a QoS responseTime')).toHaveValue(10);
 
     fireEvent.click(screen.getByRole('button', { name: 'Add candidate' }));
@@ -233,6 +279,107 @@ describe('Workbench · forms of the editor', () => {
         features: { responseTime: 8, cost: 5 },
       },
     });
+  });
+
+  it('says what a package lacks to compile across its documents, and writes it with one action', async () => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      'instance.json': JSON.stringify({
+        apiVersion: 'bim/v1',
+        kind: 'Instance',
+        metadata: { name: 'across-documents' },
+        spec: {
+          profile: 'qos-binding/v1',
+          resources: {
+            application: { application: 'application.json' },
+            candidateCatalog: { catalog: 'candidates.json' },
+            constraintSet: { rules: 'constraints.json' },
+            optimization: { optimization: 'optimization.json' },
+          },
+        },
+      }),
+      'application.json': JSON.stringify({
+        apiVersion: 'qos-binding/v1',
+        kind: 'Application',
+        metadata: { name: 'app' },
+        spec: { tasks: { hello: 'http' }, features: { latency: { unit: 'ms' }, cost: { unit: 'eur' } }, workflow: { task: { resource: 'application', id: 'hello' } } },
+      }),
+      'candidates.json': JSON.stringify({
+        apiVersion: 'qos-binding/v1',
+        kind: 'CandidateCatalog',
+        metadata: { name: 'catalog' },
+        spec: {
+          featureBindings: { latency: { resource: 'application', id: 'latency' }, speed: { resource: 'application', id: 'speed' } },
+          candidates: { 'service-a': { provides: 'http', features: { latency: 10 }, provider: { resource: 'catalog', id: 'ghost' } } },
+        },
+      }),
+      'constraints.json': JSON.stringify({
+        apiVersion: 'qos-binding/v1',
+        kind: 'ConstraintSet',
+        metadata: { name: 'rules' },
+        spec: { constraints: { soft1: { assert: 'features.latency >= 0', enforcement: 'soft', penalty: 1 } } },
+      }),
+      'optimization.json': JSON.stringify({
+        apiVersion: 'qos-binding/v1',
+        kind: 'Optimization',
+        metadata: { name: 'goal' },
+        spec: {
+          criteria: [{ id: 'latency', feature: { resource: 'application', id: 'latency' } }, { id: 'cost', feature: { resource: 'application', id: 'cost' } }],
+        },
+      }),
+    }));
+    await openWorkbench();
+
+    // The catalog: a provider that is not declared, a binding to a feature the Application does not declare, a value the goal asks for.
+    fireEvent.click(await screen.findByRole('button', { name: /candidates\.json/i }));
+    expect(screen.getByText('This provider is not declared in the catalog')).toBeInTheDocument();
+    expect(screen.getByText('The Application does not declare this feature')).toBeInTheDocument();
+    expect(screen.getByText('Some candidates give no value to a feature the Optimization uses')).toBeInTheDocument();
+    expect(screen.getByLabelText('service-a provider')).toHaveDisplayValue('catalog/ghost (not declared)');
+    expect(screen.getByLabelText('speed feature')).toHaveDisplayValue('application/speed (not declared)');
+    fireEvent.click(screen.getByRole('button', { name: 'Declare ghost' }));
+    expect(screen.queryByText('This provider is not declared in the catalog')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('service-a provider')).toHaveDisplayValue('ghost');
+    fireEvent.change(screen.getByLabelText('speed feature'), { target: { value: 'application/cost' } });
+    expect(screen.queryByText('The Application does not declare this feature')).not.toBeInTheDocument();
+
+    // The rules: the soft one is not in the goal yet, and a button puts it there.
+    fireEvent.click(screen.getByRole('button', { name: /constraints\.json/i }));
+    expect(screen.getByText('The Optimization does not list this rule yet')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add soft1 to the Optimization' }));
+    expect(screen.queryByText('The Optimization does not list this rule yet')).not.toBeInTheDocument();
+
+    // The goal: the units differ, so it asks for a scale and Normalize writes one for each.
+    fireEvent.click(screen.getByRole('button', { name: /optimization\.json/i }));
+    expect(screen.getByText('These criteria need a scale')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Normalize' }));
+    expect(screen.queryByText('These criteria need a scale')).not.toBeInTheDocument();
+    expect(screen.queryByText('Soft rules without a penalty')).not.toBeInTheDocument();
+
+    validate();
+    await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
+    const files = await checkedFiles();
+    const catalog = JSON.parse(files['candidates.json']);
+    expect(catalog.spec.providers).toEqual({ ghost: {} });
+    expect(catalog.spec.featureBindings.speed).toEqual({ resource: 'application', id: 'cost' });
+    const optimization = JSON.parse(files['optimization.json']);
+    expect(optimization.spec.criteria.map((criterion: { normalize: unknown }) => criterion.normalize)).toEqual([{ min: 0, max: 1, clamp: false }, { min: 0, max: 1, clamp: false }]);
+    expect(optimization.spec.penalties).toEqual([{ constraint: { resource: 'rules', id: 'soft1' }, weight: 1 }]);
+  });
+
+  it('offers nothing to point to when the Application declares no feature, and sends the person there', async () => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      ...DEFAULT_FILES,
+      'application.json': JSON.stringify({
+        apiVersion: 'qos-binding/v1', kind: 'Application', metadata: { name: 'app' },
+        spec: { tasks: { hello: 'http' }, features: {}, workflow: { task: { resource: 'application', id: 'hello' } } },
+      }),
+    }));
+    await openWorkbench();
+    fireEvent.click(await screen.findByRole('button', { name: /optimization\.json/i }));
+    expect(screen.getByText('The Application declares no features')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add criterion' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Open application.json' }));
+    expect(await screen.findByLabelText('New feature id')).toBeInTheDocument();
   });
 
   it('opens a draft written with the older vocabulary in the real one, says so, and keeps what has no place in the schema', async () => {

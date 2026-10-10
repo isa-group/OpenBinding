@@ -2,8 +2,8 @@ import { useId, useState, type FormEvent } from 'react';
 import { Plus } from 'lucide-react';
 import { Action } from '../../components/ui/Action';
 import {
-  addCandidate, addRule, removeCandidate, removeRule, renameCandidate, renameRule, setCandidateFeature, setCandidateProvider, setRuleField,
-  type CatalogView, type JsonObject, type RuleRow,
+  addCandidate, addRule, removeCandidate, removeRule, renameCandidate, renameRule, setCandidateFeature, setCandidateProvider, setRuleEnforcement,
+  setRuleField, type CatalogView, type JsonObject, type RuleRow,
 } from './contentModel';
 import { CommitField, NumberField, TextField } from './fields';
 import { FeatureCell } from './FeatureCell';
@@ -108,6 +108,7 @@ export function CatalogEditor({ document, catalog, onChange, readOnly }: Catalog
           )}
           <footer>
             <Action variant="secondary" size="sm" disabled={readOnly} onClick={() => onChange(addCandidate(document, group.capability))}><Plus aria-hidden="true" className="org-inline-icon" />Add provider</Action>
+            <span className="lib-footnote">Naming a provider declares it in this catalog. A quality is bound to the feature of the same name in the application.</span>
           </footer>
         </section>
       ))}
@@ -152,7 +153,7 @@ export function RulesEditor({ document, rules, onChange, readOnly }: RulesEditor
                       aria-label={`Kind of ${rule.id}`}
                       value={rule.enforcement}
                       disabled={readOnly}
-                      onChange={(event) => onChange(setRuleField(document, rule.id, 'enforcement', event.target.value))}
+                      onChange={(event) => onChange(setRuleEnforcement(document, rule.id, event.target.value === 'soft' ? 'soft' : 'hard'))}
                     >
                       <option value="hard">Must hold</option>
                       <option value="soft">Should hold</option>
@@ -168,7 +169,7 @@ export function RulesEditor({ document, rules, onChange, readOnly }: RulesEditor
       )}
       <footer>
         <Action variant="secondary" size="sm" disabled={readOnly} onClick={() => onChange(addRule(document))}><Plus aria-hidden="true" className="org-inline-icon" />Add rule</Action>
-        <span className="lib-footnote">Renaming a rule doesn’t update the goals that refer to it.</span>
+        <span className="lib-footnote">Renaming a rule doesn’t update the goals that refer to it. A rule that should hold needs a penalty here and an entry under penalties in the goal that goes with these rules.</span>
       </footer>
     </section>
   );

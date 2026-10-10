@@ -1,0 +1,46 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "hello-catalog"
+  },
+  "spec": {
+    "providers": {
+      "acme": {}
+    },
+    "featureBindings": {
+      "latency": {
+        "resource": "application",
+        "id": "latency"
+      },
+      "cost": {
+        "resource": "application",
+        "id": "cost"
+      }
+    },
+    "candidates": {
+      "service-a": {
+        "provides": "http",
+        "features": {
+          "latency": 10,
+          "cost": 0.5
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "acme"
+        }
+      },
+      "candidate2": {
+        "provides": "http",
+        "features": {
+          "latency": 20,
+          "cost": 0.8
+        },
+        "provider": {
+          "resource": "catalog",
+          "id": "acme"
+        }
+      }
+    }
+  }
+}
