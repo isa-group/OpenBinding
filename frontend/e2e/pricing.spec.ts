@@ -92,7 +92,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/Pricing version\s+0\.1\.0/)).toBeVisible();
       await expect(main.getByText('Published Sep 1, 2026')).toBeVisible();
       await expect(main.getByText('EUR · monthly periods')).toBeVisible();
-      await expect(main.getByText('Fingerprint a1b2…c3d4')).toBeVisible();
+      await expect(main.getByText('Fingerprint sha256-a1b2…c3d4')).toBeVisible();
       await expect(main.getByText('Development pricing.')).toBeVisible();
 
       // Four plans in the order of the document; the paid ones are an agreement, never a price.
@@ -108,7 +108,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const monthly = main.getByRole('table', { name: 'Monthly: Renew each month' });
       await expect(monthly.getByRole('row', { name: /Solver time/ })).toContainText('15 min');
       await expect(monthly.getByRole('row', { name: /Solver time/ })).toContainText('900 s');
-      await expect(monthly.getByRole('row', { name: /Capacity units/ })).toContainText('To confirm');
+      await expect(monthly.getByRole('row', { name: /Capacity units/ })).not.toContainText('To confirm');
       await capture(page, testInfo, `pricing-${name}-visitor`);
       if (isMobile) {
         expect(critical).toEqual([]);

@@ -6,6 +6,8 @@
  * so adding one to the pricing shows up on the Pricing and Usage screens without a code change.
  */
 
+import { formatByteSize, formatNumber } from './format';
+
 export type LimitGroup = 'monthly' | 'capacity' | 'ceiling' | 'sponsored';
 export type LimitKind = 'count' | 'seconds' | 'bytes' | 'log10' | 'days' | 'capacity';
 
@@ -79,9 +81,7 @@ const SUPERSCRIPT: Record<string, string> = {
   '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻',
 };
 
-export function formatCount(value: number): string {
-  return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
-}
+export const formatCount = (value: number): string => formatNumber(value);
 
 function trimmed(value: number): string {
   return formatCount(Math.round(value * 10) / 10);
@@ -92,15 +92,6 @@ export function formatDuration(seconds: number): string {
   if (seconds >= 3600) return `${trimmed(seconds / 3600)} h`;
   if (seconds >= 60) return `${trimmed(seconds / 60)} min`;
   return `${formatCount(seconds)} s`;
-}
-
-/** `8 MiB`, `5 GiB`: binary units, one decimal at most. */
-export function formatByteSize(bytes: number): string {
-  const units: Array<[number, string]> = [[1024 ** 3, 'GiB'], [1024 ** 2, 'MiB'], [1024, 'KiB']];
-  for (const [size, unit] of units) {
-    if (bytes >= size) return `${trimmed(bytes / size)} ${unit}`;
-  }
-  return `${formatCount(bytes)} bytes`;
 }
 
 /** The size of a binding space as a power of ten: `10⁹`. */

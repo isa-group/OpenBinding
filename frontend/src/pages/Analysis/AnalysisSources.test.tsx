@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, renderProjectScreen } from '../Project/testKit';
 import { AnalysisSources } from './AnalysisSources';
-import { JOB_DONE, JOB_OLD, JOB_SECOND, SOURCES, sourceOf } from './fixtures';
+import { JOB_DONE, JOB_OLD, JOB_SECOND, SOURCES, sourceOf } from '../../test/fixtures/analysis';
 
 const api = vi.hoisted(() => ({ sources: vi.fn() }));
 const platform = vi.hoisted(() => ({ studyCell: vi.fn(), studyCells: vi.fn(), organizations: vi.fn(), projects: vi.fn() }));
@@ -124,12 +124,5 @@ describe('Analysis sources', () => {
     expect(await screen.findByText('minizinc · job fa000000…')).toBeInTheDocument();
     expect(api.sources).toHaveBeenLastCalledWith('1');
     expect(screen.queryByRole('button', { name: 'Load more runs' })).not.toBeInTheDocument();
-  });
-
-  it('sends an old link that reopened a saved decision to the decision space', async () => {
-    renderSources('/app/analysis?report=acme/atlas/choice');
-
-    expect(await screen.findByText('elsewhere')).toBeInTheDocument();
-    expect(api.sources).not.toHaveBeenCalled();
   });
 });

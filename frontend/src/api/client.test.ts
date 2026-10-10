@@ -214,3 +214,49 @@ describe('BIM v1 Engine API client', () => {
     await expect(client.getBindingNeighborhood('job', 0, 'unknown', 64)).rejects.toThrow('Selected task is invalid');
   });
 });
+
+describe('a 422 is an error unless the caller asks for its body', () => {
+  const client = new ApiClient('https://gateway.example');
+  const fetchMock = vi.fn<typeof fetch>();
+  const refusal = () => jsonResponse({ title: 'validation_error', status: 422, detail: 'refused', diagnostics: [{ message: 'where' }] }, 422);
+
+  beforeEach(() => {
+    localStorage.clear();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  it.each([
+    ['deleteEngineRegistration', (api: ApiClient) => api.deleteEngineRegistration(REF)],
+    ['unlinkOwnIdentity', (api: ApiClient) => api.unlinkOwnIdentity('identity')],
+    ['revokeApiKey', (api: ApiClient) => api.revokeApiKey('key')],
+    ['rotateApiKey', (api: ApiClient) => api.rotateApiKey('key')],
+    ['createBimJob', (api: ApiClient) => api.createBimJob('snapshot', REF, REF, 'mode')],
+    ['createConfiguredBimJob', (api: ApiClient) => api.createConfiguredBimJob('snapshot', { namespace: 'lab', name: 'search', version: '2', versionDigest: DIGEST })],
+    ['createAutoRouterBimJob', (api: ApiClient) => api.createAutoRouterBimJob('snapshot')],
+    ['createCasLinkIntent', (api: ApiClient) => api.createCasLinkIntent()],
+    ['adminRevokeApiKey', (api: ApiClient) => api.adminRevokeApiKey('user', 'key')],
+    ['adminResyncUsage', (api: ApiClient) => api.adminResyncUsage('user')],
+    ['adminRecalibrateEngineRouting', (api: ApiClient) => api.adminRecalibrateEngineRouting()],
+    ['activateEngineRegistration', (api: ApiClient) => api.activateEngineRegistration(REF)],
+    ['deactivateEngineRegistration', (api: ApiClient) => api.deactivateEngineRegistration(REF)],
+    ['requestEngineRegistrationPublication', (api: ApiClient) => api.requestEngineRegistrationPublication(REF)],
+    ['adminApproveEngineRegistration', (api: ApiClient) => api.adminApproveEngineRegistration(REF)],
+    ['adminRejectEngineRegistration', (api: ApiClient) => api.adminRejectEngineRegistration(REF)],
+  ])('%s throws an HttpError with the gateway’s code and diagnostics', async (_name, call) => {
+    fetchMock.mockResolvedValueOnce(refusal());
+    await expect(call(client)).rejects.toMatchObject({ status: 422, code: 'validation_error', diagnostics: [{ message: 'where' }] });
+  });
+
+  it('hands the body of a 422 back only where the caller says so', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: 'not a result' }, 422));
+    await expect(client.request('/v1/anything', {}, undefined, true, false)).resolves.toEqual({ detail: 'not a result' });
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: 'not a result' }, 422));
+    await expect(client.request('/v1/anything')).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('keeps a refused package as a result of validatePackage', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ title: 'invalid_package', status: 422, diagnostics: [{ message: 'bad file' }] }, 422));
+    await expect(client.validatePackage(new Uint8Array([1]))).resolves.toMatchObject({ valid: false, refusal: { code: 'invalid_package' } });
+  });
+});

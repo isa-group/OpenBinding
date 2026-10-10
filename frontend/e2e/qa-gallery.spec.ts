@@ -159,7 +159,11 @@ function oneLine(m: Measurement): string {
   const add = (label: string, values: string[]) => { if (values.length) found.push(`${label}=[${values.join(' | ')}]`); };
   add('FAILED', m.failures);
   add('displayHeadings', m.displayHeadings);
-  if (m.h1Font && !m.h1Font.includes('PP Editorial')) found.push(`h1 is not in the display face: ${m.h1Font}`);
+  if (m.h1Font) {
+    // The computed stack is "PP Editorial Old", Georgia, serif: Georgia must be the second family, Times New Roman must not appear.
+    const stack = m.h1Font.split(',').map((family) => family.trim().replace(/^["']|["']$/g, ''));
+    if (stack[0] !== 'PP Editorial Old' || stack[1] !== 'Georgia') found.push(`h1 is not in the display stack (PP Editorial Old, Georgia, serif): ${m.h1Font}`);
+  }
   if (m.overflowX > 1) found.push(`overflowX=${m.overflowX}`);
   add('offenders', m.offenders);
   add('clipped', m.clipped);
@@ -212,7 +216,6 @@ test.describe('gallery registry', () => {
   test('lists all 86 screens of the prototype', () => {
     expect(screens).toHaveLength(86);
     expect(new Set(screens.map((screen) => screen.id)).size).toBe(86);
-    expect(screens.every((screen) => screen.status === 'live')).toBe(true);
   });
 });
 
@@ -252,6 +255,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of VIEWPORTS) {
 
           const text = await page.evaluate(() => document.body.innerText);
           if (text.includes('This screen is being rebuilt')) failures.push('shows the placeholder of a screen that is being rebuilt');
+          if (text.includes('Something went wrong')) failures.push('fell into the error boundary');
           if (text.includes('not mocked')) failures.push('shows an error that says the mock does not answer');
         } catch (error) {
           failures.push(String(error instanceof Error ? error.message : error).split('\n').slice(0, 5).join(' ⏎ '));

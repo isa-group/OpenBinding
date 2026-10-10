@@ -2,7 +2,7 @@ import { configure, fireEvent, screen, waitFor, within } from '@testing-library/
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdaptationObservationItem, EngineRoutingMetricsResponse } from '../../api/client';
 import { AdminRouting } from './AdminRouting';
-import { LUCIA } from './adminFixtures';
+import { MARIA } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({
@@ -195,7 +195,7 @@ describe('admin-routing · how the AutoRouter is doing', { timeout: 30000 }, () 
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<AdminRouting />, { user: LUCIA });
+    renderAdmin(<AdminRouting />, { user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(api.adminGetEngineRoutingMetrics).not.toHaveBeenCalled();
     expect(api.adminListEngineRoutingObservations).not.toHaveBeenCalled();

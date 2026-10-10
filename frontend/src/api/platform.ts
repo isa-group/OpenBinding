@@ -1,4 +1,3 @@
-import type { ArtifactUse } from './library';
 import { apiClient } from './client';
 
 export type Visibility = 'private' | 'public';
@@ -470,14 +469,6 @@ export const platformApi = {
     apiClient.request<void>(root(org, project), { method: 'DELETE' }, undefined, true, true),
   cases: (org: string, project: string) =>
     apiClient.request<BindingCase[]>(`${root(org, project)}/cases`),
-  createCase: (org: string, project: string, value: { slug: string; name: string; description: string }) =>
-    apiClient.request<BindingCase>(`${root(org, project)}/cases`, {
-      method: 'POST', body: JSON.stringify(value),
-    }),
-  updateCase: (org: string, project: string, caseSlug: string, value: { name?: string; description?: string }) =>
-    apiClient.request<BindingCase>(`${root(org, project)}/cases/${encodeURIComponent(caseSlug)}`, {
-      method: 'PATCH', body: JSON.stringify(value),
-    }),
   deleteCase: (org: string, project: string, caseSlug: string) =>
     apiClient.request<void>(`${root(org, project)}/cases/${encodeURIComponent(caseSlug)}`, { method: 'DELETE' }),
   case: (org: string, project: string, caseSlug: string) =>
@@ -489,16 +480,6 @@ export const platformApi = {
   caseRevisions: (org: string, project: string, bindingCase: string) =>
     apiClient.request<CaseRevision[]>(
       `${root(org, project)}/cases/${encodeURIComponent(bindingCase)}/revisions`,
-    ),
-  createRevision: (org: string, project: string, bindingCase: string, document: Record<string, unknown>, source_snapshot_id?: string | null) =>
-    apiClient.request<CaseRevision>(
-      `${root(org, project)}/cases/${encodeURIComponent(bindingCase)}/revisions`,
-      { method: 'POST', body: JSON.stringify({ document, source_snapshot_id: source_snapshot_id ?? null }) },
-    ),
-  createCaseRevision: (org: string, project: string, bindingCase: string, document: Record<string, unknown>, source_snapshot_id?: string | null, resources: ArtifactUse[] = []) =>
-    apiClient.request<CaseRevision>(
-      `${root(org, project)}/cases/${encodeURIComponent(bindingCase)}/revisions`,
-      { method: 'POST', body: JSON.stringify({ document, source_snapshot_id: source_snapshot_id ?? null, resources }) },
     ),
   /** The project's older resources: library items of kinds the library screens don't own. VIEWER can read. */
   resources: (org: string, project: string) =>
@@ -709,10 +690,11 @@ export const platformApi = {
   }>>('/v1/explore/projects'),
   publicPublications: () => apiClient.request<PublicPublication[]>('/v1/explore/publications'),
   pricingControlRoom: () => apiClient.request<PricingControlRoom>('/v1/admin/pricing/control-room'),
+  /** A 422 is a result here, not a failure: the screen reads the refused document's problems from its body. */
   validatePricing: (yaml: string) => apiClient.request<{
     valid: boolean; version: string | null; digest: string | null; plans: string[];
     add_ons: string[]; errors: string[]; warnings: string[];
-  }>('/v1/admin/pricing/validate', { method: 'POST', body: JSON.stringify({ yaml }) }),
+  }>('/v1/admin/pricing/validate', { method: 'POST', body: JSON.stringify({ yaml }) }, undefined, true, false),
   /** A 422 throws (a refused draft must not read as a saved one); 409 is a version that already exists. */
   createPricingDraft: (yaml: string, changelog: string, migration_manifest: Record<string, unknown>) =>
     apiClient.request<{ release: PricingRelease; message: string }>('/v1/admin/pricing/drafts', {
@@ -761,10 +743,11 @@ export const platformApi = {
       headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': encodeURIComponent(filename) },
       body: file,
     }, undefined, true, true),
+  /** A 422 (a fingerprint that is not one) is a result here: the screen words it from the body ({@link asResolved}). */
   resolveElement: (kind: string, digest: string, limit = 20, offset = 0) =>
     apiClient.request<ResolveResponse>(
       `/v1/resolve/${encodeURIComponent(kind)}/${encodeURIComponent(digest)}?limit=${limit}&offset=${offset}`,
-      { method: 'GET' }
+      { method: 'GET' }, undefined, true, false,
     ),
   resolveContentUrl: (kind: string, digest: string) =>
     `/v1/resolve/${encodeURIComponent(kind)}/${encodeURIComponent(digest)}/content`,

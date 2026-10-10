@@ -21,7 +21,7 @@
   width: 20px;
   height: 20px;
   border-radius: 9999px;
-  background: #fff;
+  background: var(--tp-canvas);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
   transition: transform var(--transition-fast);
 }

@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, project, reportOf, renderProjectScreen } from '../Project/testKit';
-import { FLUJO, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellsFixture, runFixture, studyFixture } from './fixtures';
+import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, analyticsFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyAnalytics } from './StudyAnalytics';
 
 const platform = vi.hoisted(() => ({
@@ -49,7 +49,7 @@ describe('Analytics of a run', () => {
     platform.studyCells.mockResolvedValue(cells);
     platform.analytics.mockResolvedValue(analyticsFixture());
     platform.reports.mockResolvedValue([]);
-    platform.cases.mockResolvedValue([FLUJO]);
+    platform.cases.mockResolvedValue([CHECKOUT]);
     platform.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
     client.getJobStatus.mockResolvedValue({ id: 'job', status: 'completed', result: { solutions: [] } });
   });
@@ -101,11 +101,11 @@ describe('Analytics of a run', () => {
 
     const table = await screen.findByRole('region', { name: 'Results by seed' });
     expect(within(table).getAllByRole('row')).toHaveLength(5);
-    const random = within(table).getByRole('row', { name: /Flujo de checkout r1 · random-search/ });
+    const random = within(table).getByRole('row', { name: /Checkout flow r1 · random-search/ });
     expect(within(random).getByRole('link', { name: 'seed 1: 0.121' })).toHaveAttribute('href', `${RUN}/cells/${cells[2].id}`);
     expect(within(random).getByRole('link', { name: 'seed 2: 0.118' })).toBeInTheDocument();
     expect(random).toHaveTextContent('0.003');
-    expect(within(table).getByRole('row', { name: /Flujo de checkout r1 · evolutionary/ })).toHaveTextContent('seed 2: failed');
+    expect(within(table).getByRole('row', { name: /Checkout flow r1 · evolutionary/ })).toHaveTextContent('seed 2: failed');
     const stability = screen.getByLabelText('Repeatability of each engine');
     expect(within(stability).getByText('bim.builtin/random-search@1.0.0')).toBeInTheDocument();
     expect(within(stability).getByText('25%')).toBeInTheDocument();

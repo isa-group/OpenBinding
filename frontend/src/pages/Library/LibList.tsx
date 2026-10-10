@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
 import { libraryItemsApi, type LibraryItem, type LibraryVersion } from '../../api/libraryItems';
 import type { Organization, Project } from '../../api/platform';
@@ -200,15 +200,7 @@ function ItemRow({ item, all, organization, versions, used, canUse }: {
 
 /** Library (`lib-list`, `/app/:org/library`): the reusable parts of an organization, and the way to make a new one. */
 export function LibList() {
-  const { slug, organization, waiting, context } = useRouteOrganization();
-  const [params] = useSearchParams();
-  const legacy = params.get('artifact');
-  if (legacy) {
-    // The addresses of the old library page (`?artifact=…&version=…`) lead to the new screens.
-    const version = params.get('version');
-    const base = itemPath(slug, legacy);
-    return <Navigate replace to={version ? `${base}/versions/${encodeURIComponent(version)}` : base} />;
-  }
+  const { organization, waiting, context } = useRouteOrganization();
   if (waiting) return <LibrarySkeleton />;
   if (!organization) return <div className="proj-body is-wide"><NeutralGate /></div>;
   return <ListBody organization={organization} projects={context.projects} />;

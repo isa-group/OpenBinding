@@ -2,7 +2,7 @@ import type {
   AdminAuditPage, AdminModerationOverview, AdminOverview, AdminQueueStatus, AdminSubscriptionView, AdminUserPage, AdminUserView, LimitUsage, UsageView,
 } from '../../api/auth';
 import type { Organization, PricingControlRoom } from '../../api/platform';
-import type { AdminErrorListResponse, AdminErrorOverview, ApiErrorEventItem } from './types';
+import type { AdminErrorListResponse, AdminErrorOverview, ApiErrorEventItem } from '../../pages/Admin/types';
 
 /** Stand-ins for the answers of /v1/admin/*, for the tests of the administration screens. They name no real person. */
 
@@ -22,14 +22,14 @@ const account = (n: number, username: string, role: 'user' | 'admin', plan: stri
   ...extra,
 });
 
-export const IKER = account(5, 'iker.mora', 'admin', 'PRO', { created_at: '2026-01-10T00:00:00Z' });
-export const LUCIA = account(1, 'lucia.vega', 'user', 'RESEARCH', { api_key_count: 2, cas_verified: true });
-export const MARCO = account(2, 'marco.diaz', 'user', 'BASIC', { created_at: '2026-06-15T00:00:00Z' });
-export const SOFIA = account(3, 'sofia.rey', 'user', 'BASIC', { contract_pending: true, api_key_count: 0, created_at: '2026-07-01T00:00:00Z' });
-export const NORA = account(4, 'nora.campos', 'user', 'ADVANCED', { api_key_count: 3, created_at: '2026-04-20T00:00:00Z' });
-export const BAJA = account(7, 'baja.demo', 'user', 'BASIC', { is_active: false, api_key_count: 0, created_at: '2026-02-02T00:00:00Z' });
+export const ALEX = account(5, 'alex.rivera', 'admin', 'PRO', { created_at: '2026-01-10T00:00:00Z' });
+export const MARIA = account(1, 'maria.santos', 'user', 'RESEARCH', { api_key_count: 2, cas_verified: true });
+export const SAM = account(2, 'sam.okafor', 'user', 'BASIC', { created_at: '2026-06-15T00:00:00Z' });
+export const JORDAN = account(3, 'jordan.lee', 'user', 'BASIC', { contract_pending: true, api_key_count: 0, created_at: '2026-07-01T00:00:00Z' });
+export const PRIYA = account(4, 'priya.nair', 'user', 'ADVANCED', { api_key_count: 3, created_at: '2026-04-20T00:00:00Z' });
+export const DANA = account(7, 'dana.kim', 'user', 'BASIC', { is_active: false, api_key_count: 0, created_at: '2026-02-02T00:00:00Z' });
 
-export const USERS: AdminUserView[] = [LUCIA, MARCO, SOFIA, NORA, IKER, BAJA];
+export const USERS: AdminUserView[] = [MARIA, SAM, JORDAN, PRIYA, ALEX, DANA];
 
 export function userPage(users: AdminUserView[] = USERS, extra: Partial<AdminUserPage> = {}): AdminUserPage {
   return { users, total: users.length, offset: 0, limit: 50, ...extra };
@@ -73,15 +73,15 @@ export function usageOf(plan: string, taskStarts = 18, concurrent = 1): UsageVie
 export const AUDIT: AdminAuditPage = {
   events: [
     {
-      id: id(403), organizationId: null, actorId: IKER.id, action: 'maintenance.jobs.reconciled', targetType: 'JobQueue', targetId: null,
+      id: id(403), organizationId: null, actorId: ALEX.id, action: 'maintenance.jobs.reconciled', targetType: 'JobQueue', targetId: null,
       detail: { settled: 2 }, createdAt: '2026-10-08T09:00:00Z',
     },
     {
-      id: id(402), organizationId: null, actorId: IKER.id, action: 'pricing.live.activated', targetType: 'PricingRelease', targetId: id(900),
+      id: id(402), organizationId: null, actorId: ALEX.id, action: 'pricing.live.activated', targetType: 'PricingRelease', targetId: id(900),
       detail: { version: '0.1.0' }, createdAt: '2026-09-02T09:00:00Z',
     },
     {
-      id: id(401), organizationId: null, actorId: IKER.id, action: 'contract.subscription.changed', targetType: 'User', targetId: LUCIA.id,
+      id: id(401), organizationId: null, actorId: ALEX.id, action: 'contract.subscription.changed', targetType: 'User', targetId: MARIA.id,
       detail: {
         reason: 'institutional_agreement', detail: 'Agreement 2026-14', pricingVersion: '0.1.0',
         previous: { plan: 'BASIC', addOns: {} }, current: { plan: 'RESEARCH', addOns: {} },
@@ -100,8 +100,8 @@ export function queuesAt(now: number): AdminQueueStatus {
   return {
     counts: { queued: 1, running: 1, completed: 2, failed: 1, cancelled: 1 },
     oldestInFlight: [
-      { id: id(701), ownerId: LUCIA.id, engine: 'minizinc', state: 'running', createdAt: ago(26 * 3600), budgetSeconds: 300 },
-      { id: id(702), ownerId: MARCO.id, engine: 'random-search', state: 'queued', createdAt: ago(30), budgetSeconds: 60 },
+      { id: id(701), ownerId: MARIA.id, engine: 'minizinc', state: 'running', createdAt: ago(26 * 3600), budgetSeconds: 300 },
+      { id: id(702), ownerId: SAM.id, engine: 'random-search', state: 'queued', createdAt: ago(30), budgetSeconds: 60 },
     ],
   };
 }
@@ -117,8 +117,8 @@ export const OVERVIEW: AdminOverview = {
   jobs: { queued: 1, running: 1, completed: 2, failed: 1, cancelled: 1 },
   contracts: { BASIC: 3, ADVANCED: 1, RESEARCH: 1, PRO: 2 },
   recentAudit: [
-    { id: id(403), action: 'maintenance.jobs.reconciled', targetType: 'JobQueue', targetId: null, actorId: IKER.id, createdAt: '2026-10-08T09:00:00Z' },
-    { id: id(401), action: 'contract.subscription.changed', targetType: 'User', targetId: LUCIA.id, actorId: IKER.id, createdAt: '2026-09-01T09:00:00Z' },
+    { id: id(403), action: 'maintenance.jobs.reconciled', targetType: 'JobQueue', targetId: null, actorId: ALEX.id, createdAt: '2026-10-08T09:00:00Z' },
+    { id: id(401), action: 'contract.subscription.changed', targetType: 'User', targetId: MARIA.id, actorId: ALEX.id, createdAt: '2026-09-01T09:00:00Z' },
   ],
 };
 
@@ -145,7 +145,7 @@ export const MODERATION: AdminModerationOverview = {
 
 /** An engine registration its owner submitted for publication. */
 export const PENDING_ENGINE = {
-  namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1', digest: `sha256-${'e5f6'.repeat(16)}`, status: 'pending_review' as const, active: true,
+  namespace: 'maria-santos', name: 'edge-solver', version: '0.3.1', digest: `sha256-${'e5f6'.repeat(16)}`, status: 'pending_review' as const, active: true,
 };
 
 const hour = (offset: number) => new Date(Date.UTC(2026, 9, 9, 12 - offset)).toISOString();
@@ -154,7 +154,7 @@ export const ERROR_OVERVIEW: AdminErrorOverview = {
   total_errors_24h: 9,
   by_category_24h: { pricing_quota: 5, concurrency: 2, system_bug: 1, validation: 1 },
   by_status_code_24h: { '402': 5, '429': 2, '503': 1, '422': 1 },
-  top_users_quota: [{ userId: MARCO.id, email: MARCO.email, errorCount: 7, lastSeen: '2026-10-09T07:40:00Z' }],
+  top_users_quota: [{ userId: SAM.id, email: SAM.email, errorCount: 7, lastSeen: '2026-10-09T07:40:00Z' }],
   top_solvers_failed: [{ engine: '/v1/engines/minizinc/solve', failureCount: 2, lastSeen: '2026-10-08T18:20:00Z' }],
   timeline: [3, 2, 1, 0].map((n) => ({
     timestamp: hour(n), quota: n, concurrency: n > 1 ? 1 : 0, solver: 0, system: n === 0 ? 1 : 0, validation: 0,
@@ -183,11 +183,11 @@ const event = (n: number, statusCode: number, category: ApiErrorEventItem['categ
 });
 
 export const ERROR_EVENTS: ApiErrorEventItem[] = [
-  event(1, 402, 'pricing_quota', 'quota_exceeded', '/v1/jobs', MARCO, '2026-10-09T07:40:00Z', {
+  event(1, 402, 'pricing_quota', 'quota_exceeded', '/v1/jobs', SAM, '2026-10-09T07:40:00Z', {
     quota: { limit_id: 'taskStarts', used: 10, limit: 10, unit: 'solve/month', renews_at: '2026-11-01T00:00:00Z' },
   }),
-  event(2, 402, 'pricing_quota', 'quota_exceeded', '/v1/jobs', MARCO, '2026-10-09T06:10:00Z'),
-  event(3, 429, 'concurrency', 'concurrency_limit_exceeded', '/v1/jobs', MARCO, '2026-10-08T18:20:00Z'),
+  event(2, 402, 'pricing_quota', 'quota_exceeded', '/v1/jobs', SAM, '2026-10-09T06:10:00Z'),
+  event(3, 429, 'concurrency', 'concurrency_limit_exceeded', '/v1/jobs', SAM, '2026-10-08T18:20:00Z'),
   event(4, 503, 'system_bug', 'pricing_unavailable', '/v1/users/me/usage', null, '2026-10-08T03:10:00Z'),
 ];
 
@@ -195,8 +195,8 @@ export const ERRORS: AdminErrorListResponse = { items: ERROR_EVENTS, total: ERRO
 
 /** An organization the signed-in administrator belongs to, with one below it. */
 export const ORG: Organization = {
-  id: id(950), slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, billing_sponsor_user_id: LUCIA.id, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z',
+  id: id(950), slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, billing_sponsor_user_id: MARIA.id, effective_role: 'OWNER', created_at: '2026-03-03T00:00:00Z',
 };
 export const SUB_ORG: Organization = {
-  id: id(951), slug: 'qos-lab', name: 'QoS Lab (sub-organization)', parent_id: ORG.id, billing_sponsor_user_id: LUCIA.id, effective_role: 'OWNER', created_at: '2026-03-04T00:00:00Z',
+  id: id(951), slug: 'qos-lab', name: 'QoS Lab (sub-organization)', parent_id: ORG.id, billing_sponsor_user_id: MARIA.id, effective_role: 'OWNER', created_at: '2026-03-04T00:00:00Z',
 };

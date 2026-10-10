@@ -42,9 +42,9 @@ export const SOLUTION = {
   decision: {
     kind: 'binding',
     binding: {
-      autenticar: { resource: 'catalog', id: 'authz-eu' },
-      'pago-tarjeta': { resource: 'catalog', id: 'payco-eu' },
-      'pago-transferencia': { resource: 'catalog', id: 'bankx' },
+      authenticate: { resource: 'catalog', id: 'authz-eu' },
+      'pay-card': { resource: 'catalog', id: 'payco-eu' },
+      'pay-transfer': { resource: 'catalog', id: 'bankx' },
     },
   },
   metrics: { cost: 0.118, latency: 412 },
@@ -89,11 +89,11 @@ export const NEIGHBORHOOD = {
   task: null,
   base: {},
   moves: [{
-    task: 'pago-tarjeta', from: { resource: 'catalog', id: 'payco-eu' }, to: { resource: 'catalog', id: 'fastpay' }, feasible: true, comparison: 'better',
+    task: 'pay-card', from: { resource: 'catalog', id: 'payco-eu' }, to: { resource: 'catalog', id: 'fastpay' }, feasible: true, comparison: 'better',
     componentDeltas: [{ feature: 'cost', value: 0.013, loss: 0 }, { feature: 'latency', value: -85, loss: 0 }],
   }],
   failures: [],
-  coverage: { total: 3, attempted: 3, evaluated: 1, complete: true, limit: 128, stopReason: null, perTask: { 'pago-tarjeta': 3 } },
+  coverage: { total: 3, attempted: 3, evaluated: 1, complete: true, limit: 128, stopReason: null, perTask: { 'pay-card': 3 } },
   conclusion: 'Found 1 feasible canonical improvements or feasibility repairs. Every eligible one-task move in this scope was evaluated.',
   semantics: 'Re-evaluated with the current canonical evaluator.',
 };

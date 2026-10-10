@@ -3,6 +3,8 @@
  * prevents the public research surface becoming an unmoderated CMS.
  */
 
+import { BRAND_ASSETS } from './brandAssets';
+
 export interface TeamMember {
   name: string;
   role: string;
@@ -93,7 +95,7 @@ export const researchFacts: ReadonlyArray<{ value: string; label: string }> = [
 export const fundingEntities: readonly FundingEntity[] = [
   { name: 'SCORE Lab', scope: 'Research software ecosystem', url: 'https://score.us.es' },
   { name: 'Agencia Estatal de Investigación', scope: 'Spanish research funding ecosystem', url: 'https://www.aei.gob.es' },
-  { name: 'Universidad de Sevilla', scope: 'Institutional identity and research context', url: 'https://www.us.es', logo: '/brands/universidad-sevilla.svg' },
+  { name: 'Universidad de Sevilla', scope: 'Institutional identity and research context', url: 'https://www.us.es', logo: BRAND_ASSETS.institutionWordmark },
   { name: 'Junta de Andalucía', scope: 'Andalusian research funding ecosystem', url: 'https://www.juntadeandalucia.es' },
 ];
 

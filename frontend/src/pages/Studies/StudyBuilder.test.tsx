@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { EVOLUTIONARY, FLUJO, RANDOM_SEARCH, REVISION_1, REVISION_2, digestOf, revisionFixture, studyFixture } from './fixtures';
+import { CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, digestOf, revisionFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyBuilder } from './StudyBuilder';
 
 const platform = vi.hoisted(() => ({
@@ -51,8 +51,8 @@ const create = () => screen.getByRole('button', { name: 'Create study' });
 const SEEDS = /Seeds \(comma-separated, ranges like 1-5 work\)/;
 
 async function chooseMatrix() {
-  fireEvent.click(await checkbox(/Flujo de checkout · revision 1/));
-  fireEvent.click(await checkbox(/Flujo de checkout · revision 2/));
+  fireEvent.click(await checkbox(/Checkout flow · revision 1/));
+  fireEvent.click(await checkbox(/Checkout flow · revision 2/));
   fireEvent.click(await checkbox(/random-search 1\.0\.0/));
   fireEvent.click(await checkbox(/evolutionary 1\.0\.0/));
 }
@@ -62,7 +62,7 @@ describe('A new study', () => {
     vi.clearAllMocks();
     platform.project.mockResolvedValue(qos);
     platform.publicProjects.mockResolvedValue([]);
-    platform.cases.mockResolvedValue([FLUJO]);
+    platform.cases.mockResolvedValue([CHECKOUT]);
     platform.revisions.mockResolvedValue([REVISION_1, REVISION_2, revisionFixture(3, { source_snapshot_id: null })]);
     client.getEngines.mockResolvedValue([engineEntry(RANDOM_SEARCH), engineEntry(EVOLUTIONARY)]);
     client.getOwnUsage.mockResolvedValue(usage);
@@ -77,8 +77,8 @@ describe('A new study', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'New study' })).toBeInTheDocument();
     expect(screen.getByText('Pick the cases, engines, settings and seeds. Every combination becomes one cell.')).toBeInTheDocument();
-    expect(await checkbox(/Flujo de checkout · revision 2/)).toBeEnabled();
-    expect(await checkbox(/Flujo de checkout · revision 3/)).toBeDisabled();
+    expect(await checkbox(/Checkout flow · revision 2/)).toBeEnabled();
+    expect(await checkbox(/Checkout flow · revision 3/)).toBeDisabled();
     expect(screen.getByText(/No compiled snapshot yet, so engines have nothing to run/)).toBeInTheDocument();
     expect(await checkbox(/random-search 1\.0\.0/)).not.toBeChecked();
     expect(screen.getByLabelText(SEEDS)).toHaveValue('1, 2');
@@ -136,7 +136,7 @@ describe('A new study', () => {
   it('turns a time budget into a setting of the definition and says when the plan reduces it', async () => {
     platform.createStudy.mockResolvedValue(studyFixture());
     renderBuilder();
-    fireEvent.click(await checkbox(/Flujo de checkout · revision 2/));
+    fireEvent.click(await checkbox(/Checkout flow · revision 2/));
     fireEvent.click(await checkbox(/random-search 1\.0\.0/));
     fireEvent.change(screen.getByLabelText('Study name'), { target: { value: 'Budgets' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add a setting' }));
@@ -206,10 +206,10 @@ describe('A new study', () => {
   });
 
   it('starts from the revision another screen named', async () => {
-    renderBuilder({ query: '?case=flujo-checkout&revision=1' });
+    renderBuilder({ query: '?case=checkout-flow&revision=1' });
 
-    expect(await checkbox(/Flujo de checkout · revision 1/)).toBeChecked();
-    expect(await checkbox(/Flujo de checkout · revision 2/)).not.toBeChecked();
+    expect(await checkbox(/Checkout flow · revision 1/)).toBeChecked();
+    expect(await checkbox(/Checkout flow · revision 2/)).not.toBeChecked();
   });
 
   it('starts from the cases a project collection pins', async () => {
@@ -224,14 +224,14 @@ describe('A new study', () => {
     renderBuilder({ query: '?collection=core' });
 
     expect(await screen.findByText(/The cases of the collection Core set are chosen below/)).toBeInTheDocument();
-    expect(await checkbox(/Flujo de checkout · revision 2/)).toBeChecked();
-    expect(await checkbox(/Flujo de checkout · revision 1/)).not.toBeChecked();
+    expect(await checkbox(/Checkout flow · revision 2/)).toBeChecked();
+    expect(await checkbox(/Checkout flow · revision 1/)).not.toBeChecked();
     expect(platform.collection).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'core');
   });
 
   it('creates a study from a shared definition of the library', async () => {
     library.libraryApi.list.mockResolvedValue([
-      { id: 'art-study', organization_id: 'org-isa-demo', namespace: 'isa-demo', name: 'study-1', display_name: 'Engines × semillas', kind: 'Study', description: '', labels: {}, archived: false },
+      { id: 'art-study', organization_id: 'org-isa-demo', namespace: 'isa-demo', name: 'study-1', display_name: 'Engines × seeds', kind: 'Study', description: '', labels: {}, archived: false },
       { id: 'art-other', organization_id: 'org-isa-demo', namespace: 'isa-demo', name: 'catalog', display_name: 'Providers', kind: 'CandidateCatalog', description: '', labels: {}, archived: false },
     ]);
     library.libraryApi.versions.mockResolvedValue([
@@ -243,7 +243,7 @@ describe('A new study', () => {
 
     fireEvent.click(await screen.findByRole('radio', { name: 'Reuse a shared definition' }));
     expect(screen.queryByRole('option', { name: 'Providers' })).not.toBeInTheDocument();
-    await screen.findByRole('option', { name: 'Engines × semillas' });
+    await screen.findByRole('option', { name: 'Engines × seeds' });
     fireEvent.change(screen.getByLabelText('Study definition'), { target: { value: 'art-study' } });
     await screen.findByRole('option', { name: /v1 · 1/ });
     fireEvent.change(screen.getByLabelText('Sealed version'), { target: { value: 'ver-1' } });
@@ -251,7 +251,7 @@ describe('A new study', () => {
     expect(await screen.findByText(/From the library · 8 cells/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Create from this definition' }));
     await waitFor(() => expect(platform.createStudy).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', {
-      slug: 'engines-semillas', name: 'Engines × semillas', description: '', definition_version_id: 'ver-1',
+      slug: 'engines-seeds', name: 'Engines × seeds', description: '', definition_version_id: 'ver-1',
     }));
   });
 
@@ -259,7 +259,7 @@ describe('A new study', () => {
     renderBuilder({ slug: 'read-lab' });
 
     expect(await screen.findByText(/Creating studies needs MEMBER; you’re a VIEWER of Read Lab/)).toBeInTheDocument();
-    fireEvent.click(await checkbox(/Flujo de checkout · revision 1/));
+    fireEvent.click(await checkbox(/Checkout flow · revision 1/));
     fireEvent.click(await checkbox(/random-search 1\.0\.0/));
     expect(create()).toBeDisabled();
     expect(screen.getByLabelText('Study name')).toBeDisabled();

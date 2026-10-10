@@ -1,6 +1,7 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { ArrowUpRight, Clock, FlaskConical, Github, Landmark, X } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowUpRight, Clock, FlaskConical, Github, Landmark } from 'lucide-react';
 import { Chip } from '../../components/ui/Chip';
+import { Modal } from '../../components/ui/Modal';
 import type { ContributionTrack } from '../../content/platform';
 import { ABOUT_TABS, changelogEntries, linkLabel, streamLabel, type AboutData } from './aboutModel';
 
@@ -131,7 +132,6 @@ export function FundingPanel({ funding, related }: { funding: AboutData['funding
 
 export function ContributionsPanel({ tracks }: { tracks: AboutData['contributions'] }) {
   const [open, setOpen] = useState<ContributionTrack | null>(null);
-  const opener = useRef<HTMLElement | null>(null);
   if (!tracks.length) return <PendingReview tab="contributions" />;
   return (
     <>
@@ -145,7 +145,7 @@ export function ContributionsPanel({ tracks }: { tracks: AboutData['contribution
             <button
               type="button"
               aria-haspopup="dialog"
-              onClick={(event) => { opener.current = event.currentTarget; setOpen(track); }}
+              onClick={() => setOpen(track)}
             >
               <strong>{track.title}</strong>
               <span>{track.description}</span>
@@ -165,45 +165,15 @@ export function ContributionsPanel({ tracks }: { tracks: AboutData['contribution
         </div>
         <a href="https://github.com/isa-group/OpenBinding/issues" target="_blank" rel="noreferrer">Discuss an idea <ArrowUpRight aria-hidden="true" /></a>
       </aside>
-      {open && <ContributionDialog track={open} onClose={() => { setOpen(null); opener.current?.focus(); }} />}
+      {open && <ContributionDialog track={open} onClose={() => setOpen(null)} />}
     </>
   );
 }
 
 function ContributionDialog({ track, onClose }: { track: ContributionTrack; onClose: () => void }) {
-  const dialog = useRef<HTMLDivElement>(null);
-  const closeButton = useRef<HTMLButtonElement>(null);
-  const close = useEffectEvent(onClose);
-
-  useEffect(() => {
-    closeButton.current?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        close();
-        return;
-      }
-      if (event.key !== 'Tab' || !dialog.current) return;
-      // Focus stays inside the dialog while it is open.
-      const focusable = dialog.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
-
   return (
-    <div className="about-modal">
-      <button type="button" className="about-modal-backdrop" aria-label="Close" tabIndex={-1} onClick={onClose} />
-      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="about-modal-title" className="about-modal-card">
-        <div className="about-modal-head">
-          <h2 id="about-modal-title">{track.title}</h2>
-          <button ref={closeButton} type="button" aria-label="Close contribution" onClick={onClose}><X aria-hidden="true" /></button>
-        </div>
+    <Modal title={track.title} onClose={onClose} size="lg">
+      <div className="about-modal-body">
         <p>{track.description}</p>
         <span className="about-tags">
           <Chip tone="accent">{track.level}</Chip>
@@ -212,7 +182,7 @@ function ContributionDialog({ track, onClose }: { track: ContributionTrack; onCl
         {track.supervisor && <span className="about-supervisor"><span>Supervisor:</span> {track.supervisor}</span>}
         <a href="https://github.com/isa-group/OpenBinding/issues" target="_blank" rel="noreferrer">Discuss this on GitHub <ArrowUpRight aria-hidden="true" /></a>
       </div>
-    </div>
+    </Modal>
   );
 }
 

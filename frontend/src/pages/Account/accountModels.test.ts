@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import type { ApiKeyPermission, Notification, UsageView } from '../../api/auth';
 import {
   ADMIN_ONLY, ALL_PERMISSIONS, ENGINE_LIMITED, PERMISSION_GROUPS, PRESETS, boundaryLabels, describeEngineAccess, expiryFor, needsEngines,
-  shortRevisionDigest,
 } from './keysModel';
 import { contractChange, groupOf, unreadCount } from './notificationsModel';
 import { daysUntil, nextRenewal, usageRows } from './usageModel';
@@ -40,7 +39,6 @@ describe('API-key permissions', () => {
 
   it('describes what a key may reach', () => {
     const digest = `sha256-${'b2c3d4e5'.repeat(8)}`;
-    expect(shortRevisionDigest(digest)).toBe('sha256-b2c3…d4e5');
     expect(describeEngineAccess({ all: true, engines: [] })).toBe('All engines, including future ones');
     expect(describeEngineAccess({ all: false, engines: [] })).toBe('No engines');
     expect(describeEngineAccess({ all: false, engines: [{ namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest }] }))

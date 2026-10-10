@@ -37,7 +37,7 @@
 }
 
 .keynew-steps button.is-current > span:first-child,
-.keynew-steps button.is-done > span:first-child { background: var(--tp-primary); color: #fff; }
+.keynew-steps button.is-done > span:first-child { background: var(--tp-primary); color: var(--tp-on-primary); }
 .keynew-steps svg { width: 0.875rem; height: 0.875rem; }
 
 .keynew-error {
@@ -82,7 +82,7 @@
   padding: 0 5px;
   border-radius: var(--tp-radius-xs);
   background: var(--tp-ink);
-  color: #fff;
+  color: var(--tp-on-primary);
   font-family: var(--font-body);
   font-size: 0.625rem;
   font-weight: 600;

@@ -141,7 +141,7 @@ export function PreferencesView({ data, query, select, change }: ViewProps) {
   const winners = [...new Set(stretches.flatMap((stretch) => (stretch.winner ? [stretch.winner] : [])))];
   const active = activeDimensions(data.dimensions);
   const axis = data.geometry?.axis !== undefined ? data.dimensions[data.geometry.axis] : active[0];
-  const colourOf = (id: string | null) => (id ? OBJECTIVE_COLOURS[winners.indexOf(id) % OBJECTIVE_COLOURS.length] : '#ededed');
+  const colourOf = (id: string | null) => (id ? OBJECTIVE_COLOURS[winners.indexOf(id) % OBJECTIVE_COLOURS.length] : 'var(--tp-hairline-soft)');
   return (
     <>
       <section className="an-card" aria-labelledby="an-switch-title">

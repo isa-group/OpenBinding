@@ -17,6 +17,14 @@ export function isDigest(value: string): boolean {
   return DIGEST_PATTERN.test(value);
 }
 
+/**
+ * `sha256-e5f6a1b2c3d4`: the prefix and the first twelve hexadecimal characters, with no ellipsis, for a file name or a list
+ * where the digests that follow each other differ at the start.
+ */
+export function digestPrefix(digest: string, hexLength = 12): string {
+  return digest.startsWith('sha256-') ? digest.slice(0, 7 + hexLength) : digest.slice(0, hexLength);
+}
+
 /** `sha256-e5f6…0718`: enough to recognise a digest in a list, never to cite it. */
 export function shortDigest(digest: string): string {
   const hex = digest.startsWith('sha256-') ? digest.slice(7) : digest;

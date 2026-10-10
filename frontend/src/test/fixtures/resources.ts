@@ -4,7 +4,7 @@ import type { Collection, CollectionItem, CollectionRevision, ProjectResource, P
 /** Shared by the tests of the files, resources and collections, and by the browser spec that mocks the same API. */
 
 export const PROJECT_ID = 'project-qos';
-export const OWNER = 'user-lucia';
+export const OWNER = 'user-admin';
 
 /** `sha256-` followed by 64 copies of one hexadecimal character. */
 export const digestOf = (char: string): string => `sha256-${char.repeat(64)}`;

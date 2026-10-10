@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ENGINE_DOCUMENT } from './fixtures';
+import { ENGINE_DOCUMENT } from '../../test/fixtures/engines';
 import { dimensionLabel, readManifest, valueLabel } from './manifestModel';
 
 describe('reading an engine manifest', () => {
@@ -7,7 +7,7 @@ describe('reading an engine manifest', () => {
   const mode = view?.modes[0];
 
   it('lays out identity and mode', () => {
-    expect(view).toMatchObject({ namespace: 'lucia.vega', name: 'edge-solver', version: '0.3.1', description: 'Tabu search over edge placements' });
+    expect(view).toMatchObject({ namespace: 'alex.rivera', name: 'edge-solver', version: '0.3.1', description: 'Tabu search over edge placements' });
     expect(mode).toMatchObject({ id: 'tabu', profile: 'qos-binding/v1', ir: 'bim/v1 · BindingProblem', algorithm: 'tabu-search', exact: false });
     expect(mode?.termination).toEqual(['FEASIBLE', 'UNKNOWN']);
     expect(mode?.flags).toEqual(['Deterministic without time budget']);

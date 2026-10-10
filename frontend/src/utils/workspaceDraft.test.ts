@@ -1,15 +1,28 @@
-import { afterEach, expect, it, vi } from 'vitest';
-import { loadDraft, saveDraft } from './workspaceDraft';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { clearUserDrafts, loadDraft, saveDraft } from './workspaceDraft';
 
-afterEach(() => { localStorage.clear(); vi.unstubAllGlobals(); });
+// jsdom has no IndexedDB, so these drafts live in the localStorage copy the module keeps for that case.
 
-it('isolates drafts by user, project, case and revision', async () => {
-  vi.stubGlobal('indexedDB', undefined);
-  const first = { 'instance.json': '{"version":1}' };
-  const second = { 'instance.json': '{"version":2}' };
-  await saveDraft(first, 'alice:project-a:case:r1');
-  await saveDraft(second, 'alice:project-b:case:r2');
-  expect(await loadDraft('alice:project-a:case:r1')).toEqual(first);
-  expect(await loadDraft('alice:project-b:case:r2')).toEqual(second);
-  expect(await loadDraft('bob:project-a:case:r1')).toBeNull();
+describe('workbench drafts', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('keeps a draft per scope and reads it back', async () => {
+    await saveDraft({ 'instance.json': '{}' }, 'user-1:/app/isa/qos/workbench::');
+    expect(await loadDraft('user-1:/app/isa/qos/workbench::')).toEqual({ 'instance.json': '{}' });
+    expect(await loadDraft('user-2:/app/isa/qos/workbench::')).toBeNull();
+  });
+
+  it('forgets the drafts of signed-in people when the session is closed, and leaves the anonymous one alone', async () => {
+    await saveDraft({ 'a.json': '1' }, 'user-1:/app/isa/qos/workbench::');
+    await saveDraft({ 'b.json': '2' }, 'user-2:/app/isa/other/workbench:checkout:3');
+    await saveDraft({ 'c.json': '3' }, 'anonymous:/workbench::');
+    localStorage.setItem('unrelated', 'kept');
+
+    await clearUserDrafts();
+
+    expect(await loadDraft('user-1:/app/isa/qos/workbench::')).toBeNull();
+    expect(await loadDraft('user-2:/app/isa/other/workbench:checkout:3')).toBeNull();
+    expect(await loadDraft('anonymous:/workbench::')).toEqual({ 'c.json': '3' });
+    expect(localStorage.getItem('unrelated')).toBe('kept');
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { OPENAPI_DOCUMENT, PROTOCOL_DIGEST, REGISTRATION_MANIFEST, digestOf } from '../Engines/fixtures';
+import { OPENAPI_DOCUMENT, PROTOCOL_DIGEST, REGISTRATION_MANIFEST, digestOf } from '../../test/fixtures/engines';
 import { issueAt } from './engineDraft';
 import {
   analyzeContract, buildRegistration, deploymentFromManifest, endpointProblem, newDeployment, pathProblem, validateDeployment,

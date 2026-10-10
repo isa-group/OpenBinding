@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-// The screens of the QA gallery: every `live('id', '/path', …)` / `pending('id', '/path', …)` line of src/routes/d1.tsx .. d8.tsx
+// The screens of the QA gallery: every `live('id', '/path', …)` line of src/routes/d1.tsx .. d8.tsx
 // (the registry itself pulls in the whole application, so the files are read as text, as routes-smoke.spec.ts does), each with an
 // example address whose parameters name things the shared mock answers for.
 
@@ -11,7 +11,6 @@ export interface GalleryScreen {
   /** The route pattern, exactly as the registry lists it. */
   path: string;
   domain: string;
-  status: 'live' | 'pending';
   requireAdmin: boolean;
   /** The screen sits under /app (the authenticated workspace). */
   underApp: boolean;
@@ -69,15 +68,14 @@ const QUERY_OF: Record<string, string> = {
 export function readGalleryScreens(): GalleryScreen[] {
   return DOMAIN_FILES.flatMap((domain) => {
     const source = readFileSync(new URL(`../../src/routes/${domain}.tsx`, import.meta.url), 'utf8');
-    return [...source.matchAll(/^\s*(live|pending)\('([a-z0-9-]+)',\s*'(\/[^']*)'(.*)$/gm)].map((match) => {
-      const [, status, id, path, rest] = match;
+    return [...source.matchAll(/^\s*live\('([a-z0-9-]+)',\s*'(\/[^']*)'(.*)$/gm)].map((match) => {
+      const [, id, path, rest] = match;
       const params: Record<string, string> = { ...EXAMPLE, ...PARAMS_OF[id] };
       const address = path.replace(/:([A-Za-z]+)/g, (_whole, name: string) => params[name] ?? 'sample');
       return {
         id,
         path,
         domain: domain.toUpperCase(),
-        status: status as GalleryScreen['status'],
         requireAdmin: rest.includes('requireAdmin: true'),
         underApp: path === '/app' || path.startsWith('/app/'),
         sessionHeader: rest.includes('sessionHeader: true'),

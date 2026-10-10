@@ -159,8 +159,8 @@
   --space-20: 5rem;
   --space-24: 6rem;
 
-  /* Type: PP Editorial Old is declared only; with no font file the browser falls back to Georgia. */
-  --font-display: 'PP Editorial Old', 'Times New Roman', Georgia, serif;
+  /* Type: PP Editorial Old is declared only (no licensed files yet); until then the browser falls back to Georgia. */
+  --font-display: 'PP Editorial Old', Georgia, serif;
   --font-body: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-sans: var(--font-body);
   --font-family: var(--font-body);

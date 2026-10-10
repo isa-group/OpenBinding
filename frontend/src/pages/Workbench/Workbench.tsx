@@ -6,7 +6,7 @@ import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
-import { formatByteSize } from '../../utils/limits';
+import { formatByteSize } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { newestFirst } from '../Cases/casesModel';
 import { ProjectFrame, ProjectGate, ProjectSkeleton } from '../Project/parts';

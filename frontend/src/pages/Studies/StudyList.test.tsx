@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { cellsFixture, runFixture, studyFixture } from './fixtures';
+import { cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyList } from './StudyList';
 
 const platform = vi.hoisted(() => ({
@@ -50,7 +50,7 @@ describe('Studies of a project', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Studies' })).toBeInTheDocument();
     expect(screen.getByText(/A study runs every combination of cases × engines × settings × seeds/)).toBeInTheDocument();
     const list = await screen.findByRole('list', { name: 'Studies of the project' });
-    expect(within(list).getByRole('link', { name: /Engines × semillas/ })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds`);
+    expect(within(list).getByRole('link', { name: /Engines × seeds/ })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds`);
     expect(within(list).getByText('2 case revisions × 2 engines × 1 setting × 2 seeds = 8 cells')).toBeInTheDocument();
     expect(within(list).getByRole('link', { name: 'Last run #1' })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds/runs/00000000-0000-4000-8000-000000000101`);
     expect(within(list).getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeInTheDocument();
@@ -131,7 +131,7 @@ describe('Studies of a project', () => {
     renderList();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Delete Engines × semillas?' });
+    const dialog = await screen.findByRole('dialog', { name: 'Delete Engines × seeds?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete study' }));
 
     expect(await screen.findByText('This study has runs, so it was archived instead of deleted. Results cited by reports stay intact.')).toBeInTheDocument();

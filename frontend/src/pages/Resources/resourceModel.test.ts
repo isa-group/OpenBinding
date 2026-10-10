@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blobOf, digestOf, usageOf } from './fixtures';
+import { blobOf, digestOf, usageOf } from '../../test/fixtures/resources';
 import {
   allowanceOf, belongsInLibrary, downloadName, fileTitle, GATEWAY_BLOB_LIMIT, isZipFile, plural, resourceKindLabel, totalBytes, typeLabel, uploadCeiling,
 } from './resourceModel';

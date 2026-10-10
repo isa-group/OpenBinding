@@ -3,7 +3,7 @@ import type { EngineRegistrationRevision } from '../src/api/client';
 import {
   COMMUNITY_DIALECT, EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, PLACEMENT_DIALECT, QOS_PROFILE, REGISTERED_RESOURCES,
   REGISTRATION_MANIFEST, REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, digestOf, reportOf, usageOf,
-} from '../src/pages/Engines/fixtures';
+} from '../src/test/fixtures/engines';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 
 // S8a · engines and language of the account: eng-register, eng-registrations, eng-registration-detail and lang-extensions.
@@ -28,8 +28,8 @@ const token = (expiresInSeconds: number) => [
   'signature',
 ].join('.');
 
-const lucia = {
-  id: 'user-1', username: 'lucia.vega', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
+const alex = {
+  id: 'user-1', username: 'alex.rivera', email: 'alex-rivera@example.org', role: 'user', is_active: true, plan: 'RESEARCH',
   created_at: '2026-03-02T00:00:00Z', cas_verified: true, institutional_branding: true,
 };
 
@@ -75,8 +75,8 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     },
     sent: { activated: [], deactivated: [], publication: [], deleted: [] },
   };
-  const user = options.admin ? { ...lucia, role: 'admin' } : lucia;
-  const ownCount = () => state.registrations.filter((item) => item.namespace === lucia.username).length;
+  const user = options.admin ? { ...alex, role: 'admin' } : alex;
+  const ownCount = () => state.registrations.filter((item) => item.namespace === alex.username).length;
   await page.addInitScript(() => {
     localStorage.setItem('openbinding-access-token', 's8a-access');
     localStorage.setItem('openbinding-refresh-token', 's8a-refresh');
@@ -209,7 +209,10 @@ function watchCriticalErrors(page: Page) {
   return critical;
 }
 
-/** A capture of the current state: the whole page, its first `height` pixels, or one area; then a check that nothing scrolls sideways. */
+/**
+ * A capture of the current state: with E2E_SCREENSHOTS=1 the whole page, its first `height` pixels, or one area, saved for a person to
+ * look at; always a check that nothing scrolls sideways.
+ */
 async function capture(page: Page, testInfo: TestInfo, name: string, options: { height?: number; area?: Locator } = {}) {
   await page.evaluate(async () => {
     await document.fonts.ready;
@@ -218,7 +221,9 @@ async function capture(page: Page, testInfo: TestInfo, name: string, options: { 
   });
   const path = testInfo.outputPath(`${name}.png`);
   const width = page.viewportSize()?.width ?? 0;
-  if (options.area) {
+  if (!process.env.E2E_SCREENSHOTS) {
+    // No picture: the page is still measured below.
+  } else if (options.area) {
     await options.area.screenshot({ path, animations: 'disabled' });
   } else if (options.height) {
     const total = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -278,7 +283,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Create engine revision' }).click();
       await expect(main.getByText('✓ Engine revision created · private')).toBeVisible();
       expect(state.sent.engine).toMatchObject({
-        metadata: { namespace: 'lucia.vega', name: 'edge-router', version: '1.0.0' },
+        metadata: { namespace: 'alex.rivera', name: 'edge-router', version: '1.0.0' },
         spec: { modes: [{ id: 'default', algorithm: 'Tabu search', capabilities: { featureValues: { selector: 'only', values: ['scalar', 'interval'] } } }] },
       });
       await expect(main.getByLabel('Name', { exact: true })).toBeDisabled();
@@ -298,7 +303,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Create registration' }).click();
       await expect(main.getByText('✓ Registration created · inactive')).toBeVisible();
       expect(state.sent.registration).toMatchObject({
-        metadata: { namespace: 'lucia.vega', name: 'edge-router-deployment', version: '1.0.0' },
+        metadata: { namespace: 'alex.rivera', name: 'edge-router-deployment', version: '1.0.0' },
         spec: { endpoint: 'https://edge.example.org', auth: { scheme: 'bearer' }, engine: { name: 'edge-router', digest: OWN_ENGINE_DIGEST } },
       });
       expect(JSON.stringify(state.sent.registration)).not.toContain(SECRET);
@@ -321,7 +326,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('edge-router-deployment 1.0.0 is active')).toBeVisible();
       await expect(main.getByText('Sample problem solved')).toBeVisible();
       expect(state.sent.activated).toEqual(['edge-router-deployment@1.0.0']);
-      await expect(main.getByRole('link', { name: 'Open registration' })).toHaveAttribute('href', /\/app\/engines\/registrations\/edge-router-deployment\?namespace=lucia\.vega&version=1\.0\.0/);
+      await expect(main.getByRole('link', { name: 'Open registration' })).toHaveAttribute('href', /\/app\/engines\/registrations\/edge-router-deployment\?namespace=alex\.rivera&version=1\.0\.0/);
       await capture(page, testInfo, `register-${name}-5-done`, { height: tall(1800) });
 
       await main.getByRole('button', { name: 'Request publication' }).click();
@@ -416,7 +421,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `register-${name}-imported`, { height: tall(1800) });
       await main.getByRole('button', { name: 'Create engine revision' }).click();
       await expect(main.getByText('✓ Engine revision created · private')).toBeVisible();
-      expect(state.sent.engine).toMatchObject({ metadata: { namespace: 'lucia.vega', name: 'imported-solver' } });
+      expect(state.sent.engine).toMatchObject({ metadata: { namespace: 'alex.rivera', name: 'imported-solver' } });
 
       await main.getByRole('button', { name: 'Keep the engine only' }).click();
       await expect(main.getByText('imported-solver 1.4.0 is saved')).toBeVisible();
@@ -627,7 +632,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await page.goto(`/app/engines/registrations/shared-solver?namespace=${SHARED_SOLVER.namespace}&version=${SHARED_SOLVER.version}&digest=${SHARED_SOLVER.digest}`);
       await expect(main.getByRole('heading', { level: 1, name: 'shared-solver' })).toBeVisible();
-      await expect(main.getByText('Published by nora.campos. You can pick it when launching a job.')).toBeVisible();
+      await expect(main.getByText('Published by priya.nair. You can pick it when launching a job.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Deactivate' })).toHaveCount(0);
       await expect(main.getByRole('heading', { name: 'Credential' })).toHaveCount(0);
       await expect(main.getByRole('heading', { name: 'Delete this registration' })).toHaveCount(0);
@@ -641,7 +646,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // Someone else’s private registration, or one that does not exist, answer the same.
       state.refuse.detail = problem(404, 'not_found', 'Engine registration not found');
       state.refuse.report = problem(404, 'not_found', 'Engine registration not found');
-      await page.goto(`/app/engines/registrations/private-elsewhere?namespace=nora.campos&version=1.0.0&digest=${digestOf('77')}`);
+      await page.goto(`/app/engines/registrations/private-elsewhere?namespace=priya.nair&version=1.0.0&digest=${digestOf('77')}`);
       await expect(main.getByText('Not found', { exact: true })).toBeVisible();
       await expect(main.getByText(/everyone else, administrators included, gets this same answer/)).toBeVisible();
       await expect(main.getByRole('link', { name: 'Back to My engines' })).toHaveAttribute('href', '/app/engines/registrations');
@@ -652,7 +657,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.refuse.report = undefined;
       await page.goto('/app/engines/registrations/edge-solver');
       await expect(main.getByRole('heading', { name: 'Which revision of edge-solver?' })).toBeVisible();
-      await expect(main.getByRole('link', { name: /lucia\.vega\/edge-solver@/ })).toHaveCount(2);
+      await expect(main.getByRole('link', { name: /alex\.rivera\/edge-solver@/ })).toHaveCount(2);
       await capture(page, testInfo, `detail-${name}-which`, { height: tall(900) });
       expect(critical).toEqual([]);
     });
@@ -671,7 +676,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(placement.getByText('Built in', { exact: true })).toBeVisible();
       const community = main.getByRole('article', { name: 'Dialect edge-annotations 1.0.0' });
       await expect(community.getByText('Approved', { exact: true })).toBeVisible();
-      await expect(community.getByText('Submitted by lucia.vega and approved by an administrator.')).toBeVisible();
+      await expect(community.getByText('Submitted by alex.rivera and approved by an administrator.')).toBeVisible();
       await capture(page, testInfo, `language-${name}-dialects`, { height: tall(1500) });
 
       await community.getByRole('button', { name: 'Details of edge-annotations' }).click();

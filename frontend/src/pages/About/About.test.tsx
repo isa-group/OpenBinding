@@ -108,11 +108,11 @@ describe('About', () => {
       expect(within(dialog).getByText(/Build comparative studies that measure Pareto quality/)).toBeInTheDocument();
       expect(within(dialog).getByText('TFG · Research')).toBeInTheDocument();
       expect(within(dialog).getByText('Engines')).toBeInTheDocument();
-      expect(within(dialog).getByRole('button', { name: 'Close contribution' })).toHaveFocus();
+      expect(dialog).toHaveFocus();
       expect(within(dialog).queryByText('Supervisor:')).not.toBeInTheDocument();
 
-      fireEvent.keyDown(document, { key: 'Tab' });
-      fireEvent.keyDown(document, { key: 'Escape' });
+      fireEvent.keyDown(dialog, { key: 'Tab' });
+      fireEvent.keyDown(dialog, { key: 'Escape' });
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(track).toHaveFocus();

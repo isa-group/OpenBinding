@@ -146,7 +146,7 @@
   font-weight: 600;
 }
 
-.proj-rev.is-latest { background: var(--tp-primary); color: #fff; }
+.proj-rev.is-latest { background: var(--tp-primary); color: var(--tp-on-primary); }
 
 .proj-jobs { display: flex; flex-direction: column; gap: var(--tp-spacing-xs); margin: 0; padding: 0; list-style: none; }
 
@@ -211,7 +211,7 @@
 }
 
 .proj-report-tile svg { width: 14px; height: 14px; }
-.proj-report-tile.is-published { background: var(--tp-primary-deep); color: #fff; }
+.proj-report-tile.is-published { background: var(--tp-primary-deep); color: var(--tp-on-primary); }
 .proj-report-tile.is-frozen { border: 1px solid var(--tp-beige-deep); background: var(--tp-surface-cream); color: var(--tp-primary-deep); }
 .proj-report-tile.is-draft { background: var(--tp-severity-warning-bg); color: var(--color-warning-text); }
 
@@ -286,7 +286,7 @@
   justify-content: center;
   border-radius: 9999px;
   background: var(--tp-primary);
-  color: #fff;
+  color: var(--tp-on-primary);
   font-weight: 600;
 }
 
@@ -334,7 +334,7 @@
 }
 
 .proj-vis-icon svg { width: 18px; height: 18px; }
-.proj-vis-card.is-checked .proj-vis-icon { background: var(--tp-primary); color: #fff; }
+.proj-vis-card.is-checked .proj-vis-icon { background: var(--tp-primary); color: var(--tp-on-primary); }
 .proj-vis-point { display: flex; gap: var(--tp-spacing-xs); color: var(--tp-slate); font-size: 0.8125rem; }
 .proj-vis-point > span:first-child { color: var(--tp-steel); }
 .proj-vis-point > span.is-yes { color: var(--color-success-text); }
@@ -356,7 +356,7 @@
   cursor: pointer;
 }
 
-.proj-seg label.is-checked { background: var(--tp-primary); color: #fff; }
+.proj-seg label.is-checked { background: var(--tp-primary); color: var(--tp-on-primary); }
 .proj-seg label:focus-within { outline: 2px solid var(--tp-primary); outline-offset: -2px; }
 .proj-seg:disabled label { cursor: not-allowed; opacity: 0.7; }
 .proj-seg input { position: absolute; opacity: 0; pointer-events: none; }

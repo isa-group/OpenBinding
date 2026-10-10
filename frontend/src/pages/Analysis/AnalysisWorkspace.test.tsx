@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, project, renderProjectScreen } from '../Project/testKit';
 import { AnalysisWorkspace } from './AnalysisWorkspace';
-import { ID_FASTPAY, ID_PAYCO, JOB_DONE, JOB_SECOND, MODEL, ROWS, archiveOf, detailOf } from './fixtures';
+import { ID_FASTPAY, ID_PAYCO, JOB_DONE, JOB_SECOND, MODEL, ROWS, archiveOf, detailOf } from '../../test/fixtures/analysis';
 
 const api = vi.hoisted(() => ({
   query: vi.fn(), candidate: vi.fn(), receipt: vi.fn(), export: vi.fn(), save: vi.fn(), startPareto: vi.fn(), pareto: vi.fn(), cancelPareto: vi.fn(),

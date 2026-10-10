@@ -3,28 +3,28 @@ import type { Page, Route } from '@playwright/test';
 import type { ArchiveQuery, ArchiveResponse, ArchiveRow } from '../../src/analysis/archive';
 import type { AdminUserView } from '../../src/api/auth';
 import type { Job } from '../../src/api/platform';
-import {
-  AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
-} from '../../src/pages/Admin/adminFixtures';
 import { DRAFT_RELEASE, DRAINING_RELEASE, LIVE_RELEASE, PRICING_ROOM, previewOf } from '../../src/pages/Admin/pricingFixtures';
-import { ID_FASTPAY, ROWS, SOURCES, archiveOf, detailOf as candidateOf } from '../../src/pages/Analysis/fixtures';
 import { digestOf as caseDigest, irDocument, refOf, revisionDocument, sourceContents } from '../../src/pages/Cases/fixtures';
 import { LESSONS } from '../../src/pages/Examples/lessons';
-import {
-  COMMUNITY_DIALECT, EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, PLACEMENT_DIALECT, QOS_PROFILE, REGISTERED_RESOURCES,
-  REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf as registrationReport,
-} from '../../src/pages/Engines/fixtures';
-import { INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT as JOB_REPORT, SOLUTION, detailOf as jobDetailOf, jobOf, provenanceOf } from '../../src/pages/Jobs/fixtures';
 import { templateFor } from '../../src/pages/Library/contentModel';
 import { bpmnContent, catalogContent, draftOf, goalContent, itemOf, rulesContent, versionOf } from '../../src/pages/Library/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
-import { DRAFT, EDITION, FROZEN, LEGACY, publicationOf } from '../../src/pages/Reports/fixtures';
+import {
+  AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
+} from '../../src/test/fixtures/admin';
+import { ID_FASTPAY, ROWS, SOURCES, archiveOf, detailOf as candidateOf } from '../../src/test/fixtures/analysis';
+import {
+  COMMUNITY_DIALECT, EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, PLACEMENT_DIALECT, QOS_PROFILE, REGISTERED_RESOURCES,
+  REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf as registrationReport,
+} from '../../src/test/fixtures/engines';
+import { INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT as JOB_REPORT, SOLUTION, detailOf as jobDetailOf, jobOf, provenanceOf } from '../../src/test/fixtures/jobs';
+import { DRAFT, EDITION, FROZEN, LEGACY, publicationOf } from '../../src/test/fixtures/reports';
 import {
   blobOf, caseItem, collectionOf, collectionRevisionOf, resourceItem, resourceOf, resourceRevisionOf,
-} from '../../src/pages/Resources/fixtures';
+} from '../../src/test/fixtures/resources';
 import {
   RANDOM_SEARCH, REVISION_2, VERSION_ID, analyticsFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
-} from '../../src/pages/Studies/fixtures';
+} from '../../src/test/fixtures/studies';
 import { EXAMPLE } from './galleryRoutes';
 
 // One mock of the gateway for the whole QA gallery: a platform administrator of a RESEARCH (institutional) account, one organization
@@ -44,41 +44,14 @@ export interface MockHandle {
   unmocked: string[];
 }
 
-// -- The fixtures speak the prototype's language (Spanish names, its personas): the gallery shows English data and neutral people.
+// -- The shared fixtures are already English and name neutral people (src/test/fixtures); the gallery only places the resource
+// fixtures, which belong to a project of their own in the unit tests, in the project it shows.
 
 const RENAMES: Array<[string, string]> = [
   ['"project-qos"', '"project-qos-benchmarks"'],
-  ['Pagos con autenticación, stock y envío en paralelo.', 'Payments with authentication, stock and shipping in parallel.'],
-  ['Comparativa de engines en checkout (sintética)', 'Engine comparison at checkout'],
-  ['Comparativa de engines en checkout', 'Engine comparison at checkout'],
-  ['Engines × semillas', 'Engines × seeds'],
-  ['engines-vs-seeds-informe', 'engine-comparison'],
-  ['checkout-comparativa', 'checkout-comparison'],
-  ['Borrador: placement', 'Draft: placement'],
-  ['borrador-placement', 'draft-placement'],
-  ['Notas antiguas', 'Older notes'],
-  ['notas-antiguas', 'older-notes'],
-  ['Flujo de checkout', 'Checkout flow'],
-  ['flujo-checkout', 'checkout-flow'],
-  ['Proveedores UE', 'EU providers'],
-  ['Catálogo externo', 'External catalog'],
-  ['catalogo-externo', 'external-catalog'],
-  ['pago-transferencia', 'pay-transfer'],
-  ['pago-tarjeta', 'pay-card'],
-  ['calcular-envio', 'shipping'],
-  ['autenticar', 'authenticate'],
-  ['inventario', 'inventory'],
-  ['notificar', 'notify'],
-  ['sla-latencia', 'sla-latency'],
-  ['user-lucia', 'user-admin'],
-  ['Lucía Vega', 'Alex Rivera'],
-  ['lucia.vega', 'alex.rivera'],
-  ['nora.campos', 'priya.nair'],
-  ['marco-diaz@example.invalid', 'sam-okafor@example.org'],
-  ['marco.diaz', 'sam.okafor'],
 ];
 
-/** The fixture with its Spanish names and prototype personas replaced. */
+/** The fixture placed in the gallery's project. */
 function localize<T>(value: T): T {
   let text = JSON.stringify(value);
   for (const [from, to] of RENAMES) text = text.split(from).join(to);
@@ -93,14 +66,10 @@ const ME = {
   created_at: '2026-01-10T00:00:00Z', cas_verified: true, institutional_branding: true,
 };
 
-/** The accounts of the administration screens: neutral names, the ids the audit and overview fixtures point at. */
-const PEOPLE: Record<string, string> = {
-  'lucia.vega': 'maria.santos', 'marco.diaz': 'sam.okafor', 'sofia.rey': 'jordan.lee', 'nora.campos': 'priya.nair', 'iker.mora': 'alex.rivera', 'baja.demo': 'dana.kim',
-};
-const ACCOUNTS: AdminUserView[] = USERS.map((user) => {
-  const username = PEOPLE[user.username] ?? user.username;
-  return { ...user, username, email: user.id === ME_ID ? ME.email : `${username.replace('.', '-')}@example.org`, plan: user.id === ME_ID ? 'RESEARCH' : user.plan };
-});
+/** The accounts of the administration screens: the ids the audit and overview fixtures point at, on example.org like the rest of the gallery. */
+const ACCOUNTS: AdminUserView[] = USERS.map((user) => ({
+  ...user, email: user.id === ME_ID ? ME.email : `${user.username.replace('.', '-')}@example.org`, plan: user.id === ME_ID ? 'RESEARCH' : user.plan,
+}));
 const accountOf = (id: string) => ACCOUNTS.find((account) => account.id === id);
 
 const org = (id: string, slug: string, name: string, role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER', over: Record<string, unknown> = {}) => ({

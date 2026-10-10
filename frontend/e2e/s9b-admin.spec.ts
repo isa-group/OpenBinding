@@ -1,7 +1,7 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
-import { IKER, LUCIA, PENDING_ENGINE, usageOf } from '../src/pages/Admin/adminFixtures';
 import { DRAFT_RELEASE, DRAINING_RELEASE, LIVE_RELEASE, PRICING_ROOM, previewOf } from '../src/pages/Admin/pricingFixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
+import { ALEX, MARIA, PENDING_ENGINE, usageOf } from '../src/test/fixtures/admin';
 
 // S9b · administration, part two: admin-moderation, admin-maintenance, admin-routing, admin-pricing, admin-pricing-draft and admin-pricing-release.
 // There is no backend: the API origin is answered by page.route(), and the signed-in account is a platform administrator.
@@ -21,7 +21,7 @@ const forbidden = detail(403, 'insufficient_api_key_permission', 'The API key do
 
 const token = (expiresInSeconds: number) => [
   'header',
-  Buffer.from(JSON.stringify({ sub: IKER.id, exp: Math.floor(Date.now() / 1000) + expiresInSeconds })).toString('base64'),
+  Buffer.from(JSON.stringify({ sub: ALEX.id, exp: Math.floor(Date.now() / 1000) + expiresInSeconds })).toString('base64'),
   'signature',
 ].join('.');
 
@@ -65,7 +65,7 @@ const REPORT = {
   ...PENDING_ENGINE,
   openapiDigest: `sha256-${'b'.repeat(64)}`,
   openapi: { openapi: '3.1.0' },
-  engine: { apiVersion: 'bim/v1', kind: 'Engine', metadata: { namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1' }, spec: { modes: [] } },
+  engine: { apiVersion: 'bim/v1', kind: 'Engine', metadata: { namespace: 'maria-santos', name: 'edge-solver', version: '0.3.1' }, spec: { modes: [] } },
   report: {
     status: 'verified',
     verifiedAt: '2026-10-08T10:00:00Z',
@@ -115,8 +115,8 @@ const OBSERVATIONS = [
 
 const AUDIT = {
   events: [
-    { id: 'e1', organizationId: null, actorId: IKER.id, action: 'pricing.live.activated', targetType: 'PricingRelease', targetId: null, detail: { version: '0.1.0' }, createdAt: '2026-09-02T09:00:00Z' },
-    { id: 'e2', organizationId: null, actorId: IKER.id, action: 'pricing.draft.created', targetType: 'PricingRelease', targetId: '0.2.0-draft.1', detail: {}, createdAt: '2026-10-01T09:00:00Z' },
+    { id: 'e1', organizationId: null, actorId: ALEX.id, action: 'pricing.live.activated', targetType: 'PricingRelease', targetId: null, detail: { version: '0.1.0' }, createdAt: '2026-09-02T09:00:00Z' },
+    { id: 'e2', organizationId: null, actorId: ALEX.id, action: 'pricing.draft.created', targetType: 'PricingRelease', targetId: '0.2.0-draft.1', detail: {}, createdAt: '2026-10-01T09:00:00Z' },
   ],
   total: 2, offset: 0, limit: 200,
 };
@@ -139,7 +139,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
       validate: [], drafts: [], forks: [], publish: [], actions: [], deleted: [],
     },
   };
-  const me = options.role === 'user' ? { ...LUCIA, role: 'user' } : { ...IKER, institutional_branding: false };
+  const me = options.role === 'user' ? { ...MARIA, role: 'user' } : { ...ALEX, institutional_branding: false };
   const answer = (key: Key, body: unknown | (() => unknown)): Handler => (route) => (
     state.refuse[key] ? state.refuse[key](route) : json(typeof body === 'function' ? (body as () => unknown)() : body)(route)
   );
@@ -374,7 +374,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Moderation', exact: true })).toBeVisible();
       await expect(main.getByRole('navigation', { name: 'Administration', exact: true }).getByText('Moderation', { exact: true })).toHaveAttribute('aria-current', 'page');
       await expect(main.getByRole('list', { name: 'Waiting for review' }).getByRole('listitem')).toHaveCount(3);
-      const request = main.getByRole('listitem', { name: 'lucia-vega/edge-solver' });
+      const request = main.getByRole('listitem', { name: 'maria-santos/edge-solver' });
       await expect(request.getByText('Waiting for review')).toBeVisible();
       await expect(request.getByText('0.3.1', { exact: true })).toBeVisible();
       await expect(main.getByText('Needs “moderate engines”')).toBeVisible();
@@ -390,16 +390,16 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // Somebody else decided first: the gateway says 409, and the queue is read again.
       state.refuse.approve = detail(409, 'registration_not_pending', 'The registration is no longer pending review.');
       await request.getByRole('button', { name: 'Approve and publish' }).click();
-      const approve = page.getByRole('dialog', { name: 'Publish lucia-vega/edge-solver for everyone?' });
+      const approve = page.getByRole('dialog', { name: 'Publish maria-santos/edge-solver for everyone?' });
       await capture(page, testInfo, `moderation-${name}-approve-dialog`);
       await approve.getByRole('button', { name: 'Approve and publish' }).click();
       await expect(main.getByText('This can’t be decided now (409 · registration_not_pending)')).toBeVisible();
       await capture(page, testInfo, `moderation-${name}-409`, { height: tall(1500) });
 
       state.refuse.approve = undefined;
-      await main.getByRole('listitem', { name: 'lucia-vega/edge-solver' }).getByRole('button', { name: 'Approve and publish' }).click();
-      await page.getByRole('dialog', { name: 'Publish lucia-vega/edge-solver for everyone?' }).getByRole('button', { name: 'Approve and publish' }).click();
-      await expect(main.getByText('Approved. lucia-vega/edge-solver@0.3.1 is published. Recorded in the audit log.')).toBeVisible();
+      await main.getByRole('listitem', { name: 'maria-santos/edge-solver' }).getByRole('button', { name: 'Approve and publish' }).click();
+      await page.getByRole('dialog', { name: 'Publish maria-santos/edge-solver for everyone?' }).getByRole('button', { name: 'Approve and publish' }).click();
+      await expect(main.getByText('Approved. maria-santos/edge-solver@0.3.1 is published. Recorded in the audit log.')).toBeVisible();
       await expect(main.getByText('No engine is waiting for review')).toBeVisible();
       expect(state.sent.approved).toEqual(['edge-solver']);
       await expect(main.getByRole('list', { name: 'Waiting for review' }).getByRole('listitem').first().getByText('0', { exact: true })).toBeVisible();
@@ -408,26 +408,26 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The same request again, rejected: the API takes no reason, and says so.
       state.registrations = [structuredClone(PENDING_ENGINE)];
       await page.goto('/app/admin/moderation');
-      await main.getByRole('listitem', { name: 'lucia-vega/edge-solver' }).getByRole('button', { name: 'Reject' }).click();
-      const reject = page.getByRole('dialog', { name: 'Reject lucia-vega/edge-solver?' });
+      await main.getByRole('listitem', { name: 'maria-santos/edge-solver' }).getByRole('button', { name: 'Reject' }).click();
+      const reject = page.getByRole('dialog', { name: 'Reject maria-santos/edge-solver?' });
       await expect(reject.getByText(/The API takes no written reason/)).toBeVisible();
       await capture(page, testInfo, `moderation-${name}-reject-dialog`);
       await reject.getByRole('button', { name: 'Reject' }).click();
-      await expect(main.getByText(/Rejected\. The request left the queue and lucia-vega\/edge-solver@0\.3\.1 is private to lucia-vega again/)).toBeVisible();
+      await expect(main.getByText(/Rejected\. The request left the queue and maria-santos\/edge-solver@0\.3\.1 is private to maria-santos again/)).toBeVisible();
       expect(state.sent.rejected).toEqual(['edge-solver']);
 
       // Dialects and resources are approved by their exact revision; there is no reject for them.
       const form = main.getByRole('form', { name: 'Approve a dialect or resource' });
       await expect(form.getByRole('button', { name: 'Approve…' })).toBeDisabled();
-      await form.getByLabel('Namespace').fill('lucia-vega');
+      await form.getByLabel('Namespace').fill('maria-santos');
       await form.getByLabel('Name', { exact: true }).fill('edge-annotations');
       await form.getByLabel('Version').fill('1.0.0');
       await form.getByLabel('Revision (digest)').fill(`sha256-${'a'.repeat(64)}`);
       await capture(page, testInfo, `moderation-${name}-extension-form`, { area: main.getByRole('region', { name: 'Dialects and registered resources' }) });
       await form.getByRole('button', { name: 'Approve…' }).click();
-      await page.getByRole('dialog', { name: 'Approve dialect lucia-vega/edge-annotations@1.0.0?' }).getByRole('button', { name: 'Approve dialect' }).click();
-      await expect(main.getByText('Dialect lucia-vega/edge-annotations@1.0.0 approved and published. Recorded in the audit log.')).toBeVisible();
-      expect(state.sent.extension).toEqual([{ kind: 'dialects', name: 'edge-annotations', query: { namespace: 'lucia-vega', version: '1.0.0', revision: `sha256-${'a'.repeat(64)}` } }]);
+      await page.getByRole('dialog', { name: 'Approve dialect maria-santos/edge-annotations@1.0.0?' }).getByRole('button', { name: 'Approve dialect' }).click();
+      await expect(main.getByText('Dialect maria-santos/edge-annotations@1.0.0 approved and published. Recorded in the audit log.')).toBeVisible();
+      expect(state.sent.extension).toEqual([{ kind: 'dialects', name: 'edge-annotations', query: { namespace: 'maria-santos', version: '1.0.0', revision: `sha256-${'a'.repeat(64)}` } }]);
       await expect(main.getByText(/there is no reject action for them/)).toBeVisible();
 
       // States: a key without the permission, a failure, an empty queue.

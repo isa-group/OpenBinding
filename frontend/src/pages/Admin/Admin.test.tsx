@@ -1,7 +1,7 @@
 import { configure, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminOverview as Admin } from './AdminOverview';
-import { LUCIA, queuesAt } from './adminFixtures';
+import { MARIA, queuesAt } from '../../test/fixtures/admin';
 import { renderAdmin } from './adminTestUtils';
 
 // The old administration console reviewed engine publications, maintained the platform and showed the router. Those live on their own
@@ -72,7 +72,7 @@ describe('the administration console, now the overview', { timeout: 30000 }, () 
   });
 
   it('shows a person who is not an administrator nothing', async () => {
-    renderAdmin(<Admin />, { user: LUCIA });
+    renderAdmin(<Admin />, { user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(api.adminListEngineRegistrations).not.toHaveBeenCalled();
   });

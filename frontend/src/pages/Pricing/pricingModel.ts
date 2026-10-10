@@ -33,7 +33,6 @@ export interface Row {
   cells: Cell[];
   /** Names of the features whose use this limit bounds. Empty for features. */
   appliesTo: string[];
-  toConfirm: boolean;
 }
 
 export interface RowGroup {
@@ -221,7 +220,6 @@ export function readCatalog(catalog: PricingCatalog): PricingView | null {
         description: sentence(dictOf(features[id]).description),
         cells: planIds.map((planId) => featureCell(id, planId)),
         appliesTo: [],
-        toConfirm: false,
       })),
     };
   });
@@ -241,8 +239,6 @@ export function readCatalog(catalog: PricingCatalog): PricingView | null {
           description: sentence(definition.description),
           cells: planIds.map((planId) => limitCell(id, planId)),
           appliesTo: linked.map((featureId) => featureName(featureId, features[featureId])),
-          // The handoff leaves the meaning of capacity units unsettled; the document does not say either.
-          toConfirm: id === 'capacityUnits',
         };
       }),
     };
@@ -293,10 +289,4 @@ export function withInfiniteLimits(value: unknown, key?: string): unknown {
     return Object.fromEntries(Object.entries(value).map(([name, child]) => [name, withInfiniteLimits(child, name)]));
   }
   return value;
-}
-
-/** `a1b2…c3d4` for a long digest, so a fingerprint fits in a chip. */
-export function shortDigest(digest: string): string {
-  const bare = digest.replace(/^sha256[-:]/, '');
-  return bare.length > 12 ? `${bare.slice(0, 4)}…${bare.slice(-4)}` : bare;
 }

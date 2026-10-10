@@ -1,3 +1,4 @@
+import { BRAND_ASSETS } from '../../content/brandAssets';
 import {
   INSTITUTION_NAME, INSTITUTION_TITLE, INSTITUTION_URL, useInstitutionalBranding,
 } from './institution';
@@ -6,8 +7,8 @@ import './InstitutionMark.css';
 export type InstitutionMarkVariant = 'compact' | 'wide';
 
 const sources: Record<InstitutionMarkVariant, string> = {
-  compact: '/brands/us-fama.png',
-  wide: '/brands/universidad-sevilla.svg',
+  compact: BRAND_ASSETS.institutionMark,
+  wide: BRAND_ASSETS.institutionWordmark,
 };
 
 interface InstitutionMarkProps {

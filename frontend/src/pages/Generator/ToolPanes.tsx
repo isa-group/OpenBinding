@@ -2,7 +2,6 @@ import type { FormEvent } from 'react';
 import { FileText, Lock } from 'lucide-react';
 import type { EngineCalibratedResponse } from '../../api/client';
 import { Action } from '../../components/ui/Action';
-import { Chip } from '../../components/ui/Chip';
 import { FormField } from '../../components/ui/FormField';
 import { Notice } from '../../components/ui/Notice';
 
@@ -96,8 +95,7 @@ export function CalibratePane({ isAdmin, engines, engine, mode, observationsText
   return (
     <div className="gl-card gl-form">
       <div className="gl-tbc" role="note">
-        <Chip tone="warning">To confirm</Chip>
-        <span>Calibrating changes the shared model that predicts how engines behave, for everyone. The server currently accepts it without a strict check; this screen limits it to platform administrators.</span>
+        <span>Calibrating changes the shared model that predicts how engines behave, for everyone.</span>
       </div>
       {!isAdmin && <p className="gl-locked"><Lock aria-hidden="true" />Only platform administrators can calibrate.</p>}
       {isAdmin && (

@@ -1,7 +1,7 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminModeration } from './AdminModeration';
-import { LUCIA, MODERATION, PENDING_ENGINE } from './adminFixtures';
+import { MARIA, MODERATION, PENDING_ENGINE } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({
@@ -24,11 +24,11 @@ const REPORT = {
   ...PENDING_ENGINE,
   openapiDigest: `sha256-${'b'.repeat(64)}`,
   openapi: { openapi: '3.1.0' },
-  engine: { apiVersion: 'bim/v1', kind: 'Engine', metadata: { namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1' }, spec: { modes: [] } },
+  engine: { apiVersion: 'bim/v1', kind: 'Engine', metadata: { namespace: 'maria-santos', name: 'edge-solver', version: '0.3.1' }, spec: { modes: [] } },
   report: { status: 'verified', checks: [{ id: 'openapi', status: 'passed' }, { id: 'health', status: 'passed' }] },
 };
 
-const request = () => screen.getByRole('listitem', { name: 'lucia-vega/edge-solver' });
+const request = () => screen.getByRole('listitem', { name: 'maria-santos/edge-solver' });
 
 describe('admin-moderation · what waits for a decision', { timeout: 30000 }, () => {
   beforeEach(() => {
@@ -38,7 +38,7 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
     api.getEngineRegistrationReport.mockResolvedValue(REPORT);
     api.adminApproveEngineRegistration.mockResolvedValue({ ...PENDING_ENGINE, status: 'published' });
     api.adminRejectEngineRegistration.mockResolvedValue({ ...PENDING_ENGINE, status: 'private' });
-    api.adminApproveExtension.mockResolvedValue({ namespace: 'lucia-vega', name: 'edge-annotations', version: '1.0.0', digest: 'sha256-x', status: 'published' });
+    api.adminApproveExtension.mockResolvedValue({ namespace: 'maria-santos', name: 'edge-annotations', version: '1.0.0', digest: 'sha256-x', status: 'published' });
   });
 
   afterEach(() => {
@@ -52,17 +52,17 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
     expect(within(within(tiles).getByText('Engine requests').closest('div')!).getByText('1')).toBeInTheDocument();
     expect(within(within(tiles).getByText('Dialects').closest('div')!).getByText('1')).toBeInTheDocument();
     expect(within(within(tiles).getByText('Engine revisions').closest('div')!).getByText('0')).toBeInTheDocument();
-    expect(await screen.findByRole('listitem', { name: 'lucia-vega/edge-solver' })).toBeInTheDocument();
+    expect(await screen.findByRole('listitem', { name: 'maria-santos/edge-solver' })).toBeInTheDocument();
     expect(within(request()).getByText('Waiting for review')).toBeInTheDocument();
     expect(within(request()).getByText('0.3.1')).toBeInTheDocument();
-    expect(within(request()).getByText('lucia-vega', { selector: 'strong' })).toBeInTheDocument();
+    expect(within(request()).getByText('maria-santos', { selector: 'strong' })).toBeInTheDocument();
     expect(api.adminListEngineRegistrations).toHaveBeenCalledWith();
     expect(screen.getByRole('navigation', { name: 'Administration' }).querySelector('[aria-current="page"]')).toHaveTextContent('Moderation');
   });
 
   it('shows the verification report as checks, fetched only when it is asked for', async () => {
     renderAdmin(<AdminModeration />);
-    await screen.findByRole('listitem', { name: 'lucia-vega/edge-solver' });
+    await screen.findByRole('listitem', { name: 'maria-santos/edge-solver' });
     expect(api.getEngineRegistrationReport).not.toHaveBeenCalled();
     fireEvent.click(within(request()).getByRole('button', { name: 'Show verification report' }));
     expect(await screen.findByText('Contract matches bim-engine/v1')).toBeInTheDocument();
@@ -76,32 +76,32 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
   it('says so when the report cannot be read', async () => {
     api.getEngineRegistrationReport.mockRejectedValue(refusal(502));
     renderAdmin(<AdminModeration />);
-    await screen.findByRole('listitem', { name: 'lucia-vega/edge-solver' });
+    await screen.findByRole('listitem', { name: 'maria-santos/edge-solver' });
     fireEvent.click(within(request()).getByRole('button', { name: 'Show verification report' }));
     expect(await screen.findByText(/couldn’t be read/)).toBeInTheDocument();
   });
 
   it('approves and publishes only after a confirmation, then reads the queue again', async () => {
     renderAdmin(<AdminModeration />);
-    await screen.findByRole('listitem', { name: 'lucia-vega/edge-solver' });
+    await screen.findByRole('listitem', { name: 'maria-santos/edge-solver' });
     api.adminListEngineRegistrations.mockResolvedValue([]);
     fireEvent.click(within(request()).getByRole('button', { name: 'Approve and publish' }));
-    const dialog = screen.getByRole('dialog', { name: 'Publish lucia-vega/edge-solver for everyone?' });
+    const dialog = screen.getByRole('dialog', { name: 'Publish maria-santos/edge-solver for everyone?' });
     expect(api.adminApproveEngineRegistration).not.toHaveBeenCalled();
     expect(within(dialog).getByText(/can’t be changed or deleted by its owner/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Approve and publish' }));
-    await waitFor(() => expect(api.adminApproveEngineRegistration).toHaveBeenCalledWith(expect.objectContaining({ namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1' })));
-    expect(await screen.findByText('Approved. lucia-vega/edge-solver@0.3.1 is published. Recorded in the audit log.')).toBeInTheDocument();
+    await waitFor(() => expect(api.adminApproveEngineRegistration).toHaveBeenCalledWith(expect.objectContaining({ namespace: 'maria-santos', name: 'edge-solver', version: '0.3.1' })));
+    expect(await screen.findByText('Approved. maria-santos/edge-solver@0.3.1 is published. Recorded in the audit log.')).toBeInTheDocument();
     expect(await screen.findByText('No engine is waiting for review')).toBeInTheDocument();
     await waitFor(() => expect(api.adminModeration).toHaveBeenCalledTimes(2));
   });
 
   it('rejects only after a confirmation, and says the API takes no reason', async () => {
     renderAdmin(<AdminModeration />);
-    await screen.findByRole('listitem', { name: 'lucia-vega/edge-solver' });
+    await screen.findByRole('listitem', { name: 'maria-santos/edge-solver' });
     fireEvent.click(within(request()).getByRole('button', { name: 'Reject' }));
-    const dialog = screen.getByRole('dialog', { name: 'Reject lucia-vega/edge-solver?' });
-    expect(within(dialog).getByText(/goes back to being private to lucia-vega/)).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: 'Reject maria-santos/edge-solver?' });
+    expect(within(dialog).getByText(/goes back to being private to maria-santos/)).toBeInTheDocument();
     expect(within(dialog).getByText(/The API takes no written reason/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -110,13 +110,13 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
     fireEvent.click(within(request()).getByRole('button', { name: 'Reject' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Reject' }));
     await waitFor(() => expect(api.adminRejectEngineRegistration).toHaveBeenCalledOnce());
-    expect(await screen.findByText(/Rejected\. The request left the queue and lucia-vega\/edge-solver@0\.3\.1 is private to lucia-vega again/)).toBeInTheDocument();
+    expect(await screen.findByText(/Rejected\. The request left the queue and maria-santos\/edge-solver@0\.3\.1 is private to maria-santos again/)).toBeInTheDocument();
   });
 
   it('says a request was already decided (409) and reads the queue again', async () => {
     api.adminApproveEngineRegistration.mockRejectedValue(refusal(409, 'registration_not_pending', 'The registration is no longer pending review.'));
     renderAdmin(<AdminModeration />);
-    await screen.findByRole('listitem', { name: 'lucia-vega/edge-solver' });
+    await screen.findByRole('listitem', { name: 'maria-santos/edge-solver' });
     fireEvent.click(within(request()).getByRole('button', { name: 'Approve and publish' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Approve and publish' }));
     expect(await screen.findByText('This can’t be decided now (409 · registration_not_pending)')).toBeInTheDocument();
@@ -138,7 +138,7 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
     expect(await screen.findByText('A service isn’t available right now (503 · accounts_unavailable)')).toBeInTheDocument();
     expect(screen.queryByText('No engine is waiting for review')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('listitem', { name: 'lucia-vega/edge-solver' })).toBeInTheDocument();
+    expect(await screen.findByRole('listitem', { name: 'maria-santos/edge-solver' })).toBeInTheDocument();
   });
 
   it('says when nothing is waiting', async () => {
@@ -155,18 +155,18 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
     expect(screen.getByText(/1 dialect revision waiting for approval/)).toBeInTheDocument();
     const approve = within(form).getByRole('button', { name: 'Approve…' });
     expect(approve).toBeDisabled();
-    fireEvent.change(within(form).getByLabelText('Namespace'), { target: { value: 'lucia-vega' } });
+    fireEvent.change(within(form).getByLabelText('Namespace'), { target: { value: 'maria-santos' } });
     fireEvent.change(within(form).getByLabelText('Name'), { target: { value: 'edge-annotations' } });
     fireEvent.change(within(form).getByLabelText('Version'), { target: { value: '1.0.0' } });
     expect(approve).toBeDisabled();
     fireEvent.change(within(form).getByLabelText('Revision (digest)'), { target: { value: 'sha256-abc' } });
     expect(approve).toBeEnabled();
     fireEvent.click(approve);
-    const dialog = screen.getByRole('dialog', { name: 'Approve dialect lucia-vega/edge-annotations@1.0.0?' });
+    const dialog = screen.getByRole('dialog', { name: 'Approve dialect maria-santos/edge-annotations@1.0.0?' });
     expect(api.adminApproveExtension).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Approve dialect' }));
-    await waitFor(() => expect(api.adminApproveExtension).toHaveBeenCalledWith('dialect', { namespace: 'lucia-vega', name: 'edge-annotations', version: '1.0.0', revision: 'sha256-abc' }));
-    expect(await screen.findByText('Dialect lucia-vega/edge-annotations@1.0.0 approved and published. Recorded in the audit log.')).toBeInTheDocument();
+    await waitFor(() => expect(api.adminApproveExtension).toHaveBeenCalledWith('dialect', { namespace: 'maria-santos', name: 'edge-annotations', version: '1.0.0', revision: 'sha256-abc' }));
+    expect(await screen.findByText('Dialect maria-santos/edge-annotations@1.0.0 approved and published. Recorded in the audit log.')).toBeInTheDocument();
     expect(screen.getByText(/there is no reject action for them/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Language extensions' })).toHaveAttribute('href', '/app/language/extensions');
   });
@@ -176,7 +176,7 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
     renderAdmin(<AdminModeration />);
     const form = await screen.findByRole('form', { name: 'Approve a dialect or resource' });
     fireEvent.change(within(form).getByLabelText('Kind'), { target: { value: 'resource' } });
-    for (const [label, value] of [['Namespace', 'lucia-vega'], ['Name', 'eu-edge-placement'], ['Version', '1.0.0'], ['Revision (digest)', 'sha256-abc']]) {
+    for (const [label, value] of [['Namespace', 'maria-santos'], ['Name', 'eu-edge-placement'], ['Version', '1.0.0'], ['Revision (digest)', 'sha256-abc']]) {
       fireEvent.change(within(form).getByLabelText(label), { target: { value } });
     }
     fireEvent.click(within(form).getByRole('button', { name: 'Approve…' }));
@@ -186,7 +186,7 @@ describe('admin-moderation · what waits for a decision', { timeout: 30000 }, ()
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<AdminModeration />, { user: LUCIA });
+    renderAdmin(<AdminModeration />, { user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 1, name: 'Moderation' })).not.toBeInTheDocument();
     expect(api.adminModeration).not.toHaveBeenCalled();

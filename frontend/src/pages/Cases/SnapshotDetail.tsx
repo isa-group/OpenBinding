@@ -11,6 +11,7 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCopy } from '../../components/ui/useCopy';
 import { useAuth } from '../../contexts/auth';
+import { shortDigest } from '../../utils/digest';
 import { formatBytes, formatDateTime } from '../../utils/format';
 import { readZipArchive, type ZipArchive } from '../../utils/zipExplorer';
 import { useResource } from '../../utils/useResource';
@@ -269,7 +270,7 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
             return (
               <div className="snap-digest" key={entry.key}>
                 <span className="snap-digest-label">{entry.label}</span>
-                <code title={digest ?? undefined}>{digest ? `${digest.slice(0, 14)}…${digest.slice(-6)}` : 'not stored'}</code>
+                <code title={digest ?? undefined}>{digest ? shortDigest(digest) : 'not stored'}</code>
                 <span className="org-muted">{entry.what}</span>
                 {digest && (
                   <button type="button" className="case-link-button" onClick={() => void copy(digest, entry.key)} aria-label={`Copy full ${entry.label.toLowerCase()} fingerprint`}>

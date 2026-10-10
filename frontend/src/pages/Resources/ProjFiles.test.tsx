@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { blobOf, digestOf, usageOf } from './fixtures';
+import { blobOf, digestOf, usageOf } from '../../test/fixtures/resources';
 import { ProjFiles } from './ProjFiles';
 
 const platform = vi.hoisted(() => ({

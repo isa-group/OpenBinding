@@ -105,7 +105,10 @@ export function activeDimensions(dimensions: readonly Dimension[]): Dimension[] 
 }
 
 /** The colour of each objective in the priority bars: the brand scale, light to deep, then greys. */
-export const OBJECTIVE_COLOURS = ['#0077b6', '#48cae4', '#023e8a', '#90e0ef', '#0096c7', '#a8a8a8'];
+/** One colour per objective, from the design tokens (they are written as `var()` because they end up in inline styles). */
+export const OBJECTIVE_COLOURS = [
+  'var(--tp-primary)', 'var(--tp-sunshine-500)', 'var(--tp-primary-deep)', 'var(--tp-yellow-saturated)', 'var(--tp-sunshine-800)', 'var(--tp-muted)',
+];
 
 /** One row's weighted losses as shares of the longest bar on the page, so a short bar reads as "close to ideal". */
 export function lossSegments(row: ArchiveRow, data: ArchiveResponse, longest: number): Array<{ key: string; width: number; colour: string }> {

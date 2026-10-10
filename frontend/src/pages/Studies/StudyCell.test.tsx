@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { StudyCell as StudyCellView } from '../../api/platform';
-import { jobOf } from '../Jobs/fixtures';
+import { jobOf } from '../../test/fixtures/jobs';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { FLUJO, REVISION_1, REVISION_2, RUN_ID, cellsFixture, runFixture, studyFixture } from './fixtures';
+import { CHECKOUT, REVISION_1, REVISION_2, RUN_ID, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyCell } from './StudyCell';
 
 const platform = vi.hoisted(() => ({
@@ -45,7 +45,7 @@ describe('One cell of a run', () => {
       const found = cells.find((item) => item.id === cell);
       return found ? Promise.resolve(found) : Promise.reject(refusal(404, 'not_found'));
     });
-    platform.cases.mockResolvedValue([FLUJO]);
+    platform.cases.mockResolvedValue([CHECKOUT]);
     platform.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
     platform.projectJobs.mockResolvedValue([]);
     jobs.jobsApi.mine.mockResolvedValue([]);
@@ -57,7 +57,7 @@ describe('One cell of a run', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Cell 2' })).toBeInTheDocument();
     expect(screen.getAllByText('Completed').length).toBeGreaterThan(0);
     const inputs = screen.getByRole('region', { name: 'Frozen inputs' });
-    expect(await within(inputs).findByRole('link', { name: 'Flujo de checkout · revision 1' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/1`);
+    expect(await within(inputs).findByRole('link', { name: 'Checkout flow · revision 1' })).toHaveAttribute('href', `${ROOT}/cases/checkout-flow/revisions/1`);
     expect(within(inputs).getByText('random-search 1.0.0')).toBeInTheDocument();
     expect(within(inputs).getByText('sampling')).toBeInTheDocument();
     expect(within(inputs).getByText('Engine defaults')).toBeInTheDocument();

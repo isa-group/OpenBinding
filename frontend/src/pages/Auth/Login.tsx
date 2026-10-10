@@ -4,6 +4,7 @@ import { Check } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { Notice } from '../../components/ui/Notice';
+import { BRAND_ASSETS } from '../../content/brandAssets';
 import { useAuth } from '../../contexts/auth';
 import {
   afterSignInTarget, clearSignInNote, hasRecentSignIn, hasSessionEnded, noteSignInStarted, rememberCasFlow,
@@ -127,7 +128,7 @@ export function Login() {
       ) : (
         <>
           <a className="auth-cas" href={apiClient.casStartUrl('login')} onClick={() => rememberCasFlow('login', state?.from)}>
-            <img src="/brands/us-fama.png" alt="" />
+            <img src={BRAND_ASSETS.institutionMark} alt="" />
             Continue with Universidad de Sevilla (CAS)
           </a>
           <span className="auth-cas-note">

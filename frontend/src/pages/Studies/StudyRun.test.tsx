@@ -4,7 +4,7 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { Report, StudyCell } from '../../api/platform';
 import { org, project, reportOf, renderProjectScreen } from '../Project/testKit';
-import { EVOLUTIONARY, FLUJO, REVISION_1, REVISION_2, RUN_ID, cellFixture, cellsFixture, runFixture, studyFixture } from './fixtures';
+import { CHECKOUT, EVOLUTIONARY, REVISION_1, REVISION_2, RUN_ID, cellFixture, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyRun } from './StudyRun';
 
 const platform = vi.hoisted(() => ({
@@ -40,7 +40,7 @@ describe('One run of a study', () => {
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cellsFixture());
     platform.reports.mockResolvedValue([]);
-    platform.cases.mockResolvedValue([FLUJO]);
+    platform.cases.mockResolvedValue([CHECKOUT]);
     platform.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
   });
 
@@ -63,7 +63,7 @@ describe('One run of a study', () => {
     expect(screen.getByRole('heading', { name: 'Cells · cost (lower is better)' })).toBeInTheDocument();
     const heat = screen.getByRole('region', { name: 'Cells of the run as a matrix' });
     expect(within(heat).getAllByRole('link')).toHaveLength(8);
-    const best = within(heat).getByRole('link', { name: 'Cell 4, Flujo de checkout r2, evolutionary · seed 1: completed, Cost 0.104' });
+    const best = within(heat).getByRole('link', { name: 'Cell 4, Checkout flow r2, evolutionary · seed 1: completed, Cost 0.104' });
     expect(best).toHaveAttribute('href', `${RUN}/cells/00000000-0000-4000-8000-000000000204`);
     expect(best).toHaveClass('is-level-0');
     expect(within(heat).getByRole('link', { name: /Cell 2, .* completed, Cost 0\.121/ })).toHaveClass('is-level-3');
@@ -183,7 +183,7 @@ describe('One run of a study', () => {
     expect(await screen.findByText('Draft report created from this run.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the report' })).toHaveAttribute('href', `${ROOT}/reports/engines-vs-seeds-run-1-2`);
     expect(platform.createReport).toHaveBeenNthCalledWith(1, 'isa-demo', 'qos-benchmarks', {
-      slug: 'engines-vs-seeds-run-1', title: 'Engines × semillas · run #1', study_run_id: RUN_ID, document: { summary: '', findings: [], provenance: {} },
+      slug: 'engines-vs-seeds-run-1', title: 'Engines × seeds · run #1', study_run_id: RUN_ID, document: { summary: '', findings: [], provenance: {} },
     });
     expect(platform.createReport).toHaveBeenNthCalledWith(2, 'isa-demo', 'qos-benchmarks', expect.objectContaining({ slug: 'engines-vs-seeds-run-1-2' }));
     view.unmount();

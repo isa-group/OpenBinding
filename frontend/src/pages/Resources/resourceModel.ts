@@ -1,6 +1,6 @@
 import type { PricingCatalog, UsageView } from '../../api/auth';
 import type { StoredBlob } from '../../api/platform';
-import { shortDigest } from '../../utils/digest';
+import { digestPrefix, shortDigest } from '../../utils/digest';
 import { planLimit } from '../Project/projectModel';
 
 export { SLUG_PATTERN, slugFromName } from '../Project/projectModel';
@@ -97,7 +97,7 @@ export function fileTitle(blob: Pick<StoredBlob, 'digest' | 'media_type'>, names
 export function downloadName(blob: Pick<StoredBlob, 'digest' | 'media_type'>, names: SessionNames): string {
   if (names[blob.digest]) return names[blob.digest];
   const extension = EXTENSIONS.find(([pattern]) => pattern.test(blob.media_type.toLowerCase()))?.[1] ?? '';
-  return `${blob.digest.slice(0, 19)}${extension}`;
+  return `${digestPrefix(blob.digest)}${extension}`;
 }
 
 export function totalBytes(files: readonly Pick<StoredBlob, 'size_bytes'>[]): number {

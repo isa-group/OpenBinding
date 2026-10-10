@@ -1,11 +1,11 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import type { Job, Study, StudyCell, StudyRun } from '../src/api/platform';
-import { jobOf } from '../src/pages/Jobs/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
-import { digestOf as resourceDigest, usageOf } from '../src/pages/Resources/fixtures';
+import { jobOf } from '../src/test/fixtures/jobs';
+import { digestOf as resourceDigest, usageOf } from '../src/test/fixtures/resources';
 import {
-  EVOLUTIONARY, FLUJO, RANDOM_SEARCH, REVISION_1, REVISION_2, RUN_ID, VERSION_ID, analyticsFixture, cellFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
-} from '../src/pages/Studies/fixtures';
+  CHECKOUT, EVOLUTIONARY, RANDOM_SEARCH, REVISION_1, REVISION_2, RUN_ID, VERSION_ID, analyticsFixture, cellFixture, cellsFixture, revisionFixture, runFixture, studyFixture,
+} from '../src/test/fixtures/studies';
 
 // S7a · studies: study-list, study-builder, study-detail, study-run, study-cell and study-analytics.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
@@ -192,7 +192,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     if (!orgSlug) return json(organizations)(route);
     if (section === 'library') {
       return json([
-        artifact('artifact-engines-vs-seeds', 'Study', 'Engines × semillas'),
+        artifact('artifact-engines-vs-seeds', 'Study', 'Engines × seeds'),
         artifact('artifact-core', 'Collection', 'Core checkout set'),
         artifact('artifact-catalog', 'CandidateCatalog', 'Providers'),
       ])(route);
@@ -207,9 +207,9 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     if (!sub) return json(current)(route);
 
     if (sub === 'cases') {
-      if (!subId) return json([FLUJO])(route);
+      if (!subId) return json([CHECKOUT])(route);
       if (action === 'revisions') return json([REVISION_1, REVISION_2, revisionFixture(3, { source_snapshot_id: null })])(route);
-      return json(FLUJO)(route);
+      return json(CHECKOUT)(route);
     }
     if (sub === 'jobs') return json([...mineJobs, ...otherJobs])(route);
     if (sub === 'reports') {
@@ -406,8 +406,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(state.sent.update).toContainEqual({ archived: true });
       await capture(page, testInfo, `list-${name}-archived-toast`);
 
-      await row('Engines × semillas').getByRole('button', { name: 'Delete' }).click();
-      const dialog = page.getByRole('dialog', { name: 'Delete Engines × semillas?' });
+      await row('Engines × seeds').getByRole('button', { name: 'Delete' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Delete Engines × seeds?' });
       await expect(dialog).toBeVisible();
       await capture(page, testInfo, `list-${name}-delete-dialog`);
       await dialog.getByRole('button', { name: 'Delete study' }).click();
@@ -462,14 +462,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'New study' })).toBeVisible();
       await expect(main.getByText('Pick the cases, engines, settings and seeds. Every combination becomes one cell.')).toBeVisible();
-      await expect(main.getByRole('checkbox', { name: /Flujo de checkout · revision 3/ })).toBeDisabled();
+      await expect(main.getByRole('checkbox', { name: /Checkout flow · revision 3/ })).toBeDisabled();
       await expect(main.getByText(/No compiled snapshot yet, so engines have nothing to run/)).toBeVisible();
       await expect(create).toBeDisabled();
       await expect(main.getByRole('list', { name: 'Still needed' })).toContainText('Choose at least one engine mode.');
       await capture(page, testInfo, `builder-${name}-empty`);
 
-      await main.getByRole('checkbox', { name: /Flujo de checkout · revision 1/ }).check();
-      await main.getByRole('checkbox', { name: /Flujo de checkout · revision 2/ }).check();
+      await main.getByRole('checkbox', { name: /Checkout flow · revision 1/ }).check();
+      await main.getByRole('checkbox', { name: /Checkout flow · revision 2/ }).check();
       await main.getByRole('checkbox', { name: /random-search 1\.0\.0/ }).check();
       await main.getByRole('checkbox', { name: /evolutionary 1\.0\.0/ }).check();
       await main.getByLabel('Study name').fill('Budgets and seeds');
@@ -511,13 +511,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('study-builder /app/:org/:project/studies/new · 422, 402, 403 and 409 before and after sending', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/studies/new?case=flujo-checkout&revision=2`);
+      await page.goto(`${ROOT}/studies/new?case=checkout-flow&revision=2`);
       const main = page.locator('#platform-main');
       const create = main.getByRole('button', { name: 'Create study' });
 
       // The revision another screen named is already chosen.
-      await expect(main.getByRole('checkbox', { name: /Flujo de checkout · revision 2/ })).toBeChecked();
-      await expect(main.getByRole('checkbox', { name: /Flujo de checkout · revision 1/ })).not.toBeChecked();
+      await expect(main.getByRole('checkbox', { name: /Checkout flow · revision 2/ })).toBeChecked();
+      await expect(main.getByRole('checkbox', { name: /Checkout flow · revision 1/ })).not.toBeChecked();
       await main.getByRole('checkbox', { name: /random-search 1\.0\.0/ }).check();
       await main.getByLabel('Study name').fill('Refused study');
 
@@ -529,7 +529,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel(/Seeds \(comma-separated/).fill('1-100');
       for (let n = 0; n < 25; n += 1) await main.getByRole('button', { name: 'Add a setting' }).click();
       await main.getByRole('checkbox', { name: /evolutionary 1\.0\.0/ }).check();
-      await main.getByRole('checkbox', { name: /Flujo de checkout · revision 1/ }).check();
+      await main.getByRole('checkbox', { name: /Checkout flow · revision 1/ }).check();
       await expect(main.getByRole('list', { name: 'Still needed' })).toContainText('10,000 limit');
       await expect(create).toBeDisabled();
       await capture(page, testInfo, `builder-${name}-422-too-big`, { area: main.getByRole('complementary', { name: 'Matrix and plan' }) });
@@ -557,7 +557,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `builder-${name}-422-engine`, { area: side });
 
       state.refuse.create = undefined;
-      await main.getByLabel('Study name').fill('Engines × semillas');
+      await main.getByLabel('Study name').fill('Engines × seeds');
       await main.getByLabel('Address').fill('engines-vs-seeds');
       await create.click();
       await expect(side.getByText('That address is already used (409 · slug_conflict)')).toBeVisible();
@@ -572,7 +572,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await page.goto('/app/read-lab/bench/studies/new');
       await expect(main.getByText(/Creating studies needs MEMBER; you’re a VIEWER of Read Lab/)).toBeVisible();
-      await main.getByRole('checkbox', { name: /Flujo de checkout · revision 1/ }).check();
+      await main.getByRole('checkbox', { name: /Checkout flow · revision 1/ }).check();
       await expect(main.getByRole('button', { name: 'Create study' })).toBeDisabled();
       await expect(main.getByLabel('Study name')).toBeDisabled();
       await capture(page, testInfo, `builder-${name}-viewer`, { height: 1500 });
@@ -580,14 +580,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto(`${ROOT}/studies/new`);
       await main.getByRole('radio', { name: 'Reuse a shared definition' }).check({ force: true });
       await expect(main.getByRole('option', { name: 'Providers' })).toHaveCount(0);
-      await main.getByLabel('Study definition').selectOption({ label: 'Engines × semillas' });
+      await main.getByLabel('Study definition').selectOption({ label: 'Engines × seeds' });
       await main.getByLabel('Sealed version').selectOption({ index: 1 });
       await expect(main.getByText(/From the library · 8 cells/)).toBeVisible();
-      await expect(main.getByLabel('Address')).toHaveValue('engines-semillas');
+      await expect(main.getByLabel('Address')).toHaveValue('engines-seeds');
       await capture(page, testInfo, `builder-${name}-adopt`);
       await main.getByRole('button', { name: 'Create from this definition' }).click();
       await expect(main.getByRole('heading', { name: 'Study created' })).toBeVisible();
-      expect(state.sent.create).toMatchObject({ slug: 'engines-semillas', name: 'Engines × semillas', definition_version_id: VERSION_ID });
+      expect(state.sent.create).toMatchObject({ slug: 'engines-seeds', name: 'Engines × seeds', definition_version_id: VERSION_ID });
       await capture(page, testInfo, `builder-${name}-adopt-created`);
       expect(critical).toEqual([]);
     });
@@ -598,7 +598,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto(STUDY);
       const main = page.locator('#platform-main');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Engines × semillas' })).toBeVisible();
+      await expect(main.getByRole('heading', { level: 1, name: 'Engines × seeds' })).toBeVisible();
       await expect(main.getByText('Definition version 1 · sealed in the library')).toBeVisible();
       const grid = main.getByRole('region', { name: 'The cells of the matrix' });
       await expect(grid.getByRole('columnheader')).toHaveCount(5);
@@ -653,7 +653,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('#platform-main');
 
       await page.goto(STUDY);
-      await expect(main.getByRole('heading', { level: 1, name: 'Engines × semillas' })).toBeVisible();
+      await expect(main.getByRole('heading', { level: 1, name: 'Engines × seeds' })).toBeVisible();
       const select = main.getByRole('combobox', { name: 'Use version' });
       await expect(select).toBeEnabled();
       await select.selectOption({ index: 1 });
@@ -747,7 +747,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Create a report' }).click();
       await expect(main.getByText('Draft report created from this run.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Open the report' })).toHaveAttribute('href', `${ROOT}/reports/engines-vs-seeds-run-1`);
-      expect(state.sent.report).toMatchObject({ slug: 'engines-vs-seeds-run-1', title: 'Engines × semillas · run #1', study_run_id: RUN_ID });
+      expect(state.sent.report).toMatchObject({ slug: 'engines-vs-seeds-run-1', title: 'Engines × seeds · run #1', study_run_id: RUN_ID });
       await capture(page, testInfo, `run-${name}-report`, { height: 1300 });
 
       // A viewer sees it all and changes nothing.
@@ -813,7 +813,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Cell 2' })).toBeVisible();
       const inputs = main.getByRole('region', { name: 'Frozen inputs' });
-      await expect(inputs.getByRole('link', { name: 'Flujo de checkout · revision 1' })).toHaveAttribute('href', `${ROOT}/cases/flujo-checkout/revisions/1`);
+      await expect(inputs.getByRole('link', { name: 'Checkout flow · revision 1' })).toHaveAttribute('href', `${ROOT}/cases/checkout-flow/revisions/1`);
       await expect(inputs.getByText('random-search 1.0.0')).toBeVisible();
       await expect(inputs.getByRole('link', { name: 'snapshot…' })).toHaveAttribute('href', `${ROOT}/snapshots/snapshot-1`);
       await expect(inputs.getByRole('button', { name: 'Copy cell fingerprint' })).toBeVisible();

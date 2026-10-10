@@ -5,9 +5,8 @@ const enc = encodeURIComponent;
 const ZIP = { 'Content-Type': 'application/vnd.bim+zip' };
 
 /**
- * The calls the workbench makes with a package. `apiClient.validateBimPackage` hands a 422 back as if it were the answer; the
- * workbench has to tell "this package is invalid" from "this was analysed", so every call here throws on a refusal
- * (HttpError for 401, 403, 413, 415, 422…, QuotaError for 402) and the screen words each one.
+ * The calls the workbench makes with a package. The workbench has to tell "this package is invalid" from "this was analysed",
+ * so every call here throws on a refusal (HttpError for 401, 403, 413, 415, 422…, QuotaError for 402) and the screen words each one.
  */
 export const workbenchApi = {
   /** `POST /v1/validate` with a package: compiled complexity and the exact engine deployments that can run it. */

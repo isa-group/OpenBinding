@@ -4,7 +4,7 @@ import { HttpError } from '../../api/client';
 import type { Job } from '../../api/platform';
 import { caseOf, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
 import { saveBytes } from '../Project/download';
-import { INSTANCE, NEIGHBORHOOD, REPORT, detailOf, jobOf, provenanceOf } from './fixtures';
+import { INSTANCE, NEIGHBORHOOD, REPORT, detailOf, jobOf, provenanceOf } from '../../test/fixtures/jobs';
 import { JobDetail } from './JobDetail';
 
 const jobsApi = vi.hoisted(() => ({ detail: vi.fn(), inProject: vi.fn(), mine: vi.fn(), instance: vi.fn(), cancel: vi.fn(), retry: vi.fn(), report: vi.fn(), ir: vi.fn() }));
@@ -91,7 +91,7 @@ describe('One run', () => {
     ]);
     const providers = screen.getByRole('region', { name: 'Chosen providers' });
     expect(within(providers).getAllByRole('row')).toHaveLength(4);
-    expect(within(providers).getByRole('row', { name: /pago-tarjeta payco-eu/ })).toBeInTheDocument();
+    expect(within(providers).getByRole('row', { name: /pay-card payco-eu/ })).toBeInTheDocument();
     expect(screen.getByText('Numbers are OpenBinding’s own re-check of the engine’s answer.')).toBeInTheDocument();
     expect(screen.getByLabelText('Solution 1 source')).not.toBeVisible();
   });
@@ -127,7 +127,7 @@ describe('One run', () => {
     fireEvent.click(within(swaps).getByRole('button', { name: 'Check single swaps' }));
 
     const list = await within(swaps).findByRole('list', { name: 'Single-task swaps' });
-    expect(within(list).getByText('pago-tarjeta now')).toBeInTheDocument();
+    expect(within(list).getByText('pay-card now')).toBeInTheDocument();
     expect(within(list).getByText('catalog · fastpay')).toBeInTheDocument();
     expect(within(list).getByText('Better')).toBeInTheDocument();
     expect(within(list).getByText('cost +0.013 · latency −85')).toBeInTheDocument();

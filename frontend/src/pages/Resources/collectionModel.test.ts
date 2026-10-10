@@ -3,7 +3,7 @@ import { caseOf, revisionOf } from '../Project/testKit';
 import {
   buildPins, differences, entriesOf, entryFromPin, entryOf, move, newestFirst, sameList, typeSummary, type Entry,
 } from './collectionModel';
-import { caseItem, collectionOf, collectionRevisionOf, digestOf, resourceItem, resourceOf, resourceRevisionOf } from './fixtures';
+import { caseItem, collectionOf, collectionRevisionOf, digestOf, resourceItem, resourceOf, resourceRevisionOf } from '../../test/fixtures/resources';
 
 const root = '/app/isa-demo/qos-benchmarks';
 const flujo = caseOf('flujo-checkout', 'Flujo de checkout');

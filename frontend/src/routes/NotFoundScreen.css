@@ -1,0 +1,11 @@
+.not-found-screen {
+  display: grid;
+  width: 100%;
+  max-width: 44rem;
+  gap: var(--tp-spacing-md);
+  margin: 0 auto;
+  padding: var(--tp-spacing-section) clamp(1rem, 4vw, var(--tp-spacing-xxxl));
+}
+
+.not-found-screen h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); }
+.not-found-screen p { max-width: 36rem; color: var(--tp-slate); }

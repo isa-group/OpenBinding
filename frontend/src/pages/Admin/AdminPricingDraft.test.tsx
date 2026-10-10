@@ -1,7 +1,7 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminPricingDraft } from './AdminPricingDraft';
-import { LUCIA } from './adminFixtures';
+import { MARIA } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 import { DRAFT_RELEASE, LIVE_RELEASE, PRICING_ROOM, PRICING_SOURCE, previewOf } from './pricingFixtures';
 
@@ -306,7 +306,7 @@ describe('admin-pricing-draft · a new private draft, made with forms', { timeou
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<AdminPricingDraft />, { user: LUCIA });
+    renderAdmin(<AdminPricingDraft />, { user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(platform.pricingControlRoom).not.toHaveBeenCalled();
   });

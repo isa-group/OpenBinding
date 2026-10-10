@@ -54,8 +54,8 @@
 .ba-area-value { font-family: var(--font-mono); font-size: 28px; margin-top: 8px; }
 .ba-area-value small { display: inline-block; font-family: var(--font-body); font-size: 12px; }
 
-.ba-excluded { fill: #b54b4b; fill-opacity: .14; pointer-events: none; }
+.ba-excluded { fill: var(--color-error); fill-opacity: .14; pointer-events: none; }
 .ba-constraint { fill: none; stroke-width: 2; pointer-events: none; }
-.ba-constraint.hard { stroke: #b42333; }
-.ba-constraint.soft { stroke: #9b6500; stroke-dasharray: 6 4; }
+.ba-constraint.hard { stroke: var(--color-error); }
+.ba-constraint.soft { stroke: var(--color-warning); stroke-dasharray: 6 4; }
 .ba-constraint-notes { margin-block: 12px; font-size: 12px; }

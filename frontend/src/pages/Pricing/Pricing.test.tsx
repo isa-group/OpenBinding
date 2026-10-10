@@ -82,7 +82,7 @@ describe('Pricing', () => {
     expect(await screen.findByText(/Pricing version/)).toHaveTextContent('Pricing version 0.1.0');
     expect(screen.getByText('Published Sep 1, 2026')).toBeInTheDocument();
     expect(screen.getByText('EUR · monthly periods')).toBeInTheDocument();
-    expect(screen.getByText('Fingerprint a1b2…c3d4')).toBeInTheDocument();
+    expect(screen.getByText('Fingerprint sha256-a1b2…c3d4')).toBeInTheDocument();
     expect(screen.getByText('Development pricing.')).toBeInTheDocument();
     expect(screen.getByText(/0\.1\.0 development copy and aren’t verified against the live pricing/)).toBeInTheDocument();
   });
@@ -122,7 +122,7 @@ describe('Pricing', () => {
     expect(solverTime.getByText('50 h')).toBeInTheDocument();
     expect(within(monthly.getByRole('row', { name: /^Solves/ })).getByText('Unlimited')).toBeInTheDocument();
     const capacityUnits = monthly.getByRole('row', { name: /Capacity units/ });
-    expect(within(capacityUnits).getByText('To confirm')).toBeInTheDocument();
+    expect(within(capacityUnits).queryByText('To confirm')).not.toBeInTheDocument();
     expect(within(capacityUnits).getByText('Applies to')).toBeInTheDocument();
   });
 
@@ -300,5 +300,16 @@ describe('Pricing', () => {
     expect(await screen.findByRole('button', { name: 'Hide the full pricing document' })).toHaveAttribute('aria-expanded', 'true');
     await waitFor(() => expect(document.querySelector('.pricing-renderer-shell')).not.toBeNull());
     expect(screen.getByRole('link', { name: 'SPHERE' })).toHaveAttribute('href', CURRENT_FIXTURE.url);
+  });
+
+  it('draws no link to SPHERE when the address from the gateway is not a web address', async () => {
+    api.getCurrentPricing.mockResolvedValue({ ...CURRENT_FIXTURE, url: 'javascript:alert(1)' });
+    renderPricing();
+    await heading();
+    fireEvent.click(await screen.findByRole('button', { name: 'Show the full pricing document' }));
+
+    await screen.findByRole('button', { name: 'Hide the full pricing document' });
+    expect(screen.queryByRole('link', { name: 'SPHERE' })).not.toBeInTheDocument();
+    expect(document.querySelector('a[href^="javascript:"]')).toBeNull();
   });
 });

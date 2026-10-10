@@ -57,8 +57,8 @@
 
 .rg-dot svg { width: 16px; height: 16px; }
 .rg-dot.is-current { background: var(--tp-primary); color: var(--tp-on-primary); }
-.rg-dot.is-ok { background: var(--tp-severity-success); color: #fff; }
-.rg-dot.is-bad { background: var(--tp-severity-error); color: #fff; }
+.rg-dot.is-ok { background: var(--tp-severity-success); color: var(--tp-on-primary); }
+.rg-dot.is-bad { background: var(--tp-severity-error); color: var(--tp-on-primary); }
 
 /* Sections */
 

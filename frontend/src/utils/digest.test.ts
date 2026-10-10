@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isDigest, normalizeDigest, shortDigest } from './digest';
+import { digestPrefix, isDigest, normalizeDigest, shortDigest } from './digest';
 
 const HEX = 'e5f60718'.repeat(8);
 
@@ -23,5 +23,12 @@ describe('digests', () => {
   it('abbreviates only what is long enough to abbreviate', () => {
     expect(shortDigest(`sha256-${HEX}`)).toBe('sha256-e5f6…0718');
     expect(shortDigest('sha256-abc')).toBe('sha256-abc');
+    expect(shortDigest(HEX)).toBe('sha256-e5f6…0718');
+  });
+
+  it('keeps the prefix and twelve characters where an ellipsis would not do', () => {
+    expect(digestPrefix(`sha256-${HEX}`)).toBe('sha256-e5f60718e5f6');
+    expect(digestPrefix(`sha256-${HEX}`, 4)).toBe('sha256-e5f6');
+    expect(digestPrefix('sha256-abc')).toBe('sha256-abc');
   });
 });

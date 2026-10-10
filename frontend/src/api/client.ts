@@ -28,6 +28,7 @@ import type {
 } from './auth';
 import type { AdminErrorOverview, AdminErrorListResponse } from '../pages/Admin/types';
 import { rememberCasFlow } from '../utils/authFlow';
+import { randomUUID } from '../utils/uuid';
 
 /** One solve in an account's history. */
 export type Termination = 'OPTIMAL' | 'FEASIBLE' | 'INFEASIBLE' | 'UNKNOWN';
@@ -430,7 +431,7 @@ export class HttpError extends Error {
 }
 
 /** Where the session lives. Header-based rather than cookies: see AuthContext. */
-const ACCESS_TOKEN_KEY = 'openbinding-access-token';
+export const ACCESS_TOKEN_KEY = 'openbinding-access-token';
 const REFRESH_TOKEN_KEY = 'openbinding-refresh-token';
 const PRICING_TOKEN_KEY = 'pricingToken';
 
@@ -454,8 +455,9 @@ export function getStoredPricingToken(): string | null {
 
 /**
  * Fired when a session ends without the user asking - a refresh token that was
- * spent, revoked or expired. AuthContext listens and clears the user, so that
- * every tab notices rather than only the one that made the request.
+ * spent, revoked or expired. AuthContext listens and clears the user. The event is local
+ * to the tab that made the request; the other tabs learn of it from the `storage` event
+ * that clearing the tokens raises (see AuthContext).
  */
 export const SESSION_ENDED_EVENT = 'openbinding:session-ended';
 
@@ -618,15 +620,15 @@ export class ApiClient {
 
   /**
    * `retryOnUnauthorized` turns off the silent refresh (a login form has no session to renew);
-   * `throwOnValidation` makes a 422 an HttpError instead of a body handed back to the caller
-   * (a form needs to know that its submission was refused).
+   * `throwOnValidation` (on unless a caller turns it off) makes a 422 an HttpError with the gateway's code and diagnostics;
+   * pass `false` only where a 422 is a result the caller reads from the body (a package found invalid, a pricing document refused).
    */
   async request<T>(
     endpoint: string,
     options: RequestInit = {},
     timeoutMs?: number,
     retryOnUnauthorized = true,
-    throwOnValidation = false,
+    throwOnValidation = true,
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
@@ -655,14 +657,12 @@ export class ApiClient {
         this.endSession();
       }
 
-      // Handle validation errors (422) specially
+      // A 422 is an error unless the caller asked for its body as a result.
       if (response.status === 422 && throwOnValidation) {
         throw await this.errorFor(response);
       }
       if (response.status === 422) {
-        const errorData = await response.json();
-        // Return the error data as-is so the caller can handle violations
-        return errorData as T;
+        return await response.json() as T;
       }
 
       if (!response.ok) {
@@ -817,14 +817,6 @@ export class ApiClient {
     return this.request<Record<string, unknown>>(`/v1/schemas/${encodeURIComponent(kind)}`);
   }
 
-  async validateBimPackage(archive: Uint8Array): Promise<BimAnalysisResponse> {
-    return this.request<BimAnalysisResponse>('/v1/validate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/vnd.bim+zip' },
-      body: archive as unknown as BodyInit,
-    });
-  }
-
   /**
    * Validate a package without an account and without running an engine (POST /v1/instances/validate).
    *
@@ -837,7 +829,7 @@ export class ApiClient {
       headers: { 'Content-Type': 'application/vnd.bim+zip' },
       body: archive as unknown as BodyInit,
       signal,
-    });
+    }, undefined, true, false);
     if (isRecord(body) && body.valid === true) {
       return {
         valid: true,
@@ -872,18 +864,6 @@ export class ApiClient {
     };
   }
 
-  async analyzeBimPackage(archive: Uint8Array): Promise<BimAnalysisResponse> {
-    return this.validateBimPackage(archive);
-  }
-
-  async createBimSnapshot(archive: Uint8Array): Promise<{ id: string; irDigest: string }> {
-    return this.request<{ id: string; irDigest: string }>('/v1/instances', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/vnd.bim+zip' },
-      body: archive as unknown as BodyInit,
-    });
-  }
-
   async getBimSnapshotIr(snapshot: string): Promise<Record<string, unknown>> {
     return this.request<Record<string, unknown>>(`/v1/instances/${encodeURIComponent(snapshot)}/ir`);
   }
@@ -894,7 +874,7 @@ export class ApiClient {
     registration: BimResourceRef,
     mode?: string,
     options: Record<string, unknown> = {},
-    idempotencyKey: string = crypto.randomUUID(),
+    idempotencyKey: string = randomUUID(),
   ): Promise<{ id: string; status: string; irDigest: string }> {
     return this.request<{ id: string; status: string; irDigest: string }>('/v1/jobs', {
       method: 'POST',
@@ -903,13 +883,13 @@ export class ApiClient {
     });
   }
 
-  async getV1Job(jobId: string): Promise<V1JobStatus> {
-    return this.request<V1JobStatus>(`/v1/jobs/${jobId}`);
+  async getV1Job(jobId: string, signal?: AbortSignal): Promise<V1JobStatus> {
+    return this.request<V1JobStatus>(`/v1/jobs/${encodeURIComponent(jobId)}`, signal ? { signal } : {});
   }
 
   async createConfiguredBimJob(snapshot: string, configuration: import('./library').ArtifactRef): Promise<{ id: string; status: string; irDigest: string }> {
     return this.request('/v1/jobs', {
-      method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() },
+      method: 'POST', headers: { 'Idempotency-Key': randomUUID() },
       body: JSON.stringify({ snapshot, configuration }),
     });
   }
@@ -927,7 +907,7 @@ export class ApiClient {
     const query = new URLSearchParams({ solution_index: String(solutionIndex), limit: String(limit) });
     if (task) query.set('task', task);
     const result = await this.request<Neighborhood & { detail?: string; title?: string }>(`/v1/jobs/${encodeURIComponent(jobId)}/analysis/neighborhood?${query}`, { signal });
-    // The generic client preserves validation bodies for form consumers; this endpoint needs a real result.
+    // A 422 throws; this guards a 200 whose body is not an evaluation.
     if (!result.coverage || !Array.isArray(result.moves)) throw new Error(typeof result.detail === 'string' ? result.detail : result.title || 'Neighborhood evaluation could not be completed');
     return result;
   }
@@ -1341,30 +1321,6 @@ export class ApiClient {
     return this.request(`/v1/${kind === 'dialect' ? 'dialects' : 'resources'}/${encodeURIComponent(ref.name)}/approve?${query.toString()}`, { method: 'POST' }, undefined, true, true);
   }
 
-  /**
-   * A 422 body, turned into something a caller can throw.
-   *
-   * `request()` returns validation errors instead of throwing, because a v1
-   * instance diagnosis is a normal result worth rendering. For the engine
-   * endpoints it is not: a registration either happened or it did not,
-   * and a caller that cannot tell the two apart shows an empty success page.
-  */
-  private orThrow<T extends object>(body: T): T {
-    const detail = (body as { detail?: unknown }).detail;
-    if (detail && typeof detail === 'object') {
-      const problem = detail as Record<string, unknown>;
-      if (!problem.code && !problem.error) return body;
-      const error = new Error(
-        typeof problem.error === 'string' ? problem.error : 'The request was refused.',
-      ) as Error & { code?: unknown; violations?: unknown; detail?: unknown };
-      error.code = problem.code;
-      error.violations = problem.violations;
-      error.detail = detail;
-      throw error;
-    }
-    return body;
-  }
-
   private requireExactResourceRef<T extends object>(body: T): T & BimResourceRef {
     for (const field of ['namespace', 'name', 'version', 'digest'] as const) {
       if (typeof (body as Record<string, unknown>)[field] !== 'string' || !(body as Record<string, string>)[field]) {
@@ -1381,12 +1337,12 @@ export class ApiClient {
    * A refused document (422 `invalid_engine`) throws an HttpError whose `diagnostics` say where.
    */
   async createEngine(manifest: EngineManifest): Promise<EngineRevision> {
-    return this.requireExactResourceRef(this.orThrow(
+    return this.requireExactResourceRef(
       await this.request<EngineRevision>('/v1/engines', {
         method: 'POST',
         body: JSON.stringify(manifest),
-      }, undefined, true, true)
-    ));
+      })
+    );
   }
 
   /** Read the pinned BIM engine protocol digest advertised by the gateway. */
@@ -1420,12 +1376,12 @@ export class ApiClient {
   async createEngineRegistration(
     manifest: EngineRegistrationManifest,
   ): Promise<EngineRegistrationRevision> {
-    return this.requireExactResourceRef(this.orThrow(
+    return this.requireExactResourceRef(
       await this.request<EngineRegistrationRevision>('/v1/engine-registrations', {
         method: 'POST',
         body: JSON.stringify(manifest),
-      }, undefined, true, true)
-    ));
+      })
+    );
   }
 
   async listEngineRegistrations(): Promise<EngineRegistrationRevision[]> {
@@ -1532,38 +1488,6 @@ export class ApiClient {
   }
 
   // ==========================================
-  // QACO Generator & Legacy Conversion
-  // ==========================================
-
-  async generateBimInstance(params: GenerateInstanceParams): Promise<InstanceGeneratedResponse> {
-    return this.request<InstanceGeneratedResponse>('/v1/generator/instances', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  }
-
-  async generateBimCorpus(params: GenerateCorpusParams): Promise<CorpusGeneratedResponse> {
-    return this.request<CorpusGeneratedResponse>('/v1/generator/corpus', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  }
-
-  async convertLegacyBimProblem(params: ConvertLegacyParams): Promise<InstanceGeneratedResponse> {
-    return this.request<InstanceGeneratedResponse>('/v1/generator/convert-legacy', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  }
-
-  async calibrateEngineSurrogate(params: CalibrateEngineParams): Promise<EngineCalibratedResponse> {
-    return this.request<EngineCalibratedResponse>('/v1/generator/calibrate-engine', {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-  }
-
-  // ==========================================
   // Admin AutoRouter & MAPE-K Monitoring
   // ==========================================
 
@@ -1598,7 +1522,7 @@ export class ApiClient {
     snapshot: string,
     routingOptions?: AutoRoutingOptions,
     options: Record<string, unknown> = {},
-    idempotencyKey: string = crypto.randomUUID(),
+    idempotencyKey: string = randomUUID(),
   ): Promise<{ id: string; status: string; irDigest: string }> {
     const mergedOptions = {
       ...options,

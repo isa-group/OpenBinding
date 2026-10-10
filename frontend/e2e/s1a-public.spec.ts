@@ -439,7 +439,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const dialog = page.getByRole('dialog', { name: 'Accessible BPMN binding workbench' });
       await expect(dialog).toBeVisible();
       await expect(dialog).toContainText('WCAG AA evidence');
-      await expect(dialog.getByRole('button', { name: 'Close contribution' })).toBeFocused();
+      await expect(dialog).toBeFocused();
+      await expect(dialog.getByRole('button', { name: 'Close' })).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`about-${name}-contribution-dialog.png`), animations: 'disabled' });
       await page.keyboard.press('Escape');
       await expect(dialog).toHaveCount(0);

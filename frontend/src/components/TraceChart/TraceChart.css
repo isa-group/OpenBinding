@@ -35,8 +35,8 @@
 }
 
 .trace-mode-button.active {
-  background: var(--color-accent, #7c3aed);
-  color: #fff;
+  background: var(--color-accent);
+  color: var(--tp-on-primary);
 }
 
 .trace-mode-button:disabled {

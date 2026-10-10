@@ -9,11 +9,12 @@ import { Action } from '../../components/ui/Action';
 import { FormField } from '../../components/ui/FormField';
 import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
+import { shortDigest } from '../../utils/digest';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, fallbackMessage } from './accountErrors';
 import { AccountLayout } from './AccountLayout';
 import {
-  ADMIN_ONLY, EXPIRY_PRESETS, PERMISSION_GROUPS, PRESETS, describeDescription, expiryFor, needsEngines, shortRevisionDigest,
+  ADMIN_ONLY, EXPIRY_PRESETS, PERMISSION_GROUPS, PRESETS, describeDescription, expiryFor, needsEngines,
   type ExpiryId,
 } from './keysModel';
 import { SecretDialog } from './SecretDialog';
@@ -323,7 +324,7 @@ export function AccountKeyNew() {
                         onChange={() => { setError(null); setEngineKeys((current) => (current.includes(key) ? current.filter((item) => item !== key) : [...current, key])); }}
                       />
                       <span className="keynew-engine-ref">{engine.namespace}/{engine.name}@{engine.version}</span>
-                      <span className="keynew-engine-digest">{shortRevisionDigest(engine.digest)}</span>
+                      <span className="keynew-engine-digest">{shortDigest(engine.digest)}</span>
                     </label>
                   );
                 })}

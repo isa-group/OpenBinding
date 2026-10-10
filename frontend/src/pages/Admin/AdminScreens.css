@@ -98,7 +98,7 @@
 .adm-meter > span { display: block; height: 100%; transform-origin: left; animation: adm-grow 600ms cubic-bezier(0.4, 0, 0.2, 1) both; }
 .adm-meter > .is-info, .is-info > .adm-meter-fill { background: var(--tp-primary); }
 .adm-meter > .is-success { background: var(--color-success); }
-.adm-meter > .is-warning { background: #d97706; }
+.adm-meter > .is-warning { background: var(--tp-severity-warning); }
 .adm-meter > .is-error { background: var(--color-error); }
 .adm-meter > .is-muted { background: var(--tp-muted); }
 
@@ -285,7 +285,7 @@
 .adm-timeline > li { position: relative; }
 .adm-dot { position: absolute; left: -26px; top: 16px; width: 12px; height: 12px; border: 2px solid var(--tp-canvas); border-radius: var(--tp-radius-full); background: var(--tp-primary); }
 .adm-dot.is-contract { background: var(--tp-primary-deep); }
-.adm-dot.is-maintenance { background: #d97706; }
+.adm-dot.is-maintenance { background: var(--tp-severity-warning); }
 .adm-dot.is-other { background: var(--tp-stone); }
 
 .adm-event {
@@ -324,12 +324,12 @@
 .adm-column small { color: var(--tp-steel); font-size: 0.6875rem; }
 .adm-column-bar { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--tp-primary); }
 .adm-column-bar.is-error { background: var(--color-error); }
-.adm-column-bar.is-warning { background: #d97706; }
+.adm-column-bar.is-warning { background: var(--tp-severity-warning); }
 
 .adm-hours { display: flex; align-items: flex-end; gap: 3px; height: 90px; padding: 4px 0; border-bottom: 1px solid var(--tp-hairline-soft); }
 .adm-hour { display: flex; flex: 1; flex-direction: column-reverse; justify-content: flex-start; height: 100%; min-width: 0; }
 .adm-hour > span { display: block; width: 100%; min-height: 2px; }
-.adm-hour .is-warning, .adm-legend .is-warning { background: #d97706; }
+.adm-hour .is-warning, .adm-legend .is-warning { background: var(--tp-severity-warning); }
 .adm-hour .is-info, .adm-legend .is-info { background: var(--tp-primary); }
 .adm-hour .is-error, .adm-legend .is-error { background: var(--color-error); }
 .adm-hour .is-dark, .adm-legend .is-dark { background: var(--tp-ink); }

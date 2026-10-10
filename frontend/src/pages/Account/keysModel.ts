@@ -1,4 +1,5 @@
 import type { ApiKeyEngineAccess, ApiKeyPermission, ApiKeySummary, CreateApiKeyRequest } from '../../api/auth';
+import { shortDigest } from '../../utils/digest';
 
 /**
  * What an API key can be given. The permission set is closed (`ApiKeyPermission`): every one appears exactly
@@ -135,15 +136,10 @@ export function needsEngines(permissions: Iterable<ApiKeyPermission>): boolean {
   return false;
 }
 
-export function shortRevisionDigest(digest: string): string {
-  const bare = digest.replace(/^sha256-/, '');
-  return `sha256-${bare.slice(0, 4)}…${bare.slice(-4)}`;
-}
-
 export function describeEngineAccess(access: ApiKeyEngineAccess): string {
   if (access.all) return 'All engines, including future ones';
   if (access.engines.length === 0) return 'No engines';
-  return `Only ${access.engines.map((engine) => `${engine.namespace}/${engine.name}@${engine.version} (${shortRevisionDigest(engine.digest)})`).join(', ')}`;
+  return `Only ${access.engines.map((engine) => `${engine.namespace}/${engine.name}@${engine.version} (${shortDigest(engine.digest)})`).join(', ')}`;
 }
 
 type Boundary = NonNullable<CreateApiKeyRequest['boundary']>;

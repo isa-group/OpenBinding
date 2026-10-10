@@ -384,7 +384,8 @@ describe('Generator lab', () => {
       renderLab();
       fireEvent.click(screen.getByRole('tab', { name: 'Calibrate engines' }));
 
-      expect(screen.getByRole('note')).toHaveTextContent('To confirm');
+      expect(screen.getByRole('note')).not.toHaveTextContent('To confirm');
+      expect(screen.getByRole('note')).not.toHaveTextContent('strict check');
       expect(screen.getByRole('note')).toHaveTextContent('Calibrating changes the shared model that predicts how engines behave, for everyone.');
       expect(screen.getByText('Only platform administrators can calibrate.')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Calibrate' })).not.toBeInTheDocument();

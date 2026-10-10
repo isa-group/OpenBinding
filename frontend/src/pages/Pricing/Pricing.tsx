@@ -11,11 +11,13 @@ import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
+import { shortDigest } from '../../utils/digest';
 import { formatDate } from '../../utils/format';
 import { usePricingTokenStatus } from '../../utils/pricingToken';
+import { safeExternalHref } from '../../utils/url';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError } from '../Auth/authErrors';
-import { readCatalog, shortDigest, type Cell, type PlanColumn, type PricingView, type RowGroup } from './pricingModel';
+import { readCatalog, type Cell, type PlanColumn, type PricingView, type RowGroup } from './pricingModel';
 import './Pricing.css';
 
 const PricingDocument = lazy(() => import('./PricingDocument'));
@@ -149,7 +151,6 @@ function Matrix({ view, highlight, plan }: { view: PricingView; highlight: strin
                           <th scope="row">
                             <span className="pricing-row-name">
                               {row.name}
-                              {row.toConfirm && <span className="pricing-confirm" title="What this limit measures isn’t settled yet">To confirm</span>}
                             </span>
                             <span className="pricing-row-desc">{row.description}</span>
                             {row.appliesTo.length > 0 && (
@@ -397,7 +398,7 @@ export function Pricing() {
               </Action>
               <p>
                 The same document drawn by <code>pricing-renderer</code>.
-                {release?.url && <> Published in <a href={release.url} target="_blank" rel="noopener noreferrer">SPHERE</a>; enforced by{' '}
+                {safeExternalHref(release?.url) && <> Published in <a href={safeExternalHref(release?.url)} target="_blank" rel="noopener noreferrer">SPHERE</a>; enforced by{' '}
                   <a href="https://github.com/isa-group/space" target="_blank" rel="noopener noreferrer">SPACE</a>.</>}
               </p>
               <div id="pricing-document-body">

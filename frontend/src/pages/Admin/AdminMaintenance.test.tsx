@@ -1,7 +1,7 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminMaintenance } from './AdminMaintenance';
-import { LUCIA } from './adminFixtures';
+import { MARIA } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({
@@ -186,7 +186,7 @@ describe('admin-maintenance · preview, purge and reconcile', { timeout: 30000 }
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<AdminMaintenance />, { user: LUCIA });
+    renderAdmin(<AdminMaintenance />, { user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(api.adminMaintenancePreview).not.toHaveBeenCalled();
     expect(api.getCurrentPricing).not.toHaveBeenCalled();

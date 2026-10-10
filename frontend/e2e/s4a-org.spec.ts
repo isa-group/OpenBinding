@@ -277,12 +277,12 @@ function watchCriticalErrors(page: Page) {
   return critical;
 }
 
-/** Full-page capture of the current state, after checking that nothing scrolls sideways. */
+/** Check that nothing scrolls sideways and, with E2E_SCREENSHOTS=1, save a full-page picture of the current state for a person to look at. */
 async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.evaluate(() => document.fonts.ready);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow, `${name} should not scroll sideways`).toBeLessThanOrEqual(1);
-  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
+  if (process.env.E2E_SCREENSHOTS) await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
 }
 
 /** The organization settings side navigation: three destinations, the current one marked. */
@@ -621,12 +621,18 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto('/app/research-hub/settings');
       await expect(main.getByText('Needs OWNER. Your role here is ADMIN.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Save name' })).toBeVisible();
+      expect(critical).toEqual([]);
+    });
+
+    test('org-settings /app/:org/settings · deleting', async ({ page }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      const state = await mockApi(page);
+      const main = page.locator('#platform-main');
 
       // Deleting asks for the address and the gateway refuses sealed history.
       await page.goto('/app/isa-demo/settings');
       await main.getByRole('button', { name: 'Delete organization' }).click();
-      // It was renamed above, and the dialog names it as it is now.
-      const dialog = page.getByRole('dialog', { name: 'Delete ISA Research Group?' });
+      const dialog = page.getByRole('dialog', { name: 'Delete ISA Demo Group?' });
       const confirm = dialog.getByRole('button', { name: 'Delete permanently' });
       await expect(confirm).toBeDisabled();
       await dialog.getByLabel('Type isa-demo to confirm').fill('isa-dem');
@@ -642,7 +648,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await confirm.click();
       await deleted;
       await expect(page).toHaveURL(/\/app$/);
-      await expect(main.getByText('ISA Research Group was deleted, together with everything inside it.')).toBeVisible();
+      await expect(main.getByText('ISA Demo Group was deleted, together with everything inside it.')).toBeVisible();
       expect(critical).toEqual([]);
     });
 
@@ -661,7 +667,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByLabel('Role for marco')).toHaveValue('MEMBER');
       await expect(table.getByRole('row', { name: /marco@example\.org/ }).getByText('Apr 12, 2026')).toBeVisible();
       await expect(main.getByText(/Unique members across everything you sponsor:/)).toContainText('3 of 15');
-      await expect(main.getByText('To confirm')).toBeVisible();
+      await expect(main.getByText('To confirm')).toHaveCount(0);
       await capture(page, testInfo, `members-${name}-success`);
 
       // Own and inherited roles, side by side.

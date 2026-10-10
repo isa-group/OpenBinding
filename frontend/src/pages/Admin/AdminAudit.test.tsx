@@ -1,7 +1,7 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminAudit } from './AdminAudit';
-import { AUDIT, IKER, LUCIA } from './adminFixtures';
+import { ALEX, AUDIT, MARIA } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({ adminAudit: vi.fn() }));
@@ -49,7 +49,7 @@ describe('admin-audit · the platform audit log', () => {
     expect(within(change).getByText('RESEARCH · no add-ons')).toBeInTheDocument();
     expect(within(aside).getByText('Institutional agreement')).toBeInTheDocument();
     expect(within(aside).getByText('Agreement 2026-14')).toBeInTheDocument();
-    expect(within(aside).getByRole('link', { name: '00000000…' })).toHaveAttribute('href', `/app/admin/users/${IKER.id}`);
+    expect(within(aside).getByRole('link', { name: '00000000…' })).toHaveAttribute('href', `/app/admin/users/${ALEX.id}`);
     expect(within(aside).getByText('00000000-0000-4000-8000-000000000401')).toBeInTheDocument();
     expect(within(aside).getByText('View source')).toBeInTheDocument();
   });
@@ -108,7 +108,7 @@ describe('admin-audit · the platform audit log', () => {
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<AdminAudit />, { user: LUCIA });
+    renderAdmin(<AdminAudit />, { user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Events, newest first' })).not.toBeInTheDocument();
     expect(api.adminAudit).not.toHaveBeenCalled();

@@ -14,6 +14,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
 import { zipStore } from '../../utils/bimZip';
 import { useResource } from '../../utils/useResource';
+import { randomUUID } from '../../utils/uuid';
 import { classifyAuthError } from '../Account/accountErrors';
 import { loadCases } from '../Project/projectData';
 import { ProjectGate, ProjectSkeleton } from '../Project/parts';
@@ -126,7 +127,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   const send = async () => {
     if (!request || !sendable) return;
     const fingerprint = JSON.stringify(request);
-    const key = attempt.current?.fingerprint === fingerprint ? attempt.current.key : crypto.randomUUID();
+    const key = attempt.current?.fingerprint === fingerprint ? attempt.current.key : randomUUID();
     attempt.current = { fingerprint, key };
     setSending(true);
     setRefusal(null);

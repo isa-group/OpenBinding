@@ -1,19 +1,14 @@
 import type { LimitUsage } from '../api/auth';
+import { formatMonthDay, formatNumber } from '../utils/format';
 import './QuotaBar.css';
 
 /** Render the identifier, unit, allowance and consumption returned by SPACE. */
 function formatAmount(value: number, unit?: string | null): string {
-  return `${value.toLocaleString()}${unit ? ` ${unit}` : ''}`;
+  return `${formatNumber(value)}${unit ? ` ${unit}` : ''}`;
 }
 
-function formatRenewal(renewsAt?: string | null): string | null {
-  if (!renewsAt) return null;
-  const date = new Date(renewsAt);
-  if (Number.isNaN(date.getTime())) return null;
-  // Pinned to the interface's own language rather than the browser's, so the
-  // month abbreviation reads as part of the sentence it sits in.
-  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-}
+// Dates are English and in UTC, like every other date of the interface (utils/format).
+const formatRenewal = formatMonthDay;
 
 interface QuotaBarProps {
   limit: LimitUsage;

@@ -12,6 +12,12 @@ Desde `frontend/` (el servidor de desarrollo de Vite lo arranca Playwright):
 pnpm exec playwright test e2e/qa-gallery.spec.ts
 ```
 
+Los specs `s*.spec.ts` guardan sus capturas de estados (en `test-results/`, fuera del repositorio) solo con
+`E2E_SCREENSHOTS=1`; sin ella siguen comprobando que nada desborda en horizontal, pero no escriben imágenes (las capturas
+completas de cada estado eran lo que más tardaba: sin ellas los grupos de comprobación caben holgadamente en el tiempo).
+La galería de este directorio no depende de esa variable. `e2e/routes-smoke.spec.ts` recorre las 86 rutas en un solo
+worker (≈ 1,5 min).
+
 Solo un viewport: añade `--grep desktop` o `--grep mobile`. Los ficheros se escriben en
 `docs/frontend-qa/screenshots/desktop/<id>.png` y `docs/frontend-qa/screenshots/mobile/<id>.png`. Cada captura es del
 viewport (no `fullPage`) y se hace con el scroll arriba, sin foco y con animaciones desactivadas.
@@ -24,7 +30,9 @@ viewport (no `fullPage`) y se hace con el scroll arriba, sin foco y con animacio
   desbordamiento horizontal, un diálogo/banner superpuesto, una petición sin respuesta en el mock o el texto
   «This screen is being rebuilt».
 - `frontend/e2e/helpers/mockApi.ts`: un único mock compartido de la API (`page.route`). Reutiliza los fixtures de
-  `src/pages/*/fixtures.ts` y de `Admin/` y los pasa por un traductor a inglés y a personas neutras. La sesión es la de un
+  `src/test/fixtures/` (en inglés y con personas neutras: `alex.rivera`, `maria.santos`, `sam.okafor`…; los fixtures
+  que se quedan en `src/pages/` no nombran a nadie) y los de `src/pages/*/` que no tienen personas. `src/hygiene.test.ts`
+  vigila que no vuelvan las personas del prototipo ni texto en español en ellos. La sesión es la de un
   **administrador de plataforma con cuenta institucional** (plan RESEARCH, `institutional_branding`), con la organización
   `isa-demo`, el proyecto `qos-benchmarks`, casos, revisiones, ejecuciones, un estudio con su run y celdas, informes,
   publicaciones, biblioteca, ficheros, colecciones, motores y datos de administración.
@@ -40,9 +48,12 @@ viewport (no `fullPage`) y se hace con el scroll arriba, sin foco y con animacio
 - Fechas e identificadores de los fixtures son fijos. Los milisegundos que mide `/status` con el reloj del navegador se
   sustituyen por «120 ms» antes de capturar.
 - Los enlaces absolutos de publicaciones muestran el origen del servidor de pruebas (`http://127.0.0.1:4177`).
-- La fuente de titulares es `PP Editorial Old`, que solo se declara (no hay fichero): el navegador usa el siguiente
-  tipo de la pila (`'Times New Roman', Georgia, serif`), tal como define `tokens.json`. En Linux sin esas fuentes se ve
-  una serif de sistema; en otros equipos los titulares pueden variar ligeramente de forma.
+- La fuente de titulares es `PP Editorial Old`, que solo se declara (no hay ficheros ni licencia todavía): el navegador
+  usa el siguiente tipo de la pila, **Georgia** (`'PP Editorial Old', Georgia, serif`; decisión de la persona responsable
+  hasta tener archivos legítimos). `Times New Roman` ya no forma parte de la pila, aunque `tokens.json` (referencia
+  importada de `docs/design-handoff`, que no se toca) todavía la nombre. En Linux sin Georgia se ve una serif de sistema
+  (la captura lo refleja); en equipos con Georgia los titulares salen en Georgia. `src/hygiene.test.ts` falla si
+  `Times New Roman` aparece antes de Georgia en `--font-display`.
 
 ## Pantallas y capturas
 

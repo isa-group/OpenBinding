@@ -1,7 +1,7 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingControlRoomPage } from './PricingControlRoom';
-import { LUCIA } from '../Admin/adminFixtures';
+import { MARIA } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from '../Admin/adminTestUtils';
 import { PRICING_ROOM } from '../Admin/pricingFixtures';
 import { config } from '../../config';
@@ -166,7 +166,7 @@ describe('admin-pricing · the pricing control room', { timeout: 30000 }, () => 
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<PricingControlRoomPage />, { user: LUCIA });
+    renderAdmin(<PricingControlRoomPage />, { user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Open SPACE Console/i })).not.toBeInTheDocument();
     expect(platform.pricingControlRoom).not.toHaveBeenCalled();

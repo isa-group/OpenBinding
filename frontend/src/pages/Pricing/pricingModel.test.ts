@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { retrievePricingFromYaml } from 'pricing4ts';
 import source from '../../../../space/pricing/openbinding.yml?raw';
 import { catalogFixture } from './pricingFixture';
-import { readCatalog, shortDigest, withInfiniteLimits } from './pricingModel';
+import { readCatalog, withInfiniteLimits } from './pricingModel';
 
 const view = readCatalog(catalogFixture)!;
 const row = (id: string) => view.groups.flatMap((group) => group.rows).find((item) => item.id === id)!;
@@ -84,11 +84,9 @@ describe('readCatalog', () => {
     expect(row('storageBytes').cells[2]).toEqual({ kind: 'value', text: '5 GiB', exact: '5,368,709,120 bytes' });
   });
 
-  it('says which features a limit applies to, and flags capacity units as unsettled', () => {
+  it('says which features a limit applies to', () => {
     expect(row('concurrentJobs').appliesTo).toEqual(['Solve', 'Federated engines', 'Studies']);
     expect(row('maxPayloadBytes').appliesTo).toEqual(['Authoring', 'Solve']);
-    expect(row('capacityUnits').toConfirm).toBe(true);
-    expect(row('taskStarts').toConfirm).toBe(false);
   });
 
   it('derives what must have room before something starts from the expressions of the document', () => {
@@ -132,11 +130,6 @@ describe('readCatalog', () => {
 });
 
 describe('helpers', () => {
-  it('shortens a digest for a chip', () => {
-    expect(shortDigest(`sha256-${'a1b2c3d4'.repeat(8)}`)).toBe('a1b2…c3d4');
-    expect(shortDigest('abc')).toBe('abc');
-  });
-
   it('gives the renderer the number an unlimited allowance stands for', () => {
     const pricing = withInfiniteLimits({ plans: { PRO: { usageLimits: { taskStarts: { value: null } } } }, custom: null }) as {
       plans: { PRO: { usageLimits: { taskStarts: { value: number } } } };

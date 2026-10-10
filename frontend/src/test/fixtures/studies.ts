@@ -8,14 +8,14 @@ export const digestOf = (char: string): string => `sha256-${char.repeat(64)}`;
 export const RANDOM_SEARCH = { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: digestOf('b'), mode: 'sampling' };
 export const EVOLUTIONARY = { namespace: 'bim.builtin', name: 'evolutionary', version: '1.0.0', digest: digestOf('c'), mode: 'genetic' };
 
-export const FLUJO: BindingCase = {
-  id: 'case-flujo-checkout', project_id: 'project-qos-benchmarks', slug: 'flujo-checkout', name: 'Flujo de checkout', description: 'Pagos con autenticación, stock y envío en paralelo.',
-  created_by_id: 'user-lucia', created_at: '2026-04-02T00:00:00Z',
+export const CHECKOUT: BindingCase = {
+  id: 'case-checkout-flow', project_id: 'project-qos-benchmarks', slug: 'checkout-flow', name: 'Checkout flow', description: 'Payments with authentication, stock and shipping in parallel.',
+  created_by_id: 'user-admin', created_at: '2026-04-02T00:00:00Z',
 };
 
 export function revisionFixture(n: number, over: Partial<CaseRevision> = {}): CaseRevision {
   return {
-    id: `rev-checkout-${n}`, binding_case_id: FLUJO.id, revision: n, digest: digestOf(String(n)), document: {}, source_snapshot_id: `snapshot-${n}`,
+    id: `rev-checkout-${n}`, binding_case_id: CHECKOUT.id, revision: n, digest: digestOf(String(n)), document: {}, source_snapshot_id: `snapshot-${n}`,
     created_at: n === 1 ? '2026-08-01T10:00:00Z' : '2026-08-20T10:05:00Z', ...over,
   };
 }
@@ -34,7 +34,7 @@ export function studyFixture(over: Partial<Study> = {}): Study {
     definition_artifact_id: 'artifact-engines-vs-seeds',
     project_id: 'project-qos-benchmarks',
     slug: 'engines-vs-seeds',
-    name: 'Engines × semillas',
+    name: 'Engines × seeds',
     description: '',
     definition: {
       case_revision_ids: [REVISION_1.id, REVISION_2.id],
@@ -43,7 +43,7 @@ export function studyFixture(over: Partial<Study> = {}): Study {
       seeds: [1, 2],
     },
     state: 'ready',
-    created_by_id: 'user-lucia',
+    created_by_id: 'user-admin',
     created_at: '2026-09-20T08:00:00Z',
     ...over,
   };
@@ -117,11 +117,11 @@ export function analyticsFixture(over: Partial<Analytics> = {}): Analytics {
       'bim.builtin/evolutionary@1.0.0': { samples: 2, distinct: 2, repeatability: 0.5 },
     },
     binding_space: {
-      cardinality: '125892', log10: 5.1, tasks: 6, breakdown: { autenticar: 4, inventario: 5, 'calcular-envio': 3, 'pago-tarjeta': 8, 'pago-transferencia': 4, notificar: 1 },
-      case_slug: 'flujo-checkout', case_name: 'Flujo de checkout', revision: 2,
+      cardinality: '125892', log10: 5.1, tasks: 6, breakdown: { authenticate: 4, inventory: 5, shipping: 3, 'pay-card': 8, 'pay-transfer': 4, notify: 1 },
+      case_slug: 'checkout-flow', case_name: 'Checkout flow', revision: 2,
       cases: [
-        { id: 'case-flujo-checkout', slug: 'flujo-checkout', name: 'Flujo de checkout', revision: 1, cardinality: '15849', log10: 4.2, tasks: 6, breakdown: { autenticar: 4 } },
-        { id: 'case-flujo-checkout', slug: 'flujo-checkout', name: 'Flujo de checkout', revision: 2, cardinality: '125892', log10: 5.1, tasks: 6, breakdown: { autenticar: 4 } },
+        { id: 'case-checkout-flow', slug: 'checkout-flow', name: 'Checkout flow', revision: 1, cardinality: '15849', log10: 4.2, tasks: 6, breakdown: { authenticate: 4 } },
+        { id: 'case-checkout-flow', slug: 'checkout-flow', name: 'Checkout flow', revision: 2, cardinality: '125892', log10: 5.1, tasks: 6, breakdown: { authenticate: 4 } },
       ],
     },
     ...over,

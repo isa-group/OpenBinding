@@ -53,7 +53,7 @@
   box-sizing: border-box;
   border-radius: var(--radius-full);
   background: var(--color-accent);
-  color: #ffffff;
+  color: var(--tp-on-primary);
   font-size: 0.625rem;
   font-weight: 500;
   line-height: 1;

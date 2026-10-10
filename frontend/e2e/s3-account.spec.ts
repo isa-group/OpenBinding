@@ -254,12 +254,12 @@ function watchCriticalErrors(page: Page) {
   return critical;
 }
 
-/** Full-page capture of the current state, after checking that nothing scrolls sideways. */
+/** Check that nothing scrolls sideways and, with E2E_SCREENSHOTS=1, save a full-page picture of the current state for a person to look at. */
 async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.evaluate(() => document.fonts.ready);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow, `${name} should not scroll sideways`).toBeLessThanOrEqual(1);
-  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
+  if (process.env.E2E_SCREENSHOTS) await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
 }
 
 /** The account side navigation: five destinations, the current one marked. */

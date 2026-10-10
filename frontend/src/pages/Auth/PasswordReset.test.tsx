@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError, apiClient } from '../../api/client';
 import { passwordStrength } from './passwordStrength';
@@ -13,6 +13,11 @@ function problem(status: number, code?: string, message = 'refused') {
   return error;
 }
 
+function Where() {
+  const location = useLocation();
+  return <span data-testid="where">{location.pathname + location.search}</span>;
+}
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -21,6 +26,7 @@ function renderAt(path: string) {
         <Route path="/password-reset/complete" element={<PasswordResetCompletePage />} />
         <Route path="/login" element={<h1>Log in page</h1>} />
       </Routes>
+      <Where />
     </MemoryRouter>,
   );
 }
@@ -149,6 +155,23 @@ describe('PasswordResetCompletePage', () => {
     expect(screen.getByText('Reset link · used')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Continue to log in' })).toHaveAttribute('href', '/login');
     expect(screen.queryByLabelText('New password')).not.toBeInTheDocument();
+  });
+
+  it('takes the token out of the address as soon as the page has read it', async () => {
+    strictRequest.mockResolvedValue(undefined);
+    renderAt('/password-reset/complete?token=obr_abc_def&from=email');
+
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/password-reset/complete?from=email'));
+    expect(screen.getByTestId('where')).not.toHaveTextContent('obr_abc_def');
+    expect(screen.getByRole('heading', { level: 1, name: 'Set a new password' })).toBeInTheDocument();
+
+    fill('a-long-enough-password');
+    expect(await screen.findByRole('heading', { name: 'Password changed' })).toBeInTheDocument();
+    expect(strictRequest).toHaveBeenCalledWith(
+      '/v1/auth/password-reset/complete',
+      expect.objectContaining({ body: JSON.stringify({ token: 'obr_abc_def', new_password: 'a-long-enough-password' }) }),
+      undefined, false, true,
+    );
   });
 
   it('checks length and confirmation before spending the token', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { RUN_ID, runFixture, studyFixture } from '../Studies/fixtures';
-import { DRAFT, FROZEN, LEGACY, publicationOf } from './fixtures';
+import { DRAFT, FROZEN, LEGACY, publicationOf } from '../../test/fixtures/reports';
+import { RUN_ID, runFixture, studyFixture } from '../../test/fixtures/studies';
 import {
   citationBibtex, citationFields, citationText, describeRun, evidenceOf, livePublication, publicationsOf, readDocument, sameDocument, slugOf, withBlocks,
 } from './reportsModel';
@@ -58,7 +58,7 @@ describe('reading a report’s document as blocks', () => {
 describe('the evidence a report stands on', () => {
   it('names the pinned run in the words of its study and links the screens that show it', () => {
     const run = describeRun(RUN_ID, studies, ROOT);
-    expect(run.label).toBe('Engines × semillas · run #1');
+    expect(run.label).toBe('Engines × seeds · run #1');
     expect(run.href).toBe(`${ROOT}/studies/engines-vs-seeds/runs/${RUN_ID}`);
     expect(run.analytics).toBe(`${ROOT}/studies/engines-vs-seeds/runs/${RUN_ID}/analytics`);
     expect(describeRun('ffffffff-0000', studies, ROOT)).toEqual({ label: 'Study run ffffffff…' });
@@ -67,7 +67,7 @@ describe('the evidence a report stands on', () => {
   it('lists the run once, then datasets and software from the provenance', () => {
     const read = readDocument(FROZEN.document);
     const evidence = evidenceOf(FROZEN, FROZEN.document, studies, ROOT, read.blocks);
-    expect(evidence.map((item) => item.label)).toEqual(['Engines × semillas · run #1', 'checkout-flow@2', 'bim-reference-evaluator 1.0.0']);
+    expect(evidence.map((item) => item.label)).toEqual(['Engines × seeds · run #1', 'checkout-flow@2', 'bim-reference-evaluator 1.0.0']);
     expect(evidence[0].fingerprint).toBe('matrix sha256-dddd…dddd');
     expect(evidence[1].fingerprint).toBe('sha256-aaaa…aaaa');
   });

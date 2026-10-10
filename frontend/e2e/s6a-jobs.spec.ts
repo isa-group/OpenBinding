@@ -1,8 +1,8 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import type { BindingCase, CaseRevision, Job } from '../src/api/platform';
-import { ENGINE, INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT, detailOf, jobOf, provenanceOf } from '../src/pages/Jobs/fixtures';
+import { ENGINE, INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT, detailOf, jobOf, provenanceOf } from '../src/test/fixtures/jobs';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
-import { digestOf, usageOf } from '../src/pages/Resources/fixtures';
+import { digestOf, usageOf } from '../src/test/fixtures/resources';
 
 // S6a · execution: job-launch, job-list, job-detail and job-history.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
@@ -267,7 +267,10 @@ function watchCriticalErrors(page: Page) {
   return critical;
 }
 
-/** A capture of the current state: the whole page, its first `height` pixels, or one area; then a check that nothing scrolls sideways. */
+/**
+ * A capture of the current state: with E2E_SCREENSHOTS=1 the whole page, its first `height` pixels, or one area, saved for a person to
+ * look at; always a check that nothing scrolls sideways.
+ */
 async function capture(page: Page, testInfo: TestInfo, name: string, options: { height?: number; area?: Locator } = {}) {
   await page.evaluate(async () => {
     await document.fonts.ready;
@@ -276,7 +279,9 @@ async function capture(page: Page, testInfo: TestInfo, name: string, options: { 
   });
   const path = testInfo.outputPath(`${name}.png`);
   const width = page.viewportSize()?.width ?? 0;
-  if (options.area) {
+  if (!process.env.E2E_SCREENSHOTS) {
+    // No picture: the page is still measured below.
+  } else if (options.area) {
     await options.area.screenshot({ path, animations: 'disabled' });
   } else if (options.height) {
     const total = await page.evaluate(() => document.documentElement.scrollHeight);

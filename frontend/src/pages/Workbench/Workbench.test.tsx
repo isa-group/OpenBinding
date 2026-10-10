@@ -579,6 +579,21 @@ describe('Workbench', () => {
       expect(client.getV1Job).toHaveBeenCalledTimes(2);
     });
 
+    it('stops asking for the job when the screen closes', async () => {
+      client.getV1Job.mockResolvedValue({ id: 'job-1', status: 'running' });
+      const view = await openWorkbench();
+      validate();
+      await screen.findByRole('heading', { name: 'Valid package' });
+      fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
+      expect(await screen.findByText('Running: the engine is searching…')).toBeInTheDocument();
+
+      view.unmount();
+      const asked = client.getV1Job.mock.calls.length;
+      expect(client.getV1Job.mock.calls[0][1]).toBeInstanceOf(AbortSignal);
+      await new Promise((resolve) => setTimeout(resolve, 1400));
+      expect(client.getV1Job).toHaveBeenCalledTimes(asked);
+    });
+
     it('says why a run did not finish', async () => {
       client.getV1Job.mockResolvedValue({ id: 'job-1', status: 'failed', error: 'The deployment didn’t answer within the budget.' });
       await validated();

@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { platformApi } from '../../api/platform';
 import type { Organization, Project } from '../../api/platform';
 import { SiteFooter } from '../SiteFooter/SiteFooter';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { AppHeader } from './AppHeader';
 import { RouteFallback } from './RouteFallback';
 import { workspaceSlugs } from './workspacePath';
@@ -69,9 +70,11 @@ export function PlatformShell() {
       <AppHeader organizations={organizations} projects={orgProjects} organization={organization} project={project} />
       <main id="platform-main" className="platform-main" tabIndex={-1}>
         {error && <div className="platform-error" role="alert">{error}</div>}
-        <Suspense fallback={<RouteFallback />}>
-          <Outlet context={context} key={location.pathname} />
-        </Suspense>
+        <ErrorBoundary resetKey={location.pathname}>
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet context={context} key={location.pathname} />
+          </Suspense>
+        </ErrorBoundary>
       </main>
       <SiteFooter />
     </div>

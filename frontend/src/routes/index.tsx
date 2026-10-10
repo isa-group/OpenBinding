@@ -3,15 +3,12 @@ import { AppLayout } from '../layouts/AppLayout';
 import { PublicLayout } from '../layouts/PublicLayout';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { NotFoundScreen } from './NotFoundScreen';
-import { ParamAliases } from './ParamAliases';
 import { routeDefinitions } from './registry';
 import { SessionLayout } from './SessionLayout';
 import type { RouteDefinition } from './types';
 
 function screenElement(definition: RouteDefinition) {
-  let element = definition.paramAliases
-    ? <ParamAliases aliases={definition.paramAliases}>{definition.element}</ParamAliases>
-    : definition.element;
+  let element = definition.element;
   if (definition.requireAdmin) {
     element = <ProtectedRoute requireAdmin>{element}</ProtectedRoute>;
   } else if (definition.requireAuth && definition.layout === 'public') {

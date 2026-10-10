@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { OWNER, REPORT_FAILED, REPORT_VERIFIED, digestOf, usageOf } from './fixtures';
+import { OWNER, REPORT_FAILED, REPORT_VERIFIED, digestOf, usageOf } from '../../test/fixtures/engines';
 import {
   allowanceOf, describeCheck, describeFailure, exactReference, newVersionHref, probeFromFailure, publicationStep, readDeployment, readProbe,
   refFromAddress, registrationHref,

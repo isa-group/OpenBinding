@@ -8,7 +8,7 @@ import { AuthContext } from '../../contexts/auth';
 import { computeCanonicalDigest, computeFileSha256 } from '../../utils/canonicalDigest';
 import { lucia, org, project } from '../Organization/testKit';
 import { ensureSubtleCrypto } from '../Project/testKit';
-import { EDITION } from './fixtures';
+import { EDITION } from '../../test/fixtures/reports';
 import { Verifier } from './Verifier';
 
 const platform = vi.hoisted(() => ({ verifierCheck: vi.fn(), verifierCheckFile: vi.fn() }));

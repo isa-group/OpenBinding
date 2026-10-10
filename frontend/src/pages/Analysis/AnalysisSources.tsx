@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CircleDashed } from 'lucide-react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { analysisApi, type ArchiveSource } from '../../analysis/archive';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
@@ -125,7 +125,11 @@ function Groups({ grouped, chosen, toggle }: { grouped: GroupedSources; chosen: 
   );
 }
 
-function SourcesBody() {
+/**
+ * The sources of an analysis (`analysis-sources`, `/app/analysis`): the finished runs of the account, grouped by the model and checker they
+ * share, since only results of one model can be ranked together. `?job=` (repeatable) and `?study=&run=&cell=` preselect.
+ */
+export function AnalysisSources() {
   const [params] = useSearchParams();
   const target = targetOf(params);
   const study = useStudyEvidence(target.study);
@@ -201,15 +205,4 @@ function SourcesBody() {
       )}
     </AnalysisFrame>
   );
-}
-
-/**
- * The sources of an analysis (`analysis-sources`, `/app/analysis`): the finished runs of the account, grouped by the model and checker they
- * share, since only results of one model can be ranked together. `?job=` (repeatable) and `?study=&run=&cell=` preselect.
- * An old address that reopened a saved decision (`?report=`) goes to the decision space, which is what reads it.
- */
-export function AnalysisSources() {
-  const [params] = useSearchParams();
-  if (params.has('report')) return <Navigate replace to={`${WORKSPACE}?${params.toString()}`} />;
-  return <SourcesBody />;
 }

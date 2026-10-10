@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Check, TriangleAlert } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { Action } from '../../components/ui/Action';
@@ -13,22 +13,8 @@ import { classifyAuthError } from './accountErrors';
 import { AccountLayout, PermissionNotice } from './AccountLayout';
 import { DeleteAccountDialog, EmailForm, PasswordForm } from './ProfileForms';
 
-/** The tabs this screen used to have now live at their own addresses; old bookmarks still land somewhere sensible. */
-const MOVED_TABS: Record<string, string> = {
-  services: '/app/account/identities',
-  keys: '/app/account/keys',
-  history: '/app/jobs',
-};
-
 /** Profile & security (`acct-profile`, `/app/account`). */
 export function Account() {
-  const [params] = useSearchParams();
-  const tab = params.get('tab') ?? '';
-  if (Object.hasOwn(MOVED_TABS, tab)) return <Navigate to={MOVED_TABS[tab]} replace />;
-  return <Profile />;
-}
-
-function Profile() {
   const { user, refresh, signOut } = useAuth();
   const navigate = useNavigate();
   const institutional = useInstitutionalBranding();

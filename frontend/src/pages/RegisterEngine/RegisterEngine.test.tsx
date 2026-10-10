@@ -6,7 +6,7 @@ import { HttpError } from '../../api/client';
 import { AuthContext } from '../../contexts/auth';
 import {
   EDGE_SOLVER, ENGINE_DOCUMENT, OPENAPI_DOCUMENT, PROTOCOL_DIGEST, QOS_PROFILE, REGISTRATION_MANIFEST, REPORT_FAILED, digestOf, reportOf, usageOf,
-} from '../Engines/fixtures';
+} from '../../test/fixtures/engines';
 import { RegisterEngine } from './RegisterEngine';
 
 const api = vi.hoisted(() => ({

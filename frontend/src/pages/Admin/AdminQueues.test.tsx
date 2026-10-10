@@ -1,7 +1,7 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminQueues } from './AdminQueues';
-import { EMPTY_QUEUES, LUCIA, MARCO, queuesAt } from './adminFixtures';
+import { EMPTY_QUEUES, MARIA, SAM, queuesAt } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({ adminQueues: vi.fn() }));
@@ -39,11 +39,11 @@ describe('admin-queues · jobs waiting and running', () => {
     renderAdmin(<AdminQueues />);
     const jobs = await screen.findByRole('list', { name: 'Jobs in flight, oldest first' });
     const running = within(jobs).getByRole('listitem', { name: 'minizinc running' });
-    expect(within(running).getByRole('link', { name: /account 00000000…/ })).toHaveAttribute('href', `/app/admin/users/${LUCIA.id}`);
+    expect(within(running).getByRole('link', { name: /account 00000000…/ })).toHaveAttribute('href', `/app/admin/users/${MARIA.id}`);
     expect(within(running).getByText(/budget 5 min/)).toBeInTheDocument();
     expect(within(running).getByText('Age about 1 day · past its budget')).toBeInTheDocument();
     const queued = within(jobs).getByRole('listitem', { name: 'random-search queued' });
-    expect(within(queued).getByRole('link', { name: /account 00000000…/ })).toHaveAttribute('href', `/app/admin/users/${MARCO.id}`);
+    expect(within(queued).getByRole('link', { name: /account 00000000…/ })).toHaveAttribute('href', `/app/admin/users/${SAM.id}`);
     expect(within(queued).getByText(/^Age \d+ s$/)).toBeInTheDocument();
     expect(within(queued).queryByText(/past its budget/)).not.toBeInTheDocument();
   });
@@ -127,7 +127,7 @@ describe('admin-queues · jobs waiting and running', () => {
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<AdminQueues />, { user: LUCIA });
+    renderAdmin(<AdminQueues />, { user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(api.adminQueues).not.toHaveBeenCalled();
   });

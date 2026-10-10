@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { KeyRound, Mail } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { Notice } from '../../components/ui/Notice';
 import { classifyAuthError, fieldErrorsFrom } from './authErrors';
@@ -112,7 +112,9 @@ const TOKEN_CHIP: Record<TokenState, { label: string; tone: 'ok' | 'bad' | 'warn
 /** Spend the one-time token from the reset link and set the new password. */
 export function PasswordResetCompletePage() {
   const location = useLocation();
-  const token = new URLSearchParams(location.search).get('token') ?? '';
+  const navigate = useNavigate();
+  // The token is read once and kept here: the link's address stops carrying it as soon as the page has it.
+  const [token] = useState(() => new URLSearchParams(location.search).get('token') ?? '');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [touched, setTouched] = useState(false);
@@ -123,6 +125,16 @@ export function PasswordResetCompletePage() {
   const [failure, setFailure] = useState<'unavailable' | 'unknown' | null>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const confirmationRef = useRef<HTMLInputElement>(null);
+
+  // A one-time secret must not stay in the address bar, the history or a later referrer.
+  useEffect(() => {
+    if (new URLSearchParams(location.search).has('token')) {
+      const rest = new URLSearchParams(location.search);
+      rest.delete('token');
+      const search = rest.toString();
+      navigate({ pathname: location.pathname, search: search ? `?${search}` : '', hash: location.hash }, { replace: true });
+    }
+  }, [location.pathname, location.search, location.hash, navigate]);
 
   const state: TokenState = done ? 'used' : !token ? 'missing' : refused ? 'refused' : 'ready';
   const chip = TOKEN_CHIP[state];
@@ -170,7 +182,7 @@ export function PasswordResetCompletePage() {
         setRefused(true);
       } else if (result.kind === 'invalid') {
         setServerError(fieldErrorsFrom(caught).new_password
-          ?? (result.code === 'weak_password' && result.message ? result.message : 'This password is too weak. Use at least 10 characters.'));
+          ?? (result.code === 'weak_password' && result.message ? result.message : `This password is too weak. Use at least ${MIN_PASSWORD_LENGTH} characters.`));
       } else {
         setFailure(result.kind === 'unavailable' || result.kind === 'network' ? 'unavailable' : 'unknown');
       }

@@ -10,20 +10,18 @@ const DOMAIN_FILES = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8'];
 interface Screen {
   id: string;
   path: string;
-  status: 'live' | 'pending';
   requireAdmin: boolean;
   domain: string;
 }
 
-/** Reads `live('id', '/path', …)` / `pending('id', '/path', …)` lines from the domain files. */
+/** Reads `live('id', '/path', …)` lines from the domain files. */
 function readRegistry(): Screen[] {
   return DOMAIN_FILES.flatMap((domain) => {
     const source = readFileSync(new URL(`../src/routes/${domain}.tsx`, import.meta.url), 'utf8');
-    return [...source.matchAll(/^\s*(live|pending)\('([a-z0-9-]+)',\s*'(\/[^']*)'(.*)$/gm)].map((match) => ({
-      id: match[2],
-      path: match[3],
-      status: match[1] as Screen['status'],
-      requireAdmin: match[4].includes('requireAdmin: true'),
+    return [...source.matchAll(/^\s*live\('([a-z0-9-]+)',\s*'(\/[^']*)'(.*)$/gm)].map((match) => ({
+      id: match[1],
+      path: match[2],
+      requireAdmin: match[3].includes('requireAdmin: true'),
       domain: domain.toUpperCase(),
     }));
   });
@@ -80,7 +78,8 @@ function watchCriticalErrors(page: Page) {
     if (message.type() !== 'error') return;
     const text = message.text();
     if (/Failed to load resource|net::ERR_|not mocked/i.test(text)) return;
-    if (/The above error occurred|Minified React error|Maximum update depth|Uncaught/i.test(text)) critical.push(`console: ${text}`);
+    // What the error boundary reports (“A screen failed to render”) is critical too, with the error it caught.
+    if (/The above error occurred|Minified React error|Maximum update depth|Uncaught|A screen failed to render/i.test(text)) critical.push(`console: ${text.slice(0, 400)}`);
   });
   return critical;
 }
@@ -93,6 +92,10 @@ test.describe('route registry', () => {
     expect(screens.filter((screen) => screen.requireAdmin).every((screen) => screen.id.startsWith('admin-'))).toBe(true);
   });
 });
+
+// One worker: every page is light (the API is a mock), and eight browsers asking one development server for the same cold
+// modules at once is slower and flakier than one after another (87 pages take about a minute and a half in turn).
+test.describe.configure({ mode: 'serial' });
 
 for (const screen of screens) {
   test(`${screen.domain} ${screen.id} ${screen.path} loads`, async ({ page }) => {
@@ -107,14 +110,11 @@ for (const screen of screens) {
     await expect(page.locator(underApp ? 'header.app-header' : 'header.site-header')).toBeVisible({ timeout: 30_000 });
     // A detail page whose entity cannot be loaded (the mocked API answers 404) reports it instead of showing a heading.
     const heading = page.locator('main').getByRole('heading').or(page.getByText('HTTP 404: not mocked')).first();
-    await expect(heading, `${screen.path} should show a heading, the pending placeholder or the API error`).toBeVisible({ timeout: 30_000 });
+    await expect(heading, `${screen.path} should show a heading or the API error`).toBeVisible({ timeout: 30_000 });
 
-    if (screen.status === 'pending') {
-      await expect(page.getByRole('heading', { level: 1, name: 'This screen is being rebuilt' })).toBeVisible();
-      await expect(page.locator(`[data-screen-id="${screen.id}"]`)).toContainText(screen.path);
-    } else {
-      await expect(page.getByText('This screen is being rebuilt')).toHaveCount(0);
-    }
+    // No screen is a placeholder any more, and none may have fallen into the error boundary (the message says what it caught).
+    await expect(page.getByText('This screen is being rebuilt')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Something went wrong' }), `${screen.path} fell into the error boundary: ${critical.join(' || ')}`).toHaveCount(0);
 
     // A signed-in session is never bounced to the sign-in page, and nothing blew up.
     if (underApp) expect(new URL(page.url()).pathname).not.toBe('/login');

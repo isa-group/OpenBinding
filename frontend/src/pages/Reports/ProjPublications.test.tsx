@@ -2,7 +2,7 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { EDITION, FROZEN, publicationOf } from './fixtures';
+import { EDITION, FROZEN, publicationOf } from '../../test/fixtures/reports';
 import { ProjPublications } from './ProjPublications';
 
 const platform = vi.hoisted(() => ({ project: vi.fn(), publicProjects: vi.fn(), reports: vi.fn(), publications: vi.fn(), deletePublication: vi.fn() }));
@@ -36,19 +36,19 @@ describe('Publications of a project', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Publications' })).toBeInTheDocument();
     expect(screen.getByText(/Report editions made public from QoS Benchmarks\. Withdrawing hides one from listings but keeps every link and fingerprint working\./)).toBeInTheDocument();
-    expect(await screen.findByRole('heading', { level: 2, name: 'Comparativa de engines en checkout (sintética)' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeInTheDocument();
     expect(screen.getByText('Published')).toBeInTheDocument();
-    expect(screen.getByText('checkout-comparativa · published Sep 25, 2026 · sha256-eeee…eeee')).toBeInTheDocument();
-    expect(screen.getByText('Lucía Vega (2026). Comparativa de engines en checkout (sintética). ISA Demo Group / QoS Benchmarks.')).toBeInTheDocument();
+    expect(screen.getByText('checkout-comparison · published Sep 25, 2026 · sha256-eeee…eeee')).toBeInTheDocument();
+    expect(screen.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`/resolve/report/${EDITION}$`))).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open public verification' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
-    expect(screen.getByRole('link', { name: 'Open the report' })).toHaveAttribute('href', `${ROOT}/reports/engines-vs-seeds-informe`);
+    expect(screen.getByRole('link', { name: 'Open the report' })).toHaveAttribute('href', `${ROOT}/reports/engine-comparison`);
     const tabs = screen.getByRole('navigation', { name: 'Project sections' });
     expect(within(tabs).getByRole('link', { name: 'Reports' })).toHaveAttribute('aria-current', 'page');
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy for reference manager' }));
     expect(await screen.findByRole('button', { name: 'Copied for reference manager' })).toBeInTheDocument();
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringMatching(/^@misc\{lucavega2026checkoutcomparativa,/));
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringMatching(/^@misc\{alexrivera2026checkoutcomparison,/));
   });
 
   it('withdraws a publication after confirming, and then marks it as still reachable by link', async () => {
@@ -57,12 +57,12 @@ describe('Publications of a project', () => {
     renderPublications();
     fireEvent.click(await screen.findByRole('button', { name: 'Withdraw' }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Withdraw checkout-comparativa?' });
+    const dialog = await screen.findByRole('dialog', { name: 'Withdraw checkout-comparison?' });
     expect(within(dialog).getByText(/Its link, citation and fingerprint keep working/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw' }));
 
     expect(await screen.findByText('Withdrawn. It’s no longer listed in Explore, but its link, citation and fingerprint still work.')).toBeInTheDocument();
-    expect(platform.deletePublication).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'checkout-comparativa');
+    expect(platform.deletePublication).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'checkout-comparison');
     expect(await screen.findByText('Withdrawn · still reachable by link')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Withdraw' })).not.toBeInTheDocument();
     // Its link and verification keep working.
@@ -74,7 +74,7 @@ describe('Publications of a project', () => {
     renderPublications();
     fireEvent.click(await screen.findByRole('button', { name: 'Withdraw' }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Withdraw checkout-comparativa?' });
+    const dialog = await screen.findByRole('dialog', { name: 'Withdraw checkout-comparison?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw' }));
 
     expect(await within(dialog).findByText('Your role doesn’t reach this (403 · forbidden)')).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('Publications of a project', () => {
     platform.publications.mockResolvedValue([publicationOf(FROZEN, { version_id: 'an-earlier-edition' })]);
     renderPublications();
 
-    expect(await screen.findByText('checkout-comparativa · published Sep 25, 2026')).toBeInTheDocument();
+    expect(await screen.findByText('checkout-comparison · published Sep 25, 2026')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Open public verification' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the report' })).toBeInTheDocument();
   });
@@ -127,6 +127,6 @@ describe('Publications of a project', () => {
     renderPublications();
     const message = await screen.findByText(/Publications couldn’t be loaded \(503 · unavailable\)/);
     fireEvent.click(within(message.closest('.ui-notice') as HTMLElement).getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('heading', { level: 2, name: 'Comparativa de engines en checkout (sintética)' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeInTheDocument();
   });
 });

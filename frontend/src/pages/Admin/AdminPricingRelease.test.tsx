@@ -1,7 +1,7 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminPricingRelease } from './AdminPricingRelease';
-import { IKER, LUCIA } from './adminFixtures';
+import { ALEX, MARIA } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 import { DRAFT_RELEASE, DRAINING_RELEASE, LIVE_RELEASE, PRICING_ROOM, previewOf } from './pricingFixtures';
 
@@ -32,10 +32,10 @@ configure({ asyncUtilTimeout: 5000 });
 
 const AUDIT = {
   events: [
-    { id: 'e1', organizationId: null, actorId: IKER.id, action: 'pricing.live.activated', targetType: 'PricingRelease', targetId: null, detail: { version: '0.1.0' }, createdAt: '2026-09-02T09:00:00Z' },
-    { id: 'e2', organizationId: null, actorId: IKER.id, action: 'pricing.draft.created', targetType: 'PricingRelease', targetId: '0.2.0-draft.1', detail: {}, createdAt: '2026-10-01T09:00:00Z' },
-    { id: 'e3', organizationId: null, actorId: IKER.id, action: 'pricing.deployment.drained', targetType: 'PricingRelease', targetId: null, detail: { version: '0.0.9' }, createdAt: '2026-09-02T09:05:00Z' },
-    { id: 'e4', organizationId: null, actorId: IKER.id, action: 'contract.subscription.changed', targetType: 'User', targetId: LIVE_RELEASE.version, detail: {}, createdAt: '2026-09-03T09:00:00Z' },
+    { id: 'e1', organizationId: null, actorId: ALEX.id, action: 'pricing.live.activated', targetType: 'PricingRelease', targetId: null, detail: { version: '0.1.0' }, createdAt: '2026-09-02T09:00:00Z' },
+    { id: 'e2', organizationId: null, actorId: ALEX.id, action: 'pricing.draft.created', targetType: 'PricingRelease', targetId: '0.2.0-draft.1', detail: {}, createdAt: '2026-10-01T09:00:00Z' },
+    { id: 'e3', organizationId: null, actorId: ALEX.id, action: 'pricing.deployment.drained', targetType: 'PricingRelease', targetId: null, detail: { version: '0.0.9' }, createdAt: '2026-09-02T09:05:00Z' },
+    { id: 'e4', organizationId: null, actorId: ALEX.id, action: 'contract.subscription.changed', targetType: 'User', targetId: LIVE_RELEASE.version, detail: {}, createdAt: '2026-09-03T09:00:00Z' },
   ],
   total: 4,
   offset: 0,
@@ -328,7 +328,7 @@ describe('admin-pricing-release · one pricing version', { timeout: 30000 }, () 
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<AdminPricingRelease />, { user: LUCIA, entry: '/app/admin/pricing/0.1.0', path: '/app/admin/pricing/:version' });
+    renderAdmin(<AdminPricingRelease />, { user: MARIA, entry: '/app/admin/pricing/0.1.0', path: '/app/admin/pricing/:version' });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(platform.pricingControlRoom).not.toHaveBeenCalled();
     expect(platform.previewPricing).not.toHaveBeenCalled();

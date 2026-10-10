@@ -225,11 +225,12 @@ describe('Members', () => {
     expect(screen.queryByText('To confirm')).not.toBeInTheDocument();
   });
 
-  it('leaves the OWNER grant unrestricted for an ADMIN and says so', async () => {
+  it('leaves the OWNER grant unrestricted for an ADMIN, without an internal note about it', async () => {
     renderMembers([{ ...group, effective_role: 'ADMIN' }]);
 
-    expect(await screen.findByText('To confirm')).toBeInTheDocument();
-    expect(screen.getByText(/any ADMIN can give someone the OWNER role/)).toBeInTheDocument();
+    expect(await screen.findByLabelText('Role for marco')).toBeInTheDocument();
+    expect(screen.queryByText('To confirm')).not.toBeInTheDocument();
+    expect(screen.queryByText(/open question/)).not.toBeInTheDocument();
     expect(within(roleSelect('marco')).getByRole('option', { name: 'OWNER' })).toBeInTheDocument();
   });
 

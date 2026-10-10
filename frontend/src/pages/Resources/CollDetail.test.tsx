@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { caseOf, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
 import { CollDetail } from './CollDetail';
-import { caseItem, collectionOf, collectionRevisionOf, digestOf, resourceItem, resourceOf, resourceRevisionOf } from './fixtures';
+import { caseItem, collectionOf, collectionRevisionOf, digestOf, resourceItem, resourceOf, resourceRevisionOf } from '../../test/fixtures/resources';
 
 const platform = vi.hoisted(() => ({
   project: vi.fn(), publicProjects: vi.fn(), collection: vi.fn(), collectionRevisions: vi.fn(), createCollectionRevision: vi.fn(), updateCollection: vi.fn(), deleteCollection: vi.fn(),

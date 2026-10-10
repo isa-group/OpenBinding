@@ -26,8 +26,8 @@
 .ui-action.is-secondary { border-color: var(--tp-hairline-strong); background: var(--tp-canvas); color: var(--tp-ink); }
 .ui-action.is-secondary:hover:not(:disabled) { border-color: var(--tp-stone); background: var(--tp-surface); color: var(--tp-ink); }
 
-.ui-action.is-danger { background: var(--tp-severity-error); color: #fff; }
-.ui-action.is-danger:hover:not(:disabled) { background: var(--color-error); color: #fff; }
+.ui-action.is-danger { background: var(--tp-severity-error); color: var(--tp-on-primary); }
+.ui-action.is-danger:hover:not(:disabled) { background: var(--color-error); color: var(--tp-on-primary); }
 
 .ui-action.is-danger-outline { border-color: var(--tp-severity-error-border); background: var(--tp-canvas); color: var(--color-error); }
 .ui-action.is-danger-outline:hover:not(:disabled) { background: var(--tp-severity-error-bg); color: var(--color-error); }

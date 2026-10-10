@@ -84,11 +84,11 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(1);
 }
 
-/** Full-page capture of the current state, after checking that nothing scrolls sideways. */
+/** Check that nothing scrolls sideways and, with E2E_SCREENSHOTS=1, save a full-page picture of the current state for a person to look at. */
 async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.evaluate(() => document.fonts.ready);
   await expectNoHorizontalOverflow(page);
-  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
+  if (process.env.E2E_SCREENSHOTS) await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
 }
 
 /** Leave the browser as a visitor would find it: no session, nothing remembered. */

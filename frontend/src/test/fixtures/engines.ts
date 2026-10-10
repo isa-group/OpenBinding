@@ -7,7 +7,7 @@ import type {
 
 export const digestOf = (seed: string): string => `sha256-${seed.repeat(64).slice(0, 64)}`;
 
-export const OWNER = 'lucia.vega';
+export const OWNER = 'alex.rivera';
 export const PROTOCOL_DIGEST = digestOf('c3d4');
 export const SCHEMA_DIGEST = digestOf('5c1e');
 export const ADAPTER_DIGEST = digestOf('ad01');
@@ -32,7 +32,7 @@ export const EDGE_SOLVER = registrationOf('edge-solver', 'private', true, { seed
 export const EDGE_SOLVER_OLD = registrationOf('edge-solver', 'published', true, { version: '0.2.0', seed: 'b2c3' });
 export const SOLVER_IN_REVIEW = registrationOf('region-solver', 'pending_review', true, { version: '1.0.0', seed: 'd4e5' });
 export const PAUSED_SOLVER = registrationOf('paused-solver', 'private', false, { version: '1.2.0', seed: 'a1b2' });
-export const SHARED_SOLVER = registrationOf('shared-solver', 'published', true, { namespace: 'nora.campos', version: '2.0.0', seed: 'f607' });
+export const SHARED_SOLVER = registrationOf('shared-solver', 'published', true, { namespace: 'priya.nair', version: '2.0.0', seed: 'f607' });
 
 const ALL = { selector: 'all' } as const;
 

@@ -283,7 +283,7 @@
 .case-rules li { display: flex; align-items: baseline; gap: 8px; font-size: 0.8125rem; }
 .case-rules small { margin-left: 4px; color: var(--tp-steel); font-size: 0.6875rem; }
 .case-rules .case-rule-id { display: block; margin: 0; }
-.case-must { flex: none; padding: 1px 6px; border-radius: 4px; background: var(--tp-ink); color: #fff; font-size: 0.6875rem; font-weight: 600; }
+.case-must { flex: none; padding: 1px 6px; border-radius: 4px; background: var(--tp-ink); color: var(--tp-on-primary); font-size: 0.6875rem; font-weight: 600; }
 .case-must.is-should { border: 1px solid var(--tp-ink); background: none; color: var(--tp-ink); }
 .case-criteria li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 0.8125rem; }
 .case-criteria small { color: var(--tp-steel); }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { libraryApi, type Artifact, type ArtifactVersion } from '../../api/library';
+import { digestPrefix } from '../../utils/digest';
 
 export function ArtifactVersionPicker({ org, kind, artifactId, versionId, onSelect }: {
   org: string; kind?: string; artifactId?: string; versionId?: string; onSelect: (artifact: Artifact, version: ArtifactVersion) => void;
@@ -36,6 +37,6 @@ export function ArtifactVersionPicker({ org, kind, artifactId, versionId, onSele
       const artifact = artifacts.find(item => item.id === identity);
       const version = versions.find(item => item.id === event.target.value);
       if (artifact && version) onSelect(artifact, version);
-    }}><option value="">Choose an exact version</option>{versions.map(item => <option key={item.id} value={item.id}>{item.ref.version} · {item.public ? 'public' : 'organization'} · {item.contentDigest.slice(0, 19)}</option>)}</select></label>
+    }}><option value="">Choose an exact version</option>{versions.map(item => <option key={item.id} value={item.id}>{item.ref.version} · {item.public ? 'public' : 'organization'} · {digestPrefix(item.contentDigest)}</option>)}</select></label>
   </fieldset>;
 }

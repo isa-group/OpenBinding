@@ -11,6 +11,7 @@ import {
   isRegisteredResourceRef, modesFromAnalysis, parseJson, pretty, resourcePathForDiagnostic,
   type BindingResult, type BimDocument, type CompatibleMode, type CompiledIr, type Diagnostic, type WorkspaceStatus,
 } from './bimDocuments';
+import { isAbort, pollV1Job } from './pollJob';
 import { refusalOf, refusalText, saveRefusalText, workbenchDraftScope, type Refusal } from './workbenchModel';
 
 export type EditorTab = 'resources' | 'form' | 'bpmn';
@@ -156,6 +157,14 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   // The snapshot and the revision
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const snapshotRef = useRef<Snapshot | null>(null);
+  /** Closing the screen stops the polling of a run; starting another run stops the one before it. */
+  const screenOpen = useRef<AbortController | null>(null);
+  const runWatcher = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    screenOpen.current = controller;
+    return () => controller.abort();
+  }, []);
   const [snapshotBusy, setSnapshotBusy] = useState(false);
   const [snapshotIssue, setSnapshotIssue] = useState<Refusal | null>(null);
   const [compiledIr, setCompiledIr] = useState<CompiledIr | null>(null);
@@ -510,6 +519,10 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     setRunError(null);
     setRoutingProvenance(null);
     setResult(null);
+    runWatcher.current?.abort();
+    const watcher = new AbortController();
+    runWatcher.current = watcher;
+    screenOpen.current?.signal.addEventListener('abort', () => watcher.abort(), { once: true });
     try {
       const made = await ensureSnapshot();
       const receipt = isAutoRouter
@@ -527,25 +540,21 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
         : executionConfiguration
           ? await apiClient.createConfiguredBimJob(made.id, executionConfiguration.ref)
           : await apiClient.createBimJob(made.id, mode!.engine, mode!.registration, mode!.mode);
-      for (;;) {
-        const job = await apiClient.getV1Job(receipt.id);
-        if (job.status === 'running') setRunState('running');
-        if (job.status === 'completed') {
-          setResultJobId(receipt.id);
-          if (isRecord(job.provenance) && isRecord(job.provenance.engineRouting)) {
-            setRoutingProvenance(job.provenance.engineRouting as unknown as EngineRoutingUserProvenance);
-          }
-          setResult(isRecord(job.result) ? job.result as BindingResult : null);
-          setRunState('completed');
-          return;
-        }
-        if (job.status === 'failed') {
-          const detail = isRecord(job.result) && typeof job.result.error === 'string' ? job.result.error : (job.error || 'The run failed.');
-          throw new Error(detail);
-        }
-        await new Promise((resolve) => window.setTimeout(resolve, 500));
+      if (watcher.signal.aborted) return;
+      const job = await pollV1Job(receipt.id, { signal: watcher.signal, onStatus: (reading) => { if (reading.status === 'running') setRunState('running'); } });
+      if (job.status === 'failed') {
+        const detail = isRecord(job.result) && typeof job.result.error === 'string' ? job.result.error : (job.error || 'The run failed.');
+        throw new Error(detail);
       }
+      setResultJobId(receipt.id);
+      if (isRecord(job.provenance) && isRecord(job.provenance.engineRouting)) {
+        setRoutingProvenance(job.provenance.engineRouting as unknown as EngineRoutingUserProvenance);
+      }
+      setResult(isRecord(job.result) ? job.result as BindingResult : null);
+      setRunState('completed');
     } catch (caught: unknown) {
+      // The screen closed or a newer run took over: nobody is waiting for this one any more.
+      if (watcher.signal.aborted || isAbort(caught)) return;
       setRunState('failed');
       setRunError(refusalText(refusalOf(caught), 'the run did not finish'));
     }

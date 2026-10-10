@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { resourceOf, resourceRevisionOf } from './fixtures';
+import { resourceOf, resourceRevisionOf } from '../../test/fixtures/resources';
 import { ProjResourceDetail } from './ProjResourceDetail';
 
 const platform = vi.hoisted(() => ({

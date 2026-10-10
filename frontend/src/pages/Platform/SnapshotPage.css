@@ -47,7 +47,7 @@
 
 .snap-tabs { display: inline-flex; align-self: flex-start; overflow: hidden; border: 1px solid var(--tp-hairline); border-radius: 10px; }
 .snap-tabs button { height: 34px; padding: 0 14px; border: 0; background: var(--tp-canvas); color: var(--tp-slate); cursor: pointer; font: inherit; font-size: 0.8125rem; font-weight: 500; }
-.snap-tabs button[aria-pressed='true'] { background: var(--tp-primary); color: #fff; }
+.snap-tabs button[aria-pressed='true'] { background: var(--tp-primary); color: var(--tp-on-primary); }
 .snap-tabs button:disabled { cursor: not-allowed; opacity: 0.5; }
 
 .snap-files { display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); gap: var(--tp-spacing-sm); }

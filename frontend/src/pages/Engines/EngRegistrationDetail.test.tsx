@@ -7,7 +7,7 @@ import { AuthContext } from '../../contexts/auth';
 import { EngRegistrationDetail } from './EngRegistrationDetail';
 import {
   EDGE_SOLVER, EDGE_SOLVER_OLD, REGISTRATION_MANIFEST, REPORT_FAILED, REPORT_PENDING, SHARED_SOLVER, reportOf,
-} from './fixtures';
+} from '../../test/fixtures/engines';
 import { registrationHref } from './registrationModel';
 
 const api = vi.hoisted(() => ({
@@ -27,7 +27,7 @@ vi.mock('../../api/client', async () => ({
 }));
 
 const lucia: UserProfile = {
-  id: 'lucia-id', username: 'lucia.vega', email: 'lucia@example.test', role: 'user', plan: 'RESEARCH', is_active: true, created_at: '2026-01-01T00:00:00Z',
+  id: 'lucia-id', username: 'alex.rivera', email: 'lucia@example.test', role: 'user', plan: 'RESEARCH', is_active: true, created_at: '2026-01-01T00:00:00Z',
 };
 
 // The first render of a file is slow on a busy machine.
@@ -84,7 +84,7 @@ describe('eng-registration-detail', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'edge-solver' })).toBeInTheDocument();
     expect(screen.getByText('Your deployment of the edge-solver engine. Only you can use it.')).toBeInTheDocument();
     const identity = screen.getByRole('region', { name: 'Exact identity' });
-    expect(within(identity).getByText('lucia.vega')).toBeInTheDocument();
+    expect(within(identity).getByText('alex.rivera')).toBeInTheDocument();
     expect(within(identity).getByText('0.3.1')).toBeInTheDocument();
     expect(within(identity).getByText(/sha256-e5f6…e5f6/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Deactivate' })).toBeInTheDocument();
@@ -140,7 +140,7 @@ describe('eng-registration-detail', () => {
     const table = await screen.findByRole('region', { name: 'Other revisions of this registration' });
     const row = within(table).getByRole('row', { name: /0\.2\.0/ });
     expect(within(row).getByText('Published')).toBeInTheDocument();
-    expect(within(row).getByRole('link', { name: 'Open edge-solver 0.2.0' })).toHaveAttribute('href', expect.stringContaining('/app/engines/registrations/edge-solver?namespace=lucia.vega&version=0.2.0'));
+    expect(within(row).getByRole('link', { name: 'Open edge-solver 0.2.0' })).toHaveAttribute('href', expect.stringContaining('/app/engines/registrations/edge-solver?namespace=alex.rivera&version=0.2.0'));
     expect(within(table).queryByText('0.3.1')).not.toBeInTheDocument();
   });
 
@@ -174,7 +174,7 @@ describe('eng-registration-detail', () => {
   it('reads a published registration of someone else as read-only', async () => {
     open(SHARED_SOLVER);
     expect(await screen.findByRole('heading', { level: 1, name: 'shared-solver' })).toBeInTheDocument();
-    expect(screen.getByText('Published by nora.campos. You can pick it when launching a job.')).toBeInTheDocument();
+    expect(screen.getByText('Published by priya.nair. You can pick it when launching a job.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Activate' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Deactivate' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Credential' })).not.toBeInTheDocument();
@@ -287,13 +287,13 @@ describe('eng-registration-detail', () => {
     api.listEngineRegistrations.mockResolvedValue([SHARED_SOLVER]);
     renderDetail('/app/engines/registrations/shared-solver');
     expect(await screen.findByRole('heading', { level: 1, name: 'shared-solver' })).toBeInTheDocument();
-    expect(api.getEngineRegistrationReport).toHaveBeenCalledWith(expect.objectContaining({ namespace: 'nora.campos', version: '2.0.0' }));
+    expect(api.getEngineRegistrationReport).toHaveBeenCalledWith(expect.objectContaining({ namespace: 'priya.nair', version: '2.0.0' }));
   });
 
   it('asks which revision when a name alone is not enough, and says nothing exists for a name that does not', async () => {
     const chooser = renderDetail('/app/engines/registrations/edge-solver');
     expect(await screen.findByRole('heading', { name: 'Which revision of edge-solver?' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /lucia\.vega\/edge-solver@/ })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: /alex\.rivera\/edge-solver@/ })).toHaveLength(2);
     chooser.unmount();
 
     renderDetail('/app/engines/registrations/ghost');

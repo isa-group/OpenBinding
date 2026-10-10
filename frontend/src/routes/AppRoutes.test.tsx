@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../api/auth';
 import { AuthContext } from '../contexts/auth';
 import { AppRoutes } from './index';
-import { routeDefinitions } from './registry';
 
 vi.mock('../api/platform', async () => ({
   ...await vi.importActual<typeof import('../api/platform')>('../api/platform'),
@@ -20,9 +19,15 @@ vi.mock('../api/client', async () => ({
 }));
 
 // Screens that call the API on mount are replaced; these tests are about routing.
+const screens = vi.hoisted(() => ({ accountThrows: false }));
 vi.mock('../pages/Account/Account', async () => {
   const { createElement } = await import('react');
-  return { Account: () => createElement('h1', null, 'Account screen') };
+  return {
+    Account: () => {
+      if (screens.accountThrows) throw new Error('screen exploded');
+      return createElement('h1', null, 'Account screen');
+    },
+  };
 });
 vi.mock('../pages/Auth/Login', async () => {
   const { createElement } = await import('react');
@@ -54,51 +59,27 @@ function renderAt(path: string, user: UserProfile | null = person, loading = fal
   );
 }
 
-const pendingHeading = () => screen.findByRole('heading', { name: 'This screen is being rebuilt' });
-
-// Which screens are pending shrinks as the product is built, so the examples come from the registry.
-// When no suitable pending screen is left, the matching test is skipped instead of failing.
-const firstPending = (layout: 'public' | 'app', prefix = '') =>
-  routeDefinitions.find((definition) => (
-    definition.status === 'pending' && definition.layout === layout
-    && !definition.path.includes(':') && definition.path.startsWith(prefix)
-  ));
-const pendingPublic = firstPending('public');
-const pendingApp = routeDefinitions.find((definition) => (
-  definition.status === 'pending' && definition.layout === 'app' && !definition.path.includes(':')
-  && !definition.path.startsWith('/app/admin')
-));
-const pendingAdmin = firstPending('app', '/app/admin/');
-
 describe('AppRoutes', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it.skipIf(!pendingPublic)('renders a pending public screen inside the public layout (skipped when none is pending)', async () => {
-    const target = pendingPublic!;
-    renderAt(target.path, null);
-
-    expect(await pendingHeading()).toBeInTheDocument();
-    expect(document.querySelector(`[data-screen-id="${target.id}"]`)).toHaveTextContent(target.path);
-    expect(screen.getByRole('link', { name: 'Log in' })).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Footer navigation' })).toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    screens.accountThrows = false;
   });
 
-  it.skipIf(!pendingApp)('renders a pending app screen inside the application layout with its id and route (skipped when none is pending)', async () => {
-    const target = pendingApp!;
-    renderAt(target.path);
-
-    expect(await pendingHeading()).toBeInTheDocument();
-    const screenInfo = document.querySelector(`[data-screen-id="${target.id}"]`);
-    expect(screenInfo).toHaveTextContent(target.id);
-    expect(screenInfo).toHaveTextContent(target.path);
+  it('renders a live screen from its route, inside the application layout', async () => {
+    renderAt('/app/account');
+    expect(await screen.findByRole('heading', { name: 'Account screen' })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Footer navigation' })).toBeInTheDocument();
   });
 
-  it('renders a live screen from its new route', async () => {
+  it('keeps a screen that fails to render from blanking the layout around it', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    screens.accountThrows = true;
     renderAt('/app/account');
-    expect(await screen.findByRole('heading', { name: 'Account screen' })).toBeInTheDocument();
+
+    expect(await screen.findByRole('heading', { name: 'Something went wrong' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
+    consoleError.mockRestore();
   });
 
   it('sends visitors without a session from any app route to sign in', async () => {
@@ -120,15 +101,6 @@ describe('AppRoutes', () => {
 
     expect(await screen.findByRole('heading', { name: 'Account screen' })).toBeInTheDocument();
     expect(screen.getByTestId('location')).toHaveTextContent('/app/account');
-  });
-
-  it.skipIf(!pendingAdmin)('lets administrators reach them (skipped when no admin screen is pending)', async () => {
-    const target = pendingAdmin!;
-    renderAt(target.path, { ...person, role: 'admin' });
-
-    expect(await pendingHeading()).toBeInTheDocument();
-    expect(document.querySelector(`[data-screen-id="${target.id}"]`)).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent(target.path);
   });
 
   it('serves the invitation link inside the public layout when there is no session', async () => {

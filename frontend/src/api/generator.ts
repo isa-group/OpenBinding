@@ -10,11 +10,10 @@ import {
 } from './client';
 
 const post = <T>(path: string, body: unknown) =>
-  apiClient.request<T>(path, { method: 'POST', body: JSON.stringify(body) }, undefined, true, true);
+  apiClient.request<T>(path, { method: 'POST', body: JSON.stringify(body) });
 
 /**
- * The generator's four operations. `apiClient.generateBimInstance` and its siblings answer a 422 with the error body as if it were
- * the result; the lab has to say "these settings can't be generated", so these throw on every refusal
+ * The generator's four operations. The lab has to say "these settings can't be generated", so these throw on every refusal
  * (HttpError for 401, 403, 404, 422…, QuotaError for 402).
  */
 export const generatorApi = {
@@ -24,6 +23,6 @@ export const generatorApi = {
   corpus: (params: GenerateCorpusParams) => post<CorpusGeneratedResponse>('/v1/generator/corpus', params),
   /** `POST /v1/generator/convert-legacy`: an instance in the older research format turned into a BIM package. */
   convertLegacy: (params: ConvertLegacyParams) => post<InstanceGeneratedResponse>('/v1/generator/convert-legacy', params),
-  /** `POST /v1/generator/calibrate-engine`: refits the shared model that predicts how an engine behaves (gap L2: the server accepts it more widely than the UI does). */
+  /** `POST /v1/generator/calibrate-engine`: refits the shared model that predicts how an engine behaves. Only platform administrators reach it from the lab. */
   calibrate: (params: CalibrateEngineParams) => post<EngineCalibratedResponse>('/v1/generator/calibrate-engine', params),
 };

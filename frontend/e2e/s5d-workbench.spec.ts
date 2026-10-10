@@ -2,7 +2,7 @@ import { expect as baseExpect, test, type Page, type Route, type TestInfo } from
 import type { BindingCase, CaseRevision } from '../src/api/platform';
 import { irDocument, refOf, revisionDocument } from '../src/pages/Cases/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
-import { digestOf, usageOf } from '../src/pages/Resources/fixtures';
+import { digestOf, usageOf } from '../src/test/fixtures/resources';
 import { DEFAULT_FILES } from '../src/pages/Workbench/bimDocuments';
 import { zipStore } from '../src/utils/bimZip';
 
@@ -256,14 +256,14 @@ function watchCriticalErrors(page: Page) {
   return critical;
 }
 
-/** Full-page capture of the current state, then a check that nothing scrolls sideways. */
+/** With E2E_SCREENSHOTS=1, a full-page picture of the current state for a person to look at; always a check that nothing scrolls sideways. */
 async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.evaluate(async () => {
     await document.fonts.ready;
     (document.activeElement as HTMLElement | null)?.blur();
     window.scrollTo(0, 0);
   });
-  await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
+  if (process.env.E2E_SCREENSHOTS) await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true, animations: 'disabled' });
   // Against the width of the device, not window.innerWidth: a phone widens its layout viewport to fit a page that overflows.
   const width = page.viewportSize()?.width ?? 0;
   const overflow = await page.evaluate((expected) => document.documentElement.scrollWidth - expected, width);
@@ -706,7 +706,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // Calibrating changes something shared by everyone: only platform administrators can.
       await main.getByRole('tab', { name: 'Calibrate engines' }).click();
-      await expect(main.getByRole('note')).toContainText('To confirm');
+      await expect(main.getByRole('note')).not.toContainText('To confirm');
       await expect(main.getByText('Only platform administrators can calibrate.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Calibrate', exact: true })).toHaveCount(0);
       await expect(main.getByRole('region', { name: 'Preview' })).toHaveCount(0);
@@ -722,7 +722,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('#platform-main');
 
       await main.getByRole('tab', { name: 'Calibrate engines' }).click();
-      await expect(main.getByRole('note')).toContainText('this screen limits it to platform administrators');
+      await expect(main.getByRole('note')).toContainText('Calibrating changes the shared model that predicts how engines behave, for everyone.');
+      await expect(main.getByRole('note')).not.toContainText('strict check');
       await expect(main.getByRole('option', { name: 'edge-solver' })).toHaveCount(1);
       await expect(main.getByRole('button', { name: 'Calibrate', exact: true })).toBeDisabled();
       await capture(page, testInfo, `lab-${name}-calibrate-admin`);

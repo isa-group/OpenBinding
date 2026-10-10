@@ -7,7 +7,7 @@ import type {
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import {
   blobOf, caseItem, collectionOf, collectionRevisionOf, digestOf, resourceItem, resourceOf, resourceRevisionOf, usageOf,
-} from '../src/pages/Resources/fixtures';
+} from '../src/test/fixtures/resources';
 
 // S5c · files, resources and collections: proj-files, proj-resources, proj-resource-detail, coll-list and coll-detail.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by

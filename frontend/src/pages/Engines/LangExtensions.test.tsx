@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { AuthContext } from '../../contexts/auth';
-import { COMMUNITY_DIALECT, PLACEMENT_DIALECT, QOS_PROFILE, REGISTERED_RESOURCES } from './fixtures';
+import { COMMUNITY_DIALECT, PLACEMENT_DIALECT, QOS_PROFILE, REGISTERED_RESOURCES } from '../../test/fixtures/engines';
 import { LangExtensions } from './LangExtensions';
 
 const api = vi.hoisted(() => ({
@@ -19,7 +19,7 @@ vi.mock('../../api/client', async () => ({
 }));
 
 const lucia: UserProfile = {
-  id: 'lucia-id', username: 'lucia.vega', email: 'lucia@example.test', role: 'user', plan: 'RESEARCH', is_active: true, created_at: '2026-01-01T00:00:00Z',
+  id: 'lucia-id', username: 'alex.rivera', email: 'lucia@example.test', role: 'user', plan: 'RESEARCH', is_active: true, created_at: '2026-01-01T00:00:00Z',
 };
 const iker: UserProfile = { ...lucia, id: 'iker-id', username: 'iker.mora', role: 'admin' };
 
@@ -77,7 +77,7 @@ describe('lang-extensions', () => {
 
     const community = screen.getByRole('article', { name: 'Dialect edge-annotations 1.0.0' });
     expect(within(community).getByText('Approved')).toBeInTheDocument();
-    expect(within(community).getByText('Submitted by lucia.vega and approved by an administrator.')).toBeInTheDocument();
+    expect(within(community).getByText('Submitted by alex.rivera and approved by an administrator.')).toBeInTheDocument();
     expect(community).toHaveTextContent('1 resource type · 1 extension point');
   });
 

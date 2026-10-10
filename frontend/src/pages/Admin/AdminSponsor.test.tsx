@@ -4,7 +4,7 @@ import { QuotaError } from '../../api/auth';
 import type { UserProfile } from '../../api/auth';
 import { catalogFixture } from '../Pricing/pricingFixture';
 import { AdminSponsor } from './AdminSponsor';
-import { BAJA, LUCIA, NORA, ORG, SUB_ORG, USERS, subscriptionOf, usageOf, userPage } from './adminFixtures';
+import { DANA, MARIA, ORG, PRIYA, SUB_ORG, USERS, subscriptionOf, usageOf, userPage } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({
@@ -33,7 +33,7 @@ function open(param = 'isa-demo', user?: UserProfile) {
   return renderAdmin(<AdminSponsor />, { entry: `/app/admin/organizations/${param}/sponsor`, path: '/app/admin/organizations/:org/sponsor', user });
 }
 
-async function choose(username: string, candidates = [NORA, LUCIA, BAJA]) {
+async function choose(username: string, candidates = [PRIYA, MARIA, DANA]) {
   api.adminListUsers.mockResolvedValue(userPage(candidates));
   fireEvent.change(screen.getByRole('searchbox', { name: 'Search accounts' }), { target: { value: username.slice(0, 4) } });
   const radio = await screen.findByRole('radio', { name: new RegExp(username.replace('.', '\\.')) });
@@ -46,10 +46,10 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
     vi.clearAllMocks();
     platform.organization.mockResolvedValue(ORG);
     platform.organizations.mockResolvedValue([ORG, SUB_ORG]);
-    api.adminGetSubscription.mockImplementation(async (id: string) => subscriptionOf(USERS.find((account) => account.id === id) ?? LUCIA));
+    api.adminGetSubscription.mockImplementation(async (id: string) => subscriptionOf(USERS.find((account) => account.id === id) ?? MARIA));
     api.adminGetUserUsage.mockImplementation(async () => usageOf('ADVANCED'));
     api.getPricingCatalog.mockResolvedValue(catalogFixture);
-    api.adminTransferSponsor.mockResolvedValue({ ...ORG, billing_sponsor_user_id: NORA.id });
+    api.adminTransferSponsor.mockResolvedValue({ ...ORG, billing_sponsor_user_id: PRIYA.id });
   });
 
   afterEach(() => {
@@ -60,9 +60,9 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
     open();
     expect(screen.getByRole('heading', { level: 1, name: 'Transfer sponsorship' })).toBeInTheDocument();
     expect(await screen.findByText('ISA Demo Group', { selector: 'strong' })).toBeInTheDocument();
-    expect(await screen.findByText('lucia.vega', { selector: 'strong' })).toBeInTheDocument();
+    expect(await screen.findByText('maria.santos', { selector: 'strong' })).toBeInTheDocument();
     expect(platform.organization).toHaveBeenCalledWith('isa-demo');
-    expect(api.adminGetSubscription).toHaveBeenCalledWith(LUCIA.id);
+    expect(api.adminGetSubscription).toHaveBeenCalledWith(MARIA.id);
     const tree = await screen.findByText('Moves together');
     expect(within(tree.parentElement!).getByText(/ISA Demo Group/)).toBeInTheDocument();
     expect(within(tree.parentElement!).getByText(/QoS Lab \(sub-organization\)/)).toBeInTheDocument();
@@ -70,45 +70,45 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
 
   it('searches for the new sponsor and shows the limits its plan would carry', async () => {
     open();
-    await screen.findByText('lucia.vega', { selector: 'strong' });
-    await choose('nora.campos');
+    await screen.findByText('maria.santos', { selector: 'strong' });
+    await choose('priya.nair');
     const table = await screen.findByRole('table');
     expect(within(table).getByText('Organizations')).toBeInTheDocument();
     expect(within(within(table).getByText('Storage').closest('tr')!).getByText('5 GiB')).toBeInTheDocument();
     expect(within(within(table).getByText('Members').closest('tr')!).getByText('15')).toBeInTheDocument();
-    expect(api.adminListUsers).toHaveBeenCalledWith({ search: 'nora', limit: 20 });
-    expect(api.adminGetUserUsage).toHaveBeenCalledWith(NORA.id);
+    expect(api.adminListUsers).toHaveBeenCalledWith({ search: 'priy', limit: 20 });
+    expect(api.adminGetUserUsage).toHaveBeenCalledWith(PRIYA.id);
     expect(screen.getByText('Can sponsor')).toBeInTheDocument();
     expect(screen.getByText(/The gateway has no dry run/)).toBeInTheDocument();
   });
 
   it('does not offer the current sponsor as the new one', async () => {
     open();
-    await screen.findByText('lucia.vega', { selector: 'strong' });
-    await choose('nora.campos');
-    expect(screen.getByRole('radio', { name: /lucia\.vega/ })).toBeDisabled();
-    expect(screen.getByRole('radio', { name: /lucia\.vega.*current sponsor/ })).toBeInTheDocument();
+    await screen.findByText('maria.santos', { selector: 'strong' });
+    await choose('priya.nair');
+    expect(screen.getByRole('radio', { name: /maria\.santos/ })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: /maria\.santos.*current sponsor/ })).toBeInTheDocument();
   });
 
   it('moves the sponsorship only after a confirmation', async () => {
     open();
-    await screen.findByText('lucia.vega', { selector: 'strong' });
-    await choose('nora.campos');
+    await screen.findByText('maria.santos', { selector: 'strong' });
+    await choose('priya.nair');
     await screen.findByRole('table');
     fireEvent.click(screen.getByRole('button', { name: 'Transfer sponsorship' }));
     const dialog = screen.getByRole('dialog', { name: 'Transfer sponsorship of ISA Demo Group?' });
     expect(api.adminTransferSponsor).not.toHaveBeenCalled();
     expect(within(dialog).getByText(/2 organizations will count against ADVANCED limits/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Transfer' }));
-    expect(await screen.findByText(/Sponsorship of ISA Demo Group moved to nora\.campos/)).toBeInTheDocument();
-    expect(api.adminTransferSponsor).toHaveBeenCalledWith(ORG.id, NORA.id);
+    expect(await screen.findByText(/Sponsorship of ISA Demo Group moved to priya\.nair/)).toBeInTheDocument();
+    expect(api.adminTransferSponsor).toHaveBeenCalledWith(ORG.id, PRIYA.id);
     await waitFor(() => expect(platform.organization).toHaveBeenCalledTimes(2));
   });
 
   it('will not offer to move it to an inactive account, and says why', async () => {
     open();
-    await screen.findByText('lucia.vega', { selector: 'strong' });
-    await choose('baja.demo');
+    await screen.findByText('maria.santos', { selector: 'strong' });
+    await choose('dana.kim');
     expect(await screen.findByText('Can’t sponsor')).toBeInTheDocument();
     expect(screen.getByText('That account can’t be a sponsor (422 · invalid_sponsor)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Transfer sponsorship' })).toBeDisabled();
@@ -117,8 +117,8 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
   it('names the limit the new sponsor would pass when the gateway refuses with 402', async () => {
     api.adminTransferSponsor.mockRejectedValue(new QuotaError('sponsor_quota_exceeded', 'The sponsor contract allows 15 members', { limit_id: 'members', limit: 15, used: 18 }));
     open();
-    await screen.findByText('lucia.vega', { selector: 'strong' });
-    await choose('nora.campos');
+    await screen.findByText('maria.santos', { selector: 'strong' });
+    await choose('priya.nair');
     await screen.findByRole('table');
     fireEvent.click(screen.getByRole('button', { name: 'Transfer sponsorship' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer' }));
@@ -130,8 +130,8 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
   it('reports an account the gateway turns down (422) and a sponsor it cannot check (503)', async () => {
     api.adminTransferSponsor.mockRejectedValueOnce(refusal(422, 'invalid_sponsor', 'Sponsor must be active.'));
     open();
-    await screen.findByText('lucia.vega', { selector: 'strong' });
-    await choose('nora.campos');
+    await screen.findByText('maria.santos', { selector: 'strong' });
+    await choose('priya.nair');
     await screen.findByRole('table');
     fireEvent.click(screen.getByRole('button', { name: 'Transfer sponsorship' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer' }));
@@ -158,11 +158,11 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
     platform.organization.mockRejectedValue(refusal(403, 'organization_forbidden'));
     open(ORG.id);
     expect(await screen.findByText('Only the id is known')).toBeInTheDocument();
-    await choose('nora.campos');
+    await choose('priya.nair');
     await screen.findByRole('table');
     fireEvent.click(screen.getByRole('button', { name: 'Transfer sponsorship' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer' }));
-    await waitFor(() => expect(api.adminTransferSponsor).toHaveBeenCalledWith(ORG.id, NORA.id));
+    await waitFor(() => expect(api.adminTransferSponsor).toHaveBeenCalledWith(ORG.id, PRIYA.id));
   });
 
   it('reads a failure to find the organization apart from not being allowed to', async () => {
@@ -177,7 +177,7 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    open('isa-demo', LUCIA);
+    open('isa-demo', MARIA);
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(platform.organization).not.toHaveBeenCalled();
     expect(api.adminListUsers).not.toHaveBeenCalled();

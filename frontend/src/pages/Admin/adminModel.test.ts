@@ -6,7 +6,7 @@ import {
   ageLabel, agreementIssues, auditFamily, compareLimits, describeAdminFailure, describeAuditEvent, errorMeaning, groupErrors, limitsOf,
   planTone, readContractCatalog, readErrorEvent, shortId, statusTone, type ContractCatalog,
 } from './adminModel';
-import { AUDIT, ERROR_EVENTS, MARCO } from './adminFixtures';
+import { AUDIT, ERROR_EVENTS, SAM } from '../../test/fixtures/admin';
 
 function catalog(): ContractCatalog {
   const read = readContractCatalog(catalogFixture);
@@ -145,9 +145,9 @@ describe('audit events in words', () => {
 describe('error events', () => {
   it('reads either spelling of every field', () => {
     const row = readErrorEvent(ERROR_EVENTS[0]);
-    expect(row).toMatchObject({ status: 402, code: 'quota_exceeded', endpoint: '/v1/jobs', method: 'POST', userId: MARCO.id, userEmail: MARCO.email });
+    expect(row).toMatchObject({ status: 402, code: 'quota_exceeded', endpoint: '/v1/jobs', method: 'POST', userId: SAM.id, userEmail: SAM.email });
     const snake = readErrorEvent({ ...ERROR_EVENTS[0], statusCode: undefined as never, errorCode: undefined as never, httpMethod: undefined as never, userId: undefined, userEmail: undefined, createdAt: undefined as never });
-    expect(snake).toMatchObject({ status: 402, code: 'quota_exceeded', method: 'POST', userId: MARCO.id, userEmail: MARCO.email });
+    expect(snake).toMatchObject({ status: 402, code: 'quota_exceeded', method: 'POST', userId: SAM.id, userEmail: SAM.email });
   });
 
   it('groups events by status and code, busiest first', () => {
@@ -187,7 +187,7 @@ describe('small formatters', () => {
   });
 
   it('shortens an id for a list and leaves a short one alone', () => {
-    expect(shortId(MARCO.id)).toBe('00000000…');
+    expect(shortId(SAM.id)).toBe('00000000…');
     expect(shortId('abc')).toBe('abc');
     expect(shortId(null)).toBe('—');
   });

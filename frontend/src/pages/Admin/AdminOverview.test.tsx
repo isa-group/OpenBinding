@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminOverview as OverviewAnswer } from '../../api/auth';
 import type { PricingControlRoom } from '../../api/platform';
 import { AdminOverview } from './AdminOverview';
-import { ERROR_OVERVIEW, IKER, LUCIA, MODERATION, queuesAt } from './adminFixtures';
+import { ALEX, ERROR_OVERVIEW, MARIA, MODERATION, queuesAt } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({
@@ -37,7 +37,7 @@ const OVERVIEW: OverviewAnswer = {
   jobs: { queued: 1, running: 1, completed: 2, failed: 1, cancelled: 1 },
   contracts: { BASIC: 3, ADVANCED: 1, RESEARCH: 1, PRO: 2 },
   recentAudit: [
-    { id: 'a1', action: 'contract.subscription.changed', targetType: 'User', targetId: LUCIA.id, actorId: IKER.id, createdAt: '2026-09-01T09:00:00Z' },
+    { id: 'a1', action: 'contract.subscription.changed', targetType: 'User', targetId: MARIA.id, actorId: ALEX.id, createdAt: '2026-09-01T09:00:00Z' },
   ],
 };
 
@@ -211,7 +211,7 @@ describe('admin-overview · how the platform is doing', () => {
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<AdminOverview />, { user: LUCIA });
+    renderAdmin(<AdminOverview />, { user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 1, name: 'Administration' })).not.toBeInTheDocument();
     expect(api.adminOverview).not.toHaveBeenCalled();

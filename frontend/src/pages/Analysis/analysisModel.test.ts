@@ -5,7 +5,7 @@ import { HttpError } from '../../api/client';
 import {
   budgetRungs, evidenceKey, groupSources, groupTitle, lossSegments, longestLoss, searchOfSources, stretchesOf, targetOf, viewOf,
 } from './analysisModel';
-import { JOB_DONE, JOB_OLD, JOB_RUNNING, JOB_SECOND, ROWS, SOURCES, archiveOf, sourceOf } from './fixtures';
+import { JOB_DONE, JOB_OLD, JOB_RUNNING, JOB_SECOND, ROWS, SOURCES, archiveOf, sourceOf } from '../../test/fixtures/analysis';
 
 describe('grouping the results that can be ranked together', () => {
   it('puts results of one model and checker together, apart from legacy and unfinished ones', () => {

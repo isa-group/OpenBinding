@@ -2,7 +2,7 @@ import { configure, fireEvent, screen, waitFor, within } from '@testing-library/
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CURRENT_FIXTURE, catalogFixture } from '../Pricing/pricingFixture';
 import { AdminUserDetail } from './AdminUserDetail';
-import { LUCIA, MARCO, USERS, subscriptionOf, userPage, usageOf } from './adminFixtures';
+import { MARIA, SAM, USERS, subscriptionOf, userPage, usageOf } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({
@@ -27,28 +27,28 @@ configure({ asyncUtilTimeout: 5000 });
 
 const KEY_ID = '00000000-0000-4000-8000-0000000003a1';
 
-function open(param: string = MARCO.id, options: Parameters<typeof renderAdmin>[1] = {}) {
+function open(param: string = SAM.id, options: Parameters<typeof renderAdmin>[1] = {}) {
   return renderAdmin(<AdminUserDetail />, { entry: `/app/admin/users/${param}`, path: '/app/admin/users/:user', ...options });
 }
 
 async function ready() {
-  await screen.findByRole('heading', { level: 1, name: 'marco.diaz' });
+  await screen.findByRole('heading', { level: 1, name: 'sam.okafor' });
   await screen.findByRole('radiogroup', { name: 'New plan' });
 }
 
 describe('admin-user-detail · one account', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.adminGetSubscription.mockImplementation(async (id: string) => subscriptionOf(USERS.find((account) => account.id === id) ?? MARCO));
+    api.adminGetSubscription.mockImplementation(async (id: string) => subscriptionOf(USERS.find((account) => account.id === id) ?? SAM));
     api.adminListUsers.mockResolvedValue(userPage());
     api.adminGetUserUsage.mockResolvedValue(usageOf('BASIC', 10));
     api.getPricingCatalog.mockResolvedValue(catalogFixture);
     api.getCurrentPricing.mockResolvedValue(CURRENT_FIXTURE);
     api.getPricingToken.mockResolvedValue('token');
     api.adminUpdateSubscription.mockImplementation(async (id: string, value: { plan: string; add_ons: Record<string, number> }) => ({
-      ...subscriptionOf({ ...MARCO, id, plan: value.plan }, value.add_ons), changed: true,
+      ...subscriptionOf({ ...SAM, id, plan: value.plan }, value.add_ons), changed: true,
     }));
-    api.adminChangePlan.mockResolvedValue({ ...MARCO, plan: 'ADVANCED' });
+    api.adminChangePlan.mockResolvedValue({ ...SAM, plan: 'ADVANCED' });
     api.adminResyncUsage.mockResolvedValue({ plan: 'BASIC', slots_in_flight: 1, slots_recorded: 2, corrected_by: -1 });
     api.adminRevokeApiKey.mockResolvedValue(undefined);
   });
@@ -60,7 +60,7 @@ describe('admin-user-detail · one account', () => {
   it('shows who the account is, where its agreement stands and what it has used', async () => {
     open();
     await ready();
-    expect(screen.getByText(/marco-diaz@example\.invalid · since Jun 15, 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/sam-okafor@example\.invalid · since Jun 15, 2026/)).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent('Accounts');
     expect(screen.getByText('Not shown by the gateway')).toBeInTheDocument();
     expect(screen.getByText(/Pinned to pricing 0\.1\.0 · renews Nov 1, 2026/)).toBeInTheDocument();
@@ -69,15 +69,15 @@ describe('admin-user-detail · one account', () => {
     const ceilings = screen.getByRole('group', { name: 'Ceilings for each request' });
     expect(within(ceilings).getByText('Max time per job')).toBeInTheDocument();
     expect(within(ceilings).getByText('1 min')).toBeInTheDocument();
-    expect(api.adminGetSubscription).toHaveBeenCalledWith(MARCO.id);
-    expect(api.adminGetUserUsage).toHaveBeenCalledWith(MARCO.id);
+    expect(api.adminGetSubscription).toHaveBeenCalledWith(SAM.id);
+    expect(api.adminGetUserUsage).toHaveBeenCalledWith(SAM.id);
   });
 
   it('finds an account by username as well as by id', async () => {
-    open('marco.diaz');
+    open('sam.okafor');
     await ready();
-    expect(api.adminListUsers).toHaveBeenCalledWith({ search: 'marco.diaz', limit: 200 });
-    expect(api.adminGetSubscription).toHaveBeenCalledWith(MARCO.id);
+    expect(api.adminListUsers).toHaveBeenCalledWith({ search: 'sam.okafor', limit: 200 });
+    expect(api.adminGetSubscription).toHaveBeenCalledWith(SAM.id);
   });
 
   it('says so when no account has that name, and when the gateway has none with that id', async () => {
@@ -142,13 +142,13 @@ describe('admin-user-detail · one account', () => {
     fireEvent.change(screen.getByLabelText(/^Detail/), { target: { value: 'Ticket 41' } });
     fireEvent.click(screen.getByRole('button', { name: 'Apply agreement' }));
 
-    const dialog = screen.getByRole('dialog', { name: 'Apply agreement to marco.diaz?' });
+    const dialog = screen.getByRole('dialog', { name: 'Apply agreement to sam.okafor?' });
     expect(api.adminUpdateSubscription).not.toHaveBeenCalled();
     expect(within(dialog).getByText(/The account is notified and the change is recorded in the audit log/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Apply agreement' }));
 
-    expect(await screen.findByText(/Agreement updated for marco\.diaz \(new feature\)/)).toBeInTheDocument();
-    expect(api.adminUpdateSubscription).toHaveBeenCalledWith(MARCO.id, {
+    expect(await screen.findByText(/Agreement updated for sam\.okafor \(new feature\)/)).toBeInTheDocument();
+    expect(api.adminUpdateSubscription).toHaveBeenCalledWith(SAM.id, {
       plan: 'ADVANCED', add_ons: { COMPUTE_PACK: 1 }, reason: 'new_feature', detail: 'Ticket 41',
     });
     await waitFor(() => expect(api.adminGetSubscription).toHaveBeenCalledTimes(2));
@@ -159,14 +159,14 @@ describe('admin-user-detail · one account', () => {
     await ready();
     fireEvent.click(within(screen.getByRole('radiogroup', { name: 'New plan' })).getByRole('radio', { name: /^ADVANCED/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Change plan only, keep add-ons' }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Change plan of marco.diaz?' })).getByRole('button', { name: 'Change plan' }));
-    expect(await screen.findByText(/Agreement updated for marco\.diaz \(administrative decision\)/)).toBeInTheDocument();
-    expect(api.adminChangePlan).toHaveBeenCalledWith(MARCO.id, 'ADVANCED');
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Change plan of sam.okafor?' })).getByRole('button', { name: 'Change plan' }));
+    expect(await screen.findByText(/Agreement updated for sam\.okafor \(administrative decision\)/)).toBeInTheDocument();
+    expect(api.adminChangePlan).toHaveBeenCalledWith(SAM.id, 'ADVANCED');
     expect(api.adminUpdateSubscription).not.toHaveBeenCalled();
   });
 
   it('says when nothing changed, so nobody was notified', async () => {
-    api.adminUpdateSubscription.mockResolvedValue({ ...subscriptionOf(MARCO), changed: false });
+    api.adminUpdateSubscription.mockResolvedValue({ ...subscriptionOf(SAM), changed: false });
     open();
     await ready();
     fireEvent.click(within(screen.getByRole('radiogroup', { name: 'New plan' })).getByRole('radio', { name: /^ADVANCED/ }));
@@ -205,7 +205,7 @@ describe('admin-user-detail · one account', () => {
   it('keeps the page useful when the active pricing cannot be read', async () => {
     api.getPricingCatalog.mockRejectedValue(refusal(503, 'pricing_unavailable', 'down'));
     open();
-    await screen.findByRole('heading', { level: 1, name: 'marco.diaz' });
+    await screen.findByRole('heading', { level: 1, name: 'sam.okafor' });
     expect(await screen.findByText('The active pricing couldn’t be read')).toBeInTheDocument();
     expect(screen.queryByRole('radiogroup', { name: 'New plan' })).not.toBeInTheDocument();
     expect(await screen.findByText('10 of 10')).toBeInTheDocument();
@@ -229,7 +229,7 @@ describe('admin-user-detail · one account', () => {
     expect(await screen.findByText('Corrected by')).toBeInTheDocument();
     expect(screen.getByText('-1')).toBeInTheDocument();
     expect(screen.getByText('Slots recorded')).toBeInTheDocument();
-    expect(api.adminResyncUsage).toHaveBeenCalledWith(MARCO.id);
+    expect(api.adminResyncUsage).toHaveBeenCalledWith(SAM.id);
   });
 
   it('revokes a key by its id after a confirmation, and says when the account has no such key', async () => {
@@ -242,11 +242,11 @@ describe('admin-user-detail · one account', () => {
     expect(screen.getByText(/A key id is a UUID/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Key id'), { target: { value: KEY_ID } });
     fireEvent.click(revoke);
-    const dialog = screen.getByRole('dialog', { name: 'Revoke the key of marco.diaz?' });
+    const dialog = screen.getByRole('dialog', { name: 'Revoke the key of sam.okafor?' });
     expect(api.adminRevokeApiKey).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke key' }));
     expect(await screen.findByText(/Key revoked\. Requests with it fail from now on/)).toBeInTheDocument();
-    expect(api.adminRevokeApiKey).toHaveBeenCalledWith(MARCO.id, KEY_ID);
+    expect(api.adminRevokeApiKey).toHaveBeenCalledWith(SAM.id, KEY_ID);
 
     api.adminRevokeApiKey.mockRejectedValueOnce(refusal(404, 'not_found'));
     fireEvent.change(screen.getByLabelText('Key id'), { target: { value: KEY_ID } });
@@ -266,19 +266,19 @@ describe('admin-user-detail · one account', () => {
   });
 
   it('refreshes the pricing token when an administrator changes their own agreement', async () => {
-    api.adminGetSubscription.mockImplementation(async () => subscriptionOf({ ...LUCIA, id: LUCIA.id }));
-    open(LUCIA.id, { user: { ...LUCIA, role: 'admin' } });
-    await screen.findByRole('heading', { level: 1, name: 'lucia.vega' });
+    api.adminGetSubscription.mockImplementation(async () => subscriptionOf({ ...MARIA, id: MARIA.id }));
+    open(MARIA.id, { user: { ...MARIA, role: 'admin' } });
+    await screen.findByRole('heading', { level: 1, name: 'maria.santos' });
     await screen.findByRole('radiogroup', { name: 'New plan' });
     fireEvent.click(within(screen.getByRole('radiogroup', { name: 'New plan' })).getByRole('radio', { name: /^ADVANCED/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Apply agreement' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Apply agreement' }));
-    await screen.findByText(/Agreement updated for lucia\.vega/);
+    await screen.findByText(/Agreement updated for maria\.santos/);
     expect(api.getPricingToken).toHaveBeenCalled();
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    open(MARCO.id, { user: LUCIA });
+    open(SAM.id, { user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(api.adminGetSubscription).not.toHaveBeenCalled();
     expect(api.getPricingCatalog).not.toHaveBeenCalled();

@@ -2,8 +2,8 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { RUN_ID, runFixture, studyFixture } from '../Studies/fixtures';
-import { DRAFT, FROZEN, LEGACY, MATRIX, publicationOf, reportOf } from './fixtures';
+import { DRAFT, FROZEN, LEGACY, MATRIX, publicationOf, reportOf } from '../../test/fixtures/reports';
+import { RUN_ID, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { RepList } from './RepList';
 
 const platform = vi.hoisted(() => ({
@@ -43,8 +43,8 @@ describe('Reports of a project', () => {
     const list = await screen.findByRole('list', { name: 'Reports of the project' });
     const rows = within(list).getAllByRole('listitem');
     expect(rows).toHaveLength(3);
-    expect(within(rows[0]).getByRole('link', { name: /Comparativa de engines en checkout/ })).toHaveAttribute('href', `${ROOT}/reports/engines-vs-seeds-informe`);
-    expect(await within(rows[0]).findByText(/Frozen edition · from Engines × semillas · run #1 · sha256-eeee…eeee/)).toBeInTheDocument();
+    expect(within(rows[0]).getByRole('link', { name: /Engine comparison at checkout/ })).toHaveAttribute('href', `${ROOT}/reports/engine-comparison`);
+    expect(await within(rows[0]).findByText(/Frozen edition · from Engines × seeds · run #1 · sha256-eeee…eeee/)).toBeInTheDocument();
     expect(within(rows[0]).getByText('Frozen')).toBeInTheDocument();
     expect(within(rows[0]).getByText('Published')).toBeInTheDocument();
     expect(within(rows[1]).getByText(/Draft revision 3 · no edition yet/)).toBeInTheDocument();
@@ -75,7 +75,7 @@ describe('Reports of a project', () => {
     const dialog = await screen.findByRole('dialog', { name: 'New report' });
     fireEvent.change(within(dialog).getByLabelText('Title'), { target: { value: 'Mis hallazgos' } });
     expect(within(dialog).getByLabelText('Address')).toHaveValue('mis-hallazgos');
-    await within(dialog).findByRole('option', { name: /Engines × semillas · run #1/ });
+    await within(dialog).findByRole('option', { name: /Engines × seeds · run #1/ });
     fireEvent.change(within(dialog).getByLabelText('Study run'), { target: { value: RUN_ID } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create draft' }));
 
@@ -106,13 +106,13 @@ describe('Reports of a project', () => {
     renderList();
     await screen.findByRole('list', { name: 'Reports of the project' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Borrador: placement' }));
-    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Delete Borrador: placement?' })).getByRole('button', { name: 'Delete report' }));
-    expect(await screen.findByText('Deleted “Borrador: placement”.')).toBeInTheDocument();
-    expect(platform.deleteReport).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'borrador-placement');
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Draft: placement' }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Delete Draft: placement?' })).getByRole('button', { name: 'Delete report' }));
+    expect(await screen.findByText('Deleted “Draft: placement”.')).toBeInTheDocument();
+    expect(platform.deleteReport).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'draft-placement');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Comparativa de engines en checkout' }));
-    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Delete Comparativa de engines en checkout?' })).getByRole('button', { name: 'Delete report' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Engine comparison at checkout' }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Delete Engine comparison at checkout?' })).getByRole('button', { name: 'Delete report' }));
     expect(await screen.findByText('This report has frozen editions (409 · report_history_retained)')).toBeInTheDocument();
     expect(screen.getByText(/Editions stay citable/)).toBeInTheDocument();
   });

@@ -5,7 +5,6 @@ import { apiClient } from '../../api/client';
 import { MEMBER_BATCH_LIMIT, platformApi } from '../../api/platform';
 import type { MemberChange, Organization, OrganizationInvitation, OrganizationMember, OrganizationRole } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
-import { Chip } from '../../components/ui/Chip';
 import { CopyField } from '../../components/ui/CopyField';
 import { DataTable } from '../../components/ui/DataTable';
 import { FormField } from '../../components/ui/FormField';
@@ -465,16 +464,6 @@ function MembersBody({ organization }: { organization: Organization }) {
             Inherited roles come from the parent organizations you can see and are changed there. Invitations are listed only until you leave this page:
             the API returns an invitation once, when it is created.
           </p>
-
-          {canWrite && (
-            <div className="org-confirm-note" role="note">
-              <Chip>To confirm</Chip>
-              <span>
-                Right now any ADMIN can give someone the OWNER role. Whether that should be limited to owners is an open question for the backend,
-                so this screen doesn’t restrict it.
-              </span>
-            </div>
-          )}
         </>
       )}
 

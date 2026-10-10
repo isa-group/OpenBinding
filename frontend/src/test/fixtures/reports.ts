@@ -1,5 +1,5 @@
 import type { Publication, Report } from '../../api/platform';
-import { RUN_ID, digestOf } from '../Studies/fixtures';
+import { RUN_ID, digestOf } from './studies';
 
 /** The reports of the QoS Benchmarks project: a frozen edition that is published, a draft, and an older-shaped draft. */
 export const EDITION = digestOf('e');
@@ -22,31 +22,31 @@ export function reportOf(slug: string, state: Report['state'], over: Partial<Rep
   };
 }
 
-export const FROZEN = reportOf('engines-vs-seeds-informe', 'frozen', {
-  title: 'Comparativa de engines en checkout', study_run_id: RUN_ID,
+export const FROZEN = reportOf('engine-comparison', 'frozen', {
+  title: 'Engine comparison at checkout', study_run_id: RUN_ID,
   document: {
     blocks: [
-      { type: 'heading', text: 'Comparativa de engines en checkout' },
+      { type: 'heading', text: 'Engine comparison at checkout' },
       { type: 'text', text: 'Two engines, two seeds, two revisions of the checkout case.' },
-      { type: 'evidence', text: 'Engines × semillas · run #1', runId: RUN_ID },
+      { type: 'evidence', text: 'Engines × seeds · run #1', runId: RUN_ID },
     ],
     provenance: PROVENANCE,
   },
 });
 
-export const DRAFT = reportOf('borrador-placement', 'draft', {
-  title: 'Borrador: placement', document: { blocks: [{ type: 'heading', text: 'Borrador: placement' }, { type: 'text', text: 'Pools and latencies on the edge.' }], provenance: {} },
+export const DRAFT = reportOf('draft-placement', 'draft', {
+  title: 'Draft: placement', document: { blocks: [{ type: 'heading', text: 'Draft: placement' }, { type: 'text', text: 'Pools and latencies on the edge.' }], provenance: {} },
 });
 
-export const LEGACY = reportOf('notas-antiguas', 'draft', {
-  title: 'Notas antiguas', draft_revision: 1,
+export const LEGACY = reportOf('older-notes', 'draft', {
+  title: 'Older notes', draft_revision: 1,
   document: { summary: 'Initial notes', findings: ['Evolutionary is cheaper but slower.'], provenance: {} },
 });
 
 export function publicationOf(report: Report, over: Partial<Publication> = {}): Publication {
   return {
-    id: `pub-${report.slug}`, project_id: report.project_id, report_id: report.id, version_id: report.version_id ?? 'version-none', withdrawn: false, slug: 'checkout-comparativa',
-    citation: { title: 'Comparativa de engines en checkout (sintética)', authors: ['Lucía Vega'], year: 2026, venue: 'ISA Demo Group / QoS Benchmarks' },
+    id: `pub-${report.slug}`, project_id: report.project_id, report_id: report.id, version_id: report.version_id ?? 'version-none', withdrawn: false, slug: 'checkout-comparison',
+    citation: { title: 'Engine comparison at checkout', authors: ['Alex Rivera'], year: 2026, venue: 'ISA Demo Group / QoS Benchmarks' },
     published_at: '2026-09-25T10:00:00Z', ...over,
   };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ENGINE_DOCUMENT, QOS_PROFILE } from '../Engines/fixtures';
+import { ENGINE_DOCUMENT, QOS_PROFILE } from '../../test/fixtures/engines';
 import {
   BUILTIN_VOCABULARY, buildManifest, bumpPatch, draftFromManifest, issueAt, newDraft, newMode, newOption, validateDraft, vocabulariesFrom,
 } from './engineDraft';
@@ -103,7 +103,7 @@ describe('an engine manifest in the form and back', () => {
   it('keeps what the manifest declares: ranges, scalarizations, fixed options, ceilings and guarantees', () => {
     const draft = draftFromManifest(ENGINE_DOCUMENT, [gateway]);
     expect(draft).not.toBeNull();
-    const built = buildManifest(draft!, 'lucia.vega', [gateway]);
+    const built = buildManifest(draft!, 'alex.rivera', [gateway]);
     const [mode] = built.spec.modes;
     const capabilities = mode.capabilities as unknown as Record<string, unknown>;
     expect(capabilities.featureValues).toEqual({ selector: 'only', values: ['scalar', 'interval'] });

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { FLUJO, REVISION_1, REVISION_2, VERSION_ID, cellsFixture, digestOf, runFixture, studyFixture } from './fixtures';
+import { CHECKOUT, REVISION_1, REVISION_2, VERSION_ID, cellsFixture, digestOf, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { StudyDetail } from './StudyDetail';
 
 const platform = vi.hoisted(() => ({
@@ -43,7 +43,7 @@ describe('One study', () => {
     platform.studies.mockResolvedValue([studyFixture()]);
     platform.studyRuns.mockResolvedValue([runFixture()]);
     platform.studyCells.mockResolvedValue(cellsFixture());
-    platform.cases.mockResolvedValue([FLUJO]);
+    platform.cases.mockResolvedValue([CHECKOUT]);
     platform.revisions.mockResolvedValue([REVISION_1, REVISION_2]);
     library.libraryApi.versions.mockResolvedValue([version(VERSION_ID, 1)]);
   });
@@ -51,12 +51,12 @@ describe('One study', () => {
   it('shows the definition, the matrix it expands to, and the runs it has', async () => {
     renderDetail();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Engines × semillas' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Engines × seeds' })).toBeInTheDocument();
     expect(await screen.findByText('Definition version 1 · sealed in the library')).toBeInTheDocument();
     const grid = await screen.findByRole('region', { name: 'The cells of the matrix' });
     expect(within(grid).getAllByRole('columnheader')).toHaveLength(5);
     expect(within(grid).getByRole('columnheader', { name: 'random-search (sampling) · seed 2' })).toBeInTheDocument();
-    expect(within(grid).getByRole('rowheader', { name: 'Flujo de checkout r2' })).toBeInTheDocument();
+    expect(within(grid).getByRole('rowheader', { name: 'Checkout flow r2' })).toBeInTheDocument();
     expect(within(grid).getByText('cell 7')).toBeInTheDocument();
     expect(screen.getByText(/2 case revisions × 2 engines × 1 setting × 2 seeds = 8 cells\. Settings: 1 · engine defaults\. Seeds: 1, 2\. Every run repeats exactly these cells\./)).toBeInTheDocument();
 
@@ -72,7 +72,7 @@ describe('One study', () => {
   it('keeps the raw definition behind View source', async () => {
     renderDetail();
 
-    await screen.findByRole('heading', { level: 1, name: 'Engines × semillas' });
+    await screen.findByRole('heading', { level: 1, name: 'Engines × seeds' });
     const source = screen.getByText('View source').closest('details') as HTMLDetailsElement;
     expect(source.open).toBe(false);
     expect(screen.getByLabelText('Study definition source')).toHaveTextContent('"case_revision_ids"');
@@ -159,7 +159,7 @@ describe('One study', () => {
     renderDetail();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
-    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Delete Engines × semillas?' })).getByRole('button', { name: 'Delete study' }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Delete Engines × seeds?' })).getByRole('button', { name: 'Delete study' }));
 
     expect(await screen.findByText('elsewhere')).toBeInTheDocument();
     expect(platform.deleteStudy).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds');
@@ -203,14 +203,14 @@ describe('One study', () => {
 
     expect(await screen.findByText(/The study couldn’t be loaded \(503 · unavailable\)/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Engines × semillas' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Engines × seeds' })).toBeInTheDocument();
   });
 
   it('keeps the page when only the runs fail to load', async () => {
     platform.studyRuns.mockRejectedValue(refusal(503, 'unavailable'));
     renderDetail();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Engines × semillas' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Engines × seeds' })).toBeInTheDocument();
     expect(await screen.findByText(/The runs couldn’t be loaded \(503 · unavailable\)/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Run study' })).toBeInTheDocument();
   });

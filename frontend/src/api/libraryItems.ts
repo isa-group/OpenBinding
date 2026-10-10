@@ -18,7 +18,7 @@ export type LibraryVersion = ArtifactVersion & {
 };
 
 /**
- * The library calls of the library screens. Unlike `libraryApi`, every call throws on a refusal (a 422 is an error here, not a body
+ * The library calls of the library screens. Every call throws on a refusal (a 422 is an error here, not a body
  * to read as the result), so a screen can tell "the gateway said no" from "here is the answer".
  */
 const strict = <T>(endpoint: string, init?: RequestInit) => apiClient.request<T>(endpoint, init, undefined, true, true);

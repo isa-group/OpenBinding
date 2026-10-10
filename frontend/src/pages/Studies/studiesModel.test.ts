@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { CaseContent } from '../Project/projectModel';
-import { FLUJO, REVISION_1, REVISION_2, cellsFixture, studyFixture, revisionFixture } from './fixtures';
+import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture, studyFixture, revisionFixture } from '../../test/fixtures/studies';
 import {
   MAX_SEEDS, collectionMembers, defaultSelection, definitionGrid, definitionSize, describeParameters, emptyVariant, engineChoices, enginesOf, explainFailure,
   formatMeasure, formatSeconds, formulaOf, heatLevel, matrixView, measureValue, measuresOf, metricsOf, parametersKey, readSeeds, readVariant, revisionIndex,
   revisionLabel, rivalsOf, seedsOf, solverEstimate, studyContentSize, breakdownText, slot,
 } from './studiesModel';
 
-const cases: CaseContent[] = [{ item: FLUJO, revisions: [REVISION_1, REVISION_2, revisionFixture(3, { source_snapshot_id: null })] }];
+const cases: CaseContent[] = [{ item: CHECKOUT, revisions: [REVISION_1, REVISION_2, revisionFixture(3, { source_snapshot_id: null })] }];
 
 describe('the matrix of a study', () => {
   it('multiplies cases, engines, settings and seeds, and says so in words', () => {
@@ -101,15 +101,15 @@ describe('the solver time a matrix may use', () => {
 describe('case revisions', () => {
   it('names the revisions of the project and falls back to the start of an id', () => {
     const index = revisionIndex(cases);
-    expect(revisionLabel(index, REVISION_2.id)).toBe('Flujo de checkout · revision 2');
-    expect(revisionLabel(index, REVISION_2.id, true)).toBe('Flujo de checkout r2');
+    expect(revisionLabel(index, REVISION_2.id)).toBe('Checkout flow · revision 2');
+    expect(revisionLabel(index, REVISION_2.id, true)).toBe('Checkout flow r2');
     expect(revisionLabel(index, 'abcdef0123456789')).toBe('Revision abcdef01…');
   });
 
   it('starts the builder from the case, revision or collection another screen named', () => {
-    expect(defaultSelection({ cases, caseSlug: 'flujo-checkout', revision: '1', collectionIds: [] })).toEqual([REVISION_1.id]);
-    expect(defaultSelection({ cases, caseSlug: 'flujo-checkout', revision: null, collectionIds: [] })).toEqual([REVISION_2.id]);
-    expect(defaultSelection({ cases, caseSlug: 'flujo-checkout', revision: '3', collectionIds: [] })).toEqual([]);
+    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: '1', collectionIds: [] })).toEqual([REVISION_1.id]);
+    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: null, collectionIds: [] })).toEqual([REVISION_2.id]);
+    expect(defaultSelection({ cases, caseSlug: 'checkout-flow', revision: '3', collectionIds: [] })).toEqual([]);
     expect(defaultSelection({ cases, caseSlug: null, revision: null, collectionIds: [REVISION_1.id, 'elsewhere'] })).toEqual([REVISION_1.id]);
     expect(defaultSelection({ cases, caseSlug: 'ghost', revision: null, collectionIds: [] })).toEqual([]);
   });

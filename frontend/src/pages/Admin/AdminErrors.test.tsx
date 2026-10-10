@@ -1,7 +1,7 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminErrors } from './AdminErrors';
-import { ERRORS, ERROR_OVERVIEW, LUCIA, MARCO } from './adminFixtures';
+import { ERRORS, ERROR_OVERVIEW, MARIA, SAM } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({
@@ -43,8 +43,8 @@ describe('admin-errors · what is failing on the platform', () => {
 
   it('names the accounts that keep hitting limits and the endpoints whose solvers fail', async () => {
     renderAdmin(<AdminErrors />);
-    const accounts = await screen.findAllByRole('link', { name: MARCO.email });
-    expect(accounts[0]).toHaveAttribute('href', `/app/admin/users/${MARCO.id}`);
+    const accounts = await screen.findAllByRole('link', { name: SAM.email });
+    expect(accounts[0]).toHaveAttribute('href', `/app/admin/users/${SAM.id}`);
     expect(await screen.findByText('7 refusals')).toBeInTheDocument();
     expect(screen.getByText('/v1/engines/minizinc/solve')).toBeInTheDocument();
     expect(screen.getByText('2 failures')).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe('admin-errors · what is failing on the platform', () => {
     expect(within(aside).getByText('402 · quota_exceeded')).toBeInTheDocument();
     expect(within(aside).getByText(/A monthly or capacity allowance ran out/)).toBeInTheDocument();
     expect(within(aside).getByText('POST /v1/jobs')).toBeInTheDocument();
-    expect(within(aside).getByRole('link', { name: MARCO.email })).toHaveAttribute('href', `/app/admin/users/${MARCO.id}`);
+    expect(within(aside).getByRole('link', { name: SAM.email })).toHaveAttribute('href', `/app/admin/users/${SAM.id}`);
     const quota = within(aside).getByLabelText('Quota at the time');
     expect(within(quota).getByText('10 of 10 solve/month')).toBeInTheDocument();
     expect(within(aside).getByText('View source')).toBeInTheDocument();
@@ -95,11 +95,11 @@ describe('admin-errors · what is failing on the platform', () => {
   it('filters by account only once the id is a UUID', async () => {
     renderAdmin(<AdminErrors />);
     await screen.findByRole('list', { name: 'Errors grouped by code' });
-    fireEvent.change(screen.getByLabelText('Account id'), { target: { value: 'marco' } });
+    fireEvent.change(screen.getByLabelText('Account id'), { target: { value: 'sam' } });
     expect(screen.getByText(/An account id is a UUID; the filter waits until it is one/)).toBeInTheDocument();
     expect(api.adminListErrors).toHaveBeenCalledTimes(1);
-    fireEvent.change(screen.getByLabelText('Account id'), { target: { value: MARCO.id } });
-    await waitFor(() => expect(api.adminListErrors).toHaveBeenLastCalledWith(expect.objectContaining({ user_id: MARCO.id })));
+    fireEvent.change(screen.getByLabelText('Account id'), { target: { value: SAM.id } });
+    await waitFor(() => expect(api.adminListErrors).toHaveBeenLastCalledWith(expect.objectContaining({ user_id: SAM.id })));
   });
 
   it('says there is nothing to diagnose when the gateway has recorded no errors', async () => {
@@ -158,7 +158,7 @@ describe('admin-errors · what is failing on the platform', () => {
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
-    renderAdmin(<AdminErrors />, { user: LUCIA });
+    renderAdmin(<AdminErrors />, { user: MARIA });
     expect(await screen.findByText('Not available (403)')).toBeInTheDocument();
     expect(api.adminErrorOverview).not.toHaveBeenCalled();
     expect(api.adminListErrors).not.toHaveBeenCalled();

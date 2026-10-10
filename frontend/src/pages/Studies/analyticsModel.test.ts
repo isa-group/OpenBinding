@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { CaseContent } from '../Project/projectModel';
 import { axisOf, cellsCsv, engineRows, measureTitle, percentOf, rankEngines, scatterOf, seedGroups, spreadOf } from './analyticsModel';
-import { FLUJO, REVISION_1, REVISION_2, cellFixture, cellsFixture, RANDOM_SEARCH } from './fixtures';
+import { CHECKOUT, REVISION_1, REVISION_2, cellFixture, cellsFixture, RANDOM_SEARCH } from '../../test/fixtures/studies';
 import { measuresOf, revisionIndex } from './studiesModel';
 
-const cases: CaseContent[] = [{ item: FLUJO, revisions: [REVISION_1, REVISION_2] }];
+const cases: CaseContent[] = [{ item: CHECKOUT, revisions: [REVISION_1, REVISION_2] }];
 const index = revisionIndex(cases);
 
 describe('spread of values', () => {
@@ -81,10 +81,10 @@ describe('seed to seed', () => {
   it('groups the cells of one case, engine and setting and measures how far the seeds are apart', () => {
     const groups = seedGroups(cellsFixture(), 'cost', index);
     expect(groups).toHaveLength(4);
-    const random = groups.find((group) => group.label === 'Flujo de checkout r1 · random-search');
+    const random = groups.find((group) => group.label === 'Checkout flow r1 · random-search');
     expect(random?.seeds.map((item) => item.seed)).toEqual([1, 2]);
     expect(random?.spread).toBeCloseTo(0.003, 6);
-    const failed = groups.find((group) => group.label === 'Flujo de checkout r1 · evolutionary');
+    const failed = groups.find((group) => group.label === 'Checkout flow r1 · evolutionary');
     expect(failed?.spread).toBeNull();
   });
 });
@@ -96,7 +96,7 @@ describe('the CSV of a run', () => {
     const lines = text.split('\n');
     expect(lines[0]).toBe('cell,case_revision,engine,engine_version,mode,setting,seed,state,feasible,cost,latency,runtime_seconds,job_id,fingerprint');
     expect(lines).toHaveLength(5);
-    expect(lines[1]).toContain('Flujo de checkout · revision 1,evolutionary,1.0.0,genetic,Engine defaults,1,completed,true,0.112,440,120');
+    expect(lines[1]).toContain('Checkout flow · revision 1,evolutionary,1.0.0,genetic,Engine defaults,1,completed,true,0.112,440,120');
     expect(lines[4]).toContain('"note a ""b"", c"');
   });
 });

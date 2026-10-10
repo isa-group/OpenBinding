@@ -7,7 +7,7 @@ import { AuthContext } from '../../contexts/auth';
 import { EngRegistrations } from './EngRegistrations';
 import {
   EDGE_SOLVER, PAUSED_SOLVER, REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf, usageOf,
-} from './fixtures';
+} from '../../test/fixtures/engines';
 
 const api = vi.hoisted(() => ({
   listEngineRegistrations: vi.fn(),
@@ -26,7 +26,7 @@ vi.mock('../../api/client', async () => ({
 }));
 
 const lucia: UserProfile = {
-  id: 'lucia-id', username: 'lucia.vega', email: 'lucia@example.test', role: 'user', plan: 'RESEARCH', is_active: true, created_at: '2026-01-01T00:00:00Z',
+  id: 'lucia-id', username: 'alex.rivera', email: 'lucia@example.test', role: 'user', plan: 'RESEARCH', is_active: true, created_at: '2026-01-01T00:00:00Z',
 };
 const iker: UserProfile = { ...lucia, id: 'iker-id', username: 'iker.mora', role: 'admin' };
 
@@ -80,7 +80,7 @@ describe('eng-registrations · my engines', () => {
     renderPage();
     expect(screen.getByRole('heading', { level: 1, name: 'My engines' })).toBeInTheDocument();
     const edge = await screen.findByRole('row', { name: 'edge-solver 0.3.1' });
-    expect(within(edge).getByRole('link', { name: 'edge-solver' })).toHaveAttribute('href', expect.stringContaining('/app/engines/registrations/edge-solver?namespace=lucia.vega&version=0.3.1&digest=sha256-'));
+    expect(within(edge).getByRole('link', { name: 'edge-solver' })).toHaveAttribute('href', expect.stringContaining('/app/engines/registrations/edge-solver?namespace=alex.rivera&version=0.3.1&digest=sha256-'));
     expect(within(edge).getByText('Active')).toBeInTheDocument();
     expect(within(edge).getByText('Private')).toBeInTheDocument();
     expect(await within(edge).findByText('Passed')).toBeInTheDocument();

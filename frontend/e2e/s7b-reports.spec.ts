@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto';
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
 import type { ArchiveQuery, ArchiveResponse, ArchiveRow, ArchiveSource } from '../src/analysis/archive';
 import type { Publication, Report, VerifierEntity, VerifierVerdict } from '../src/api/platform';
-import { ID_FASTPAY, ID_PAYCO, JOB_DONE, JOB_OLD, JOB_SECOND, ROWS, SOURCES, archiveOf, detailOf } from '../src/pages/Analysis/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
-import { DRAFT, EDITION, FROZEN, LEGACY, PROVENANCE, publicationOf, reportOf } from '../src/pages/Reports/fixtures';
-import { usageOf } from '../src/pages/Resources/fixtures';
-import { RUN_ID, cellsFixture, digestOf, runFixture, studyFixture } from '../src/pages/Studies/fixtures';
+import { ID_FASTPAY, ID_PAYCO, JOB_DONE, JOB_OLD, JOB_SECOND, ROWS, SOURCES, archiveOf, detailOf } from '../src/test/fixtures/analysis';
+import { DRAFT, EDITION, FROZEN, LEGACY, PROVENANCE, publicationOf, reportOf } from '../src/test/fixtures/reports';
+import { usageOf } from '../src/test/fixtures/resources';
+import { RUN_ID, cellsFixture, digestOf, runFixture, studyFixture } from '../src/test/fixtures/studies';
 
 // S7b · analysis and reports: analysis-sources, analysis-workspace, rep-list, rep-detail, proj-publications and verifier.
 // There is no backend: the API origin is answered by page.route(). Screenshots go to testInfo.outputPath() (test-results/, ignored by git)
@@ -108,7 +108,7 @@ const canonical = (value: unknown): string => {
 };
 
 const reportEntity: VerifierEntity = {
-  entity_type: 'report', id: 'report-1', slug: 'engines-vs-seeds-informe', title_or_name: 'Comparativa de engines en checkout',
+  entity_type: 'report', id: 'report-1', slug: 'engine-comparison', title_or_name: 'Engine comparison at checkout',
   organization_slug: 'isa-demo', project_slug: 'qos-benchmarks', created_at: '2026-09-25T09:00:00Z',
 };
 const fileEntity: VerifierEntity = {
@@ -477,11 +477,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.refuse.sources = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
       await expect(main.getByRole('region', { name: /Model sha256-c3d4/ })).toBeVisible();
-
-      // The old address that reopened a saved decision now goes to the decision space.
-      await page.goto('/app/analysis?report=isa-demo/qos-benchmarks/decision-choice');
-      await expect(page).toHaveURL(/\/app\/analysis\/workspace\?report=/);
-      await expect(main.getByText('Saved decision snapshot')).toBeVisible();
       expect(critical).toEqual([]);
     });
 
@@ -676,12 +671,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/Freezing makes an edition that never changes; publishing makes it public and citable\./)).toBeVisible();
       await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Reports', exact: true })).toHaveAttribute('aria-current', 'page');
       await expect(list.getByRole('listitem')).toHaveCount(4);
-      const frozen = list.getByRole('listitem').filter({ hasText: 'Comparativa de engines en checkout' });
-      await expect(frozen.getByRole('link')).toHaveAttribute('href', `${ROOT}/reports/engines-vs-seeds-informe`);
+      const frozen = list.getByRole('listitem').filter({ hasText: 'Engine comparison at checkout' });
+      await expect(frozen.getByRole('link')).toHaveAttribute('href', `${ROOT}/reports/engine-comparison`);
       await expect(frozen.getByText('Frozen', { exact: true })).toBeVisible();
       await expect(frozen.getByText('Published', { exact: true })).toBeVisible();
-      await expect(frozen).toContainText('Frozen edition · from Engines × semillas · run #1 · sha256-eeee…eeee');
-      await expect(list.getByRole('listitem').filter({ hasText: 'Borrador: placement' })).toContainText('Draft revision 3 · no edition yet');
+      await expect(frozen).toContainText('Frozen edition · from Engines × seeds · run #1 · sha256-eeee…eeee');
+      await expect(list.getByRole('listitem').filter({ hasText: 'Draft: placement' })).toContainText('Draft revision 3 · no edition yet');
       await expect(main.getByRole('link', { name: 'Publications' })).toHaveAttribute('href', `${ROOT}/publications`);
       await capture(page, testInfo, `reports-${name}-list`, { height: 1500 });
 
@@ -708,14 +703,14 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(list.getByRole('listitem')).toHaveCount(5);
 
       // A draft can be deleted; an edition cannot.
-      await main.getByRole('button', { name: 'Delete Notas antiguas' }).click();
-      await page.getByRole('dialog', { name: 'Delete Notas antiguas?' }).getByRole('button', { name: 'Delete report' }).click();
-      await expect(main.getByText('Deleted “Notas antiguas”.')).toBeVisible();
-      await main.getByRole('button', { name: 'Delete Comparativa de engines en checkout' }).click();
-      await page.getByRole('dialog', { name: 'Delete Comparativa de engines en checkout?' }).getByRole('button', { name: 'Delete report' }).click();
+      await main.getByRole('button', { name: 'Delete Older notes' }).click();
+      await page.getByRole('dialog', { name: 'Delete Older notes?' }).getByRole('button', { name: 'Delete report' }).click();
+      await expect(main.getByText('Deleted “Older notes”.')).toBeVisible();
+      await main.getByRole('button', { name: 'Delete Engine comparison at checkout' }).click();
+      await page.getByRole('dialog', { name: 'Delete Engine comparison at checkout?' }).getByRole('button', { name: 'Delete report' }).click();
       await expect(main.getByText('This report has frozen editions (409 · report_history_retained)')).toBeVisible();
       await capture(page, testInfo, `reports-${name}-delete-409`, { height: 1500 });
-      expect(state.sent.removed).toEqual(['notas-antiguas', 'engines-vs-seeds-informe']);
+      expect(state.sent.removed).toEqual(['older-notes', 'engine-comparison']);
       expect(critical).toEqual([]);
     });
 
@@ -759,22 +754,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('rep-detail /app/:org/:project/reports/:report · a published edition: blocks, evidence, fingerprint, citation and history', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       await mockApi(page);
-      await page.goto(`${ROOT}/reports/engines-vs-seeds-informe`);
+      await page.goto(`${ROOT}/reports/engine-comparison`);
       const main = page.locator('#platform-main');
       const content = main.getByRole('article', { name: 'Report content' });
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Comparativa de engines en checkout' })).toBeVisible();
+      await expect(main.getByRole('heading', { level: 1, name: 'Engine comparison at checkout' })).toBeVisible();
       await expect(main.getByText('Frozen edition · fingerprint sha256-eeee…eeee')).toBeVisible();
-      await expect(content.getByRole('heading', { level: 2, name: 'Comparativa de engines en checkout' })).toBeVisible();
+      await expect(content.getByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeVisible();
       await expect(content.getByText('Two engines, two seeds, two revisions of the checkout case.')).toBeVisible();
       await expect(content.getByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeVisible();
       // The run it cites links to the screens of the run, not to a route that no longer exists.
       const analytics = main.getByRole('link', { name: 'Compare results' });
       await expect(analytics).toHaveCount(2);
       await expect(analytics.first()).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds/runs/${RUN_ID}/analytics`);
-      await expect(main.getByRole('link', { name: 'Version history in the library' })).toHaveAttribute('href', '/app/isa-demo/library/artifact-engines-vs-seeds-informe/versions/version-engines-vs-seeds-informe');
+      await expect(main.getByRole('link', { name: 'Version history in the library' })).toHaveAttribute('href', '/app/isa-demo/library/artifact-engine-comparison/versions/version-engine-comparison');
       await expect(main.getByRole('link', { name: 'Verify it' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
-      await expect(main.getByText('Lucía Vega (2026). Comparativa de engines en checkout (sintética). ISA Demo Group / QoS Benchmarks.')).toBeVisible();
+      await expect(main.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'New draft from this edition' })).toBeVisible();
       await expect(main.getByRole('button', { name: 'Withdraw' })).toBeVisible();
       await capture(page, testInfo, `report-${name}-published`, { height: 2200 });
@@ -787,7 +782,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // Withdrawing keeps the link, citation and fingerprint.
       await main.getByRole('button', { name: 'Withdraw' }).click();
-      const dialog = page.getByRole('dialog', { name: 'Withdraw checkout-comparativa?' });
+      const dialog = page.getByRole('dialog', { name: 'Withdraw checkout-comparison?' });
       await capture(page, testInfo, `report-${name}-withdraw`);
       await dialog.getByRole('button', { name: 'Withdraw' }).click();
       await expect(main.getByText('Withdrawn. It’s no longer listed in Explore, but its link, citation and fingerprint still work.')).toBeVisible();
@@ -798,11 +793,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     test('rep-detail /app/:org/:project/reports/:report · a draft: edit, save, freeze refused for provenance, fixed, frozen and published', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
-      await page.goto(`${ROOT}/reports/borrador-placement`);
+      await page.goto(`${ROOT}/reports/draft-placement`);
       const main = page.locator('#platform-main');
       const block = (label: string) => main.getByRole('region', { name: label }).getByRole('textbox');
 
-      await expect(main.getByRole('heading', { level: 1, name: 'Borrador: placement' })).toBeVisible();
+      await expect(main.getByRole('heading', { level: 1, name: 'Draft: placement' })).toBeVisible();
       await expect(main.getByText('Draft revision 3 · saved')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Save draft' })).toBeDisabled();
       await block('Text block 2').fill('Pools and latencies on the edge, with two engines.');
@@ -814,8 +809,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Save draft' }).click();
       await expect(main.getByText('Draft saved.')).toBeVisible();
       expect(state.sent.updated.at(-1)).toMatchObject({
-        title: 'Borrador: placement', draft_revision: 3,
-        document: { blocks: [{ type: 'heading', text: 'Borrador: placement' }, { type: 'heading', text: 'Next steps' }, { type: 'text', text: 'Pools and latencies on the edge, with two engines.' }] },
+        title: 'Draft: placement', draft_revision: 3,
+        document: { blocks: [{ type: 'heading', text: 'Draft: placement' }, { type: 'heading', text: 'Next steps' }, { type: 'text', text: 'Pools and latencies on the edge, with two engines.' }] },
       });
       await expect(main.getByText('Draft revision 4 · saved')).toBeVisible();
 
@@ -838,7 +833,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Frozen as a new edition. It can’t change any more; its fingerprint was assigned by the server.')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Publish…' })).toBeVisible();
       await expect(main.getByText(/Frozen edition · fingerprint sha256-ffff…ffff/)).toBeVisible();
-      expect(state.sent.frozen).toEqual(['borrador-placement', 'borrador-placement']);
+      expect(state.sent.frozen).toEqual(['draft-placement', 'draft-placement']);
 
       // Publishing: the server refuses private evidence, then accepts.
       await main.getByRole('button', { name: 'Publish…' }).click();
@@ -853,7 +848,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.refuse.publish = undefined;
       await publish.getByRole('button', { name: 'Publish' }).click();
       await expect(main.getByText('Published. Anyone can now find, read and verify this edition.')).toBeVisible();
-      expect(state.sent.published).toMatchObject({ slug: 'borrador-placement', citation: { authors: ['lucia.vega'], doi: '10.1000/placement' } });
+      expect(state.sent.published).toMatchObject({ slug: 'draft-placement', citation: { authors: ['lucia.vega'], doi: '10.1000/placement' } });
       await expect(main.getByRole('heading', { name: 'Published', exact: true })).toBeVisible();
       await capture(page, testInfo, `report-${name}-published-now`, { height: 2200 });
       expect(critical).toEqual([]);
@@ -865,7 +860,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const main = page.locator('#platform-main');
 
       // Someone else saved a newer revision: what was typed stays, theirs can be loaded.
-      await page.goto(`${ROOT}/reports/borrador-placement`);
+      await page.goto(`${ROOT}/reports/draft-placement`);
       await main.getByRole('region', { name: 'Text block 2' }).getByRole('textbox').fill('My version');
       state.reports[1].draft_revision = 4;
       await main.getByRole('button', { name: 'Save draft' }).click();
@@ -876,7 +871,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Draft revision 4 · saved')).toBeVisible();
 
       // A report that holds summary and findings is read as blocks and written back as blocks.
-      await page.goto(`${ROOT}/reports/notas-antiguas`);
+      await page.goto(`${ROOT}/reports/older-notes`);
       await expect(main.getByRole('region', { name: 'Text block 1' }).getByRole('textbox')).toHaveValue('Initial notes');
       await expect(main.getByRole('region', { name: 'Text block 2' }).getByRole('textbox')).toHaveValue('Evolutionary is cheaper but slower.');
       await capture(page, testInfo, `report-${name}-legacy`, { height: 1500 });
@@ -889,7 +884,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `report-${name}-decision`, { height: 2000 });
 
       // A viewer reads only.
-      await page.goto('/app/read-lab/bench/reports/borrador-placement');
+      await page.goto('/app/read-lab/bench/reports/draft-placement');
       await expect(main.getByText('Read-only for you: editing needs MEMBER, publishing needs ADMIN.')).toBeVisible();
       for (const label of ['Save draft', 'Freeze edition', 'Delete', '+ Text']) await expect(main.getByRole('button', { name: label })).toHaveCount(0);
       await expect(main.getByRole('article', { name: 'Report content' }).getByRole('textbox')).toHaveCount(0);
@@ -901,7 +896,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `report-${name}-404`, { height: 900 });
 
       state.refuse.report = unavailable;
-      await page.goto(`${ROOT}/reports/borrador-placement`);
+      await page.goto(`${ROOT}/reports/draft-placement`);
       await expect(main.getByText(/The report couldn’t be loaded \(503\)/)).toBeVisible();
       expect(critical).toEqual([]);
     });
@@ -915,15 +910,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { level: 1, name: 'Publications' })).toBeVisible();
       await expect(main.getByText(/Report editions made public from QoS Benchmarks\. Withdrawing hides one from listings but keeps every link and fingerprint working\./)).toBeVisible();
       await expect(main.getByRole('navigation', { name: 'Project sections' }).getByRole('link', { name: 'Reports', exact: true })).toHaveAttribute('aria-current', 'page');
-      await expect(main.getByRole('heading', { level: 2, name: 'Comparativa de engines en checkout (sintética)' })).toBeVisible();
-      await expect(main.getByText('checkout-comparativa · published Sep 25, 2026 · sha256-eeee…eeee')).toBeVisible();
-      await expect(main.getByText('Lucía Vega (2026). Comparativa de engines en checkout (sintética). ISA Demo Group / QoS Benchmarks.')).toBeVisible();
+      await expect(main.getByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeVisible();
+      await expect(main.getByText('checkout-comparison · published Sep 25, 2026 · sha256-eeee…eeee')).toBeVisible();
+      await expect(main.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Open public verification' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
-      await expect(main.getByRole('link', { name: 'Open the report' })).toHaveAttribute('href', `${ROOT}/reports/engines-vs-seeds-informe`);
+      await expect(main.getByRole('link', { name: 'Open the report' })).toHaveAttribute('href', `${ROOT}/reports/engine-comparison`);
       await capture(page, testInfo, `publications-${name}-list`, { height: 1500 });
 
       await main.getByRole('button', { name: 'Withdraw' }).click();
-      const dialog = page.getByRole('dialog', { name: 'Withdraw checkout-comparativa?' });
+      const dialog = page.getByRole('dialog', { name: 'Withdraw checkout-comparison?' });
       await capture(page, testInfo, `publications-${name}-confirm`);
       state.refuse.withdraw = detail(403, 'forbidden', 'Your role does not reach this.');
       await dialog.getByRole('button', { name: 'Withdraw' }).click();
@@ -934,7 +929,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Withdrawn · still reachable by link')).toBeVisible();
       await expect(main.getByRole('button', { name: 'Withdraw' })).toHaveCount(0);
       await expect(main.getByRole('link', { name: 'Open public verification' })).toBeVisible();
-      expect(state.sent.withdrawn).toEqual(['checkout-comparativa', 'checkout-comparativa']);
+      expect(state.sent.withdrawn).toEqual(['checkout-comparison', 'checkout-comparison']);
       await capture(page, testInfo, `publications-${name}-withdrawn`, { height: 1500 });
       expect(critical).toEqual([]);
     });
@@ -959,7 +954,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `publications-${name}-503`, { height: 900 });
       state.refuse.publications = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('heading', { level: 2, name: 'Comparativa de engines en checkout (sintética)' })).toBeVisible();
+      await expect(main.getByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeVisible();
 
       await page.goto('/app/isa-demo/ghost/publications');
       await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
@@ -984,10 +979,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(verdict.getByText('Verified', { exact: true })).toBeVisible();
       await expect(verdict.getByText('OpenBinding recorded an element with this fingerprint.')).toBeVisible();
       const matches = main.getByRole('region', { name: 'Matches' });
-      await expect(matches.getByText('Comparativa de engines en checkout')).toBeVisible();
-      await expect(matches.getByRole('link', { name: 'Open' })).toHaveAttribute('href', `${ROOT}/reports/engines-vs-seeds-informe`);
+      await expect(matches.getByText('Engine comparison at checkout')).toBeVisible();
+      await expect(matches.getByRole('link', { name: 'Open' })).toHaveAttribute('href', `${ROOT}/reports/engine-comparison`);
       await expect(matches.getByRole('link', { name: 'Public record' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
-      await expect(main.getByText('OpenBinding (2026). Comparativa de engines en checkout. OpenBinding report edition, digest sha256-eeee…eeee.')).toBeVisible();
+      await expect(main.getByText('OpenBinding (2026). Engine comparison at checkout. OpenBinding report edition, digest sha256-eeee…eeee.')).toBeVisible();
       expect(state.sent.verify.at(-1)).toEqual({ digest: EDITION });
       await capture(page, testInfo, `verifier-${name}-verified`, { height: 1700 });
 

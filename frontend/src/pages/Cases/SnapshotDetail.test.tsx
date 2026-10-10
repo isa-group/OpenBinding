@@ -3,6 +3,7 @@ import JSZip from 'jszip';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import { shortDigest } from '../../utils/digest';
 import { caseOf, lucia, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
 import { digestOf, irDocument } from './fixtures';
 import { SnapshotDetail } from './SnapshotDetail';
@@ -23,7 +24,7 @@ const qos = project('qos-benchmarks', { name: 'QoS Benchmarks' });
 const checkout = caseOf('flujo-checkout', 'Flujo de checkout');
 const id = '00000000-0000-4000-8000-0000000000e1';
 const root = '/app/isa-demo/qos-benchmarks';
-const short = (digest: string) => `${digest.slice(0, 14)}…${digest.slice(-6)}`;
+const short = shortDigest;
 
 const refusal = (status: number, code = 'refused') => Object.assign(new HttpError(status, 'refused'), { code });
 const snapshotOf = (over: Record<string, unknown> = {}) => ({

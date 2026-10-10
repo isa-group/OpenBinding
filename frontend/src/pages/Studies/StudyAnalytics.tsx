@@ -11,6 +11,7 @@ import { DataTable } from '../../components/ui/DataTable';
 import { FilterPills } from '../../components/ui/FilterPills';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { shortDigest } from '../../utils/digest';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -331,7 +332,7 @@ function AnalyticsBody({ scope, runId }: { scope: StudyScopeValue; runId: string
           <section className="st-card" aria-labelledby="st-ledger-title">
             <div className="st-card-head">
               <h2 id="st-ledger-title">Every plotted cell</h2>
-              <small className="org-muted" title={data.run.matrix_digest}>matrix {data.run.matrix_digest.slice(0, 19)}…</small>
+              <small className="org-muted" title={data.run.matrix_digest}>matrix {shortDigest(data.run.matrix_digest)}</small>
             </div>
             <DataTable label="Provenance of every cell" minWidth={760}>
               <thead>

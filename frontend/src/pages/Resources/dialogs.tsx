@@ -7,7 +7,7 @@ import { FormField } from '../../components/ui/FormField';
 import { Modal } from '../../components/ui/Modal';
 import { SelectField } from '../Organization/parts';
 import { readZipArchive, type ZipFileEntry } from '../../utils/zipExplorer';
-import { formatByteSize } from '../../utils/limits';
+import { formatByteSize } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import type { Pin } from './collectionModel';
 import { collectionCreateRefusal, resourceCreateRefusal, resourceUpdateRefusal } from './resourceErrors';

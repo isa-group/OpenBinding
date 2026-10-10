@@ -238,7 +238,7 @@
   font-weight: 600;
 }
 
-.job-steps button.is-current .job-step-dot { background: var(--tp-primary); color: #fff; }
+.job-steps button.is-current .job-step-dot { background: var(--tp-primary); color: var(--tp-on-primary); }
 
 .job-wizard {
   display: flex;

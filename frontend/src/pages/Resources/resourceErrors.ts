@@ -1,5 +1,5 @@
 import { HttpError } from '../../api/client';
-import { formatByteSize } from '../../utils/limits';
+import { formatByteSize } from '../../utils/format';
 import { quotaOf } from '../Organization/orgErrors';
 import { classifyAuthError, generalFailure, marker, type AuthFailure } from '../Project/projectErrors';
 

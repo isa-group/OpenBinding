@@ -193,7 +193,7 @@
 }
 
 .res-rev-chip:hover { border-color: var(--tp-stone); }
-.res-rev-chip[aria-pressed='true'] { border-color: var(--tp-primary); background: var(--tp-primary); color: #fff; }
+.res-rev-chip[aria-pressed='true'] { border-color: var(--tp-primary); background: var(--tp-primary); color: var(--tp-on-primary); }
 
 .res-compare { display: flex; flex-direction: column; gap: 10px; padding: var(--tp-spacing-md); border: 1px solid var(--tp-hairline); border-radius: var(--tp-radius-xl); background: var(--tp-canvas); }
 .res-compare-pickers { display: flex; flex-wrap: wrap; align-items: end; gap: var(--tp-spacing-sm); }

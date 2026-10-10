@@ -170,9 +170,4 @@ describe('Library list', () => {
     expect(await screen.findByRole('heading', { name: 'Organization not available' })).toBeInTheDocument();
     expect(lib.list).not.toHaveBeenCalled();
   });
-
-  it('sends the addresses of the old library page to the new screens', async () => {
-    renderList(group, 'isa-demo', '?artifact=item-providers-eu&version=item-providers-eu-v3');
-    expect(await screen.findByText('elsewhere')).toBeInTheDocument();
-  });
 });

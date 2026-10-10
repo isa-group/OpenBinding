@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { caseItem, collectionOf, collectionRevisionOf, digestOf, resourceItem, usageOf } from './fixtures';
+import { caseItem, collectionOf, collectionRevisionOf, digestOf, resourceItem, usageOf } from '../../test/fixtures/resources';
 import { CollList } from './CollList';
 
 const platform = vi.hoisted(() => ({

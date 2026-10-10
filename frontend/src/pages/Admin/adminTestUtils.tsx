@@ -5,11 +5,11 @@ import { vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { AuthContext } from '../../contexts/auth';
-import { IKER } from './adminFixtures';
+import { ALEX } from '../../test/fixtures/admin';
 
 /** Render a screen as a signed-in account would see it. Administrators by default; give `path` to read route parameters. */
 export function renderAdmin(element: ReactElement, options: { user?: UserProfile; entry?: string; path?: string } = {}) {
-  const user = options.user ?? IKER;
+  const user = options.user ?? ALEX;
   const page = options.path ? <Routes><Route path={options.path} element={element} /></Routes> : element;
   return render(
     <MemoryRouter initialEntries={[options.entry ?? '/']}>

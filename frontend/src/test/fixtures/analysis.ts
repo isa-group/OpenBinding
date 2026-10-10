@@ -54,7 +54,7 @@ export function archiveOf(over: Partial<ArchiveResponse> = {}): ArchiveResponse 
 /** The inspector's answer for the binding in focus. */
 export function detailOf(row: ArchiveRow = payco, over: Partial<CandidateDetail> = {}): CandidateDetail {
   return {
-    revision: archiveOf().revision, row, binding: { 'pago-tarjeta': { resource: 'candidate', id: row.id === ID_PAYCO ? 'payco-eu' : 'fastpay' }, autenticar: { resource: 'candidate', id: 'auth0' } },
+    revision: archiveOf().revision, row, binding: { 'pay-card': { resource: 'candidate', id: row.id === ID_PAYCO ? 'payco-eu' : 'fastpay' }, authenticate: { resource: 'candidate', id: 'auth0' } },
     violations: [], metrics: {}, evaluation: { feasible: true, metrics: { cost: row.values?.[0] } },
     occurrences: [{ jobId: JOB_DONE, solutionIndex: 0 }],
     explanation: {

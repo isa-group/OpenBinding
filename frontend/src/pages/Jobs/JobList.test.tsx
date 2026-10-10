@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import { iker, org, project, renderProjectScreen } from '../Project/testKit';
-import { jobOf } from './fixtures';
+import { jobOf } from '../../test/fixtures/jobs';
 import { JobList } from './JobList';
 
 const jobsApi = vi.hoisted(() => ({ mine: vi.fn(), history: vi.fn(), retry: vi.fn() }));

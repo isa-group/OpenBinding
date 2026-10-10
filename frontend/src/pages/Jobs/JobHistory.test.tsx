@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError, type JobSummary } from '../../api/client';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { jobOf } from './fixtures';
+import { jobOf } from '../../test/fixtures/jobs';
 import { JobHistory } from './JobHistory';
 
 const jobsApi = vi.hoisted(() => ({ history: vi.fn(), mine: vi.fn(), cancel: vi.fn(), retry: vi.fn() }));

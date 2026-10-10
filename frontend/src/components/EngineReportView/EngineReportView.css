@@ -27,7 +27,7 @@
 .engine-report .divergence-hint {
   margin: 0 0 var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border-left: 3px solid var(--color-warning, #d98324);
+  border-left: 3px solid var(--color-warning);
   border-radius: var(--radius-sm);
   background: var(--color-bg-secondary);
   font-size: 0.875rem;

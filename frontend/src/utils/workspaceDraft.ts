@@ -37,6 +37,40 @@ export async function loadDraft(scope = 'anonymous:playground'): Promise<Workspa
   });
 }
 
+/** Drafts made without a session belong to nobody in particular; every other scope starts with the id of the person who made it. */
+const ANONYMOUS_SCOPE = 'anonymous:';
+
+/**
+ * Forget the workbench drafts of signed-in people (the localStorage copy and the IndexedDB one), so that whoever uses this
+ * browser next does not find another person's package. Called when a session is closed on purpose.
+ */
+export async function clearUserDrafts(): Promise<void> {
+  try {
+    const keys = Array.from({ length: localStorage.length }, (_unused, index) => localStorage.key(index));
+    for (const key of keys) {
+      if (key?.startsWith(FALLBACK_KEY) && !key.startsWith(FALLBACK_KEY + ANONYMOUS_SCOPE)) localStorage.removeItem(key);
+    }
+  } catch { /* No localStorage: nothing was kept there. */ }
+  if (typeof indexedDB === 'undefined') return;
+  await new Promise<void>((resolve) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(STORE);
+    request.onerror = () => resolve();
+    request.onsuccess = () => {
+      const db = request.result;
+      const transaction = db.transaction(STORE, 'readwrite');
+      const store = transaction.objectStore(STORE);
+      const keys = store.getAllKeys();
+      keys.onsuccess = () => {
+        for (const key of keys.result) {
+          if (typeof key === 'string' && !key.startsWith(ANONYMOUS_SCOPE)) store.delete(key);
+        }
+      };
+      transaction.oncomplete = transaction.onabort = transaction.onerror = () => { db.close(); resolve(); };
+    };
+  });
+}
+
 export async function saveDraft(files: WorkspaceFiles, scope = 'anonymous:playground'): Promise<void> {
   const source = JSON.stringify(files);
   let fallbackSaved = false;

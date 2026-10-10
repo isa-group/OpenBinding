@@ -2,10 +2,10 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpError } from '../../api/client';
 import type { Report } from '../../api/platform';
-import { detailOf } from '../Analysis/fixtures';
+import { detailOf } from '../../test/fixtures/analysis';
+import { DRAFT, EDITION, FROZEN, LEGACY, publicationOf, reportOf } from '../../test/fixtures/reports';
+import { RUN_ID, cellsFixture, runFixture, studyFixture } from '../../test/fixtures/studies';
 import { org, project, renderProjectScreen } from '../Project/testKit';
-import { RUN_ID, cellsFixture, runFixture, studyFixture } from '../Studies/fixtures';
-import { DRAFT, EDITION, FROZEN, LEGACY, publicationOf, reportOf } from './fixtures';
 import { RepDetail } from './RepDetail';
 
 const platform = vi.hoisted(() => ({
@@ -49,15 +49,15 @@ describe('One report', () => {
   });
 
   it('reads a published edition as a page, with its evidence, fingerprint, citation and history', async () => {
-    renderDetail('engines-vs-seeds-informe');
+    renderDetail('engine-comparison');
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Comparativa de engines en checkout' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Engine comparison at checkout' })).toBeInTheDocument();
     const content = screen.getByRole('article', { name: 'Report content' });
-    expect(within(content).getByRole('heading', { level: 2, name: 'Comparativa de engines en checkout' })).toBeInTheDocument();
+    expect(within(content).getByRole('heading', { level: 2, name: 'Engine comparison at checkout' })).toBeInTheDocument();
     expect(within(content).getByText('Two engines, two seeds, two revisions of the checkout case.')).toBeInTheDocument();
     expect(screen.getByText('Frozen edition · fingerprint sha256-eeee…eeee')).toBeInTheDocument();
     // Once in the status line, once in the history.
-    expect(screen.getAllByText('Published as checkout-comparativa')).toHaveLength(2);
+    expect(screen.getAllByText('Published as checkout-comparison')).toHaveLength(2);
 
     // The run it cites: the study’s own bar, and the screens of the run (not the route that no longer exists).
     expect(await within(content).findByRole('img', { name: '6 completed, 1 failed, 1 cancelled of 8 cells' })).toBeInTheDocument();
@@ -67,11 +67,11 @@ describe('One report', () => {
 
     expect(screen.getByRole('link', { name: 'Verify it' })).toHaveAttribute('href', `/resolve/report/${EDITION}`);
     expect(screen.getByRole('link', { name: 'Check it in the verifier' })).toHaveAttribute('href', `/app/verifier?digest=${encodeURIComponent(EDITION)}`);
-    expect(screen.getByRole('link', { name: 'Version history in the library' })).toHaveAttribute('href', '/app/isa-demo/library/artifact-engines-vs-seeds-informe/versions/version-engines-vs-seeds-informe');
+    expect(screen.getByRole('link', { name: 'Version history in the library' })).toHaveAttribute('href', '/app/isa-demo/library/artifact-engine-comparison/versions/version-engine-comparison');
     expect(screen.getByRole('link', { name: 'Open the publications' })).toHaveAttribute('href', `${ROOT}/publications`);
-    expect(screen.getByText('Lucía Vega (2026). Comparativa de engines en checkout (sintética). ISA Demo Group / QoS Benchmarks.')).toBeInTheDocument();
+    expect(screen.getByText('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Copy citation' }));
-    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Lucía Vega (2026). Comparativa de engines en checkout (sintética). ISA Demo Group / QoS Benchmarks.'));
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Alex Rivera (2026). Engine comparison at checkout. ISA Demo Group / QoS Benchmarks.'));
     expect(await screen.findByRole('button', { name: 'Citation copied' })).toBeInTheDocument();
 
     // A frozen edition changes only by starting a new draft; a published one can be withdrawn.
@@ -83,28 +83,28 @@ describe('One report', () => {
   });
 
   it('keeps the document as JSON behind “View source”, to copy or download', async () => {
-    renderDetail('engines-vs-seeds-informe');
-    await screen.findByRole('heading', { level: 1, name: 'Comparativa de engines en checkout' });
+    renderDetail('engine-comparison');
+    await screen.findByRole('heading', { level: 1, name: 'Engine comparison at checkout' });
 
     const source = screen.getByLabelText('Report document (JSON)');
     expect(source.tagName).toBe('PRE');
     expect(source.closest('details')).not.toHaveAttribute('open');
     expect(source).toHaveTextContent('"bimVersion": "bim/v1"');
     fireEvent.click(screen.getByText('Download JSON'));
-    expect(files.saveBytes).toHaveBeenCalledWith(expect.anything(), 'engines-vs-seeds-informe.json', 'application/json');
+    expect(files.saveBytes).toHaveBeenCalledWith(expect.anything(), 'engine-comparison.json', 'application/json');
   });
 
   it('moves between the reports of the project from the switcher', async () => {
-    renderDetail('engines-vs-seeds-informe');
-    await screen.findByRole('heading', { level: 1, name: 'Comparativa de engines en checkout' });
+    renderDetail('engine-comparison');
+    await screen.findByRole('heading', { level: 1, name: 'Engine comparison at checkout' });
 
     expect(within(screen.getByRole('combobox', { name: 'Report' })).getAllByRole('option').map((option) => option.textContent)).toEqual([
-      'Comparativa de engines en checkout', 'Borrador: placement', 'Notas antiguas',
+      'Engine comparison at checkout', 'Draft: placement', 'Older notes',
     ]);
-    fireEvent.change(screen.getByRole('combobox', { name: 'Report' }), { target: { value: 'borrador-placement' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Report' }), { target: { value: 'draft-placement' } });
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Borrador: placement' })).toBeInTheDocument();
-    expect(platform.report).toHaveBeenLastCalledWith('isa-demo', 'qos-benchmarks', 'borrador-placement');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Draft: placement' })).toBeInTheDocument();
+    expect(platform.report).toHaveBeenLastCalledWith('isa-demo', 'qos-benchmarks', 'draft-placement');
     // Nothing of the previous report stays while the next one is read.
     expect(screen.queryByText('Two engines, two seeds, two revisions of the checkout case.')).not.toBeInTheDocument();
   });
@@ -112,14 +112,14 @@ describe('One report', () => {
   it('publishes a frozen edition with its citation, and keeps the dialog open when the server refuses', async () => {
     platform.publications.mockResolvedValue([]);
     platform.publishReport.mockRejectedValueOnce(refusal(422, 'private_evidence', 'Job evidence must belong to a public project before report publication.'));
-    renderDetail('engines-vs-seeds-informe');
+    renderDetail('engine-comparison');
     fireEvent.click(await screen.findByRole('button', { name: 'Publish…' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Publish this edition' });
     expect(within(dialog).getByLabelText('Authors')).toHaveValue('lucia.vega');
-    expect(within(dialog).getByLabelText('Public address')).toHaveValue('engines-vs-seeds-informe');
+    expect(within(dialog).getByLabelText('Public address')).toHaveValue('engine-comparison');
     expect(within(dialog).getByRole('list', { name: 'What the server checks' })).toHaveTextContent('Everything it cites is in public projects');
-    fireEvent.change(within(dialog).getByLabelText('Authors'), { target: { value: 'Lucía Vega, Marco Díaz' } });
+    fireEvent.change(within(dialog).getByLabelText('Authors'), { target: { value: 'Alex Rivera, Marco Díaz' } });
     fireEvent.change(within(dialog).getByLabelText('DOI or link (optional)'), { target: { value: '10.1000/xyz' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Publish' }));
 
@@ -129,38 +129,38 @@ describe('One report', () => {
 
     expect(await screen.findByText('Published. Anyone can now find, read and verify this edition.')).toBeInTheDocument();
     expect(platform.publishReport).toHaveBeenLastCalledWith('isa-demo', 'qos-benchmarks', {
-      report_id: 'report-engines-vs-seeds-informe', version_id: 'version-engines-vs-seeds-informe', slug: 'engines-vs-seeds-informe',
-      citation: { title: 'Comparativa de engines en checkout', authors: ['Lucía Vega', 'Marco Díaz'], year: new Date().getFullYear(), doi: '10.1000/xyz' },
+      report_id: 'report-engine-comparison', version_id: 'version-engine-comparison', slug: 'engine-comparison',
+      citation: { title: 'Engine comparison at checkout', authors: ['Alex Rivera', 'Marco Díaz'], year: new Date().getFullYear(), doi: '10.1000/xyz' },
     });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('withdraws a publication and says what stays reachable', async () => {
     platform.deletePublication.mockResolvedValue(undefined);
-    renderDetail('engines-vs-seeds-informe');
+    renderDetail('engine-comparison');
     fireEvent.click(await screen.findByRole('button', { name: 'Withdraw' }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Withdraw checkout-comparativa?' });
+    const dialog = await screen.findByRole('dialog', { name: 'Withdraw checkout-comparison?' });
     expect(within(dialog).getByText(/Its link, citation and fingerprint keep working/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw' }));
 
     expect(await screen.findByText('Withdrawn. It’s no longer listed in Explore, but its link, citation and fingerprint still work.')).toBeInTheDocument();
-    expect(platform.deletePublication).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'checkout-comparativa');
+    expect(platform.deletePublication).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'checkout-comparison');
   });
 
   it('starts a new draft from a frozen edition', async () => {
     platform.createReportDraft.mockResolvedValue({ ...FROZEN, state: 'draft' });
-    renderDetail('engines-vs-seeds-informe');
+    renderDetail('engine-comparison');
     fireEvent.click(await screen.findByRole('button', { name: 'New draft from this edition' }));
 
     expect(await screen.findByText('New draft started from this edition. The edition itself is unchanged.')).toBeInTheDocument();
-    expect(platform.createReportDraft).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds-informe');
+    expect(platform.createReportDraft).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engine-comparison');
   });
 
   it('edits a draft block by block and saves it with the revision it was read at', async () => {
     platform.updateReport.mockResolvedValue({ ...DRAFT, draft_revision: 4 });
-    renderDetail('borrador-placement');
-    await screen.findByRole('heading', { level: 1, name: 'Borrador: placement' });
+    renderDetail('draft-placement');
+    await screen.findByRole('heading', { level: 1, name: 'Draft: placement' });
 
     expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
     expect(screen.getByText('Draft revision 3 · saved')).toBeInTheDocument();
@@ -172,10 +172,10 @@ describe('One report', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
 
     expect(await screen.findByText('Draft saved.')).toBeInTheDocument();
-    expect(platform.updateReport).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'borrador-placement', {
-      title: 'Borrador: placement',
+    expect(platform.updateReport).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'draft-placement', {
+      title: 'Draft: placement',
       document: {
-        blocks: [{ type: 'heading', text: 'Borrador: placement' }, { type: 'heading', text: 'Next steps' }, { type: 'text', text: 'Pools and latencies, edited.' }],
+        blocks: [{ type: 'heading', text: 'Draft: placement' }, { type: 'heading', text: 'Next steps' }, { type: 'text', text: 'Pools and latencies, edited.' }],
         provenance: {},
       },
       draft_revision: 3,
@@ -183,35 +183,35 @@ describe('One report', () => {
   });
 
   it('removes a block and cites a study run as evidence', async () => {
-    renderDetail('borrador-placement');
-    await screen.findByRole('heading', { level: 1, name: 'Borrador: placement' });
+    renderDetail('draft-placement');
+    await screen.findByRole('heading', { level: 1, name: 'Draft: placement' });
 
     fireEvent.click(within(screen.getByRole('region', { name: 'Text block 2' })).getByRole('button', { name: 'Remove block' }));
     expect(screen.queryByRole('region', { name: 'Text block 2' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '+ Evidence: study run' }));
     const picker = await screen.findByRole('combobox', { name: 'Study run to cite' });
-    await within(picker).findByRole('option', { name: /Engines × semillas · run #1/ });
+    await within(picker).findByRole('option', { name: /Engines × seeds · run #1/ });
     fireEvent.change(picker, { target: { value: RUN_ID } });
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     const evidence = await screen.findByRole('region', { name: 'Evidence block 2' });
-    expect(within(evidence).getByText('Engines × semillas · run #1 · partial')).toBeInTheDocument();
+    expect(within(evidence).getByText('Engines × seeds · run #1 · partial')).toBeInTheDocument();
     expect(await within(evidence).findByRole('link', { name: 'Open the run' })).toHaveAttribute('href', `${ROOT}/studies/engines-vs-seeds/runs/${RUN_ID}`);
     expect(screen.getByText('Draft revision 3 · unsaved changes')).toBeInTheDocument();
   });
 
   it('reads the summary and findings of an older report as blocks and writes them back as blocks', async () => {
     platform.updateReport.mockResolvedValue({ ...LEGACY, draft_revision: 2 });
-    renderDetail('notas-antiguas');
-    await screen.findByRole('heading', { level: 1, name: 'Notas antiguas' });
+    renderDetail('older-notes');
+    await screen.findByRole('heading', { level: 1, name: 'Older notes' });
 
     expect(textboxOf('Text block 1')).toHaveValue('Initial notes');
     expect(textboxOf('Text block 2')).toHaveValue('Evolutionary is cheaper but slower.');
     fireEvent.change(textboxOf('Text block 1'), { target: { value: 'Initial notes, revised' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
 
-    await waitFor(() => expect(platform.updateReport).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'notas-antiguas', {
-      title: 'Notas antiguas',
+    await waitFor(() => expect(platform.updateReport).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'older-notes', {
+      title: 'Older notes',
       document: { provenance: {}, blocks: [{ type: 'text', text: 'Initial notes, revised' }, { type: 'text', text: 'Evolutionary is cheaper but slower.' }] },
       draft_revision: 1,
     }));
@@ -220,8 +220,8 @@ describe('One report', () => {
   it('freezes after saving what was typed, and says what the server needs when the provenance is incomplete (422)', async () => {
     platform.updateReport.mockResolvedValue({ ...DRAFT, draft_revision: 4 });
     platform.freezeReport.mockRejectedValueOnce(refusal(422, 'incomplete_provenance', 'Frozen reports require study, datasets, software, bimVersion, engineRevisions and parameters provenance.'));
-    renderDetail('borrador-placement');
-    await screen.findByRole('heading', { level: 1, name: 'Borrador: placement' });
+    renderDetail('draft-placement');
+    await screen.findByRole('heading', { level: 1, name: 'Draft: placement' });
     fireEvent.change(textboxOf('Text block 2'), { target: { value: 'Edited before freezing.' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Freeze edition' }));
@@ -231,14 +231,14 @@ describe('One report', () => {
 
     expect(await screen.findByText('The provenance isn’t complete (422 · incomplete_provenance)')).toBeInTheDocument();
     expect(platform.updateReport).toHaveBeenCalledTimes(1);
-    expect(platform.freezeReport).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'borrador-placement');
+    expect(platform.freezeReport).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'draft-placement');
     expect(screen.getByLabelText('Report document (JSON)').closest('details')).toHaveAttribute('open');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('freezes a draft and says the edition can no longer change', async () => {
     platform.freezeReport.mockResolvedValue({ ...DRAFT, state: 'frozen', digest: EDITION });
-    renderDetail('borrador-placement');
+    renderDetail('draft-placement');
     fireEvent.click(await screen.findByRole('button', { name: 'Freeze edition' }));
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Freeze this edition?' })).getByRole('button', { name: 'Freeze edition' }));
 
@@ -248,15 +248,15 @@ describe('One report', () => {
 
   it('keeps what was typed when someone else saved a newer revision (409), and loads theirs on request', async () => {
     platform.updateReport.mockRejectedValue(refusal(409, 'draft_conflict'));
-    renderDetail('borrador-placement');
-    await screen.findByRole('heading', { level: 1, name: 'Borrador: placement' });
+    renderDetail('draft-placement');
+    await screen.findByRole('heading', { level: 1, name: 'Draft: placement' });
     fireEvent.change(textboxOf('Text block 2'), { target: { value: 'My version' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
 
     expect(await screen.findByText('Someone saved a newer draft revision (409 · draft_conflict)')).toBeInTheDocument();
     expect(textboxOf('Text block 2')).toHaveValue('My version');
     platform.report.mockResolvedValueOnce({
-      ...DRAFT, draft_revision: 4, document: { blocks: [{ type: 'heading', text: 'Borrador: placement' }, { type: 'text', text: 'Their version' }], provenance: {} },
+      ...DRAFT, draft_revision: 4, document: { blocks: [{ type: 'heading', text: 'Draft: placement' }, { type: 'text', text: 'Their version' }], provenance: {} },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Load the newer draft' }));
     await waitFor(() => expect(platform.report).toHaveBeenCalledTimes(2));
@@ -265,8 +265,8 @@ describe('One report', () => {
   });
 
   it('lets a viewer read and nothing else', async () => {
-    renderDetail('borrador-placement', 'read-lab');
-    await screen.findByRole('heading', { level: 1, name: 'Borrador: placement' });
+    renderDetail('draft-placement', 'read-lab');
+    await screen.findByRole('heading', { level: 1, name: 'Draft: placement' });
 
     expect(screen.getByText('Read-only for you: editing needs MEMBER, publishing needs ADMIN.')).toBeInTheDocument();
     for (const name of ['Save draft', 'Freeze edition', 'New draft from this edition', 'Publish…', 'Withdraw', 'Delete', '+ Text']) {
@@ -277,8 +277,8 @@ describe('One report', () => {
   });
 
   it('lets a member edit but leaves publishing to an admin', async () => {
-    renderDetail('engines-vs-seeds-informe', 'team-lab');
-    await screen.findByRole('heading', { level: 1, name: 'Comparativa de engines en checkout' });
+    renderDetail('engine-comparison', 'team-lab');
+    await screen.findByRole('heading', { level: 1, name: 'Engine comparison at checkout' });
 
     expect(screen.getByRole('button', { name: 'New draft from this edition' })).toBeInTheDocument();
     expect(screen.getByText('Publishing needs ADMIN.')).toBeInTheDocument();
@@ -288,15 +288,15 @@ describe('One report', () => {
 
   it('deletes a draft, and reports the refusal when editions exist (409)', async () => {
     platform.deleteReport.mockRejectedValueOnce(refusal(409, 'report_history_retained')).mockResolvedValueOnce(undefined);
-    renderDetail('borrador-placement');
+    renderDetail('draft-placement');
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Delete Borrador: placement?' });
+    const dialog = await screen.findByRole('dialog', { name: 'Delete Draft: placement?' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete report' }));
     expect(await within(dialog).findByText('This report has frozen editions (409 · report_history_retained)')).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Delete report' }));
     expect(await screen.findByText('elsewhere')).toBeInTheDocument();
-    expect(platform.deleteReport).toHaveBeenLastCalledWith('isa-demo', 'qos-benchmarks', 'borrador-placement');
+    expect(platform.deleteReport).toHaveBeenLastCalledWith('isa-demo', 'qos-benchmarks', 'draft-placement');
   });
 
   it('shows a saved binding decision and the way to reopen it in the decision space', async () => {
@@ -326,14 +326,14 @@ describe('One report', () => {
 
   it('says a key cannot read the report (403) and a service that does not answer (503)', async () => {
     platform.report.mockRejectedValueOnce(refusal(403, 'api_key_boundary'));
-    const view = renderDetail('borrador-placement');
+    const view = renderDetail('draft-placement');
     expect(await screen.findByText(/This API key can’t read this report \(403 · api_key_boundary\)/)).toBeInTheDocument();
     view.unmount();
 
     platform.report.mockRejectedValueOnce(refusal(503, 'unavailable'));
-    renderDetail('borrador-placement');
+    renderDetail('draft-placement');
     const message = await screen.findByText(/The report couldn’t be loaded \(503 · unavailable\)/);
     fireEvent.click(within(message.closest('.ui-notice') as HTMLElement).getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Borrador: placement' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Draft: placement' })).toBeInTheDocument();
   });
 });

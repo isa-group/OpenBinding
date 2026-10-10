@@ -1,7 +1,6 @@
 import { isValidElement } from 'react';
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
-import { PendingScreen } from './PendingScreen';
 import { routeDefinitions, routesByDomain } from './registry';
 
 const P = '/app/:org/:project';
@@ -61,10 +60,6 @@ const PROTOTYPE: Record<keyof typeof routesByDomain, Array<[string, string]>> = 
 
 const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 18, D5: 4, D6: 12, D7: 4, D8: 13 };
 
-/** Pending screens when the registry was created. It may only go down as screens are rebuilt. */
-const INITIAL_PENDING = 48;
-
-const isPending = (definition: (typeof routeDefinitions)[number]) => isValidElement(definition.element) && definition.element.type === PendingScreen;
 const sample = (path: string) => path.replace(/:[A-Za-z]+/g, 'sample');
 
 describe('route registry', () => {
@@ -115,90 +110,9 @@ describe('route registry', () => {
     expect(routeDefinitions.filter((definition) => definition.requireAdmin)).toHaveLength(admin.length);
   });
 
-  it('keeps status in step with the element: pending screens render the PendingScreen placeholder', () => {
-    for (const definition of routeDefinitions) {
-      expect(isPending(definition), definition.id).toBe(definition.status === 'pending');
-      expect(['live', 'pending']).toContain(definition.status);
-    }
-  });
-
-  it('counts the screens that are still pending, and never more than at the start', () => {
-    const pendingIds = routeDefinitions.filter((definition) => definition.status === 'pending').map((definition) => definition.id);
-    const live = routeDefinitions.length - pendingIds.length;
-    const perDomain = Object.fromEntries(Object.entries(routesByDomain).map(([domain, list]) => [
-      domain, `${list.filter((definition) => definition.status === 'live').length}/${list.length} live`,
-    ]));
-    console.info(`routes: ${live} live, ${pendingIds.length} pending`, perDomain);
-
-    expect(pendingIds.length).toBeLessThanOrEqual(INITIAL_PENDING);
-    expect(live + pendingIds.length).toBe(86);
-  });
-
-  it('has rebuilt the case screens and the snapshot', () => {
-    const rebuilt = ['case-list', 'case-detail', 'case-composer', 'case-revision', 'case-compare', 'snap-detail'];
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
-  });
-
-  it('has rebuilt the library screens', () => {
-    const rebuilt = ['lib-list', 'lib-artifact', 'lib-draft', 'lib-version', 'proj-library'];
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
-  });
-
-  it('has rebuilt the files, resources and collections screens', () => {
-    const rebuilt = ['proj-files', 'proj-resources', 'proj-resource-detail', 'coll-list', 'coll-detail'];
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
-    expect(routeDefinitions.find((definition) => definition.id === 'coll-detail')?.paramAliases).toBeUndefined();
-  });
-
-  it('has rebuilt the workbench and the generator lab, which closes domain 4', () => {
-    const rebuilt = ['wb-workbench', 'gen-lab'];
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
+  it('has the workbench and the generator lab at the addresses of the prototype', () => {
     expect(routeDefinitions.find((definition) => definition.id === 'wb-workbench')?.path).toBe('/app/:org/:project/workbench');
     expect(routeDefinitions.find((definition) => definition.id === 'gen-lab')?.path).toBe('/app/generator');
-    expect(routesByDomain.D4.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
-  });
-
-  it('has rebuilt the execution screens, which closes domain 5', () => {
-    const rebuilt = ['job-launch', 'job-list', 'job-detail', 'job-history'];
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
-    expect(routeDefinitions.find((definition) => definition.id === 'job-detail')?.paramAliases).toBeUndefined();
-    expect(routesByDomain.D5.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
-  });
-
-  it('has rebuilt the study screens with the ids and routes of the prototype', () => {
-    const rebuilt = ['study-list', 'study-builder', 'study-detail', 'study-run', 'study-cell', 'study-analytics'];
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.paramAliases, id).toBeUndefined();
-  });
-
-  it('has rebuilt the analysis, report, publication and verifier screens, which closes domain 6', () => {
-    const rebuilt = ['analysis-sources', 'analysis-workspace', 'rep-list', 'rep-detail', 'proj-publications', 'verifier'];
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.paramAliases, id).toBeUndefined();
-    expect(routesByDomain.D6.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
-  });
-
-  it('has rebuilt the engine registration and language extension screens, which closes domain 7', () => {
-    const rebuilt = ['eng-register', 'eng-registrations', 'eng-registration-detail', 'lang-extensions'];
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.paramAliases, id).toBeUndefined();
-    expect(routesByDomain.D7.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
-  });
-
-  it('has rebuilt every administration screen, which closes domain 8', () => {
-    const rebuilt = [
-      'admin-overview', 'admin-users', 'admin-user-detail', 'admin-audit', 'admin-errors', 'admin-queues', 'admin-moderation',
-      'admin-maintenance', 'admin-routing', 'admin-sponsor', 'admin-pricing', 'admin-pricing-draft', 'admin-pricing-release',
-    ];
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.status, id).toBe('live');
-    for (const id of rebuilt) expect(routeDefinitions.find((definition) => definition.id === id)?.paramAliases, id).toBeUndefined();
-    expect(routesByDomain.D8.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
-  });
-
-  it('leaves no pending screen in any domain', () => {
-    for (const [domain, list] of Object.entries(routesByDomain)) {
-      expect(list.filter((definition) => definition.status === 'pending').map((definition) => definition.id), domain).toEqual([]);
-    }
   });
 
   it('reads each administration address as its own screen, with accounts and organizations named in the path', () => {
@@ -241,9 +155,10 @@ describe('route registry', () => {
     expect(resolve('/app/acme/atlas/studies/engines-vs-seeds/runs/r1/analytics')).toBe('study-analytics');
   });
 
-  // The closing task of the redesign turns this on (VITE_ROUTES_REQUIRE_LIVE=1 pnpm test).
-  it.skipIf(!import.meta.env.VITE_ROUTES_REQUIRE_LIVE)('has no pending screen left', () => {
-    expect(routeDefinitions.filter((definition) => definition.status === 'pending').map((definition) => definition.id)).toEqual([]);
+  it('has no pending screen left: every definition renders a real page, never a placeholder', () => {
+    const placeholders = routeDefinitions.filter((definition) => !isValidElement(definition.element)).map((definition) => definition.id);
+    expect(placeholders).toEqual([]);
+    expect(routeDefinitions.filter((definition) => 'status' in definition)).toEqual([]);
   });
 
   it('resolves every route pattern to its own screen', () => {
@@ -277,9 +192,7 @@ describe('route registry', () => {
     for (const path of legacy) expect(matchRoutes(config, path), path).toBeNull();
   });
 
-  it('declares no legacy parameter names: every live detail page reads the prototype ones', () => {
-    const aliases = Object.fromEntries(routeDefinitions.filter((definition) => definition.paramAliases)
-      .map((definition) => [definition.id, definition.paramAliases]));
-    expect(aliases).toEqual({});
+  it('declares no legacy parameter names: every detail page reads the prototype ones', () => {
+    expect(routeDefinitions.filter((definition) => 'paramAliases' in definition)).toEqual([]);
   });
 });

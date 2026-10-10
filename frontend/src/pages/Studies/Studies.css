@@ -244,8 +244,8 @@
 .st-heat b { font-weight: 600; }
 .st-heat small { max-width: 100%; box-sizing: border-box; padding: 0 4px; overflow: hidden; font-size: 0.625rem; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
 .st-heat:hover { box-shadow: 0 0 0 2px var(--tp-primary); }
-.st-heat.is-level-0 { background: var(--tp-primary-deep); color: #fff; }
-.st-heat.is-level-1 { background: var(--tp-primary); color: #fff; }
+.st-heat.is-level-0 { background: var(--tp-primary-deep); color: var(--tp-on-primary); }
+.st-heat.is-level-1 { background: var(--tp-primary); color: var(--tp-on-primary); }
 .st-heat.is-level-2 { background: var(--tp-sunshine-500); color: var(--tp-ink); }
 .st-heat.is-level-3 { background: var(--tp-cream-deeper); color: var(--tp-ink); }
 .st-heat.is-level-none { background: var(--tp-surface-cream); color: var(--tp-ink); border-color: var(--tp-beige-deep); }
@@ -317,7 +317,7 @@
 .st-scatter i.is-front { width: 14px; height: 14px; margin: 0 0 -7px -7px; background: var(--tp-primary); }
 
 .st-rank { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 9999px; background: var(--tp-hairline-soft); font-size: 0.75rem; font-weight: 600; }
-.st-rank.is-first { background: var(--tp-primary); color: #fff; }
+.st-rank.is-first { background: var(--tp-primary); color: var(--tp-on-primary); }
 .st-swatch { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 3px; }
 .st-seed-values { display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .st-stability { margin-top: var(--tp-spacing-xs); }

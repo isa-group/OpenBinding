@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { describeLimit, formatByteSize, formatDuration, formatPowerOfTen, limitInfo } from './limits';
+import { formatByteSize } from './format';
+import { describeLimit, formatDuration, formatPowerOfTen, limitInfo } from './limits';
 
 describe('describeLimit', () => {
   it('rounds durations and keeps the exact seconds underneath', () => {

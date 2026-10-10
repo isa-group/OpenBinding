@@ -97,14 +97,10 @@ describe('Profile & security', () => {
     expect(screen.getByRole('heading', { name: 'Email' })).toBeInTheDocument();
   });
 
-  it('sends visitors of the old tabs to the screens that replaced them', async () => {
+  it('does not redirect an old ?tab= address: the profile is simply shown', async () => {
     renderAccount(alice, '/app/account?tab=keys');
-    expect(await screen.findByRole('heading', { name: 'Keys screen' })).toBeInTheDocument();
-  });
-
-  it('sends the old history tab to the job history screen', async () => {
-    renderAccount(alice, '/app/account?tab=history');
-    expect(await screen.findByRole('heading', { name: 'Job history screen' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Email' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Keys screen' })).not.toBeInTheDocument();
   });
 
   describe('email', () => {
