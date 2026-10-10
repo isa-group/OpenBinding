@@ -635,6 +635,12 @@ describe('Workbench', () => {
       const edge = { namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1', digest: 'sha256-e' };
       const edgeRegistration = { namespace: 'lucia-vega', name: 'edge-solver-eu', version: '1', digest: 'sha256-r' };
       const REASON = 'This package has range features; this engine only accepts single values';
+      /** The diagnostic the gateway sends for a mode that does not declare interval values (docs/ERRORS.md); the pointers are optional. */
+      const rangeDiagnostic = {
+        code: 'unsupported_capability_value', category: 'featureValues', unsupported: ['interval'], allowed: ['scalar'],
+        message: 'mode does not support requested featureValues values',
+        resource: 'candidates.json', pointer: '/spec/candidates/service-a/features/latency', irPath: '/spec/candidates/catalog/candidates/service-a/features/latency',
+      };
       const refusedForRanges = { engine: edge, registration: edgeRegistration, mode: 'placement', compatible: false, diagnostics: [{ code: 'unsupported_capability_value', message: 'interval is not declared' }] };
 
       /** Gives the first candidate a range from the form of candidates.json, then checks the package again. */
@@ -707,16 +713,37 @@ describe('Workbench', () => {
       });
 
       it('explains a run the engine refused for ranges, with the pointers, and leads to Engines and to the candidates', async () => {
-        client.createBimJob.mockRejectedValue(refusal(422, 'unsupported_capability_value', [{ code: 'unsupported_capability_value', pointer: '/spec/candidates/service-a/features/latency' }]));
+        client.createBimJob.mockRejectedValue(refusal(422, 'engine_mode_incompatible', [{ code: 'profile_incompatible', message: 'mode profile differs' }, { ...rangeDiagnostic }]));
         await validated();
         fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
 
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent('This engine only accepts single values');
         expect(alert).toHaveTextContent('Pick a mode that declares interval values, or edit those candidates to use single values.');
-        expect(alert).toHaveTextContent('The gateway pointed at /spec/candidates/service-a/features/latency.');
+        expect(alert).toHaveTextContent('The gateway pointed at candidates.json#/spec/candidates/service-a/features/latency.');
+        expect(alert).not.toHaveTextContent('mode profile differs.');
         expect(within(alert).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
         expect(within(alert).getByRole('button', { name: 'Edit the candidates' })).toBeInTheDocument();
+      });
+
+      it('explains the same refusal without a pointer from the gateway, naming the compiled value instead', async () => {
+        client.createBimJob.mockRejectedValue(refusal(422, 'engine_mode_incompatible', [{ ...rangeDiagnostic, resource: undefined, pointer: undefined }]));
+        await validated();
+        fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('This engine only accepts single values');
+        expect(alert).toHaveTextContent('The gateway pointed at /spec/candidates/catalog/candidates/service-a/features/latency.');
+      });
+
+      it('explains the refusal when the range diagnostic has no pointer at all', async () => {
+        client.createBimJob.mockRejectedValue(refusal(422, 'engine_mode_incompatible', [{ code: 'unsupported_capability_value', message: 'mode does not support requested featureValues values' }]));
+        await validated();
+        fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('This engine only accepts single values');
+        expect(alert).not.toHaveTextContent('The gateway pointed at');
       });
 
       it('explains a job that failed with the same code', async () => {

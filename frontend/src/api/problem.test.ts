@@ -19,7 +19,38 @@ describe('reading the diagnostics of a 422', () => {
   it('completes a finding that has only a code or only a message', () => {
     expect(readDiagnostics([{ code: 'json_invalid' }, { message: 'Expecting a value' }])).toEqual([
       { code: 'json_invalid', message: 'json_invalid' },
-      { code: 'invalid', message: 'Expecting a value' },
+      { code: 'validation_error', message: 'Expecting a value' },
+    ]);
+  });
+
+  it('gives a finding without a code the code of its problem', () => {
+    expect(readDiagnostics([{ message: 'open interval' }, { code: 'schema', message: 'bad' }], 'engine_mode_incompatible')).toEqual([
+      { code: 'engine_mode_incompatible', message: 'open interval' },
+      { code: 'schema', message: 'bad' },
+    ]);
+    const error = Object.assign(new HttpError(422, 'refused'), { code: 'invalid_instance', diagnostics: [{ message: 'no code' }] });
+    expect(diagnosticsOf(error)).toEqual([{ code: 'invalid_instance', message: 'no code' }]);
+    const wrapped = Object.assign(new HttpError(422, 'refused'), { problem: { code: 'invalid_pricing', diagnostics: [{ message: 'no code' }] } });
+    expect(diagnosticsOf(wrapped)).toEqual([{ code: 'invalid_pricing', message: 'no code' }]);
+  });
+
+  it('keeps the compiler and engine-mode fields of a finding', () => {
+    const finding = {
+      code: 'unsupported_capability_value',
+      message: 'mode does not support requested featureValues values',
+      resource: 'candidates.json',
+      pointer: '/spec/candidates/c1a/features/latency',
+      irPath: '/spec/candidates/catalog/candidates/c1a/features/latency',
+      span: { line: 3, column: 5 },
+      related: [{ resource: 'application.json', pointer: '/spec/features/latency' }],
+      bpmnElement: 'Task_1',
+      category: 'featureValues',
+      unsupported: ['interval'],
+      allowed: ['scalar'],
+    };
+    expect(readDiagnostics([finding])).toEqual([finding]);
+    expect(readDiagnostics([{ ...finding, span: 'x', related: 'y', unsupported: [1], allowed: [], bpmnElement: '' }])).toEqual([
+      { code: finding.code, message: finding.message, resource: finding.resource, pointer: finding.pointer, irPath: finding.irPath, category: 'featureValues' },
     ]);
   });
 

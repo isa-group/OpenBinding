@@ -175,10 +175,20 @@ export function isRangeRefusal(caught: unknown): boolean {
   return caught instanceof Error && caught.message.includes(RANGE_CODE);
 }
 
-/** The pointers of the diagnostics of such a refusal, as ` Candidates: /spec/candidates/a/features/latency, …` (empty when it sent none). */
+/**
+ * Where the diagnostics of such a refusal point, as ` The gateway pointed at candidates.json#/spec/candidates/a/features/latency, ….`
+ * (empty when it sent none). The refusal is `engine_mode_incompatible` with an `unsupported_capability_value` diagnostic among its
+ * diagnostics, which may carry no pointer at all: only the range diagnostics are read (every one when the refusal itself is the range
+ * code), by `pointer` (inside `resource` when named), else by `irPath`.
+ */
 export function rangePointers(caught: unknown): string {
-  const rows = caught instanceof HttpError ? caught.diagnostics ?? [] : [];
-  const pointers = rows.flatMap((row) => (isRecord(row) && typeof row.pointer === 'string' ? [row.pointer] : [])).slice(0, 5);
+  const rows = (caught instanceof HttpError ? caught.diagnostics ?? [] : []).filter(isRecord);
+  const ranged = rows.filter((row) => row.code === RANGE_CODE);
+  const own = caught instanceof HttpError && caught.code === RANGE_CODE ? rows : [];
+  const pointers = (ranged.length > 0 ? ranged : own).flatMap((row) => {
+    if (typeof row.pointer === 'string' && row.pointer !== '') return [typeof row.resource === 'string' && row.resource !== '' ? `${row.resource}#${row.pointer}` : row.pointer];
+    return typeof row.irPath === 'string' && row.irPath !== '' ? [row.irPath] : [];
+  }).slice(0, 5);
   return pointers.length ? ` The gateway pointed at ${pointers.join(', ')}.` : '';
 }
 

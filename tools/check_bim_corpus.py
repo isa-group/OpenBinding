@@ -13,18 +13,21 @@ sys.path.insert(0, str(ROOT / "openbinding-gateway" / "src"))
 DERIVED_ROOTS = {
     ROOT / "experimentation" / "icsoc" / "out" / "bim-v1",
     ROOT / "datasets",
+    # Frontend test fixtures are not part of the checked-in corpus.
+    ROOT / "frontend",
 }
 
 
-def package_directories() -> list[Path]:
+def package_directories(base: Path = ROOT, excluded: set[Path] | None = None) -> list[Path]:
     skipped = {".git", ".pnpm-store", "node_modules", "target", "dist", ".venv", "__pycache__"}
+    excluded = DERIVED_ROOTS if excluded is None else excluded
     roots: list[Path] = []
-    for directory, subdirectories, filenames in os.walk(ROOT):
+    for directory, subdirectories, filenames in os.walk(base):
         current = Path(directory)
         subdirectories[:] = [
             name
             for name in subdirectories
-            if name not in skipped and current / name not in DERIVED_ROOTS
+            if name not in skipped and current / name not in excluded
         ]
         if "instance.json" in filenames:
             roots.append(Path(directory))

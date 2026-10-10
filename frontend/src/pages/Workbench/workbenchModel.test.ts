@@ -57,6 +57,20 @@ describe('ranges in a package', () => {
       .toBe(' The gateway pointed at /spec/a, /spec/b.');
     expect(rangePointers(new Error('x'))).toBe('');
   });
+
+  it('reads the real refusal: engine_mode_incompatible with the range among its diagnostics, with or without a pointer', () => {
+    const range = { code: 'unsupported_capability_value', category: 'featureValues', unsupported: ['interval'], allowed: ['scalar'], message: 'm' };
+    const other = { code: 'engine_limit', message: 'too many', pointer: '/spec/other' };
+    expect(isRangeRefusal(failure(422, 'engine_mode_incompatible', [other, range]))).toBe(true);
+    expect(isRangeRefusal(failure(422, 'engine_mode_incompatible', [other]))).toBe(false);
+    // Only the range diagnostic is read, by pointer (inside its resource), else by irPath, else nothing.
+    expect(rangePointers(failure(422, 'engine_mode_incompatible', [other, { ...range, resource: 'candidates.json', pointer: '/spec/candidates/a/features/latency', irPath: '/spec/candidates/c/candidates/a/features/latency' }])))
+      .toBe(' The gateway pointed at candidates.json#/spec/candidates/a/features/latency.');
+    expect(rangePointers(failure(422, 'engine_mode_incompatible', [other, { ...range, pointer: '/spec/a' }]))).toBe(' The gateway pointed at /spec/a.');
+    expect(rangePointers(failure(422, 'engine_mode_incompatible', [other, { ...range, irPath: '/spec/candidates/c/candidates/a/features/latency' }])))
+      .toBe(' The gateway pointed at /spec/candidates/c/candidates/a/features/latency.');
+    expect(rangePointers(failure(422, 'engine_mode_incompatible', [other, range]))).toBe('');
+  });
 });
 
 describe('how a refusal is sorted', () => {

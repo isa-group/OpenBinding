@@ -16,7 +16,22 @@ export interface Diagnostic {
   context?: Record<string, unknown>;
   hint?: string;
   fix?: string;
+  /** The package file the finding is about (compiler findings). */
+  resource?: string;
+  /** Position in the source text: `{ offset }` for malformed JSON, `{ line, column }` for documents. */
+  span?: Record<string, number>;
+  related?: Array<Record<string, unknown>>;
+  bpmnElement?: string;
+  /** RFC 6901 pointer to the same value in the compiled BindingProblem. */
+  irPath?: string;
+  /** Engine-mode incompatibility: the capability dimension (`featureValues`), what the problem uses that the mode does not take, and what it takes. */
+  category?: string;
+  unsupported?: string[];
+  allowed?: string[];
 }
+
+/** The code of a 422 that names no more specific reason (docs/ERRORS.md). */
+const PROBLEM_CODE = 'validation_error';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -26,16 +41,33 @@ function text(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() !== '' ? value : undefined;
 }
 
-/** The diagnostics of a body or of `HttpError.diagnostics`, completed (a missing message or code is filled in) and nothing else kept. */
-export function readDiagnostics(value: unknown): Diagnostic[] {
+function strings(value: unknown): string[] | undefined {
+  return Array.isArray(value) && value.length > 0 && value.every((item) => typeof item === 'string') ? (value as string[]) : undefined;
+}
+
+function numbers(value: unknown): Record<string, number> | undefined {
+  if (!isRecord(value)) return undefined;
+  const entries = Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === 'number');
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+/**
+ * The diagnostics of a body or of `HttpError.diagnostics`, completed and nothing else kept. A missing message becomes the code;
+ * a missing code becomes `problemCode` (the code of the problem they belong to, as the gateway completes them), else `validation_error`.
+ */
+export function readDiagnostics(value: unknown, problemCode?: string): Diagnostic[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry): Diagnostic[] => {
     if (!isRecord(entry)) return [];
     const message = text(entry.message) ?? text(entry.detail) ?? text(entry.code);
     if (!message) return [];
     const loc = Array.isArray(entry.loc) ? entry.loc.filter((part): part is string | number => typeof part === 'string' || typeof part === 'number') : undefined;
+    const span = numbers(entry.span);
+    const related = Array.isArray(entry.related) ? entry.related.filter(isRecord) : [];
+    const unsupported = strings(entry.unsupported);
+    const allowed = strings(entry.allowed);
     return [{
-      code: text(entry.code) ?? 'invalid',
+      code: text(entry.code) ?? text(problemCode) ?? PROBLEM_CODE,
       message,
       ...(text(entry.pointer) !== undefined ? { pointer: text(entry.pointer) } : {}),
       ...(text(entry.in) !== undefined ? { in: text(entry.in) } : {}),
@@ -44,6 +76,14 @@ export function readDiagnostics(value: unknown): Diagnostic[] {
       ...(isRecord(entry.context) ? { context: entry.context } : {}),
       ...(text(entry.hint) !== undefined ? { hint: text(entry.hint) } : {}),
       ...(text(entry.fix) !== undefined ? { fix: text(entry.fix) } : {}),
+      ...(text(entry.resource) !== undefined ? { resource: text(entry.resource) } : {}),
+      ...(span ? { span } : {}),
+      ...(related.length > 0 ? { related } : {}),
+      ...(text(entry.bpmnElement) !== undefined ? { bpmnElement: text(entry.bpmnElement) } : {}),
+      ...(text(entry.irPath) !== undefined ? { irPath: text(entry.irPath) } : {}),
+      ...(text(entry.category) !== undefined ? { category: text(entry.category) } : {}),
+      ...(unsupported ? { unsupported } : {}),
+      ...(allowed ? { allowed } : {}),
     }];
   });
 }
@@ -116,9 +156,11 @@ export function diagnosticLines(error: unknown, limit = 6): string[] {
 /** The diagnostics a thrown error carries (on the error, else in its problem body), or `[]`. */
 export function diagnosticsOf(error: unknown): Diagnostic[] {
   if (!isRecord(error)) return [];
-  const own = readDiagnostics(error.diagnostics);
+  const problem = isRecord(error.problem) ? error.problem : undefined;
+  const code = text(error.code) ?? text(problem?.code);
+  const own = readDiagnostics(error.diagnostics, code);
   if (own.length > 0) return own;
-  return isRecord(error.problem) ? readDiagnostics(error.problem.diagnostics) : [];
+  return problem ? readDiagnostics(problem.diagnostics, text(problem.code) ?? code) : [];
 }
 
 /**

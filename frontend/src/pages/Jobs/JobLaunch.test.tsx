@@ -137,9 +137,15 @@ describe('Start a run', () => {
   describe('a package with ranges', () => {
     const ranged = { spec: { candidates: { providers: { candidates: { a: { features: { latency: { min: null, max: 200 } } }, b: { features: { latency: 40 } } } } } } };
     const RANGE_REASON = 'This package has range features; this engine only accepts single values';
+    /** The diagnostic the gateway sends for a mode that does not declare interval values (docs/ERRORS.md). */
+    const RANGE_DIAGNOSTIC = {
+      code: 'unsupported_capability_value', category: 'featureValues', unsupported: ['interval'], allowed: ['scalar'],
+      message: 'mode does not support requested featureValues values',
+      resource: 'candidates.json', pointer: '/spec/candidates/a/features/latency', irPath: '/spec/candidates/providers/candidates/a/features/latency',
+    };
     const refusedRanges = (over: Record<string, unknown>) => ({
       engine: MINIZINC, registration: MINIZINC_REGISTRATION, mode: 'cp', compatible: false,
-      diagnostics: [{ code: 'unsupported_capability_value', message: 'featureValues interval is not declared', pointer: '/spec/candidates/providers/candidates/a/features/latency' }], ...over,
+      diagnostics: [{ ...RANGE_DIAGNOSTIC }], ...over,
     });
 
     it('turns off the engines that take single values only, with the reason, and links to Engines and to the candidates', async () => {
@@ -202,18 +208,30 @@ describe('Start a run', () => {
     it('explains a launch the engine refused for ranges, with the pointers and the way forward', async () => {
       casesApi.instanceIr.mockResolvedValue(ranged);
       casesApi.analyseSnapshot.mockResolvedValue(analysis({ compatibleModes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }] }));
-      jobsApi.launch.mockRejectedValue(refused(422, 'unsupported_capability_value', {
-        diagnostics: [{ code: 'unsupported_capability_value', message: 'featureValues interval is not declared', pointer: '/spec/candidates/providers/candidates/a/features/latency' }],
-      }));
+      jobsApi.launch.mockRejectedValue(refused(422, 'engine_mode_incompatible', { diagnostics: [{ ...RANGE_DIAGNOSTIC }] }));
       renderLaunch();
       await toReview();
 
       fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
 
       const alert = (await screen.findByText(/^This engine only accepts single values/)).closest('.ui-notice') as HTMLElement;
-      expect(alert).toHaveTextContent('featureValues interval is not declared (/spec/candidates/providers/candidates/a/features/latency)');
+      expect(alert).toHaveTextContent('mode does not support requested featureValues values (candidates.json#/spec/candidates/a/features/latency)');
       expect(within(alert).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
       expect(within(alert).getByRole('link', { name: 'Edit the candidate' })).toHaveAttribute('href', '/app/isa-demo/library');
+    });
+
+    it('explains the same refusal when the gateway could not tell which value, pointing at the compiled problem instead', async () => {
+      casesApi.instanceIr.mockResolvedValue(ranged);
+      casesApi.analyseSnapshot.mockResolvedValue(analysis({ compatibleModes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }] }));
+      const withoutPointer = { ...RANGE_DIAGNOSTIC, resource: undefined, pointer: undefined };
+      jobsApi.launch.mockRejectedValue(refused(422, 'engine_mode_incompatible', { diagnostics: [{ code: 'profile_incompatible', message: 'mode profile differs' }, withoutPointer] }));
+      renderLaunch();
+      await toReview();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
+
+      const alert = (await screen.findByText(/^This engine only accepts single values/)).closest('.ui-notice') as HTMLElement;
+      expect(alert).toHaveTextContent('mode does not support requested featureValues values (/spec/candidates/providers/candidates/a/features/latency)');
     });
   });
 

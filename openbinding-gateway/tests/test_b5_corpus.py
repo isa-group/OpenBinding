@@ -41,6 +41,26 @@ def test_the_complete_corpus_still_compiles_with_the_same_package_count():
     assert failures == []
 
 
+def test_an_instance_json_under_frontend_is_not_counted_as_a_corpus_package():
+    tool = load_corpus_tool()
+    fixture = REPO_ROOT / "frontend" / "src" / "test" / "fixtures" / "bim-package"
+    assert (fixture / "instance.json").is_file()
+
+    assert fixture not in tool.package_directories()
+    assert not any(REPO_ROOT / "frontend" in directory.parents for directory in tool.package_directories())
+
+
+def test_package_directories_skips_excluded_roots(tmp_path):
+    tool = load_corpus_tool()
+    for relative in ["kept/pkg", "frontend/fixture", "frontend/node_modules/dep"]:
+        (tmp_path / relative).mkdir(parents=True)
+        (tmp_path / relative / "instance.json").write_text("{}", encoding="utf-8")
+
+    found = tool.package_directories(tmp_path, {tmp_path / "frontend"})
+
+    assert found == [tmp_path / "kept" / "pkg"]
+
+
 def with_range(name: str, make):
     package = load_package(REPO_ROOT / "examples/demo" / name)
     catalog = json.loads(package.files["candidates.json"])

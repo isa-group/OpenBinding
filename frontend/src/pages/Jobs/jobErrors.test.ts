@@ -65,6 +65,20 @@ describe('refusals of a launch', () => {
     expect(refusal.details).toEqual(['open interval (/spec/x)']);
   });
 
+  it('reads the real refusal: engine_mode_incompatible with the range diagnostic, located in its file, by irPath, or not at all', () => {
+    const range = { code: 'unsupported_capability_value', category: 'featureValues', unsupported: ['interval'], allowed: ['scalar'], message: 'mode does not support requested featureValues values' };
+    const located = refusalOf(refused(422, 'engine_mode_incompatible', {
+      diagnostics: [{ ...range, resource: 'candidates.json', pointer: '/spec/candidates/c1a/features/latency', irPath: '/spec/candidates/catalog/candidates/c1a/features/latency' }],
+    }));
+    expect(located).toMatchObject({ kind: 'range', status: 422 });
+    expect(located.details).toEqual(['mode does not support requested featureValues values (candidates.json#/spec/candidates/c1a/features/latency)']);
+    const compiled = refusalOf(refused(422, 'engine_mode_incompatible', { diagnostics: [{ ...range, irPath: '/spec/candidates/catalog/candidates/c1a/features/latency' }] }));
+    expect(compiled.details).toEqual(['mode does not support requested featureValues values (/spec/candidates/catalog/candidates/c1a/features/latency)']);
+    const bare = refusalOf(refused(422, 'engine_mode_incompatible', { diagnostics: [range] }));
+    expect(bare.kind).toBe('range');
+    expect(bare.details).toEqual(['mode does not support requested featureValues values']);
+  });
+
   it('a job that failed for ranges says the same, without claiming nothing started', () => {
     expect(rangeFailureOf({ result: { code: 'unsupported_capability_value', diagnostics: [{ message: 'no interval', pointer: '/spec/a' }] } })).toMatchObject({
       kind: 'range', details: ['no interval (/spec/a)'],

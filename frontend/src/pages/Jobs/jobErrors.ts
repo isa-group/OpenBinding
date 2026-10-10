@@ -17,7 +17,8 @@ function lineOf(row: unknown): string {
   if (typeof row !== 'object' || row === null) return '';
   const entry = row as Record<string, unknown>;
   const message = typeof entry.message === 'string' ? entry.message : typeof entry.code === 'string' ? entry.code : '';
-  const pointer = typeof entry.pointer === 'string' ? entry.pointer : '';
+  const where = typeof entry.pointer === 'string' && entry.pointer !== '' ? entry.pointer : typeof entry.irPath === 'string' ? entry.irPath : '';
+  const pointer = where && typeof entry.resource === 'string' && entry.resource !== '' && where === entry.pointer ? `${entry.resource}#${where}` : where;
   return pointer && message ? `${message} (${pointer})` : message || pointer;
 }
 

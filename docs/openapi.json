@@ -3542,6 +3542,7 @@
             "type": "object"
           },
           "featureValue": {
+            "description": "A candidate feature value: a finite number, or a range {min, max}. Both ends are mandatory and each is a finite number or null; null means infinity at that end (min: null is -inf, max: null is +inf), so {min: null, max: null} carries no information. min <= max is only required when both ends are finite. A bare null is not a valid value.",
             "oneOf": [
               {
                 "type": "number"
@@ -5485,6 +5486,21 @@
         "additionalProperties": true,
         "description": "One thing wrong with the request, with where and (when known) how to fix it.",
         "properties": {
+          "allowed": {
+            "description": "The values of `category` the engine mode does support.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "bpmnElement": {
+            "description": "The BPMN element the finding is about, when `resource` is a BPMN file.",
+            "type": "string"
+          },
+          "category": {
+            "description": "Capability dimension of an engine-mode incompatibility (`featureValues`, ...).",
+            "type": "string"
+          },
           "code": {
             "description": "Stable identifier of this particular finding.",
             "type": "string"
@@ -5510,6 +5526,10 @@
               "header",
               "cookie"
             ],
+            "type": "string"
+          },
+          "irPath": {
+            "description": "RFC 6901 JSON Pointer to the same value in the compiled BindingProblem.",
             "type": "string"
           },
           "loc": {
@@ -5553,6 +5573,13 @@
             },
             "description": "Position in the source text (`offset` for malformed JSON; line/column for documents).",
             "type": "object"
+          },
+          "unsupported": {
+            "description": "The values of `category` the problem uses and the engine mode does not support.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -9665,7 +9692,7 @@
       },
       "Problem": {
         "additionalProperties": true,
-        "description": "The error document (RFC 9457 problem details). Every 422 has exactly this shape; the other refusals add their own fields beside it.",
+        "description": "The error document (RFC 9457 problem details). Every 422 has exactly this shape, and its `diagnostics` is always present and never empty; the other refusals add their own fields beside it and may omit `diagnostics`.",
         "properties": {
           "code": {
             "description": "Stable, machine-readable (`validation_error` by default).",

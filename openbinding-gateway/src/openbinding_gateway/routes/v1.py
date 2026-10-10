@@ -1131,6 +1131,38 @@ def _feature_value_kinds(spec: Mapping[str, Any]) -> set[str]:
     return kinds
 
 
+def _pointer_segment(value: Any) -> str:
+    return str(value).replace("~", "~0").replace("/", "~1")
+
+
+def _feature_value_location(problem: BindingProblem, kinds: set[str]) -> dict[str, str]:
+    """Where the first candidate feature value of one of ``kinds`` is, in the style of the compiler's diagnostics.
+
+    ``resource`` and ``pointer`` name the value inside the catalog file of the package; ``irPath`` names it in the
+    BindingProblem.  Empty when no such value exists, and without ``resource``/``pointer`` when the source of the
+    candidate is not known.
+    """
+    catalogs = problem.document.get("spec", {}).get("candidates", {})
+    for catalog_id, catalog in catalogs.items() if isinstance(catalogs, dict) else ():
+        if not isinstance(catalog, dict) or not isinstance(catalog.get("candidates"), dict):
+            continue
+        bindings = catalog.get("featureBindings", {})
+        for candidate_id, candidate in catalog["candidates"].items():
+            slots = candidate.get("features", {}) if isinstance(candidate, dict) else {}
+            for alias, value in slots.items() if isinstance(slots, dict) else ():
+                if not isinstance(bindings, dict) or alias not in bindings:
+                    continue
+                if ("interval" if isinstance(value, dict) else "scalar") not in kinds:
+                    continue
+                location = {"irPath": f"/spec/candidates/{_pointer_segment(catalog_id)}/candidates/{_pointer_segment(candidate_id)}/features/{_pointer_segment(alias)}"}
+                source = problem.source_map.get(f"/spec/candidates/{catalog_id}/{candidate_id}")
+                if isinstance(source, dict) and isinstance(source.get("path"), str) and isinstance(source.get("pointer"), str):
+                    location["resource"] = source["path"]
+                    location["pointer"] = f"{source['pointer']}/features/{alias}"
+                return location
+    return {}
+
+
 def _ir_features(problem: BindingProblem) -> dict[str, set[str]]:
     spec = problem.document.get("spec", {})
     application = spec.get("application", {})
@@ -1329,15 +1361,16 @@ def _mode_compatibility(problem: BindingProblem, mode: dict[str, Any]) -> list[d
         elif selector == "only":
             unsupported = used - allowed
             if unsupported:
-                diagnostics.append(
-                    {
-                        "code": "unsupported_capability_value",
-                        "category": category,
-                        "unsupported": sorted(unsupported),
-                        "allowed": sorted(allowed),
-                        "message": f"mode does not support requested {category} values",
-                    }
-                )
+                diagnostic = {
+                    "code": "unsupported_capability_value",
+                    "category": category,
+                    "unsupported": sorted(unsupported),
+                    "allowed": sorted(allowed),
+                    "message": f"mode does not support requested {category} values",
+                }
+                if category == "featureValues":
+                    diagnostic.update(_feature_value_location(problem, unsupported))
+                diagnostics.append(diagnostic)
         elif selector != "all":
             diagnostics.append(
                 {

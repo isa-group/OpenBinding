@@ -57,6 +57,7 @@ kept under `extra`.
 | `loc` | request validation | the raw Pydantic location (`["body", "features", 0]`), nothing lost |
 | `context` | request validation | the limits that were exceeded (`{"ge": 1}`, `{"max_length": 64}`) — scalars only |
 | `related`, `bpmnElement`, `irPath` | compiler findings | unchanged |
+| `category`, `unsupported`, `allowed` | `unsupported_capability_value` | the capability dimension (`featureValues`), the values the problem uses that the engine mode does not take (`["interval"]`), and the values the mode does take (`["scalar"]`) |
 
 The value the client sent is **never** echoed back (it may be a password or a
 token); FastAPI's `input` is dropped on purpose.
@@ -64,6 +65,28 @@ token); FastAPI's `input` is dropped on purpose.
 A diagnostic that arrives with only a code, or only a message, is completed
 (`message` = code, or `code` = the problem's code); one that already has both is
 passed through untouched, so the compiler keeps every field it had.
+
+## Candidate feature values and ranges
+
+A candidate feature value is a finite number or a range `{"min", "max"}`: both
+ends are mandatory and each is a finite number or `null`; `null` means infinity at
+that end. `min <= max` is only checked when both ends are finite, and a bare
+`null` is not a value. The package is refused with these findings
+(`invalid_instance`, 422):
+
+| `code` | Where | Meaning |
+|---|---|---|
+| `schema` | `pointer` into the candidate catalog (`/spec/candidates/c1a/features/latency`) | the value is not a number or a `{min, max}` object: a missing or extra key, a string such as `"inf"`, a boolean, a bare `null` |
+| `finite_number` | `pointer` to the offending end (`…/latency/max`) or to the scalar | the number is not finite (`NaN`, `±Infinity`, a literal that overflows a double) |
+| `feature_interval_order` | `pointer` to the range | both ends are finite and `min` is greater than `max` |
+
+A valid package whose ranges the selected engine mode cannot run is refused when
+the job is created:
+
+| `code` | Status | Meaning |
+|---|---|---|
+| `engine_mode_incompatible` | 422 | the problem uses a construct the selected mode does not declare; `diagnostics` lists every incompatibility |
+| `unsupported_capability_value` | one of those diagnostics | `category` (`featureValues`) names the capability dimension, `unsupported` the values the problem uses and the mode does not take (`["interval"]` for a range, also an open one), `allowed` the values the mode takes (`["scalar"]`). For `featureValues` it also carries `resource` (the catalog file), `pointer` (the first candidate feature value with the unsupported kind, e.g. `/spec/candidates/c1a/features/latency`) and `irPath` (the same value in the BindingProblem); without a known source it carries `irPath` only |
 
 ## Where it comes from
 

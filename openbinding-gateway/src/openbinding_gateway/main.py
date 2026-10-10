@@ -413,14 +413,28 @@ def openapi_with_security_contract() -> dict:
             },
             "context": {"type": "object", "description": "Limits that were exceeded (`gt`, `max_length`, ...)."},
             "related": {"type": "array", "items": {"type": "object"}},
+            "bpmnElement": {"type": "string", "description": "The BPMN element the finding is about, when `resource` is a BPMN file."},
+            "irPath": {"type": "string", "description": "RFC 6901 JSON Pointer to the same value in the compiled BindingProblem."},
+            "category": {"type": "string", "description": "Capability dimension of an engine-mode incompatibility (`featureValues`, ...)."},
+            "unsupported": {
+                "type": "array",
+                "description": "The values of `category` the problem uses and the engine mode does not support.",
+                "items": {"type": "string"},
+            },
+            "allowed": {
+                "type": "array",
+                "description": "The values of `category` the engine mode does support.",
+                "items": {"type": "string"},
+            },
         },
         "additionalProperties": True,
     }
     problem_schema = {
         "type": "object",
         "description": (
-            "The error document (RFC 9457 problem details). Every 422 has exactly this shape; "
-            "the other refusals add their own fields beside it."
+            "The error document (RFC 9457 problem details). Every 422 has exactly this shape, and its "
+            "`diagnostics` is always present and never empty; the other refusals add their own fields beside it "
+            "and may omit `diagnostics`."
         ),
         "required": ["type", "title", "status", "code", "detail"],
         "properties": {
@@ -475,6 +489,13 @@ def openapi_with_security_contract() -> dict:
     schemas["InstanceManifest"] = embedded_schema("instance.schema.json", "InstanceManifest")
     schemas["BindingProblem"] = embedded_schema(
         "binding-problem.schema.json", "BindingProblem"
+    )
+    # Documented here, not in the schema file: the schema's bytes are pinned by the protocol and profile digests.
+    schemas["BindingProblem"]["$defs"]["featureValue"]["description"] = (
+        "A candidate feature value: a finite number, or a range {min, max}. Both ends are mandatory and each is a "
+        "finite number or null; null means infinity at that end (min: null is -inf, max: null is +inf), so "
+        "{min: null, max: null} carries no information. min <= max is only required when both ends are finite. "
+        "A bare null is not a valid value."
     )
     schemas["ProfileManifest"] = embedded_schema("profile.schema.json", "ProfileManifest")
     schemas["DialectManifest"] = embedded_schema("dialect.schema.json", "DialectManifest")
