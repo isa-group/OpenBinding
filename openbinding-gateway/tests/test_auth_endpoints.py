@@ -82,7 +82,9 @@ async def test_a_short_password_is_refused(api_client, registration):
     response = await api_client.post("/v1/auth/register", json=registration(password="short"))
 
     assert response.status_code == 422
-    assert response.json()["detail"]["code"] == "weak_password"
+    assert response.json()["code"] == "weak_password"
+    assert response.json()["status"] == 422
+    assert response.json()["detail"]
 
 
 async def test_signing_in_returns_a_usable_pair(api_client, registration):

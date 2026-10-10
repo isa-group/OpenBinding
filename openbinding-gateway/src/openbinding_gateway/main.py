@@ -33,6 +33,16 @@ from .db.bootstrap import (
     ensure_administrator,
     seed_default_administrator,
 )
+from .models.problem import (
+    JSON_MEDIA_TYPE,
+    PROBLEM_MEDIA_TYPE,
+    PROBLEM_TYPE_BASE,
+    VALIDATION_ERROR,
+    problem_response,
+    split_detail,
+    summarize,
+    validation_diagnostics,
+)
 from .pricing_catalog import PricingCatalogError
 from .pricing_bootstrap import reconcile_pricing
 from .routes.admin import router as admin_router
@@ -63,6 +73,7 @@ from .security.apikeys import (
     required_permissions,
 )
 from .telemetry import ErrorTelemetryMiddleware
+from .v1.compiler import CompileError
 
 load_dotenv()
 
@@ -212,76 +223,80 @@ def _is_bim_request(request: Request) -> bool:
     return any(request.url.path.startswith(prefix) for prefix in _BIM_PATH_PREFIXES)
 
 
-def _problem_response(
-    status_code: int,
-    code: str,
-    detail: str,
-    diagnostics: list[dict] | None = None,
-    headers: dict[str, str] | None = None,
-    extra: dict | None = None,
-) -> JSONResponse:
-    body: dict = {
-        "type": f"https://openbinding.dev/problems/{code}",
-        "title": code,
-        "status": status_code,
-        "detail": detail,
-    }
-    if diagnostics:
-        body["diagnostics"] = diagnostics
-    if extra:
-        body.update(extra)
-    return JSONResponse(
-        body,
-        status_code=status_code,
-        media_type="application/problem+json",
-        headers=headers,
-    )
+def _problem_media_type(request: Request) -> str:
+    """BIM routes answer ``application/problem+json``; the platform routes keep ``application/json``."""
+    return PROBLEM_MEDIA_TYPE if _is_bim_request(request) else JSON_MEDIA_TYPE
+
+
+# Every 422 leaves the gateway through ``problem_response`` (models/problem.py),
+# whichever route or layer produced it.  Routes keep raising HTTPException /
+# api_error; these handlers are the only place that decides the wire shape.
 
 
 @app.exception_handler(RequestValidationError)
-async def bim_request_validation_error(request: Request, exc: RequestValidationError):
-    if not _is_bim_request(request):
-        from fastapi.exception_handlers import request_validation_exception_handler
+async def request_validation_error(request: Request, exc: RequestValidationError):
+    diagnostics = validation_diagnostics(exc.errors())
+    return problem_response(
+        422,
+        VALIDATION_ERROR,
+        summarize(diagnostics),
+        diagnostics,
+        media_type=_problem_media_type(request),
+    )
 
-        return await request_validation_exception_handler(request, exc)
-    diagnostics = [
-        {
-            "code": error.get("type", "request_validation"),
-            "message": error.get("msg", "request validation failed"),
-            "pointer": "/" + "/".join(str(part) for part in error.get("loc", ())),
-        }
-        for error in exc.errors()
-    ]
-    return _problem_response(422, "request_validation", "Request validation failed", diagnostics)
+
+@app.exception_handler(CompileError)
+async def compile_error(request: Request, exc: CompileError):
+    """A BIM source the compiler refused, from any route that did not catch it itself."""
+    diagnostics = [item.as_dict() for item in exc.diagnostics]
+    return problem_response(
+        422,
+        "invalid_instance",
+        summarize(diagnostics, prefix="The BIM source was refused"),
+        diagnostics,
+        media_type=_problem_media_type(request),
+    )
 
 
 @app.exception_handler(HTTPException)
-async def bim_http_error(request: Request, exc: HTTPException):
-    if not _is_bim_request(request):
-        from fastapi.exception_handlers import http_exception_handler
-
-        return await http_exception_handler(request, exc)
+async def http_error(request: Request, exc: HTTPException):
+    if exc.status_code == 422:
+        code, message, diagnostics, extra = split_detail(exc.detail, VALIDATION_ERROR)
+        return problem_response(
+            422,
+            code,
+            message,
+            diagnostics,
+            headers=exc.headers,
+            extra=extra,
+            media_type=_problem_media_type(request),
+        )
+    if _is_bim_request(request):
+        code, message, diagnostics, extra = split_detail(exc.detail, "request_error")
+        return problem_response(
+            exc.status_code,
+            code,
+            message,
+            diagnostics,
+            headers=exc.headers,
+            extra=extra,
+        )
     detail = exc.detail
-    extra = {}
-    if isinstance(detail, dict):
-        code = str(detail.get("code", "request_error"))
-        message = str(detail.get("message") or detail.get("error") or code)
-        diagnostics = detail.get("diagnostics")
-        for k, v in detail.items():
-            if k not in ("code", "message", "error", "diagnostics"):
-                extra[k] = v
-    else:
-        code = "request_error"
-        message = str(detail)
-        diagnostics = None
-    return _problem_response(
-        exc.status_code,
-        code,
-        message,
-        diagnostics,
-        headers=exc.headers,
-        extra=extra,
-    )
+    if isinstance(detail, dict) and isinstance(detail.get("code"), str):
+        # The platform's long-standing ``{"detail": {"code", "error", ...}}``
+        # stays exactly as it was; the canonical keys are added beside it.
+        code = detail["code"]
+        body = {
+            "type": f"{PROBLEM_TYPE_BASE}{code}",
+            "title": code,
+            "status": exc.status_code,
+            "code": code,
+            "detail": detail,
+        }
+        return JSONResponse(body, status_code=exc.status_code, headers=exc.headers)
+    from fastapi.exception_handlers import http_exception_handler
+
+    return await http_exception_handler(request, exc)
 
 settings = get_settings()
 app.add_middleware(
@@ -366,20 +381,61 @@ def openapi_with_security_contract() -> dict:
     if app.openapi_schema is not None:
         return app.openapi_schema
     document = _generated_openapi()
+    diagnostic_schema = {
+        "type": "object",
+        "description": "One thing wrong with the request, with where and (when known) how to fix it.",
+        "required": ["code", "message"],
+        "properties": {
+            "code": {"type": "string", "description": "Stable identifier of this particular finding."},
+            "message": {"type": "string"},
+            "pointer": {
+                "type": "string",
+                "description": "RFC 6901 JSON Pointer to the offending field (inside the request body, or the document named by `resource`).",
+            },
+            "in": {
+                "type": "string",
+                "enum": ["body", "query", "path", "header", "cookie"],
+                "description": "Where a request-validation finding was read from.",
+            },
+            "parameter": {"type": "string", "description": "The query, path, header or cookie parameter at fault."},
+            "resource": {"type": "string", "description": "The package file or resource the finding is about."},
+            "span": {
+                "type": "object",
+                "description": "Position in the source text (`offset` for malformed JSON; line/column for documents).",
+                "additionalProperties": {"type": "integer"},
+            },
+            "hint": {"type": "string", "description": "What to do about it."},
+            "fix": {"type": "string", "description": "A concrete replacement, when one is known."},
+            "loc": {
+                "type": "array",
+                "description": "The raw request-validation location (`body`, field names, array indexes).",
+                "items": {"oneOf": [{"type": "string"}, {"type": "integer"}]},
+            },
+            "context": {"type": "object", "description": "Limits that were exceeded (`gt`, `max_length`, ...)."},
+            "related": {"type": "array", "items": {"type": "object"}},
+        },
+        "additionalProperties": True,
+    }
     problem_schema = {
         "type": "object",
-        "required": ["type", "title", "status", "detail"],
+        "description": (
+            "The error document (RFC 9457 problem details). Every 422 has exactly this shape; "
+            "the other refusals add their own fields beside it."
+        ),
+        "required": ["type", "title", "status", "code", "detail"],
         "properties": {
             "type": {"type": "string", "format": "uri-reference"},
-            "title": {"type": "string"},
+            "title": {"type": "string", "description": "Same value as `code`."},
             "status": {"type": "integer"},
-            "detail": {"type": "string"},
-            "diagnostics": {"type": "array", "items": {"type": "object"}},
+            "code": {"type": "string", "description": "Stable, machine-readable (`validation_error` by default)."},
+            "detail": {"type": "string", "description": "Human-readable summary."},
+            "diagnostics": {"type": "array", "items": {"$ref": "#/components/schemas/Diagnostic"}},
         },
+        "additionalProperties": True,
     }
-    document.setdefault("components", {}).setdefault("schemas", {}).setdefault(
-        "ProblemDetails", problem_schema
-    )
+    component_schemas = document.setdefault("components", {}).setdefault("schemas", {})
+    component_schemas.setdefault("Diagnostic", diagnostic_schema)
+    component_schemas.setdefault("Problem", problem_schema)
     document["x-api-key-permissions"] = list(ALL_PERMISSIONS)
     schemas = document["components"]["schemas"]
     from .models.artifacts import StudyArtifactContent, CollectionArtifactContent
@@ -912,7 +968,7 @@ def openapi_with_security_contract() -> dict:
             "description": description,
             "content": {
                 "application/problem+json": {
-                    "schema": {"$ref": "#/components/schemas/ProblemDetails"}
+                    "schema": {"$ref": "#/components/schemas/Problem"}
                 }
             },
         }
@@ -1346,6 +1402,39 @@ def openapi_with_security_contract() -> dict:
     add_problem(jobs["post"], 402, "The caller's periodic or volume solve quota is exhausted.")
     add_problem(jobs["post"], 429, "The caller's concurrency slots are exhausted.")
     add_problem(jobs["post"], 403, "The requested feature or engine is not entitled in the caller's plan.")
+
+    # One 422 for the whole API: FastAPI's default `HTTPValidationError` is
+    # replaced by `Problem`, which is what the handlers in this module answer
+    # with (see models/problem.py).  Routes that declared their own 422 keep
+    # their description and gain the body.
+    def uses_default_validation_error(response: dict) -> bool:
+        return any(
+            representation.get("schema", {}).get("$ref", "").endswith("/HTTPValidationError")
+            for representation in response.get("content", {}).values()
+        )
+
+    for path, path_item in paths.items():
+        media_type = (
+            PROBLEM_MEDIA_TYPE
+            if any(path.startswith(prefix) for prefix in _BIM_PATH_PREFIXES)
+            else JSON_MEDIA_TYPE
+        )
+        for method, operation in path_item.items():
+            response = operation.get("responses", {}).get("422") if method in methods else None
+            if response is None:
+                continue
+            if uses_default_validation_error(response):
+                response["content"] = {}
+                if response.get("description") in (None, "", "Validation Error"):
+                    response["description"] = (
+                        "The request does not satisfy the contract; `diagnostics` says where."
+                    )
+            if not response.get("content"):
+                response["content"] = {
+                    media_type: {"schema": {"$ref": "#/components/schemas/Problem"}}
+                }
+    schemas.pop("HTTPValidationError", None)
+    schemas.pop("ValidationError", None)
     app.openapi_schema = document
     return document
 

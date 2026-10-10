@@ -154,7 +154,7 @@ async def test_proposing_an_inactive_or_unknown_user_is_refused(world):
 
     for response in (inactive, unknown):
         assert response.status_code == 422
-        assert response.json()["detail"]["code"] == "invalid_sponsor"
+        assert response.json()["code"] == "invalid_sponsor"
     assert (await w.db.scalars(select(SponsorProposal))).all() == []
 
 

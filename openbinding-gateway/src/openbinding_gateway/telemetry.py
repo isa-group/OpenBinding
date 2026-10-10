@@ -232,9 +232,10 @@ class ErrorTelemetryMiddleware:
                             decoded = full_body.decode("utf-8")
                             parsed_body = json.loads(decoded)
                             if isinstance(parsed_body, dict):
+                                nested = parsed_body.get("detail")
                                 error_code = (
                                     parsed_body.get("title")
-                                    or parsed_body.get("detail", {}).get("code")
+                                    or (nested.get("code") if isinstance(nested, dict) else None)
                                     or parsed_body.get("code")
                                     or error_code
                                 )

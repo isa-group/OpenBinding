@@ -27,6 +27,7 @@ from ..db.models import (
     User,
 )
 from ..models.errors import api_error
+from ..models.problem import JSON_MEDIA_TYPE, json_pointer, problem_response
 from ..models.pricing import (
     PricingActionResult,
     PricingArchiveRequest,
@@ -140,6 +141,54 @@ def validate_pricing(
         errors=errors,
         warnings=warnings,
     )
+
+
+_PRICING_ROOTS = frozenset({"syntaxVersion", "saasName", "version", "createdAt", "plans", "features", "usageLimits", "addOns"})
+_ERROR_PATH = re.compile(r"^(?:pricing\.)?([A-Za-z][\w-]*(?:\.[\w-]+)*)")
+_SECRET_PATH = re.compile(r"\$((?:\.[^\s,.\[\]]+|\[\d+\])+)")
+_PATH_SEGMENT = re.compile(r"\.([^.\[\]]+)|\[(\d+)\]")
+
+
+def pricing_diagnostics(errors: list[str]) -> list[dict[str, Any]]:
+    """The validation messages of a pricing document as diagnostics with a JSON Pointer into the YAML.
+
+    ``validate_pricing`` reports plain strings, most of them starting with the
+    dotted path of the field at fault (``plans.PRO.usageLimits.maxTimeoutSeconds
+    exceeds ...``); that path becomes the ``pointer``.  A message that names no
+    field (unreadable YAML, a root that is not a mapping) has no pointer.
+    """
+    diagnostics: list[dict[str, Any]] = []
+    for error in errors:
+        if error.startswith("Pricing documents may not contain secret-shaped fields"):
+            for path in _SECRET_PATH.findall(error):
+                parts = [name or index for name, index in _PATH_SEGMENT.findall(path)]
+                diagnostics.append(
+                    {
+                        "code": "secret_in_document",
+                        "message": f"${path} is secret-shaped; pricing documents may not contain secrets.",
+                        "pointer": json_pointer(parts),
+                    }
+                )
+            continue
+        if error.startswith("Invalid YAML"):
+            diagnostics.append({"code": "invalid_yaml", "message": error})
+            continue
+        if error.startswith("The YAML root"):
+            diagnostics.append({"code": "invalid_root", "message": error})
+            continue
+        if error.startswith("Pricing YAML exceeds"):
+            diagnostics.append({"code": "document_too_large", "message": error})
+            continue
+        diagnostic: dict[str, Any] = {"code": "invalid_field", "message": error}
+        match = _ERROR_PATH.match(error)
+        if match and match.group(1).split(".")[0] in _PRICING_ROOTS:
+            diagnostic["pointer"] = json_pointer(match.group(1).split("."))
+        elif error.startswith("At least one plan"):
+            diagnostic["pointer"] = "/plans"
+        elif error.startswith("The YAML version"):
+            diagnostic["pointer"] = "/version"
+        diagnostics.append(diagnostic)
+    return diagnostics
 
 
 def _release_view(value: PricingRelease) -> PricingReleaseView:
@@ -256,10 +305,33 @@ async def pricing_catalog(
         ) from exc
 
 
-@admin_router.post("/validate", response_model=PricingValidationView, operation_id="validatePricingDraft")
-async def validate_pricing_draft(payload: PricingYamlRequest) -> PricingValidationView:
+@admin_router.post(
+    "/validate",
+    response_model=PricingValidationView,
+    operation_id="validatePricingDraft",
+    responses={
+        422: {
+            "description": (
+                "The document is not a valid pricing. The body is the unified problem document "
+                "(`diagnostics` with a JSON Pointer into the YAML) and also carries the validation "
+                "view (`valid: false`, `errors`, `warnings`, `plans`, `add_ons`, ...)."
+            )
+        }
+    },
+)
+async def validate_pricing_draft(payload: PricingYamlRequest):
+    """A valid document answers 200; an invalid one answers 422 with the unified problem."""
     _, result = validate_pricing(payload.yaml.encode())
-    return result
+    if result.valid:
+        return result
+    return problem_response(
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        "invalid_pricing",
+        "Pricing validation failed.",
+        pricing_diagnostics(result.errors),
+        extra=result.model_dump(mode="json"),
+        media_type=JSON_MEDIA_TYPE,
+    )
 
 
 @admin_router.get("/templates", operation_id="listPricingTemplates")
@@ -453,7 +525,7 @@ async def create_draft(
     content = payload.yaml.encode()
     _, validation = validate_pricing(content)
     if not validation.valid or not validation.version or not validation.digest:
-        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_pricing", "Pricing validation failed.", diagnostics=[{"message": error} for error in validation.errors])
+        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_pricing", "Pricing validation failed.", diagnostics=pricing_diagnostics(validation.errors))
     if not DRAFT_VERSION.fullmatch(validation.version):
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "draft_version_required", "Draft versions must use X.Y.Z-draft.N.")
     if await session.scalar(select(PricingRelease.id).where(PricingRelease.version == validation.version)):

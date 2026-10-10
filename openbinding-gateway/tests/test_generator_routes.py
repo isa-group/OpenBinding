@@ -136,8 +136,10 @@ async def test_generate_instance_incompatible_engines(api_client):
     }
     resp = await api_client.post("/v1/generator/instances", json=payload)
     assert resp.status_code == 422, resp.text
-    detail = resp.json()
-    assert detail.get("detail", {}).get("code") == "incompatible_target_engines"
+    problem = resp.json()
+    assert problem["code"] == "incompatible_target_engines"
+    # The route's own fields travel beside the canonical ones.
+    assert "conflicts" in problem
 
 
 @pytest.mark.asyncio

@@ -252,7 +252,9 @@ async def test_package_manifest_tampering_is_rejected(
             json=tampered,
         )
         assert response.status_code == 422
-        assert response.json()["detail"]["code"] == "checksum_mismatch"
+        # The unified 422 problem (docs/ERRORS.md): the code is top level.
+        assert response.json()["code"] == "checksum_mismatch"
+        assert response.json()["diagnostics"][0]["code"] == "checksum_mismatch"
     finally:
         get_settings.cache_clear()
 

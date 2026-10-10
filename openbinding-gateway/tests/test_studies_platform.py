@@ -465,7 +465,7 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
     package['packageDigest'] = digest({key: value for key, value in package.items() if key != 'packageDigest'})
     tampered = await api_client.post('/v1/organizations/lab/projects/shared-study/package', headers=headers, json=package)
     assert tampered.status_code == 422, tampered.text
-    assert tampered.json()['detail']['code'] == 'study_cell_mismatch'
+    assert tampered.json()['code'] == 'study_cell_mismatch'
     # Reconstruct a new local closure: its case revision and Study identity do
     # not exist yet, so the definition must be sealed after the case import.
     import base64

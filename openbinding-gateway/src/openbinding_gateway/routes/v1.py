@@ -52,6 +52,7 @@ from ..db.models import (
     utcnow,
 )
 from ..job_dispatch import dispatch_persisted_job
+from ..models.problem import VALIDATION_ERROR, problem_response, split_detail
 from ..security.apikeys import allows_engine
 from ..v1.canonical import canonical_json, digest, digest_bytes
 from ..v1.compiler import (
@@ -105,12 +106,7 @@ def _problem(
     extra: dict[str, Any] | None = None,
     headers: dict[str, str] | None = None,
 ) -> JSONResponse:
-    body: dict[str, Any] = {"type": f"https://openbinding.dev/problems/{code}", "title": code, "status": status_code, "detail": detail}
-    if diagnostics:
-        body["diagnostics"] = diagnostics
-    if extra:
-        body.update(extra)
-    return JSONResponse(body, status_code=status_code, media_type="application/problem+json", headers=headers)
+    return problem_response(status_code, code, detail, diagnostics, headers=headers, extra=extra)
 
 
 def _instance_identity(package: InstancePackage) -> str:
@@ -2237,16 +2233,10 @@ def _reevaluate_result(
 
 
 def _error_from_http(exc: HTTPException) -> JSONResponse:
-    detail = exc.detail
-    if isinstance(detail, dict):
-        diagnostics = detail.get("diagnostics")
-        code = detail.get("code", "request_invalid")
-        message = detail.get("message", code)
-    else:
-        diagnostics = None
-        code = "request_invalid"
-        message = str(detail)
-    return _problem(exc.status_code, code, message, diagnostics)
+    """The same document the central HTTPException handler would produce (main.py)."""
+    default_code = VALIDATION_ERROR if exc.status_code == 422 else "request_invalid"
+    code, message, diagnostics, extra = split_detail(exc.detail, default_code)
+    return _problem(exc.status_code, code, message, diagnostics, extra=extra, headers=exc.headers)
 
 
 @router.get("/profiles")

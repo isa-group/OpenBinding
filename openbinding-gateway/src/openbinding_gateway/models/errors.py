@@ -20,7 +20,22 @@ class ErrorBody(BaseModel):
     error: str = Field(..., description="Human-readable explanation.")
 
 
-class ErrorResponse(BaseModel):
+class ProblemKeys(BaseModel):
+    """The RFC 9457 keys added beside ``detail`` on every coded platform failure.
+
+    ``detail`` itself stays the ``{code, error, ...}`` object clients already
+    read; these repeat its code in the shape the 422 responses use (see
+    ``models/problem.py``), so one client branch can read ``code`` and ``status``
+    from any failure.
+    """
+
+    type: Optional[str] = Field(default=None, description="URI reference identifying the problem type.")
+    title: Optional[str] = Field(default=None, description="Same value as `code`.")
+    status: Optional[int] = Field(default=None, description="The HTTP status code.")
+    code: Optional[str] = Field(default=None, description="Same value as `detail.code`.")
+
+
+class ErrorResponse(ProblemKeys):
     """A failure, as it appears on the wire."""
 
     detail: ErrorBody
@@ -50,7 +65,7 @@ class QuotaErrorBody(ErrorBody):
     quota: Optional[QuotaBody] = None
 
 
-class QuotaErrorResponse(BaseModel):
+class QuotaErrorResponse(ProblemKeys):
     """An allowance spent, or an instance beyond what the plan solves."""
 
     detail: QuotaErrorBody
