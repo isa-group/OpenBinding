@@ -289,7 +289,8 @@ async def test_persisted_builtin_job_pins_registration_and_mode_guarantees(
     }
     assert stored.provenance["registration"] == reference
     assert stored.provenance["terminationGuarantees"] == ["FEASIBLE", "UNKNOWN"]
-    assert stored.idempotency_fingerprint.startswith("sha256-")
+    assert stored.idempotency_fingerprint.startswith("v2:sha256-")
+    assert len(stored.idempotency_fingerprint) == 74
     assert (
         await routes._persisted_engine_contract(
             stored.engine_id,

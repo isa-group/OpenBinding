@@ -54,7 +54,8 @@ from ..db.models import (
 from ..job_dispatch import dispatch_persisted_job
 from ..models.problem import VALIDATION_ERROR, problem_response, split_detail
 from ..security.apikeys import allows_engine
-from ..v1.canonical import canonical_json, digest, digest_bytes
+from ..domain import idempotency
+from ..v1.canonical import CanonicalizationError, canonical_json, digest, digest_bytes
 from ..v1.compiler import (
     BindingProblem,
     CompileError,
@@ -4566,6 +4567,7 @@ async def create_job(
     pinned_problem = None
     configuration_version = None
     configuration_ref = None
+    request_body: Any = {}
     try:
         content_type = (request.headers.get("content-type") or "").split(";", 1)[0].lower()
         if content_type.startswith("multipart/form-data"):
@@ -4585,6 +4587,7 @@ async def create_job(
             if body_size > MAX_EXPANDED:
                 return _problem(413, "payload_too_large", f"request body exceeds {MAX_EXPANDED} bytes")
             payload = strict_json_loads(body)
+            request_body = payload
             snapshot_id = payload.get("snapshot") if isinstance(payload, dict) else None
             if snapshot_id:
                 allowed_fields = {"snapshot", "engine", "registration", "mode", "options", "optimization", "configuration"}
@@ -4634,6 +4637,25 @@ async def create_job(
         return _problem(422, "invalid_request", str(exc))
     except HTTPException as exc:
         return _error_from_http(exc)
+    package_hash = digest_bytes(package.to_zip())
+    request_fingerprint = None
+    legacy_existing = None
+    if session is not None and caller is not None:
+        try:
+            request_fingerprint = idempotency.request_fingerprint(
+                source_digest=package_hash,
+                body=request_body,
+                configuration=configuration_ref,
+            )
+        except CanonicalizationError as exc:
+            return _problem(422, "invalid_request", str(exc))
+        if idempotency_key:
+            existing = await _find_idempotent_job(session, caller.id, idempotency_key)
+            if existing is not None:
+                if idempotency.is_request_fingerprint(existing.idempotency_fingerprint):
+                    return _idempotent_outcome(existing, request_fingerprint)
+                # Written by the legacy algorithm (hashes resolved values): comparable only after resolving.
+                legacy_existing = existing
     job_id = str(uuid.uuid4())
     engine_selector = payload.get("engine", "random-search") if isinstance(payload, dict) else "random-search"
     routing_plan = None
@@ -4680,6 +4702,8 @@ async def create_job(
             "immutable_engine_required",
             "non-built-in engines must be selected by namespace, name, version and digest",
         )
+    if routing_plan is None and _is_internal_engine(engine):
+        return _problem(422, "internal_engine", "internal engines cannot be selected directly; use engine \"auto\"")
     raw_engine_options = payload.get("options", {}) if isinstance(payload, dict) else {}
     filtered_engine_options = {k: v for k, v in raw_engine_options.items() if k != "routing"} if isinstance(raw_engine_options, dict) else raw_engine_options
     try:
@@ -4795,66 +4819,30 @@ async def create_job(
 
     portable = load_package(package.to_zip())
     instance_hash = _instance_identity(package)
-    package_hash = digest_bytes(package.to_zip())
     profile = problem.document["spec"]["profile"]
     evaluator_hash = compiler_bundle_digest()
     dialects = problem.document["spec"]["dialects"]
     adapters = [item["adapter"] for item in dialects if isinstance(item, dict) and isinstance(item.get("adapter"), dict)]
-    request_fingerprint = digest({
-        "configuration": configuration_ref,
-        "requestedOptions": raw_engine_options,
-        "packageDigest": package_hash,
-        "fileDigests": portable.resource_digests,
-        "resourceDigests": _source_resource_digests(problem),
-        "irDigest": problem.digest,
-        "dialects": dialects,
-        "adapters": adapters,
-        "engineDigest": engine_hash,
-        "registration": registration_ref,
-        "protocolDigest": protocol_hash,
-        "mode": mode,
-        "optimization": execution_optimization,
-        "algorithm": selected_mode.get("algorithm"),
-        "options": effective_options,
-        "limits": limits,
-    })
-    if session is not None and caller is not None and idempotency_key:
-        existing = (
-            await session.execute(
-                select(Job).where(Job.owner_id == caller.id, Job.idempotency_key == idempotency_key)
-            )
-        ).scalars().first()
-        if existing is not None:
-            if existing.idempotency_fingerprint != request_fingerprint:
-                return _problem(409, "idempotency_conflict", "Idempotency-Key was already used for a different request")
-            existing_provenance = existing.provenance or {}
-            existing_profile = existing_provenance.get("profile", {})
-            return JSONResponse(
-                {
-                    "id": str(existing.id),
-                    "status": existing.state.value,
-                    "profile": existing_profile.get("id"),
-                    "irDigest": existing_provenance.get("irDigest"),
-                    "idempotent": True,
-                },
-                status_code=202,
-            )
-    if idempotency_key:
-        for existing_job_id, job in _JOBS.items():
-            if job.get("idempotencyKey") == idempotency_key:
-                if job.get("idempotencyFingerprint") != request_fingerprint:
-                    return _problem(409, "idempotency_conflict", "Idempotency-Key was already used for a different request")
-                existing_profile = job["provenance"].get("profile", {})
-                return JSONResponse(
-                    {
-                        "id": existing_job_id,
-                        "status": job["status"],
-                        "profile": existing_profile.get("id"),
-                        "irDigest": job["provenance"].get("irDigest"),
-                        "idempotent": True,
-                    },
-                    status_code=202,
-                )
+    if legacy_existing is not None:
+        legacy_fingerprint = digest({
+            "configuration": configuration_ref,
+            "requestedOptions": raw_engine_options,
+            "packageDigest": package_hash,
+            "fileDigests": portable.resource_digests,
+            "resourceDigests": _source_resource_digests(problem),
+            "irDigest": problem.digest,
+            "dialects": dialects,
+            "adapters": adapters,
+            "engineDigest": engine_hash,
+            "registration": registration_ref,
+            "protocolDigest": protocol_hash,
+            "mode": mode,
+            "optimization": execution_optimization,
+            "algorithm": selected_mode.get("algorithm"),
+            "options": effective_options,
+            "limits": limits,
+        })
+        return _idempotent_outcome(legacy_existing, legacy_fingerprint)
     provenance = {
         "engine": immutable_engine_ref,
         "engineDigest": engine_hash,
@@ -4905,6 +4893,12 @@ async def create_job(
             )
         except space_client.PricingUnavailable as exc:
             return _problem(503, "pricing_unavailable", str(exc))
+        if idempotency_key:
+            # reserve() locked the account row, so a request that waited behind the one that created this job now sees it.
+            raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
+            if raced is not None:
+                await metering.release(space_client.get_gate(), reservation)
+                return raced
         if not verdict.allowed:
             if verdict.limit is not None:
                 if verdict.limit.limit_id == "concurrentJobs":
@@ -4941,6 +4935,9 @@ async def create_job(
                 snapshot_db_id = await _persist_snapshot(package, problem, caller, session)
         except IntegrityError:
             await metering.release(space_client.get_gate(), reservation)
+            raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
+            if raced is not None:
+                return raced
             return _problem(409, "snapshot_conflict", "snapshot identity conflicted with another revision")
         try:
             parsed_snapshot_id = uuid.UUID(snapshot_db_id) if snapshot_db_id else None
@@ -4983,37 +4980,14 @@ async def create_job(
                 await session.flush()
         except IntegrityError:
             await metering.release(space_client.get_gate(), reservation)
+            raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
+            if raced is not None:
+                return raced
             return _problem(409, "job_conflict", "job identity conflicted with another request")
         await session.commit()
         await dispatch_persisted_job(job_id, None if db_base.is_configured() else session)
         return {"id": job_id, "status": "queued", "profile": profile["id"], "irDigest": problem.digest}
-    if isinstance(registration, dict):
-        transport = _registration_transport(
-            registration,
-            credential=registration.get("credential"),
-        )
-    else:
-        transport = RemoteRegistration(
-            endpoint=registration.endpoint,
-            mappings=registration.mappings,
-            auth_scheme=registration.auth_scheme,
-            allow_internal_http=not get_settings().federation_require_https,
-        )
-    job = {
-        "status": "queued",
-        "problem": problem,
-        "transport": transport,
-        "options": effective_options,
-        "timeout": effective_timeout,
-        "mode": mode_contract,
-        "optimization": execution_optimization,
-        "idempotencyKey": idempotency_key,
-        "idempotencyFingerprint": request_fingerprint,
-        "provenance": provenance,
-    }
-    _JOBS[job_id] = job
-    asyncio.create_task(_run_job(job_id))
-    return {"id": job_id, "status": "queued", "profile": profile["id"], "irDigest": problem.digest}
+    return _problem(401, "unauthorized", "Submitting a job requires an account.")
 
 
 @router.get("/jobs/{job_id}")
@@ -5203,3 +5177,44 @@ async def get_v1_job_report(
         "remote": result.get("provenance", {}).get("engineReported", {}),
         "provenance": provenance,
     }
+
+
+async def _find_idempotent_job(session: AsyncSession, owner_id: Any, key: str) -> Job | None:
+    return (
+        await session.execute(select(Job).where(Job.owner_id == owner_id, Job.idempotency_key == key))
+    ).scalars().first()
+
+
+def _idempotent_outcome(existing: Job, fingerprint: str) -> JSONResponse:
+    if existing.idempotency_fingerprint != fingerprint:
+        return _problem(409, "idempotency_conflict", "Idempotency-Key was already used for a different request")
+    provenance = existing.provenance or {}
+    return JSONResponse(
+        {
+            "id": str(existing.id),
+            "status": existing.state.value,
+            "profile": provenance.get("profile", {}).get("id"),
+            "irDigest": provenance.get("irDigest"),
+            "idempotent": True,
+        },
+        status_code=202,
+    )
+
+
+async def _raced_idempotent_outcome(
+    session: AsyncSession, owner_id: Any, key: str | None, fingerprint: str | None
+) -> JSONResponse | None:
+    if not key or fingerprint is None:
+        return None
+    existing = await _find_idempotent_job(session, owner_id, key)
+    if existing is None:
+        return None
+    return _idempotent_outcome(existing, fingerprint)
+
+
+def _is_internal_engine(name: str) -> bool:
+    try:
+        manifest = json.loads((_MANIFEST_DIR / f"{name}.json").read_text())
+    except (OSError, ValueError):
+        return False
+    return bool(manifest.get("metadata", {}).get("internal", False))
