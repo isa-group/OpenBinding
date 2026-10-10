@@ -331,9 +331,35 @@ See [`space/UPSTREAM.md`](../space/UPSTREAM.md).
 a gateway that restarts, an engine that dies — each leaves a concurrency slot
 held, and for an account allowed one that means never solving again. SPACE's own
 revert expires after two minutes and these solves run for thirty, so a
-reconciler sweeps for jobs that outlived their budget and settles them. They are
-charged for the budget they held: an abandoned solve that costs nothing is an
-invitation to abandon every solve.
+reconciler sweeps for jobs that nobody is working on any more and settles them.
+
+A worker that claims a job takes a 60-second lease and renews it every 20
+seconds while it solves. A lease that runs out means the worker died, which the
+reconciler tells apart from a slow solve:
+
+- **The first time**, the job goes back in the queue and runs again, at no
+  charge. A worker lost mid-solve is not the account's doing.
+- **The second time**, the job is failed. It is charged for the time it was
+  observed running (up to the last renewal of its lease), never more than its
+  budget: an abandoned solve that costs nothing is an invitation to abandon every
+  solve, but one that held the engine for ten seconds should not pay for
+  thirty minutes. A job nobody ever saw start is charged its whole budget.
+- A job with no lease to judge by is failed once its budget and two minutes of
+  grace have passed, counted from when it was claimed or else created.
+
+A worker that lost its lease cannot write a result, a failure or a cancellation
+afterwards, and does not settle: an answer arriving after the job was put back
+would otherwise overwrite the run that replaced it, or charge twice.
+
+A job that reached a terminal state but could not be settled (SPACE was down at
+that moment) is settled by a later sweep, once. It is charged the time between
+its claim and its end, up to its budget. A job that ended before leases existed
+has no claim time and releases its slot without charging solver time.
+
+One limit remains: the concurrency slot and task are reserved before the job row
+exists, so a gateway that dies between the reservation and the commit of the row
+leaves a slot nothing can find. `POST /v1/admin/users/{id}/usage/resync`
+corrects that drift.
 
 Settlement flips `metered` and `concurrency_released` with a compare-and-set, so
 two polls arriving together charge once and release once. When those counts drift

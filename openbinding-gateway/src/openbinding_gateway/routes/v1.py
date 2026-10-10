@@ -23,7 +23,7 @@ import yaml
 from ..models.analysis import NeighborhoodResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse, Response
-from sqlalchemy import delete, or_, select, update
+from sqlalchemy import delete, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -4107,7 +4107,15 @@ async def _fail_persisted_job(
     message: str,
     started: float,
 ) -> None:
+    if not await metering.hold_lease(session, job.id, metering.held_token(session, job.id)):
+        # The reconciler took the job back, so the outcome of this attempt is
+        # not the job's outcome. Whatever was staged is discarded, unsettled.
+        logger.warning("Lost the lease on job %s; not recording its failure", job.id)
+        await session.rollback()
+        return
     job.state = JobState.FAILED
+    job.lease_token = None
+    job.lease_until = None
     job.result = {
         "termination": "UNKNOWN",
         "solutions": [],
@@ -4174,24 +4182,35 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
         parsed = uuid.UUID(job_id)
     except ValueError:
         return
-    claimed = await session.execute(
-        update(Job)
-        .where(Job.id == parsed, Job.state == JobState.QUEUED)
-        .values(state=JobState.RUNNING)
-        .returning(Job.id)
-    )
-    if claimed.first() is None:
+    token = await metering.claim_job(session, parsed)
+    if token is None:
         return
     try:
         await session.commit()
     except Exception:
         await session.flush()
 
-    job = await session.get(Job, parsed)
+    # The lease runs out unless it is renewed, which is how the reconciler
+    # tells a worker that died from one that is still solving.
+    heartbeat = metering.start_heartbeat(session, parsed, token)
+    try:
+        await _run_claimed_job(parsed, session)
+    finally:
+        await metering.stop_heartbeat(heartbeat)
+
+
+async def _run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
+    job = await session.get(Job, parsed, populate_existing=True)
     if job is None:
         return
     if job.cancellation_requested:
+        if not await metering.hold_lease(session, job.id, metering.held_token(session, job.id)):
+            logger.warning("Lost the lease on job %s; not recording its cancellation", job.id)
+            await session.rollback()
+            return
         job.state = JobState.CANCELLED
+        job.lease_token = None
+        job.lease_until = None
         job.finished_at = utcnow()
         try:
             await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
@@ -4379,8 +4398,16 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
                 await _fail_persisted_job(job, session, str(exc), started)
                 return
         await session.refresh(job)
+        if not await metering.hold_lease(session, job.id, metering.held_token(session, job.id)):
+            # The worker was presumed dead and the job went back in the queue
+            # (or failed). The answer arrived too late to be the job's answer.
+            logger.warning("Lost the lease on job %s; discarding its result", job.id)
+            await session.rollback()
+            return
         if job.cancellation_requested:
             job.state = JobState.CANCELLED
+            job.lease_token = None
+            job.lease_until = None
             job.finished_at = utcnow()
             try:
                 await metering.settle(
@@ -4407,6 +4434,8 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
         job.result = reevaluated
         job.termination = reevaluated["termination"]
         job.state = JobState.COMPLETED
+        job.lease_token = None
+        job.lease_until = None
         job.finished_at = utcnow()
         routing_admin = provenance.get("engineRoutingAdmin")
         if isinstance(routing_admin, dict) and "adaptationLoopId" in routing_admin:
@@ -4463,7 +4492,7 @@ async def _finish_persisted_job(job_id: str, session: AsyncSession) -> None:
             logger.warning("Metering settlement failed for completed job %s: %s", job.id, exc)
         await session.flush()
     except Exception as exc:
-        logger.exception("Unexpected error executing persisted job %s: %s", job_id, exc)
+        logger.exception("Unexpected error executing persisted job %s: %s", parsed, exc)
         await _fail_persisted_job(job, session, f"Execution failed: {exc}", started)
 
 
@@ -4483,13 +4512,24 @@ async def _run_persisted_job(job_id: str, request_session: AsyncSession | None =
             async with db_base.session_factory()() as fail_session:
                 try:
                     parsed = uuid.UUID(job_id)
-                    failed_job = await fail_session.get(Job, parsed)
+                    # Only the worker holding the lease may fail the job. One
+                    # that never claimed it (or lost it) leaves the job to the
+                    # queue and the reconciler, and the re-raise below makes
+                    # Dramatiq redeliver.
+                    token = metering.held_token(session, parsed)
+                    failed_job = (
+                        await fail_session.get(Job, parsed)
+                        if await metering.hold_lease(fail_session, parsed, token)
+                        else None
+                    )
                     if failed_job is not None and failed_job.state not in (
                         JobState.COMPLETED,
                         JobState.FAILED,
                         JobState.CANCELLED,
                     ):
                         failed_job.state = JobState.FAILED
+                        failed_job.lease_token = None
+                        failed_job.lease_until = None
                         failed_job.result = {
                             "termination": "UNKNOWN",
                             "solutions": [],

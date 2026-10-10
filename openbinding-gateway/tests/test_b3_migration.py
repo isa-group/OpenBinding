@@ -10,6 +10,8 @@ import uuid
 from pathlib import Path
 
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine
 from sqlalchemy.schema import CreateTable
 
@@ -29,6 +31,16 @@ def alembic(database: Path, *arguments: str) -> subprocess.CompletedProcess:
     )
 
 
+def chain() -> tuple[str, set[str]]:
+    """The single head of the migration scripts, and every revision up to it."""
+    config = Config(str(ROOT / "alembic.ini"))
+    config.set_main_option("script_location", str(ROOT / "alembic"))
+    scripts = ScriptDirectory.from_config(config)
+    heads = scripts.get_heads()
+    assert len(heads) == 1, f"the migration chain must have a single head, found {heads}"
+    return heads[0], {script.revision for script in scripts.walk_revisions(base="base", head=heads[0])}
+
+
 def columns(database: Path, table: str) -> dict[str, tuple]:
     with sqlite3.connect(database) as connection:
         return {row[1]: row for row in connection.execute(f"PRAGMA table_info({table})")}
@@ -46,9 +58,12 @@ def test_the_migration_creates_the_table_from_scratch_and_is_reversible(tmp_path
 
     upgraded = alembic(database, "upgrade", "head")
     assert upgraded.returncode == 0, upgraded.stdout + upgraded.stderr
+    # Later migrations move the head; this one only has to stay in its history.
+    head, history = chain()
     heads = alembic(database, "heads")
-    assert heads.returncode == 0 and THIS_REVISION in heads.stdout
+    assert heads.returncode == 0 and head in heads.stdout
     assert heads.stdout.count("(head)") == 1, "the migration chain must have a single head"
+    assert THIS_REVISION in history and PREVIOUS_HEAD in history
 
     table = columns(database, "sponsor_proposals")
     assert {

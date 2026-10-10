@@ -124,11 +124,23 @@ async def _execute(job_id: str, request_session: AsyncSession | None = None) -> 
     await sync_study_job(job_id, request_session)
 
 
+#: Dramatiq kills an actor at 10 minutes unless told otherwise, while a solve may
+#: run for ``engine_solve_timeout_s`` (30 minutes by default). The primary engine
+#: and its planned fallback can each use the whole timeout, plus five minutes for
+#: the work around them.
+_TIME_LIMIT_MS = int(2 * get_settings().engine_solve_timeout_s * 1000 + 300_000)
+
+
+# max_retries stays at 5 for failures before the job is claimed (a database or
+# broker hiccup). A retry after a claim that failed is harmless: the claim is a
+# single UPDATE ... WHERE state = 'queued', so a redelivered message finds the
+# job running or finished and returns without doing anything.
 @dramatiq.actor(
     actor_name="openbinding.run_persisted_job",
     max_retries=5,
     min_backoff=1_000,
     max_backoff=30_000,
+    time_limit=_TIME_LIMIT_MS,
 )
 async def run_persisted_job_message(job_id: str) -> None:
     if not _runtime_started or not db_base.is_configured():

@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 
 from openbinding_gateway import space_client
 from openbinding_gateway import job_dispatch
+from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db import base as db_base
 from openbinding_gateway.db.models import Job, JobState, User
 from openbinding_gateway.routes import v1
@@ -45,6 +46,10 @@ def test_redis_actor_is_bound_to_the_configured_broker_and_async_runtime():
     assert any(isinstance(middleware, AsyncIO) for middleware in broker.middleware)
     assert any(isinstance(middleware, job_dispatch.WorkerRuntime) for middleware in broker.middleware)
     assert job_dispatch.run_persisted_job_message.options["max_retries"] == 5
+    # Longer than the engine call and its fallback together; Dramatiq's default of
+    # ten minutes would kill a solve the engine was still allowed to run.
+    solve_timeout_ms = get_settings().engine_solve_timeout_s * 1000
+    assert job_dispatch.run_persisted_job_message.options["time_limit"] == 2 * solve_timeout_ms + 300_000
 
 
 @pytest.mark.asyncio

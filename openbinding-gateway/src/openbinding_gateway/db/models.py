@@ -31,6 +31,7 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     String,
@@ -185,6 +186,7 @@ class Job(Base):
             "termination IS NULL OR termination IN ('OPTIMAL', 'FEASIBLE', 'INFEASIBLE', 'UNKNOWN')",
             name="ck_jobs_termination",
         ),
+        Index("ix_jobs_state_lease_until", "state", "lease_until"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -229,6 +231,15 @@ class Job(Base):
     metered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     concurrency_released: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     cancellation_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Who is running this job, and until when. A worker claims a queued job by
+    #: writing a fresh token and keeps ``lease_until`` ahead of the clock while
+    #: it works; a running job whose lease lapsed has lost its worker.
+    lease_token: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: When the current attempt started, so an abandoned job is charged for the
+    #: time it was observed running rather than for its whole budget.
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     retry_of_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True
     )

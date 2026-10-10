@@ -247,14 +247,16 @@ async def test_an_already_settled_job_is_not_swept(gate, db_session, owner):
     assert await metering.sweep_abandoned(gate, db_session) == 0
 
 
-async def test_a_finished_job_is_not_swept(gate, db_session, owner):
-    await a_job(
+async def test_a_finished_and_settled_job_is_not_swept(gate, db_session, owner):
+    job = await a_job(
         db_session,
         owner,
         budget_s=1.0,
         age_s=metering.SETTLEMENT_GRACE_S + 10,
         state=JobState.COMPLETED,
     )
+    job.metered = True
+    await db_session.flush()
 
     assert await metering.sweep_abandoned(gate, db_session) == 0
 
