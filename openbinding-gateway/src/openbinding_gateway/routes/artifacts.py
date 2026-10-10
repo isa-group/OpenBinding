@@ -262,6 +262,18 @@ async def upload_artifact(
         destination = _artifact_path(settings, digest_value)
         destination.parent.mkdir(parents=True, exist_ok=True)
         if destination.exists():
+            # Content-addressed: an existing file is only a duplicate if its
+            # bytes really hash to the address. Never overwrite it, never trust it.
+            stored_hasher = hashlib.sha256()
+            with destination.open("rb") as stored:
+                while block := stored.read(1024 * 1024):
+                    stored_hasher.update(block)
+            if f"sha256-{stored_hasher.hexdigest()}" != digest_value:
+                raise api_error(
+                    status.HTTP_409_CONFLICT,
+                    "content_integrity",
+                    "The stored content for this digest does not match it.",
+                )
             temporary.unlink(missing_ok=True)
         else:
             os.replace(temporary, destination)
@@ -828,7 +840,7 @@ async def import_project_package(
         "collections": 0, "collectionRevisions": 0, "studies": 0, "studyRuns": 0,
         "studyCells": 0, "reports": 0, "publications": 0, "artifacts": 0,
     }
-    from ..artifacts import case_composition_digest, reference, resolve_version, seal_draft
+    from ..artifacts import case_composition_digest, resolve_version, seal_draft
     from ..models.artifacts import ArtifactRef, DraftContent
     from ..routes.v1 import _compile_resolved, _persist_snapshot
     from ..v1.package import load_package
@@ -996,8 +1008,8 @@ async def import_project_package(
             resource_revision_map[str(revision_data.get("id"))] = version
             counts["resourceRevisions"] += 1
 
-    def remap_ref(reference: dict) -> dict:
-        result = dict(reference)
+    def remap_ref(source_ref: dict) -> dict:
+        result = dict(source_ref)
         for key in ("caseRevisionId", "case_revision_id", "id"):
             source_id = str(result.get(key, ""))
             if source_id in case_revision_map:
@@ -1072,7 +1084,7 @@ async def import_project_package(
             actual_cells = sorted(run_data.get('cells', []), key=lambda item: item.get('ordinal', 0))
             if len(expected_cells) != len(actual_cells) or run_data.get('matrixDigest') != digest([cell['fingerprint'] for cell in expected_cells]):
                 raise api_error(422, 'study_matrix_mismatch', 'The imported matrix must match its exact study definition.')
-            for expected, actual in zip(expected_cells, actual_cells):
+            for expected, actual in zip(expected_cells, actual_cells, strict=False):
                 if any(actual.get(key) != value for key, value in expected.items()):
                     raise api_error(422, 'study_cell_mismatch', 'An imported cell differs from its sealed study definition.')
             run = (await session.execute(select(StudyRun).where(

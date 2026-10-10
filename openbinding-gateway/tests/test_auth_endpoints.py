@@ -197,7 +197,27 @@ async def test_a_refresh_token_cannot_be_used_twice(api_client, registration):
     )
 
     assert response.status_code == 401
-    assert response.json()["detail"]["code"] == "invalid_token"
+    assert response.json()["detail"]["code"] == "token_reused"
+
+
+async def test_reusing_a_refresh_token_ends_every_session_of_the_user(api_client, registration):
+    # The concurrent case (two simultaneous refreshes of one token) depends on
+    # SELECT ... FOR UPDATE and can only be exercised against PostgreSQL.
+    details = registration()
+    await register(api_client, details)
+    first = await login(api_client, details)
+    other_session = await login(api_client, details)
+    rotated = await api_client.post("/v1/auth/refresh", json={"refresh_token": first["refresh_token"]})
+    assert rotated.status_code == 200
+
+    replay = await api_client.post("/v1/auth/refresh", json={"refresh_token": first["refresh_token"]})
+
+    assert replay.status_code == 401
+    assert replay.json()["detail"]["code"] == "token_reused"
+    for token in (rotated.json()["refresh_token"], other_session["refresh_token"]):
+        response = await api_client.post("/v1/auth/refresh", json={"refresh_token": token})
+        assert response.status_code == 401
+        assert response.json()["detail"]["code"] == "token_reused"
 
 
 async def test_a_made_up_refresh_token_is_refused(api_client):

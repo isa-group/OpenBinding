@@ -228,7 +228,34 @@ async def refresh(
     except TokenError as error:
         raise api_error(status.HTTP_401_UNAUTHORIZED, "invalid_token", str(error)) from error
 
-    stored = await session.get(RefreshToken, claims.jti)
+    # Locked so two concurrent refreshes of one token serialize: the second
+    # sees it revoked and is treated as a replay (row locks need PostgreSQL).
+    stored = (
+        await session.execute(
+            select(RefreshToken)
+            .where(RefreshToken.jti == claims.jti)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalars().first()
+    if stored is not None and stored.user_id == claims.user_id and stored.revoked_at is not None:
+        # A spent token coming back means two parties hold the session, and
+        # there is no telling which is the thief: end every session of the user.
+        # Committed here because the error below rolls the request back.
+        now = utcnow()
+        live = await session.execute(
+            select(RefreshToken).where(
+                RefreshToken.user_id == stored.user_id, RefreshToken.revoked_at.is_(None)
+            ).with_for_update()
+        )
+        for token in live.scalars():
+            token.revoked_at = now
+        await session.commit()
+        raise api_error(
+            status.HTTP_401_UNAUTHORIZED,
+            "token_reused",
+            "That refresh token was already used; every session of the account has been ended.",
+        )
     if stored is None or not stored.is_usable or stored.user_id != claims.user_id:
         raise api_error(
             status.HTTP_401_UNAUTHORIZED,

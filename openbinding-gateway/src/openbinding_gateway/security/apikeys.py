@@ -94,6 +94,18 @@ ENGINE_LIMITED_PERMISSIONS = frozenset(
     }
 )
 ENGINE_REF_FIELDS = ("namespace", "name", "version", "digest")
+#: Required by any /v1 route nobody classified. It is not in ALL_PERMISSIONS, so
+#: no key can hold it and an unclassified route is closed to every API key.
+UNCLASSIFIED_ROUTE_PERMISSION = "route:unclassified"
+#: /v1 routes that deliberately need no API-key permission.
+OPEN_V1_PREFIXES = (
+    "/v1/auth",
+    "/v1/resolve",
+    "/v1/profiles",
+    "/v1/schemas",
+    "/v1/examples",
+)
+OPEN_V1_GET_PATHS = frozenset({"/v1/dialects", "/v1/resources"})
 
 
 @dataclass(frozen=True)
@@ -379,6 +391,8 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
             if method == "GET" or path == "/v1/artifacts/resolve"
             else {ApiKeyPermission.ARTIFACTS_WRITE.value}
         )
+    if path.startswith("/v1/explore"):
+        return frozenset({ApiKeyPermission.PROJECTS_READ.value})
     if "/projects" in path:
         if any(token in path for token in ("/studies", "/runs")):
             return frozenset(
@@ -467,4 +481,14 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset({ApiKeyPermission.INSTANCES_READ.value})
     if path.startswith("/v1/snapshots"):
         return frozenset({ApiKeyPermission.INSTANCES_READ.value})
-    return frozenset()
+    if not (path == "/v1" or path.startswith("/v1/")):
+        return frozenset()
+    if path.startswith(OPEN_V1_PREFIXES) or (method == "GET" and _is_open_v1_read(path)):
+        return frozenset()
+    return frozenset({UNCLASSIFIED_ROUTE_PERMISSION})
+
+
+def _is_open_v1_read(path: str) -> bool:
+    if path in OPEN_V1_GET_PATHS:
+        return True
+    return path.startswith("/v1/resources/") and path.count("/") == 3
