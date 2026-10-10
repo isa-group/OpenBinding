@@ -180,7 +180,22 @@ describe('small helpers', () => {
 
   it('gives each kind a start shaped for it', () => {
     expect(templateFor('CandidateCatalog', 'providers-eu')).toEqual({
-      content: { apiVersion: 'qos-binding/v1', kind: 'CandidateCatalog', metadata: { name: 'providers-eu' }, spec: { candidates: {} } }, mediaType: 'application/json',
+      content: { apiVersion: 'qos-binding/v1', kind: 'CandidateCatalog', metadata: { name: 'providers-eu' }, spec: { featureBindings: {}, candidates: {} } }, mediaType: 'application/json',
+    });
+    expect(templateFor('Application', 'app').content).toEqual({
+      apiVersion: 'qos-binding/v1', kind: 'Application', metadata: { name: 'app' }, spec: { tasks: {}, features: {}, workflow: {} },
+    });
+    expect(templateFor('Optimization', 'goal').content).toEqual({
+      apiVersion: 'qos-binding/v1', kind: 'Optimization', metadata: { name: 'goal' }, spec: { criteria: [], penalties: [] },
+    });
+    expect(templateFor('ConstraintSet', 'rules').content).toEqual({
+      apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', metadata: { name: 'rules' }, spec: { constraints: {} },
+    });
+    expect(templateFor('RoutingOverlay', 'routing').content).toEqual({
+      apiVersion: 'qos-binding/v1', kind: 'RoutingOverlay', metadata: { name: 'routing' }, spec: { uniform: true },
+    });
+    expect(templateFor('Placement', 'place').content).toEqual({
+      apiVersion: 'qos-binding-placement/v1', kind: 'Placement', metadata: { name: 'place' }, spec: { pools: {} },
     });
     expect(templateFor('Collection', 'x').content).toEqual({ apiVersion: 'openbinding/collection/v1', members: [] });
     expect(templateFor('BPMN', 'x').mediaType).toBe('application/vnd.omg.bpmn+xml');

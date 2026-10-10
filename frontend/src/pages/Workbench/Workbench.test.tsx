@@ -217,7 +217,7 @@ describe('Workbench', () => {
       expect(files[0]).toHaveTextContent('Root of the package · 4 resources');
       expect(files[1]).toHaveTextContent('1 task and 1 quality metric');
       expect(files[2]).toHaveTextContent('1 candidate with 1 quality column');
-      expect(files[3]).toHaveTextContent('weighted goal · 1 term');
+      expect(files[3]).toHaveTextContent('Goal · 1 criterion');
       expect(files[4]).toHaveTextContent('Workflow diagram · 1 task');
 
       fireEvent.click(within(files[2]).getByRole('button', { name: 'Edit candidates.json' }));
@@ -241,7 +241,7 @@ describe('Workbench', () => {
   describe('what the gateway refuses', () => {
     it('lists the 422 problems by file and place, with the fix when there is one, and opens each where it lives', async () => {
       workbench.validate.mockRejectedValue(refusal(422, undefined, [
-        { code: 'missing_metric', message: 'latency is required', resource: 'catalog', jsonPointer: '/spec/candidates/service-a/metrics/latency', fix: 'Add a finite value with a unit.' },
+        { code: 'missing_metric', message: 'latency is required', resource: 'catalog', jsonPointer: '/spec/candidates/service-a/features/latency', fix: 'Add a finite value with a unit.' },
         { code: 'unsupported_bpmn', message: 'The task is not executable.', resource: 'workflow', bpmnElement: 'hello' },
       ]));
       await openWorkbench();
@@ -251,7 +251,7 @@ describe('Workbench', () => {
       const problems = within(screen.getByRole('list', { name: 'Diagnostics' })).getAllByRole('listitem');
       expect(problems).toHaveLength(2);
       expect(problems[0]).toHaveTextContent('candidates.json');
-      expect(problems[0]).toHaveTextContent('/spec/candidates/service-a/metrics/latency');
+      expect(problems[0]).toHaveTextContent('/spec/candidates/service-a/features/latency');
       expect(problems[0]).toHaveTextContent('Fix: Add a finite value with a unit.');
       expect(problems[1]).toHaveTextContent('BPMN element hello');
       expect(screen.queryByRole('region', { name: 'Package actions' })).not.toBeInTheDocument();

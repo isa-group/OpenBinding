@@ -108,23 +108,32 @@ describe('Workbench · forms of the editor', () => {
     expect(instance.spec.resources.constraintSet.sharedConstraints).toBe('candidates.json');
   });
 
-  it('edits Optimization strategy, terms, normalization, and explicit penalties', async () => {
+  it('edits Optimization criteria, normalization, and explicit penalties with the keys of the schema', async () => {
     await openWorkbench();
     fireEvent.click(screen.getByRole('button', { name: /optimization\.json/i }));
 
-    fireEvent.change(screen.getByLabelText('Strategy'), { target: { value: 'lexicographic' } });
-    fireEvent.change(screen.getByLabelText('Term 1 metric id'), { target: { value: 'duration' } });
-    fireEvent.change(screen.getByLabelText('Term 1 direction'), { target: { value: 'maximize' } });
-    fireEvent.change(screen.getByLabelText('Term 1 weight'), { target: { value: '2.5' } });
-    fireEvent.click(screen.getByLabelText('Term 1 normalize'));
-    fireEvent.change(screen.getByLabelText('Term 1 normalization minimum'), { target: { value: '-5' } });
-    fireEvent.change(screen.getByLabelText('Term 1 normalization maximum'), { target: { value: '25' } });
-    fireEvent.click(screen.getByLabelText('Term 1 normalization clamp'));
+    // The strategy and its weights are chosen when the package runs: the Optimization has no such controls.
+    expect(screen.queryByLabelText('Strategy')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Objective type')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add objective term' }));
-    fireEvent.change(screen.getByLabelText('Term 2 metric resource'), { target: { value: 'application' } });
-    fireEvent.change(screen.getByLabelText('Term 2 metric id'), { target: { value: 'cost' } });
-    fireEvent.change(screen.getByLabelText('Term 2 weight'), { target: { value: '1.5' } });
+    fireEvent.change(screen.getByLabelText('Criterion 1 feature id'), { target: { value: 'duration' } });
+    fireEvent.change(screen.getByLabelText('Criterion 1 direction'), { target: { value: 'maximize' } });
+    fireEvent.click(screen.getByLabelText('Criterion 1 normalize'));
+    fireEvent.change(screen.getByLabelText('Criterion 1 normalization minimum'), { target: { value: '-5' } });
+    fireEvent.change(screen.getByLabelText('Criterion 1 normalization maximum'), { target: { value: '25' } });
+    fireEvent.click(screen.getByLabelText('Criterion 1 normalization clamp'));
+    const criterionId = screen.getByLabelText('Criterion 1 id');
+    fireEvent.change(criterionId, { target: { value: 'duration' } });
+    fireEvent.blur(criterionId);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add criterion' }));
+    fireEvent.change(screen.getByLabelText('Criterion 2 feature resource'), { target: { value: 'application' } });
+    fireEvent.change(screen.getByLabelText('Criterion 2 feature id'), { target: { value: 'cost' } });
+    const duplicate = screen.getByLabelText('Criterion 2 id');
+    fireEvent.change(duplicate, { target: { value: 'duration' } });
+    fireEvent.blur(duplicate);
+    expect(duplicate).toHaveValue('criterion2');
+    expect(screen.getByRole('alert')).toHaveTextContent('The duration criterion already exists.');
 
     fireEvent.click(screen.getByRole('button', { name: 'Add penalty' }));
     fireEvent.change(screen.getByLabelText('Penalty 1 constraint resource'), { target: { value: 'qualityConstraints' } });
@@ -135,45 +144,24 @@ describe('Workbench · forms of the editor', () => {
     await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
     const optimization = JSON.parse((await checkedFiles())['optimization.json']);
     expect(optimization.spec).toEqual({
-      type: 'MONO',
-      mode: 'lexicographic',
-      terms: [{
-        metric: { resource: 'application', id: 'duration' }, direction: 'maximize', weight: 2.5, normalize: { min: -5, max: 25, clamp: true },
+      criteria: [{
+        id: 'duration', feature: { resource: 'application', id: 'duration' }, direction: 'maximize', normalize: { min: -5, max: 25, clamp: true },
       }, {
-        metric: { resource: 'application', id: 'cost' }, weight: 1.5,
+        id: 'criterion2', feature: { resource: 'application', id: 'cost' },
       }],
       penalties: [{ constraint: { resource: 'qualityConstraints', id: 'softLatency' }, weight: 3 }],
     });
   });
 
-  it('enforces MONO, MULTI, and MANY objective cardinality while authoring', async () => {
+  it('removes every criterion for a package that asks only for a feasible binding', async () => {
     await openWorkbench();
     fireEvent.click(screen.getByRole('button', { name: /optimization\.json/i }));
-
-    fireEvent.change(screen.getByLabelText('Objective type'), { target: { value: 'MULTI' } });
-    expect(screen.getByText('2 objectives')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Remove term' })).toHaveLength(2);
-    expect(screen.getAllByRole('button', { name: 'Remove term' }).every((button) => button.hasAttribute('disabled'))).toBe(true);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Add objective term' }));
-    expect(screen.getByText('3 objectives')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add objective term' })).toBeDisabled();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Remove term' })[2]);
-    expect(screen.getByText('2 objectives')).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText('Objective type'), { target: { value: 'MANY' } });
-    expect(screen.getByText('3 objectives')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: 'Remove term' }).every((button) => button.hasAttribute('disabled'))).toBe(true);
-    expect(screen.getByRole('button', { name: 'Add objective term' })).toBeEnabled();
-
-    fireEvent.change(screen.getByLabelText('Strategy'), { target: { value: 'satisfy' } });
-    expect(screen.getByLabelText('Objective type')).toHaveValue('MONO');
-    expect(screen.getByText('0 objectives')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add objective term' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove criterion' }));
+    expect(screen.getByText(/No criteria: the package asks only for a feasible binding/)).toBeInTheDocument();
 
     validate();
     await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
-    expect(JSON.parse((await checkedFiles())['optimization.json']).spec).toMatchObject({ type: 'MONO', mode: 'satisfy', terms: [] });
+    expect(JSON.parse((await checkedFiles())['optimization.json']).spec).toEqual({ criteria: [] });
   });
 
   it('authors Application tasks, typed predicates, and metric definitions in the compact form', async () => {
@@ -203,7 +191,8 @@ describe('Workbench · forms of the editor', () => {
       hello: { kind: 'service', requires: { type: 'http', predicate: 'candidate.properties.region == "eu"' } },
       task2: 'queue',
     });
-    expect(application.spec.metrics).toEqual({
+    expect(application.spec.metrics).toBeUndefined();
+    expect(application.spec.features).toEqual({
       latency: { unit: 's', domain: 'ratio', direction: 'maximize', scope: 'selectedCandidate', aggregation: 'product', neutral: 1 },
       availability: { type: 'number', unit: 'ratio', domain: 'real', direction: 'maximize', scope: 'invocation', aggregation: 'sum' },
     });
@@ -232,7 +221,8 @@ describe('Workbench · forms of the editor', () => {
     validate();
     await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
     const catalog = JSON.parse((await checkedFiles())['candidates.json']);
-    expect(catalog.spec.metricBindings).toEqual({
+    expect(catalog.spec.metricBindings).toBeUndefined();
+    expect(catalog.spec.featureBindings).toEqual({
       responseTime: { resource: 'application', id: 'latency' },
       cost: { resource: 'application', id: 'cost' },
     });
@@ -245,13 +235,19 @@ describe('Workbench · forms of the editor', () => {
     });
   });
 
-  it('writes the qualities of a candidate under features, the key of the schema, also when the draft was written under metrics', async () => {
+  it('opens a draft written with the older vocabulary in the real one, says so, and keeps what has no place in the schema', async () => {
     localStorage.setItem(DRAFT_KEY, JSON.stringify({
       'instance.json': JSON.stringify({
         apiVersion: 'bim/v1',
         kind: 'Instance',
         metadata: { name: 'older-draft' },
-        spec: { profile: 'qos-binding/v1', resources: { candidateCatalog: { catalog: 'candidates.json' } } },
+        spec: { profile: 'qos-binding/v1', resources: { application: { application: 'application.json' }, candidateCatalog: { catalog: 'candidates.json' }, optimization: { optimization: 'optimization.json' } } },
+      }),
+      'application.json': JSON.stringify({
+        apiVersion: 'qos-binding/v1',
+        kind: 'Application',
+        metadata: { name: 'app' },
+        spec: { tasks: { hello: 'http' }, metrics: { latency: { unit: 'ms' } }, workflow: { task: { resource: 'application', id: 'hello' } } },
       }),
       'candidates.json': JSON.stringify({
         apiVersion: 'qos-binding/v1',
@@ -262,16 +258,30 @@ describe('Workbench · forms of the editor', () => {
           candidates: { 'service-a': { provides: 'http', metrics: { latency: 10 } } },
         },
       }),
+      'optimization.json': JSON.stringify({
+        apiVersion: 'qos-binding/v1',
+        kind: 'Optimization',
+        metadata: { name: 'goal' },
+        spec: { type: 'MONO', mode: 'weighted', terms: [{ metric: { resource: 'application', id: 'latency' }, weight: 2 }] },
+      }),
     }));
     await openWorkbench();
+    expect(await screen.findByText(/used an older vocabulary/)).toBeInTheDocument();
+    expect(screen.getByText(/optimization\.json · spec: 1 term became criteria/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /candidates\.json/i }));
     expect(screen.getByLabelText('service-a QoS latency')).toHaveValue(10);
 
     fireEvent.change(screen.getByLabelText('service-a QoS latency'), { target: { value: '12' } });
     validate();
     await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
-    const catalog = JSON.parse((await checkedFiles())['candidates.json']);
+    const files = await checkedFiles();
+    const catalog = JSON.parse(files['candidates.json']);
+    expect(catalog.spec.featureBindings).toEqual({ latency: { resource: 'application', id: 'latency' } });
     expect(catalog.spec.candidates['service-a']).toEqual({ provides: 'http', features: { latency: 12 } });
+    expect(JSON.parse(files['application.json']).spec.features).toEqual({ latency: { unit: 'ms' } });
+    const optimization = JSON.parse(files['optimization.json']);
+    expect(optimization.spec).toEqual({ criteria: [{ id: 'latency', feature: { resource: 'application', id: 'latency' } }] });
+    expect(optimization.metadata.annotations['openbinding.legacy']['spec.optimization']).toEqual({ type: 'MONO', mode: 'weighted', weights: { latency: 2 } });
   });
 
   it('authors RoutingOverlay and the complete Placement topology without opening the source', async () => {
@@ -280,7 +290,7 @@ describe('Workbench · forms of the editor', () => {
         apiVersion: 'bim/v1',
         kind: 'Instance',
         metadata: { name: 'topology-editor' },
-        spec: { profile: 'qos-binding/v1', resources: { application: { routing: 'routing.json', placement: 'placement.json' } } },
+        spec: { profile: 'qos-binding/v1', resources: { candidateCatalog: { routing: 'routing.json', placement: 'placement.json' } } },
       }),
       'routing.json': JSON.stringify({
         apiVersion: 'qos-binding/v1',
@@ -337,8 +347,10 @@ describe('Workbench · forms of the editor', () => {
     expect(placement.spec.transitions.transition1.maximum).toBe(0);
     expect(placement.spec.capacityRules).toEqual([{ resources: ['memory'], scope: 'selectedCandidate' }]);
     expect(placement.spec.globalLatency).toEqual({
-      metric: { resource: 'application', id: 'latency' }, includeExecution: true, exclusive: 'routing', parallel: 'max',
+      feature: { resource: 'application', id: 'latency' }, includeExecution: true, exclusive: 'routing', parallel: 'max',
     });
+    expect(placement.spec.transitions.transition1.feature).toEqual({ resource: 'application', id: 'latency' });
+    expect(placement.spec.transitions.transition1.metric).toBeUndefined();
   }, 15000);
 
   it('creates schema-valid expression AST and keeps an invalid AST draft out of the package', async () => {
@@ -358,22 +370,22 @@ describe('Workbench · forms of the editor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add AST constraint' }));
 
     const assertion = screen.getByLabelText('constraint1 assertion');
-    expect(JSON.parse((assertion as HTMLTextAreaElement).value)).toEqual({ op: 'gte', left: { path: 'metrics.latency' }, right: { literal: 0 } });
+    expect(JSON.parse((assertion as HTMLTextAreaElement).value)).toEqual({ op: 'gte', left: { path: 'features.latency' }, right: { literal: 0 } });
 
-    fireEvent.change(assertion, { target: { value: '{"call":">=","args":[{"path":"metrics.latency"},0]}' } });
+    fireEvent.change(assertion, { target: { value: '{"call":">=","args":[{"path":"features.latency"},0]}' } });
     expect(screen.getByRole('alert')).toHaveTextContent('Enter a BIM expression AST');
     validate();
     await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
     expect(JSON.parse((await checkedFiles())['constraints.json']).spec.constraints.constraint1.assert).toEqual({
-      op: 'gte', left: { path: 'metrics.latency' }, right: { literal: 0 },
+      op: 'gte', left: { path: 'features.latency' }, right: { literal: 0 },
     });
 
-    fireEvent.change(assertion, { target: { value: '{"op":"lte","left":{"path":["metrics","latency"]},"right":{"literal":25}}' } });
+    fireEvent.change(assertion, { target: { value: '{"op":"lte","left":{"path":["features","latency"]},"right":{"literal":25}}' } });
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     validate();
     await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(2));
     expect(JSON.parse((await checkedFiles())['constraints.json']).spec.constraints.constraint1.assert).toEqual({
-      op: 'lte', left: { path: ['metrics', 'latency'] }, right: { literal: 25 },
+      op: 'lte', left: { path: ['features', 'latency'] }, right: { literal: 25 },
     });
   });
 });

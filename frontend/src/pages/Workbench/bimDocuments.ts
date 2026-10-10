@@ -49,7 +49,7 @@ export const DEFAULT_FILES: WorkspaceFiles = {
     metadata: { name: 'hello-app' },
     spec: {
       tasks: { hello: 'http' },
-      metrics: {
+      features: {
         latency: { unit: 'ms', domain: 'real', direction: 'minimize', scope: 'invocation', aggregation: 'sum' },
       },
       workflow: { bpmn: { resource: 'workflow', id: 'Process_1' } },
@@ -60,7 +60,7 @@ export const DEFAULT_FILES: WorkspaceFiles = {
     kind: 'CandidateCatalog',
     metadata: { name: 'hello-catalog' },
     spec: {
-      metricBindings: { latency: { resource: 'application', id: 'latency' } },
+      featureBindings: { latency: { resource: 'application', id: 'latency' } },
       candidates: { 'service-a': { provides: 'http', features: { latency: 10 } } },
     },
   }),
@@ -68,7 +68,7 @@ export const DEFAULT_FILES: WorkspaceFiles = {
     apiVersion: 'qos-binding/v1',
     kind: 'Optimization',
     metadata: { name: 'hello-optimization' },
-    spec: { type: 'MONO', mode: 'weighted', terms: [{ metric: { resource: 'application', id: 'latency' }, weight: 1 }] },
+    spec: { criteria: [{ id: 'latency', feature: { resource: 'application', id: 'latency' } }] },
   }),
   'workflow.bpmn': DEFAULT_BPMN,
 };
@@ -148,7 +148,8 @@ export type TaskDocument = string | {
   [key: string]: unknown;
 };
 
-export interface MetricDocument extends Record<string, unknown> {
+/** A quality the Application declares (`spec.features`). */
+export interface FeatureDocument extends Record<string, unknown> {
   type?: 'number';
   unit?: string;
   domain?: string | { kind?: string; minimum?: number; maximum?: number };
@@ -166,22 +167,24 @@ export interface CandidateDocument extends Record<string, unknown> {
   provides?: CapabilityDocument | CapabilityDocument[];
   provider?: InternalReference;
   properties?: ScalarMap;
-  /** A number, or a range `{ min, max }` (an end `null` for no limit) while it is being typed. This is the key of the schema. */
+  /** A number, or a range `{ min, max }` (an end `null` for no limit) while it is being typed. */
   features?: Record<string, FeatureSlot>;
-  /** The key older drafts used for the same table; read when a document is opened, never written. */
-  metrics?: Record<string, FeatureSlot>;
 }
 
-/** The qualities of a candidate, from `features` (or from `metrics`, in a draft written before the key was fixed). */
+/** The qualities of a candidate (a copy, so a form can change it before writing it back). */
 export function candidateFeatures(candidate: CandidateDocument): Record<string, FeatureSlot> {
-  return { ...(candidate.metrics || {}), ...(candidate.features || {}) };
+  return { ...(candidate.features || {}) };
 }
 
-/** The candidate with these qualities under `features`, the key of the schema, and without the older `metrics`. */
+/** The candidate with these qualities under `features`. */
 export function withCandidateFeatures(candidate: CandidateDocument, features: Record<string, FeatureSlot>): CandidateDocument {
-  const next: CandidateDocument = { ...candidate, features };
-  delete next.metrics;
-  return next;
+  return { ...candidate, features };
+}
+
+/** A provider a catalog declares (`spec.providers`); candidates point to it with `{ resource: <the catalog>, id }`. */
+export interface ProviderDocument extends Record<string, unknown> {
+  name?: string;
+  properties?: ScalarMap;
 }
 
 export interface ConstraintDocument extends Record<string, unknown> {
@@ -196,10 +199,11 @@ export interface NormalizeDocument extends Record<string, unknown> {
   clamp?: boolean;
 }
 
-export interface OptimizationTermDocument extends Record<string, unknown> {
-  metric?: InternalReference;
+/** One thing the optimization looks at: an Application feature, with an optional direction and normalization. */
+export interface OptimizationCriterionDocument extends Record<string, unknown> {
+  id?: string;
+  feature?: InternalReference;
   direction?: 'minimize' | 'maximize';
-  weight?: number;
   normalize?: NormalizeDocument;
 }
 
@@ -254,7 +258,7 @@ export interface PlacementEventDocument extends Record<string, unknown> {
 export interface PlacementTransitionDocument extends Record<string, unknown> {
   from?: InternalReference;
   to?: InternalReference;
-  metric?: InternalReference;
+  feature?: InternalReference;
   maximum?: number;
   enforcement?: 'hard' | 'soft';
   penalty?: number;
@@ -266,7 +270,7 @@ export interface PlacementCapacityRuleDocument extends Record<string, unknown> {
 }
 
 export interface PlacementGlobalLatencyDocument extends Record<string, unknown> {
-  metric?: InternalReference;
+  feature?: InternalReference;
   includeExecution?: boolean;
   exclusive?: 'routing' | 'condition';
   parallel?: 'max' | 'sum';
@@ -276,13 +280,12 @@ export interface BimSpecDocument extends Record<string, unknown> {
   profile?: string;
   resources?: Record<string, Record<string, unknown>>;
   tasks?: Record<string, TaskDocument>;
-  metrics?: Record<string, MetricDocument>;
-  metricBindings?: Record<string, InternalReference>;
+  features?: Record<string, FeatureDocument>;
+  featureBindings?: Record<string, InternalReference>;
+  providers?: Record<string, ProviderDocument>;
   candidates?: Record<string, CandidateDocument>;
   constraints?: Record<string, ConstraintDocument>;
-  type?: 'MONO' | 'MULTI' | 'MANY';
-  mode?: 'satisfy' | 'weighted' | 'lexicographic' | 'pareto';
-  terms?: OptimizationTermDocument[];
+  criteria?: OptimizationCriterionDocument[];
   penalties?: OptimizationPenaltyDocument[];
   workflow?: unknown;
   uniform?: true;
@@ -441,7 +444,8 @@ const BINARY_EXPRESSION_OPERATORS = new Set([
 const UNARY_EXPRESSION_OPERATORS = new Set(['not', 'negate']);
 const CALL_EXPRESSION_OPERATORS = new Set(['has', 'min', 'max', 'sum', 'product', 'weightedSum', 'weightedProduct']);
 export const IDENTIFIER_PATTERN = /^[A-Za-z][A-Za-z0-9_.-]{0,127}$/;
-export const DEFAULT_AST_ASSERTION = { op: 'gte', left: { path: 'metrics.latency' }, right: { literal: 0 } };
+export const DEFAULT_AST_ASSERTION = { op: 'gte', left: { path: 'features.latency' }, right: { literal: 0 } };
+export const DEFAULT_CEL_ASSERTION = 'features.latency >= 0';
 
 export function isSourceExpression(value: unknown, depth = 0): boolean {
   if (depth > 32 || value === null || typeof value === 'string' || typeof value === 'boolean') return depth <= 32;

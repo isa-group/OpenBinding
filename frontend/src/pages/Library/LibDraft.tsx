@@ -8,6 +8,7 @@ import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
+import { migrateContent } from '../../utils/bimVocabulary';
 import { useResource } from '../../utils/useResource';
 import { DigestLine, ReadOnlyNote } from '../Cases/parts';
 import { NeutralGate } from '../Organization/parts';
@@ -39,7 +40,10 @@ function Editor({ organization, item, server, versions }: {
   const slug = organization.slug;
   const key = itemKey(item, organization.id, [item]);
   const [base, setBase] = useState<{ revision: number; payload: DraftContent }>({ revision: server.revision, payload: server.payload });
-  const [content, setContent] = useState<Content>(server.payload.content as Content);
+  // A draft kept with the vocabulary of before the schemas were followed is opened in the real one; saving writes it.
+  const [opening] = useState(() => migrateContent(server.payload.content as Content));
+  const [migrationNotes, setMigrationNotes] = useState(opening.notes);
+  const [content, setContent] = useState<Content>(opening.value);
   const [dependencies, setDependencies] = useState<ArtifactRef[]>(server.payload.dependencies);
   const [formKey, setFormKey] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -139,7 +143,9 @@ function Editor({ organization, item, server, versions }: {
     if (!conflict) return;
     const { theirs } = conflict;
     setBase({ revision: theirs.revision, payload: theirs.payload });
-    setContent(theirs.payload.content as Content);
+    const theirContent = migrateContent(theirs.payload.content as Content);
+    setContent(theirContent.value);
+    setMigrationNotes(theirContent.notes);
     setDependencies(theirs.payload.dependencies);
     setFormKey((value) => value + 1);
     setConflict(null);
@@ -147,7 +153,9 @@ function Editor({ organization, item, server, versions }: {
   };
 
   const discard = () => {
-    setContent(base.payload.content as Content);
+    const savedContent = migrateContent(base.payload.content as Content);
+    setContent(savedContent.value);
+    setMigrationNotes(savedContent.notes);
     setDependencies(base.payload.dependencies);
     setFormKey((value) => value + 1);
     setServerCheck(undefined);
@@ -250,6 +258,12 @@ function Editor({ organization, item, server, versions }: {
       </div>
       {keyBlocked && <Notice tone="warning" title="Read-only">This API key can’t write library items (403), so the editor is read-only.</Notice>}
       {!access.canCreate && !keyBlocked && <ReadOnlyNote role={access.role}>Drafts are read-only for your role; editing needs MEMBER.</ReadOnlyNote>}
+      {migrationNotes.length > 0 && (
+        <Notice tone="info" title="Updated to the vocabulary of the schemas">
+          This draft used older names. Nothing was dropped; save the draft to keep the change.
+          <ul>{migrationNotes.map((note) => <li key={note}>{note}</li>)}</ul>
+        </Notice>
+      )}
       {problem && !conflict && <Notice tone="error">{problem}</Notice>}
       {blocking && !readOnly && <Notice tone="error" title="Fix the ranges to save or seal">{blocking.text} A draft with an invalid range can’t be saved or sealed.</Notice>}
       {gone && (

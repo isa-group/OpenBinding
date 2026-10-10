@@ -14,6 +14,8 @@ export const isObject = (value: unknown): value is JsonObject => typeof value ==
 
 /** The language version the resource kinds of the library are written in (`Profile qos-binding/v1`). */
 export const RESOURCE_API_VERSION = 'qos-binding/v1';
+/** Placement is a separate dialect with its own version (`schemas/bim/v1/placement.schema.json`). */
+export const PLACEMENT_API_VERSION = 'qos-binding-placement/v1';
 export const BPMN_MEDIA_TYPE = 'application/vnd.omg.bpmn+xml';
 
 const BPMN_SKELETON = `<?xml version="1.0" encoding="UTF-8"?>
@@ -26,12 +28,15 @@ const RESOURCE_KINDS = new Set(['Application', 'CandidateCatalog', 'ConstraintSe
 
 /** The empty document a new draft starts from, shaped as its kind expects so that filling it in is all that is left. */
 export function templateFor(kind: string, name: string): { content: Content; mediaType: string } {
-  const resource = (spec: JsonObject): JsonObject => ({ apiVersion: RESOURCE_API_VERSION, kind, metadata: { name }, spec });
+  const resource = (spec: JsonObject): JsonObject => ({ apiVersion: kind === 'Placement' ? PLACEMENT_API_VERSION : RESOURCE_API_VERSION, kind, metadata: { name }, spec });
+  // Each template holds the keys its schema requires, empty: filling them in is all that is left.
   switch (kind) {
-    case 'Application': return { content: resource({ tasks: {}, features: {} }), mediaType: 'application/json' };
-    case 'CandidateCatalog': return { content: resource({ candidates: {} }), mediaType: 'application/json' };
+    case 'Application': return { content: resource({ tasks: {}, features: {}, workflow: {} }), mediaType: 'application/json' };
+    case 'CandidateCatalog': return { content: resource({ featureBindings: {}, candidates: {} }), mediaType: 'application/json' };
     case 'ConstraintSet': return { content: resource({ constraints: {} }), mediaType: 'application/json' };
-    case 'Optimization': return { content: resource({ penalties: [], criteria: [] }), mediaType: 'application/json' };
+    case 'Optimization': return { content: resource({ criteria: [], penalties: [] }), mediaType: 'application/json' };
+    case 'RoutingOverlay': return { content: resource({ uniform: true }), mediaType: 'application/json' };
+    case 'Placement': return { content: resource({ pools: {} }), mediaType: 'application/json' };
     case 'Study': return { content: { apiVersion: 'openbinding/study/v1', cases: [], engines: [], parameter_sets: [{}], seeds: [0] }, mediaType: 'application/json' };
     case 'Collection': return { content: { apiVersion: 'openbinding/collection/v1', members: [] }, mediaType: 'application/json' };
     case 'ExecutionConfiguration': return { content: { engine: { namespace: '', name: '', version: '', digest: '' }, mode: '', options: {} }, mediaType: 'application/json' };

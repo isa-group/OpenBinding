@@ -1,0 +1,23 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "CandidateCatalog",
+  "metadata": {
+    "name": "hello-catalog"
+  },
+  "spec": {
+    "featureBindings": {
+      "latency": {
+        "resource": "application",
+        "id": "latency"
+      }
+    },
+    "candidates": {
+      "service-a": {
+        "provides": "http",
+        "features": {
+          "latency": 10
+        }
+      }
+    }
+  }
+}

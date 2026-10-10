@@ -75,8 +75,8 @@ export const goalContent = (): JsonObject => ({
   spec: {
     penalties: [{ constraint: { resource: 'rules', id: 'sla-availability' }, weight: 5 }],
     criteria: [
-      { id: 'cost', feature: { resource: 'app', id: 'cost_eur' }, weight: 0.6, direction: 'minimize' },
-      { id: 'latency', feature: { resource: 'app', id: 'latency_ms' }, weight: 0.4, direction: 'minimize' },
+      { id: 'cost', feature: { resource: 'app', id: 'cost_eur' }, direction: 'minimize', normalize: { min: 0, max: 1, clamp: true } },
+      { id: 'latency', feature: { resource: 'app', id: 'latency_ms' }, direction: 'minimize', normalize: { min: 0, max: 1000, clamp: true } },
     ],
   },
 });

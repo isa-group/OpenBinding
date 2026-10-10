@@ -121,10 +121,10 @@ function describeDocument(document: BimDocument | null): string {
   const spec = document?.spec;
   switch (document?.kind) {
     case 'Instance': return `Root of the package · ${plural(Object.values(spec?.resources ?? {}).reduce((total, group) => total + count(group), 0), 'resource')}`;
-    case 'Application': return `${plural(count(spec?.tasks), 'task')} and ${plural(count(spec?.metrics), 'quality metric')}`;
-    case 'CandidateCatalog': return `${plural(count(spec?.candidates), 'candidate')} with ${plural(count(spec?.metricBindings), 'quality column')}`;
+    case 'Application': return `${plural(count(spec?.tasks), 'task')} and ${plural(count(spec?.features), 'quality metric')}`;
+    case 'CandidateCatalog': return `${plural(count(spec?.candidates), 'candidate')} with ${plural(count(spec?.featureBindings), 'quality column')}`;
     case 'ConstraintSet': return plural(count(spec?.constraints), 'rule');
-    case 'Optimization': return `${spec?.mode ?? 'goal'} goal · ${plural(count(spec?.terms), 'term')}`;
+    case 'Optimization': return `Goal · ${plural(count(spec?.criteria), 'criterion', 'criteria')}`;
     case 'RoutingOverlay': return spec?.entries ? plural(count(spec.entries), 'routed branch', 'routed branches') : 'Even branch weights';
     case 'Placement': return `${plural(count(spec?.pools), 'pool')} and ${plural(count(spec?.network), 'network link')}`;
     default: return document?.kind ? String(document.kind) : 'Not a JSON document';
@@ -145,11 +145,11 @@ export function packageFileList(files: WorkspaceFiles, resources: ResourceEntry[
   });
 }
 
-/** How many terms the goal of the package has, summed over its optimization documents. */
+/** How many criteria the goal of the package has, summed over its optimization documents. */
 export function goalTerms(files: WorkspaceFiles, resources: ResourceEntry[]): number {
   return resources
     .filter((resource) => resource.kind === 'Optimization' && resource.path)
-    .reduce((total, resource) => total + count(parseJson(files[resource.path!])?.spec?.terms), 0);
+    .reduce((total, resource) => total + count(parseJson(files[resource.path!])?.spec?.criteria), 0);
 }
 
 // --- engines
@@ -209,14 +209,14 @@ export function engineRows(modes: CompatibleMode[]): EngineRow[] {
   }));
 }
 
-/** Does any candidate of any catalog of the package hold a range (an object under `features`, or `metrics` in the older layout)? */
+/** Does any candidate of any catalog of the package hold a range (an object under `features`)? */
 export function filesHaveRanges(files: WorkspaceFiles): boolean {
   return Object.entries(files).some(([path, source]) => {
     if (!path.toLowerCase().endsWith('.json')) return false;
     const document = parseJson(source);
     const candidates = document?.kind === 'CandidateCatalog' && isRecord(document.spec) ? document.spec.candidates : undefined;
     const entries = isRecord(candidates) ? Object.values(candidates) : Array.isArray(candidates) ? candidates : [];
-    return entries.some((entry) => isRecord(entry) && ['features', 'metrics'].some((key) => isRecord(entry[key]) && Object.values(entry[key] as Record<string, unknown>).some(isRecord)));
+    return entries.some((entry) => isRecord(entry) && isRecord(entry.features) && Object.values(entry.features).some(isRecord));
   });
 }
 

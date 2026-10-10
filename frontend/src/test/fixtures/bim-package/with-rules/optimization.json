@@ -1,0 +1,27 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {
+    "name": "hello-optimization"
+  },
+  "spec": {
+    "criteria": [
+      {
+        "id": "latency",
+        "feature": {
+          "resource": "application",
+          "id": "latency"
+        }
+      }
+    ],
+    "penalties": [
+      {
+        "constraint": {
+          "resource": "constraints",
+          "id": "constraint2"
+        },
+        "weight": 1
+      }
+    ]
+  }
+}

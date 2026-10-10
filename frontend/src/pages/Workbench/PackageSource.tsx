@@ -143,6 +143,13 @@ export function PackageSource({ wb, choices, requestedExample, maxBytes, maxLabe
           </div>
         )}
       </TabPanel>
+      {wb.migrationNotes.length > 0 && (
+        <div className="wb-migration" role="status">
+          <strong>This draft used an older vocabulary and was rewritten with the one of the schemas. Nothing was dropped.</strong>
+          <ul>{wb.migrationNotes.map((note) => <li key={note}>{note}</li>)}</ul>
+          <Action variant="ghost" size="sm" onClick={wb.dismissMigration}>Dismiss</Action>
+        </div>
+      )}
       <div className="wb-card-foot">
         <Action variant="ghost" size="sm" onClick={wb.undo} disabled={!wb.historyDepth}><History aria-hidden="true" />Undo edit</Action>
         <Action variant="ghost" size="sm" onClick={wb.reset}><RotateCcw aria-hidden="true" />Reset workspace</Action>

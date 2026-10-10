@@ -24,6 +24,8 @@
 .wb-card-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs); padding-top: var(--tp-spacing-xs); border-top: 1px solid var(--tp-hairline-soft); }
 .wb-card-foot .ui-action svg { width: 14px; height: 14px; }
 .wb-draft-issue { color: var(--color-warning-text); font-size: 0.75rem; }
+.wb-migration { color: var(--color-warning-text); font-size: 0.75rem; padding: 0.5rem 1rem; }
+.wb-migration ul { margin: 0.25rem 0 0.25rem 1.25rem; padding: 0; }
 
 .wb-eyebrow { color: var(--tp-steel); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; }
 .wb-spinner {

@@ -54,8 +54,8 @@ export function packageFilesNamed(name: string): Record<string, string> {
       metadata: { name: `${name}-application` },
       spec: {
         tasks: { hello: 'http' },
-        metrics: { latency: { unit: 'ms', domain: 'real', direction: 'minimize', scope: 'invocation', aggregation: 'sum' } },
-        workflow: { task: 'hello' },
+        features: { latency: { unit: 'ms', domain: 'real', direction: 'minimize', scope: 'invocation', aggregation: 'sum' } },
+        workflow: { task: { resource: 'application', id: 'hello' } },
       },
     }),
     'candidates.json': json({
@@ -63,7 +63,7 @@ export function packageFilesNamed(name: string): Record<string, string> {
       kind: 'CandidateCatalog',
       metadata: { name: `${name}-candidates` },
       spec: {
-        metricBindings: { latency: { resource: 'application', id: 'latency' } },
+        featureBindings: { latency: { resource: 'application', id: 'latency' } },
         candidates: { candidate: { provides: 'http', features: { latency: 10 } } },
       },
     }),
@@ -71,7 +71,7 @@ export function packageFilesNamed(name: string): Record<string, string> {
       apiVersion: 'qos-binding/v1',
       kind: 'Optimization',
       metadata: { name: `${name}-optimization` },
-      spec: { mode: 'weighted', terms: [{ metric: { resource: 'application', id: 'latency' }, weight: 1 }] },
+      spec: { criteria: [{ id: 'latency', feature: { resource: 'application', id: 'latency' } }] },
     }),
   };
 }

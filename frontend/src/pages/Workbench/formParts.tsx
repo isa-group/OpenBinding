@@ -1,7 +1,7 @@
 import { useId, useState, type ReactNode } from 'react';
 import { Action } from '../../components/ui/Action';
 import {
-  DEFAULT_AST_ASSERTION, IDENTIFIER_PATTERN, isRecord, isSourceExpression, nextIdentifier, optionalNumber,
+  DEFAULT_AST_ASSERTION, DEFAULT_CEL_ASSERTION, IDENTIFIER_PATTERN, isRecord, isSourceExpression, nextIdentifier, optionalNumber,
   type InternalReference, type NumberMap,
 } from './bimDocuments';
 
@@ -160,7 +160,7 @@ export function ConstraintExpressionEditor({ id, label, value, onChange }: { id:
   const error = pending ? 'Enter a BIM expression AST using literal, path, op/left/right, op/value, or op/args.' : '';
 
   const changeLanguage = (nextLanguage: string) => {
-    if (nextLanguage === 'cel') onChange('metrics.latency >= 0');
+    if (nextLanguage === 'cel') onChange(DEFAULT_CEL_ASSERTION);
     else onChange(DEFAULT_AST_ASSERTION);
   };
 

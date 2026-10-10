@@ -384,7 +384,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // 422: the problems by file and place, each leading to where it lives.
       state.refuse.validate = problem('invalid_package', 422, [
-        { code: 'missing_metric', message: 'latency is required', resource: 'catalog', jsonPointer: '/spec/candidates/service-a/metrics/latency', fix: 'Add a finite value with a unit.' },
+        { code: 'missing_metric', message: 'latency is required', resource: 'catalog', jsonPointer: '/spec/candidates/service-a/features/latency', fix: 'Add a finite value with a unit.' },
         { code: 'unsupported_bpmn', message: 'The task is not executable.', resource: 'workflow', bpmnElement: 'hello' },
       ]);
       await validate.click();

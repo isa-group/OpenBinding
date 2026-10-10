@@ -4,6 +4,7 @@ import type { ArtifactVersion } from '../../api/library';
 import { platformApi, type CaseRevision } from '../../api/platform';
 import { workbenchApi } from '../../api/workbench';
 import { packageFiles, unzipPackage, zipStore } from '../../utils/bimZip';
+import { migrateFiles } from '../../utils/bimVocabulary';
 import { loadDraft, saveDraft, type WorkspaceFiles } from '../../utils/workspaceDraft';
 import { sourceDiff, toYaml } from '../../utils/workspaceViews';
 import {
@@ -87,7 +88,7 @@ const digestsOf = (response: BimAnalysisResponse): PackageDigests => ({
 
 /** What opening the screen found for its address: the draft of the workspace, a case revision, an example, or nothing yet. */
 type Hydration =
-  | { scope: string; kind: 'files'; files: WorkspaceFiles }
+  | { scope: string; kind: 'files'; files: WorkspaceFiles; migrated: string[] }
   | { scope: string; kind: 'example'; files: WorkspaceFiles; response: BimAnalysisResponse }
   | { scope: string; kind: 'example-refused'; failure: Refusal; diagnostics: Diagnostic[] }
   | { scope: string; kind: 'revision-refused'; failure: Refusal };
@@ -122,7 +123,10 @@ async function hydrate({ scope, requestedExample, caseRef, revisionRef, orgSlug,
       return { scope, kind: 'revision-refused', failure: refusalOf(reason) };
     }
   }
-  return { scope, kind: 'files', files: draft && parseJson(draft['instance.json'])?.apiVersion === 'bim/v1' ? draft : DEFAULT_FILES };
+  if (!draft || parseJson(draft['instance.json'])?.apiVersion !== 'bim/v1') return { scope, kind: 'files', files: DEFAULT_FILES, migrated: [] };
+  // A draft kept before the editors wrote the vocabulary of the schemas is read in both and opened in the real one.
+  const migrated = migrateFiles(draft);
+  return { scope, kind: 'files', files: migrated.value, migrated: migrated.notes };
 }
 
 /**
@@ -141,6 +145,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   const [historyDepth, setHistoryDepth] = useState(0);
   const [revisionRefusal, setRevisionRefusal] = useState<{ scope: string; failure: Refusal } | null>(null);
   const [draftIssue, setDraftIssue] = useState<string | null>(null);
+  const [migrationNotes, setMigrationNotes] = useState<string[]>([]);
   const [examples, setExamples] = useState<string[]>([]);
   const [attempt, setAttempt] = useState(0);
   const historyRef = useRef<WorkspaceFiles[]>([]);
@@ -267,6 +272,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     if (outcome.kind === 'files') {
       commitFiles(outcome.files);
       setBaseline(outcome.files);
+      setMigrationNotes(outcome.migrated);
       showBpmnOf(outcome.files);
       setSelectedPath('instance.json');
       clearChecks();
@@ -639,7 +645,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
 
   return {
     // package
-    files, selectedPath, bpmnDraft, hydrated, historyDepth, loadIssue, draftIssue, examples, baseline,
+    files, selectedPath, bpmnDraft, hydrated, historyDepth, loadIssue, draftIssue, migrationNotes, dismissMigration: () => setMigrationNotes([]), examples, baseline,
     root, resources, selectedDocument, selectedResource, selectedKind, selectedYaml, selectedDiff, selectedChanged, application,
     bpmnPath, workflowText,
     // check: while an example is being brought in, the package is being checked

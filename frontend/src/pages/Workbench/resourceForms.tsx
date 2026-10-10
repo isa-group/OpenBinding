@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Action } from '../../components/ui/Action';
 import { FeatureCell } from '../Library/FeatureCell';
 import {
-  DEFAULT_AST_ASSERTION, IDENTIFIER_PATTERN, candidateFeatures, isRecord, isRegisteredResourceRef, nextIdentifier, optionalNumber, withCandidateFeatures,
-  type BimDocument, type BimSpecDocument, type CandidateDocument, type CapabilityDocument, type ConstraintDocument, type InternalReference,
-  type MetricDocument, type OptimizationPenaltyDocument, type OptimizationTermDocument, type PlacementCapacityRuleDocument,
+  DEFAULT_AST_ASSERTION, DEFAULT_CEL_ASSERTION, IDENTIFIER_PATTERN, candidateFeatures, isRecord, isRegisteredResourceRef, nextIdentifier, optionalNumber,
+  withCandidateFeatures,
+  type BimDocument, type BimSpecDocument, type CandidateDocument, type CapabilityDocument, type ConstraintDocument, type FeatureDocument,
+  type InternalReference, type OptimizationCriterionDocument, type OptimizationPenaltyDocument, type PlacementCapacityRuleDocument,
   type PlacementGlobalLatencyDocument, type PlacementTransitionDocument, type RoutingEntryDocument, type ScalarMap, type TaskDocument,
 } from './bimDocuments';
 import {
@@ -80,103 +81,66 @@ function ConstraintSetForm({ spec, updateSpec }: SpecProps) {
     </FormCard>)}</div>
     <div className="form-add-bar">
       <div><strong>Add a rule</strong><small>CEL is concise; AST is portable and structurally validated.</small></div>
-      <div className="inline-actions"><Action variant="secondary" onClick={() => addConstraint('metrics.latency >= 0')}>Add CEL constraint</Action><Action variant="secondary" onClick={() => addConstraint(DEFAULT_AST_ASSERTION)}>Add AST constraint</Action></div>
+      <div className="inline-actions"><Action variant="secondary" onClick={() => addConstraint(DEFAULT_CEL_ASSERTION)}>Add CEL constraint</Action><Action variant="secondary" onClick={() => addConstraint(DEFAULT_AST_ASSERTION)}>Add AST constraint</Action></div>
     </div>
   </FormSection>;
 }
 
 function OptimizationForm({ spec, updateSpec }: SpecProps) {
-  const terms = spec.terms ?? [];
+  const criteria = spec.criteria ?? [];
   const penalties = spec.penalties ?? [];
-  const objectiveType: NonNullable<BimSpecDocument['type']> = spec.type || (
-    spec.mode === 'pareto' ? terms.length >= 3 ? 'MANY' : terms.length === 2 ? 'MULTI' : 'MONO' : 'MONO'
-  );
-  const minimumTerms = objectiveType === 'MANY' ? 3 : objectiveType === 'MULTI' ? 2 : spec.mode === 'satisfy' ? 0 : 1;
-  const maximumTerms = objectiveType === 'MULTI' ? 3 : Number.POSITIVE_INFINITY;
-  const defaultTerm = (): OptimizationTermDocument => ({ metric: { resource: 'application', id: 'latency' }, weight: 1 });
-  const withMinimumTerms = (items: OptimizationTermDocument[], minimum: number) => {
-    const next = [...items];
-    while (next.length < minimum) next.push(defaultTerm());
-    return next;
-  };
-  const updateTerm = (index: number, term: OptimizationTermDocument) => updateSpec({ ...spec, terms: terms.map((current, itemIndex) => itemIndex === index ? term : current) });
+  const defaultCriterion = (): OptimizationCriterionDocument => ({
+    id: nextIdentifier(Object.fromEntries(criteria.map((criterion) => [criterion.id ?? '', true])), 'criterion'),
+    feature: { resource: 'application', id: 'latency' },
+  });
+  const updateCriterion = (index: number, criterion: OptimizationCriterionDocument) => updateSpec({ ...spec, criteria: criteria.map((current, itemIndex) => itemIndex === index ? criterion : current) });
   const updatePenalty = (index: number, penalty: OptimizationPenaltyDocument) => updateSpec({ ...spec, penalties: penalties.map((current, itemIndex) => itemIndex === index ? penalty : current) });
-  const updateMode = (mode: string) => {
-    const next: BimSpecDocument = { ...spec, mode: mode as BimSpecDocument['mode'] };
-    if (mode === 'satisfy') {
-      next.type = 'MONO';
-      next.terms = [];
-    } else next.terms = withMinimumTerms(terms, objectiveType === 'MANY' ? 3 : objectiveType === 'MULTI' ? 2 : 1);
-    updateSpec(next);
-  };
-  const updateType = (type: NonNullable<BimSpecDocument['type']>) => {
-    const next: BimSpecDocument = { ...spec, type };
-    const minimum = type === 'MANY' ? 3 : type === 'MULTI' ? 2 : spec.mode === 'satisfy' ? 0 : 1;
-    if (type !== 'MONO' && next.mode === 'satisfy') next.mode = 'pareto';
-    next.terms = withMinimumTerms(terms, minimum);
-    if (type === 'MULTI') next.terms = next.terms.slice(0, 3);
-    updateSpec(next);
-  };
 
   return <>
-    <FormSection eyebrow="Contract" title="Optimization shape" description="Objective type controls cardinality; strategy controls how those objectives are compared.">
-      <div className="objective-contract">
-        <div className="form-grid">
-          <label>Objective type<select aria-label="Objective type" value={objectiveType} onChange={(event) => updateType(event.target.value as NonNullable<BimSpecDocument['type']>)}><option value="MONO">MONO · 1 or more utility terms</option><option value="MULTI">MULTI · 2 to 3 terms</option><option value="MANY">MANY · 3 or more terms</option></select></label>
-          <label>Strategy<select aria-label="Strategy" value={spec.mode || 'satisfy'} onChange={(event) => updateMode(event.target.value)}><option value="satisfy">satisfy · feasibility only</option><option value="weighted">weighted sum</option><option value="lexicographic">lexicographic order</option><option value="pareto">Pareto frontier</option></select></label>
-        </div>
-        <div className="objective-readout" aria-live="polite">
-          <strong>{objectiveType}</strong>
-          <span>{terms.length} objective{terms.length === 1 ? '' : 's'}</span>
-          <small>{spec.mode === 'satisfy' ? 'Feasibility mode uses no terms.' : objectiveType === 'MULTI' ? 'Valid range: 2–3.' : objectiveType === 'MANY' ? 'Valid range: 3 or more.' : 'Valid range: 1 or more.'}</small>
-        </div>
-      </div>
-    </FormSection>
-
-    <FormSection eyebrow="Utility" title="Objective terms" description="Reference application metrics, then optionally override direction, relative weight and normalization." count={terms.length}>
-      {terms.length === 0 && <EmptyFormState>Satisfy mode has no objective terms. Choose another strategy to optimize metrics.</EmptyFormState>}
-      <div className="form-card-list">{terms.map((term, index) => <FormCard
+    <FormSection eyebrow="Goal" title="Optimization criteria" description="Each criterion looks at one Application feature. The strategy (satisfy, weighted, lexicographic, Pareto) and the weights are chosen when the package runs, not here." count={criteria.length}>
+      {criteria.length === 0 && <EmptyFormState>No criteria: the package asks only for a feasible binding. Add one to optimize a feature.</EmptyFormState>}
+      <div className="form-card-list">{criteria.map((criterion, index) => <FormCard
         key={index}
-        eyebrow={`Objective ${String(index + 1).padStart(2, '0')}`}
-        title={<>{term.metric?.id || 'Unnamed metric'} <span className="form-title-muted">from {term.metric?.resource || 'resource'}</span></>}
-        actions={<Action variant="ghost" size="sm" disabled={terms.length <= minimumTerms} onClick={() => updateSpec({ ...spec, terms: terms.filter((_, itemIndex) => itemIndex !== index) })}>Remove term</Action>}
+        eyebrow={`Criterion ${String(index + 1).padStart(2, '0')}`}
+        title={<>{criterion.id || 'Unnamed criterion'} <span className="form-title-muted">on {criterion.feature?.id || 'a feature'} of {criterion.feature?.resource || 'resource'}</span></>}
+        actions={<Action variant="ghost" size="sm" onClick={() => updateSpec({ ...spec, criteria: criteria.filter((_, itemIndex) => itemIndex !== index) })}>Remove criterion</Action>}
       >
         <div className="form-grid">
-          <label>Metric resource<input aria-label={`Term ${index + 1} metric resource`} value={term.metric?.resource || ''} onChange={(event) => updateTerm(index, { ...term, metric: { ...term.metric, resource: event.target.value } })} /></label>
-          <label>Metric id<input aria-label={`Term ${index + 1} metric id`} value={term.metric?.id || ''} onChange={(event) => updateTerm(index, { ...term, metric: { ...term.metric, id: event.target.value } })} /></label>
-          <label>Direction<select aria-label={`Term ${index + 1} direction`} value={term.direction || ''} onChange={(event) => {
-            const next = { ...term };
-            if (event.target.value) next.direction = event.target.value as OptimizationTermDocument['direction'];
+          <RenameField
+            label="Criterion id"
+            ariaLabel={`Criterion ${index + 1} id`}
+            value={criterion.id || ''}
+            validate={(nextId) => criteria.some((other, otherIndex) => otherIndex !== index && other.id === nextId) ? `The ${nextId} criterion already exists.` : undefined}
+            onCommit={(nextId) => updateCriterion(index, { ...criterion, id: nextId })}
+          />
+          <label>Feature resource<input aria-label={`Criterion ${index + 1} feature resource`} value={criterion.feature?.resource || ''} onChange={(event) => updateCriterion(index, { ...criterion, feature: { ...criterion.feature, resource: event.target.value } })} /></label>
+          <label>Feature id<input aria-label={`Criterion ${index + 1} feature id`} value={criterion.feature?.id || ''} onChange={(event) => updateCriterion(index, { ...criterion, feature: { ...criterion.feature, id: event.target.value } })} /></label>
+          <label>Direction<select aria-label={`Criterion ${index + 1} direction`} value={criterion.direction || ''} onChange={(event) => {
+            const next = { ...criterion };
+            if (event.target.value) next.direction = event.target.value as OptimizationCriterionDocument['direction'];
             else delete next.direction;
-            updateTerm(index, next);
-          }}><option value="">metric default</option><option value="minimize">minimize</option><option value="maximize">maximize</option></select></label>
-          <label>Weight<input aria-label={`Term ${index + 1} weight`} type="number" min="0" step="any" value={term.weight ?? ''} onChange={(event) => {
-            const next = { ...term };
-            const weight = optionalNumber(event.target.value);
-            if (weight !== undefined && weight > 0) next.weight = weight;
-            else delete next.weight;
-            updateTerm(index, next);
-          }} placeholder="relative" /></label>
+            updateCriterion(index, next);
+          }}><option value="">feature default</option><option value="minimize">minimize</option><option value="maximize">maximize</option></select></label>
         </div>
-        <label className="check-field"><input aria-label={`Term ${index + 1} normalize`} type="checkbox" checked={Boolean(term.normalize)} onChange={(event) => {
-          const next = { ...term };
+        <label className="check-field"><input aria-label={`Criterion ${index + 1} normalize`} type="checkbox" checked={Boolean(criterion.normalize)} onChange={(event) => {
+          const next = { ...criterion };
           if (event.target.checked) next.normalize = { min: 0, max: 1, clamp: false };
           else delete next.normalize;
-          updateTerm(index, next);
-        }} /> Normalize this metric explicitly</label>
-        {term.normalize && <div className="form-grid nested-fields">
-          <label>Minimum<input aria-label={`Term ${index + 1} normalization minimum`} type="number" step="any" value={term.normalize.min} onChange={(event) => {
+          updateCriterion(index, next);
+        }} /> Normalize this feature explicitly</label>
+        {criterion.normalize && <div className="form-grid nested-fields">
+          <label>Minimum<input aria-label={`Criterion ${index + 1} normalization minimum`} type="number" step="any" value={criterion.normalize.min} onChange={(event) => {
             const minimum = optionalNumber(event.target.value);
-            if (minimum !== undefined) updateTerm(index, { ...term, normalize: { min: minimum, max: term.normalize!.max, clamp: term.normalize!.clamp } });
+            if (minimum !== undefined) updateCriterion(index, { ...criterion, normalize: { min: minimum, max: criterion.normalize!.max, clamp: criterion.normalize!.clamp } });
           }} /></label>
-          <label>Maximum<input aria-label={`Term ${index + 1} normalization maximum`} type="number" step="any" value={term.normalize.max} onChange={(event) => {
+          <label>Maximum<input aria-label={`Criterion ${index + 1} normalization maximum`} type="number" step="any" value={criterion.normalize.max} onChange={(event) => {
             const maximum = optionalNumber(event.target.value);
-            if (maximum !== undefined) updateTerm(index, { ...term, normalize: { min: term.normalize!.min, max: maximum, clamp: term.normalize!.clamp } });
+            if (maximum !== undefined) updateCriterion(index, { ...criterion, normalize: { min: criterion.normalize!.min, max: maximum, clamp: criterion.normalize!.clamp } });
           }} /></label>
-          <label className="check-field"><input aria-label={`Term ${index + 1} normalization clamp`} type="checkbox" checked={Boolean(term.normalize.clamp)} onChange={(event) => updateTerm(index, { ...term, normalize: { min: term.normalize!.min, max: term.normalize!.max, clamp: event.target.checked } })} /> Clamp outside values</label>
+          <label className="check-field"><input aria-label={`Criterion ${index + 1} normalization clamp`} type="checkbox" checked={Boolean(criterion.normalize.clamp)} onChange={(event) => updateCriterion(index, { ...criterion, normalize: { min: criterion.normalize!.min, max: criterion.normalize!.max, clamp: event.target.checked } })} /> Clamp outside values</label>
         </div>}
       </FormCard>)}</div>
-      <div className="form-add-bar"><div><strong>Expand the objective</strong><small>{objectiveType === 'MULTI' ? `${Math.max(0, 3 - terms.length)} slot${3 - terms.length === 1 ? '' : 's'} remaining.` : 'Add another metric utility term.'}</small></div><Action variant="secondary" disabled={spec.mode === 'satisfy' || terms.length >= maximumTerms} onClick={() => updateSpec({ ...spec, terms: [...terms, defaultTerm()] })}>Add objective term</Action></div>
+      <div className="form-add-bar"><div><strong>Add a criterion</strong><small>Criteria with different units need an explicit normalization.</small></div><Action variant="secondary" onClick={() => updateSpec({ ...spec, criteria: [...criteria, defaultCriterion()] })}>Add criterion</Action></div>
     </FormSection>
 
     <FormSection eyebrow="Policy cost" title="Soft-constraint penalties" description="Optional weights link soft constraint violations into the optimization utility." count={penalties.length}>
@@ -307,10 +271,10 @@ function InstanceForm({ spec, updateSpec, availablePaths }: SpecProps & { availa
 
 function ApplicationForm({ spec, updateSpec }: SpecProps) {
   const tasks = spec.tasks || {};
-  const metrics = spec.metrics || {};
+  const metrics = spec.features || {};
   const [newMetricId, setNewMetricId] = useState('metric');
   const updateTask = (id: string, next: TaskDocument) => updateSpec({ ...spec, tasks: { ...tasks, [id]: next } });
-  const updateMetric = (id: string, next: MetricDocument) => updateSpec({ ...spec, metrics: { ...metrics, [id]: next } });
+  const updateMetric = (id: string, next: FeatureDocument) => updateSpec({ ...spec, features: { ...metrics, [id]: next } });
   const removeTask = (id: string) => {
     if (Object.keys(tasks).length <= 1) return;
     const next = { ...tasks };
@@ -320,9 +284,9 @@ function ApplicationForm({ spec, updateSpec }: SpecProps) {
   const removeMetric = (id: string) => {
     const next = { ...metrics };
     delete next[id];
-    updateSpec({ ...spec, metrics: next });
+    updateSpec({ ...spec, features: next });
   };
-  const setMetricField = (id: string, metric: MetricDocument, key: keyof MetricDocument, value: unknown) => {
+  const setMetricField = (id: string, metric: FeatureDocument, key: keyof FeatureDocument, value: unknown) => {
     const next = { ...metric };
     if (value === '' || value === undefined) delete next[key];
     else next[key] = value as never;
@@ -424,7 +388,7 @@ function ApplicationForm({ spec, updateSpec }: SpecProps) {
       <Action variant="secondary" disabled={!IDENTIFIER_PATTERN.test(newMetricId) || Boolean(metrics[newMetricId])} onClick={() => {
       updateSpec({
         ...spec,
-        metrics: {
+        features: {
           ...metrics,
           [newMetricId]: { type: 'number', unit: '1', domain: 'real', direction: 'minimize', scope: 'invocation', aggregation: 'sum' },
         },
@@ -453,10 +417,10 @@ function capabilityType(value: CapabilityDocument): string {
 
 function CandidateCatalogForm({ spec, updateSpec }: SpecProps) {
   const candidates = spec.candidates || {};
-  const metricBindings = spec.metricBindings || {};
+  const metricBindings = spec.featureBindings || {};
   const [newMetricAlias, setNewMetricAlias] = useState('metric');
   const updateCandidate = (id: string, next: CandidateDocument) => updateSpec({ ...spec, candidates: { ...candidates, [id]: next } });
-  const updateBinding = (alias: string, next: InternalReference) => updateSpec({ ...spec, metricBindings: { ...metricBindings, [alias]: next } });
+  const updateBinding = (alias: string, next: InternalReference) => updateSpec({ ...spec, featureBindings: { ...metricBindings, [alias]: next } });
 
   const replaceMetricAlias = (alias: string, nextAlias: string) => {
     if (nextAlias === alias || !IDENTIFIER_PATTERN.test(nextAlias) || metricBindings[nextAlias]) return;
@@ -469,7 +433,7 @@ function CandidateCatalogForm({ spec, updateSpec }: SpecProps) {
       }
       return [id, withCandidateFeatures(candidate, features)];
     }));
-    updateSpec({ ...spec, metricBindings: nextBindings, candidates: nextCandidates });
+    updateSpec({ ...spec, featureBindings: nextBindings, candidates: nextCandidates });
   };
 
   const removeMetricBinding = (alias: string) => {
@@ -480,7 +444,7 @@ function CandidateCatalogForm({ spec, updateSpec }: SpecProps) {
       delete features[alias];
       return [id, withCandidateFeatures(candidate, features)];
     }));
-    updateSpec({ ...spec, metricBindings: nextBindings, candidates: nextCandidates });
+    updateSpec({ ...spec, featureBindings: nextBindings, candidates: nextCandidates });
   };
 
   return <>
@@ -511,7 +475,7 @@ function CandidateCatalogForm({ spec, updateSpec }: SpecProps) {
       <div><strong>Add metric alias</strong><small>The alias becomes a QoS column on every candidate card.</small></div>
       <div className="form-grid"><label>New metric alias<input aria-label="New metric alias" value={newMetricAlias} onChange={(event) => setNewMetricAlias(event.target.value)} /></label></div>
       <Action variant="secondary" disabled={!IDENTIFIER_PATTERN.test(newMetricAlias) || Boolean(metricBindings[newMetricAlias])} onClick={() => {
-        updateSpec({ ...spec, metricBindings: { ...metricBindings, [newMetricAlias]: { resource: 'application', id: newMetricAlias } } });
+        updateSpec({ ...spec, featureBindings: { ...metricBindings, [newMetricAlias]: { resource: 'application', id: newMetricAlias } } });
         setNewMetricAlias(nextIdentifier({ ...metricBindings, [newMetricAlias]: {} }, 'metric'));
       }}>Add metric binding</Action>
     </div>
@@ -825,7 +789,7 @@ function PlacementForm({ spec, updateSpec }: SpecProps) {
           <ReferenceEditor id={`${id} transition`} label="From" value={transition.from} onChange={(from) => updateSpec({ ...spec, transitions: { ...transitions, [id]: { ...transition, from } } })} />
           <ReferenceEditor id={`${id} transition`} label="To" value={transition.to} onChange={(to) => updateSpec({ ...spec, transitions: { ...transitions, [id]: { ...transition, to } } })} />
         </div>
-        <ReferenceEditor id={`${id} transition`} label="Latency metric" value={transition.metric} onChange={(metric) => updateSpec({ ...spec, transitions: { ...transitions, [id]: { ...transition, metric } } })} />
+        <ReferenceEditor id={`${id} transition`} label="Latency metric" value={transition.feature} onChange={(feature) => updateSpec({ ...spec, transitions: { ...transitions, [id]: { ...transition, feature } } })} />
         <div className="form-grid">
           <label>Maximum<input aria-label={`${id} transition maximum`} type="number" min="0" step="any" value={transition.maximum ?? 0} onChange={(event) => {
             const maximum = optionalNumber(event.target.value);
@@ -845,7 +809,7 @@ function PlacementForm({ spec, updateSpec }: SpecProps) {
       </FormCard>)}</div>
       <div className="form-add-bar"><div><strong>Add latency transition</strong><small>References may point to application tasks or placement events.</small></div><Action variant="secondary" onClick={() => {
         const id = nextIdentifier(transitions, 'transition');
-        updateSpec({ ...spec, transitions: { ...transitions, [id]: { from: { resource: 'application', id: 'task1' }, to: { resource: 'application', id: 'task2' }, metric: { resource: 'application', id: 'latency' }, maximum: 0 } } });
+        updateSpec({ ...spec, transitions: { ...transitions, [id]: { from: { resource: 'application', id: 'task1' }, to: { resource: 'application', id: 'task2' }, feature: { resource: 'application', id: 'latency' }, maximum: 0 } } });
       }}>Add transition</Action></div>
     </FormSection>
 
@@ -869,12 +833,12 @@ function PlacementForm({ spec, updateSpec }: SpecProps) {
     <FormSection eyebrow="End-to-end model" title="Global latency" description="Optionally derive one workflow-level latency metric from execution time, routing and pool topology.">
       <label className="choice-card global-latency-toggle"><input type="checkbox" aria-label="Enable global latency" checked={Boolean(spec.globalLatency)} onChange={(event) => {
         const next = { ...spec };
-        if (event.target.checked) next.globalLatency = { metric: { resource: 'application', id: 'latency' }, includeExecution: true, exclusive: 'routing', parallel: 'max' };
+        if (event.target.checked) next.globalLatency = { feature: { resource: 'application', id: 'latency' }, includeExecution: true, exclusive: 'routing', parallel: 'max' };
         else delete next.globalLatency;
         updateSpec(next);
       }} /><span><strong>Compute global latency</strong><small>Fold placement and workflow timing into the selected metric.</small></span></label>
       {spec.globalLatency && <div className="global-latency-panel">
-        <ReferenceEditor id="global latency" label="Output metric" value={spec.globalLatency.metric} onChange={(metric) => updateSpec({ ...spec, globalLatency: { ...spec.globalLatency!, metric } })} />
+        <ReferenceEditor id="global latency" label="Output metric" value={spec.globalLatency.feature} onChange={(feature) => updateSpec({ ...spec, globalLatency: { ...spec.globalLatency!, feature } })} />
         <div className="form-grid">
           <label className="check-field"><input aria-label="Global latency include execution" type="checkbox" checked={Boolean(spec.globalLatency.includeExecution)} onChange={(event) => updateSpec({ ...spec, globalLatency: { ...spec.globalLatency!, includeExecution: event.target.checked } })} /> Include candidate execution latency</label>
           <label>Exclusive branches<select aria-label="Global latency exclusive" value={spec.globalLatency.exclusive || 'routing'} onChange={(event) => updateSpec({ ...spec, globalLatency: { ...spec.globalLatency!, exclusive: event.target.value as PlacementGlobalLatencyDocument['exclusive'] } })}><option value="routing">probability-weighted routing</option><option value="condition">static conditions</option></select></label>

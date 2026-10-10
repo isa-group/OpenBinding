@@ -15,10 +15,10 @@ describe('ranges in a package', () => {
   const mode = (over: Partial<CompatibleMode>): CompatibleMode => ({ engine: ENGINE, registration: REGISTRATION, mode: 'seeded', compatible: false, ...over });
   const catalog = (candidates: unknown) => JSON.stringify({ kind: 'CandidateCatalog', spec: { candidates } });
 
-  it('sees a range in any candidate of any catalog, under features or metrics', () => {
+  it('sees a range in any candidate of any catalog, under features', () => {
     expect(filesHaveRanges({ 'a.json': catalog({ x: { features: { latency: 5 } } }) })).toBe(false);
     expect(filesHaveRanges({ 'a.json': catalog({ x: { features: { latency: { min: null, max: 5 } } } }) })).toBe(true);
-    expect(filesHaveRanges({ 'a.json': catalog({ x: { metrics: { latency: { min: 1, max: null } } } }) })).toBe(true);
+    expect(filesHaveRanges({ 'a.json': catalog({ x: { features: { latency: { min: 1, max: null } } } }) })).toBe(true);
     expect(filesHaveRanges({ 'a.json': catalog([{ features: { latency: { min: null, max: null } } }]) })).toBe(true);
     expect(filesHaveRanges({ 'a.json': catalog({ x: { features: { latency: 1 } } }), 'b.json': catalog({ y: { features: { cost: {} } } }) })).toBe(true);
   });
@@ -140,11 +140,11 @@ describe('the package in plain words', () => {
       ['optimization.json', 'Optimization', 'OP'], ['workflow.bpmn', 'BPMN', 'WF'],
     ]);
     expect(list.map((file) => file.what)).toEqual([
-      'Root of the package · 4 resources', '1 task and 1 quality metric', '1 candidate with 1 quality column', 'weighted goal · 1 term', 'Workflow diagram · 1 task',
+      'Root of the package · 4 resources', '1 task and 1 quality metric', '1 candidate with 1 quality column', 'Goal · 1 criterion', 'Workflow diagram · 1 task',
     ]);
   });
 
-  it('counts the terms of the goal across the optimization documents', () => {
+  it('counts the criteria of the goal across the optimization documents', () => {
     expect(goalTerms(DEFAULT_FILES, resources)).toBe(1);
     expect(goalTerms({ 'instance.json': '{}' }, [])).toBe(0);
   });
