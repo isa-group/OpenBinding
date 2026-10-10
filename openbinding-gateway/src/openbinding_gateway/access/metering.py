@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -41,6 +42,10 @@ from ..core.settings import Settings
 from ..space_client import PricingGate, PricingUnavailable, Verdict
 
 logger = logging.getLogger(__name__)
+
+ERROR_EVENT_PURGE_INTERVAL_S = 3600.0
+# time.monotonic() of the last error-event purge; None until the first sweep.
+_last_purge: float | None = None
 
 #: How often the reconciler looks for jobs that have outlived their budget.
 SWEEP_INTERVAL_S = 60.0
@@ -463,6 +468,7 @@ async def run_reconciler(
     transient database hiccup would leave every subsequent job unsettled, and
     nothing would say so.
     """
+    global _last_purge
     while True:
         try:
             await asyncio.sleep(interval_s)
@@ -482,6 +488,15 @@ async def run_reconciler(
                 from ..sponsor_proposals import sweep_expired
 
                 proposals_expired = await sweep_expired(session)
+                purged = 0
+                if _last_purge is None or time.monotonic() - _last_purge >= ERROR_EVENT_PURGE_INTERVAL_S:
+                    from ..telemetry import purge_old_error_events
+
+                    _last_purge = time.monotonic()
+                    try:
+                        purged = await purge_old_error_events(session, days=90)
+                    except Exception:
+                        logger.warning("Purging old error events failed; continuing", exc_info=True)
                 await session.commit()
             # Analysis recovery commits before dispatch; isolate it from billing transactions.
             from ..analysis_jobs import redeliver_analysis
@@ -497,6 +512,8 @@ async def run_reconciler(
                 logger.info("Redelivered %d queued job(s)", redelivered)
             if proposals_expired:
                 logger.info("Expired %d sponsorship proposal(s)", proposals_expired)
+            if purged:
+                logger.info("Purged %d old error event(s)", purged)
         except asyncio.CancelledError:
             raise
         except Exception:
