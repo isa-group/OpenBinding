@@ -82,6 +82,33 @@ Creates `admin` / `4dm1n`, and refuses if there is even one account already. The
 credentials are deliberately weak and well known — sign in once, create a real
 administrator, deactivate this one. They are a way in, not a login.
 
+## Organization roles and owner-only changes
+
+Within an organization the roles are VIEWER < MEMBER < ADMIN < OWNER, and a role
+on an organization applies to its descendants. Managing members needs ADMIN, with
+one exception: **only an OWNER may grant the OWNER role or change or remove an
+existing OWNER**. An ADMIN who tries receives `403` with code
+`owner_role_requires_owner`; otherwise an ADMIN could promote a second account to
+OWNER and, with it, outvote the real owners. This covers
+`PUT /v1/organizations/{org}/members/{user}`,
+`DELETE /v1/organizations/{org}/members/{user}`,
+`POST /v1/organizations/{org}/members/batch` and invitations created with
+`role: "OWNER"` (`POST /v1/organizations/{org}/invitations`).
+
+* **Batch policy** is unchanged: all-or-nothing. If any change in the batch
+  grants OWNER or touches an owner and the caller is not an OWNER, the whole
+  batch is refused with `403` (the body carries `index` and `user_id` of the
+  first offending change) and nothing is written.
+* The "last owner" protection still applies to owners: removing or demoting the
+  only OWNER is `409 last_owner`.
+* A platform administrator who also holds ADMIN access to the organization keeps
+  the ability to manage owners. A platform role alone grants no access to a
+  private organization.
+
+`POST /v1/generator/calibrate-engine` refits a model shared by every account, so
+it needs a platform administrator (`403 platform_admin_required`) and, for API
+keys, the `admin:accounts:write` permission; see [the generator](BIM_GENERATOR.md).
+
 ## What an administrator can do
 
 List accounts, deactivate one, change its role, move it between plans, and

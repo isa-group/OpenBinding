@@ -56,7 +56,7 @@ from ..db.models import (
     Visibility,
     utcnow,
 )
-from ..models.errors import api_error
+from ..models.errors import ErrorResponse, api_error
 from ..models.platform import (
     BindingCaseCreate,
     BindingCaseUpdate,
@@ -102,6 +102,41 @@ def _audit(session: AsyncSession, user: User, action: str, target, organization_
             target_id=getattr(target, "id", None),
             detail=detail,
         )
+    )
+
+
+OWNER_ROLE_RESPONSES = {
+    403: {
+        "model": ErrorResponse,
+        "description": (
+            "The caller lacks ADMIN access to the organization (code `organization_forbidden`), "
+            "or the change grants OWNER or alters or removes an existing owner and the caller "
+            "is not an organization owner (code `owner_role_requires_owner`)."
+        ),
+    }
+}
+
+
+def _touches_owner(current: OrganizationMembership | None, new_role: str | None) -> bool:
+    """Whether a membership change grants OWNER or alters an existing owner."""
+
+    return new_role == OrganizationRole.OWNER.value or (
+        current is not None and current.role is OrganizationRole.OWNER
+    )
+
+
+def _may_manage_owners(actor_role: OrganizationRole, actor: User) -> bool:
+    """Owners, and platform administrators who already hold ADMIN access."""
+
+    return actor_role is OrganizationRole.OWNER or actor.is_admin
+
+
+def _owner_role_refusal(**detail):
+    return api_error(
+        status.HTTP_403_FORBIDDEN,
+        "owner_role_requires_owner",
+        "Only an organization owner may grant the OWNER role or change or remove an owner.",
+        **detail,
     )
 
 
@@ -446,6 +481,7 @@ async def list_members(
     "/{org}/members/batch",
     response_model=list[MemberView],
     operation_id="updateOrganizationMembersBatch",
+    responses=OWNER_ROLE_RESPONSES,
 )
 async def update_members_batch(
     org: str,
@@ -456,7 +492,7 @@ async def update_members_batch(
     """Apply a staged set of direct-member changes in one transaction."""
 
     organization = await _required_org(session, org)
-    await require_role(session, organization, user, OrganizationRole.ADMIN)
+    actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
     sponsor = await session.get(User, organization.billing_sponsor_user_id)
     if sponsor is None or not sponsor.is_active:
         raise api_error(
@@ -477,6 +513,13 @@ async def update_members_batch(
     ).scalars().all()
     existing = {row.user_id: row for row in existing_rows}
     final_roles = {member_id: row.role for member_id, row in existing.items()}
+
+    # The batch is all-or-nothing: nothing is written until every change has
+    # passed, so one change touching an owner refuses the whole batch.
+    for index, change in enumerate(payload.changes):
+        current = existing.get(change.user_id)
+        if _touches_owner(current, change.role) and not _may_manage_owners(actor_role, user):
+            raise _owner_role_refusal(index=index, user_id=str(change.user_id))
 
     upsert_ids = {change.user_id for change in payload.changes if change.role is not None}
     users = {
@@ -558,7 +601,12 @@ async def update_members_batch(
     return await _member_views(session, organization)
 
 
-@router.put("/{org}/members/{member_id}", response_model=MemberView, operation_id="upsertOrganizationMember")
+@router.put(
+    "/{org}/members/{member_id}",
+    response_model=MemberView,
+    operation_id="upsertOrganizationMember",
+    responses=OWNER_ROLE_RESPONSES,
+)
 async def upsert_member(
     org: str,
     member_id: uuid.UUID,
@@ -567,7 +615,7 @@ async def upsert_member(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> MemberView:
     organization = await _required_org(session, org)
-    await require_role(session, organization, user, OrganizationRole.ADMIN)
+    actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
     if payload.user_id != member_id:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "member_mismatch", "Path and payload user differ.")
     member_user = await session.get(User, member_id)
@@ -581,6 +629,8 @@ async def upsert_member(
             )
         )
     ).scalars().first()
+    if _touches_owner(existing, payload.role) and not _may_manage_owners(actor_role, user):
+        raise _owner_role_refusal(user_id=str(member_id))
     if existing is None:
         sponsor = await session.get(User, organization.billing_sponsor_user_id)
         if not await sponsor_has_member(session, sponsor.id, member_id):
@@ -612,7 +662,12 @@ async def _protect_last_owner(session: AsyncSession, membership: OrganizationMem
         raise api_error(status.HTTP_409_CONFLICT, "last_owner", "The last owner cannot be removed.")
 
 
-@router.delete("/{org}/members/{member_id}", status_code=204, operation_id="removeOrganizationMember")
+@router.delete(
+    "/{org}/members/{member_id}",
+    status_code=204,
+    operation_id="removeOrganizationMember",
+    responses=OWNER_ROLE_RESPONSES,
+)
 async def remove_member(
     org: str,
     member_id: uuid.UUID,
@@ -620,7 +675,7 @@ async def remove_member(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> None:
     organization = await _required_org(session, org)
-    await require_role(session, organization, user, OrganizationRole.ADMIN)
+    actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
     membership = (
         await session.execute(
             select(OrganizationMembership).where(
@@ -631,6 +686,8 @@ async def remove_member(
     ).scalars().first()
     if membership is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Member not found.")
+    if _touches_owner(membership, None) and not _may_manage_owners(actor_role, user):
+        raise _owner_role_refusal(user_id=str(member_id))
     await _protect_last_owner(session, membership)
     await session.delete(membership)
     _audit(session, user, "organization.member.removed", membership, organization.id)
@@ -638,7 +695,8 @@ async def remove_member(
 
 @router.post(
     "/{org}/invitations", response_model=InvitationCreated,
-    status_code=201, operation_id="inviteOrganizationMember"
+    status_code=201, operation_id="inviteOrganizationMember",
+    responses=OWNER_ROLE_RESPONSES,
 )
 async def invite_member(
     org: str,
@@ -647,7 +705,9 @@ async def invite_member(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> InvitationCreated:
     organization = await _required_org(session, org)
-    await require_role(session, organization, user, OrganizationRole.ADMIN)
+    actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
+    if _touches_owner(None, payload.role) and not _may_manage_owners(actor_role, user):
+        raise _owner_role_refusal()
     secret = secrets.token_urlsafe(32)
     prefix = secrets.token_hex(6)
     token = f"obi_{prefix}_{secret}"

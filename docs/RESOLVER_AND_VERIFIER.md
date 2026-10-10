@@ -158,6 +158,16 @@ To protect private intellectual property, the resolver adheres to a strict **Zer
 1. **Uniform 404 Status**: If an element is private and the caller lacks permissions (or is unauthenticated), the endpoint returns `404 Not Found`. It **never** returns `403 Forbidden`, ensuring that malicious callers cannot enumerate or confirm the existence of private organizational models.
 2. **Permission Boundary**: The resolver checks the user's membership and organization roles via `get_optional_user`. If any location containing the digest is public or accessible to the caller, the response succeeds with `200 OK` and only lists the locations the user is permitted to see.
 
+### Verifier endpoints
+
+`POST /v1/verifier/inspect` and `POST /v1/verifier/inspect-file` keep requiring an account (an anonymous call is `401`, as before). The registered elements they list are filtered by what the caller can see:
+
+* a case, collection or study-run revision, and a project file, appear only to members of the organization (or an ancestor of it), or when the project is public (a file also needs to be marked public);
+* a library version or report appears to members of its organization or once published;
+* an engine appears when published or when the caller owns it; a snapshot when it is shared, owned by the caller, or used by a case of a project the caller can see.
+
+Anything else is dropped before the response is built, so a private element of someone else is **indistinguishable from an unregistered digest**: same status (`not_found` for a digest, `computed` for a document or file), same fields and the same `detail` text, with no organization, project, title or count of the hidden element. The same queries run whatever the digest matches, so response time does not depend on how many hidden elements exist. Project names are shown only for projects the caller could open themselves. Platform administrators get no wider view than any other account.
+
 ---
 
 ## 4. Frontend Verifier & Replication Studio

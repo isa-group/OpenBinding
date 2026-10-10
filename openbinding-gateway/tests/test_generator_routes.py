@@ -418,7 +418,25 @@ END
 
 
 @pytest.mark.asyncio
-async def test_calibrate_engine_endpoint(api_client):
+async def test_calibrate_engine_endpoint(api_client, db_session, registration):
+    # Calibration refits a model shared by every account: platform administrators only.
+    from sqlalchemy import select
+
+    from openbinding_gateway.db.models import User, UserRole
+
+    details = registration()
+    created = await api_client.post("/v1/auth/register", json=details)
+    assert created.status_code == 201, created.text
+    administrator = (
+        await db_session.execute(select(User).where(User.username == details["username"]))
+    ).scalars().one()
+    administrator.role = UserRole.ADMIN
+    await db_session.flush()
+    login = await api_client.post(
+        "/v1/auth/login",
+        json={"username_or_email": details["username"], "password": details["password"]},
+    )
+    admin_headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
     observations = [
         {
             "workload_features": {"S": 10.0, "D_constr": 1, "N_tasks": 10, "N_cap": 5, "D_obj": 1, "T_budget": 60},
@@ -438,7 +456,9 @@ async def test_calibrate_engine_endpoint(api_client):
         "mode": "single-term",
         "observations": observations,
     }
-    resp = await api_client.post("/v1/generator/calibrate-engine", json=payload)
+    resp = await api_client.post(
+        "/v1/generator/calibrate-engine", json=payload, headers=admin_headers
+    )
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["engine"] == "evolutionary-heuristics"

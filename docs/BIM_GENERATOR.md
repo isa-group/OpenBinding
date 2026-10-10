@@ -55,6 +55,15 @@ serializarlos de nuevo no es una forma fiable de reconstruir los bytes del
 paquete. El script de QFBS en `experimentation/qacobench/generate_qfbs.py`
 registra la configuración, semilla y digests devueltos por HTTP para repetir la generación.
 
+## Permisos
+
+| Endpoint | Quién puede llamarlo |
+| --- | --- |
+| `POST /v1/generator/instances`, `/corpus`, `/convert-legacy` | Cualquiera, incluso sin cuenta: son funciones puras de la petición y no tocan estado compartido. Con `persist: true` hace falta cuenta (401), y adjuntar el resultado a un proyecto (`project_id`) exige rol MEMBER o superior en él. |
+| `POST /v1/generator/calibrate-engine` | Solo administradores de plataforma. Reajusta el modelo sustituto que usa el enrutado de motores para **todas** las cuentas. |
+
+`calibrate-engine` se comprueba en el servidor: sin credencial responde 401; una cuenta que no es administradora de plataforma recibe 403 con el código `platform_admin_required`; una clave API necesita el permiso `admin:accounts:write` (el mismo que `/v1/admin/engine-routing/recalibrate`) y sin él recibe 403 con `insufficient_api_key_permission`. La restricción de la interfaz es solo cortesía.
+
 ## Límites y errores
 
 Los errores de configuración devuelven HTTP 422 con el campo y la corrección: definiciones incompletas, claves desconocidas (incluidos `qos_properties`, `templates` y `weights`), IDs inválidos o duplicados tras expandir, agregaciones ajenas al `scope`, distribución mal acotada o no finita, ausencia de objetivos, incompatibilidad con motores, parámetros que quedarían sin efecto y exceso de dimensiones. Se admiten hasta 100 features expandidas y 1 000 000 de valores candidato-feature por instancia. Los límites existentes de tareas, candidatos, iteraciones y anidamiento continúan aplicándose.

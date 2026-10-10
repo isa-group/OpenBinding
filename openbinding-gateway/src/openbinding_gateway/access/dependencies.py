@@ -367,6 +367,21 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+async def require_platform_admin(user: User = Depends(get_current_user)) -> User:
+    """A platform administrator, refused with a code the client can act on.
+
+    Same rule as ``require_admin``; the distinct code is for endpoints outside
+    ``/v1/admin`` whose effect is shared by every account.
+    """
+    if not user.is_admin:
+        raise api_error(
+            status.HTTP_403_FORBIDDEN,
+            "platform_admin_required",
+            "This endpoint is for platform administrators.",
+        )
+    return user
+
+
 async def require_v1_admin(user: User = Depends(solve_caller)) -> User:
     """An administrator authenticated through the fail-closed BIM v1 channel."""
     if not user.is_admin:

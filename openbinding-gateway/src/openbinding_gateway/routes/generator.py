@@ -1,4 +1,14 @@
-"""API routes for BIM v1 QACO problem generation, corpus synthesis, legacy conversion and calibration."""
+"""API routes for BIM v1 QACO problem generation, corpus synthesis, legacy conversion and calibration.
+
+Who may call what:
+
+* ``POST /instances``, ``/corpus`` and ``/convert-legacy`` are pure functions of
+  their request and touch no shared state, so any caller, even anonymous, may
+  use them. Persisting (``persist=true``) needs an account, and attaching the
+  result to a project needs MEMBER access to that project.
+* ``POST /calibrate-engine`` refits a surrogate model that every account's
+  engine routing reads, so only a platform administrator may call it.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import (
     get_optional_user,
+    require_platform_admin,
     session_dependency,
 )
 from ..collaboration import require_role
@@ -46,7 +57,7 @@ from ..generator.config import FeatureDefinition, GenerationDistributions, Stric
 from ..generator.legacy_parser import parse_legacy_file
 from ..generator.postprocessor import BIMPostprocessor
 from ..generator.synthesizer import generate_instance_package
-from ..models.errors import api_error
+from ..models.errors import ErrorResponse, api_error
 from ..v1.compiler import compile_instance
 from ..v1.package import InstancePackage
 from .v1 import _persist_snapshot
@@ -541,11 +552,24 @@ async def convert_legacy(
     )
 
 
-@router.post("/calibrate-engine", response_model=EngineCalibratedResponse)
+@router.post(
+    "/calibrate-engine",
+    response_model=EngineCalibratedResponse,
+    responses={
+        403: {
+            "model": ErrorResponse,
+            "description": (
+                "The caller is not a platform administrator (code `platform_admin_required`), "
+                "or the API key lacks the `admin:accounts:write` permission "
+                "(code `insufficient_api_key_permission`)."
+            ),
+        }
+    },
+)
 async def calibrate_engine(
     request: CalibrateEngineRequest,
     session: AsyncSession = Depends(session_dependency),
-    caller: Optional[User] = Depends(get_optional_user),
+    caller: User = Depends(require_platform_admin),
 ) -> Any:
     """Calibrate surrogate performance models for a federated or black-box engine."""
     observations = [
@@ -602,7 +626,7 @@ async def calibrate_engine(
             failure_risk_coefficients=surrogate.failure_risk_coefficients,
             sample_count=surrogate.sample_count,
             r2_score=surrogate.r2_score,
-            metadata_info={"calibrated_by": caller.email if caller else "anonymous"},
+            metadata_info={"calibrated_by": caller.email},
         )
         session.add(new_row)
     await session.flush()

@@ -934,6 +934,7 @@ def openapi_with_security_contract() -> dict:
             )
             admin_only = (
                 path.startswith("/v1/admin/")
+                or path == "/v1/generator/calibrate-engine"
                 or path.endswith("/approve")
                 or path.endswith("/reject")
             )

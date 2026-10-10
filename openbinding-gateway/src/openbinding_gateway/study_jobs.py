@@ -60,6 +60,101 @@ def metrics_from_job(job: Job, cell: StudyCell) -> dict[str, Any]:
     }
 
 
+ENGINE_IDENTITY_FIELDS = ("namespace", "name", "version", "digest")
+
+
+def _recorded_seed(job: Job) -> tuple[bool, Any]:
+    """The seed a job was asked to run with, as ``(recorded, value)``."""
+
+    options = job.options if isinstance(job.options, dict) else {}
+    if "seed" in options:
+        return True, options["seed"]
+    provenance = job.provenance if isinstance(job.provenance, dict) else {}
+    requested = provenance.get("requestedOptions")
+    if isinstance(requested, dict) and "seed" in requested:
+        return True, requested["seed"]
+    return False, None
+
+
+async def _mode_takes_seed(
+    session: AsyncSession, cell: StudyCell, user: User, job_mode: Any
+) -> bool:
+    """Whether the cell's engine mode accepts a seed; unknown counts as yes."""
+
+    from .routes import v1
+
+    reference = cell.engine_ref
+    try:
+        manifest = await v1._manifest_async(
+            reference["name"],
+            session,
+            caller=user,
+            namespace=reference.get("namespace"),
+            version=reference.get("version"),
+            manifest_digest=reference.get("digest"),
+        )
+    except (HTTPException, KeyError):
+        return True
+    wanted = reference.get("mode") or job_mode
+    mode = next(
+        (item for item in manifest.get("spec", {}).get("modes", []) if item.get("id") == wanted),
+        None,
+    )
+    if mode is None:
+        return True
+    schema = mode.get("optionsSchema")
+    properties = schema.get("properties") if isinstance(schema, dict) else None
+    return not isinstance(properties, dict) or "seed" in properties
+
+
+async def cell_job_mismatches(
+    session: AsyncSession, cell: StudyCell, job: Job, user: User
+) -> dict[str, dict[str, Any]]:
+    """Which identities of a job differ from the cell it is offered as the result of.
+
+    The keys are ``case_revision`` (the BIM package behind the cell's pinned
+    case revision), ``engine`` (namespace, name, version and digest), ``mode``
+    (when the cell pins one) and ``seed``. Each maps to what the cell expects
+    and what the job recorded; an empty result means the job is a faithful
+    execution of the cell.
+    """
+
+    provenance = job.provenance if isinstance(job.provenance, dict) else {}
+    mismatches: dict[str, dict[str, Any]] = {}
+
+    revision = await session.get(BindingCaseRevision, cell.binding_case_revision_id)
+    source = (
+        await session.get(InstanceSnapshot, revision.source_snapshot_id)
+        if revision is not None and revision.source_snapshot_id is not None
+        else None
+    )
+    expected_package = source.package_digest if source is not None else None
+    job_package = provenance.get("packageDigest")
+    if job_package is None and job.instance_snapshot_id is not None:
+        snapshot = await session.get(InstanceSnapshot, job.instance_snapshot_id)
+        job_package = snapshot.package_digest if snapshot is not None else None
+    if expected_package is None or job_package != expected_package:
+        mismatches["case_revision"] = {"cell": expected_package, "job": job_package}
+
+    job_engine = provenance.get("engine") if isinstance(provenance.get("engine"), dict) else {}
+    cell_engine = {field: cell.engine_ref.get(field) for field in ENGINE_IDENTITY_FIELDS}
+    recorded_engine = {field: job_engine.get(field) for field in ENGINE_IDENTITY_FIELDS}
+    if cell_engine != recorded_engine:
+        mismatches["engine"] = {"cell": cell_engine, "job": recorded_engine}
+
+    cell_mode = cell.engine_ref.get("mode")
+    if cell_mode is not None and provenance.get("mode") != cell_mode:
+        mismatches["mode"] = {"cell": cell_mode, "job": provenance.get("mode")}
+
+    recorded, seed = _recorded_seed(job)
+    if recorded:
+        if isinstance(seed, bool) or seed != cell.seed:
+            mismatches["seed"] = {"cell": cell.seed, "job": seed}
+    elif await _mode_takes_seed(session, cell, user, provenance.get("mode")):
+        mismatches["seed"] = {"cell": cell.seed, "job": None}
+    return mismatches
+
+
 def _job_request(payload: dict[str, Any]) -> Request:
     body = json.dumps(payload, separators=(",", ":")).encode()
     delivered = False

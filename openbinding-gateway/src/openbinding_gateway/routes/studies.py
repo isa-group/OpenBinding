@@ -45,7 +45,7 @@ from ..db.models import (
     User,
     utcnow,
 )
-from ..models.errors import api_error
+from ..models.errors import ErrorResponse, api_error
 from ..models.platform import (
     AnalyticsView,
     CollectionCreate,
@@ -68,7 +68,7 @@ from ..models.platform import (
 )
 from ..space_client import PricingUnavailable, get_gate
 from ..security.apikeys import allows_engine
-from ..study_jobs import StudyLaunchError, launch_study_cell, metrics_from_job
+from ..study_jobs import StudyLaunchError, cell_job_mismatches, launch_study_cell, metrics_from_job
 from ..studies import aggregate_metrics, expand_study
 from ..v1.canonical import canonical_json, digest
 from ..artifacts import store_blob, version_content
@@ -821,7 +821,23 @@ async def cancel_study_run(
     )
 
 
-@router.post("/studies/{study}/runs/{run_id}/cells/{cell_id}/result", operation_id="attachStudyCellResult")
+@router.post(
+    "/studies/{study}/runs/{run_id}/cells/{cell_id}/result",
+    operation_id="attachStudyCellResult",
+    responses={
+        409: {
+            "model": ErrorResponse,
+            "description": (
+                "The run is evidence of a sealed report (code `sealed_evidence`); the job is not "
+                "finished (`job_not_finished`) or completed without a result (`job_result_missing`); "
+                "the job is already the result of another cell (`job_already_attached`); or the job "
+                "is not an execution of this cell (`cell_job_mismatch`): its `fields` list names "
+                "each of `case_revision`, `engine`, `mode` and `seed` that differ, and `details` "
+                "gives the `cell` and `job` values."
+            ),
+        }
+    },
+)
 async def attach_cell_result(
     org: str, project: str, study: str, run_id: uuid.UUID, cell_id: uuid.UUID,
     payload: StudyCellResult,
@@ -838,6 +854,22 @@ async def attach_cell_result(
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Cell or job not found.")
     if job.state not in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
         raise api_error(status.HTTP_409_CONFLICT, "job_not_finished", "Attach a terminal job result.")
+    if job.state is JobState.COMPLETED and not isinstance(job.result, dict):
+        raise api_error(status.HTTP_409_CONFLICT, "job_result_missing", "The completed job has no result to attach.")
+    mismatches = await cell_job_mismatches(session, cell, job, user)
+    if mismatches:
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            "cell_job_mismatch",
+            "The job is not an execution of this cell: " + ", ".join(sorted(mismatches)) + " differ.",
+            fields=sorted(mismatches),
+            details=mismatches,
+        )
+    other = await session.scalar(
+        select(StudyCell.id).where(StudyCell.job_id == job.id, StudyCell.id != cell.id).limit(1)
+    )
+    if other is not None:
+        raise api_error(status.HTTP_409_CONFLICT, "job_already_attached", "The job is already the result of another cell.")
     cell.job_id = job.id
     cell.metrics = metrics_from_job(job, cell)
     cell.state = RunState.COMPLETED if job.state is JobState.COMPLETED else RunState.FAILED

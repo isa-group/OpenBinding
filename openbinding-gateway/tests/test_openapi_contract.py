@@ -25,6 +25,7 @@ from _repo import REPO_ROOT
 from openbinding_gateway.access.dependencies import (
     get_current_user,
     require_admin,
+    require_platform_admin,
     require_v1_admin,
     solve_caller,
 )
@@ -154,7 +155,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/generator/instances", "post"),
         ("/v1/generator/corpus", "post"),
         ("/v1/generator/convert-legacy", "post"),
-        ("/v1/generator/calibrate-engine", "post"),
     }
     for path, method, operation in operations(document):
         if (path, method) in public:
@@ -212,6 +212,7 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/admin/engine-routing/metrics", "get"),
         ("/v1/admin/engine-routing/observations", "get"),
         ("/v1/admin/engine-routing/recalibrate", "post"),
+        ("/v1/generator/calibrate-engine", "post"),
         ("/v1/engine-registrations/{name}/approve", "post"),
         ("/v1/engine-registrations/{name}/reject", "post"),
     }
@@ -252,7 +253,7 @@ def test_documented_security_matches_the_runtime_dependency_graph(document):
         assert bool(dependencies & auth_guards) is bool(operation.get("security")), (
             f"{method.upper()} {path} runtime authentication and OpenAPI security differ"
         )
-        assert bool({require_admin, require_v1_admin} & dependencies) is (
+        assert bool({require_admin, require_v1_admin, require_platform_admin} & dependencies) is (
             operation.get("x-required-role") == "admin"
         ), f"{method.upper()} {path} runtime role and OpenAPI role differ"
 

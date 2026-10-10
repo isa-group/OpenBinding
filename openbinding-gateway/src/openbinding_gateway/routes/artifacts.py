@@ -17,7 +17,7 @@ from typing import Literal
 import yaml
 from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, session_dependency
@@ -28,7 +28,7 @@ from ..db.models import (
     AuditEvent,
     BindingCase,
     BindingCaseRevision,
-    InstanceSnapshot, BindingIRSnapshot, Artifact, ArtifactVersion, ArtifactDraft, ArtifactDependency, CaseArtifact, ProjectArtifact,
+    InstanceResource, InstanceSnapshot, BindingIRSnapshot, Artifact, ArtifactVersion, ArtifactDraft, ArtifactDependency, CaseArtifact, ProjectArtifact,
     Collection,
     CollectionItem,
     CollectionRevision,
@@ -49,7 +49,7 @@ from ..db.models import (
     User,
     Visibility,
 )
-from ..models.errors import api_error
+from ..models.errors import ErrorResponse, api_error
 from ..models.platform import BlobView
 from ..v1.canonical import CanonicalizationError, digest, digest_bytes
 from ..v1.package import PackageError, strict_json_loads
@@ -312,7 +312,106 @@ async def download_artifact(
     )
 
 
-@router.delete("/blobs/{digest_value}", status_code=status.HTTP_204_NO_CONTENT, operation_id="deleteBlob")
+async def blob_references(session: AsyncSession, project_id: uuid.UUID, blob: Blob) -> dict[str, int]:
+    """Sealed or revisioned things of a project that depend on a blob's digest.
+
+    Every column consulted is indexed (digests, ``target_digest``) or reached
+    through an indexed foreign key, so this is a handful of lookups rather than
+    a walk over the project. Only kinds and counts are returned: the caller
+    learns that something depends on the file, not what it is called.
+    """
+
+    wanted = blob.digest
+    project_artifacts = select(ProjectArtifact.artifact_id).where(ProjectArtifact.project_id == project_id)
+    versions = (await session.execute(
+        select(ArtifactVersion.id, Artifact.kind)
+        .join(Artifact, Artifact.id == ArtifactVersion.artifact_id)
+        .where(or_(
+            ArtifactVersion.blob_id == blob.id,
+            and_(ArtifactVersion.content_digest == wanted, Artifact.id.in_(project_artifacts)),
+        ))
+    )).all()
+    version_ids = {version_id for version_id, _ in versions}
+    references: dict[str, int] = {
+        "library_version": len({v for v, kind in versions if kind not in {"Report", "Collection"}}),
+        "report": len({v for v, kind in versions if kind == "Report"}),
+    }
+
+    collection_revisions = {v for v, kind in versions if kind == "Collection"}
+    collection_scope = (
+        select(CollectionRevision.id)
+        .join(Collection, Collection.id == CollectionRevision.collection_id)
+        .where(Collection.project_id == project_id)
+    )
+    collection_revisions |= set(await session.scalars(
+        collection_scope.where(CollectionRevision.digest == wanted)
+    ))
+    collection_revisions |= set(await session.scalars(
+        collection_scope.join(CollectionItem, CollectionItem.collection_revision_id == CollectionRevision.id)
+        .where(CollectionItem.target_digest == wanted)
+    ))
+    references["collection_revision"] = len(collection_revisions)
+
+    project_cases = (
+        select(BindingCaseRevision.id, BindingCaseRevision.digest, BindingCaseRevision.source_snapshot_id)
+        .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+        .where(BindingCase.project_id == project_id)
+    )
+    snapshot_ids = {
+        snapshot_id for snapshot_id in await session.scalars(
+            select(BindingCaseRevision.source_snapshot_id)
+            .join(BindingCase, BindingCase.id == BindingCaseRevision.binding_case_id)
+            .where(BindingCase.project_id == project_id, BindingCaseRevision.source_snapshot_id.is_not(None))
+        )
+    }
+    matching_snapshots: set[uuid.UUID] = set()
+    if snapshot_ids:
+        matching_snapshots = set(await session.scalars(
+            select(InstanceSnapshot.id).where(
+                InstanceSnapshot.id.in_(snapshot_ids),
+                or_(InstanceSnapshot.package_digest == wanted, InstanceSnapshot.instance_digest == wanted),
+            )
+        )) | set(await session.scalars(
+            select(InstanceResource.snapshot_id).where(
+                InstanceResource.snapshot_id.in_(snapshot_ids), InstanceResource.digest == wanted
+            )
+        ))
+    case_revisions = {
+        revision_id for revision_id, revision_digest, snapshot_id in (await session.execute(project_cases)).all()
+        if revision_digest == wanted or snapshot_id in matching_snapshots
+    }
+    references["case_revision"] = len(case_revisions)
+    references["snapshot"] = len(matching_snapshots)
+
+    references["project_resource_revision"] = int(await session.scalar(
+        select(func.count(ProjectResourceRevision.id))
+        .join(ProjectResource, ProjectResource.id == ProjectResourceRevision.project_resource_id)
+        .where(ProjectResource.project_id == project_id, ProjectResourceRevision.digest == wanted)
+    ) or 0)
+    references["publication"] = int(await session.scalar(
+        select(func.count(Publication.id)).where(
+            Publication.project_id == project_id, Publication.version_id.in_(version_ids)
+        )
+    ) or 0) if version_ids else 0
+    return {kind: count for kind, count in references.items() if count}
+
+
+@router.delete(
+    "/blobs/{digest_value}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="deleteBlob",
+    responses={
+        409: {
+            "model": ErrorResponse,
+            "description": (
+                "A sealed or revisioned element of the project depends on this file "
+                "(code `blob_in_use`). `references` lists the kinds of element and how many of each "
+                "(`library_version`, `report`, `collection_revision`, `case_revision`, `snapshot`, "
+                "`project_resource_revision`, `publication`); names are not disclosed."
+            ),
+        }
+    },
+)
 async def delete_artifact(
     org: str, project: str, digest_value: str,
     user: User = Depends(get_current_user),
@@ -324,6 +423,14 @@ async def delete_artifact(
     ))).scalars().first()
     if artifact is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Blob not found.")
+    references = await blob_references(session, found_project.id, artifact)
+    if references:
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            "blob_in_use",
+            "Sealed or revisioned elements of this project depend on the file; it cannot be deleted.",
+            references=[{"type": kind, "count": count} for kind, count in sorted(references.items())],
+        )
     storage_path = Path(artifact.storage_uri)
     session.add(AuditEvent(
         organization_id=organization.id, actor_id=user.id, action="artifact.deleted",

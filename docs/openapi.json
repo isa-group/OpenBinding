@@ -19796,6 +19796,26 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not a platform administrator (code `platform_admin_required`), or the API key lacks the `admin:accounts:write` permission (code `insufficient_api_key_permission`)."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -19805,12 +19825,34 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
           }
         },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
         "summary": "Calibrate Engine",
         "tags": [
           "generator"
-        ]
+        ],
+        "x-required-api-key-permissions": [
+          "admin:accounts:write"
+        ],
+        "x-required-role": "admin"
       }
     },
     "/v1/generator/convert-legacy": {
@@ -22518,13 +22560,13 @@
           },
           "403": {
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The caller lacks ADMIN access to the organization (code `organization_forbidden`), or the change grants OWNER or alters or removes an existing owner and the caller is not an organization owner (code `owner_role_requires_owner`)."
           },
           "422": {
             "content": {
@@ -22917,13 +22959,13 @@
           },
           "403": {
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The caller lacks ADMIN access to the organization (code `organization_forbidden`), or the change grants OWNER or alters or removes an existing owner and the caller is not an organization owner (code `owner_role_requires_owner`)."
           },
           "422": {
             "content": {
@@ -23003,13 +23045,13 @@
           },
           "403": {
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The caller lacks ADMIN access to the organization (code `organization_forbidden`), or the change grants OWNER or alters or removes an existing owner and the caller is not an organization owner (code `owner_role_requires_owner`)."
           },
           "422": {
             "content": {
@@ -23104,13 +23146,13 @@
           },
           "403": {
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+            "description": "The caller lacks ADMIN access to the organization (code `organization_forbidden`), or the change grants OWNER or alters or removes an existing owner and the caller is not an organization owner (code `owner_role_requires_owner`)."
           },
           "422": {
             "content": {
@@ -23854,6 +23896,16 @@
               }
             },
             "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A sealed or revisioned element of the project depends on this file (code `blob_in_use`). `references` lists the kinds of element and how many of each (`library_version`, `report`, `collection_revision`, `case_revision`, `snapshot`, `project_resource_revision`, `publication`); names are not disclosed."
           },
           "422": {
             "content": {
@@ -29268,6 +29320,16 @@
               }
             },
             "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The run is evidence of a sealed report (code `sealed_evidence`); the job is not finished (`job_not_finished`) or completed without a result (`job_result_missing`); the job is already the result of another cell (`job_already_attached`); or the job is not an execution of this cell (`cell_job_mismatch`): its `fields` list names each of `case_revision`, `engine`, `mode` and `seed` that differ, and `details` gives the `cell` and `job` values."
           },
           "422": {
             "content": {

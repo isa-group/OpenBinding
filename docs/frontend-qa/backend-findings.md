@@ -11,6 +11,7 @@ Cada punto indica el código del frontend afectado y el endpoint. Ningún cambio
    `frontend/src/api/platform.ts` (`updateMember`, `updateMembersBatch`).
    Endpoints: `PUT /v1/organizations/{org}/members/{user}`, `POST /v1/organizations/{org}/members/batch`.
    Decidir si conceder OWNER debe exigir ser OWNER; hoy el servidor lo acepta a un ADMIN y la pantalla no lo impide.
+   RESUELTO en backend: conceder OWNER, o cambiar/quitar a un OWNER existente, exige ser OWNER efectivo de la organización (o administrador de plataforma que ya tenga acceso ADMIN); un ADMIN recibe `403 owner_role_requires_owner` en `PUT`/`DELETE .../members/{user}`, `POST .../members/batch` (el lote sigue siendo atómico: un solo cambio prohibido rechaza todo, con `index` y `user_id` del primero) e invitaciones con `role: "OWNER"` (misma vía de escalada). La protección `409 last_owner` se mantiene.
 
 2. **Un OWNER/admin puede fijar a cualquier usuario activo como patrocinador de facturación sin su consentimiento.**
    Frontend: `frontend/src/pages/Organization/OrgSettings.tsx` (cambio de patrocinador), `frontend/src/pages/Admin/AdminSponsor.tsx`,
@@ -21,16 +22,19 @@ Cada punto indica el código del frontend afectado y el endpoint. Ningún cambio
 3. **`POST /v1/generator/calibrate-engine` no hace una comprobación estricta de autorización.**
    Frontend: `frontend/src/pages/Generator/ToolPanes.tsx` (`CalibratePane`), `frontend/src/api/generator.ts` (`calibrate`).
    La restricción a administradores de plataforma existe solo en la interfaz; el modelo que se reajusta es compartido por todos.
+   RESUELTO en backend: el endpoint exige administrador de plataforma en el servidor (`403 platform_admin_required`; sin credencial `401`); las claves API necesitan `admin:accounts:write` (`403 insufficient_api_key_permission`). Antes aceptaba incluso peticiones anónimas. `/v1/generator/instances`, `/corpus` y `/convert-legacy` no tocan estado compartido y quedan abiertas a cualquier llamante (persistir exige cuenta y rol MEMBER en el proyecto).
 
 4. **Adjuntar el resultado de un job a una celda de estudio no comprueba caso, motor ni semilla (integridad de la evidencia).**
    Frontend: `frontend/src/pages/Studies/StudyCell.tsx`, `frontend/src/api/platform.ts` (`attachStudyCellResult`).
    Endpoint: `POST /v1/organizations/{org}/projects/{project}/studies/{study}/runs/{run}/cells/{cell}/result`.
    Un job de cualquier caso/motor/semilla de la persona puede quedar como resultado de la celda.
+   RESUELTO en backend: además de pertenecer a quien llama y estar terminado, el job debe ser una ejecución de la celda: paquete BIM de la revisión de caso, motor (namespace/nombre/versión/digest), modo (si la celda lo fija) y semilla coinciden; si no, `409 cell_job_mismatch` con `fields` (`case_revision`, `engine`, `mode`, `seed`) y `details` (valor de la celda y del job). Nuevos `409 job_result_missing` (completado sin resultado) y `409 job_already_attached` (job ya asignado a otra celda); `sealed_evidence` se conserva. No se comparan `parameters` ni `optimization`.
 
 5. **Borrar un fichero solo comprueba el rol aunque una versión sellada dependa de él.**
    Frontend: `frontend/src/pages/Resources/ProjFiles.tsx`, `frontend/src/pages/Resources/resourceErrors.ts`.
    Endpoint: `DELETE /v1/organizations/{org}/projects/{project}/blobs/{digest}` (los ficheros del proyecto son blobs direccionados por contenido; `frontend/src/api/platform.ts`, `deleteArtifact`).
    Debería rechazar (409) cuando una revisión o versión sellada lo referencia.
+   RESUELTO en backend: `409 blob_in_use` con `references: [{type, count}]` (`library_version`, `report`, `collection_revision`, `case_revision`, `snapshot`, `project_resource_revision`, `publication`; sin nombres). Se consulta por las columnas de digest indexadas del propio proyecto (`content_digest`, `digest`, `target_digest`, `package_digest`, `InstanceResource.digest`) y por `blob_id`, sin recorrer el proyecto; las referencias de otros proyectos no bloquean.
 
 6. **Un proyecto público solo se abre siendo miembro (gap L4).**
    Frontend: `frontend/src/pages/Project/parts.tsx` (la puerta apunta a la tarjeta de Explore).
@@ -51,6 +55,7 @@ Cada punto indica el código del frontend afectado y el endpoint. Ningún cambio
    Frontend: `frontend/src/pages/Reports/Verifier.tsx`, `frontend/src/api/platform.ts` (`verifierCheck`, `verifierCheckFile`).
    Endpoints: `POST /v1/verifier/inspect`, `POST /v1/verifier/inspect-file`. Devuelve organización, proyecto y título
    de elementos privados a quien conozca la huella.
+   RESUELTO en backend: ambos endpoints solo devuelven elementos que el llamante puede ver (miembro de la organización o ancestro, proyecto público —y fichero público—, versión publicada, motor publicado o propio, snapshot compartido, propio o de un caso visible); el resto es indistinguible de una huella no registrada (mismo `status`, campos y `detail`; filtrado en SQL, mismas consultas siempre). Se mantiene la política de autenticación: sin cuenta, `401`. Un administrador de plataforma no obtiene una vista más amplia.
 
 10. **`AdminUserView.cas_verified` es siempre `false`.**
     Frontend: `frontend/src/pages/Admin/AdminUsers.tsx`, `frontend/src/pages/Admin/AdminUserDetail.tsx`, `frontend/src/api/auth.ts`.
