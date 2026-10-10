@@ -4,6 +4,12 @@ Una captura de la primera pantalla de **cada una de las 86 rutas** del registro 
 en escritorio (1440×900, escala 1) y en móvil (390×844, escala 2). Sirve para que el responsable valide el aspecto sin
 levantar el backend.
 
+## Última regeneración
+
+2026-10-10: la galería se regeneró (desktop y mobile). Verificación final de esta rama: gateway 1209 tests ok
+(8 omitidos, 2 xfail); vitest 177 ficheros / 2486 tests; build ok; e2e s1a..s9b, visual, pricing/analysis/f2 y
+routes-smoke 87 ok (dos flakes de carga que pasaron al repetir: s5d-workbench desktop y f2-ranges).
+
 ## Cómo regenerarla
 
 Desde `frontend/` (el servidor de desarrollo de Vite lo arranca Playwright). Se regenera un viewport por comando; cada
