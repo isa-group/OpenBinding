@@ -19,6 +19,7 @@ import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import pytest_asyncio
@@ -148,19 +149,132 @@ async def test_a_heartbeat_renews_the_lease_only_for_its_holder(db_session, owne
     assert at(job.lease_until) > utcnow() + timedelta(seconds=metering.LEASE_S - 5)
 
 
-async def test_the_heartbeat_keeps_beating_until_it_is_stopped(db_session, owner):
+async def test_each_renewal_pushes_the_lease_further(db_session, owner, monkeypatch):
     job = await a_job(db_session, owner)
     token = await metering.claim_job(db_session, job.id)
-    job.lease_until = utcnow() + timedelta(seconds=1)
     await db_session.commit()
+    factory = async_sessionmaker(db_session.bind, expire_on_commit=False)
+    base = utcnow()
+    clock = iter([base + timedelta(seconds=10 * step) for step in range(1, 4)])
+    monkeypatch.setattr(metering, "utcnow", lambda: next(clock))
 
-    beat = metering.start_heartbeat(db_session, job.id, token, interval_s=0.01)
-    await asyncio.sleep(0.2)
+    deadlines = []
+    for _ in range(3):
+        # Called one after another, never alongside the test's own session:
+        # an in-memory SQLite database is one connection shared by all of them.
+        assert await metering.renew_lease(factory, job.id, token) is True
+        await db_session.refresh(job)
+        deadlines.append(at(job.lease_until))
+
+    assert deadlines == sorted(set(deadlines))
+    assert deadlines[1] - deadlines[0] == timedelta(seconds=10)
+
+
+class Ticks:
+    """Replaces asyncio.sleep in the heartbeat loop: each beat waits to be let through."""
+
+    def __init__(self) -> None:
+        self.intervals: list[float] = []
+        self.allowed = asyncio.Semaphore(0)
+
+    async def sleep(self, interval: float) -> None:
+        self.intervals.append(interval)
+        await self.allowed.acquire()
+
+
+@pytest.fixture
+def ticks(monkeypatch) -> Ticks:
+    clock = Ticks()
+    # Only the module's view of asyncio is swapped, so nothing else is slowed or sped up.
+    monkeypatch.setattr(
+        metering,
+        "asyncio",
+        SimpleNamespace(
+            sleep=clock.sleep,
+            create_task=asyncio.create_task,
+            gather=asyncio.gather,
+            CancelledError=asyncio.CancelledError,
+        ),
+    )
+    return clock
+
+
+@pytest.fixture
+def renewals(monkeypatch) -> asyncio.Queue:
+    """Replaces the renewal itself, so a beat touches no database at all."""
+    seen: asyncio.Queue = asyncio.Queue()
+    outcomes: list = []
+
+    async def renew(_factory, job_id, token) -> bool:
+        seen.put_nowait((job_id, token))
+        outcome = outcomes.pop(0) if outcomes else True
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    seen.outcomes = outcomes  # type: ignore[attr-defined]
+    monkeypatch.setattr(metering, "renew_lease", renew)
+    return seen
+
+
+async def one_beat(ticks: Ticks, renewals: asyncio.Queue):
+    ticks.allowed.release()
+    return await asyncio.wait_for(renewals.get(), timeout=5)  # a guard, not a delay
+
+
+async def test_the_heartbeat_keeps_beating_until_it_is_stopped(db_session, ticks, renewals):
+    job_id, token = uuid.uuid4(), str(uuid.uuid4())
+
+    beat = metering.start_heartbeat(db_session, job_id, token, interval_s=7.0)
+    seen = [await one_beat(ticks, renewals) for _ in range(3)]
+    assert seen == [(job_id, token)] * 3
+    assert ticks.intervals[:3] == [7.0] * 3
+    assert not beat.done()
+
+    await metering.stop_heartbeat(beat)
+    ticks.allowed.release()
+    await asyncio.sleep(0)
+
+    assert beat.done() and beat.cancelled()
+    assert renewals.empty()
+
+
+async def test_the_heartbeat_beats_at_the_default_interval(db_session, ticks, renewals):
+    beat = metering.start_heartbeat(db_session, uuid.uuid4(), "token")
+    await one_beat(ticks, renewals)
     await metering.stop_heartbeat(beat)
 
-    assert beat.done()
-    await db_session.refresh(job)
-    assert at(job.lease_until) > utcnow() + timedelta(seconds=metering.LEASE_S - 5)
+    assert ticks.intervals[0] == metering.HEARTBEAT_S
+
+
+async def test_the_heartbeat_ends_when_the_job_was_taken_back(db_session, ticks, renewals):
+    renewals.outcomes.append(False)  # type: ignore[attr-defined]
+
+    beat = metering.start_heartbeat(db_session, uuid.uuid4(), "token", interval_s=1.0)
+    await one_beat(ticks, renewals)
+    await asyncio.wait_for(beat, timeout=5)
+
+    assert beat.done() and not beat.cancelled()
+
+
+async def test_a_missed_beat_does_not_end_the_heartbeat(db_session, ticks, renewals):
+    renewals.outcomes.append(RuntimeError("database hiccup"))  # type: ignore[attr-defined]
+
+    beat = metering.start_heartbeat(db_session, uuid.uuid4(), "token", interval_s=1.0)
+    await one_beat(ticks, renewals)
+    await one_beat(ticks, renewals)
+    still_beating = not beat.done()
+    await metering.stop_heartbeat(beat)
+
+    assert still_beating
+
+
+async def test_a_session_with_nothing_to_connect_to_has_no_heartbeat(monkeypatch):
+    monkeypatch.setattr(metering.db_base, "is_configured", lambda: False)
+    session = SimpleNamespace(bind=None)
+
+    assert metering.start_heartbeat(session, uuid.uuid4(), "token") is None
+    await metering.stop_heartbeat(None)
 
 
 # -- A worker that lost its lease writes nothing ----------------------------
@@ -317,6 +431,83 @@ async def test_a_result_that_arrives_after_the_job_was_taken_back_is_discarded(
     assert job.result is None
     assert job.metered is False
     assert job.attempt == 1
+
+
+def fail_once(session, name: str, monkeypatch) -> None:
+    """Make the session's next ``name`` call raise, and later calls behave normally."""
+    real = getattr(session, name)
+    failed = []
+
+    async def wrapper(*args, **kwargs):
+        if not failed:
+            failed.append(True)
+            raise RuntimeError(f"{name} failed")
+        return await real(*args, **kwargs)
+
+    monkeypatch.setattr(session, name, wrapper)
+
+
+async def test_a_claim_that_cannot_be_committed_is_given_up(db_session, owner, monkeypatch):
+    job = await a_job(db_session, owner)
+    fail_once(db_session, "commit", monkeypatch)
+
+    with pytest.raises(RuntimeError, match="commit failed"):
+        await execution.finish_persisted_job(str(job.id), db_session)
+
+    await db_session.refresh(job)
+    assert metering.held_token(db_session, job.id) is None
+    assert job.state is JobState.QUEUED and job.lease_token is None and job.attempt == 0
+
+
+async def test_a_worker_that_does_not_hold_the_lease_does_not_run_the_job(db_session, owner, monkeypatch):
+    async def solve(*_args, **_kwargs):
+        raise AssertionError("a job nobody claimed was run")
+
+    monkeypatch.setattr(execution, "solve_remote", solve)
+    job = await a_job(db_session, owner)
+
+    await execution.run_claimed_job(job.id, db_session)
+
+    await db_session.refresh(job)
+    assert job.state is JobState.QUEUED and job.result is None
+
+
+async def test_the_session_is_idle_during_the_solve_and_committed_before_the_heartbeat_stops(
+    api_client, db_session, registration, monkeypatch
+):
+    events: list[tuple] = []
+
+    async def solve(*_args, **_kwargs):
+        has_token = any(str(key).startswith("job-lease:") for key in db_session.info)
+        events.append(("solve", db_session.in_transaction(), has_token))
+        return _answer()
+
+    real_stop, real_hold, real_refresh = metering.stop_heartbeat, metering.hold_lease, db_session.refresh
+
+    async def stop(task):
+        events.append(("stop", db_session.in_transaction()))
+        await real_stop(task)
+
+    async def hold(*args, **kwargs):
+        events.append(("hold",))
+        return await real_hold(*args, **kwargs)
+
+    async def refresh(*args, **kwargs):
+        events.append(("refresh",))
+        return await real_refresh(*args, **kwargs)
+
+    monkeypatch.setattr(execution, "solve_remote", solve)
+    monkeypatch.setattr(metering, "stop_heartbeat", stop)
+    monkeypatch.setattr(metering, "hold_lease", hold)
+    monkeypatch.setattr(db_session, "refresh", refresh)
+    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+
+    await _submit(api_client, headers, snapshot_id)
+
+    solved = events.index(("solve", False, True))  # no open transaction, lease token kept
+    after = events[solved + 1 :]
+    assert after.index(("hold",)) < after.index(("refresh",))  # lock, then read
+    assert ("stop", False) in events  # nothing left uncommitted when the beat stops
 
 
 # -- The reconciler ---------------------------------------------------------

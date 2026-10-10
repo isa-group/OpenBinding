@@ -217,12 +217,33 @@ async def test_a_job_past_its_budget_and_grace_is_settled(gate, db_session, owne
 
 async def test_an_abandoned_job_is_charged_for_the_budget_it_held(gate, db_session, owner):
     # An abandoned solve that costs nothing is an invitation to abandon every
-    # solve: the engine was holding the work either way.
-    await a_job(db_session, owner, budget_s=60.0, age_s=60 + metering.SETTLEMENT_GRACE_S + 1)
+    # solve: the engine was holding the work either way. Only a running job
+    # was holding it; a queued one is covered below.
+    await a_job(
+        db_session, owner, budget_s=60.0, age_s=60 + metering.SETTLEMENT_GRACE_S + 1, state=JobState.RUNNING
+    )
 
     await metering.sweep_abandoned(gate, db_session)
 
     assert (await gate.usage(owner.id)).limits[SOLVER_TIME].used == 60.0
+
+
+async def test_a_queued_job_nobody_claimed_is_failed_free_of_charge_and_frees_its_slot(
+    gate, db_session, owner
+):
+    # It never reached an engine, so there is nothing to charge for - but the
+    # slot reserved for it must still come back.
+    await metering.reserve(gate, owner.id)
+    job = await a_job(db_session, owner, budget_s=60.0, age_s=60 + metering.SETTLEMENT_GRACE_S + 1)
+    assert job.claimed_at is None
+
+    assert await metering.sweep_abandoned(gate, db_session) == 1
+
+    await db_session.refresh(job)
+    usage = await gate.usage(owner.id)
+    assert job.state is JobState.FAILED and job.metered is True
+    assert usage.limits[SOLVER_TIME].used == 0
+    assert usage.limits[CONCURRENT].used == 0
 
 
 async def test_an_abandoned_job_is_marked_failed(gate, db_session, owner):

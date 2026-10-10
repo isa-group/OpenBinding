@@ -345,7 +345,10 @@ reconciler tells apart from a slow solve:
   solve, but one that held the engine for ten seconds should not pay for
   thirty minutes. A job nobody ever saw start is charged its whole budget.
 - A job with no lease to judge by is failed once its budget and two minutes of
-  grace have passed, counted from when it was claimed or else created.
+  grace have passed, counted from when it was claimed or else created. A job that
+  was still queued and nobody ever claimed never held an engine: it is failed
+  with no solver seconds charged, and its slot is released. A running job from
+  before leases (no claim time) keeps the old charge, its whole budget.
 
 A worker that lost its lease cannot write a result, a failure or a cancellation
 afterwards, and does not settle: an answer arriving after the job was put back
@@ -355,6 +358,28 @@ A job that reached a terminal state but could not be settled (SPACE was down at
 that moment) is settled by a later sweep, once. It is charged the time between
 its claim and its end, up to its budget. A job that ended before leases existed
 has no claim time and releases its slot without charging solver time.
+
+**Settlement is per job.** The sweep takes the jobs in id order, skipping rows
+another transaction holds, and commits each settlement on its own as soon as
+SPACE has accepted it; a worker commits right after its own. The study cell of a
+job the sweep ends is brought up to date in the same transaction, and a later
+pass resyncs the cells of terminal jobs whose cell never heard of it.
+
+**Known limitation: no idempotency key towards SPACE.** The usage update is
+sent before the row is confirmed, and SPACE cannot be told "this is the same
+update as before". If the database fails to keep the settlement after SPACE took
+the charge, the gateway logs an `ERROR` with `job_id` and `delta`, stops the
+sweep, and remembers the charge in the memory of that process, so that settling
+the job again records it without charging a second time. That memory is lost if
+the process restarts before the job is settled again; then the charge is taken
+twice, and only the log and `POST /v1/admin/users/{id}/usage/resync` correct it.
+
+**Residual risk: clocks.** Leases are judged by the gateway's clock against
+deadlines written from a worker's. Gateway and worker clocks are assumed to be
+synchronised (NTP); the 60-second lease with a renewal every 20 seconds tolerates
+about 40 seconds of skew before a live worker can look dead, or a dead one alive
+for longer than intended. Beyond that, a healthy job may be put back in the
+queue once, free of charge, and its late answer is discarded.
 
 One limit remains: the concurrency slot and task are reserved before the job row
 exists, so a gateway that dies between the reservation and the commit of the row

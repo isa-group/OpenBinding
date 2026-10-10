@@ -138,6 +138,29 @@ def reevaluate_result(
     return {"termination": termination, "solutions": solutions, "provenance": result.get("provenance", {})}
 
 
+async def _settle_and_commit(
+    session: AsyncSession, job_id: uuid.UUID, *, solver_seconds: float, outcome: str
+) -> None:
+    """Charge a job that just ended and make it durable at once.
+
+    SPACE is told before the row is confirmed, so the commit follows the charge
+    immediately; a failure to commit raises ``SettlementCommitFailed`` with the
+    charge remembered. A SPACE refusal is only logged: the job keeps its outcome
+    and the reconciler settles it later.
+    """
+    try:
+        settled = await metering.settle(
+            space_client.get_gate(), session, job_id, solver_seconds=solver_seconds
+        )
+    except metering.SettlementCommitFailed:
+        raise
+    except Exception as exc:
+        logger.warning("Metering settlement failed for %s job %s: %s", outcome, job_id, exc)
+        return
+    if settled:
+        await metering.commit_settlement(session)
+
+
 async def fail_persisted_job(
     job: Job,
     session: AsyncSession,
@@ -161,15 +184,9 @@ async def fail_persisted_job(
     }
     job.termination = "UNKNOWN"
     job.finished_at = utcnow()
-    try:
-        await metering.settle(
-            space_client.get_gate(),
-            session,
-            job.id,
-            solver_seconds=max(0.0, time.monotonic() - started),
-        )
-    except Exception as exc:
-        logger.warning("Settlement failed while failing job %s: %s", job.id, exc)
+    await _settle_and_commit(
+        session, job.id, solver_seconds=max(0.0, time.monotonic() - started), outcome="failed"
+    )
     from ..telemetry import record_job_failure
     try:
         await record_job_failure(session, job, message)
@@ -225,34 +242,41 @@ async def finish_persisted_job(job_id: str, session: AsyncSession) -> None:
     try:
         await session.commit()
     except Exception:
-        await session.flush()
+        # Whether the claim reached the database is unknown, and this worker
+        # must not act as if it held a lease it may not have: forget the token
+        # and let the job be redelivered or its lease lapse.
+        session.info.pop(metering.lease_key(parsed), None)
+        try:
+            await session.rollback()
+        except Exception:
+            logger.warning("Could not roll back after a failed claim of job %s", parsed, exc_info=True)
+        raise
 
     # The lease runs out unless it is renewed, which is how the reconciler
     # tells a worker that died from one that is still solving.
     heartbeat = metering.start_heartbeat(session, parsed, token)
     try:
         await run_claimed_job(parsed, session)
+        # The outcome is durable before the lease stops being renewed.
+        await session.commit()
     finally:
         await metering.stop_heartbeat(heartbeat)
 
 
 async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
+    if not await metering.hold_lease(session, parsed, metering.held_token(session, parsed)):
+        logger.warning("Job %s is not held by this worker; not running it", parsed)
+        await session.rollback()
+        return
     job = await session.get(Job, parsed, populate_existing=True)
     if job is None:
         return
     if job.cancellation_requested:
-        if not await metering.hold_lease(session, job.id, metering.held_token(session, job.id)):
-            logger.warning("Lost the lease on job %s; not recording its cancellation", job.id)
-            await session.rollback()
-            return
         job.state = JobState.CANCELLED
         job.lease_token = None
         job.lease_until = None
         job.finished_at = utcnow()
-        try:
-            await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
-        except Exception as exc:
-            logger.warning("Metering settlement failed for cancelled job %s: %s", job.id, exc)
+        await _settle_and_commit(session, job.id, solver_seconds=0, outcome="cancelled")
         await session.flush()
         return
     started = time.monotonic()
@@ -382,6 +406,10 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
         if provenance.get("registration") != registration_ref or provenance.get("protocolDigest") != protocol_digest:
             await fail_persisted_job(job, session, "Persisted EngineRegistration provenance is inconsistent", started)
             return
+        # No transaction stays open (idle, holding the row lock) while the
+        # engine works. The lease token lives in session.info, which a commit
+        # leaves alone, and is checked again once the answer is back.
+        await session.commit()
         try:
             remote_result = await solve_remote(
                 transport,
@@ -434,25 +462,23 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             else:
                 await fail_persisted_job(job, session, str(exc), started)
                 return
-        await session.refresh(job)
+        # Lock first, read second: the refresh then sees the row as it will stay
+        # until this transaction ends.
         if not await metering.hold_lease(session, job.id, metering.held_token(session, job.id)):
             # The worker was presumed dead and the job went back in the queue
             # (or failed). The answer arrived too late to be the job's answer.
             logger.warning("Lost the lease on job %s; discarding its result", job.id)
             await session.rollback()
             return
+        await session.refresh(job)
         if job.cancellation_requested:
             job.state = JobState.CANCELLED
             job.lease_token = None
             job.lease_until = None
             job.finished_at = utcnow()
-            try:
-                await metering.settle(
-                    space_client.get_gate(), session, job.id,
-                    solver_seconds=max(0.0, time.monotonic() - started),
-                )
-            except Exception as exc:
-                logger.warning("Metering settlement failed for cancelled job %s: %s", job.id, exc)
+            await _settle_and_commit(
+                session, job.id, solver_seconds=max(0.0, time.monotonic() - started), outcome="cancelled"
+            )
             await session.flush()
             return
         reevaluated = reevaluate_result(
@@ -518,16 +544,14 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
                 )
             except Exception as exc:
                 logger.warning("Failed to record adaptation observation for job %s: %s", job.id, exc)
-        try:
-            await metering.settle(
-                space_client.get_gate(),
-                session,
-                job.id,
-                solver_seconds=time.monotonic() - started,
-            )
-        except Exception as exc:
-            logger.warning("Metering settlement failed for completed job %s: %s", job.id, exc)
+        await _settle_and_commit(
+            session, job.id, solver_seconds=time.monotonic() - started, outcome="completed"
+        )
         await session.flush()
+    except metering.SettlementCommitFailed:
+        # The outcome is not durable and failing the job here would build on a
+        # session in an unknown state; the caller rolls back and settles it.
+        raise
     except Exception as exc:
         logger.exception("Unexpected error executing persisted job %s: %s", parsed, exc)
         await fail_persisted_job(job, session, f"Execution failed: {exc}", started)
@@ -544,6 +568,9 @@ async def run_persisted_job(job_id: str, request_session: AsyncSession | None = 
             await finish_persisted_job(job_id, session)
             await session.commit()
         except Exception as exc:
+            # A charge SPACE took in the transaction being abandoned is not
+            # lost with it: it is kept to be recorded with the failure below.
+            metering.remember_staged_charges(session)
             await session.rollback()
             logger.exception("Job execution failed unexpectedly for %s: %s", job_id, exc)
             async with db_base.session_factory()() as fail_session:
@@ -575,12 +602,16 @@ async def run_persisted_job(job_id: str, request_session: AsyncSession | None = 
                         }
                         failed_job.termination = "UNKNOWN"
                         failed_job.finished_at = utcnow()
+                        # If the worker's own settlement was charged but not
+                        # committed, record it with the failure, in the same
+                        # transaction, so the sweep does not charge it again.
+                        await metering.record_unrecorded(fail_session, parsed)
                         from ..telemetry import record_job_failure
                         try:
                             await record_job_failure(fail_session, failed_job, str(exc))
                         except Exception:
                             pass
-                        await fail_session.commit()
+                        await metering.commit_settlement(fail_session)
                 except Exception:
                     logger.exception("Failed to record failure for job %s", job_id)
             raise

@@ -37,7 +37,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..db import base as db_base
-from ..db.models import Job, JobState, User, utcnow
+from ..db.models import Job, JobState, RunState, StudyCell, User, utcnow
 from ..core.settings import Settings
 from ..space_client import PricingGate, PricingUnavailable, Verdict
 
@@ -69,9 +69,30 @@ MAX_ATTEMPTS = 2
 #: How many unsettled terminal jobs one sweep retries.
 SETTLE_RETRY_BATCH = 100
 
+#: How many terminal jobs whose study cell never caught up one sweep resyncs.
+STUDY_RESYNC_BATCH = 100
+
 #: What a solve costs before anybody knows how long it took.
 TASK_COST = {"taskStarts": 1, "concurrentJobs": 1}
 FEDERATED_TASK_COST = {"federatedTaskStarts": 1, "concurrentJobs": 1}
+
+#: Charges SPACE accepted whose ``metered`` flag never reached the database,
+#: by job. The next ``settle`` of the job records the flag without asking SPACE
+#: again. Memory of this process only: a restart before the job is settled again
+#: forgets it, and then only the ERROR log and ``usage/resync`` remain.
+_unrecorded: dict[uuid.UUID, dict] = {}
+
+
+class SettlementCommitFailed(RuntimeError):
+    """SPACE took a charge but the database did not keep the job's settlement.
+
+    The charge is remembered in ``_unrecorded`` so that settling the job again
+    does not take it twice.
+    """
+
+    def __init__(self, job_ids: list[uuid.UUID]):
+        super().__init__(f"Could not record the settlement of job(s) {', '.join(map(str, job_ids))}")
+        self.job_ids = job_ids
 
 
 @dataclass(frozen=True)
@@ -260,10 +281,108 @@ def start_heartbeat(
 
 
 async def stop_heartbeat(task: Optional[asyncio.Task]) -> None:
+    """Stop renewing a lease.
+
+    Commit the job's outcome first and stop the heartbeat afterwards: the
+    lease is the only thing keeping the reconciler off a running job, and
+    stopping the beat before the outcome is durable opens a window in which a
+    lapsed lease lets the reconciler take back a job that has already finished.
+    """
     if task is None:
         return
     task.cancel()
     await asyncio.gather(task, return_exceptions=True)
+
+
+def _charge_key(job_id: uuid.UUID) -> str:
+    """Where a session keeps a charge SPACE took that its transaction has yet to record."""
+    return f"job-charge:{job_id}"
+
+
+def _remember_staged(session: AsyncSession) -> list[uuid.UUID]:
+    """Move the charges this session staged into process memory, and say for which jobs.
+
+    Called when the transaction that was to record them did not survive: SPACE
+    keeps the charge whatever happens to the database.
+    """
+    remembered = []
+    for key in [k for k in session.info if isinstance(k, str) and k.startswith("job-charge:")]:
+        job_id = uuid.UUID(key.removeprefix("job-charge:"))
+        delta = session.info.pop(key)
+        _unrecorded[job_id] = delta
+        logger.error(
+            "SPACE took the settlement of job %s but the database did not record it "
+            "(job_id=%s delta=%s); it will not be charged again, correct drift with usage/resync "
+            "if this process restarts first",
+            job_id, job_id, delta,
+            extra={"job_id": str(job_id), "delta": delta},
+        )
+        remembered.append(job_id)
+    return remembered
+
+
+def remember_staged_charges(session: AsyncSession) -> list[uuid.UUID]:
+    """For a caller whose transaction is being abandoned: keep what SPACE already took."""
+    return _remember_staged(session)
+
+
+def _forget_staged(session: AsyncSession) -> None:
+    for key in [k for k in session.info if isinstance(k, str) and k.startswith("job-charge:")]:
+        session.info.pop(key)
+
+
+async def commit_settlement(session: AsyncSession) -> None:
+    """Commit what ``settle`` staged, without losing a charge if the commit fails.
+
+    ``settle`` tells SPACE before the row is confirmed, so the commit is the
+    moment the settlement becomes real. If it fails, the charges are kept in
+    memory (``_unrecorded``) and ``SettlementCommitFailed`` is raised.
+    """
+    try:
+        await session.commit()
+    except Exception as exc:
+        jobs = _remember_staged(session)
+        if not jobs:
+            raise
+        raise SettlementCommitFailed(jobs) from exc
+    _forget_staged(session)
+
+
+async def _record(
+    session: AsyncSession, job: Job, charged: dict, concurrency_released: bool
+) -> None:
+    """Mark a job settled; a failed flush after a real charge is remembered, not lost."""
+    if charged:
+        session.info[_charge_key(job.id)] = charged
+    job.metered = True
+    job.concurrency_released = concurrency_released
+    job.finished_at = utcnow()
+    try:
+        await session.flush()
+    except Exception as exc:
+        if not charged:
+            raise
+        _remember_staged(session)
+        raise SettlementCommitFailed([job.id]) from exc
+
+
+async def record_unrecorded(session: AsyncSession, job_id: uuid.UUID) -> bool:
+    """Record, in the caller's transaction, a charge SPACE took earlier. Never calls SPACE.
+
+    For a worker that is failing a job whose settlement it could not commit.
+    """
+    if job_id not in _unrecorded:
+        return False
+    result = await session.execute(
+        select(Job).where(Job.id == job_id, Job.metered.is_(False)).with_for_update()
+    )
+    job = result.scalar_one_or_none()
+    if job is None:
+        _unrecorded.pop(job_id, None)
+        return False
+    charged = _unrecorded.pop(job_id)
+    await _record(session, job, charged, "concurrentJobs" in charged)
+    return True
 
 
 async def settle(
@@ -279,16 +398,28 @@ async def settle(
     Returns whether this caller was the one that settled it. The row lock keeps
     concurrent callers out until SPACE has accepted the usage update; a SPACE
     outage therefore leaves the job retryable instead of silently losing use.
+
+    SPACE is told before the row is confirmed, so the caller must commit right
+    after a successful settle (``commit_settlement``). A charge whose row did
+    not survive is in ``_unrecorded``, and settling the job again records it
+    without asking SPACE a second time. ``SettlementCommitFailed`` is raised if
+    the flush fails after the charge.
     """
     result = await session.execute(
         select(Job).where(Job.id == job_id, Job.metered.is_(False)).with_for_update()
     )
     job = result.scalar_one_or_none()
     if job is None:
+        _unrecorded.pop(job_id, None)  # settled by somebody else since
         return False
 
+    pending = _unrecorded.pop(job_id, None)
+    if pending is not None:
+        await _record(session, job, pending, "concurrentJobs" in pending)
+        return True
+
+    increments: dict = {}
     if job.owner_id is not None and job.engine_id != "meta-router-csp":
-        increments = {}
         if solver_seconds > 0:
             increments["solverSeconds"] = round(solver_seconds, 3)
         if release_slot:
@@ -296,10 +427,7 @@ async def settle(
         if increments:
             await gate.adjust_usage(job.owner_id, increments)
 
-    job.metered = True
-    job.concurrency_released = release_slot
-    job.finished_at = utcnow()
-    await session.flush()
+    await _record(session, job, increments, release_slot)
     return True
 
 
@@ -307,11 +435,13 @@ def _observed_seconds(job: Job, budget: float, now: datetime) -> float:
     """How long an abandoned job was seen running, never more than its budget.
 
     The last sign of life is the last renewal of the lease, which is a lease
-    length before ``lease_until``. A job nobody ever saw start (no
-    ``claimed_at``) is charged the whole budget, as every abandoned job once was.
+    length before ``lease_until``. A running job nobody ever saw start (no
+    ``claimed_at``, from before leases) is charged the whole budget, as every
+    abandoned job once was. A queued job nobody ever claimed never held an
+    engine and costs nothing.
     """
     if job.claimed_at is None:
-        return budget
+        return 0.0 if job.state is JobState.QUEUED else budget
     last_seen = now
     if job.lease_until is not None:
         last_seen = min(now, _aware(job.lease_until) - timedelta(seconds=LEASE_S))
@@ -376,17 +506,83 @@ async def _fail_abandoned(
                 return False
             settled = await settle(gate, session, job.id, solver_seconds=seconds)
     except Exception as exc:
+        _remember_staged(session)
         logger.warning("Could not settle abandoned job %s yet: %s", job.id, exc)
         return False
     await session.refresh(job)
     return settled
 
 
-async def _settle_finished(gate: PricingGate, session: AsyncSession) -> int:
+async def _commit_settled(session: AsyncSession) -> bool:
+    """Make one job's settlement durable, or say that it could not be.
+
+    One short transaction per job: SPACE has already been told by the time this
+    runs, so the longer the settlement waits to be committed the more of them a
+    single failure can lose. After a failure the session is rolled back and the
+    charge is remembered (and logged at ERROR); the caller stops its sweep.
+    """
+    try:
+        await commit_settlement(session)
+        return True
+    except Exception:
+        logger.exception("Could not commit a settlement; stopping this sweep")
+        try:
+            await session.rollback()
+        except Exception:
+            logger.warning("Could not roll back after a failed settlement commit", exc_info=True)
+        return False
+
+
+async def _sync_study_cell(session: AsyncSession, job_id: uuid.UUID) -> None:
+    """Let the study cell of a job the sweep just ended catch up. Never raises."""
+    from ..study_jobs import sync_study_job
+
+    try:
+        async with session.begin_nested():
+            await sync_study_job(str(job_id), session)
+    except Exception:
+        logger.warning("Could not sync the study cell of job %s", job_id, exc_info=True)
+
+
+async def _resync_study_cells(session: AsyncSession) -> int:
+    """Catch up the study cells of jobs that ended without their cell hearing of it.
+
+    A job ended by the sweep, or by a worker that died after writing the
+    outcome, leaves its cell RUNNING and its study run never finishing. Returns
+    how many cells were synced; one job failing is logged and does not stop the rest.
+    """
+    from ..study_jobs import sync_study_job
+
+    terminal_jobs = [JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED]
+    terminal_cells = [RunState.COMPLETED, RunState.PARTIAL, RunState.FAILED, RunState.CANCELLED]
+    stale = (
+        await session.execute(
+            select(Job.id)
+            .join(StudyCell, StudyCell.job_id == Job.id)
+            .where(Job.state.in_(terminal_jobs), StudyCell.state.not_in(terminal_cells))
+            .order_by(Job.id)
+            .limit(STUDY_RESYNC_BATCH)
+        )
+    ).scalars().all()
+    synced = 0
+    for job_id in stale:
+        try:
+            async with session.begin_nested():
+                await sync_study_job(str(job_id), session)
+            await session.commit()
+            synced += 1
+        except Exception:
+            logger.warning("Could not resync the study cell of job %s", job_id, exc_info=True)
+            await session.rollback()
+    return synced
+
+
+async def _settle_finished(gate: PricingGate, session: AsyncSession) -> tuple[int, bool]:
     """Settle jobs that ended but whose charge never went through.
 
     A worker writes the outcome first and settles second; if SPACE was down for
-    the second, nobody else would ever look at the job again.
+    the second, nobody else would ever look at the job again. Says how many were
+    settled and whether the sweep may go on (False after a failed commit).
     """
     unsettled = await session.execute(
         select(Job)
@@ -394,19 +590,27 @@ async def _settle_finished(gate: PricingGate, session: AsyncSession) -> int:
             Job.metered.is_(False),
             Job.state.in_([JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED]),
         )
-        .order_by(Job.created_at)
+        .order_by(Job.id)
         .limit(SETTLE_RETRY_BATCH)
+        .with_for_update(skip_locked=True)
     )
     settled = 0
-    for job in unsettled.scalars().all():
+    # Read everything up front: a rolled-back savepoint expires what it touched.
+    work = [(job.id, _ran_for(job)) for job in unsettled.scalars().all()]
+    for job_id, ran_for in work:
         try:
             async with session.begin_nested():
-                if await settle(gate, session, job.id, solver_seconds=_ran_for(job)):
-                    settled += 1
+                done = await settle(gate, session, job_id, solver_seconds=ran_for)
         except Exception as exc:
             # One refusal from SPACE must not hide the jobs behind it.
-            logger.warning("Could not settle finished job %s yet: %s", job.id, exc)
-    return settled
+            _remember_staged(session)
+            logger.warning("Could not settle finished job %s yet: %s", job_id, exc)
+            continue
+        if done:
+            if not await _commit_settled(session):
+                return settled, False
+            settled += 1
+    return settled, True
 
 
 async def sweep_abandoned(gate: PricingGate, session: AsyncSession) -> int:
@@ -423,15 +627,23 @@ async def sweep_abandoned(gate: PricingGate, session: AsyncSession) -> int:
 
     A job with no lease to judge by (never claimed, or claimed before leases
     existed) is failed once its budget and the grace period have passed,
-    counted from when it was claimed or else created.
+    counted from when it was claimed or else created. A queued one nobody ever
+    claimed is charged nothing; a running one from before leases, its budget.
+
+    Each settlement is committed on its own as soon as it is made, because SPACE
+    has been told by then. If a commit fails the sweep stops there: the charge is
+    remembered and logged, and the next sweep records it without charging again.
     """
     now = utcnow()
     settled = 0
     unfinished = await session.execute(
-        select(Job).where(
+        select(Job)
+        .where(
             Job.metered.is_(False),
             Job.state.in_([JobState.QUEUED, JobState.RUNNING]),
         )
+        .order_by(Job.id)
+        .with_for_update(skip_locked=True)
     )
 
     for job in unfinished.scalars().all():
@@ -451,10 +663,15 @@ async def sweep_abandoned(gate: PricingGate, session: AsyncSession) -> int:
         # Charged for what it was seen to spend rather than for nothing: the
         # engine was holding it, and an abandoned solve that costs nothing is
         # an invitation to abandon every solve.
+        job_id = job.id
         if await _fail_abandoned(gate, session, job, _observed_seconds(job, budget, now), now):
+            await _sync_study_cell(session, job_id)
+            if not await _commit_settled(session):
+                return settled
             settled += 1
 
-    return settled + await _settle_finished(gate, session)
+    finished, _ = await _settle_finished(gate, session)
+    return settled + finished
 
 
 async def run_reconciler(
@@ -476,6 +693,14 @@ async def run_reconciler(
                 continue
             async with db_base.session_factory()() as session:
                 settled = await sweep_abandoned(gate, session)
+                try:
+                    await _resync_study_cells(session)
+                except Exception:
+                    logger.warning("Resyncing study cells failed; continuing", exc_info=True)
+                    try:
+                        await session.rollback()  # leave a usable transaction for the rest
+                    except Exception:
+                        logger.warning("Could not roll back after resyncing study cells", exc_info=True)
                 # Requeued and failed jobs must be visible to whoever reads
                 # next, and the redelivery below reaches out to the broker.
                 await session.commit()
