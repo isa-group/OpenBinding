@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -80,9 +82,11 @@ from ..models.errors import (
     NOT_FOUND_RESPONSE,
     UNAUTHORIZED_RESPONSE,
     UNAVAILABLE_RESPONSE,
+    ErrorResponse,
     api_error,
 )
-from ..models.platform import OrganizationView
+from ..models.platform import OrganizationView, SponsorProposalView
+from .. import sponsor_proposals
 from ..space_client import PricingUnavailable, get_gate
 from ..pricing_catalog import PricingCatalogError, live_catalog
 from ..mailer import send_mail
@@ -291,6 +295,11 @@ async def update_user(
     if request.is_active is not None and request.is_active != user.is_active:
         changes["is_active"] = {"from": user.is_active, "to": request.is_active}
         user.is_active = request.is_active
+        if not user.is_active:
+            # Nobody who lost access can be asked to pay, or stand behind a request.
+            await sponsor_proposals.cancel_for_user(
+                session, user.id, "user_deactivated", administrator.id
+            )
     if request.role is not None and request.role.value != user.role.value:
         changes["role"] = {"from": user.role.value, "to": request.role.value}
         user.role = UserRole(request.role.value)
@@ -776,15 +785,37 @@ async def list_audit_events(
 class AdminSponsorTransferRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     billing_sponsor_user_id: uuid.UUID
+    replace_pending_proposal: bool = Field(
+        default=False,
+        description=(
+            "Replace the organization's pending sponsor proposal. Honoured only when the caller "
+            "made that proposal; otherwise a pending proposal answers 409 `sponsor_proposal_pending`."
+        ),
+    )
 
 
 @router.post(
     "/organizations/{organization_id}/sponsor",
     response_model=OrganizationView,
     operation_id="adminTransferOrganizationSponsor",
-    summary="Transfer billing sponsorship of an organization and its subtree",
+    summary="Propose a billing sponsor for an organization and its subtree",
     responses={
+        202: {
+            "model": SponsorProposalView,
+            "description": (
+                "Somebody other than the administrator was named: the sponsor is unchanged and a "
+                "pending proposal (the body) awaits that person's acceptance."
+            ),
+        },
+        402: {"model": ErrorResponse, "description": "Naming oneself: the administrator's plan cannot take the subtree."},
         404: NOT_FOUND_RESPONSE,
+        409: {
+            "model": ErrorResponse,
+            "description": (
+                "`sponsor_proposal_pending` (a proposal is already pending; its `proposal_id` is "
+                "returned) or `already_sponsor`."
+            ),
+        },
         422: {"description": "The sponsor account is not acceptable."},
         503: UNAVAILABLE_RESPONSE,
     },
@@ -795,6 +826,7 @@ async def admin_transfer_organization_sponsor(
     administrator: User = Depends(require_admin),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> OrganizationView:
+    """Propose a sponsor; it changes only when that person accepts, unless the administrator names themselves."""
     organization = await session.get(Organization, organization_id)
     if organization is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Organization not found.")
@@ -802,20 +834,17 @@ async def admin_transfer_organization_sponsor(
     sponsor = await session.get(User, payload.billing_sponsor_user_id)
     if sponsor is None or not sponsor.is_active:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "invalid_sponsor", "Sponsor must be active.")
+    if sponsor.id == organization.billing_sponsor_user_id:
+        raise api_error(status.HTTP_409_CONFLICT, "already_sponsor", "That user already sponsors the organization.")
+    if sponsor.id != administrator.id:
+        proposal = await sponsor_proposals.create_proposal(
+            session, organization, sponsor, administrator, replace=payload.replace_pending_proposal
+        )
+        [view] = await sponsor_proposals.views(session, [proposal])
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content=jsonable_encoder(view))
 
-    await session.execute(select(User.id).where(User.id == sponsor.id).with_for_update())
-    subtree = set(await descendant_ids(session, organization.id))
-    sponsored = set(await sponsor_organization_ids(session, sponsor.id))
-    hypothetical = await organization_usage(session, subtree | sponsored)
-    await enforce_sponsor_usage(session, sponsor, hypothetical)
-
-    previous_sponsor_id = organization.billing_sponsor_user_id
-    await session.execute(
-        update(Organization)
-        .where(Organization.id.in_(subtree))
-        .values(billing_sponsor_user_id=sponsor.id)
-    )
-    organization.billing_sponsor_user_id = sponsor.id
+    previous_sponsor_id = await sponsor_proposals.transfer_sponsorship(session, organization, sponsor)
+    await sponsor_proposals.supersede_pending(session, organization, administrator)
 
     session.add(
         AuditEvent(

@@ -19,11 +19,13 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -194,6 +196,61 @@ class OrganizationInvitation(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
     )
+
+
+class SponsorProposalStatus(str, enum.Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+    CANCELLED = "cancelled"
+    EXPIRED = "expired"
+
+
+class SponsorProposal(Base):
+    """A request that somebody else become the billing sponsor of an organization.
+
+    Nothing changes until the proposed person accepts: only then does the
+    consumption of the organization and its subtree move to their quota.  Every
+    state other than ``pending`` is terminal, and at most one proposal per
+    organization may be pending (a partial unique index, so the invariant holds
+    under concurrent proposals and not only in application code).
+    """
+
+    __tablename__ = "sponsor_proposals"
+    __table_args__ = (
+        Index(
+            "uq_sponsor_proposal_pending",
+            "organization_id",
+            unique=True,
+            sqlite_where=text("status = 'pending'"),
+            postgresql_where=text("status = 'pending'"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Users are nullable so that deleting an account keeps the (terminal) history.
+    proposed_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    proposed_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    status: Mapped[SponsorProposalStatus] = enum_column(
+        SponsorProposalStatus, SponsorProposalStatus.PENDING
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    decided_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    #: Why a system transition happened (``expired``, ``replaced``, ``user_deactivated``...).
+    decision_reason: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
 
 class Project(Base):

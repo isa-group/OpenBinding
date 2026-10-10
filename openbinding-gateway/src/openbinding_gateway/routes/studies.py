@@ -13,7 +13,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import space_client
-from ..access import metering
+from ..access import metering, public_read
 from ..access.dependencies import get_current_user, session_dependency
 from ..collaboration import enforce_sponsor_capacity, organization_by_ref, require_project
 from ..db.models import (
@@ -109,6 +109,25 @@ async def _collection(session: AsyncSession, project_id: uuid.UUID, reference: s
     return found
 
 
+async def _visitor_may_see(session: AsyncSession, project: Project, artifact: Artifact) -> bool:
+    """A read-only visitor sees the project's own artifacts, and others' only while published."""
+
+    if not public_read.is_public_read(session):
+        return True
+    from ..artifacts import can_read
+
+    return artifact.organization_id == project.organization_id or await can_read(session, artifact, None)
+
+
+async def _readable_collection(
+    session: AsyncSession, project: Project, reference: str
+) -> Artifact:
+    found = await _collection(session, project.id, reference)
+    if not await _visitor_may_see(session, project, found):
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Collection not found.")
+    return found
+
+
 def _collection_view(value: Artifact, project_id: uuid.UUID) -> CollectionView:
     return CollectionView(id=value.id, project_id=project_id, slug=value.name,
         name=value.display_name, description=value.description,
@@ -180,7 +199,8 @@ async def list_collections(
     rows = (await session.scalars(select(Artifact).join(ProjectArtifact)
         .where(ProjectArtifact.project_id == found_project.id, Artifact.kind == "Collection")
         .order_by(Artifact.display_name))).all()
-    return [_collection_view(row, found_project.id) for row in rows]
+    return [_collection_view(row, found_project.id) for row in rows
+            if await _visitor_may_see(session, found_project, row)]
 
 
 @router.post("/collections", response_model=CollectionView, status_code=201, operation_id="createCollection")
@@ -213,7 +233,7 @@ async def list_collection_revisions(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[CollectionRevisionView]:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    found = await _collection(session, found_project.id, collection)
+    found = await _readable_collection(session, found_project, collection)
     revisions = (await session.scalars(select(ArtifactVersion).where(
         ArtifactVersion.artifact_id == found.id).order_by(ArtifactVersion.ordinal))).all()
     result = []
@@ -245,7 +265,7 @@ async def get_collection_revision(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CollectionRevisionView:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    found = await _collection(session, found_project.id, collection)
+    found = await _readable_collection(session, found_project, collection)
 
     rev_row = None
     if revision.isdigit():
@@ -341,7 +361,7 @@ async def get_collection(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> CollectionView:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    found = await _collection(session, found_project.id, collection)
+    found = await _readable_collection(session, found_project, collection)
     return _collection_view(found, found_project.id)
 
 
@@ -1039,6 +1059,16 @@ async def get_study_analytics(
     return AnalyticsView(**metrics_data, binding_space=binding_space_info)
 
 
+def _published_report(project_id: uuid.UUID):
+    """Frozen reports with a live (not withdrawn) publication: all a non-member may read."""
+
+    return (Report.state == ReportState.FROZEN) & Report.id.in_(
+        select(Publication.report_id).where(
+            Publication.project_id == project_id, Publication.withdrawn.is_(False)
+        )
+    )
+
+
 def _report_view(value: Report) -> ReportView:
     return ReportView(
         id=value.id, project_id=value.project_id, study_run_id=value.study_run_id,
@@ -1140,9 +1170,10 @@ async def list_reports(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[ReportView]:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    rows = (await session.execute(
-        select(Report).where(Report.project_id == found_project.id).order_by(Report.created_at.desc())
-    )).scalars().all()
+    query = select(Report).where(Report.project_id == found_project.id)
+    if public_read.is_public_read(session):
+        query = query.where(_published_report(found_project.id))
+    rows = (await session.execute(query.order_by(Report.created_at.desc()))).scalars().all()
     return [_report_view(row) for row in rows]
 
 
@@ -1157,10 +1188,14 @@ async def get_report(
         parsed = uuid.UUID(report)
     except ValueError:
         parsed = None
-    value = (await session.execute(select(Report).where(
+    query = select(Report).where(
         Report.project_id == found_project.id,
         Report.id == parsed if parsed else Report.slug == report,
-    ))).scalars().first()
+    )
+    if public_read.is_public_read(session):
+        # A draft, or a frozen report nobody published, is indistinguishable from none.
+        query = query.where(_published_report(found_project.id))
+    value = (await session.execute(query)).scalars().first()
     if value is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Report not found.")
     return _report_view(value)
@@ -1349,11 +1384,10 @@ async def list_project_publications(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[PublicationView]:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    rows = (await session.execute(
-        select(Publication)
-        .where(Publication.project_id == found_project.id)
-        .order_by(Publication.published_at.desc())
-    )).scalars().all()
+    query = select(Publication).where(Publication.project_id == found_project.id)
+    if public_read.is_public_read(session):
+        query = query.where(Publication.withdrawn.is_(False))
+    rows = (await session.execute(query.order_by(Publication.published_at.desc()))).scalars().all()
     return [PublicationView.model_validate(row, from_attributes=True) for row in rows]
 
 

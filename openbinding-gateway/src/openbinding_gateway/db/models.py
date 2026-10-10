@@ -564,6 +564,8 @@ from .platform_models import (  # noqa: E402,F401
     Report,
     ReportState,
     RunState,
+    SponsorProposal,
+    SponsorProposalStatus,
     Study,
     StudyCell,
     StudyRun,

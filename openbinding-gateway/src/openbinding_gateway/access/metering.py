@@ -230,6 +230,9 @@ async def run_reconciler(
                 redelivered = await redeliver_queued_jobs(session)
                 migrated = await sweep_contract_renewals(session)
                 archived = await archive_drained_pricings(session, settings) if settings else 0
+                from ..sponsor_proposals import sweep_expired
+
+                proposals_expired = await sweep_expired(session)
                 await session.commit()
             # Analysis recovery commits before dispatch; isolate it from billing transactions.
             from ..analysis_jobs import redeliver_analysis
@@ -243,6 +246,8 @@ async def run_reconciler(
                 logger.info("Archived %d drained pricing release(s)", archived)
             if redelivered:
                 logger.info("Redelivered %d queued job(s)", redelivered)
+            if proposals_expired:
+                logger.info("Expired %d sponsorship proposal(s)", proposals_expired)
         except asyncio.CancelledError:
             raise
         except Exception:

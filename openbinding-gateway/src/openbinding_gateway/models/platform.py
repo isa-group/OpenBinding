@@ -29,7 +29,45 @@ class OrganizationUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=160)
     parent_id: Optional[uuid.UUID] = None
     move_to_root: bool = False
-    billing_sponsor_user_id: Optional[uuid.UUID] = None
+    billing_sponsor_user_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description=(
+            "Propose this person as billing sponsor. Naming oneself changes the sponsor at once; "
+            "naming somebody else creates a pending proposal (202) that only that person can accept."
+        ),
+    )
+    replace_pending_proposal: bool = Field(
+        default=False,
+        description=(
+            "Replace the organization's pending sponsor proposal. Honoured only when the caller "
+            "made that proposal; otherwise a pending proposal answers 409 `sponsor_proposal_pending`."
+        ),
+    )
+
+
+SponsorProposalState = Literal["pending", "accepted", "declined", "cancelled", "expired"]
+
+
+class SponsorProposalView(BaseModel):
+    """A request that somebody become the billing sponsor of an organization."""
+
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    organization_slug: str
+    organization_name: str
+    proposed_user_id: Optional[uuid.UUID] = None
+    proposed_username: Optional[str] = None
+    proposed_by_user_id: Optional[uuid.UUID] = None
+    proposed_by_username: Optional[str] = None
+    status: SponsorProposalState
+    created_at: datetime
+    expires_at: datetime
+    decided_at: Optional[datetime] = None
+    decided_by_user_id: Optional[uuid.UUID] = None
+    decision_reason: Optional[str] = Field(
+        default=None,
+        description="Why the system closed it (`expired`, `replaced`, `sponsor_changed`, `user_deactivated`...).",
+    )
 
 
 class OrganizationView(BaseModel):
@@ -113,9 +151,23 @@ class ProjectUpdate(BaseModel):
 class ProjectView(ProjectCreate):
     id: uuid.UUID
     organization_id: uuid.UUID
-    created_by_id: uuid.UUID
+    created_by_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description="The creator. Null for read-only visitors of a public project (access `public_read`).",
+    )
     created_at: datetime
     updated_at: datetime
+    effective_role: Optional[Literal["OWNER", "ADMIN", "MEMBER", "VIEWER"]] = Field(
+        default=None,
+        description="The caller's membership role. Null when the caller is not a member (see `access`).",
+    )
+    access: Literal["member", "public_read"] = Field(
+        default="member",
+        description=(
+            "How the caller reaches the project: `member` (a membership role, see `effective_role`) "
+            "or `public_read` (a non-member reading a public project; GET only, never a role)."
+        ),
+    )
 
 
 class BindingCaseCreate(BaseModel):

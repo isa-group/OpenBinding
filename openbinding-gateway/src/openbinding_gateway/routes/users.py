@@ -834,5 +834,7 @@ async def delete_own_account(
             await remove_contract(user.id)
     except PricingUnavailable as exc:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
+    from .. import sponsor_proposals
+    await sponsor_proposals.cancel_for_user(session, user.id, "user_deleted", user.id)
     await session.delete(user)
     await session.flush()

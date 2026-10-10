@@ -251,6 +251,12 @@
             "format": "uuid",
             "title": "Billing Sponsor User Id",
             "type": "string"
+          },
+          "replace_pending_proposal": {
+            "default": false,
+            "description": "Replace the organization's pending sponsor proposal. Honoured only when the caller made that proposal; otherwise a pending proposal answers 409 `sponsor_proposal_pending`.",
+            "title": "Replace Pending Proposal",
+            "type": "boolean"
           }
         },
         "required": [
@@ -9035,6 +9041,7 @@
                 "type": "null"
               }
             ],
+            "description": "Propose this person as billing sponsor. Naming oneself changes the sponsor at once; naming somebody else creates a pending proposal (202) that only that person can accept.",
             "title": "Billing Sponsor User Id"
           },
           "move_to_root": {
@@ -9066,6 +9073,12 @@
               }
             ],
             "title": "Parent Id"
+          },
+          "replace_pending_proposal": {
+            "default": false,
+            "description": "Replace the organization's pending sponsor proposal. Honoured only when the caller made that proposal; otherwise a pending proposal answers 409 `sponsor_proposal_pending`.",
+            "title": "Replace Pending Proposal",
+            "type": "boolean"
           }
         },
         "title": "OrganizationUpdate",
@@ -10167,21 +10180,57 @@
       "ProjectView": {
         "additionalProperties": false,
         "properties": {
+          "access": {
+            "default": "member",
+            "description": "How the caller reaches the project: `member` (a membership role, see `effective_role`) or `public_read` (a non-member reading a public project; GET only, never a role).",
+            "enum": [
+              "member",
+              "public_read"
+            ],
+            "title": "Access",
+            "type": "string"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
             "type": "string"
           },
           "created_by_id": {
-            "format": "uuid",
-            "title": "Created By Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The creator. Null for read-only visitors of a public project (access `public_read`).",
+            "title": "Created By Id"
           },
           "description": {
             "default": "",
             "maxLength": 2000,
             "title": "Description",
             "type": "string"
+          },
+          "effective_role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "OWNER",
+                  "ADMIN",
+                  "MEMBER",
+                  "VIEWER"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The caller's membership role. Null when the caller is not a member (see `access`).",
+            "title": "Effective Role"
           },
           "id": {
             "format": "uuid",
@@ -10224,7 +10273,6 @@
           "name",
           "id",
           "organization_id",
-          "created_by_id",
           "created_at",
           "updated_at"
         ],
@@ -11330,6 +11378,143 @@
           "instance",
           "createdAt"
         ],
+        "type": "object"
+      },
+      "SponsorProposalView": {
+        "description": "A request that somebody become the billing sponsor of an organization.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decided_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided By User Id"
+          },
+          "decision_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the system closed it (`expired`, `replaced`, `sponsor_changed`, `user_deactivated`...).",
+            "title": "Decision Reason"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "organization_id": {
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "organization_name": {
+            "title": "Organization Name",
+            "type": "string"
+          },
+          "organization_slug": {
+            "title": "Organization Slug",
+            "type": "string"
+          },
+          "proposed_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed By User Id"
+          },
+          "proposed_by_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed By Username"
+          },
+          "proposed_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed User Id"
+          },
+          "proposed_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Proposed Username"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "accepted",
+              "declined",
+              "cancelled",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "organization_id",
+          "organization_slug",
+          "organization_name",
+          "status",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "SponsorProposalView",
         "type": "object"
       },
       "StudyArtifactContent": {
@@ -13458,6 +13643,7 @@
     },
     "/v1/admin/organizations/{organization_id}/sponsor": {
       "post": {
+        "description": "Propose a sponsor; it changes only when that person accepts, unless the administrator names themselves.",
         "operationId": "adminTransferOrganizationSponsor",
         "parameters": [
           {
@@ -13492,6 +13678,16 @@
             },
             "description": "Successful Response"
           },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SponsorProposalView"
+                }
+              }
+            },
+            "description": "Somebody other than the administrator was named: the sponsor is unchanged and a pending proposal (the body) awaits that person's acceptance."
+          },
           "401": {
             "content": {
               "application/json": {
@@ -13501,6 +13697,16 @@
               }
             },
             "description": "No usable credential was supplied."
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Naming oneself: the administrator's plan cannot take the subtree."
           },
           "403": {
             "content": {
@@ -13521,6 +13727,16 @@
               }
             },
             "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`sponsor_proposal_pending` (a proposal is already pending; its `proposal_id` is returned) or `already_sponsor`."
           },
           "422": {
             "description": "The sponsor account is not acceptable."
@@ -13544,7 +13760,7 @@
             "ApiKeyAuth": []
           }
         ],
-        "summary": "Transfer billing sponsorship of an organization and its subtree",
+        "summary": "Propose a billing sponsor for an organization and its subtree",
         "tags": [
           "Administration"
         ],
@@ -22555,6 +22771,16 @@
             },
             "description": "Successful Response"
           },
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SponsorProposalView"
+                }
+              }
+            },
+            "description": "`billing_sponsor_user_id` named somebody other than the caller: the sponsor is unchanged and a pending proposal (the body) awaits that person's acceptance. The other fields of the request were applied."
+          },
           "401": {
             "content": {
               "application/problem+json": {
@@ -22565,6 +22791,16 @@
             },
             "description": "Missing or invalid account credential."
           },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Naming oneself: the caller's plan cannot take the subtree (`sponsor_quota_exceeded`)."
+          },
           "403": {
             "content": {
               "application/problem+json": {
@@ -22574,6 +22810,16 @@
               }
             },
             "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A sponsorship proposal is already pending (`sponsor_proposal_pending`, with its `proposal_id`); cancel it, or, if you made it, send `replace_pending_proposal: true`."
           },
           "422": {
             "content": {
@@ -23679,6 +23925,7 @@
         ]
       },
       "get": {
+        "description": "A member sees their role; a non-member, even anonymous, reads a public project read-only (access public_read).",
         "operationId": "getProject",
         "parameters": [
           {
@@ -23760,10 +24007,11 @@
             "ApiKeyAuth": []
           }
         ],
-        "summary": "Get Project",
+        "summary": "Read a project (members, or anyone for a public project)",
         "tags": [
           "Organizations"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -23960,6 +24208,7 @@
         "tags": [
           "Artifacts"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "artifacts:read"
         ]
@@ -24264,6 +24513,7 @@
         "tags": [
           "Artifacts"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "artifacts:read"
         ]
@@ -24360,6 +24610,7 @@
         "tags": [
           "Organizations"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -24653,6 +24904,7 @@
         "tags": [
           "Organizations"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -24867,6 +25119,7 @@
         "tags": [
           "Organizations"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -25086,6 +25339,7 @@
         "tags": [
           "Organizations"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -25182,6 +25436,7 @@
         "tags": [
           "Studies"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -25475,6 +25730,7 @@
         "tags": [
           "Studies"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -25689,6 +25945,7 @@
         "tags": [
           "Studies"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -25908,6 +26165,7 @@
         "tags": [
           "Studies"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -26127,6 +26385,7 @@
         "tags": [
           "Artifact library"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "artifacts:read"
         ]
@@ -26631,6 +26890,7 @@
         "tags": [
           "Studies"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "reports:read"
         ]
@@ -26921,6 +27181,7 @@
         "tags": [
           "Studies"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "reports:read"
         ]
@@ -27214,6 +27475,7 @@
         "tags": [
           "Studies"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "reports:read"
         ]
@@ -27621,6 +27883,7 @@
         "tags": [
           "Organizations"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -27914,6 +28177,7 @@
         "tags": [
           "Organizations"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -28128,6 +28392,7 @@
         "tags": [
           "Organizations"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -28347,6 +28612,7 @@
         "tags": [
           "Organizations"
         ],
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "projects:read"
         ]
@@ -28454,6 +28720,7 @@
           "Studies"
         ],
         "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "studies:read"
         ]
@@ -28866,6 +29133,7 @@
           "Studies"
         ],
         "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "studies:read"
         ]
@@ -29095,6 +29363,7 @@
           "Studies"
         ],
         "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "studies:read"
         ]
@@ -29323,6 +29592,7 @@
           "Studies"
         ],
         "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "studies:read"
         ]
@@ -29445,6 +29715,7 @@
           "Studies"
         ],
         "x-api-key-engine-access": "exact-revision-allow-list-or-all",
+        "x-public-read": true,
         "x-required-api-key-permissions": [
           "studies:read"
         ]
@@ -29715,6 +29986,150 @@
         "x-api-key-engine-access": "exact-revision-allow-list-or-all",
         "x-required-api-key-permissions": [
           "studies:write"
+        ]
+      }
+    },
+    "/v1/organizations/{org}/sponsor-proposals": {
+      "get": {
+        "description": "OWNER and ADMIN of the organization, and platform administrators; a non-member gets 404.",
+        "operationId": "listOrganizationSponsorProposals",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org",
+            "required": true,
+            "schema": {
+              "title": "Org",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "accepted",
+                    "declined",
+                    "cancelled",
+                    "expired"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SponsorProposalView"
+                  },
+                  "title": "Response Listorganizationsponsorproposals",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A member without ADMIN access."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Sponsorship proposals made for an organization",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:read"
         ]
       }
     },
@@ -30594,6 +31009,424 @@
         ]
       }
     },
+    "/v1/sponsor-proposals/{proposal_id}": {
+      "get": {
+        "operationId": "getSponsorProposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SponsorProposalView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Get Proposal",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:read"
+        ]
+      }
+    },
+    "/v1/sponsor-proposals/{proposal_id}/accept": {
+      "post": {
+        "description": "Only the proposed person can accept, and only if their plan admits the organization and its subtree.",
+        "operationId": "acceptSponsorProposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SponsorProposalView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's plan cannot take the organization's subtree (`sponsor_quota_exceeded`); the proposal stays pending."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller may see the proposal but not take this decision (`sponsor_proposal_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The proposal is no longer pending: `sponsor_proposal_expired` (its time ran out) or `sponsor_proposal_not_pending` (already accepted, declined or cancelled; `status` says which)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller's contract cannot be read (`pricing_unavailable`)."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Accept being the billing sponsor",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
+    "/v1/sponsor-proposals/{proposal_id}/cancel": {
+      "post": {
+        "description": "The proposer, an OWNER of the organization, or a platform administrator.",
+        "operationId": "cancelSponsorProposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SponsorProposalView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller may see the proposal but not take this decision (`sponsor_proposal_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The proposal is no longer pending: `sponsor_proposal_expired` (its time ran out) or `sponsor_proposal_not_pending` (already accepted, declined or cancelled; `status` says which)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Withdraw a pending sponsorship proposal",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
+    "/v1/sponsor-proposals/{proposal_id}/decline": {
+      "post": {
+        "operationId": "declineSponsorProposal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SponsorProposalView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller may see the proposal but not take this decision (`sponsor_proposal_forbidden`)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such resource, or none this caller may see."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The proposal is no longer pending: `sponsor_proposal_expired` (its time ran out) or `sponsor_proposal_not_pending` (already accepted, declined or cancelled; `status` says which)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Decline being the billing sponsor",
+        "tags": [
+          "Organizations"
+        ],
+        "x-required-api-key-permissions": [
+          "organizations:write"
+        ]
+      }
+    },
     "/v1/users/me": {
       "delete": {
         "operationId": "deleteOwnAccount",
@@ -31464,6 +32297,130 @@
         "summary": "A signed token for evaluating features in the browser",
         "tags": [
           "Users"
+        ],
+        "x-required-api-key-permissions": [
+          "account:read"
+        ]
+      }
+    },
+    "/v1/users/me/sponsor-proposals": {
+      "get": {
+        "operationId": "listMySponsorProposals",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "accepted",
+                    "declined",
+                    "cancelled",
+                    "expired"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SponsorProposalView"
+                  },
+                  "title": "Response Listmysponsorproposals",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing or invalid account credential."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The account role, API-key permission, or Engine allow-list does not permit this request."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account authentication is not configured on this deployment."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Sponsorship proposals addressed to the caller",
+        "tags": [
+          "Organizations"
         ],
         "x-required-api-key-permissions": [
           "account:read"

@@ -115,18 +115,26 @@ async def test_sponsor_transfer_validates_and_moves_the_whole_tree_atomically(
     api_client, db_session, registration, platform_gate
 ) -> None:
     owner, headers = await account(api_client, registration)
-    sponsor, _ = await account(api_client, registration)
+    sponsor, sponsor_headers = await account(api_client, registration)
     owner_id = uuid.UUID(owner["id"])
     sponsor_id = uuid.UUID(sponsor["id"])
     platform_gate.plans[owner_id] = LARGER_PLAN
     root, child = await tree(api_client, headers)
 
-    refused = await api_client.patch(
+    # Since B3 the owner only *proposes*; the limits are checked when the
+    # proposed person accepts, and a refusal leaves the proposal pending.
+    proposed = await api_client.patch(
         f"/v1/organizations/{root['slug']}",
         headers=headers,
         json={"billing_sponsor_user_id": sponsor["id"]},
     )
+    assert proposed.status_code == 202, proposed.text
+    proposal_id = proposed.json()["id"]
+    refused = await api_client.post(
+        f"/v1/sponsor-proposals/{proposal_id}/accept", headers=sponsor_headers
+    )
     assert refused.status_code == 402
+    assert refused.json()["detail"]["code"] == "sponsor_quota_exceeded"
     rows = (
         await db_session.execute(
             select(Organization).where(
@@ -136,11 +144,14 @@ async def test_sponsor_transfer_validates_and_moves_the_whole_tree_atomically(
     ).scalars().all()
     assert {row.billing_sponsor_user_id for row in rows} == {owner_id}
 
+    still_pending = await api_client.get(
+        f"/v1/sponsor-proposals/{proposal_id}", headers=headers
+    )
+    assert still_pending.json()["status"] == "pending"
+
     platform_gate.plans[sponsor_id] = LARGER_PLAN
-    moved = await api_client.patch(
-        f"/v1/organizations/{root['slug']}",
-        headers=headers,
-        json={"billing_sponsor_user_id": sponsor["id"]},
+    moved = await api_client.post(
+        f"/v1/sponsor-proposals/{proposal_id}/accept", headers=sponsor_headers
     )
     db_session.expire_all()
     rows = (

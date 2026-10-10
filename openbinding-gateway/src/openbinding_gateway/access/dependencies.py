@@ -36,6 +36,7 @@ from ..security.apikeys import (
     required_permissions,
 )
 from ..security.tokens import TokenError, bearer_token, read_access_token
+from . import public_read
 from .contracts import reconcile_contract_renewal, settle_pending_contract
 
 #: What an unauthenticated caller is told to send.
@@ -285,6 +286,12 @@ async def get_current_user(
     """
     credential = _credential(request, bearer, api_key)
     if not credential:
+        if public_read.allows_anonymous(request):
+            # Only GET routes of the public-read matrix: the project handler
+            # still refuses (401) unless the project is public.
+            request.state.api_key = None
+            public_read.bind(session, request, public_read.ANONYMOUS)
+            return public_read.ANONYMOUS  # type: ignore[return-value]
         raise api_error(
             status.HTTP_401_UNAUTHORIZED,
             "unauthorized",
@@ -307,6 +314,7 @@ async def get_current_user(
     # nothing else ever settles it. Doing it here is what the flag was for.
     await settle_pending_contract(user, session)
     await reconcile_contract_renewal(user, session)
+    public_read.bind(session, request, user)
     return user
 
 

@@ -384,16 +384,34 @@ async def test_admin_transfer_organization_sponsor(
     assert org_res.status_code == 201
     org_id = org_res.json()["id"]
 
-    # Admin transfers sponsorship via /v1/admin/organizations/{id}/sponsor without being member
+    # Admin proposes a sponsor via /v1/admin/organizations/{id}/sponsor without being member:
+    # nothing changes until the proposed person accepts (B3).
     transfer_res = await api_client.post(
         f"/v1/admin/organizations/{org_id}/sponsor",
         headers=admin_headers,
         json={"billing_sponsor_user_id": str(s2_id)},
     )
-    assert transfer_res.status_code == 200, transfer_res.text
-    assert transfer_res.json()["billing_sponsor_user_id"] == str(s2_id)
+    assert transfer_res.status_code == 202, transfer_res.text
+    proposal = transfer_res.json()
+    assert proposal["status"] == "pending"
+    assert proposal["proposed_user_id"] == str(s2_id)
+    org = await db_session.get(Organization, uuid.UUID(org_id))
+    assert org.billing_sponsor_user_id == s1_id
+
+    # Not even a platform administrator can accept on somebody else's behalf.
+    by_admin = await api_client.post(
+        f"/v1/sponsor-proposals/{proposal['id']}/accept", headers=admin_headers
+    )
+    assert by_admin.status_code == 403
+    assert by_admin.json()["detail"]["code"] == "sponsor_proposal_forbidden"
+
+    accepted = await api_client.post(
+        f"/v1/sponsor-proposals/{proposal['id']}/accept", headers=sponsor2_headers
+    )
+    assert accepted.status_code == 200, accepted.text
 
     # Database reflected
+    db_session.expire_all()
     org = await db_session.get(Organization, uuid.UUID(org_id))
     assert org.billing_sponsor_user_id == s2_id
 
@@ -625,7 +643,7 @@ async def test_tenant_owner_transfers_sponsor_via_patch_while_admin_role_enforce
     admin_member, admin_member_headers = await create_account(
         api_client, registration, db_session
     )
-    sponsor2, _ = await create_account(api_client, registration, db_session)
+    sponsor2, sponsor2_headers = await create_account(api_client, registration, db_session)
 
     owner_id = uuid.UUID(owner["id"])
     sponsor2_id = uuid.UUID(sponsor2["id"])
@@ -656,14 +674,24 @@ async def test_tenant_owner_transfers_sponsor_via_patch_while_admin_role_enforce
     assert refused_transfer.status_code == 403
     assert refused_transfer.json()["detail"]["code"] == "organization_forbidden"
 
-    # Org OWNER transfers sponsorship via PATCH successfully without platform admin role
-    success_transfer = await api_client.patch(
+    # Org OWNER proposes a sponsor via PATCH without platform admin role: the sponsor
+    # is unchanged until that person accepts (B3).
+    proposed = await api_client.patch(
         f"/v1/organizations/{org_slug}",
         headers=owner_headers,
         json={"billing_sponsor_user_id": str(sponsor2_id)},
     )
-    assert success_transfer.status_code == 200
-    assert success_transfer.json()["billing_sponsor_user_id"] == str(sponsor2_id)
+    assert proposed.status_code == 202
+    assert proposed.json()["status"] == "pending"
+    still_owner = await api_client.get(f"/v1/organizations/{org_slug}", headers=owner_headers)
+    assert still_owner.json()["billing_sponsor_user_id"] == str(owner_id)
+
+    accepted = await api_client.post(
+        f"/v1/sponsor-proposals/{proposed.json()['id']}/accept", headers=sponsor2_headers
+    )
+    assert accepted.status_code == 200
+    moved = await api_client.get(f"/v1/organizations/{org_slug}", headers=owner_headers)
+    assert moved.json()["billing_sponsor_user_id"] == str(sponsor2_id)
 
 
 @pytest.mark.asyncio
@@ -674,7 +702,7 @@ async def test_admin_sponsor_transfer_endpoint_enforces_api_key_write_permission
         api_client, registration, db_session, admin=True
     )
     user, user_headers = await create_account(api_client, registration, db_session)
-    sponsor, _ = await create_account(api_client, registration, db_session)
+    sponsor, sponsor_headers = await create_account(api_client, registration, db_session)
 
     user_id = uuid.UUID(user["id"])
     sponsor_id = uuid.UUID(sponsor["id"])
@@ -733,8 +761,14 @@ async def test_admin_sponsor_transfer_endpoint_enforces_api_key_write_permission
         headers={"X-API-Key": rw_key},
         json={"billing_sponsor_user_id": str(sponsor_id)},
     )
-    assert success.status_code == 200
-    assert success.json()["billing_sponsor_user_id"] == str(sponsor_id)
+    assert success.status_code == 202, success.text
+    assert success.json()["status"] == "pending"
+    accepted = await api_client.post(
+        f"/v1/sponsor-proposals/{success.json()['id']}/accept", headers=sponsor_headers
+    )
+    assert accepted.status_code == 200, accepted.text
+    moved = await api_client.get(f"/v1/organizations/{org_res.json()['slug']}", headers=user_headers)
+    assert moved.json()["billing_sponsor_user_id"] == str(sponsor_id)
 
 
 @pytest.mark.asyncio

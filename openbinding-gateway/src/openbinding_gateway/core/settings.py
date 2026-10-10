@@ -23,7 +23,7 @@ import os
 from functools import lru_cache
 from typing import List, Literal, Optional
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 #: The only origins allowed by default: the frontend's Vite dev server (5173)
@@ -160,6 +160,16 @@ class Settings(BaseSettings):
     sphere_organization_id: Optional[str] = None
     sphere_pricing_slug: Literal["openbinding"] = "openbinding"
     sphere_timeout_s: float = 10.0
+
+    # -- Collaboration ----------------------------------------------------
+    #: Days a billing-sponsor proposal waits for the proposed person's answer
+    #: before it expires (``SPONSOR_PROPOSAL_TTL_DAYS``).
+    sponsor_proposal_ttl_days: int = Field(default=14, ge=1, le=365)
+    #: Reads of public projects by people who are not members are limited per
+    #: caller (the account, or the client address when anonymous) and per
+    #: minute; they are never charged to the project's sponsor
+    #: (``PUBLIC_READ_RATE_PER_MINUTE``; 0 switches the limit off).
+    public_read_rate_per_minute: int = Field(default=240, ge=0)
 
     # -- Optional account notifications --------------------------------
     smtp_url: Optional[str] = None

@@ -153,10 +153,89 @@ organization events (a sponsorship transfer, member changes, …) carry
 `organizationId` and `organizationSlug`, platform events carry `null`. Filter
 with `?action=` and `?organization_id=<uuid>`. Members of an organization still
 read only their own organization's log, at `GET /v1/organizations/{org}/audit`,
-which is unchanged and never shows platform events. A sponsor change through
-`PATCH /v1/organizations/{org}` is recorded as `organization.updated` with
-`previous_sponsor_user_id` / `new_sponsor_user_id`; the admin transfer
-(`POST /v1/admin/organizations/{id}/sponsor`) as `organization.sponsor_transferred`.
+which is unchanged and never shows platform events. A sponsor change that a
+person makes for **themselves** through `PATCH /v1/organizations/{org}` is
+recorded as `organization.updated` with `previous_sponsor_user_id` /
+`new_sponsor_user_id`, and the administrator doing so for themselves through
+`POST /v1/admin/organizations/{id}/sponsor` as `organization.sponsor_transferred`.
+Proposing somebody else, and what happens to the proposal, are the
+`organization.sponsor.*` events below.
+
+## Billing sponsorship needs the sponsor's acceptance
+
+The sponsor of an organization is the account whose plan pays for the
+consumption of the organization **and its whole subtree**. Nobody can make
+someone else pay: naming another person only creates a **proposal**, and the
+sponsor changes when that person accepts.
+
+| Who | Does | Result |
+|---|---|---|
+| organization OWNER | `PATCH /v1/organizations/{org}` with `billing_sponsor_user_id` = somebody else | `202` + the pending proposal. The sponsor is unchanged; the other fields of the `PATCH` (name, parent) are applied |
+| platform administrator | `POST /v1/admin/organizations/{id}/sponsor` with somebody else | `202` + the pending proposal |
+| either, naming **themselves** | same calls | immediate change, `200` + the organization, subject to *their own* plan limits (`402 sponsor_quota_exceeded`); a pending proposal for somebody else is closed (`decision_reason: sponsor_changed`) |
+| the proposed person | `POST /v1/sponsor-proposals/{id}/accept` / `.../decline` | only that person; not even a platform administrator can answer for them (`403 sponsor_proposal_forbidden`) |
+| the proposer, an OWNER of the organization, or a platform administrator | `POST /v1/sponsor-proposals/{id}/cancel` | an organization ADMIN may see the proposal but not cancel it (`403`) |
+
+Reading: `GET /v1/users/me/sponsor-proposals?status=` (addressed to me),
+`GET /v1/organizations/{org}/sponsor-proposals?status=` (organization OWNER/ADMIN
+and platform administrators; a non-member gets `404`, a member below ADMIN `403`)
+and `GET /v1/sponsor-proposals/{id}`. Anyone who may not see a proposal gets
+`404`, never `403`, so other people's proposals are not discoverable; ids are UUIDs.
+
+A proposal is `{id, organization_id, organization_slug, organization_name,
+proposed_user_id, proposed_username, proposed_by_user_id, proposed_by_username,
+status, created_at, expires_at, decided_at, decided_by_user_id, decision_reason}`
+with `status` one of `pending | accepted | declined | cancelled | expired`. Every
+state but `pending` is terminal.
+
+- **One pending proposal per organization** (also a unique database index).
+  Another proposal answers `409 sponsor_proposal_pending` (with `proposal_id`),
+  unless it is made by *the same person who made the pending one* and sends
+  `replace_pending_proposal: true` (in the `PATCH`, or in the administrator
+  body), which cancels the old one with `decision_reason: replaced`. Anyone else
+  must cancel it first. A pending proposal that is already due is simply expired.
+- **Expiry**: `SPONSOR_PROPOSAL_TTL_DAYS` (default 14). It is evaluated lazily
+  when a proposal is read, listed, answered or replaced, and the periodic
+  reconciler sweeps what nobody touched. Answering a lapsed proposal is
+  `409 sponsor_proposal_expired`; answering a resolved one is
+  `409 sponsor_proposal_not_pending` (its `status` says which).
+- **Acceptance revalidates inside one transaction**: the proposal is pending and
+  unexpired, the person is still active, and their plan admits the whole
+  hypothetical total (what they already sponsor plus this subtree) with the same
+  errors as before: `402 sponsor_quota_exceeded`, `503 pricing_unavailable`. A
+  refusal leaves the proposal **pending**, so the person can raise their plan and
+  accept again. Only then does `billing_sponsor_user_id` change for the
+  organization and its subtree, which moves the consumption.
+- A deactivated or deleted account closes its pending proposals, those addressed
+  to it and those it made (`cancelled`, `decision_reason: user_deactivated` /
+  `user_deleted`).
+- Existing sponsors do not change. Account deletion still hands the
+  organizations a deleted sponsor paid for to the next OWNER, as it always did;
+  that transfer is not a proposal.
+
+Audit (organization events, so `GET /v1/admin/audit` shows them with
+`organizationId`/`organizationSlug`, and the organization's own log too):
+`organization.sponsor.proposed` (actor: proposer; `current_sponsor_user_id`,
+`expires_at`), `.accepted` (actor: the new sponsor; `previous_sponsor_user_id`,
+`new_sponsor_user_id`), `.declined`, `.cancelled` (`reason` when the system did it)
+and `.expired` (no actor). Every one carries `proposal_id`, `organization_id`,
+`proposed_user_id` and `proposed_by_user_id`.
+
+Notifications (the existing inbox, kind = the audit action): the proposed person
+when a proposal is made, and the proposer and the organization's OWNERs (except
+whoever decided) when it is accepted, declined, cancelled or expires. No e-mail is
+sent: the mailer only sends the notification types it already did.
+
+API keys: the endpoints need `organizations:read` (reading) and
+`organizations:write` (answering); the list of proposals addressed to *me* is an
+`/v1/users/me` route and needs `account:read`.
+
+## Public projects are readable without membership
+
+See [`ACCESS_POLICY.md`](ACCESS_POLICY.md): a non-member (even anonymous) can read
+a *public* project through a deny-by-default matrix of GET routes
+(`access: "public_read"`), limited per caller by `PUBLIC_READ_RATE_PER_MINUTE`
+(default 240; `0` disables) and never charged to the project's sponsor.
 
 ## Signing in with Universidad de Sevilla CAS
 

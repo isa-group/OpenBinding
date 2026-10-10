@@ -20,6 +20,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response, StreamingRes
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..access import public_read
 from ..access.dependencies import get_current_user, session_dependency
 from ..collaboration import organization_by_ref, require_project
 from ..core.settings import Settings, get_settings
@@ -202,7 +203,10 @@ async def list_artifacts(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[BlobView]:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    rows = (await session.execute(select(Blob).where(Blob.project_id == found_project.id).order_by(Blob.created_at.desc()))).scalars().all()
+    query = select(Blob).where(Blob.project_id == found_project.id)
+    if public_read.is_public_read(session):
+        query = query.where(Blob.public.is_(True))
+    rows = (await session.execute(query.order_by(Blob.created_at.desc()))).scalars().all()
     return [_artifact_view(row) for row in rows]
 
 
@@ -296,9 +300,12 @@ async def download_artifact(
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> Response:
     _, found_project = await _context(session, org, project, user, OrganizationRole.VIEWER)
-    artifact = (await session.execute(select(Blob).where(
-        Blob.project_id == found_project.id, Blob.digest == digest_value
-    ))).scalars().first()
+    query = select(Blob).where(Blob.project_id == found_project.id, Blob.digest == digest_value)
+    public_only = public_read.is_public_read(session)
+    if public_only:
+        # A private file is indistinguishable from a missing one.
+        query = query.where(Blob.public.is_(True))
+    artifact = (await session.execute(query)).scalars().first()
     if artifact is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Blob not found.")
     storage_path = Path(artifact.storage_uri)

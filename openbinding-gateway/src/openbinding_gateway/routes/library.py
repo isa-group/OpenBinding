@@ -8,6 +8,7 @@ from sqlalchemy import delete, select, update, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..access import public_read
 from ..access.dependencies import get_current_user, get_optional_user, session_dependency
 from ..artifacts import (artifact_boundary_allows, artifact_view, can_read, owned_artifact, reference, resolve_version,
     seal_draft, validate_content, version_content, version_view)
@@ -278,7 +279,11 @@ async def project_artifacts(org: str, project: str, user: User = Depends(get_cur
     target = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
     rows = (await session.scalars(select(Artifact).join(ProjectArtifact)
         .where(ProjectArtifact.project_id == target.id).order_by(Artifact.display_name))).all()
-    return [artifact_view(row) for row in rows if await can_read(session, row, user)]
+    # A non-member sees only associations whose artifact is itself published,
+    # whatever other organizations the caller may belong to.
+    public_only = public_read.is_public_read(session)
+    return [artifact_view(row) for row in rows if await can_read(session, row, user)
+            and (not public_only or await can_read(session, row, None))]
 
 
 @router.delete('/organizations/{org}/projects/{project}/library/{artifact_id}', status_code=204)
