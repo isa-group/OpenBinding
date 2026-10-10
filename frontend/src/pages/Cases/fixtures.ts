@@ -42,6 +42,9 @@ export function irDocument(pay = 8): Record<string, unknown> {
         provides: [{ type: capability, properties: {} }], properties: {},
         features: { latency: index * 40, cost: { min: index / 100, max: index / 50 } },
       };
+      // The authenticate providers show every kind of value: a number, a closed range, one open above and one open below.
+      if (task === 'authenticate' && index === 3) (candidates[id] as { features: Record<string, unknown> }).features = { latency: { min: 100, max: null }, cost: { min: null, max: 0.05 } };
+      if (task === 'authenticate' && index === 4) (candidates[id] as { features: Record<string, unknown> }).features = { latency: { min: null, max: null }, cost: 0.04 };
       eligibility[task].push({ resource: 'providers', id });
     }
   };

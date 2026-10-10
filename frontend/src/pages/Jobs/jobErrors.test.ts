@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { refusalOf } from './jobErrors';
+import { rangeFailureOf, refusalOf } from './jobErrors';
 
 const refused = (status: number, code: string, extra: Partial<HttpError> = {}) => Object.assign(new HttpError(status, 'refused'), { code }, extra);
 
@@ -40,6 +40,39 @@ describe('refusals of a launch', () => {
     const refusal = refusalOf(refused(422, 'engine_mode_incompatible', { diagnostics: [{ message: 'It cannot read a RoutingOverlay.' }] }));
     expect(refusal).toMatchObject({ kind: 'incompatible', details: ['It cannot read a RoutingOverlay.'] });
     expect(refusal.title).toBe('This engine can’t run this problem (422 · engine_mode_incompatible)');
+  });
+
+  it('422 unsupported_capability_value says the engine takes single values only and points at the candidates', () => {
+    const refusal = refusalOf(refused(422, 'unsupported_capability_value', {
+      diagnostics: [
+        { code: 'unsupported_capability_value', message: 'featureValues interval is not declared', pointer: '/spec/candidates/providers/candidates/fastpay/features/latency' },
+        { code: 'unsupported_capability_value', message: 'featureValues interval is not declared' },
+      ],
+    }));
+
+    expect(refusal).toMatchObject({ kind: 'range', status: 422, code: 'unsupported_capability_value', title: 'This engine only accepts single values (422 · unsupported_capability_value)' });
+    expect(refusal.text).toContain('range features');
+    expect(refusal.text).toContain('Nothing was started.');
+    expect(refusal.details).toEqual([
+      'featureValues interval is not declared (/spec/candidates/providers/candidates/fastpay/features/latency)',
+      'featureValues interval is not declared',
+    ]);
+  });
+
+  it('recognises the refusal by its diagnostics when the top-level code is another', () => {
+    const refusal = refusalOf(refused(422, 'engine_mode_incompatible', { diagnostics: [{ code: 'unsupported_capability_value', message: 'open interval', pointer: '/spec/x' }] }));
+    expect(refusal.kind).toBe('range');
+    expect(refusal.details).toEqual(['open interval (/spec/x)']);
+  });
+
+  it('a job that failed for ranges says the same, without claiming nothing started', () => {
+    expect(rangeFailureOf({ result: { code: 'unsupported_capability_value', diagnostics: [{ message: 'no interval', pointer: '/spec/a' }] } })).toMatchObject({
+      kind: 'range', details: ['no interval (/spec/a)'],
+    });
+    expect(rangeFailureOf({ error: 'Failed: unsupported_capability_value (unsupported: ["interval"])' })?.kind).toBe('range');
+    expect(rangeFailureOf({ error: 'Failed: unsupported_capability_value' })?.text).not.toContain('Nothing was started.');
+    expect(rangeFailureOf({ error: 'The engine crashed' })).toBeNull();
+    expect(rangeFailureOf({ result: null })).toBeNull();
   });
 
   it('404, 409 and 503 each keep their meaning', () => {

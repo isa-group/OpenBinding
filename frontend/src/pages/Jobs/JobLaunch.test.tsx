@@ -8,7 +8,7 @@ import { usageOf } from '../../test/fixtures/resources';
 import { JobLaunch } from './JobLaunch';
 
 const jobsApi = vi.hoisted(() => ({ launch: vi.fn() }));
-const casesApi = vi.hoisted(() => ({ analyseSnapshot: vi.fn() }));
+const casesApi = vi.hoisted(() => ({ analyseSnapshot: vi.fn(), instanceIr: vi.fn() }));
 const workbenchApi = vi.hoisted(() => ({ snapshot: vi.fn() }));
 const client = vi.hoisted(() => ({ getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(), getEngines: vi.fn() }));
 const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), revisions: vi.fn(), publicProjects: vi.fn() }));
@@ -97,6 +97,7 @@ describe('Start a run', () => {
     client.getPricingCatalog.mockResolvedValue({});
     client.getEngines.mockResolvedValue(engines);
     casesApi.analyseSnapshot.mockResolvedValue(analysis());
+    casesApi.instanceIr.mockResolvedValue({ spec: { candidates: { providers: { candidates: { a: { features: { latency: 40 } } } } } } });
     jobsApi.launch.mockResolvedValue({ id: 'job-new-7', status: 'queued', irDigest: digestOf('c') });
   });
 
@@ -131,6 +132,89 @@ describe('Start a run', () => {
     expect(within(group_).getByRole('radio', { name: /^AutoRouter/ })).toBeEnabled();
     expect(screen.getByRole('link', { name: 'Compare engines' })).toHaveAttribute('href', '/engines');
     expect(screen.getByRole('button', { name: /Engine/ })).toHaveAttribute('aria-current', 'step');
+  });
+
+  describe('a package with ranges', () => {
+    const ranged = { spec: { candidates: { providers: { candidates: { a: { features: { latency: { min: null, max: 200 } } }, b: { features: { latency: 40 } } } } } } };
+    const RANGE_REASON = 'This package has range features; this engine only accepts single values';
+    const refusedRanges = (over: Record<string, unknown>) => ({
+      engine: MINIZINC, registration: MINIZINC_REGISTRATION, mode: 'cp', compatible: false,
+      diagnostics: [{ code: 'unsupported_capability_value', message: 'featureValues interval is not declared', pointer: '/spec/candidates/providers/candidates/a/features/latency' }], ...over,
+    });
+
+    it('turns off the engines that take single values only, with the reason, and links to Engines and to the candidates', async () => {
+      casesApi.instanceIr.mockResolvedValue(ranged);
+      casesApi.analyseSnapshot.mockResolvedValue(analysis({
+        compatibleModes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }, refusedRanges({})],
+      }));
+      renderLaunch();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+      const picker = await screen.findByRole('radiogroup', { name: 'Engine' });
+      const off = within(picker).getByRole('radio', { name: /^minizinc/ });
+      expect(off).toBeDisabled();
+      expect(off).toHaveAccessibleName(new RegExp(RANGE_REASON));
+      expect(within(picker).getByRole('radio', { name: /^random-search.*Can run this/ })).toBeEnabled();
+      const notice = screen.getByText('This package has range features').closest('.ui-notice') as HTMLElement;
+      expect(notice).toHaveTextContent('The engines marked “Can’t run this” only accept single values.');
+      expect(within(notice).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
+      expect(within(notice).getByRole('link', { name: 'edit the candidates' })).toHaveAttribute('href', '/app/isa-demo/library');
+      expect(casesApi.instanceIr).toHaveBeenCalledWith('snap-2');
+    });
+
+    it('says so when no engine accepts ranges, and still lets the AutoRouter look', async () => {
+      casesApi.instanceIr.mockResolvedValue(ranged);
+      casesApi.analyseSnapshot.mockResolvedValue(analysis({ compatibleModes: [refusedRanges({ engine: ENGINE, registration: REGISTRATION, mode: 'sampling' })] }));
+      renderLaunch();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+      const picker = await screen.findByRole('radiogroup', { name: 'Engine' });
+      expect(within(picker).getByRole('radio', { name: /^random-search/ })).toBeDisabled();
+      expect(screen.getByText(/No engine mode accepts ranges yet/)).toBeInTheDocument();
+      expect(within(picker).getByRole('radio', { name: /^AutoRouter/ })).toBeChecked();
+    });
+
+    it('turns off the catalog modes that do not declare interval values when the gateway could not analyse the package', async () => {
+      const intervals = { ...mode('cp', {}), capabilities: { featureValues: { selector: 'only', values: ['scalar', 'interval'] } } as unknown as EngineMode['capabilities'] };
+      client.getEngines.mockResolvedValue([engines[0], { ...engines[1], modes: [intervals] }]);
+      casesApi.instanceIr.mockResolvedValue(ranged);
+      casesApi.analyseSnapshot.mockRejectedValue(refused(503, 'unavailable'));
+      renderLaunch();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+      const picker = await screen.findByRole('radiogroup', { name: 'Engine' });
+      expect(within(picker).getByRole('radio', { name: /^random-search/ })).toBeDisabled();
+      expect(within(picker).getByRole('radio', { name: /^minizinc.*Checked when you send/ })).toBeEnabled();
+      expect(within(picker).getByRole('radio', { name: /^minizinc/ })).toBeChecked();
+    });
+
+    it('offers every engine as before when the package has none, or when its compiled form cannot be read', async () => {
+      casesApi.instanceIr.mockRejectedValue(new Error('offline'));
+      casesApi.analyseSnapshot.mockRejectedValue(refused(503, 'unavailable'));
+      renderLaunch();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+      const picker = await screen.findByRole('radiogroup', { name: 'Engine' });
+      expect(within(picker).getByRole('radio', { name: /^random-search.*Checked when you send/ })).toBeEnabled();
+      expect(screen.queryByText('This package has range features')).not.toBeInTheDocument();
+    });
+
+    it('explains a launch the engine refused for ranges, with the pointers and the way forward', async () => {
+      casesApi.instanceIr.mockResolvedValue(ranged);
+      casesApi.analyseSnapshot.mockResolvedValue(analysis({ compatibleModes: [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }] }));
+      jobsApi.launch.mockRejectedValue(refused(422, 'unsupported_capability_value', {
+        diagnostics: [{ code: 'unsupported_capability_value', message: 'featureValues interval is not declared', pointer: '/spec/candidates/providers/candidates/a/features/latency' }],
+      }));
+      renderLaunch();
+      await toReview();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
+
+      const alert = (await screen.findByText(/^This engine only accepts single values/)).closest('.ui-notice') as HTMLElement;
+      expect(alert).toHaveTextContent('featureValues interval is not declared (/spec/candidates/providers/candidates/a/features/latency)');
+      expect(within(alert).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
+      expect(within(alert).getByRole('link', { name: 'Edit the candidate' })).toHaveAttribute('href', '/app/isa-demo/library');
+    });
   });
 
   it('preselects the engine the person came from', async () => {

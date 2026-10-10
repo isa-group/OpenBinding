@@ -19,7 +19,8 @@ import { saveBytes } from '../Project/download';
 import { ProjectGate, ProjectSkeleton } from '../Project/parts';
 import { loadCases } from '../Project/projectData';
 import { useRouteProject } from '../Project/useRouteProject';
-import { readBindingProblem, powerText, type BindingModel } from './bindingModel';
+import { formatFeature } from '../../utils/featureRange';
+import { rangeCandidates, readBindingProblem, powerText, type BindingModel } from './bindingModel';
 import { classifyAuthError, marker, snapshotFailureKind, type AuthFailure } from './caseErrors';
 import { CaseFrame, CaseMissing } from './parts';
 // The snapshot styles keep the name of the page that used to hold them.
@@ -166,8 +167,35 @@ function Summary({ analysis, model, originLink }: { analysis: Analysis | undefin
       {analysis.state === 'ok' && Array.isArray(analysis.result.compatibleModes) && (
         <span className="org-muted">{analysis.result.compatibleModes.length === 1 ? '1 engine mode can run it.' : `${analysis.result.compatibleModes.length} engine modes can run it.`}</span>
       )}
+      <RangeNotice model={model} analysis={analysis} />
       {originLink}
     </>
+  );
+}
+
+/** The ranges a package carries, and what that means for the engines: only a mode that declares interval values can run it. */
+function RangeNotice({ model, analysis }: { model: BindingModel | null; analysis: Analysis }) {
+  const ranged = model ? rangeCandidates(model) : [];
+  if (ranged.length === 0) return null;
+  const modes = analysis.state === 'ok' && Array.isArray(analysis.result.compatibleModes) ? analysis.result.compatibleModes : null;
+  const refused = modes ? modes.filter((mode) => typeof mode === 'object' && mode !== null && (mode as { compatible?: unknown }).compatible === false).length : null;
+  return (
+    <section className="case-ranges" aria-label="Range features">
+      <Notice tone="warning" title={ranged.length === 1 ? '1 candidate has range features' : `${ranged.length} candidates have range features`}>
+        Engines that only accept single values can’t run it{refused ? ` (${refused} of ${modes?.length ?? 0} modes listed refuse it)` : ''}.
+        {' '}Only a mode that declares interval values accepts ranges. <Link className="ui-notice-link" to="/engines" viewTransition>See the engines</Link>
+      </Notice>
+      <ul className="case-range-list" aria-label="Candidates with ranges">
+        {ranged.map((entry) => (
+          <li key={`${entry.task}/${entry.candidate}`}>
+            <code>{entry.candidate}</code>
+            {entry.features.map((feature) => (
+              <span key={feature.name} className="case-range" title={formatFeature(feature.value, { long: true })}>{feature.name} {formatFeature(feature.value)}</span>
+            ))}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

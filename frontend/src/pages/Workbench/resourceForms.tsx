@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Action } from '../../components/ui/Action';
+import { FeatureCell } from '../Library/FeatureCell';
 import {
-  DEFAULT_AST_ASSERTION, IDENTIFIER_PATTERN, isRecord, isRegisteredResourceRef, nextIdentifier, optionalNumber,
+  DEFAULT_AST_ASSERTION, IDENTIFIER_PATTERN, candidateFeatures, isRecord, isRegisteredResourceRef, nextIdentifier, optionalNumber, withCandidateFeatures,
   type BimDocument, type BimSpecDocument, type CandidateDocument, type CapabilityDocument, type ConstraintDocument, type InternalReference,
   type MetricDocument, type OptimizationPenaltyDocument, type OptimizationTermDocument, type PlacementCapacityRuleDocument,
   type PlacementGlobalLatencyDocument, type PlacementTransitionDocument, type RoutingEntryDocument, type ScalarMap, type TaskDocument,
@@ -461,12 +462,12 @@ function CandidateCatalogForm({ spec, updateSpec }: SpecProps) {
     if (nextAlias === alias || !IDENTIFIER_PATTERN.test(nextAlias) || metricBindings[nextAlias]) return;
     const nextBindings = Object.fromEntries(Object.entries(metricBindings).map(([key, value]) => [key === alias ? nextAlias : key, value]));
     const nextCandidates = Object.fromEntries(Object.entries(candidates).map(([id, candidate]) => {
-      const metrics = { ...(candidate.metrics || {}) };
-      if (alias in metrics) {
-        metrics[nextAlias] = metrics[alias];
-        delete metrics[alias];
+      const features = candidateFeatures(candidate);
+      if (alias in features) {
+        features[nextAlias] = features[alias];
+        delete features[alias];
       }
-      return [id, { ...candidate, metrics }];
+      return [id, withCandidateFeatures(candidate, features)];
     }));
     updateSpec({ ...spec, metricBindings: nextBindings, candidates: nextCandidates });
   };
@@ -475,9 +476,9 @@ function CandidateCatalogForm({ spec, updateSpec }: SpecProps) {
     const nextBindings = { ...metricBindings };
     delete nextBindings[alias];
     const nextCandidates = Object.fromEntries(Object.entries(candidates).map(([id, candidate]) => {
-      const metrics = { ...(candidate.metrics || {}) };
-      delete metrics[alias];
-      return [id, { ...candidate, metrics }];
+      const features = candidateFeatures(candidate);
+      delete features[alias];
+      return [id, withCandidateFeatures(candidate, features)];
     }));
     updateSpec({ ...spec, metricBindings: nextBindings, candidates: nextCandidates });
   };
@@ -520,7 +521,7 @@ function CandidateCatalogForm({ spec, updateSpec }: SpecProps) {
     {Object.keys(candidates).length === 0 && <EmptyFormState>No candidate implementations are available.</EmptyFormState>}
     <div className="form-card-list candidate-list">{Object.entries(candidates).map(([id, candidate], candidateIndex) => {
       const capabilities = capabilityItems(candidate.provides);
-      const aliases = Array.from(new Set([...Object.keys(metricBindings), ...Object.keys(candidate.metrics || {})]));
+      const aliases = Array.from(new Set([...Object.keys(metricBindings), ...Object.keys(candidateFeatures(candidate))]));
       const setCapabilities = (next: CapabilityDocument[]) => updateCandidate(id, {
         ...candidate,
         provides: Array.isArray(candidate.provides) || next.length > 1 ? next : next[0],
@@ -575,19 +576,32 @@ function CandidateCatalogForm({ spec, updateSpec }: SpecProps) {
         <div className="form-subgroup qos-subgroup">
           <div className="form-subgroup-heading"><div><span className="micro-label">Quality values</span><h5>QoS matrix</h5></div></div>
           {aliases.length === 0 && <EmptyFormState>Add a metric binding to expose QoS inputs.</EmptyFormState>}
-          <div className="form-grid">{aliases.map((alias) => <label key={alias}>{alias}<input aria-label={`${id} QoS ${alias}`} type="number" step="any" value={candidate.metrics?.[alias] ?? ''} onChange={(event) => {
-          const metrics = { ...(candidate.metrics || {}) };
-          const value = optionalNumber(event.target.value);
-          if (value === undefined) delete metrics[alias];
-          else metrics[alias] = value;
-          updateCandidate(id, { ...candidate, metrics });
-          }} /></label>)}</div>
+          <div className="form-grid">{aliases.map((alias) => <div className="qos-field" key={alias}>
+            <span className="qos-name">{alias}</span>
+            <FeatureCell
+              feature={alias}
+              candidate={id}
+              value={candidateFeatures(candidate)[alias]}
+              onChange={(next) => {
+                const features = candidateFeatures(candidate);
+                if (next === null) delete features[alias];
+                else features[alias] = next;
+                updateCandidate(id, withCandidateFeatures(candidate, features));
+              }}
+              valueInput={({ value, onChange: change }) => (
+                <input aria-label={`${id} QoS ${alias}`} type="number" step="any" value={value ?? ''} onChange={(event) => {
+                  const typed = optionalNumber(event.target.value);
+                  change(typed === undefined ? null : typed);
+                }} />
+              )}
+            />
+          </div>)}</div>
         </div>
       </FormCard>;
     })}</div>
     <div className="form-add-bar"><div><strong>Add implementation</strong><small>Create a candidate, then declare its capabilities and QoS values.</small></div><Action variant="secondary" onClick={() => {
       const id = nextIdentifier(candidates, 'candidate');
-      updateSpec({ ...spec, candidates: { ...candidates, [id]: { provides: 'service/new', metrics: {} } } });
+      updateSpec({ ...spec, candidates: { ...candidates, [id]: { provides: 'service/new', features: {} } } });
     }}>Add candidate</Action></div>
     </FormSection>
   </>;

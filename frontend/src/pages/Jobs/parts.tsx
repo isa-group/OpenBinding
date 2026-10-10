@@ -77,13 +77,23 @@ export function OutcomeChip({ termination, long = false }: { termination?: strin
 }
 
 /** A refusal of the gateway, worded: the title, what it means, the lines it attached, and the way forward. */
-export function RefusalNotice({ refusal, action, usageTo, extra }: { refusal: Refusal; action?: ReactNode; usageTo?: boolean; extra?: ReactNode }) {
+export function RefusalNotice({ refusal, action, usageTo, extra, editTo }: {
+  refusal: Refusal; action?: ReactNode; usageTo?: boolean; extra?: ReactNode;
+  /** Where the candidates can be edited (the library); named by a refusal about ranges. */
+  editTo?: string;
+}) {
   return (
     <Notice tone={refusal.kind === 'plan' || refusal.kind === 'key' || refusal.kind === 'terminal' ? 'warning' : 'error'} title={refusal.title} action={action}>
       {refusal.text}
       {refusal.permission && refusal.kind === 'key' && <> <Chip mono>{refusal.permission}</Chip></>}
       {refusal.details.map((line) => <span className="job-refusal-line" key={line}>{line}</span>)}
       {extra}
+      {refusal.kind === 'range' && (
+        <span className="job-refusal-links">
+          <Action to="/engines" variant="link" size="sm">Engines</Action>
+          {editTo && <Action to={editTo} variant="link" size="sm">Edit the candidate</Action>}
+        </span>
+      )}
       {usageTo && (refusal.kind === 'quota' || refusal.kind === 'too-big' || refusal.kind === 'busy' || refusal.kind === 'plan') && (
         <span className="job-refusal-links">
           <Action to="/app/account/usage" variant="link" size="sm">See usage</Action>

@@ -1,4 +1,5 @@
 import type { BimResourceRef } from '../../api/client';
+import type { FeatureSlot } from '../../utils/featureRange';
 import type { WorkspaceFiles } from '../../utils/workspaceDraft';
 
 /** The documents of a BIM package as the workbench reads them: tolerant types over JSON, and the small readers the editor and the summaries share. */
@@ -60,7 +61,7 @@ export const DEFAULT_FILES: WorkspaceFiles = {
     metadata: { name: 'hello-catalog' },
     spec: {
       metricBindings: { latency: { resource: 'application', id: 'latency' } },
-      candidates: { 'service-a': { provides: 'http', metrics: { latency: 10 } } },
+      candidates: { 'service-a': { provides: 'http', features: { latency: 10 } } },
     },
   }),
   'optimization.json': pretty({
@@ -165,7 +166,22 @@ export interface CandidateDocument extends Record<string, unknown> {
   provides?: CapabilityDocument | CapabilityDocument[];
   provider?: InternalReference;
   properties?: ScalarMap;
-  metrics?: Record<string, number>;
+  /** A number, or a range `{ min, max }` (an end `null` for no limit) while it is being typed. This is the key of the schema. */
+  features?: Record<string, FeatureSlot>;
+  /** The key older drafts used for the same table; read when a document is opened, never written. */
+  metrics?: Record<string, FeatureSlot>;
+}
+
+/** The qualities of a candidate, from `features` (or from `metrics`, in a draft written before the key was fixed). */
+export function candidateFeatures(candidate: CandidateDocument): Record<string, FeatureSlot> {
+  return { ...(candidate.metrics || {}), ...(candidate.features || {}) };
+}
+
+/** The candidate with these qualities under `features`, the key of the schema, and without the older `metrics`. */
+export function withCandidateFeatures(candidate: CandidateDocument, features: Record<string, FeatureSlot>): CandidateDocument {
+  const next: CandidateDocument = { ...candidate, features };
+  delete next.metrics;
+  return next;
 }
 
 export interface ConstraintDocument extends Record<string, unknown> {

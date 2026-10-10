@@ -12,7 +12,8 @@ import { shortDigest } from '../../utils/digest';
 import { formatBytes, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ProjectGate, ProjectSkeleton } from '../Project/parts';
-import { featureNumber, type BindingModel, type FeatureValue, type TaskInfo } from './bindingModel';
+import { formatFeature } from '../../utils/featureRange';
+import type { BindingModel, FeatureValue, TaskInfo } from './bindingModel';
 import { classifyAuthError, isMissing, marker } from './caseErrors';
 import { plural, refLabel, resourceUses, roleLabel, type ResourceUse } from './casesModel';
 import { loadModel, type ModelState } from './modelLoader';
@@ -20,10 +21,27 @@ import { CaseFrame, CaseMissing, DigestLine, FlowDrawing, Power } from './parts'
 import { useLoadedMap, type Loaded } from './useLoadedMap';
 import { useRouteCase, type RouteCaseContent } from './useRouteCase';
 
-function shown(value: FeatureValue, unit: string | null): string {
-  const tail = unit ? ` ${unit}` : '';
-  if (typeof value === 'number') return `${value.toLocaleString('en-US', { maximumFractionDigits: 4 })}${tail}`;
-  return `${value.min.toLocaleString('en-US', { maximumFractionDigits: 4 })}–${value.max.toLocaleString('en-US', { maximumFractionDigits: 4 })}${tail}`;
+/** The finite ends of a value, which the bars of a column are drawn against. */
+const finiteEnds = (value: FeatureValue | undefined): number[] => {
+  if (value === undefined) return [];
+  return (typeof value === 'number' ? [value] : [value.min, value.max]).filter((end): end is number => end !== null);
+};
+
+/** A value as a bar: how far a number reaches, or the stretch a range covers (an open end runs off the bar, faded, with an arrow). */
+function FeatureBar({ value, maximum }: { value: FeatureValue; maximum: number }) {
+  const at = (end: number) => (maximum ? Math.min(1, Math.abs(end) / maximum) : 0);
+  if (typeof value === 'number') {
+    return <span className="case-bar is-small" aria-hidden="true"><i style={{ width: `${Math.round(at(value) * 100)}%` }} /></span>;
+  }
+  const low = value.min === null ? 0 : at(value.min);
+  const high = value.max === null ? 1 : at(value.max);
+  const [from, to] = low <= high ? [low, high] : [high, low];
+  const classes = [value.min === null ? 'is-open-low' : '', value.max === null ? 'is-open-high' : ''].filter(Boolean).join(' ');
+  return (
+    <span className="case-bar is-small is-interval" aria-hidden="true">
+      <i className={classes || undefined} style={{ left: `${Math.round(from * 100)}%`, width: `${Math.round((to - from) * 100)}%` }} />
+    </span>
+  );
 }
 
 /** The candidates that can serve one task, one column per quality they declare. */
@@ -40,7 +58,7 @@ function CandidateTable({ model }: { model: BindingModel }) {
     );
   }
   const columns = [...new Set(task.candidates.flatMap((candidate) => Object.keys(candidate.features)))].slice(0, 5);
-  const maxima = Object.fromEntries(columns.map((column) => [column, Math.max(...task.candidates.map((candidate) => (candidate.features[column] === undefined ? 0 : Math.abs(featureNumber(candidate.features[column])))), 0)]));
+  const maxima = Object.fromEntries(columns.map((column) => [column, Math.max(...task.candidates.flatMap((candidate) => finiteEnds(candidate.features[column]).map(Math.abs)), 0)]));
   return (
     <section className="proj-panel case-candidates" aria-labelledby="rv-candidates">
       <div className="proj-panel-head">
@@ -67,13 +85,15 @@ function CandidateTable({ model }: { model: BindingModel }) {
                 <th scope="row"><code>{candidate.name}</code>{candidate.provider && candidate.provider !== candidate.name && <small>{candidate.provider}</small>}</th>
                 {columns.map((column) => {
                   const value = candidate.features[column];
-                  const ratio = value === undefined || !maxima[column] ? 0 : Math.min(1, Math.abs(featureNumber(value)) / maxima[column]);
+                  const unit = model.features[column]?.unit ?? null;
                   return (
                     <td key={column}>
                       {value === undefined ? '—' : (
                         <span className="case-cell">
-                          <span className="case-bar is-small" aria-hidden="true"><i style={{ width: `${Math.round(ratio * 100)}%` }} /></span>
-                          {shown(value, model.features[column]?.unit ?? null)}
+                          <FeatureBar value={value} maximum={maxima[column]} />
+                          <span className={typeof value === 'number' ? undefined : 'case-range'} title={typeof value === 'number' ? undefined : formatFeature(value, { long: true, unit })}>
+                            {formatFeature(value, { unit })}
+                          </span>
                         </span>
                       )}
                     </td>

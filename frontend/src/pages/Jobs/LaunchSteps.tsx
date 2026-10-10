@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import type { SnapshotAnalysis } from '../../api/cases';
 import type { ArtifactVersion } from '../../api/library';
 import { ArtifactVersionPicker } from '../../components/Artifacts/ArtifactVersionPicker';
@@ -17,6 +18,8 @@ export interface Prepared {
   choiceId: string;
   snapshotId: string;
   analysis: { state: 'ok'; result: SnapshotAnalysis } | { state: 'failed'; refusal: Refusal };
+  /** Some candidate of the compiled form holds a range, so only a mode that declares interval values can run it. */
+  ranges?: boolean;
 }
 
 // --- 1 · what to solve
@@ -44,8 +47,12 @@ export function SourceStep({ choices, value, onChange, workbenchHref }: {
 
 // --- 2 · engine
 
-export function EngineStep({ modes, value, onChange, analysisNote, compareHref, hasPrepared }: {
+export function EngineStep({ modes, value, onChange, analysisNote, compareHref, hasPrepared, ranges = false, editHref }: {
   modes: readonly ModeChoice[]; value: string; onChange: (key: string) => void; analysisNote: ReactNode; compareHref: string; hasPrepared: boolean;
+  /** The package has ranges. */
+  ranges?: boolean;
+  /** Where the candidates can be edited (the library). */
+  editHref?: string;
 }) {
   return (
     <>
@@ -69,6 +76,14 @@ export function EngineStep({ modes, value, onChange, analysisNote, compareHref, 
         ))}
       </div>
       {hasPrepared && modes.length === 0 && <p className="org-muted">The gateway lists no engine mode for this problem. The AutoRouter can still look for one.</p>}
+      {ranges && modes.some((mode) => mode.rangeRefusal) && (
+        <Notice tone="warning" title="This package has range features">
+          {modes.every((mode) => mode.compat === 'no')
+            ? 'No engine mode accepts ranges yet, so the run would be refused (unsupported_capability_value). '
+            : 'The engines marked “Can’t run this” only accept single values. '}
+          Pick a mode that declares interval values (see <Link className="ui-notice-link" to={compareHref} viewTransition>Engines</Link>), or give those candidates single values{editHref ? <> (<Link className="ui-notice-link" to={editHref} viewTransition>edit the candidates</Link>)</> : ''}.
+        </Notice>
+      )}
       <Action to={compareHref} variant="link">Compare engines</Action>
     </>
   );

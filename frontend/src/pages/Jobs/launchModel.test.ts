@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { UsageView } from '../../api/auth';
 import type { EngineCatalogEntry, EngineMode } from '../../api/client';
 import type { CaseRevision } from '../../api/platform';
+import { RANGE_REFUSAL } from '../../utils/featureRange';
 import {
-  DEFAULT_POLICY, buildRequest, ceilingOf, forecastOf, initialChoice, modeChoices, modeOfCatalog, optionInputs, parseAmount, parseEngineParam, planCeilingsOf,
+  DEFAULT_POLICY, acceptsIntervals, buildRequest, ceilingOf, forecastOf, initialChoice, modeChoices, modeOfCatalog, optionInputs, parseAmount, parseEngineParam, planCeilingsOf,
   planOptions, requestOptions, sourceChoices,
 } from './launchModel';
 
@@ -71,6 +72,54 @@ describe('engines', () => {
     const modes = modeChoices(null, catalog);
     expect(modes).toHaveLength(1);
     expect(modes[0]).toMatchObject({ compat: 'unknown', registration: null, mode: 'sampling' });
+  });
+
+  describe('a package with ranges', () => {
+    const withIntervals = (selector: 'all' | 'only' | 'none', values?: string[]): EngineCatalogEntry[] => [{
+      ...ENGINE, id: 'engine-1', ref: ENGINE,
+      modes: [{ ...mode('sampling', {}), capabilities: { featureValues: { selector, values } } as unknown as EngineMode['capabilities'] }],
+    }];
+
+    it('knows which mode declares interval values', () => {
+      expect(acceptsIntervals(undefined)).toBeUndefined();
+      expect(acceptsIntervals(catalog[0].modes[0])).toBe(false);
+      expect(acceptsIntervals(withIntervals('all')[0].modes[0])).toBe(true);
+      expect(acceptsIntervals(withIntervals('only', ['scalar', 'interval'])[0].modes[0])).toBe(true);
+      expect(acceptsIntervals(withIntervals('only', ['scalar'])[0].modes[0])).toBe(false);
+      expect(acceptsIntervals(withIntervals('none')[0].modes[0])).toBe(false);
+    });
+
+    it('turns the mode down with the reason when the gateway did and the manifest takes single values only', () => {
+      const refused = [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: false }];
+      const modes = modeChoices(refused, withIntervals('only', ['scalar']), true);
+      expect(modes[0]).toMatchObject({ compat: 'no', rangeRefusal: true, reason: RANGE_REFUSAL });
+    });
+
+    it('trusts the gateway’s code, and keeps a reason it gave about something else', () => {
+      const code = [{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: false, diagnostics: [{ code: 'unsupported_capability_value', message: 'interval is not supported' }] }];
+      expect(modeChoices(code, catalog)[0]).toMatchObject({ compat: 'no', rangeRefusal: true, reason: RANGE_REFUSAL });
+      expect(modeChoices(compatible, catalog, true)[1]).toMatchObject({ compat: 'no', rangeRefusal: false, reason: 'It cannot read a RoutingOverlay.' });
+    });
+
+    it('never takes away a mode the gateway says can run it', () => {
+      const modes = modeChoices(compatible, catalog, true);
+      expect(modes[0]).toMatchObject({ engine: { name: 'random-search' }, compat: 'yes', rangeRefusal: false });
+    });
+
+    it('turns the catalog modes down itself when the gateway could not say, unless they declare interval', () => {
+      expect(modeChoices(null, catalog, true)[0]).toMatchObject({ compat: 'no', rangeRefusal: true, reason: RANGE_REFUSAL });
+      expect(modeChoices(null, withIntervals('all'), true)[0]).toMatchObject({ compat: 'unknown', rangeRefusal: false, reason: null });
+    });
+
+    it('changes nothing for a package without ranges', () => {
+      expect(modeChoices(null, catalog, false)[0]).toMatchObject({ compat: 'unknown', rangeRefusal: false });
+      expect(modeChoices(compatible, catalog)).toEqual(modeChoices(compatible, catalog, false));
+    });
+
+    it('does not offer a mode it turned down to be sent', () => {
+      const [off] = modeChoices(null, catalog, true);
+      expect(buildRequest({ snapshot: 'snap-1', settings: 'inline', configuration: null, auto: false, policy: DEFAULT_POLICY, mode: off, options: {} })).toBeNull();
+    });
   });
 
   it('reads the engine the address names', () => {

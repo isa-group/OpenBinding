@@ -64,7 +64,7 @@ export function packageFilesNamed(name: string): Record<string, string> {
       metadata: { name: `${name}-candidates` },
       spec: {
         metricBindings: { latency: { resource: 'application', id: 'latency' } },
-        candidates: { candidate: { provides: 'http', metrics: { latency: 10 } } },
+        candidates: { candidate: { provides: 'http', features: { latency: 10 } } },
       },
     }),
     'optimization.json': json({

@@ -197,7 +197,7 @@
 .job-connecting > span, .job-checking { display: inline-flex; align-items: center; gap: 10px; color: var(--tp-charcoal); font-size: 0.8125rem; }
 .job-spinner { width: 16px; height: 16px; box-sizing: border-box; flex: none; border: 2px solid var(--tp-cream-deeper); border-top-color: var(--tp-primary); border-radius: 9999px; animation: job-spin 0.9s linear infinite; }
 
-.job-refusal-line { display: block; margin-top: 2px; font-size: 0.8125rem; }
+.job-refusal-line { display: block; margin-top: 2px; font-size: 0.8125rem; overflow-wrap: anywhere; }
 .job-refusal-links { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-sm); margin-top: 6px; }
 
 /* New run */

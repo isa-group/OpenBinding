@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Chip } from '../../components/ui/Chip';
 import { shortDigest } from '../../utils/digest';
+import { formatFeature, type FeatureSlot } from '../../utils/featureRange';
 import { formatBytes } from '../../utils/format';
 import {
   brief, catalogOf, isCaseRevisionRef, isObject, isVersionRef, labelOf, rulesOf, sourceOf, summarizeXml,
@@ -101,6 +102,13 @@ function Section({ title, note, children }: { title: string; note?: string; chil
 
 const number = (value: number | undefined) => (value === undefined ? '—' : value.toLocaleString('en-US', { maximumFractionDigits: 6 }));
 
+/** A quality: a number as it is, a range as `120–180`, `≤ 200`, `≥ 100` or `unbounded`, with the interval spelled out for a screen reader. */
+function FeatureText({ value }: { value: FeatureSlot | undefined }) {
+  if (value === undefined) return <>—</>;
+  if (typeof value === 'number') return <>{number(value)}</>;
+  return <span className="lib-range" title={formatFeature(value, { long: true })}>{formatFeature(value)}</span>;
+}
+
 function CatalogContent({ catalog }: { catalog: CatalogView }) {
   if (catalog.groups.length === 0) return <p className="lib-empty-note">This catalog has no candidates.</p>;
   return (
@@ -122,7 +130,7 @@ function CatalogContent({ catalog }: { catalog: CatalogView }) {
                   <tr key={row.id}>
                     <th scope="row"><code>{row.id}</code></th>
                     <td>{row.provider ? <code>{row.provider}</code> : <span className="lib-none">—</span>}</td>
-                    {catalog.columns.map((column) => <td key={column}>{number(row.features[column])}</td>)}
+                    {catalog.columns.map((column) => <td key={column}><FeatureText value={row.features[column]} /></td>)}
                   </tr>
                 ))}
               </tbody>

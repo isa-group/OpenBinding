@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addCandidate, addRule, catalogOf, checksFor, differences, freezeLines, parseContent, parseNumber, removeCandidate, renameCandidate, rulesOf,
-  setCandidateFeature, setCandidateProvider, setRuleField, summarizeXml, templateFor, updateAt, type JsonObject,
+  addCandidate, addRule, brief, catalogOf, checksFor, differences, freezeLines, parseContent, parseNumber, removeCandidate, renameCandidate, rulesOf,
+  setCandidateFeature, setCandidateProvider, setRuleField, summarizeXml, templateFor, updateAt, type Json, type JsonObject,
 } from './contentModel';
 import { bpmnContent, catalogContent, rulesContent } from './fixtures';
 
@@ -20,9 +20,53 @@ describe('candidate catalogs as rows', () => {
   it('leaves a catalog it cannot show as a table to the generic form', () => {
     const rich = updateAt(catalog(), ['spec', 'candidates', 'fastpay', 'provides'], ['payment', 'stock']);
     expect(catalogOf(rich)).toBeNull();
-    expect(catalogOf(updateAt(catalog(), ['spec', 'candidates', 'fastpay', 'features', 'latency_ms'], { min: 1, max: 2 }))).toBeNull();
+    const at = (value: Json) => updateAt(catalog(), ['spec', 'candidates', 'fastpay', 'features', 'latency_ms'], value);
+    // A scalar that is null, a range with another key, and a text are not qualities a table can hold.
+    expect(catalogOf(at(null))).toBeNull();
+    expect(catalogOf(at({ min: 1, max: 2, mid: 1 }))).toBeNull();
+    expect(catalogOf(at('fast'))).toBeNull();
     expect(catalogOf('<xml/>')).toBeNull();
     expect(catalogOf({ spec: {} })).toBeNull();
+  });
+
+  it('shows a quality that is a range, open or not, as a row of the table', () => {
+    const at = (value: Json) => updateAt(catalog(), ['spec', 'candidates', 'fastpay', 'features', 'latency_ms'], value);
+    for (const range of [{ min: 1, max: 2 }, { min: null, max: 2 }, { min: 1, max: null }, { min: null, max: null }]) {
+      expect(catalogOf(at(range))?.groups[0].rows[1].features.latency_ms).toEqual(range);
+    }
+  });
+
+  it('writes a range with its ends in order and removes a quality with null', () => {
+    const open = setCandidateFeature(catalog(), 'fastpay', 'latency_ms', { max: null, min: 100 });
+    expect(JSON.stringify(((open.spec as JsonObject).candidates as JsonObject).fastpay)).toContain('"latency_ms":{"min":100,"max":null}');
+    // An end that isn't known yet is left out, so the slot stays invalid until it is typed.
+    const partial = setCandidateFeature(catalog(), 'fastpay', 'latency_ms', { min: 5 });
+    expect(catalogOf(partial)?.groups[0].rows[1].features.latency_ms).toEqual({ min: 5 });
+    expect(catalogOf(setCandidateFeature(open, 'fastpay', 'latency_ms', 7))?.groups[0].rows[1].features.latency_ms).toBe(7);
+    expect('latency_ms' in (catalogOf(setCandidateFeature(open, 'fastpay', 'latency_ms', null))?.groups[0].rows[1].features ?? {})).toBe(false);
+  });
+
+  it('blocks sealing on a range that is not valid, and only on that', () => {
+    const wrong = setCandidateFeature(catalog(), 'fastpay', 'latency_ms', { min: 9, max: 3 });
+    const checks = checksFor('CandidateCatalog', wrong);
+    const range = checks.find((check) => check.blocking);
+    expect(range).toMatchObject({ level: 'error' });
+    expect(range?.text).toContain('fastpay · latency_ms: Min can’t be greater than max.');
+    expect(checksFor('CandidateCatalog', setCandidateFeature(catalog(), 'fastpay', 'latency_ms', { min: 5 })).some((check) => check.blocking)).toBe(true);
+    // Open ends never trigger an order error; a missing quality is the gateway's call, not a block.
+    expect(checksFor('CandidateCatalog', setCandidateFeature(catalog(), 'fastpay', 'latency_ms', { min: 5, max: null })).some((check) => check.blocking)).toBe(false);
+    expect(checksFor('CandidateCatalog', setCandidateFeature(catalog(), 'fastpay', 'latency_ms', null)).some((check) => check.blocking)).toBe(false);
+  });
+
+  it('counts the qualities that are ranges', () => {
+    const open = setCandidateFeature(setCandidateFeature(catalog(), 'fastpay', 'latency_ms', { min: null, max: 90 }), 'payco-eu', 'cost_eur', { min: null, max: null });
+    expect(checksFor('CandidateCatalog', open)).toContainEqual({ level: 'ok', text: '2 qualities are ranges' });
+    expect(checksFor('CandidateCatalog', catalog()).some((check) => check.text.includes('range'))).toBe(false);
+  });
+
+  it('reads a range in a generic table as the range it is', () => {
+    expect(brief({ min: null, max: 200 })).toBe('≤ 200');
+    expect(brief({ min: 1, max: 2 })).toBe('1–2');
   });
 
   it('edits one cell at a time and keeps what it does not know about', () => {

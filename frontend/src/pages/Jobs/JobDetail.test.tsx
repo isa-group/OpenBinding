@@ -229,6 +229,32 @@ describe('One run', () => {
     expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-5`);
   });
 
+  it('explains a run that failed because the engine takes single values only, and points at Engines and the candidates', async () => {
+    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'failed', {
+      result: {
+        code: 'unsupported_capability_value',
+        error: 'unsupported_capability_value: unsupported ["interval"]',
+        diagnostics: [{ message: 'featureValues interval is not declared', pointer: '/spec/candidates/providers/candidates/fastpay/features/latency' }],
+      },
+    }));
+    renderJob();
+
+    const notice = (await screen.findByText(/^This engine only accepts single values/)).closest('.ui-notice') as HTMLElement;
+    expect(notice).toHaveTextContent('This package has range features');
+    expect(notice).not.toHaveTextContent('Nothing was started.');
+    expect(notice).toHaveTextContent('featureValues interval is not declared (/spec/candidates/providers/candidates/fastpay/features/latency)');
+    expect(within(notice).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
+    expect(within(notice).getByRole('link', { name: 'Edit the candidate' })).toHaveAttribute('href', '/app/isa-demo/library');
+  });
+
+  it('says nothing about ranges when a run failed for another reason', async () => {
+    jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'failed'));
+    renderJob();
+
+    await screen.findByRole('alert');
+    expect(screen.queryByText(/only accepts single values/)).not.toBeInTheDocument();
+  });
+
   it.each([
     [402, 'quota_exceeded', /Retry refused: Out of solves this month/],
     [429, 'concurrency_limit_exceeded', /Retry refused: All your job slots are busy \(429/],

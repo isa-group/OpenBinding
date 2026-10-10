@@ -182,6 +182,8 @@ function FeatureValues({ mode }: { mode: ModeView }) {
       <small className="eng-muted">
         Ranges are part of the BIM syntax and a manifest may declare them. The bundled engines accept scalar values only, so a job whose
         candidates carry an interval fails with <code>unsupported_capability_value</code> unless the mode declares it.
+        An interval includes open ranges: a range with an end <code>null</code> (no lower or no upper limit, such as ≤ 200 or ≥ 100) counts as an interval, and so does one with no limits at all.
+        An engine that declares it must read <code>null</code> as infinity, never as 0.
       </small>
     </section>
   );

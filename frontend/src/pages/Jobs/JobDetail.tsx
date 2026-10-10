@@ -15,7 +15,7 @@ import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts'
 import { useRouteProject } from '../Project/useRouteProject';
 import { Provenance, Routing, Settings, Timeline } from './JobFacts';
 import { ResultSection, type Origin } from './JobResult';
-import { refusalOf, type Refusal } from './jobErrors';
+import { rangeFailureOf, refusalOf, type Refusal } from './jobErrors';
 import { findOrigin } from './jobsData';
 import { canRetryState, isActive, normalizeStatus, readPins, shortJobId } from './jobsModel';
 import { JobFrame, JobMissing, OutcomeChip, RefusalNotice, StatusChip } from './parts';
@@ -90,6 +90,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
   }
 
   const state = normalizeStatus(detail.status);
+  const rangeFailure = rangeFailureOf(detail);
   const pins = readPins(detail.provenance);
   const engineName = meta?.engine_id ?? pins.engine?.name ?? 'Job';
   const engineVersion = pins.engine?.version ? ` ${pins.engine.version}` : '';
@@ -182,6 +183,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
         <Notice tone="success" action={outcome.follow ? <Action to={outcome.follow} variant="link" size="sm">Follow the new run</Action> : undefined}>{outcome.text}</Notice>
       )}
       {outcome?.tone === 'error' && <RefusalNotice refusal={outcome.refusal} usageTo />}
+      {state === 'failed' && rangeFailure && <RefusalNotice refusal={rangeFailure} editTo={`/app/${org}/library`} />}
       {live.feed === 'paused' && (
         <Notice tone="warning" action={<Action variant="secondary" size="sm" onClick={live.refresh}>Reconnect</Action>}>
           Live updates stopped arriving. What you see is the last state received.

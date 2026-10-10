@@ -6,6 +6,7 @@ import {
   type CatalogView, type JsonObject, type RuleRow,
 } from './contentModel';
 import { CommitField, NumberField, TextField } from './fields';
+import { FeatureCell } from './FeatureCell';
 import { plural } from './libraryModel';
 
 interface CatalogEditorProps {
@@ -95,7 +96,7 @@ export function CatalogEditor({ document, catalog, onChange, readOnly }: Catalog
                       <td><TextField mono label={`Provider of ${row.id}`} value={row.provider} disabled={readOnly} onChange={(next) => onChange(setCandidateProvider(document, row.id, next))} /></td>
                       {columns.map((column) => (
                         <td key={column}>
-                          <NumberField label={`${column} for ${row.id}`} value={row.features[column] ?? null} required disabled={readOnly} onChange={(next) => onChange(setCandidateFeature(document, row.id, column, next))} />
+                          <FeatureCell feature={column} candidate={row.id} value={row.features[column]} required disabled={readOnly} onChange={(next) => onChange(setCandidateFeature(document, row.id, column, next))} />
                         </td>
                       ))}
                       <td className="lib-cell-end"><Action variant="danger-outline" size="sm" disabled={readOnly} onClick={() => onChange(removeCandidate(document, row.id))} aria-label={`Remove ${row.id}`}>Remove</Action></td>

@@ -240,9 +240,38 @@ describe('Workbench · forms of the editor', () => {
       candidate2: {
         provides: [{ type: 'http', properties: { protocol: 'https' } }, 'grpc'],
         properties: { region: 'us' },
-        metrics: { responseTime: 8, cost: 5 },
+        features: { responseTime: 8, cost: 5 },
       },
     });
+  });
+
+  it('writes the qualities of a candidate under features, the key of the schema, also when the draft was written under metrics', async () => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      'instance.json': JSON.stringify({
+        apiVersion: 'bim/v1',
+        kind: 'Instance',
+        metadata: { name: 'older-draft' },
+        spec: { profile: 'qos-binding/v1', resources: { candidateCatalog: { catalog: 'candidates.json' } } },
+      }),
+      'candidates.json': JSON.stringify({
+        apiVersion: 'qos-binding/v1',
+        kind: 'CandidateCatalog',
+        metadata: { name: 'catalog' },
+        spec: {
+          metricBindings: { latency: { resource: 'application', id: 'latency' } },
+          candidates: { 'service-a': { provides: 'http', metrics: { latency: 10 } } },
+        },
+      }),
+    }));
+    await openWorkbench();
+    fireEvent.click(await screen.findByRole('button', { name: /candidates\.json/i }));
+    expect(screen.getByLabelText('service-a QoS latency')).toHaveValue(10);
+
+    fireEvent.change(screen.getByLabelText('service-a QoS latency'), { target: { value: '12' } });
+    validate();
+    await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(1));
+    const catalog = JSON.parse((await checkedFiles())['candidates.json']);
+    expect(catalog.spec.candidates['service-a']).toEqual({ provides: 'http', features: { latency: 12 } });
   });
 
   it('authors RoutingOverlay and the complete Placement topology without opening the source', async () => {

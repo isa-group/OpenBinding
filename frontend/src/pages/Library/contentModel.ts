@@ -4,6 +4,8 @@
  * about, and describe the rest generically. Nothing here talks to the gateway.
  */
 
+import { formatFeature, isFeatureSlot, isRange, parseFiniteNumber, validateFeature, type FeatureSlot } from '../../utils/featureRange';
+
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 export type JsonObject = { [key: string]: Json };
 export type Content = JsonObject | string;
@@ -99,7 +101,8 @@ export function uniqueKey(taken: readonly string[], base: string): string {
 export interface CatalogRow {
   id: string;
   provider: string;
-  features: Record<string, number>;
+  /** A number or a range; a range that misses an end while it is being typed is kept as it is, and `checksFor` flags it. */
+  features: Record<string, FeatureSlot>;
 }
 
 export interface CatalogGroup {
@@ -117,8 +120,8 @@ const NO_CAPABILITY = '';
 
 /**
  * A catalog as rows, when it is shaped simply enough to be edited as a table: a map of candidates, each providing one named capability
- * and declaring numbers. Anything richer (a capability that is a list or a description, a quality that is a range) returns `null` and
- * is shown with the generic form instead, so nothing is ever flattened away.
+ * and declaring numbers or ranges (`{ min, max }`, an end `null` for no limit). Anything richer (a capability that is a list or a
+ * description, a quality that is neither) returns `null` and is shown with the generic form instead, so nothing is ever flattened away.
  */
 export function catalogOf(document: Content): CatalogView | null {
   if (!isObject(document) || !isObject(document.spec) || !isObject(document.spec.candidates)) return null;
@@ -129,11 +132,11 @@ export function catalogOf(document: Content): CatalogView | null {
     const provides = candidate.provides ?? NO_CAPABILITY;
     if (typeof provides !== 'string') return null;
     const features = candidate.features ?? {};
-    if (!isObject(features) || Object.values(features).some((value) => typeof value !== 'number')) return null;
+    if (!isObject(features) || Object.values(features).some((value) => !isFeatureSlot(value))) return null;
     const provider = candidate.provider;
     if (provider !== undefined && !(isObject(provider) && (provider.id === undefined || typeof provider.id === 'string'))) return null;
     for (const column of Object.keys(features)) if (!columns.includes(column)) columns.push(column);
-    const row: CatalogRow = { id, provider: isObject(provider) && typeof provider.id === 'string' ? provider.id : '', features: features as Record<string, number> };
+    const row: CatalogRow = { id, provider: isObject(provider) && typeof provider.id === 'string' ? provider.id : '', features: features as Record<string, FeatureSlot> };
     groups.set(provides, [...(groups.get(provides) ?? []), row]);
   }
   return { groups: [...groups].map(([capability, rows]) => ({ capability, rows })), columns };
@@ -154,8 +157,13 @@ export function setCandidateProvider(document: JsonObject, id: string, provider:
   return updateAt(document, ['spec', 'candidates', id, 'provider'], provider ? { ...previous, id: provider } : undefined);
 }
 
-export function setCandidateFeature(document: JsonObject, id: string, feature: string, value: number | null): JsonObject {
-  return updateAt(document, ['spec', 'candidates', id, 'features', feature], value === null ? undefined : value);
+/** Sets one quality of a candidate to a number or a range; `null` removes it. A range is written with its keys in the order `min`, `max`. */
+export function setCandidateFeature(document: JsonObject, id: string, feature: string, value: FeatureSlot | null): JsonObject {
+  if (value === null) return updateAt(document, ['spec', 'candidates', id, 'features', feature], undefined);
+  const written: Json = typeof value === 'number' ? value : Object.fromEntries(
+    (['min', 'max'] as const).filter((end) => value[end] !== undefined).map((end) => [end, value[end] as number | null]),
+  );
+  return updateAt(document, ['spec', 'candidates', id, 'features', feature], written);
 }
 
 export function addCandidate(document: JsonObject, capability: string): JsonObject {
@@ -219,6 +227,8 @@ export function removeRule(document: JsonObject, id: string): JsonObject {
 export interface Check {
   level: 'ok' | 'warn' | 'error';
   text: string;
+  /** A problem the draft can't be saved or sealed with (a range that isn't valid); other errors are for the gateway to judge. */
+  blocking?: boolean;
 }
 
 const MUST_NOT_BE_EMPTY = new Set(['Report', 'Collection', 'Study', 'BindingDecision', 'ExecutionConfiguration', 'AnalysisConfiguration']);
@@ -243,6 +253,14 @@ export function checksFor(kind: string, content: Content): Check[] {
     checks.push(incomplete.length
       ? { level: 'error', text: `${incomplete.length} ${incomplete.length === 1 ? 'provider is' : 'providers are'} missing a quality` }
       : { level: 'ok', text: 'Every provider has the same qualities' });
+    const badRanges = rows.flatMap((row) => Object.entries(row.features)
+      .filter(([, value]) => typeof value !== 'number' && validateFeature(value) !== null)
+      .map(([column, value]) => `${row.id} · ${column}: ${validateFeature(value)}`));
+    if (badRanges.length) {
+      checks.push({ level: 'error', text: `${badRanges.length} ${badRanges.length === 1 ? 'range is' : 'ranges are'} not valid (${badRanges[0]}${badRanges.length > 1 ? `, and ${badRanges.length - 1} more` : ''})`, blocking: true });
+    }
+    const ranged = rows.reduce((total, row) => total + Object.values(row.features).filter((value) => typeof value !== 'number').length, 0);
+    if (ranged && !badRanges.length) checks.push({ level: 'ok', text: `${ranged} ${ranged === 1 ? 'quality is a range' : 'qualities are ranges'}` });
     const unnamed = rows.filter((row) => !row.provider.trim());
     if (unnamed.length) checks.push({ level: 'warn', text: `${unnamed.length} ${unnamed.length === 1 ? 'candidate has' : 'candidates have'} no provider id` });
     const loose = catalog.groups.find((group) => group.capability === NO_CAPABILITY);
@@ -375,12 +393,7 @@ export function isCaseRevisionRef(value: unknown): value is { caseRevisionId: st
 }
 
 /** A number as people type it (`0.5`, `-3`, `1e-4`); `undefined` for anything else, so a half-typed value never becomes `NaN`. */
-export function parseNumber(text: string): number | undefined {
-  const trimmed = text.trim();
-  if (!/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(trimmed)) return undefined;
-  const value = Number(trimmed);
-  return Number.isFinite(value) ? value : undefined;
-}
+export const parseNumber = parseFiniteNumber;
 
 export type NodeType = 'text' | 'number' | 'boolean' | 'group' | 'list';
 
@@ -434,6 +447,7 @@ export function brief(value: Json | undefined): string {
   if (typeof value === 'string') return value || '—';
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (Array.isArray(value)) return value.length === 0 ? '—' : value.map(brief).join(', ');
+  if (isRange(value)) return formatFeature(value);
   const entries = Object.entries(value);
   return entries.length === 0 ? '—' : entries.map(([key, child]) => `${labelOf(key)}: ${brief(child)}`).join(' · ');
 }

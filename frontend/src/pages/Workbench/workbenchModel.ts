@@ -1,5 +1,6 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
 import type { WorkspaceFiles } from '../../utils/workspaceDraft';
 import { isRecord, parseJson, type BimDocument, type CompatibleMode, type Diagnostic, type ResourceEntry } from './bimDocuments';
 
@@ -162,6 +163,38 @@ export interface EngineRow {
   why: string;
 }
 
+/** What the run says when an engine refuses a package for its ranges, plus the diagnostics' pointers when the gateway sent them. */
+export const RANGE_RUN_ERROR = 'This engine only accepts single values, and this package has range features (a min and a max, open or not). Pick a mode that declares interval values, or edit those candidates to use single values.';
+
+/** Did the run end because the engine mode doesn't take ranges (`unsupported_capability_value`)? */
+export function isRangeRefusal(caught: unknown): boolean {
+  if (caught instanceof HttpError) {
+    if (caught.code === RANGE_CODE) return true;
+    if ((caught.diagnostics ?? []).some((row) => isRecord(row) && row.code === RANGE_CODE)) return true;
+  }
+  return caught instanceof Error && caught.message.includes(RANGE_CODE);
+}
+
+/** The pointers of the diagnostics of such a refusal, as ` Candidates: /spec/candidates/a/features/latency, …` (empty when it sent none). */
+export function rangePointers(caught: unknown): string {
+  const rows = caught instanceof HttpError ? caught.diagnostics ?? [] : [];
+  const pointers = rows.flatMap((row) => (isRecord(row) && typeof row.pointer === 'string' ? [row.pointer] : [])).slice(0, 5);
+  return pointers.length ? ` The gateway pointed at ${pointers.join(', ')}.` : '';
+}
+
+/** Did the gateway turn the mode down because of ranges (`unsupported_capability_value`, or an interval it can't take)? */
+export function refusesRanges(mode: CompatibleMode): boolean {
+  return mode.compatible !== true && (mode.diagnostics ?? []).some((diagnostic) => (
+    diagnostic.code === RANGE_CODE || /\binterval\b/i.test(`${diagnostic.message ?? ''} ${diagnostic.detail ?? ''}`)
+  ));
+}
+
+/** The reason a mode that can't run the package gives, in words. A refusal for ranges says so in the one sentence everywhere. */
+export function whyNot(mode: CompatibleMode): string {
+  if (refusesRanges(mode)) return RANGE_REFUSAL;
+  return mode.diagnostics?.map((diagnostic) => diagnostic.message ?? diagnostic.detail).filter(Boolean).join(' ') || 'Its declared capabilities don’t cover this package.';
+}
+
 /** A row for each engine mode the analysis listed, with the reason it can or can't run the package. */
 export function engineRows(modes: CompatibleMode[]): EngineRow[] {
   return modes.map((item) => ({
@@ -172,8 +205,19 @@ export function engineRows(modes: CompatibleMode[]): EngineRow[] {
     registered: item.engine.namespace !== 'bim.builtin',
     why: item.compatible
       ? `Runs through ${item.registration.namespace}/${item.registration.name}@${item.registration.version}.`
-      : item.diagnostics?.map((diagnostic) => diagnostic.message ?? diagnostic.detail).filter(Boolean).join(' ') || 'Its declared capabilities don’t cover this package.',
+      : whyNot(item),
   }));
+}
+
+/** Does any candidate of any catalog of the package hold a range (an object under `features`, or `metrics` in the older layout)? */
+export function filesHaveRanges(files: WorkspaceFiles): boolean {
+  return Object.entries(files).some(([path, source]) => {
+    if (!path.toLowerCase().endsWith('.json')) return false;
+    const document = parseJson(source);
+    const candidates = document?.kind === 'CandidateCatalog' && isRecord(document.spec) ? document.spec.candidates : undefined;
+    const entries = isRecord(candidates) ? Object.values(candidates) : Array.isArray(candidates) ? candidates : [];
+    return entries.some((entry) => isRecord(entry) && ['features', 'metrics'].some((key) => isRecord(entry[key]) && Object.values(entry[key] as Record<string, unknown>).some(isRecord)));
+  });
 }
 
 // --- the draft of the workspace

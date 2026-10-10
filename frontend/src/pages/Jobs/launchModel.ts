@@ -5,6 +5,7 @@ import type { ArtifactRef } from '../../api/library';
 import type { CaseRevision } from '../../api/platform';
 import type { CaseContent } from '../Project/projectModel';
 import { planLimit } from '../Project/projectModel';
+import { RANGE_CODE, RANGE_REFUSAL } from '../../utils/featureRange';
 import { formatDate } from '../../utils/format';
 import { shortDigest } from '../../utils/digest';
 import { parseBindingSpace } from '../../components/BindingSpaceBadge/bindingSpace';
@@ -85,6 +86,8 @@ export interface ModeChoice {
   reason: string | null;
   /** A deployment of the account's own, which counts as a federated solve. */
   federated: boolean;
+  /** The package has ranges and this mode takes single values only (or the gateway refused it for that). */
+  rangeRefusal?: boolean;
 }
 
 const isRef = (value: unknown): value is BimResourceRef => isRecord(value)
@@ -98,25 +101,51 @@ export const modeKey = (engine: BimResourceRef, mode: string, registration: BimR
  * The engine modes the gateway says can (or cannot) run a snapshot. Without that reading (`compatible` is `null`) the catalog's own modes are
  * offered as unchecked: the gateway decides when the run is sent.
  */
-export function modeChoices(compatible: unknown[] | null, catalog: readonly EngineCatalogEntry[]): ModeChoice[] {
+export function modeChoices(compatible: unknown[] | null, catalog: readonly EngineCatalogEntry[], ranges = false): ModeChoice[] {
+  const catalogMode = (engine: BimResourceRef, mode: string): EngineMode | undefined => (
+    catalog.find((entry) => entry.namespace === engine.namespace && entry.name === engine.name && entry.version === engine.version)?.modes.find((item) => item.id === mode)
+  );
+  /** A package with ranges can only go to a mode that declares interval values; the gateway refuses it otherwise (`unsupported_capability_value`). */
+  const refusesRanges = (engine: BimResourceRef, mode: string) => ranges && acceptsIntervals(catalogMode(engine, mode)) === false;
   if (compatible) {
     const rows: ModeChoice[] = [];
     for (const item of compatible) {
       if (!isRecord(item) || !isRef(item.engine) || !isRef(item.registration) || typeof item.mode !== 'string') continue;
       const first = Array.isArray(item.diagnostics) ? item.diagnostics.find(isRecord) : undefined;
-      const reason = first ? (typeof first.message === 'string' ? first.message : typeof first.code === 'string' ? first.code : null) : null;
+      const said = first ? (typeof first.message === 'string' ? first.message : typeof first.code === 'string' ? first.code : null) : null;
+      // The gateway's own verdict decides. When it turned a mode down for ranges (its code), or gave no reason and the mode's manifest
+      // takes single values only, the reason says so; any other reason of the gateway is kept as it sent it.
+      const rangeRefusal = item.compatible !== true && (first?.code === RANGE_CODE || (said === null && refusesRanges(item.engine, item.mode)));
       rows.push({
         key: modeKey(item.engine, item.mode, item.registration), engine: item.engine, registration: item.registration, mode: item.mode,
-        compat: item.compatible === true ? 'yes' : 'no', reason, federated: item.registration.namespace !== BUILTIN,
+        compat: item.compatible === true ? 'yes' : 'no', reason: rangeRefusal ? RANGE_REFUSAL : said, federated: item.registration.namespace !== BUILTIN,
+        rangeRefusal,
       });
     }
     return rows.sort((a, b) => Number(b.compat === 'yes') - Number(a.compat === 'yes'));
   }
-  return catalog.flatMap((entry) => entry.modes.map((mode) => ({
-    key: modeKey(entry, mode.id, null),
-    engine: { namespace: entry.namespace, name: entry.name, version: entry.version, digest: entry.digest },
-    registration: null, mode: mode.id, compat: 'unknown' as const, reason: null, federated: entry.namespace !== BUILTIN,
-  })));
+  return catalog.flatMap((entry) => entry.modes.map((mode): ModeChoice => {
+    const rangeRefusal = refusesRanges(entry, mode.id);
+    return {
+      key: modeKey(entry, mode.id, null),
+      engine: { namespace: entry.namespace, name: entry.name, version: entry.version, digest: entry.digest },
+      registration: null, mode: mode.id, compat: rangeRefusal ? 'no' : 'unknown', reason: rangeRefusal ? RANGE_REFUSAL : null, federated: entry.namespace !== BUILTIN,
+      rangeRefusal,
+    };
+  }));
+}
+
+
+/**
+ * Does the mode declare `featureValues` with `interval` (open ranges included)? `undefined` when the mode isn't known. The gateway makes the
+ * dimension mandatory for `qos-binding/v1`, so a mode that doesn't name it accepts single values only.
+ */
+export function acceptsIntervals(mode: EngineMode | undefined): boolean | undefined {
+  if (!mode) return undefined;
+  const declared = mode.capabilities?.featureValues;
+  if (!declared) return false;
+  if (declared.selector === 'all') return true;
+  return declared.selector === 'only' && (declared.values ?? []).includes('interval');
 }
 
 /** `isa/random-search@1.0.0#sha256-…`, the address `?engine=` carries (`bimResourceKey`). */

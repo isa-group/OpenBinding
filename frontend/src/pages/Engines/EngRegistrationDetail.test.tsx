@@ -127,6 +127,7 @@ describe('eng-registration-detail', () => {
     const features = within(mode).getByRole('region', { name: 'Feature values of mode tabu' });
     expect(features).toHaveTextContent('IntervalRanges, min–max · accepted');
     expect(features).toHaveTextContent('ScalarSingle numbers · accepted');
+    expect(features).toHaveTextContent('An interval includes open ranges: a range with an end null (no lower or no upper limit, such as ≤ 200 or ≥ 100) counts as an interval');
     expect(within(mode).getByRole('region', { name: 'Options of mode tabu' })).toHaveTextContent('1 – 3,600,000');
     expect(within(mode).getByText('pareto-front')).toBeInTheDocument();
 

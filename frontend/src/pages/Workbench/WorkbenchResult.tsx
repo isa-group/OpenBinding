@@ -3,6 +3,7 @@ import { FileText, Folder } from 'lucide-react';
 import { Chip } from '../../components/ui/Chip';
 import { DataTable } from '../../components/ui/DataTable';
 import { shortDigest } from '../../utils/digest';
+import { formatFeature } from '../../utils/featureRange';
 import { formatBytes } from '../../utils/format';
 import type { DiagnosticGroup } from './diagnostics';
 import { ROLE_LABELS, type PackageModel, type PackageTreeNode, type WorkflowNode } from './packageModel';
@@ -115,7 +116,7 @@ export function StructurePanel({ model, valid, fileDigests, problemsByFile, onSh
                   <td className="is-mono">{task.id}</td>
                   <td>{task.capability ?? '—'}</td>
                   <td>{task.candidates}</td>
-                  <td>{task.ranges.length ? task.ranges.map((range) => `${range.feature} ${range.min}–${range.max}${range.unit ? ` ${range.unit}` : ''}`).join(' · ') : '—'}</td>
+                  <td>{task.ranges.length ? task.ranges.map((range) => `${range.feature} ${formatFeature({ min: range.min, max: range.max }, { unit: range.unit })}`).join(' · ') : '—'}</td>
                 </tr>
               ))}
             </tbody>

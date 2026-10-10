@@ -46,10 +46,19 @@ export const catalogContent = (): JsonObject => ({
     candidates: {
       'payco-eu': { provides: 'service/payment', features: { latency_ms: 180, cost_eur: 0.021, availability: 99.95 }, provider: { resource: 'catalog', id: 'payco' } },
       fastpay: { provides: 'service/payment', features: { latency_ms: 95, cost_eur: 0.034, availability: 99.9 }, provider: { resource: 'catalog', id: 'fastpay' } },
-      'stockly-1': { provides: 'service/stock', features: { latency_ms: 40, cost_eur: 0.002, availability: 99.99 }, provider: { resource: 'catalog', id: 'stockly' } },
-    },
+      'stockly-1': { provides: 'service/stock', features: { latency_ms: 40, cost_eur: 0.002, availability: 99.99 }, provider: { resource: 'catalog', id: 'stockly' } },    },
   },
 });
+
+/**
+ * The same catalog with every kind of range on its stock provider: a closed one, one with no upper limit and one with no lower limit
+ * (what the QA gallery and the range screens show). The number of providers and qualities is that of `catalogContent`.
+ */
+export const catalogRangesContent = (): JsonObject => {
+  const content = catalogContent() as { spec: { candidates: Record<string, { features: Record<string, unknown> }> } };
+  content.spec.candidates['stockly-1'].features = { latency_ms: { min: 35, max: 60 }, cost_eur: { min: null, max: 0.004 }, availability: { min: 99.5, max: null } };
+  return content as unknown as JsonObject;
+};
 
 export const rulesContent = (): JsonObject => ({
   apiVersion: 'qos-binding/v1', kind: 'ConstraintSet', metadata: { name: 'sla-hard' },

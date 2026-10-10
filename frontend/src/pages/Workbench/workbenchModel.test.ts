@@ -3,10 +3,61 @@ import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { DEFAULT_FILES, instanceResources, parseJson, type CompatibleMode } from './bimDocuments';
 import {
-  complexityCeiling, engineRows, goalTerms, loadRefusalText, packageFileList, refusalMarker, refusalOf, refusalText, saveRefusalText, workbenchDraftScope,
+  complexityCeiling, engineRows, filesHaveRanges, goalTerms, isRangeRefusal, loadRefusalText, packageFileList, rangePointers, refusalMarker, refusalOf,
+  refusalText, refusesRanges, saveRefusalText, whyNot, workbenchDraftScope,
 } from './workbenchModel';
 
 const failure = (status: number, code?: string, diagnostics?: unknown[]) => Object.assign(new HttpError(status, 'No'), { code, diagnostics });
+
+describe('ranges in a package', () => {
+  const ENGINE = { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-a' };
+  const REGISTRATION = { namespace: 'bim.builtin', name: 'deployment', version: '1', digest: 'sha256-r' };
+  const mode = (over: Partial<CompatibleMode>): CompatibleMode => ({ engine: ENGINE, registration: REGISTRATION, mode: 'seeded', compatible: false, ...over });
+  const catalog = (candidates: unknown) => JSON.stringify({ kind: 'CandidateCatalog', spec: { candidates } });
+
+  it('sees a range in any candidate of any catalog, under features or metrics', () => {
+    expect(filesHaveRanges({ 'a.json': catalog({ x: { features: { latency: 5 } } }) })).toBe(false);
+    expect(filesHaveRanges({ 'a.json': catalog({ x: { features: { latency: { min: null, max: 5 } } } }) })).toBe(true);
+    expect(filesHaveRanges({ 'a.json': catalog({ x: { metrics: { latency: { min: 1, max: null } } } }) })).toBe(true);
+    expect(filesHaveRanges({ 'a.json': catalog([{ features: { latency: { min: null, max: null } } }]) })).toBe(true);
+    expect(filesHaveRanges({ 'a.json': catalog({ x: { features: { latency: 1 } } }), 'b.json': catalog({ y: { features: { cost: {} } } }) })).toBe(true);
+  });
+
+  it('ignores other kinds, other files and text that is not JSON', () => {
+    expect(filesHaveRanges({ 'a.json': JSON.stringify({ kind: 'Application', spec: { candidates: { x: { features: { l: { min: 1, max: 2 } } } } } }) })).toBe(false);
+    expect(filesHaveRanges({ 'a.bpmn': '<xml/>', 'b.json': 'not json', 'c.txt': catalog({ x: { features: { l: { min: 1, max: 2 } } } }) })).toBe(false);
+    expect(filesHaveRanges({})).toBe(false);
+  });
+
+  it('gives the one sentence for a mode the gateway turned down because of ranges', () => {
+    const byCode = mode({ diagnostics: [{ code: 'unsupported_capability_value', message: 'whatever' }] });
+    const byWords = mode({ diagnostics: [{ message: 'The package carries an interval the mode does not declare.' }] });
+    for (const refused of [byCode, byWords]) {
+      expect(refusesRanges(refused)).toBe(true);
+      expect(whyNot(refused)).toBe('This package has range features; this engine only accepts single values');
+    }
+    expect(engineRows([byCode])[0]).toMatchObject({ runnable: false, why: 'This package has range features; this engine only accepts single values' });
+  });
+
+  it('keeps any other reason as the gateway sent it, and never calls a runnable mode a refusal', () => {
+    const other = mode({ diagnostics: [{ message: 'It cannot read a RoutingOverlay.' }] });
+    expect(refusesRanges(other)).toBe(false);
+    expect(whyNot(other)).toBe('It cannot read a RoutingOverlay.');
+    expect(refusesRanges(mode({ compatible: true, diagnostics: [{ code: 'unsupported_capability_value' }] }))).toBe(false);
+    expect(whyNot(mode({}))).toBe('Its declared capabilities don’t cover this package.');
+  });
+
+  it('recognises a run that ended for ranges by code, diagnostic or message, and lists where the gateway pointed', () => {
+    expect(isRangeRefusal(failure(422, 'unsupported_capability_value'))).toBe(true);
+    expect(isRangeRefusal(failure(422, 'engine_mode_incompatible', [{ code: 'unsupported_capability_value', pointer: '/spec/a' }]))).toBe(true);
+    expect(isRangeRefusal(new Error('unsupported_capability_value (unsupported: ["interval"])'))).toBe(true);
+    expect(isRangeRefusal(failure(422, 'invalid_package'))).toBe(false);
+    expect(isRangeRefusal(new Error('The deployment didn’t answer.'))).toBe(false);
+    expect(rangePointers(failure(422, 'unsupported_capability_value', [{ pointer: '/spec/a' }, { pointer: '/spec/b' }, { message: 'no pointer' }])))
+      .toBe(' The gateway pointed at /spec/a, /spec/b.');
+    expect(rangePointers(new Error('x'))).toBe('');
+  });
+});
 
 describe('how a refusal is sorted', () => {
   it('reads a 402 as too big for the plan, with the allowance it names', () => {

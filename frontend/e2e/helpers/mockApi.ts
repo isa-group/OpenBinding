@@ -7,7 +7,7 @@ import { DRAFT_RELEASE, DRAINING_RELEASE, LIVE_RELEASE, PRICING_ROOM, previewOf 
 import { digestOf as caseDigest, irDocument, refOf, revisionDocument, sourceContents } from '../../src/pages/Cases/fixtures';
 import { LESSONS } from '../../src/pages/Examples/lessons';
 import { templateFor } from '../../src/pages/Library/contentModel';
-import { bpmnContent, catalogContent, draftOf, goalContent, itemOf, rulesContent, versionOf } from '../../src/pages/Library/fixtures';
+import { bpmnContent, catalogContent, catalogRangesContent, draftOf, goalContent, itemOf, rulesContent, versionOf } from '../../src/pages/Library/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../../src/pages/Pricing/pricingFixture';
 import {
   AUDIT, ERROR_EVENTS, ERROR_OVERVIEW, MODERATION, OVERVIEW, USERS, queuesAt, subscriptionOf, usageOf as adminUsageOf, userPage,
@@ -222,7 +222,7 @@ const engineEntry = (name: string, namespace: string, version: string, digest: s
   const ref = { namespace, name, version, digest };
   return { ...ref, id: `${namespace}/${name}`, ref, modes };
 };
-const PUBLIC_ENGINES = [
+export const PUBLIC_ENGINES = [
   engineEntry('random-search', 'bim.builtin', '1.0.0', ENGINE_DIGEST, [engineMode('sampling', 'random-search', false)]),
   engineEntry('evolutionary', 'bim.builtin', '1.0.0', `sha256-${'c3d4e5f6'.repeat(8)}`, [engineMode('genetic', 'evolutionary', false)]),
   engineEntry('minizinc', 'bim.builtin', '1.0.0', `sha256-${'d4e5f607'.repeat(8)}`, [engineMode('cp', 'minizinc', true)]),
@@ -253,10 +253,10 @@ const VERSIONS: Record<string, ReturnType<typeof versionOf>[]> = {
   [external.id]: [versionOf(external, '1', { public: true })],
 };
 const CONTENT: Record<string, unknown> = {
-  [catalog.id]: catalogContent(), [rules.id]: rulesContent(), [goal.id]: goalContent(), [app.id]: sourceContents.application, [external.id]: catalogContent(), [workflow.id]: bpmnContent,
+  [catalog.id]: catalogRangesContent(), [rules.id]: rulesContent(), [goal.id]: goalContent(), [app.id]: sourceContents.application, [external.id]: catalogContent(), [workflow.id]: bpmnContent,
 };
 const DRAFTS: Record<string, ReturnType<typeof draftOf>[]> = {
-  [catalog.id]: [draftOf('draft-providers-4', 4, catalogContent(), { based_on_id: catalogV3.id })],
+  [catalog.id]: [draftOf('draft-providers-4', 4, catalogRangesContent(), { based_on_id: catalogV3.id })],
   [rules.id]: [draftOf('draft-sla-2', 2, rulesContent())],
   [app.id]: [draftOf('draft-app-1', 1, templateFor('Application', 'checkout-app').content as Record<string, unknown>)],
 };

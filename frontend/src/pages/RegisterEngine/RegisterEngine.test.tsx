@@ -125,6 +125,7 @@ describe('eng-register · the registration wizard', () => {
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'edge-router' } });
     fireEvent.change(screen.getByLabelText('Algorithm'), { target: { value: 'Tabu search' } });
     fireEvent.click(screen.getByRole('button', { name: /Interval values \(ranges\)/ }));
+    expect(screen.getByText(/An interval includes open ranges: a range with an end/)).toHaveTextContent('so an engine that declares it must read null as infinity, never as 0');
     fireEvent.click(screen.getByRole('button', { name: 'Pareto front' }));
     await createEngineRevision();
 

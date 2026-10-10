@@ -2,6 +2,7 @@
    list pieces (case-*) and the organization screens' classes (org-*) are reused for the band, the body, toasts, notes and dialogs. */
 
 .lib-none { color: var(--tp-steel); }
+.lib-range { white-space: nowrap; cursor: help; }
 .lib-text { overflow-wrap: anywhere; }
 .lib-muted { color: var(--tp-steel); }
 .lib-footnote { color: var(--tp-steel); font-size: 0.75rem; }

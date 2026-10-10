@@ -32,6 +32,20 @@ describe('estimateComposition', () => {
     expect(estimateComposition({ ...full, catalogs: [sourceContents.catalog, more] }).candidates).toBe(6);
   });
 
+  it('counts a candidate with ranges, open or not, like any other: the size of the problem does not depend on its qualities', () => {
+    const catalog = sourceContents.catalog as { spec: { candidates: Record<string, { provides: unknown; features?: unknown }> } };
+    const ranged = {
+      ...catalog,
+      spec: {
+        ...catalog.spec,
+        candidates: Object.fromEntries(Object.entries(catalog.spec.candidates).map(([id, candidate], index) => [id, {
+          ...candidate, features: [{ latency: { min: null, max: 200 } }, { latency: { min: 100, max: null } }, { latency: { min: null, max: null } }, { latency: { min: 1, max: 2 } }, { latency: 5 }][index % 5],
+        }])),
+      },
+    };
+    expect(estimateComposition({ ...full, catalogs: [ranged] })).toEqual(estimateComposition(full));
+  });
+
   it('has nothing to say about an empty composition', () => {
     expect(estimateComposition({ applications: [], catalogs: [], constraintSets: [], optimizations: [] })).toEqual({
       tasks: 0, serviceTasks: 0, candidates: 0, must: 0, should: 0, criteria: 0, log10: null, missing: [],

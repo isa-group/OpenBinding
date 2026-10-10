@@ -1,4 +1,5 @@
 import { unzipPackage } from '../../utils/bimZip';
+import { isRange, type FeatureValue } from '../../utils/featureRange';
 
 /**
  * What a .bim.zip contains, read in the browser so it can be drawn as files, a workflow and tables.
@@ -35,7 +36,7 @@ export interface TaskRow {
   capability: string | null;
   candidates: number;
   /** One entry per feature the candidates declare: its range and unit. */
-  ranges: Array<{ feature: string; min: number; max: number; unit: string | null }>;
+  ranges: Array<{ feature: string; min: number | null; max: number | null; unit: string | null }>;
 }
 
 export interface ConstraintRow {
@@ -222,15 +223,15 @@ export async function readPackageModel(buffer: ArrayBuffer): Promise<PackageMode
   const tasksSpec = section(applicationSpec.tasks);
   const features = section(applicationSpec.features);
 
-  const candidates: Array<{ provides: string | null; features: Record<string, number> }> = [];
+  const candidates: Array<{ provides: string | null; features: Record<string, FeatureValue> }> = [];
   for (const catalog of ofKind('CandidateCatalog')) {
     const catalogSpec = section(catalog.spec);
     const entries = isRecord(catalogSpec.candidates) ? Object.values(catalogSpec.candidates) : Array.isArray(catalogSpec.candidates) ? catalogSpec.candidates : [];
     for (const entry of entries) {
       if (!isRecord(entry)) continue;
-      const values: Record<string, number> = {};
+      const values: Record<string, FeatureValue> = {};
       if (isRecord(entry.features)) for (const [name, raw] of Object.entries(entry.features)) {
-        const value = number(raw);
+        const value = isRange(raw) ? { min: raw.min, max: raw.max } : number(raw);
         if (value !== null) values[name] = value;
       }
       candidates.push({ provides: text(entry.provides), features: values });
@@ -250,9 +251,17 @@ export async function readPackageModel(buffer: ArrayBuffer): Promise<PackageMode
       capability,
       candidates: matching.length,
       ranges: names.map((feature) => {
-        const values = matching.map((candidate) => candidate.features[feature]).filter((value): value is number => value !== undefined);
+        const values = matching.map((candidate) => candidate.features[feature]).filter((value): value is FeatureValue => value !== undefined);
         const declared = isRecord(features[feature]) ? text((features[feature] as Record<string, unknown>).unit) : null;
-        return { feature, min: Math.min(...values), max: Math.max(...values), unit: declared };
+        // A candidate whose range is open at an end makes the task's range open at that end (null).
+        const lows = values.map((value) => (typeof value === 'number' ? value : value.min));
+        const highs = values.map((value) => (typeof value === 'number' ? value : value.max));
+        return {
+          feature,
+          min: lows.some((low) => low === null) ? null : Math.min(...(lows as number[])),
+          max: highs.some((high) => high === null) ? null : Math.max(...(highs as number[])),
+          unit: declared,
+        };
       }),
     };
   });

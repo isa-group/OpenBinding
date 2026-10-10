@@ -512,7 +512,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const state = await mockApi(page);
       await page.goto(DRAFT);
       const main = page.locator('#platform-main');
-      const latency = main.getByLabel('latency_ms for fastpay');
+      const latency = main.getByLabel('latency_ms for fastpay', { exact: true });
 
       await expect(main.getByRole('heading', { level: 1, name: 'Proveedores UE · draft' })).toBeVisible();
       await expect(main.getByRole('table', { name: 'Candidates for service/payment' }).getByRole('row')).toHaveCount(1 + 2);
@@ -569,7 +569,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
-      const latency = main.getByLabel('latency_ms for fastpay');
+      const latency = main.getByLabel('latency_ms for fastpay', { exact: true });
       const seal = page.getByRole('dialog', { name: 'Seal a new version' });
 
       // Rules are a table of their own; any other kind is a form of fields.

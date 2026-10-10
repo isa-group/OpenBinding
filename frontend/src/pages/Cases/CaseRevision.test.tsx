@@ -93,6 +93,31 @@ describe('Case revision', () => {
     expect(within(within(providers).getByRole('table')).getAllByRole('row')).toHaveLength(1 + 8);
   });
 
+  it('writes a candidate’s range as a range, open or not, with a bar for the stretch it covers', async () => {
+    renderRevision();
+
+    const providers = await screen.findByRole('region', { name: 'Candidates' });
+    const table = within(providers).getByRole('table');
+    const row = (name: RegExp) => within(table).getByRole('row', { name });
+    // Number, closed range; open above, open below; no information, number.
+    expect(row(/auth-1/).textContent).toContain('40 ms');
+    expect(row(/auth-3/).textContent).toContain('≥ 100 ms');
+    expect(row(/auth-3/).textContent).toContain('≤ 0.05 EUR');
+    expect(row(/auth-4/).textContent).toContain('unbounded');
+    expect(row(/auth-4/).textContent).toContain('0.04 EUR');
+    expect(within(row(/auth-3/)).getByText('≥ 100 ms')).toHaveAttribute('title', '[100, +∞) ms');
+    expect(within(row(/auth-3/)).getByText('≤ 0.05 EUR')).toHaveAttribute('title', '(−∞, 0.05] EUR');
+
+    const bar = (name: RegExp, index: number) => row(name).querySelectorAll('.case-bar')[index];
+    expect(bar(/auth-1/, 0)).not.toHaveClass('is-interval');
+    expect(bar(/auth-1/, 1)).toHaveClass('is-interval');
+    expect(bar(/auth-3/, 0).querySelector('i')).toHaveClass('is-open-high');
+    expect(bar(/auth-3/, 0).querySelector('i')).not.toHaveClass('is-open-low');
+    expect(bar(/auth-3/, 1).querySelector('i')).toHaveClass('is-open-low');
+    expect(bar(/auth-4/, 0).querySelector('i')).toHaveClass('is-open-low', 'is-open-high');
+    expect(bar(/auth-4/, 0)).toHaveAttribute('aria-hidden', 'true');
+  });
+
   it('writes the rules as must and should, the goal as directions and the placement as not declared', async () => {
     renderRevision();
 

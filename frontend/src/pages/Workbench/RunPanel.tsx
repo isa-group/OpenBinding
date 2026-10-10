@@ -6,6 +6,8 @@ import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
 import { Notice } from '../../components/ui/Notice';
 import { executionKey, isRecord, type BindingDecision, type BindingSolution } from './bimDocuments';
+import { RANGE_REFUSAL } from '../../utils/featureRange';
+import { refusesRanges } from './workbenchModel';
 import type { AutoProfile, Workbench } from './useWorkbench';
 
 function DecisionView({ decision }: { decision: BindingDecision | undefined }) {
@@ -61,6 +63,14 @@ export function RunPanel({ wb, orgSlug, jobsHref }: { wb: Workbench; orgSlug: st
   const working = wb.runState === 'queued' || wb.runState === 'running';
   const auto = wb.selectedMode === 'auto';
   const routing = wb.routingProvenance;
+  // A package with ranges can only go to a mode that declares interval values: the others stay in the list, off, with the reason.
+  const refused = wb.hasRanges ? wb.allModes.filter(refusesRanges) : [];
+  const catalog = wb.resources.find((resource) => resource.kind === 'CandidateCatalog' && resource.path);
+  const editCandidates = () => {
+    if (!catalog?.path) return;
+    wb.selectResource(catalog.path, catalog.kind);
+    document.getElementById('wb-editor')?.scrollIntoView?.({ block: 'start' });
+  };
   return (
     <section className="wb-card" id="wb-run" aria-labelledby="wb-run-title">
       <div className="wb-card-head">
@@ -90,7 +100,7 @@ export function RunPanel({ wb, orgSlug, jobsHref }: { wb: Workbench; orgSlug: st
             aria-label="Compatible engine mode"
             value={wb.selectedMode}
             onChange={(event) => wb.setSelectedMode(event.target.value)}
-            disabled={(!wb.compatibleModes.length && !auto) || Boolean(wb.executionConfiguration)}
+            disabled={(!wb.compatibleModes.length && !refused.length && !auto) || Boolean(wb.executionConfiguration)}
           >
             <option value="">Validate to select…</option>
             <option value="auto">AutoRouter (self-adaptive, MAPE-K)</option>
@@ -98,9 +108,20 @@ export function RunPanel({ wb, orgSlug, jobsHref }: { wb: Workbench; orgSlug: st
               const value = executionKey(item);
               return <option key={value} value={value}>{item.engine.name} · {item.mode} · {item.registration.name}@{item.registration.version}</option>;
             })}
+            {refused.map((item) => {
+              const value = executionKey(item);
+              return <option key={value} value={value} disabled>{item.engine.name} · {item.mode} · {item.registration.name}@{item.registration.version} — can’t run ranges</option>;
+            })}
           </select>
         </label>
       </div>
+      {refused.length > 0 && (
+        <p className="wb-muted wb-range-note" role="note">
+          {refused.length === 1 ? '1 engine mode is' : `${refused.length} engine modes are`} off. {RANGE_REFUSAL}.{' '}
+          <Link to="/engines" viewTransition>Engines</Link>
+          {catalog?.path && <> · <button type="button" className="wb-link" onClick={editCandidates}>Edit the candidates</button></>}
+        </p>
+      )}
 
       {auto && (
         <fieldset className="wb-fieldset wb-auto">
@@ -142,7 +163,15 @@ export function RunPanel({ wb, orgSlug, jobsHref }: { wb: Workbench; orgSlug: st
         </div>
       )}
       {wb.runError && (
-        <Notice tone="error" title="The run did not finish" action={<Link to={jobsHref} viewTransition>See jobs</Link>}>{wb.runError}</Notice>
+        <Notice tone="error" title={wb.runRange ? 'This engine only accepts single values' : 'The run did not finish'} action={<Link to={jobsHref} viewTransition>See jobs</Link>}>
+          {wb.runError}
+          {wb.runRange && (
+            <span className="wb-range-note">
+              {' '}<Link className="ui-notice-link" to="/engines" viewTransition>Engines</Link>
+              {catalog?.path && <> · <button type="button" className="wb-link" onClick={editCandidates}>Edit the candidates</button></>}
+            </span>
+          )}
+        </Notice>
       )}
 
       {routing && (

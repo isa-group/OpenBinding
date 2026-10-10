@@ -4,7 +4,9 @@
  * expected is left out of the picture, never guessed at and never an error. The gateway stays the authority on validity.
  */
 
-export type FeatureValue = number | { min: number; max: number };
+import { isRange, type FeatureValue } from '../../utils/featureRange';
+
+export type { FeatureValue };
 
 export interface FeatureInfo {
   unit: string | null;
@@ -129,20 +131,11 @@ function direction(value: unknown): 'minimize' | 'maximize' | null {
   return value === 'minimize' || value === 'maximize' ? value : null;
 }
 
+/** A number, or a range `{ min, max }` whose ends are numbers or `null` (no limit); anything else is left out of the picture. */
 function featureValue(value: unknown): FeatureValue | null {
   const plain = finite(value);
   if (plain !== null) return plain;
-  if (isRecord(value)) {
-    const min = finite(value.min);
-    const max = finite(value.max);
-    if (min !== null && max !== null) return { min, max };
-  }
-  return null;
-}
-
-/** A candidate's value as one number, for ordering and bars: the middle of an interval. */
-export function featureNumber(value: FeatureValue): number {
-  return typeof value === 'number' ? value : (value.min + value.max) / 2;
+  return isRange(value) ? { min: value.min, max: value.max } : null;
 }
 
 function readFlow(node: unknown, tasks: Map<string, TaskInfo>, routing: Map<string, number>, depth: number): FlowNode | null {
@@ -199,6 +192,24 @@ export function tasksOfFlow(flow: FlowNode | null): TaskInfo[] {
   };
   if (flow) walk(flow);
   return found;
+}
+
+/**
+ * Does any bound slot of any candidate of any catalog of a compiled form hold a range? That is what the gateway looks at to decide
+ * whether an engine must declare `interval`: not only the candidates a task can pick.
+ */
+export function irHasRanges(document: unknown): boolean {
+  const catalogs = record(record(record(document).spec).candidates);
+  return Object.values(catalogs).some((catalog) => Object.values(record(record(catalog).candidates))
+    .some((entry) => Object.values(record(record(entry).features)).some(isRecord)));
+}
+
+/** The candidates that declare a range, with the qualities that are one: what an engine without interval support would refuse. */
+export function rangeCandidates(model: BindingModel): Array<{ task: string; candidate: string; features: Array<{ name: string; value: FeatureValue }> }> {
+  return model.tasks.flatMap((task) => task.candidates.flatMap((candidate) => {
+    const features = Object.entries(candidate.features).filter(([, value]) => typeof value !== 'number').map(([name, value]) => ({ name, value }));
+    return features.length ? [{ task: task.id, candidate: candidate.id, features }] : [];
+  }));
 }
 
 /** The structure of a flow as one line, to tell whether two revisions draw the same workflow. */

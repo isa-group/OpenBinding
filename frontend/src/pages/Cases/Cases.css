@@ -94,6 +94,26 @@
 .case-bar i { display: block; height: 100%; border-radius: var(--tp-radius-full); background: var(--tp-primary); }
 .case-bar i.is-from { background: var(--tp-severity-info-border); }
 .case-bar.is-small { width: 56px; }
+/* A range: a segment between its ends; an open end fades out towards the edge, where an arrow says it goes on. */
+.case-bar.is-interval { position: relative; overflow: visible; }
+.case-bar.is-interval i { position: absolute; top: 0; min-width: 3px; }
+.case-bar.is-interval i.is-open-low { border-top-left-radius: 0; border-bottom-left-radius: 0; background: linear-gradient(to right, transparent, var(--tp-primary)); }
+.case-bar.is-interval i.is-open-high { border-top-right-radius: 0; border-bottom-right-radius: 0; background: linear-gradient(to left, transparent, var(--tp-primary)); }
+.case-bar.is-interval i.is-open-low.is-open-high { background: repeating-linear-gradient(to right, var(--tp-primary) 0 4px, transparent 4px 7px); }
+.case-bar.is-interval i.is-open-low::before, .case-bar.is-interval i.is-open-high::after {
+  position: absolute;
+  top: -2px;
+  color: var(--tp-primary);
+  font-size: 10px;
+  line-height: 10px;
+}
+.case-bar.is-interval i.is-open-low::before { left: -7px; content: '◂'; }
+.case-bar.is-interval i.is-open-high::after { right: -7px; content: '▸'; }
+.case-range { font-variant-numeric: tabular-nums; }
+.case-ranges { display: flex; min-width: 0; flex-direction: column; gap: var(--tp-spacing-xs); }
+.case-range-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 0.8125rem; }
+.case-range-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.case-range-list code { font-family: var(--font-mono); }
 
 .case-digest { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-xs); }
 .case-digest code { font-family: var(--font-mono); font-size: 0.8125rem; }

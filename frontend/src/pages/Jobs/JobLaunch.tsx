@@ -16,6 +16,7 @@ import { zipStore } from '../../utils/bimZip';
 import { useResource } from '../../utils/useResource';
 import { randomUUID } from '../../utils/uuid';
 import { classifyAuthError } from '../Account/accountErrors';
+import { irHasRanges } from '../Cases/bindingModel';
 import { loadCases } from '../Project/projectData';
 import { canOpenSection } from '../Project/accessLevel';
 import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts';
@@ -31,6 +32,18 @@ import {
 import { JobFrame, RefusalNotice } from './parts';
 
 const STEPS = ['What', 'Engine', 'Settings', 'Send'] as const;
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Does the compiled form of the snapshot hold a range? Not being able to read it is not a reason to stop: every mode is then offered. */
+async function packageHasRanges(snapshotId: string): Promise<boolean> {
+  try {
+    const compiled: unknown = await casesApi.instanceIr(snapshotId);
+    return irHasRanges(isRecord(compiled) && isRecord(compiled.document) ? compiled.document : compiled);
+  } catch {
+    return false;
+  }
+}
 
 /** A revision that carries no snapshot of its own is compiled the way the Workbench does: its instance document, as a package of one file. */
 async function snapshotOf(choice: SourceChoice): Promise<string> {
@@ -77,7 +90,8 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   const ready = prepared !== null && prepared.choiceId === chosenId ? prepared : null;
 
   const compatible = ready && ready.analysis.state === 'ok' ? ready.analysis.result.compatibleModes ?? null : null;
-  const modes = ready ? modeChoices(compatible, catalog.data ?? []) : [];
+  const ranges = ready?.ranges === true;
+  const modes = ready ? modeChoices(compatible, catalog.data ?? [], ranges) : [];
   const wanted = engineParam ? modes.find((mode) => mode.compat !== 'no' && mode.engine.namespace === engineParam.namespace && mode.engine.name === engineParam.name
     && mode.engine.version === engineParam.version && mode.engine.digest === engineParam.digest) : undefined;
   const fallbackKey = wanted?.key ?? modes.find((mode) => mode.compat === 'yes')?.key ?? modes.find((mode) => mode.compat === 'unknown')?.key ?? 'auto';
@@ -113,8 +127,10 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
         });
         return;
       }
+      // What the engines will receive decides whether a mode that takes single values only can be offered; not knowing it offers every mode.
+      const hasRanges = await packageHasRanges(snapshotId);
       setPrepared({
-        choiceId: choice.id, snapshotId,
+        choiceId: choice.id, snapshotId, ranges: hasRanges,
         analysis: analysis.state === 'ok' ? analysis : { state: 'failed', refusal: refusalOf(analysis.caught, 'launch') },
       });
       setStep(2);
@@ -234,6 +250,8 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
                 value={selectedKey}
                 onChange={setPickedMode}
                 hasPrepared
+                ranges={ranges}
+                editHref={`/app/${org}/library`}
                 compareHref="/engines"
                 analysisNote={ready.analysis.state === 'failed'
                   ? <RefusalNotice refusal={ready.analysis.refusal} usageTo />
@@ -267,6 +285,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
                   <RefusalNotice
                     refusal={refusal}
                     usageTo
+                    editTo={`/app/${org}/library`}
                     extra={refusal.kind === 'busy' ? <SlotCountdown key={refusal.retryAfter} seconds={refusal.retryAfter ?? 15} /> : undefined}
                   />
                 )}

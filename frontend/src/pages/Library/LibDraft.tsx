@@ -62,6 +62,8 @@ function Editor({ organization, item, server, versions }: {
     ...(serverCheck ? [{ level: 'error' as const, text: `The server rejected the content (422): ${serverCheck}` }] : []),
   ];
 
+  const blocking = checks.find((check) => check.blocking);
+
   useEffect(() => {
     if (!dirty) return undefined;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
@@ -91,6 +93,7 @@ function Editor({ organization, item, server, versions }: {
 
   /** Saves with the revision the editor started from; returns the new revision, or `null` when it did not save. */
   const save = async (): Promise<number | null> => {
+    if (blocking) return null;
     const sent = payload();
     setSaving(true);
     setProblem(undefined);
@@ -236,8 +239,8 @@ function Editor({ organization, item, server, versions }: {
         </div>
         <div className="proj-actions">
           <Action variant="secondary" disabled={readOnly || !dirty || saving} onClick={discard}>Discard changes</Action>
-          <Action variant="secondary" disabled={readOnly || !dirty} busy={saving} onClick={() => void save()}>Save draft</Action>
-          <Action variant="primary" disabled={readOnly || Boolean(conflict) || gone} onClick={() => { setSealError(undefined); setSealOpen(true); }}>Seal version…</Action>
+          <Action variant="secondary" disabled={readOnly || !dirty || Boolean(blocking)} busy={saving} onClick={() => void save()} title={blocking ? 'Fix the ranges first' : undefined}>Save draft</Action>
+          <Action variant="primary" disabled={readOnly || Boolean(conflict) || gone || Boolean(blocking)} title={blocking ? 'Fix the ranges first' : undefined} onClick={() => { setSealError(undefined); setSealOpen(true); }}>Seal version…</Action>
         </div>
       </header>
 
@@ -248,6 +251,7 @@ function Editor({ organization, item, server, versions }: {
       {keyBlocked && <Notice tone="warning" title="Read-only">This API key can’t write library items (403), so the editor is read-only.</Notice>}
       {!access.canCreate && !keyBlocked && <ReadOnlyNote role={access.role}>Drafts are read-only for your role; editing needs MEMBER.</ReadOnlyNote>}
       {problem && !conflict && <Notice tone="error">{problem}</Notice>}
+      {blocking && !readOnly && <Notice tone="error" title="Fix the ranges to save or seal">{blocking.text} A draft with an invalid range can’t be saved or sealed.</Notice>}
       {gone && (
         <Notice tone="warning" title="This draft is no longer open" action={<Action to={itemPath(slug, key)} variant="secondary" size="sm">Back to {item.display_name}</Action>}>
           It was sealed or discarded while you were editing. Your copy is still on this page; copy what you need before leaving.

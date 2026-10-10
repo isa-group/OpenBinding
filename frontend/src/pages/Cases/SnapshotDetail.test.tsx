@@ -157,6 +157,38 @@ describe('Snapshot detail', () => {
     ]);
   });
 
+  describe('a package with ranges', () => {
+    it('lists the candidates that carry a range and warns that engines taking single values only cannot run it', async () => {
+      cases.analyseSnapshot.mockResolvedValue({
+        valid: true, instanceDigest: digestOf('a'), packageDigest: digestOf('b'), irDigest: digestOf('c'),
+        analysis: { tasks: 6, candidates: 24, constraints: 2, placement: false, bindingSpace: '1920' },
+        compatibleModes: [{ compatible: true }, { compatible: false }, { compatible: false }],
+      });
+      renderSnapshot();
+
+      const ranges = await screen.findByRole('region', { name: 'Range features' });
+      expect(ranges).toHaveTextContent('24 candidates have range features');
+      expect(ranges).toHaveTextContent('Engines that only accept single values can’t run it (2 of 3 modes listed refuse it).');
+      expect(within(ranges).getByRole('link', { name: 'See the engines' })).toHaveAttribute('href', '/engines');
+      const list = within(ranges).getByRole('list', { name: 'Candidates with ranges' });
+      const third = within(list).getByText('authenticate-3').closest('li') as HTMLElement;
+      expect(within(third).getByText('latency ≥ 100')).toHaveAttribute('title', '[100, +∞)');
+      expect(within(third).getByText('cost ≤ 0.05')).toHaveAttribute('title', '(−∞, 0.05]');
+      const fourth = within(list).getByText('authenticate-4').closest('li') as HTMLElement;
+      expect(within(fourth).getByText('latency unbounded')).toHaveAttribute('title', '(−∞, +∞)');
+    });
+
+    it('says nothing about ranges when the package has none', async () => {
+      const plain = irDocument() as { spec: { candidates: { providers: { candidates: Record<string, { features: Record<string, unknown> }> } } } };
+      for (const candidate of Object.values(plain.spec.candidates.providers.candidates)) candidate.features = { latency: 10, cost: 1 };
+      platform.snapshot.mockResolvedValue(snapshotOf({ ir: { id: 'ir', digest: digestOf('c'), document: plain, sourceMap: null, compilerVersion: '1.0.0', createdAt: null } }));
+      renderSnapshot();
+
+      await screen.findByRole('list', { name: 'What the engines receive' });
+      expect(screen.queryByRole('region', { name: 'Range features' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('downloads', () => {
     it('hands the package archive to the browser', async () => {
       const buffer = new ArrayBuffer(16);

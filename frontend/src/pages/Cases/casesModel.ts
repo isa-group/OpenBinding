@@ -1,6 +1,7 @@
 import type { ArtifactRef } from '../../api/library';
 import type { BindingCase, CaseRevision } from '../../api/platform';
 import { shortDigest } from '../../utils/digest';
+import { formatFeature } from '../../utils/featureRange';
 import { flowText, powerText, rulesText, type BindingModel } from './bindingModel';
 
 export { SLUG_PATTERN, slugFromName } from '../Project/projectModel';
@@ -185,6 +186,30 @@ export function diffRevisions(from: RevisionView, to: RevisionView): DiffRow[] {
     const b = taskOf(right, id);
     if ((a?.kind ?? b?.kind) !== 'service') continue;
     rows.push(row('Providers', `Candidates for ${id}`, a ? String(a.candidates.length) : '—', b ? String(b.candidates.length) : '—'));
+  }
+  // A quality that changed between the revisions, whether it stayed a number, became a range, or a range moved: before and after side by side.
+  for (const id of taskIds) {
+    const a = taskOf(left, id);
+    const b = taskOf(right, id);
+    if ((a?.kind ?? b?.kind) !== 'service') continue;
+    const candidateIds = [...new Set([...(a?.candidates ?? []), ...(b?.candidates ?? [])].map((candidate) => candidate.id))];
+    for (const candidateId of candidateIds) {
+      const before = a?.candidates.find((candidate) => candidate.id === candidateId);
+      const after = b?.candidates.find((candidate) => candidate.id === candidateId);
+      if (!before || !after) continue;
+      const names = [...new Set([...Object.keys(before.features), ...Object.keys(after.features)])];
+      for (const name of names) {
+        const was = before.features[name];
+        const now = after.features[name];
+        const unit = left.features[name]?.unit ?? right.features[name]?.unit ?? null;
+        const shown = (value: typeof was) => (value === undefined ? '—' : formatFeature(value, { unit }));
+        if (JSON.stringify(was) === JSON.stringify(now)) continue;
+        const kind = was === undefined || now === undefined ? '' : typeof was === 'number' && typeof now === 'number' ? '' : typeof was === 'number' ? ' (now a range)' : typeof now === 'number' ? ' (now a single value)' : ' (range changed)';
+        const what = `${candidateId} · ${name}${kind}`;
+        if (rows.some((existing) => existing.category === 'Providers' && existing.what === what)) continue;
+        rows.push(row('Providers', what, shown(was), shown(now)));
+      }
+    }
   }
 
   const tasksText = (model: BindingModel) => `${model.tasks.length} tasks (${model.serviceTasks} get a provider)`;

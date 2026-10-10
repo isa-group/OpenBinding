@@ -631,6 +631,103 @@ describe('Workbench', () => {
       });
     });
 
+    describe('with range features', () => {
+      const edge = { namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1', digest: 'sha256-e' };
+      const edgeRegistration = { namespace: 'lucia-vega', name: 'edge-solver-eu', version: '1', digest: 'sha256-r' };
+      const REASON = 'This package has range features; this engine only accepts single values';
+      const refusedForRanges = { engine: edge, registration: edgeRegistration, mode: 'placement', compatible: false, diagnostics: [{ code: 'unsupported_capability_value', message: 'interval is not declared' }] };
+
+      /** Gives the first candidate a range from the form of candidates.json, then checks the package again. */
+      async function makeRange(open = true) {
+        fireEvent.click(screen.getByRole('tab', { name: /^Files/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Edit candidates.json' }));
+        fireEvent.click(within(screen.getByRole('group', { name: 'latency for service-a: value or range' })).getByRole('button', { name: 'Range' }));
+        if (open) fireEvent.click(screen.getByLabelText('latency for service-a: no upper limit'));
+        validate();
+        await waitFor(() => expect(workbench.validate).toHaveBeenCalledTimes(2));
+        await screen.findByRole('heading', { name: 'Valid package' });
+      }
+
+      it('edits a quality as a number or as a range, open or not, in the candidate form', async () => {
+        await validated();
+        fireEvent.click(screen.getByRole('tab', { name: /^Files/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Edit candidates.json' }));
+
+        expect(screen.getByLabelText('service-a QoS latency')).toHaveValue(10);
+        fireEvent.click(within(screen.getByRole('group', { name: 'latency for service-a: value or range' })).getByRole('button', { name: 'Range' }));
+        expect(screen.queryByLabelText('service-a QoS latency')).not.toBeInTheDocument();
+        expect(screen.getByLabelText('latency for service-a min')).toHaveValue('10');
+        fireEvent.change(screen.getByLabelText('latency for service-a max'), { target: { value: '20' } });
+        fireEvent.click(screen.getByLabelText('latency for service-a: no lower limit'));
+
+        expect(screen.getByLabelText('latency for service-a min')).toHaveValue('−∞');
+        expect(screen.getByLabelText('latency for service-a max')).toHaveValue('20');
+        // Back to a single value: the cell asks first, because the range is wider than a point.
+        fireEvent.click(within(screen.getByRole('group', { name: 'latency for service-a: value or range' })).getByRole('button', { name: 'Value' }));
+        expect(screen.getByRole('alertdialog')).toHaveTextContent('Convert to 20? This drops the lower limit (no limit).');
+        fireEvent.click(screen.getByRole('button', { name: 'Convert' }));
+        expect(screen.getByLabelText('service-a QoS latency')).toHaveValue(20);
+      });
+
+      it('lists the modes that only take single values as off, with the reason, once a candidate has a range', async () => {
+        workbench.validate.mockResolvedValue(analysis({
+          compatibleModes: [{ engine: ENGINE_REF, registration: REGISTRATION_REF, mode: 'seeded', compatible: true }, refusedForRanges],
+        }));
+        await validated();
+        const modes = screen.getByRole('combobox', { name: 'Compatible engine mode' });
+        // No range yet: the list is what it always was.
+        expect(within(modes).getAllByRole('option')).toHaveLength(3);
+        expect(document.querySelector('.wb-range-note')).toBeNull();
+
+        await makeRange();
+
+        const options = within(screen.getByRole('combobox', { name: 'Compatible engine mode' })).getAllByRole('option');
+        expect(options.map((option) => option.textContent)).toEqual([
+          'Validate to select…', 'AutoRouter (self-adaptive, MAPE-K)', 'random-search · seeded · random-search-deployment@1.0.0+builtin.a',
+          'edge-solver · placement · edge-solver-eu@1 — can’t run ranges',
+        ]);
+        expect(options[3]).toBeDisabled();
+        expect(options[2]).toBeEnabled();
+        const note = document.querySelector('.wb-range-note') as HTMLElement;
+        expect(note).toHaveTextContent(`1 engine mode is off. ${REASON}.`);
+        expect(within(note).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
+        expect(within(note).getByRole('button', { name: 'Edit the candidates' })).toBeInTheDocument();
+      });
+
+      it('gives the reason in the table of engines too', async () => {
+        workbench.validate.mockResolvedValue(analysis({
+          compatibleModes: [{ engine: ENGINE_REF, registration: REGISTRATION_REF, mode: 'seeded', compatible: true }, refusedForRanges],
+        }));
+        await validated();
+        await makeRange();
+        fireEvent.click(screen.getByRole('tab', { name: /Engines that can run it/ }));
+
+        const rows = within(screen.getByRole('table', { name: 'Engine modes and whether they can run this package' })).getAllByRole('row');
+        expect(rows[2]).toHaveTextContent(REASON);
+      });
+
+      it('explains a run the engine refused for ranges, with the pointers, and leads to Engines and to the candidates', async () => {
+        client.createBimJob.mockRejectedValue(refusal(422, 'unsupported_capability_value', [{ code: 'unsupported_capability_value', pointer: '/spec/candidates/service-a/features/latency' }]));
+        await validated();
+        fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('This engine only accepts single values');
+        expect(alert).toHaveTextContent('Pick a mode that declares interval values, or edit those candidates to use single values.');
+        expect(alert).toHaveTextContent('The gateway pointed at /spec/candidates/service-a/features/latency.');
+        expect(within(alert).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');
+        expect(within(alert).getByRole('button', { name: 'Edit the candidates' })).toBeInTheDocument();
+      });
+
+      it('explains a job that failed with the same code', async () => {
+        client.getV1Job.mockResolvedValue({ id: 'job-1', status: 'failed', error: 'unsupported_capability_value: unsupported ["interval"]' });
+        await validated();
+        fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('This engine only accepts single values');
+      });
+    });
+
     it('runs a sealed execution configuration instead of an engine mode', async () => {
       client.createConfiguredBimJob.mockResolvedValue({ id: 'job-1', status: 'queued', irDigest: 'sha256-ir' });
       await validated();

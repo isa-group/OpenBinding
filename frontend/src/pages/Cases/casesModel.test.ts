@@ -84,6 +84,40 @@ describe('diffRevisions', () => {
     expect(rows.find((row) => row.what === 'Penalty for breaking sla-availability')?.changed).toBe(false);
   });
 
+  describe('qualities that are numbers or ranges', () => {
+    const edited = (changes: Array<[string, string, unknown]>): RevisionView => {
+      const document = irDocument(8) as { spec: { candidates: { providers: { candidates: Record<string, { features: Record<string, unknown> }> } } } };
+      for (const [id, name, value] of changes) document.spec.candidates.providers.candidates[id].features[name] = value;
+      return { revision: 2, uses: resourceUses(doc(catalog3)), model: readBindingProblem(document) };
+    };
+    const base = view(1, catalog3, 8);
+    const feature = (changes: Array<[string, string, unknown]>, what: string) => diffRevisions(base, edited(changes)).find((row) => row.what === what);
+
+    it('shows a number that became a range, before and after', () => {
+      expect(feature([['authenticate-1', 'latency', { min: null, max: 60 }]], 'authenticate-1 · latency (now a range)')).toMatchObject({
+        category: 'Providers', a: '40 ms', b: '≤ 60 ms', changed: true,
+      });
+      expect(feature([['authenticate-2', 'latency', { min: 70, max: null }]], 'authenticate-2 · latency (now a range)')).toMatchObject({ a: '80 ms', b: '≥ 70 ms' });
+    });
+
+    it('shows a range that became a number, and one that moved', () => {
+      expect(feature([['authenticate-3', 'latency', 90]], 'authenticate-3 · latency (now a single value)')).toMatchObject({ a: '≥ 100 ms', b: '90 ms' });
+      expect(feature([['authenticate-1', 'cost', { min: 0.01, max: 0.03 }]], 'authenticate-1 · cost (range changed)')).toMatchObject({ a: '0.01–0.02 EUR', b: '0.01–0.03 EUR' });
+      expect(feature([['authenticate-4', 'latency', { min: null, max: 500 }]], 'authenticate-4 · latency (range changed)')).toMatchObject({ a: 'unbounded', b: '≤ 500 ms' });
+    });
+
+    it('shows a number that changed as a number', () => {
+      expect(feature([['authenticate-1', 'latency', 55]], 'authenticate-1 · latency')).toMatchObject({ a: '40 ms', b: '55 ms', changed: true });
+    });
+
+    it('says nothing about a quality that did not change, and names a change in the summary', () => {
+      const changes: Array<[string, string, unknown]> = [['authenticate-1', 'latency', { min: null, max: 60 }]];
+      const rows = diffRevisions(base, edited(changes));
+      expect(rows.filter((row) => / · (latency|cost)/.test(row.what))).toHaveLength(1);
+      expect(diffSummary('c', base, edited(changes), rows)).toContain('authenticate-1 · latency (now a range) 40 ms → ≤ 60 ms');
+    });
+  });
+
   it('compares only the library versions when a compiled form is missing', () => {
     const partial = diffRevisions({ ...from, model: null }, to);
     expect([...new Set(partial.map((row) => row.category))]).toEqual(['Resources']);

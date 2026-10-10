@@ -12,7 +12,9 @@ import {
   type BindingResult, type BimDocument, type CompatibleMode, type CompiledIr, type Diagnostic, type WorkspaceStatus,
 } from './bimDocuments';
 import { isAbort, pollV1Job } from './pollJob';
-import { refusalOf, refusalText, saveRefusalText, workbenchDraftScope, type Refusal } from './workbenchModel';
+import {
+  RANGE_RUN_ERROR, filesHaveRanges, isRangeRefusal, rangePointers, refusalOf, refusalText, saveRefusalText, workbenchDraftScope, type Refusal,
+} from './workbenchModel';
 
 export type EditorTab = 'resources' | 'form' | 'bpmn';
 export type SourceView = 'json' | 'yaml' | 'workflow' | 'bpmnXml' | 'ir' | 'diff';
@@ -177,6 +179,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   // The run
   const [runState, setRunState] = useState<RunState>('idle');
   const [runError, setRunError] = useState<string | null>(null);
+  const [runRange, setRunRange] = useState(false);
   const [result, setResult] = useState<BindingResult | null>(null);
   const [resultJobId, setResultJobId] = useState<string>();
   const [selectedMode, setSelectedMode] = useState('');
@@ -219,6 +222,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   );
   const selectedChanged = baseline[selectedPath] !== files[selectedPath];
   const rootDocument = root as Record<string, unknown> | null;
+  const hasRanges = useMemo(() => filesHaveRanges(files), [files]);
 
   // --- bringing a package in
 
@@ -517,6 +521,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     }
     setRunState('queued');
     setRunError(null);
+    setRunRange(false);
     setRoutingProvenance(null);
     setResult(null);
     runWatcher.current?.abort();
@@ -556,6 +561,11 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
       // The screen closed or a newer run took over: nobody is waiting for this one any more.
       if (watcher.signal.aborted || isAbort(caught)) return;
       setRunState('failed');
+      if (isRangeRefusal(caught)) {
+        setRunRange(true);
+        setRunError(`${RANGE_RUN_ERROR}${rangePointers(caught)}`);
+        return;
+      }
       setRunError(refusalText(refusalOf(caught), 'the run did not finish'));
     }
   };
@@ -638,7 +648,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     // snapshot and revision
     snapshot, snapshotBusy, snapshotIssue, compiledIr, irLoading, irError, saveBusy, saved, saveIssue,
     // run
-    runState, runError, result, resultJobId, selectedMode, setSelectedMode, executionConfiguration, setExecutionConfiguration, routingProvenance,
+    hasRanges, runRange, runState, runError, result, resultJobId, selectedMode, setSelectedMode, executionConfiguration, setExecutionConfiguration, routingProvenance,
     autoProfile, setAutoProfile, autoMaxCredits, setAutoMaxCredits, autoMinQuality, setAutoMinQuality, autoMaxFailureRisk, setAutoMaxFailureRisk,
     autoRequireExact, setAutoRequireExact, autoAllowFallback, setAutoAllowFallback,
     // editor

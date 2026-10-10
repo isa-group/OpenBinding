@@ -1,6 +1,48 @@
 import { describe, expect, it } from 'vitest';
-import { describeExpression, describeFlow, flowText, powerText, readBindingProblem, rulesText, tasksOfFlow } from './bindingModel';
+import { describeExpression, describeFlow, flowText, irHasRanges, powerText, rangeCandidates, readBindingProblem, rulesText, tasksOfFlow } from './bindingModel';
 import { irDocument } from './fixtures';
+
+describe('features that are ranges', () => {
+  const model = readBindingProblem(irDocument())!;
+  const features = (task: string, id: string) => model.tasks.find((item) => item.id === task)?.candidates.find((candidate) => candidate.id === id)?.features;
+
+  it('reads a number, a closed range, an open one and one with no information', () => {
+    expect(features('authenticate', 'authenticate-1')).toEqual({ latency: 40, cost: { min: 0.01, max: 0.02 } });
+    expect(features('authenticate', 'authenticate-3')).toEqual({ latency: { min: 100, max: null }, cost: { min: null, max: 0.05 } });
+    expect(features('authenticate', 'authenticate-4')).toEqual({ latency: { min: null, max: null }, cost: 0.04 });
+  });
+
+  it('leaves out what is not a number or a well-formed range, never turning it into a number', () => {
+    const document = irDocument() as { spec: { candidates: { providers: { candidates: Record<string, { features: Record<string, unknown> }> } } } };
+    document.spec.candidates.providers.candidates['authenticate-1'].features = {
+      a: 1, b: { min: 1 }, c: { min: '1', max: 2 }, d: { min: 1, max: 2, mid: 1 }, e: null, f: 'x', g: { min: Infinity, max: 1 },
+    };
+    expect(readBindingProblem(document)!.tasks[0].candidates[0].features).toEqual({ a: 1 });
+  });
+
+  it('lists the candidates that carry a range and which of their qualities are one', () => {
+    expect(rangeCandidates(model)).toEqual([
+      { task: 'authenticate', candidate: 'authenticate-1', features: [{ name: 'cost', value: { min: 0.01, max: 0.02 } }] },
+      { task: 'authenticate', candidate: 'authenticate-2', features: [{ name: 'cost', value: { min: 0.02, max: 0.04 } }] },
+      { task: 'authenticate', candidate: 'authenticate-3', features: [{ name: 'latency', value: { min: 100, max: null } }, { name: 'cost', value: { min: null, max: 0.05 } }] },
+      { task: 'authenticate', candidate: 'authenticate-4', features: [{ name: 'latency', value: { min: null, max: null } }] },
+      ...model.tasks.filter((task) => task.id !== 'authenticate').flatMap((task) => task.candidates.map((candidate) => ({
+        task: task.id, candidate: candidate.id, features: [{ name: 'cost', value: candidate.features.cost }],
+      }))),
+    ]);
+  });
+
+  it('tells whether any slot of any catalog holds a range, even a candidate no task can pick', () => {
+    expect(irHasRanges(irDocument())).toBe(true);
+    const plain = irDocument() as { spec: { candidates: { providers: { candidates: Record<string, { features: Record<string, unknown> }> } } } };
+    for (const candidate of Object.values(plain.spec.candidates.providers.candidates)) candidate.features = { latency: 10 };
+    expect(irHasRanges(plain)).toBe(false);
+    plain.spec.candidates.providers.candidates.unused = { features: { latency: { min: null, max: 5 } } };
+    expect(irHasRanges(plain)).toBe(true);
+    expect(irHasRanges(null)).toBe(false);
+    expect(irHasRanges({ spec: {} })).toBe(false);
+  });
+});
 
 describe('describeExpression', () => {
   it('writes comparisons, paths and calls as short formulas', () => {

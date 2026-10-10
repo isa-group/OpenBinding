@@ -19,4 +19,6 @@
 .ui-notice-icon { flex: none; width: 1.25rem; height: 1.25rem; color: var(--tone-ink); }
 .ui-notice-body { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 14rem; }
 .ui-notice-body strong { font-weight: 600; }
+/* A link inside the sentence of a notice: underlined, so it doesn't rely on colour alone. */
+.ui-notice-link { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .ui-notice-action { display: inline-flex; align-items: center; gap: var(--tp-spacing-xs); }

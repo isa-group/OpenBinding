@@ -50,6 +50,7 @@ const DIMENSIONS: ReadonlyArray<{ id: keyof EngineMode['capabilities']; label: s
   { id: 'expressions', label: 'Expressions' },
   { id: 'placement', label: 'Placement' },
   { id: 'irExtensions', label: 'IR extensions' },
+  { id: 'featureValues', label: 'Feature values' },
 ];
 
 const TERMINATIONS: ReadonlyArray<{ id: string; text: string }> = [
@@ -504,6 +505,10 @@ function CapabilitiesPanel({ modes, signedIn }: { modes: EngineMode[]; signedIn:
           : 'Validate a package in the Workbench, then log in to check it against this mode.'}
       </Notice>
       <small className="engine-detail-muted"><code>none</code> rejects the dimension. <code>only</code> names exact values. <code>all</code> is valid only when the Profile closes the vocabulary.</small>
+      <small className="engine-detail-muted">
+        Feature values: <code>scalar</code> is a single number; <code>interval</code> is a range, and includes open ranges (an end <code>null</code>, such as ≤ 200 or ≥ 100).
+        A package with a range runs only on a mode that declares <code>interval</code>; the others refuse it with <code>unsupported_capability_value</code>.
+      </small>
     </>
   );
 }

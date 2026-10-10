@@ -1,6 +1,7 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { diagnosticLines } from '../../api/problem';
+import { RANGE_CODE } from '../../utils/featureRange';
 import { formatDate } from '../../utils/format';
 import { limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -8,8 +9,35 @@ import { classifyAuthError, marker } from '../Account/accountErrors';
 export type JobAction = 'launch' | 'retry' | 'cancel';
 
 export type RefusalKind =
-  | 'quota' | 'too-big' | 'busy' | 'plan' | 'key' | 'incompatible' | 'not-found' | 'conflict' | 'terminal'
+  | 'quota' | 'too-big' | 'busy' | 'plan' | 'key' | 'incompatible' | 'range' | 'not-found' | 'conflict' | 'terminal'
   | 'pricing' | 'session' | 'too-large' | 'unavailable' | 'other';
+
+/** A diagnostic as one line: what it says and, in brackets, where in the package it points. */
+function lineOf(row: unknown): string {
+  if (typeof row !== 'object' || row === null) return '';
+  const entry = row as Record<string, unknown>;
+  const message = typeof entry.message === 'string' ? entry.message : typeof entry.code === 'string' ? entry.code : '';
+  const pointer = typeof entry.pointer === 'string' ? entry.pointer : '';
+  return pointer && message ? `${message} (${pointer})` : message || pointer;
+}
+
+/** The way it is told when an engine refuses ranges: what happened, what to do, and (in `details`) which candidates the gateway pointed at. */
+export function rangeRefusal(diagnostics: unknown, at = '', status?: number, ran = false): Refusal {
+  const rows = Array.isArray(diagnostics) ? diagnostics : [];
+  return {
+    kind: 'range', status, code: RANGE_CODE,
+    title: `This engine only accepts single values${at}`,
+    text: `This package has range features (a min and a max, open or not), but the engine mode that was chosen only accepts single values, so it refused the run. Choose a mode that declares interval values, or edit those candidates to use single values.${ran ? '' : ' Nothing was started.'}`,
+    details: rows.map(lineOf).filter(Boolean).slice(0, 8),
+  };
+}
+
+/** The refusal behind a job that failed for ranges, or `null` when it failed for something else. */
+export function rangeFailureOf(job: { error?: unknown; result?: { code?: unknown; error?: unknown; diagnostics?: unknown } | null }): Refusal | null {
+  const mentions = (value: unknown) => typeof value === 'string' && value.includes(RANGE_CODE);
+  if (job.result?.code === RANGE_CODE || mentions(job.error) || mentions(job.result?.error)) return rangeRefusal(job.result?.diagnostics, '', undefined, true);
+  return null;
+}
 
 /** What the gateway's refusal means for a person: a title, a sentence, and the extra lines it sent (diagnostics). */
 export interface Refusal {
@@ -122,6 +150,11 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
 
   if (failure.status === 413) {
     return { ...base, kind: 'too-large', title: `Larger than your plan takes${at}`, text: `The request is bigger than your plan allows per request. ${nothing}` };
+  }
+
+  const diagnostics = caught instanceof HttpError ? caught.diagnostics ?? [] : [];
+  if (failure.code === RANGE_CODE || diagnostics.some((row) => typeof row === 'object' && row !== null && (row as { code?: unknown }).code === RANGE_CODE)) {
+    return rangeRefusal(diagnostics, at, failure.status);
   }
 
   if (failure.status === 422) {

@@ -131,6 +131,8 @@ describe('engine revision detail', () => {
     expect(within(table).getByRole('row', { name: /Metric scopes/ })).toHaveTextContent('none');
     expect(within(table).getByRole('row', { name: /IR extensions/ })).toHaveTextContent('qos-binding-placement/v1');
     expect(within(table).getByRole('row', { name: /Optimization/ })).toHaveTextContent('satisfy, weighted');
+    expect(within(table).getByRole('row', { name: /Feature values/ })).toBeInTheDocument();
+    expect(screen.getByText(/Feature values:/)).toHaveTextContent('includes open ranges (an end null, such as ≤ 200 or ≥ 100)');
     expect(screen.getByText(/Validate a package in the Workbench, then log in/)).toBeInTheDocument();
   });
 

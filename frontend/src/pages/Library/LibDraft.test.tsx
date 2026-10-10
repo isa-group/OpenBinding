@@ -95,6 +95,83 @@ describe('Draft editor', () => {
     expect(screen.getByText('All changes saved')).toBeInTheDocument();
   });
 
+  describe('ranges', () => {
+    const mode = (candidate: string, quality: string, name: 'Value' | 'Range') => within(screen.getByRole('group', { name: `${quality} for ${candidate}: value or range` })).getByRole('button', { name });
+    const end = (candidate: string, quality: string, side: 'min' | 'max') => screen.getByLabelText(`${quality} for ${candidate} ${side}`);
+
+    it('mixes numbers and ranges in one column and saves each as the language writes it', async () => {
+      lib.saveDraft.mockResolvedValue({ id: 'draft-4', revision: 5 });
+      renderDraft();
+      await screen.findByRole('heading', { level: 1, name: 'Proveedores UE · draft' });
+
+      // A closed range, one open above, one open below and one with no information, next to the numbers that stay.
+      fireEvent.click(mode('fastpay', 'latency_ms', 'Range'));
+      fireEvent.change(end('fastpay', 'latency_ms', 'min'), { target: { value: '80' } });
+      fireEvent.change(end('fastpay', 'latency_ms', 'max'), { target: { value: '120' } });
+      fireEvent.click(mode('fastpay', 'availability', 'Range'));
+      fireEvent.click(screen.getByLabelText('availability for fastpay: no upper limit'));
+      fireEvent.click(mode('payco-eu', 'cost_eur', 'Range'));
+      fireEvent.click(screen.getByLabelText('cost_eur for payco-eu: no lower limit'));
+      fireEvent.change(end('payco-eu', 'cost_eur', 'max'), { target: { value: '0.03' } });
+      fireEvent.click(mode('stockly-1', 'latency_ms', 'Range'));
+      fireEvent.click(screen.getByLabelText('latency_ms for stockly-1: no lower limit'));
+      fireEvent.click(screen.getByLabelText('latency_ms for stockly-1: no upper limit'));
+
+      expect(screen.getByLabelText('latency_ms for payco-eu')).toHaveValue('180');
+      expect(within(screen.getByRole('region', { name: 'Checks' })).getByText('4 qualities are ranges')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+
+      await screen.findByText('Draft revision 5');
+      const sent = lib.saveDraft.mock.calls[0][2].content as { spec: { candidates: Record<string, { features: Record<string, unknown> }> } };
+      expect(sent.spec.candidates.fastpay.features).toEqual({ latency_ms: { min: 80, max: 120 }, cost_eur: 0.034, availability: { min: 99.9, max: null } });
+      expect(sent.spec.candidates['payco-eu'].features).toEqual({ latency_ms: 180, cost_eur: { min: null, max: 0.03 }, availability: 99.95 });
+      expect(sent.spec.candidates['stockly-1'].features.latency_ms).toEqual({ min: null, max: null });
+    });
+
+    it('cannot save or seal while a range is not valid, and says why', async () => {
+      renderDraft();
+      await screen.findByRole('heading', { level: 1, name: 'Proveedores UE · draft' });
+
+      fireEvent.click(mode('fastpay', 'latency_ms', 'Range'));
+      fireEvent.change(end('fastpay', 'latency_ms', 'min'), { target: { value: '200' } });
+
+      expect(screen.getAllByRole('alert').some((alert) => alert.textContent === 'Min can’t be greater than max.')).toBe(true);
+      expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Seal version…' })).toBeDisabled();
+      expect(within(screen.getByRole('region', { name: 'Checks' })).getByText(/1 range is not valid \(fastpay · latency_ms: Min can’t be greater than max\.\)/)).toBeInTheDocument();
+      expect(screen.getByText('Fix the ranges to save or seal')).toBeInTheDocument();
+
+      fireEvent.change(end('fastpay', 'latency_ms', 'min'), { target: { value: '60' } });
+      expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Seal version…' })).toBeEnabled();
+      expect(screen.queryByText('Fix the ranges to save or seal')).not.toBeInTheDocument();
+    });
+
+    it('blocks a range with an end still missing', async () => {
+      renderDraft();
+      await screen.findByRole('heading', { level: 1, name: 'Proveedores UE · draft' });
+
+      fireEvent.click(mode('fastpay', 'latency_ms', 'Range'));
+      fireEvent.change(end('fastpay', 'latency_ms', 'min'), { target: { value: '' } });
+
+      expect(screen.getByRole('button', { name: 'Seal version…' })).toBeDisabled();
+      fireEvent.click(screen.getByLabelText('latency_ms for fastpay: no lower limit'));
+      expect(screen.getByRole('button', { name: 'Seal version…' })).toBeEnabled();
+    });
+
+    it('opens a draft that already has ranges in the range mode', async () => {
+      lib.drafts.mockResolvedValue([draftOf('draft-4', 4, updateAt(catalogContent() as JsonObject, LATENCY, { min: null, max: 90 }), { based_on_id: v3.id })]);
+      renderDraft();
+      await screen.findByRole('heading', { level: 1, name: 'Proveedores UE · draft' });
+
+      expect(mode('fastpay', 'latency_ms', 'Range')).toHaveAttribute('aria-pressed', 'true');
+      expect(end('fastpay', 'latency_ms', 'min')).toBeDisabled();
+      expect(end('fastpay', 'latency_ms', 'max')).toHaveValue('90');
+      expect(mode('fastpay', 'cost_eur', 'Value')).toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+
   it('adds a provider to a capability and removes it again', async () => {
     renderDraft();
     await screen.findByRole('heading', { level: 1, name: 'Proveedores UE · draft' });

@@ -432,6 +432,11 @@
 }
 
 .form-grid > label input, .form-grid > label select, .form-grid > label textarea { color: var(--tp-ink); }
+/* A quality of a candidate: a name over the value-or-range cell, laid out like the labelled fields around it. */
+.qos-field { display: flex; min-width: 0; flex-direction: column; gap: 6px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }
+.qos-field .qos-name { overflow-wrap: anywhere; }
+.qos-field input[type='number'] { max-width: 100%; color: var(--tp-ink); }
+.wb-range-note { font-size: 0.8125rem; }
 .rename-field small[role='alert'], .constraint-expression small[role='alert'], .advanced-editor small[role='alert'] { color: var(--color-error); font-size: 0.75rem; }
 .form-empty { margin: 0; padding: 12px 14px; border: 1px dashed var(--tp-hairline-strong); border-radius: var(--tp-radius-md); color: var(--tp-slate); font-size: 0.8125rem; }
 

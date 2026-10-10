@@ -124,7 +124,7 @@ function FeatureValuesEditor({ choice, disabled, onChange }: { choice: Choice; d
   };
   const tiles = [
     { id: 'scalar', title: 'Scalar values', text: 'Each feature of a candidate is one number.' },
-    { id: 'interval', title: 'Interval values (ranges)', text: 'A feature may be a range, min–max.' },
+    { id: 'interval', title: 'Interval values (ranges)', text: 'A feature may be a range, min–max, with an open end (null = infinity).' },
   ];
   return (
     <div className="rg-features">
@@ -140,6 +140,8 @@ function FeatureValuesEditor({ choice, disabled, onChange }: { choice: Choice; d
       <small>
         Ranges are valid BIM syntax, and a manifest may declare them. The bundled engines declare scalar only, so a job whose candidates
         carry an interval is refused with <code>unsupported_capability_value</code> unless the mode names intervals here.
+        An interval includes open ranges: a range with an end <code>null</code> (no lower or no upper limit) is an interval too, so an engine
+        that declares it must read <code>null</code> as infinity, never as 0.
       </small>
     </div>
   );
