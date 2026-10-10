@@ -70,8 +70,10 @@ For `qos-binding/v1`, the request payload is a closed `bim/v1`
 `BindingProblem`. It contains canonical workflow, candidate eligibility,
 finite features, expression IR, constraints, optimization, optional
 placement/extension data, and the source map required for diagnostics. A feature
-value is a scalar or a literal closed `{min,max}` interval
-(`$defs/featureValue`). The gateway derives `featureValues` from every bound
+value is a scalar or a literal `{min,max}` range (`$defs/featureValue`) whose
+ends are finite numbers or JSON `null`, an infinite end (`{"min":100,"max":null}`
+is [100, +∞)). An Engine that declares `interval` must read `null` as infinity
+and must never turn it into `0`, `NaN`, or a string. The gateway derives `featureValues` from every bound
 slot of every candidate, so an Engine receives intervals only if its mode
 declares `interval`; otherwise the job fails with
 `unsupported_capability_value`. No bundled mode declares it, and the canonical

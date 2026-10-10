@@ -103,8 +103,8 @@
           "type": "object",
           "required": ["min", "max"],
           "properties": {
-            "min": {"type": "number"},
-            "max": {"type": "number"}
+            "min": {"type": ["number", "null"]},
+            "max": {"type": ["number", "null"]}
           },
           "additionalProperties": false
         }

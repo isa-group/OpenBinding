@@ -16,8 +16,11 @@ decision is a total function `b : T → C` with `b(t) ∈ E(t)`. Local tasks occ
 in the workflow but are not in the domain of `b`.
 
 Every feature definition `m` assigns a value `q(c,m)` to every eligible
-candidate whose value is required by policy: either a finite scalar or a closed
-interval `[lo, hi]` with `lo ≤ hi`, preserved literally in the IR. Canonical
+candidate whose value is required by policy: either a finite scalar or an
+interval `[lo, hi]`, preserved literally in the IR. Each end is a finite number
+or `null` (an infinite end: `lo = -∞`, `hi = +∞`, so `[100, +∞)`, `(-∞, 200]`
+and `(-∞, +∞)` are all admitted); `lo ≤ hi` is required when both are finite.
+Canonical
 evaluation is currently defined only for scalar values: reading `q(c,m)` for a
 selected candidate `c` whose value is an interval is an evaluation error, and
 no optimistic, pessimistic, or midpoint semantics is defined. Engines state

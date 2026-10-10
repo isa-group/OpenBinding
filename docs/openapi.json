@@ -3550,10 +3550,16 @@
                 "additionalProperties": false,
                 "properties": {
                   "max": {
-                    "type": "number"
+                    "type": [
+                      "number",
+                      "null"
+                    ]
                   },
                   "min": {
-                    "type": "number"
+                    "type": [
+                      "number",
+                      "null"
+                    ]
                   }
                 },
                 "required": [

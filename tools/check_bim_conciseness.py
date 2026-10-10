@@ -174,7 +174,11 @@ def _candidate_feature(spec: Mapping[str, Any], reference: Mapping[str, str], fe
     ]
     if len(aliases) != 1:
         raise ValueError(f"feature {feature_id!r} has no unique catalog binding")
-    return float(catalog["candidates"][reference["id"]]["features"][aliases[0]])
+    value = catalog["candidates"][reference["id"]]["features"][aliases[0]]
+    if isinstance(value, Mapping):
+        # A {min,max} range (possibly with null = infinite ends) has no scalar value here.
+        raise ValueError(f"feature {feature_id!r} of {reference['resource']}/{reference['id']} is a range, not a scalar")
+    return float(value)
 
 
 def _normalization_ranges(compiled: Any, *, enumeration_limit: int = 10_000) -> dict[str, list[float]]:

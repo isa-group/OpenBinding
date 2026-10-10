@@ -168,7 +168,8 @@ support.
 
 `featureValues` is a closed dimension with values `scalar` and `interval`. The
 gateway computes it from the IR: `interval` is present if any bound slot of any
-candidate is an interval, and `scalar` for scalars. `all` is legal, `none`
+candidate is an interval (a range with a `null` end is an interval too), and
+`scalar` for scalars. `all` is legal, `none`
 accepts no feature values, and `only` accepts just the named kinds. Every
 bundled mode declares `{"selector":"only","values":["scalar"]}`, so a job with
 intervals fails with `unsupported_capability_value`. The dimension is

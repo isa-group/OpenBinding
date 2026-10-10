@@ -112,7 +112,8 @@ CEL source to 4,096 characters, the canonical tree to 256 nodes and depth 32,
 and a call to 16 arguments. Division by zero, overflow, a non-finite result,
 or an invalid fractional power is an evaluation error.
 
-A candidate feature slot may hold a closed `{min,max}` interval, and
+A candidate feature slot may hold a `{min,max}` interval (an end may be `null`,
+meaning infinity), and
 `features.x` paths remain typed as `number`, so constraints and objectives that
 reference such a feature compile. The canonical evaluator defines no interval
 semantics (optimistic, pessimistic, or midpoint): reading a feature whose value

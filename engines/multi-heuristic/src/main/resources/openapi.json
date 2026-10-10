@@ -5,7 +5,7 @@
     "version": "1.1.0"
   },
   "x-bim-protocol": "bim-engine/v1",
-  "x-bim-protocol-digest": "sha256-28f0f0975917c4ae2df2e94f1abe327e36aece62da11ddf63906d6acfdc29e30",
+  "x-bim-protocol-digest": "sha256-1de9afb5af0d4ea913c5c0e6e24948cc76a58ebcd7edc54a53e68a5a2f761563",
   "paths": {
     "/internal/v1/binding-problems": {
       "post": {

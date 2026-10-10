@@ -160,10 +160,16 @@
           ],
           "properties": {
             "min": {
-              "type": "number"
+              "type": [
+                "number",
+                "null"
+              ]
             },
             "max": {
-              "type": "number"
+              "type": [
+                "number",
+                "null"
+              ]
             }
           },
           "additionalProperties": false

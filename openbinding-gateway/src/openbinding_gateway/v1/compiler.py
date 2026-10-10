@@ -581,7 +581,11 @@ def _profile_output_validator(
 
 
 def _finite(value: Any, pointer: str, diagnostics: list[CompileDiagnostic], resource: str, *, nonnegative: bool = False) -> bool:
-    if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)):
+    try:
+        finite = isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value))
+    except OverflowError:  # an integer too large for a float is not a finite number here
+        finite = False
+    if not finite:
         diagnostics.append(_diag("finite_number", "value must be a finite scalar number", resource, pointer))
         return False
     if nonnegative and float(value) < 0:
@@ -1932,13 +1936,20 @@ def _validate_feature_value(
         if set(value) != {"min", "max"}:
             diagnostics.append(_diag("feature_interval_shape", "candidate feature interval must declare exactly min and max", resource, pointer))
             return
-        valid = [_finite(value[bound], f"{pointer}/{bound}", diagnostics, resource) for bound in ("min", "max")]
+        # An endpoint is a finite number or null; null is an infinite (open) end
+        # (min: -inf, max: +inf).  Only a range with two finite ends has an order
+        # or a domain to check.
+        valid = [
+            value[bound] is None or _finite(value[bound], f"{pointer}/{bound}", diagnostics, resource)
+            for bound in ("min", "max")
+        ]
         if not all(valid):
             return
-        if float(value["min"]) > float(value["max"]):
+        if None not in (value["min"], value["max"]) and float(value["min"]) > float(value["max"]):
             diagnostics.append(_diag("feature_interval_order", "candidate feature interval must satisfy min <= max", resource, pointer))
         for bound in ("min", "max"):
-            _validate_feature_domain(value[bound], domain, resource, f"{pointer}/{bound}", diagnostics)
+            if value[bound] is not None:
+                _validate_feature_domain(value[bound], domain, resource, f"{pointer}/{bound}", diagnostics)
         return
     if not _finite(value, pointer, diagnostics, resource):
         return
@@ -2746,7 +2757,8 @@ def _validate_fractional_products(
                 reference = _ref(catalog_id, candidate_id)
                 value = _resolved_candidate_features(candidates, reference).get(feature_id)
                 if isinstance(value, Mapping):
-                    value = value["min"]
+                    # An open lower end (null) is -inf, hence negative.
+                    value = -math.inf if value["min"] is None else value["min"]
                 if value is not None and value < 0:
                     diagnostics.append(_diag(
                         "fractional_product_value",
@@ -2833,7 +2845,7 @@ def _lookup_candidate(candidates: Mapping[str, Any], reference: Mapping[str, Any
     return values.get(reference.get("id")) if isinstance(values, Mapping) else None
 
 
-def _resolved_candidate_features(candidates: Mapping[str, Any], reference: Mapping[str, Any]) -> dict[str, float | dict[str, float]]:
+def _resolved_candidate_features(candidates: Mapping[str, Any], reference: Mapping[str, Any]) -> dict[str, float | dict[str, float | None]]:
     catalog = candidates.get(reference.get("resource"))
     candidate = _lookup_candidate(candidates, reference)
     if not isinstance(catalog, Mapping) or candidate is None:
@@ -2847,9 +2859,10 @@ def _resolved_candidate_features(candidates: Mapping[str, Any], reference: Mappi
     }
 
 
-def _feature_slot_value(value: Any) -> float | dict[str, float]:
+def _feature_slot_value(value: Any) -> float | dict[str, float | None]:
     if isinstance(value, Mapping):
-        return {"min": float(value["min"]), "max": float(value["max"])}
+        # null stays null: it is an open (infinite) end, never coerced to a float.
+        return {bound: None if value[bound] is None else float(value[bound]) for bound in ("min", "max")}
     return float(value)
 
 
@@ -2870,7 +2883,7 @@ def _scalar_candidate_feature(candidates: Mapping[str, Any], reference: Mapping[
 class _TaskFeatures(Mapping[str, Any]):
     """Expression view of a bound candidate's features that refuses to read intervals."""
 
-    def __init__(self, values: Mapping[str, float | dict[str, float]], reference: Mapping[str, Any]) -> None:
+    def __init__(self, values: Mapping[str, float | dict[str, float | None]], reference: Mapping[str, Any]) -> None:
         self._values = values
         self._reference = reference
 

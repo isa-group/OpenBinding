@@ -1284,11 +1284,19 @@ def test_feature_interval_validator_rejects_non_finite_and_malformed_endpoints()
         {"min": 0, "max": float("inf")},
         {"min": float("nan"), "max": 1},
         {"min": True, "max": 2},
-        {"min": None, "max": 2},
+        {"min": "inf", "max": 2},
     ):
         diagnostics = []
         _validate_feature_value(value, feature, "catalog", "/spec/candidates/c1a/features/latency", diagnostics)
         assert [item.code for item in diagnostics] == ["finite_number"]
+    # null is an open (infinite) end inside a range (B5), but never a scalar value.
+    for value in ({"min": None, "max": 2}, {"min": 1, "max": None}, {"min": None, "max": None}):
+        diagnostics = []
+        _validate_feature_value(value, feature, "catalog", "/spec/candidates/c1a/features/latency", diagnostics)
+        assert diagnostics == []
+    diagnostics = []
+    _validate_feature_value(None, feature, "catalog", "/spec/candidates/c1a/features/latency", diagnostics)
+    assert [item.code for item in diagnostics] == ["finite_number"]
     diagnostics = []
     _validate_feature_value({"min": 1}, feature, "catalog", "/spec/candidates/c1a/features/latency", diagnostics)
     assert [item.code for item in diagnostics] == ["feature_interval_shape"]

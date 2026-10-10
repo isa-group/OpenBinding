@@ -355,6 +355,12 @@ async def solve_remote(
     request_url = _path(registration.endpoint, mappings.get("request"), "/internal/v1/binding-problems")
     poll_template = mappings.get("job", "/internal/v1/jobs/{id}")
     body = {"apiVersion": "bim/v1", "kind": "BindingProblemRequest", "protocol": "bim-engine/v1", "problem": problem, "optimization": optimization, "options": options}
+    try:
+        # Open range ends travel as JSON null; a NaN/Infinity must never be
+        # emitted because it is not JSON and a conforming Engine would reject it.
+        content = json.dumps(body, separators=(",", ":"), allow_nan=False)
+    except ValueError as exc:
+        raise RemoteEngineError(f"BindingProblem request is not valid JSON: {exc}") from exc
     headers = _headers(registration)
     timeout = httpx.Timeout(timeout_s, connect=min(timeout_s, 5.0))
     # The policy-checked address is frozen for the complete request/poll cycle;
@@ -368,7 +374,7 @@ async def solve_remote(
         headers["host"] = _host_header(original)
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, transport=transport, trust_env=False) as client:
         try:
-            request = client.build_request("POST", request_url, headers=headers, content=json.dumps(body, separators=(",", ":")))
+            request = client.build_request("POST", request_url, headers=headers, content=content)
             if pinned_address and original.hostname:
                 request.extensions["sni_hostname"] = original.hostname
             response = await client.send(request, stream=True)
