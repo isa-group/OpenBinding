@@ -86,7 +86,7 @@ from ..models.platform import OrganizationView
 from ..space_client import PricingUnavailable, get_gate
 from ..pricing_catalog import PricingCatalogError, live_catalog
 from ..mailer import send_mail
-from .users import usage_view_for
+from .users import cas_verified_ids, usage_view_for
 
 router = APIRouter(
     prefix="/v1/admin",
@@ -156,6 +156,30 @@ async def _user_or_404(session: AsyncSession, user_id: uuid.UUID) -> User:
     return user
 
 
+def _record_admin_action(
+    session: AsyncSession,
+    administrator: User,
+    action: str,
+    target_type: str,
+    target_id: uuid.UUID | None,
+    detail: dict[str, Any],
+) -> None:
+    """One platform audit event (no organization) for an administrator's action.
+
+    ``detail`` is a before/after summary and must never carry a secret: no key
+    hash, key value, token or password.
+    """
+    session.add(
+        AuditEvent(
+            actor_id=administrator.id,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            detail=detail,
+        )
+    )
+
+
 @router.get(
     "/users",
     response_model=AdminUserPage,
@@ -198,6 +222,7 @@ async def list_users(
             )
         ).all()
     )
+    verified = await cas_verified_ids(session, [u.id for u in users])
     views = []
     for user in users:
         try:
@@ -215,6 +240,7 @@ async def list_users(
                 created_at=user.created_at,
                 contract_pending=user.contract_pending,
                 api_key_count=key_counts.get(user.id, 0),
+                cas_verified=user.id in verified,
             )
         )
     return AdminUserPage(
@@ -254,16 +280,27 @@ async def update_user(
             "An administrator cannot deactivate or demote their own account.",
         )
 
-    if request.is_active is not None:
-        user.is_active = request.is_active
-    if request.role is not None:
-        user.role = UserRole(request.role.value)
-
-    await session.flush()
     try:
         plan = user.plan_cache if user.contract_pending else (await get_gate().subscription(user.id)).plan
     except PricingUnavailable as error:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(error)) from error
+
+    # Only a real change is recorded, as one event carrying every field that
+    # moved. A refused request never reaches this point, so it leaves nothing.
+    changes: dict[str, dict[str, Any]] = {}
+    if request.is_active is not None and request.is_active != user.is_active:
+        changes["is_active"] = {"from": user.is_active, "to": request.is_active}
+        user.is_active = request.is_active
+    if request.role is not None and request.role.value != user.role.value:
+        changes["role"] = {"from": user.role.value, "to": request.role.value}
+        user.role = UserRole(request.role.value)
+    if changes:
+        _record_admin_action(
+            session, administrator, "admin.user.updated", "User", user.id,
+            {"username": user.username, "changes": changes},
+        )
+
+    await session.flush()
     return AdminUserView(
         id=user.id,
         username=user.username,
@@ -274,6 +311,7 @@ async def update_user(
         created_at=user.created_at,
         contract_pending=user.contract_pending,
         api_key_count=0,
+        cas_verified=user.id in await cas_verified_ids(session, [user.id]),
     )
 
 
@@ -314,11 +352,11 @@ async def change_plan(
     return result.user
 
 
-def _admin_user_view(user: User, plan: str) -> AdminUserView:
+def _admin_user_view(user: User, plan: str, cas_verified: bool = False) -> AdminUserView:
     return AdminUserView(
         id=user.id, username=user.username, email=user.email, role=user.role.value,
         is_active=user.is_active, plan=plan, created_at=user.created_at,
-        contract_pending=user.contract_pending, api_key_count=0,
+        contract_pending=user.contract_pending, api_key_count=0, cas_verified=cas_verified,
     )
 
 
@@ -403,7 +441,7 @@ async def _apply_subscription(
             await send_mail(settings, user.email, subject, body)
     await session.flush()
     return AdminSubscriptionView(
-        user=_admin_user_view(user, after.plan),
+        user=_admin_user_view(user, after.plan, user.id in await cas_verified_ids(session, [user.id])),
         subscription=ContractSubscriptionView(
             plan=after.plan,
             add_ons=after.add_ons,
@@ -429,7 +467,7 @@ async def get_subscription(
     except PricingUnavailable as error:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(error)) from error
     return AdminSubscriptionView(
-        user=_admin_user_view(user, current.plan),
+        user=_admin_user_view(user, current.plan, user.id in await cas_verified_ids(session, [user.id])),
         subscription=ContractSubscriptionView(
             plan=current.plan,
             add_ons=current.add_ons,
@@ -491,14 +529,28 @@ async def user_usage(
 async def revoke_api_key(
     user_id: uuid.UUID,
     key_id: uuid.UUID,
+    administrator: User = Depends(require_admin),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> None:
-    """Take back a key, for when one has leaked and its owner is unreachable."""
+    """Take back a key, for when one has leaked and its owner is unreachable.
+
+    Audited as ``admin.api_key.revoked`` with the key's id, name and public
+    prefix. Neither the secret nor its hash is ever written to the event.
+    """
     api_key = await session.get(ApiKey, key_id)
     if api_key is None or api_key.user_id != user_id or not api_key.is_active:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "No such API key.")
 
     api_key.revoked_at = utcnow()
+    _record_admin_action(
+        session, administrator, "admin.api_key.revoked", "ApiKey", api_key.id,
+        {
+            "user_id": str(user_id),
+            "key": {"id": str(api_key.id), "name": api_key.name, "prefix": api_key.prefix},
+            "before": {"revoked": False},
+            "after": {"revoked": True},
+        },
+    )
     await session.flush()
     return None
 
@@ -512,6 +564,7 @@ async def revoke_api_key(
 )
 async def resync_usage(
     user_id: uuid.UUID,
+    administrator: User = Depends(require_admin),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> UsageResyncResult:
     """Reconcile the recorded concurrency against the jobs actually in flight.
@@ -550,6 +603,17 @@ async def resync_usage(
             f"Usage cannot be resynchronised right now: {error}",
         ) from error
 
+    _record_admin_action(
+        session, administrator, "admin.usage.resynced", "User", user.id,
+        {
+            "username": user.username,
+            "plan": snapshot.plan,
+            "before": {"concurrent_jobs_recorded": recorded},
+            "after": {"concurrent_jobs_recorded": recorded + drift},
+            "slots_in_flight": in_flight,
+            "corrected_by": drift,
+        },
+    )
     return UsageResyncResult(
         plan=snapshot.plan,
         slots_in_flight=in_flight,
@@ -626,44 +690,87 @@ async def platform_overview(
     }
 
 
-@router.get("/audit", operation_id="adminListAuditEvents")
+class AdminAuditEventView(BaseModel):
+    id: str
+    organizationId: Optional[str] = Field(
+        default=None, description="Set for events recorded inside an organization; null for platform events."
+    )
+    organizationSlug: Optional[str] = Field(
+        default=None, description="Slug of that organization, when it is set."
+    )
+    actorId: Optional[str] = None
+    action: str
+    targetType: str
+    targetId: Optional[str] = None
+    detail: dict[str, Any]
+    createdAt: str
+
+
+class AdminAuditPage(BaseModel):
+    events: list[AdminAuditEventView]
+    total: int
+    offset: int
+    limit: int
+
+
+@router.get(
+    "/audit",
+    response_model=AdminAuditPage,
+    operation_id="adminListAuditEvents",
+    summary="Platform audit log, including organization events",
+)
 async def list_audit_events(
     action: str | None = None,
+    organization_id: Optional[uuid.UUID] = Query(
+        default=None,
+        description="Only the events recorded inside this organization.",
+    ),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
     session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> dict:
-    conditions = [AuditEvent.organization_id.is_(None)]
+) -> AdminAuditPage:
+    """Every audit event, newest first: platform actions and organization events.
+
+    Organization events (for example a sponsorship transfer) carry
+    ``organizationId`` and ``organizationSlug``; platform events carry null.
+    Members of an organization still read only their own organization's log
+    through ``GET /v1/organizations/{org}/audit``; that view is unchanged.
+    """
+    conditions = []
     if action:
         conditions.append(AuditEvent.action == action)
+    if organization_id is not None:
+        conditions.append(AuditEvent.organization_id == organization_id)
     total = int(await session.scalar(
         select(func.count(AuditEvent.id)).where(*conditions)
     ) or 0)
     rows = (await session.execute(
-        select(AuditEvent)
+        select(AuditEvent, Organization.slug)
+        .outerjoin(Organization, Organization.id == AuditEvent.organization_id)
         .where(*conditions)
         .order_by(AuditEvent.created_at.desc())
         .offset(offset)
         .limit(limit)
-    )).scalars().all()
-    return {
-        "events": [
-            {
-                "id": str(item.id),
-                "organizationId": None,
-                "actorId": str(item.actor_id) if item.actor_id else None,
-                "action": item.action,
-                "targetType": item.target_type,
-                "targetId": str(item.target_id) if item.target_id else None,
-                "detail": item.detail,
-                "createdAt": item.created_at.isoformat(),
-            }
-            for item in rows
+    )).all()
+    return AdminAuditPage(
+        events=[
+            AdminAuditEventView(
+                id=str(item.id),
+                organizationId=str(item.organization_id) if item.organization_id else None,
+                organizationSlug=slug,
+                actorId=str(item.actor_id) if item.actor_id else None,
+                action=item.action,
+                targetType=item.target_type,
+                targetId=str(item.target_id) if item.target_id else None,
+                detail=item.detail,
+                createdAt=item.created_at.isoformat(),
+            )
+            for item, slug in rows
         ],
-        "total": total,
-        "offset": offset,
-        "limit": limit,
-    }
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 class AdminSponsorTransferRequest(BaseModel):

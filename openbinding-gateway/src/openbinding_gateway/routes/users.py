@@ -70,10 +70,34 @@ async def _caps_for(user: User):
         ) from error
 
 
+CAS_PROVIDER = "us-cas"
+
+
+async def cas_verified_ids(session: AsyncSession, user_ids) -> set[uuid.UUID]:
+    """Which of these accounts hold a verified Universidad de Sevilla CAS identity.
+
+    One query for any number of accounts, so a page of users costs the same as
+    one user. "Verified" is the identity model's own notion: the ``us-cas``
+    identity row exists (it is only ever written after a successful CAS ticket
+    validation) and carries its ``verified_at`` stamp.
+    """
+    ids = list(user_ids)
+    if not ids:
+        return set()
+    rows = await session.scalars(
+        select(AuthIdentity.user_id)
+        .where(
+            AuthIdentity.provider == CAS_PROVIDER,
+            AuthIdentity.verified_at.is_not(None),
+            AuthIdentity.user_id.in_(ids),
+        )
+        .distinct()
+    )
+    return set(rows.all())
+
+
 async def profile_of(session: AsyncSession, user: User) -> UserProfile:
-    cas_verified = bool(await session.scalar(select(func.count(AuthIdentity.id)).where(
-        AuthIdentity.user_id == user.id, AuthIdentity.provider == "us-cas"
-    )))
+    cas_verified = user.id in await cas_verified_ids(session, [user.id])
     caps = await _caps_for(user)
     institutional_branding = cas_verified and caps.allows("institutionalBranding")
     return UserProfile(

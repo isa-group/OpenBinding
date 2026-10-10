@@ -285,6 +285,7 @@ app.add_middleware(
     allow_credentials=settings.cors_credentials_allowed,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=settings.cors_expose_headers,
 )
 app.add_middleware(ErrorTelemetryMiddleware)
 

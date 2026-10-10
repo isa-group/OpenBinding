@@ -1546,7 +1546,7 @@ async def main() -> int:
                     raise ValueError("Run the normal development seeder once before --analysis-only")
                 await prepare_analysis_workspace(session, org, project, user, examples_dir, manifest_path=args.analysis_manifest)
                 await session.commit()
-                logger.info("Analysis gallery ready: /app/score-ai/qos-placement/analytics (sign in as alice)")
+                logger.info("Analysis gallery ready: /app/analysis (sign in as alice)")
                 return 0
             if args.reset:
                 await clean_existing_data(session)

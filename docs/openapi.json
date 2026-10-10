@@ -133,6 +133,117 @@
         "title": "AdaptationObservationItem",
         "type": "object"
       },
+      "AdminAuditEventView": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actorId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actorid"
+          },
+          "createdAt": {
+            "title": "Createdat",
+            "type": "string"
+          },
+          "detail": {
+            "additionalProperties": true,
+            "title": "Detail",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "organizationId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set for events recorded inside an organization; null for platform events.",
+            "title": "Organizationid"
+          },
+          "organizationSlug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Slug of that organization, when it is set.",
+            "title": "Organizationslug"
+          },
+          "targetId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetid"
+          },
+          "targetType": {
+            "title": "Targettype",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "targetType",
+          "detail",
+          "createdAt"
+        ],
+        "title": "AdminAuditEventView",
+        "type": "object"
+      },
+      "AdminAuditPage": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/AdminAuditEventView"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "events",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "AdminAuditPage",
+        "type": "object"
+      },
       "AdminSponsorTransferRequest": {
         "additionalProperties": false,
         "properties": {
@@ -4478,6 +4589,47 @@
           "url"
         ],
         "title": "CasLinkIntent",
+        "type": "object"
+      },
+      "CasSession": {
+        "description": "The CAS code exchange: a session, and the plan change linking CAS caused, if any.",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "description": "Lifetime of the access token, in seconds.",
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "plan_changed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanChange"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when this sign-in raised the plan (BASIC to RESEARCH on linking CAS); null otherwise."
+          },
+          "refresh_token": {
+            "title": "Refresh Token",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in"
+        ],
+        "title": "CasSession",
         "type": "object"
       },
       "CaseRevisionCreate": {
@@ -9018,6 +9170,33 @@
         "title": "PasswordResetRequest",
         "type": "object"
       },
+      "PlanChange": {
+        "description": "A plan change the account holder did not ask for by name, and what it costs.",
+        "properties": {
+          "extra_cost": {
+            "default": false,
+            "description": "Always false: the change carries no extra charge (RESEARCH is part of the institutional agreement).",
+            "title": "Extra Cost",
+            "type": "boolean"
+          },
+          "from": {
+            "description": "The plan before.",
+            "title": "From",
+            "type": "string"
+          },
+          "to": {
+            "description": "The plan after.",
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "title": "PlanChange",
+        "type": "object"
+      },
       "PricingActionResult": {
         "properties": {
           "message": {
@@ -12267,6 +12446,7 @@
     },
     "/v1/admin/audit": {
       "get": {
+        "description": "Every audit event, newest first: platform actions and organization events.\n\nOrganization events (for example a sponsorship transfer) carry\n``organizationId`` and ``organizationSlug``; platform events carry null.\nMembers of an organization still read only their own organization's log\nthrough ``GET /v1/organizations/{org}/audit``; that view is unchanged.",
         "operationId": "adminListAuditEvents",
         "parameters": [
           {
@@ -12283,6 +12463,25 @@
                 }
               ],
               "title": "Action"
+            }
+          },
+          {
+            "description": "Only the events recorded inside this organization.",
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only the events recorded inside this organization.",
+              "title": "Organization Id"
             }
           },
           {
@@ -12314,9 +12513,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Adminlistauditevents",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AdminAuditPage"
                 }
               }
             },
@@ -12371,7 +12568,7 @@
             "ApiKeyAuth": []
           }
         ],
-        "summary": "List Audit Events",
+        "summary": "Platform audit log, including organization events",
         "tags": [
           "Administration"
         ],
@@ -14780,7 +14977,7 @@
     },
     "/v1/admin/users/{user_id}/api-keys/{key_id}": {
       "delete": {
-        "description": "Take back a key, for when one has leaked and its owner is unreachable.",
+        "description": "Take back a key, for when one has leaked and its owner is unreachable.\n\nAudited as ``admin.api_key.revoked`` with the key's id, name and public\nprefix. Neither the secret nor its hash is ever written to the event.",
         "operationId": "adminRevokeApiKey",
         "parameters": [
           {
@@ -16980,27 +17177,53 @@
         "operationId": "completeUsCasValidation",
         "parameters": [
           {
+            "description": "The one-time state issued by `/start`.",
             "in": "query",
             "name": "state",
-            "required": true,
+            "required": false,
             "schema": {
-              "title": "State",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The one-time state issued by `/start`.",
+              "title": "State"
             }
           },
           {
+            "description": "The CAS service ticket.",
             "in": "query",
             "name": "ticket",
-            "required": true,
+            "required": false,
             "schema": {
-              "title": "Ticket",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The CAS service ticket.",
+              "title": "Ticket"
             }
           }
         ],
         "responses": {
-          "307": {
-            "description": "Successful Response"
+          "303": {
+            "description": "Always a redirect to `{FRONTEND_URL}/auth/cas/callback`. On success the query carries `code` (one-time, exchange it at `POST /v1/auth/cas/exchange`) and, when linking CAS raised the account's plan, `plan_changed=<new plan>` (e.g. `RESEARCH`; the full `{from, to, extra_cost}` is in the exchange response). On failure the query carries `error=<code>` instead, where code is one of: `cas_unavailable`, `cas_state_invalid`, `cas_ticket_invalid`, `account_inactive`, `identity_in_use`, `account_collision`, `pricing_unavailable`, `institutional_pricing_invalid`, `cas_error`. The destination comes from configuration only, never from the request.",
+            "headers": {
+              "Location": {
+                "description": "Frontend CAS callback URL.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "422": {
             "content": {
@@ -17013,7 +17236,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Cas Callback",
+        "summary": "Complete the CAS round trip and return to the frontend",
         "tags": [
           "Authentication"
         ]
@@ -17021,6 +17244,7 @@
     },
     "/v1/auth/cas/exchange": {
       "post": {
+        "description": "The session tokens, plus ``plan_changed`` when this sign-in raised the plan.\n\n``plan_changed`` is ``{from, to, extra_cost}`` (``extra_cost`` is always\nfalse: RESEARCH is part of the institutional agreement) and is null when the\nplan did not change.",
         "operationId": "exchangeUsCasCode",
         "requestBody": {
           "content": {
@@ -17037,7 +17261,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TokenPair"
+                  "$ref": "#/components/schemas/CasSession"
                 }
               }
             },
@@ -17054,7 +17278,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Exchange Cas Code",
+        "summary": "Exchange the one-time CAS code for a session",
         "tags": [
           "Authentication"
         ]

@@ -301,6 +301,19 @@ async def ensure_scale_archives(session, org, project, user, examples_dir: Path)
     return archives
 
 
+def analysis_link(job_ids, report: tuple[str, str, str] | None = None) -> str:
+    """Workspace address (frontend ``analysis-workspace``): jobs, or a saved report for large archives."""
+    from urllib.parse import quote
+    if report is not None:
+        return "/app/analysis/workspace?report=" + quote("/".join(report), safe="")
+    return "/app/analysis/workspace?" + "&".join(f"job={quote(str(sid), safe='')}" for sid in job_ids)
+
+
+def report_link(org_slug: str, project_slug: str, report_slug: str) -> str:
+    """Report screen (frontend ``rep-detail``)."""
+    return f"/app/{org_slug}/{project_slug}/reports/{report_slug}"
+
+
 async def prepare_analysis_workspace(session, org, project, user, examples_dir: Path, *, full=False, manifest_path: Path | None = None, live_jobs=None, study_runs=()):
     """Exercise production query/report/task services and record source links and failures."""
     import asyncio
@@ -335,7 +348,7 @@ async def prepare_analysis_workspace(session, org, project, user, examples_dir: 
         response = await analysis.query_analysis(query, user, session)
         elapsed = time.perf_counter() - started
         response_json = json.dumps(analysis.jsonable_encoder(response), separators=(",", ":"))
-        entry = {"jobIds": ids, "revision": response["revision"], "analysisLink": "/app/analysis?" + "&".join(f"job={sid}" for sid in ids),
+        entry = {"jobIds": ids, "revision": response["revision"], "analysisLink": analysis_link(ids),
                  "querySeconds": elapsed, "queryPayloadBytes": len(response_json.encode()), "counts": response["counts"],
                  "expected": next((d for s, _, d in GALLERY if s == scenario), "Complete compatible archive; exact rankings and unknown unexplored space"),
                  "reportLink": None}
@@ -347,9 +360,9 @@ async def prepare_analysis_workspace(session, org, project, user, examples_dir: 
                 await analysis.save_report(AnalysisReport(sources=ids, organization=org.slug, project=project.slug,
                     title=f"Binding decision · {scenario}", slug=slug), user, session)
                 await session.commit()
-            entry["reportLink"] = f"/app/{org.slug}/{project.slug}/reports/{slug}"
+            entry["reportLink"] = report_link(org.slug, project.slug, slug)
             if len(ids) > 100:
-                entry["analysisLink"] = f"/app/analysis?report={org.slug}/{project.slug}/{slug}"
+                entry["analysisLink"] = analysis_link(ids, (org.slug, project.slug, slug))
         if scenario == "background":
             task = await analysis.start_pareto(query.model_copy(update={"layers": True}), user, session)
             deadline = time.monotonic() + 120

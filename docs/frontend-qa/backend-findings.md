@@ -45,11 +45,13 @@ Cada punto indica el código del frontend afectado y el endpoint. Ningún cambio
    Frontend: `frontend/src/pages/Resolve/resolveModel.ts` (`locationHref` ignora `web_url` y construye las rutas actuales).
    Backend: `openbinding-gateway` `routes/resolve.py` (~línea 414) y `tools/seed_analysis.py` (~línea 352).
    Endpoint: `GET /v1/resolve/{kind}/{digest}`. Varias rutas de `web_url` apuntan a pantallas que ya no existen.
+   RESUELTO en backend: `web_url` usa las rutas actuales del frontend (`d1..d8.tsx`): `case-revision` → `/app/:org/:project/cases/:case/revisions/:n`; `resource-revision` y `collection-revision` de biblioteca → `/app/:org/library/:artifact-id/versions/:version`; `report` → `/app/:org/:project/reports/:slug`; `artifact` → `/app/:org/:project/files`; `engine` → `/engines/:ns/:name/:version`; `instance-snapshot`/`binding-ir` → `/app/:org/:project/snapshots/:id` solo si el llamante es dueño y hay una revisión de caso de un proyecto accesible sellada desde él. `dialect` y `registered-resource` no tienen pantalla: `web_url: null`. `tools/seed_analysis.py` genera `/app/analysis/workspace?job=…` / `?report=org%2Fproject%2Fslug` y `/app/:org/:project/reports/:slug`. Los segmentos se escapan. Ver `docs/RESOLVER_AND_VERIFIER.md`.
 
 8. **CORS con comodín por defecto y tokens en `localStorage`.**
    Frontend: `frontend/src/api/client.ts` (`ACCESS_TOKEN_KEY`, `REFRESH_TOKEN_KEY`, `setTokens`).
    Un XSS o un origen permitido por el comodín alcanzaría la sesión. Recomendación: política CSP `default-src 'self'`
    (el frontend solo usa fuentes autoalojadas y ningún script de terceros) y lista cerrada de orígenes CORS en producción.
+   RESUELTO en backend (la parte CORS; la CSP es de la capa web/proxy y no se tocó): `CORS_ALLOW_ORIGINS` ya no tiene comodín por defecto; es una lista cerrada cuyo valor por defecto son solo los orígenes de desarrollo (`http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:4177`, `http://127.0.0.1:4177`). Con `APP_ENV=prod`, una lista vacía o con `*` hace que el gateway **no arranque** (error que nombra `CORS_ALLOW_ORIGINS`). Variable nueva/cambiada: `CORS_ALLOW_ORIGINS` (documentada en `docs/ACCOUNTS_AND_PLANS.md` y `openbinding-gateway/.env.example`). `docker-compose.yml` y `deploy/kubernetes` ya definían listas cerradas.
 
 9. **`POST /v1/verifier/inspect` no filtra por visibilidad.**
    Frontend: `frontend/src/pages/Reports/Verifier.tsx`, `frontend/src/api/platform.ts` (`verifierCheck`, `verifierCheckFile`).
@@ -60,28 +62,34 @@ Cada punto indica el código del frontend afectado y el endpoint. Ningún cambio
 10. **`AdminUserView.cas_verified` es siempre `false`.**
     Frontend: `frontend/src/pages/Admin/AdminUsers.tsx`, `frontend/src/pages/Admin/AdminUserDetail.tsx`, `frontend/src/api/auth.ts`.
     Endpoints: `GET /v1/admin/users`, `GET /v1/admin/users/{id}`. La interfaz no puede mostrar la verificación institucional real.
+    RESUELTO en backend: `cas_verified` es `true` cuando la cuenta tiene una identidad `us-cas` enlazada (misma regla que `GET /v1/users/me`), calculado por lotes (una consulta por página, sin N+1) en `GET /v1/admin/users` y en el usuario de las respuestas de `PATCH /v1/admin/users/{id}`, `POST …/plan` y `GET/POST …/subscription`. Nota: `GET /v1/admin/users/{id}` no existe (la pantalla de detalle usa la lista con `search`); no se añadió.
 
 11. **`PATCH /v1/admin/users` no escribe en el registro de auditoría** (ni al revocar claves ni al resincronizar uso).
     Frontend: `frontend/src/pages/Admin/AdminUsers.tsx`, `frontend/src/pages/Admin/AdminUserDetail.tsx`,
     `frontend/src/pages/Admin/AdminAgreement.tsx` (cada pantalla avisa de que el cambio no queda auditado).
     Endpoints: `PATCH /v1/admin/users/{id}`, `DELETE /v1/admin/users/{id}/api-keys/{key}`, `POST /v1/admin/users/{id}/usage/resync`.
+    RESUELTO en backend: cada acción deja exactamente un evento en la auditoría de plataforma, con actor, objetivo y resumen antes/después: `admin.user.updated` (rol y/o estado; solo si algo cambia), `admin.api_key.revoked` (id, nombre y prefijo de la clave; nunca el valor ni el hash) y `admin.usage.resynced`. Los cambios de plan/acuerdo (`POST …/plan`, `…/subscription`) ya se registraban como `contract.subscription.changed`. Un fallo (`401`/`403`/`404`/`409`/`503`) no deja evento. Ver `docs/ACCOUNTS_AND_PLANS.md`.
 
 12. **El traspaso de patrocinio se audita con `organization_id` y `/admin/audit` lo omite.**
     Frontend: `frontend/src/pages/Admin/AdminAudit.tsx`, `frontend/src/pages/Admin/AdminSponsor.tsx`.
     Endpoints: `POST /v1/admin/organizations/{id}/sponsor`, `GET /v1/admin/audit`. El evento solo aparece en el registro de la organización.
+    RESUELTO en backend: `GET /v1/admin/audit` incluye ahora también los eventos con `organization_id` y cada evento devuelve `organizationId` y `organizationSlug` (`null` en los de plataforma); nuevo filtro opcional `?organization_id=<uuid>` (además de `action`). El registro de la organización (`GET /v1/organizations/{org}/audit`) no cambia. El cambio de patrocinador por `PATCH /v1/organizations/{org}` queda como `organization.updated` con `previous_sponsor_user_id`/`new_sponsor_user_id`. (B3 sustituirá el cambio directo por propuesta y aceptación.)
 
 13. **`Retry-After` no está expuesto por CORS.**
     Frontend: `frontend/src/api/client.ts` (`errorFor`, lee `Retry-After` en el 429), `frontend/src/components/ui/ErrorState.tsx` (cuenta atrás).
     Sin `Access-Control-Expose-Headers: Retry-After` el navegador no deja leer la cabecera y la cuenta atrás nunca aparece.
+    RESUELTO en backend: el CORS del gateway expone `Retry-After`, `ETag`, `Location`, `Content-Disposition`, `Digest` e `Idempotency-Key` en todas las respuestas a un origen permitido (comprobado en un `429` y en una respuesta normal). No existe `X-Request-Id`, así que no se expone.
 
 14. **El callback de CAS debería redirigir con `?error=`.**
     Frontend: `frontend/src/pages/Auth/CasCallback.tsx` (solo entiende `?code=`; sin él muestra «There’s no code to finish sign-in»).
     Endpoint: `GET /v1/auth/cas/callback`. Un fallo de la universidad debería volver al frontend con un código de error legible.
+    RESUELTO en backend: el callback responde siempre `303` a `{FRONTEND_URL}/auth/cas/callback` (destino solo de configuración, sin redirección abierta): `?code=…` en éxito y `?error=<código>` en fallo, con la lista cerrada `cas_unavailable`, `cas_state_invalid`, `cas_ticket_invalid`, `account_inactive`, `identity_in_use`, `account_collision`, `pricing_unavailable`, `institutional_pricing_invalid`, `cas_error` (documentada y en OpenAPI). El frontend ya entiende `identity_in_use`, `account_collision`, `institutional_pricing_invalid`, `pricing_unavailable` y `cas_unavailable`; **pendiente de adaptar en la interfaz**: `cas_state_invalid`, `cas_ticket_invalid`, `account_inactive` y `cas_error` (hoy caen en el mensaje genérico). `state` y `ticket` pasan a ser opcionales para poder redirigir también cuando faltan.
 
 15. **El backend sube el plan a RESEARCH al enlazar la identidad CAS.**
     Frontend: `frontend/src/pages/Account/AccountIdentities.tsx` (frase `DOWNGRADE RESEARCH` al desenlazar), `frontend/src/pages/Auth/CasCallback.tsx`.
     Endpoints: `GET /v1/auth/cas/callback`, `POST /v1/auth/cas/link-intent`, `DELETE /v1/users/me/identities/{id}`.
     El cambio de plan es un efecto lateral del enlace; la persona solo se entera al desenlazar.
+    DECIDIDO: automático, informado con plan_changed. La subida a RESEARCH al enlazar CAS es automática, correcta y sin coste extra; no se desacopla ni se pide confirmación. Lo que faltaba era informar: la redirección del callback añade `plan_changed=RESEARCH` junto a `code`, y `POST /v1/auth/cas/exchange` devuelve, además de los tokens, `plan_changed: {from, to, extra_cost: false}` (`null` si el plan no cambió, p. ej. ya era RESEARCH u otro plan). `GET /v1/users/me` ya muestra `plan` y `cas_verified`. El enlace deja el evento de auditoría `account.cas.linked` con el cambio de plan. Desenlazar mantiene su lógica (`DOWNGRADE RESEARCH`).
 
 ## Encontrados durante esta ronda (pendientes de confirmar por el backend)
 

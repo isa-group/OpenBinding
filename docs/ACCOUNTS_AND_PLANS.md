@@ -125,6 +125,91 @@ An administrator cannot deactivate or demote themselves. It is always a mistake,
 and a gateway whose last administrator locked themselves out needs database
 access to recover.
 
+`cas_verified` in the administrator's account views (`GET /v1/admin/users`, and
+the user inside the `PATCH`, `/plan` and `/subscription` responses) is the real
+value: the account has a linked `us-cas` identity. A page of accounts costs one
+identity query, not one per row. (There is no `GET /v1/admin/users/{id}`; the
+detail screen reads the list with `search`.)
+
+### Administrator actions are audited
+
+Every action an administrator takes on somebody else's account leaves exactly
+one event in the platform audit log (`GET /v1/admin/audit`), with the actor, the
+target and a before/after summary. A refused request (`401`/`403`/`404`/`409`/`503`)
+leaves none, and neither does a `PATCH` that changes nothing.
+
+| Action | `action` | target | `detail` |
+|---|---|---|---|
+| `PATCH /v1/admin/users/{id}` (role, active) | `admin.user.updated` | `User` | `username`, `changes: {role: {from, to}, is_active: {from, to}}` (only fields that changed) |
+| `POST /v1/admin/users/{id}/plan`, `/subscription` | `contract.subscription.changed` | `User` | previous/current plan and add-ons, reason, pricing version (unchanged) |
+| `DELETE /v1/admin/users/{id}/api-keys/{key}` | `admin.api_key.revoked` | `ApiKey` | `user_id`, `key: {id, name, prefix}`, `before/after: {revoked}` |
+| `POST /v1/admin/users/{id}/usage/resync` | `admin.usage.resynced` | `User` | `username`, `plan`, `before/after: {concurrent_jobs_recorded}`, `slots_in_flight`, `corrected_by` |
+
+Events never carry a secret: for a key only its id, name and public prefix are
+written, never the value or the stored hash.
+
+`GET /v1/admin/audit` returns **platform and organization events together**:
+organization events (a sponsorship transfer, member changes, …) carry
+`organizationId` and `organizationSlug`, platform events carry `null`. Filter
+with `?action=` and `?organization_id=<uuid>`. Members of an organization still
+read only their own organization's log, at `GET /v1/organizations/{org}/audit`,
+which is unchanged and never shows platform events. A sponsor change through
+`PATCH /v1/organizations/{org}` is recorded as `organization.updated` with
+`previous_sponsor_user_id` / `new_sponsor_user_id`; the admin transfer
+(`POST /v1/admin/organizations/{id}/sponsor`) as `organization.sponsor_transferred`.
+
+## Signing in with Universidad de Sevilla CAS
+
+`GET /v1/auth/cas/start` sends the browser to the university, which sends it
+back to `GET /v1/auth/cas/callback`. The callback is a browser navigation, so it
+**always answers with a `303` redirect to the frontend** (`FRONTEND_URL`, from
+configuration only; nothing in the request can change the destination):
+
+- success: `{FRONTEND_URL}/auth/cas/callback?code=<one-time code>`; the frontend
+  exchanges the code at `POST /v1/auth/cas/exchange` for the session.
+- failure: `{FRONTEND_URL}/auth/cas/callback?error=<code>`, with a code from this
+  closed list:
+
+| `error` | Meaning |
+|---|---|
+| `cas_unavailable` | CAS login is disabled, or the university's validation could not be reached |
+| `cas_state_invalid` | the login state is missing, already used, expired or unknown |
+| `cas_ticket_invalid` | the ticket is missing or the university refused it |
+| `account_inactive` | the account being signed in or linked is deactivated or gone |
+| `identity_in_use` | that UVUS identity is already linked to another account |
+| `account_collision` | a local account with the same username or email exists; sign in to it and link CAS explicitly (accounts are never linked by email) |
+| `pricing_unavailable` | the pricing service could not be reached |
+| `institutional_pricing_invalid` | the live pricing declares no `RESEARCH` plan |
+| `cas_error` | anything else (the detail stays in the server log) |
+
+The frontend today understands `identity_in_use`, `account_collision`,
+`institutional_pricing_invalid`, `pricing_unavailable` and `cas_unavailable`;
+the other four fall back to its generic "this code can't be used" message until
+the interface is adapted to them.
+
+### Linking CAS raises the plan to RESEARCH — automatically, at no cost
+
+Linking a verified CAS identity (the callback of a `mode=link` start, whether it
+was started with a bearer token or through `POST /v1/auth/cas/link-intent`)
+moves an account that is on the default plan to `RESEARCH`. This is a product
+decision, not a side effect to be confirmed: it is automatic and **has no extra
+cost**. An account already on `RESEARCH`, or on any other plan, is left alone.
+
+So that the person is told, the change is reported where the frontend can show it:
+
+- the callback redirect adds `plan_changed=RESEARCH` next to `code`;
+- `POST /v1/auth/cas/exchange` returns the tokens plus
+  `plan_changed: {"from": "<previous plan>", "to": "RESEARCH", "extra_cost": false}`
+  (`null` when the plan did not change);
+- `GET /v1/users/me` shows the resulting `plan` and `cas_verified`;
+- the platform audit log records `account.cas.linked` (provider, identity id and
+  the `plan_changed` object, never the UVUS or attributes).
+
+Creating a new account through CAS starts it on `RESEARCH`, which is not a
+change, so it reports nothing. Unlinking is unchanged: removing the identity of
+a `RESEARCH` account needs `?confirmation=DOWNGRADE RESEARCH` and returns it to
+the default plan.
+
 ## How a limit behaves
 
 Four outcomes, and which applies is a property of the thing being limited
@@ -199,6 +284,17 @@ quotas still refuse in development — they just live in memory.
 | `SPACE_FAIL_MODE` | `closed` or `open`, above. |
 | `BOOTSTRAP_ADMIN_*` | The first administrator, above. |
 | `FEDERATION_SECRET_KEY` | Fernet key for credentials registered with federated engines. |
+| `CORS_ALLOW_ORIGINS` | Browser origins allowed to call the API, comma separated: a **closed list**. Default: only the local development origins `http://localhost:5173`, `http://127.0.0.1:5173` (Vite) and `http://localhost:4177`, `http://127.0.0.1:4177` (Playwright). There is no wildcard default, because session tokens live in the browser's `localStorage`. With `APP_ENV=prod`, an empty list or a `*` entry makes the gateway **refuse to start** (`CORS_ALLOW_ORIGINS … APP_ENV=prod`), so a production deployment must name its frontend origin(s) exactly. A `*` outside production still works and switches credentialed requests off. |
+| `CORS_ALLOW_CREDENTIALS` | Whether credentialed cross-origin requests are allowed (default `true`; ignored when the list contains `*`). |
+| `APP_ENV` | `dev` (default), `test` or `prod`; `prod` enables the startup checks above. |
+| `FRONTEND_URL` | Where the CAS callback returns the browser (`/auth/cas/callback?code=…` or `?error=…`). |
+
+Cross-origin responses expose these headers to the browser (not configurable):
+`Retry-After`, `ETag`, `Location`, `Content-Disposition`, `Digest` and
+`Idempotency-Key`. Without `Retry-After` the frontend cannot read the delay of a
+`429`. **Upgrading:** a deployment that relied on the old `*` default must now set
+`CORS_ALLOW_ORIGINS`; the provided `docker-compose.yml` and Kubernetes config
+already do.
 
 Every one of these is declared in `core/settings.py`, which is the answer to
 "what can be configured?".

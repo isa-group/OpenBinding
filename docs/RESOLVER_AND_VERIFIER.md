@@ -136,6 +136,25 @@ All `kind` parameters strictly use **kebab-case**:
 }
 ```
 
+#### `locations[].web_url`
+
+`web_url` is a path of the **current frontend** (`frontend/src/routes/d*.tsx`) or
+`null` when the element has no screen. It is never a route that does not exist.
+
+| Kind | `web_url` |
+|---|---|
+| `case-revision` | `/app/{org}/{project}/cases/{case}/revisions/{revision}` |
+| `resource-revision` | `/app/{org}/library/{artifact-id}/versions/{version}` |
+| `collection-revision` | library version as above; legacy project collections: `/app/{org}/{project}/collections/{collection}` |
+| `report` | `/app/{org}/{project}/reports/{report}` |
+| `artifact` (file) | `/app/{org}/{project}/files` |
+| `engine` | `/engines/{namespace}/{name}/{version}` |
+| `instance-snapshot`, `binding-ir` | `/app/{org}/{project}/snapshots/{snapshot-id}` when the caller owns the snapshot and a case revision of a project they can open was sealed from it; otherwise `null` |
+| `dialect`, `registered-resource` | `null` (no detail screen) |
+
+Library artifacts are addressed by id because a name can only be resolved by
+members of the owning organization. Every path segment is URL-escaped.
+
 ---
 
 ### 2.2 Content Download & Streaming

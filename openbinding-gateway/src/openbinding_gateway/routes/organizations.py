@@ -250,6 +250,7 @@ async def update_organization(
                 raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "New parent not found.")
             await require_role(session, new_parent, user, OrganizationRole.ADMIN)
         organization.parent_id = new_parent_id
+    sponsor_change: dict[str, str] = {}
     if payload.billing_sponsor_user_id is not None and payload.billing_sponsor_user_id != organization.billing_sponsor_user_id:
         await require_role(session, organization, user, OrganizationRole.OWNER)
         sponsor = await session.get(User, payload.billing_sponsor_user_id)
@@ -260,13 +261,18 @@ async def update_organization(
         sponsored = set(await sponsor_organization_ids(session, sponsor.id))
         hypothetical = await organization_usage(session, subtree | sponsored)
         await enforce_sponsor_usage(session, sponsor, hypothetical)
+        # Read before the bulk UPDATE below, which also synchronizes this object.
+        sponsor_change = {
+            "previous_sponsor_user_id": str(organization.billing_sponsor_user_id),
+            "new_sponsor_user_id": str(sponsor.id),
+        }
         await session.execute(
             update(Organization)
             .where(Organization.id.in_(subtree))
             .values(billing_sponsor_user_id=sponsor.id)
         )
         organization.billing_sponsor_user_id = sponsor.id
-    _audit(session, user, "organization.updated", organization, organization.id)
+    _audit(session, user, "organization.updated", organization, organization.id, **sponsor_change)
     await session.flush()
     return await _org_view(session, organization, user)
 

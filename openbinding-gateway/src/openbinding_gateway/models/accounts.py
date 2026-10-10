@@ -54,6 +54,28 @@ class TokenPair(BaseModel):
     expires_in: int = Field(..., description="Lifetime of the access token, in seconds.")
 
 
+class PlanChange(BaseModel):
+    """A plan change the account holder did not ask for by name, and what it costs."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_plan: str = Field(..., alias="from", description="The plan before.")
+    to: str = Field(..., description="The plan after.")
+    extra_cost: bool = Field(
+        default=False,
+        description="Always false: the change carries no extra charge (RESEARCH is part of the institutional agreement).",
+    )
+
+
+class CasSession(TokenPair):
+    """The CAS code exchange: a session, and the plan change linking CAS caused, if any."""
+
+    plan_changed: Optional[PlanChange] = Field(
+        default=None,
+        description="Set when this sign-in raised the plan (BASIC to RESEARCH on linking CAS); null otherwise.",
+    )
+
+
 class UserProfile(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

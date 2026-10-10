@@ -8,11 +8,13 @@ be configured?" short of grepping, and a user module adding a database URL, a
 signing secret and a SPACE endpoint is exactly the point where that stops being
 tenable.
 
-The values keep their historical names and defaults, so an existing deployment
-needs no changes. Two rules that used to live at their call sites now live here,
-where they can be stated once: the wildcard-versus-credentials rule for CORS,
-and the fact that a schema path from the environment is only a preference, not a
-promise that the file exists.
+The values keep their historical names. The one default that changed is CORS,
+which is now a closed list of local development origins instead of ``*``; a
+production deployment (``APP_ENV=prod``) must name its origins, and an empty or
+wildcard list stops the process at startup. Two rules that used to live at their
+call sites now live here, where they can be stated once: the
+wildcard-versus-credentials rule for CORS, and the fact that a schema path from
+the environment is only a preference, not a promise that the file exists.
 """
 
 from __future__ import annotations
@@ -21,7 +23,30 @@ import os
 from functools import lru_cache
 from typing import List, Literal, Optional
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+#: The only origins allowed by default: the frontend's Vite dev server (5173)
+#: and the Playwright test server (4177), by name and by loopback address.
+DEV_CORS_ORIGINS = (
+    "http://localhost:5173,http://127.0.0.1:5173,"
+    "http://localhost:4177,http://127.0.0.1:4177"
+)
+
+#: Response headers a browser may read from a cross-origin response. Without
+#: this list only the CORS-safelisted ones are visible, and the client's 429
+#: countdown (``Retry-After``) never appears. Only headers the API really sets
+#: or uses are listed: ``Retry-After`` (429/503), ``ETag`` (content-addressed
+#: downloads), ``Location`` (redirects), ``Content-Disposition`` and ``Digest``
+#: (archive downloads) and ``Idempotency-Key`` (job submission).
+CORS_EXPOSED_HEADERS = (
+    "Retry-After",
+    "ETag",
+    "Location",
+    "Content-Disposition",
+    "Digest",
+    "Idempotency-Key",
+)
 
 
 class Settings(BaseSettings):
@@ -62,8 +87,13 @@ class Settings(BaseSettings):
     schemas_dir: str = "/app/schemas"
 
     # -- CORS ------------------------------------------------------------
-    #: Comma-separated browser origins allowed to call the API.
-    cors_allow_origins: str = "*"
+    #: Comma-separated browser origins allowed to call the API: a closed list.
+    #: The default is only the local development origins of the frontend (Vite
+    #: dev server and the Playwright server), because the sessions' tokens live
+    #: in the browser's ``localStorage`` and a wildcard would let any site read
+    #: the API as the signed-in user. In ``APP_ENV=prod`` an empty list or a
+    #: ``*`` entry is refused at startup (see ``closed_cors_in_production``).
+    cors_allow_origins: str = DEV_CORS_ORIGINS
     cors_allow_credentials: bool = True
 
     # -- Database --------------------------------------------------------
@@ -149,12 +179,43 @@ class Settings(BaseSettings):
     #: rather than running a certificate authority to do it.
     federation_require_https: bool = True
 
+    # -- Startup checks --------------------------------------------------
+
+    @model_validator(mode="after")
+    def closed_cors_in_production(self) -> "Settings":
+        """Refuse to start a production gateway with an open or empty CORS list.
+
+        Wildcards in development are tolerated (credentials are then switched
+        off, see ``cors_credentials_allowed``); in production they are a
+        misconfiguration, so the process fails with a message that names the
+        variable instead of silently serving every origin.
+        """
+        if self.app_env != "prod":
+            return self
+        origins = self.cors_origin_list
+        if not origins:
+            raise ValueError(
+                "CORS_ALLOW_ORIGINS is empty while APP_ENV=prod: list the exact "
+                "frontend origins, comma separated (for example https://openbinding.example.org)."
+            )
+        if "*" in origins:
+            raise ValueError(
+                "CORS_ALLOW_ORIGINS contains '*' while APP_ENV=prod: a wildcard is not "
+                "allowed in production; list the exact frontend origins instead."
+            )
+        return self
+
     # -- Derived values --------------------------------------------------
 
     @property
     def cors_origin_list(self) -> List[str]:
         """The configured origins, as a list."""
         return [item.strip() for item in self.cors_allow_origins.split(",") if item.strip()]
+
+    @property
+    def cors_expose_headers(self) -> List[str]:
+        """The response headers browsers may read cross-origin."""
+        return list(CORS_EXPOSED_HEADERS)
 
     @property
     def cors_credentials_allowed(self) -> bool:

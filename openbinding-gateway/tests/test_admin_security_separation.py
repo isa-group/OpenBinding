@@ -441,16 +441,27 @@ async def test_audit_separation_between_platform_and_tenants(
     )
     await db_session.flush()
 
-    # /v1/admin/audit only shows platform-level events (organization_id is None)
+    # /v1/admin/audit shows platform events AND organization events (B2 #12): the
+    # latter carry their organization id and slug, the former carry null.
     admin_audit = await api_client.get("/v1/admin/audit", headers=admin_headers)
     assert admin_audit.status_code == 200
     events = admin_audit.json()["events"]
-    assert len(events) > 0
+    assert any(ev["action"] == "platform.maintenance.performed" and ev["organizationId"] is None for ev in events)
+    created = [ev for ev in events if ev["action"] == "organization.created"]
+    assert len(created) == 1
+    assert created[0]["organizationId"] == org_id
+    assert created[0]["organizationSlug"] == org_slug
     for ev in events:
-        assert ev["organizationId"] is None
-        assert ev["action"] != "organization.created"
+        assert (ev["organizationId"] is None) == (ev["organizationSlug"] is None)
+    # ... and the organization filter narrows it to that organization alone.
+    only_org = await api_client.get(
+        f"/v1/admin/audit?organization_id={org_id}", headers=admin_headers
+    )
+    assert only_org.status_code == 200
+    assert {ev["organizationId"] for ev in only_org.json()["events"]} == {org_id}
+    assert all(ev["action"] != "platform.maintenance.performed" for ev in only_org.json()["events"])
 
-    # /v1/admin/overview only contains platform-level events
+    # /v1/admin/overview still only contains platform-level events
     overview = await api_client.get("/v1/admin/overview", headers=admin_headers)
     assert overview.status_code == 200
     for item in overview.json()["recentAudit"]:
