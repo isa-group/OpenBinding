@@ -12,7 +12,9 @@ import uuid
 import pytest
 from sqlalchemy import func, select
 
-from openbinding_gateway import study_jobs
+from _repo import REPO_ROOT
+
+from openbinding_gateway import space_client, study_jobs
 from openbinding_gateway.db.artifact_models import Artifact, ArtifactVersion
 from openbinding_gateway.db.models import (
     BindingCase,
@@ -28,6 +30,10 @@ from openbinding_gateway.db.models import (
     StudyRun,
     User,
 )
+from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.v1.package import load_package
+
+EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 
 
 async def _seed(session):
@@ -128,3 +134,66 @@ async def test_two_concurrent_syncs_launch_the_next_cell_once(two_sessions, monk
     assert launched == [waiting_id]
     jobs = await first.scalar(select(func.count()).select_from(Job).where(Job.study_cell_id == waiting_id))
     assert jobs == 1
+
+
+@pytest.mark.asyncio
+async def test_two_sessions_launching_one_cell_create_one_job_and_one_reservation(two_sessions, monkeypatch):
+    """The real ``launch_study_cell`` in two sessions at once, with the dispatcher and SPACE faked.
+
+    The creating session pauses right after the job exists - the window the old
+    mid-launch commit left open. The other one must end up with that same job.
+    """
+    first, second = two_sessions
+    _, waiting_id = await _seed(first)
+    user = (await first.execute(select(User))).scalars().one()
+    package = load_package(EXAMPLE)
+    problem = await routes._compile_resolved(package, first, user)
+    snapshot_id = await routes._persist_snapshot(package, problem, user, first)
+    cell = await first.get(StudyCell, waiting_id)
+    revision = await first.get(BindingCaseRevision, cell.binding_case_revision_id)
+    revision.source_snapshot_id = uuid.UUID(snapshot_id)
+    cell.engine_ref = {
+        **routes._engine_ref(routes._manifest("random-search"), "bim.builtin"),
+        "mode": "seeded",
+        "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
+    }
+    await first.commit()
+    user_id = user.id
+    organization = (await first.execute(select(Organization))).scalars().one()
+    organization_id = organization.id
+    project_id = (await first.execute(select(Project.id))).scalar_one()
+
+    dispatched: list[str] = []
+
+    async def dispatch(job_id, request_session=None):
+        dispatched.append(job_id)
+
+    monkeypatch.setattr(routes, "dispatch_persisted_job", dispatch)
+    real_core = routes._create_job_core
+
+    async def paused_core(*args, **kwargs):
+        outcome = await real_core(*args, **kwargs)
+        await asyncio.sleep(0.5)  # long enough for the other session to arrive
+        return outcome
+
+    monkeypatch.setattr(routes, "_create_job_core", paused_core)
+
+    async def launch(session):
+        mine = await session.get(StudyCell, waiting_id)
+        job = await study_jobs.launch_study_cell(
+            session,
+            mine,
+            await session.get(User, user_id),
+            await session.get(Organization, organization_id),
+            project_id,
+        )
+        await study_jobs.commit_launched(session)
+        return job.id
+
+    job_ids = await asyncio.gather(launch(first), launch(second))
+
+    assert len(set(job_ids)) == 1
+    jobs = await first.scalar(select(func.count()).select_from(Job).where(Job.study_cell_id == waiting_id))
+    assert jobs == 1
+    assert dispatched == [str(job_ids[0])]
+    assert space_client.get_gate().consumed[user_id]["concurrentJobs"] == 1

@@ -2573,12 +2573,66 @@ async def get_snapshot_ir(
     return snapshot["problem"].as_dict()
 
 
+#: Idempotency keys the gateway writes for study cells; clients cannot claim them.
+STUDY_CELL_KEY_PREFIX = "study-cell:"
+
+_PENDING_LAUNCHES = "pending-job-launches"
+
+
+def pending_launches(session: AsyncSession) -> dict[uuid.UUID, Any]:
+    """Jobs created without commit or dispatch on this session, with what each reserved.
+
+    The owner of the transaction commits, then dispatches them; if it cannot,
+    it gives the reservations back with ``release_pending_launches``.
+    """
+
+    return session.info.setdefault(_PENDING_LAUNCHES, {})
+
+
+async def release_pending_launches(session: AsyncSession, only: set[uuid.UUID] | None = None) -> None:
+    """Give back the reservation of every pending launch (or of ``only`` these) and forget it."""
+
+    pending = pending_launches(session)
+    for job_id in [key for key in pending if only is None or key in only]:
+        await metering.release(space_client.get_gate(), pending.pop(job_id))
+
+
 @router.post("/jobs", status_code=status.HTTP_202_ACCEPTED)
 async def create_job(
     request: Request,
     caller: User | None = Depends(solve_caller),
     session: AsyncSession | None = Depends(optional_session, scope="function"),
 ):
+    key = request.headers.get("Idempotency-Key")
+    if key is not None and key.startswith(STUDY_CELL_KEY_PREFIX):
+        return _problem(
+            422,
+            "reserved_idempotency_key",
+            f"Idempotency-Key cannot start with {STUDY_CELL_KEY_PREFIX!r}; the gateway reserves that prefix",
+        )
+    return await _create_job_core(request, caller, session)
+
+
+async def _create_job_core(
+    request: Request,
+    caller: User | None,
+    session: AsyncSession | None,
+    *,
+    commit: bool = True,
+    dispatch: bool = True,
+    study_cell_id: uuid.UUID | None = None,
+):
+    """Validate, reserve and persist a job; ``create_job`` is its HTTP face.
+
+    ``commit`` and ``dispatch`` say whether to commit and queue the job here.
+    Without them the job stays in the caller's transaction and its reservation
+    is recorded in ``pending_launches``. ``study_cell_id`` is written in the
+    job's own INSERT, so the cell and the job cannot be seen apart; losing the
+    race for a cell returns the job that won it.
+    """
+
+    if dispatch and not commit:
+        raise ValueError("a job cannot be dispatched before it is committed")
     idempotency_key = request.headers.get("Idempotency-Key")
     if idempotency_key is not None and not (1 <= len(idempotency_key) <= 255):
         return _problem(
@@ -2901,6 +2955,15 @@ async def create_job(
     if configuration_ref:
         provenance['configuration'] = configuration_ref
     reservation = None
+    released = False
+
+    async def give_back() -> None:
+        # Once only: several branches below can end a request that holds the reservation.
+        nonlocal released
+        if not released:
+            released = True
+            await metering.release(space_client.get_gate(), reservation)
+
     if caller is not None:
         try:
             verdict, reservation = await metering.reserve(
@@ -2916,78 +2979,104 @@ async def create_job(
             )
         except space_client.PricingUnavailable as exc:
             return _problem(503, "pricing_unavailable", str(exc))
-        if idempotency_key:
-            # reserve() locked the account row, so a request that waited behind the one that created this job now sees it.
-            raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
-            if raced is not None:
-                await metering.release(space_client.get_gate(), reservation)
-                return raced
-        if not verdict.allowed:
-            refusal = entitlements.refusal_for_verdict(verdict)
-            return _problem(
-                refusal.status,
-                refusal.code,
-                refusal.detail,
-                extra=refusal.extra or None,
-                headers=refusal.headers or None,
+        # Whatever happens from here to the commit, the job either exists or the reservation goes back.
+        try:
+            if idempotency_key:
+                # reserve() locked the account row, so a request that waited behind the one that created this job now sees it.
+                raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
+                if raced is not None:
+                    await give_back()
+                    return raced
+            if not verdict.allowed:
+                refusal = entitlements.refusal_for_verdict(verdict)
+                return _problem(
+                    refusal.status,
+                    refusal.code,
+                    refusal.detail,
+                    extra=refusal.extra or None,
+                    headers=refusal.headers or None,
+                )
+            if session is None:
+                await give_back()
+                return _problem(401, "unauthorized", "Submitting a job requires an account.")
+            try:
+                async with session.begin_nested():
+                    snapshot_db_id = await _persist_snapshot(package, problem, caller, session)
+            except IntegrityError:
+                await give_back()
+                raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
+                if raced is not None:
+                    return raced
+                return _problem(409, "snapshot_conflict", "snapshot identity conflicted with another revision")
+            try:
+                parsed_snapshot_id = uuid.UUID(snapshot_db_id) if snapshot_db_id else None
+            except ValueError:
+                parsed_snapshot_id = None
+            db_job = Job(
+                id=uuid.UUID(job_id),
+                owner_id=caller.id,
+                engine_id=engine,
+                engine_job_id=job_id,
+                service_url=endpoint,
+                state=JobState.QUEUED,
+                original_request={
+                    "bindingProblem": problem.document,
+                    "timeout": effective_timeout,
+                    "mode": mode_contract,
+                    "optimization": execution_optimization,
+                    "registration": registration_ref,
+                },
+                options=effective_options,
+                warnings=option_warnings,
+                instance_complexity={
+                    "instanceDigest": instance_hash,
+                    "resourceCount": len(portable.resource_digests),
+                    "tasks": task_count,
+                    "candidates": candidate_count,
+                    "bindingSpace": str(problem.binding_space_cardinality),
+                },
+                instance_snapshot_id=parsed_snapshot_id,
+                configuration_version_id=configuration_version.id if configuration_version else None,
+                provenance=provenance,
+                idempotency_key=idempotency_key,
+                idempotency_fingerprint=request_fingerprint,
+                requested_budget_s=effective_timeout,
+                study_cell_id=study_cell_id,
             )
-    if session is not None and caller is not None:
-        try:
-            async with session.begin_nested():
-                snapshot_db_id = await _persist_snapshot(package, problem, caller, session)
-        except IntegrityError:
-            await metering.release(space_client.get_gate(), reservation)
-            raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
-            if raced is not None:
-                return raced
-            return _problem(409, "snapshot_conflict", "snapshot identity conflicted with another revision")
-        try:
-            parsed_snapshot_id = uuid.UUID(snapshot_db_id) if snapshot_db_id else None
-        except ValueError:
-            parsed_snapshot_id = None
-        db_job = Job(
-            id=uuid.UUID(job_id),
-            owner_id=caller.id,
-            engine_id=engine,
-            engine_job_id=job_id,
-            service_url=endpoint,
-            state=JobState.QUEUED,
-            original_request={
-                "bindingProblem": problem.document,
-                "timeout": effective_timeout,
-                "mode": mode_contract,
-                "optimization": execution_optimization,
-                "registration": registration_ref,
-            },
-            options=effective_options,
-            warnings=option_warnings,
-            instance_complexity={
-                "instanceDigest": instance_hash,
-                "resourceCount": len(portable.resource_digests),
-                "tasks": task_count,
-                "candidates": candidate_count,
-                "bindingSpace": str(problem.binding_space_cardinality),
-            },
-            instance_snapshot_id=parsed_snapshot_id,
-            configuration_version_id=configuration_version.id if configuration_version else None,
-            provenance=provenance,
-            idempotency_key=idempotency_key,
-            idempotency_fingerprint=request_fingerprint,
-            requested_budget_s=effective_timeout,
-        )
-        try:
-            async with session.begin_nested():
-                session.add(db_job)
-                session.add(JobProvenance(job_id=db_job.id, document=provenance, digest=digest(provenance)))
-                await session.flush()
-        except IntegrityError:
-            await metering.release(space_client.get_gate(), reservation)
-            raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
-            if raced is not None:
-                return raced
-            return _problem(409, "job_conflict", "job identity conflicted with another request")
-        await session.commit()
-        await dispatch_persisted_job(job_id, None if db_base.is_configured() else session)
+            try:
+                async with session.begin_nested():
+                    session.add(db_job)
+                    session.add(JobProvenance(job_id=db_job.id, document=provenance, digest=digest(provenance)))
+                    await session.flush()
+            except IntegrityError:
+                await give_back()
+                if study_cell_id is not None:
+                    # Another launch of this cell won the unique index: that job is the cell's job.
+                    winner = (
+                        await session.execute(select(Job).where(Job.study_cell_id == study_cell_id))
+                    ).scalars().first()
+                    if winner is not None:
+                        winning = winner.provenance or {}
+                        return {
+                            "id": str(winner.id),
+                            "status": winner.state.value,
+                            "profile": winning.get("profile", {}).get("id"),
+                            "irDigest": winning.get("irDigest"),
+                            "idempotent": True,
+                        }
+                raced = await _raced_idempotent_outcome(session, caller.id, idempotency_key, request_fingerprint)
+                if raced is not None:
+                    return raced
+                return _problem(409, "job_conflict", "job identity conflicted with another request")
+            if commit:
+                await session.commit()
+            else:
+                pending_launches(session)[db_job.id] = reservation
+        except BaseException:
+            await give_back()
+            raise
+        if dispatch:
+            await dispatch_persisted_job(job_id, None if db_base.is_configured() else session)
         return {"id": job_id, "status": "queued", "profile": profile["id"], "irDigest": problem.digest}
     return _problem(401, "unauthorized", "Submitting a job requires an account.")
 

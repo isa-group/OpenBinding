@@ -90,9 +90,18 @@ async def retry_job(
         and bool(registration)
         and registration.get("namespace") != "bim.builtin"
     )
+    # Priced as create_job priced the original: routed jobs by their credits, the engine by name.
+    routing = provenance.get("engineRouting")
+    credits_cost = routing.get("creditsCost") if isinstance(routing, dict) else None
+    capacity_units = credits_cost if isinstance(credits_cost, int) and not isinstance(credits_cost, bool) else None
     try:
         verdict, reservation = await metering.reserve(
-            space_client.get_gate(), user.id, federated=federated, session=session
+            space_client.get_gate(),
+            user.id,
+            federated=federated,
+            capacity_units=capacity_units,
+            engine_name=original.engine_id,
+            session=session,
         )
     except space_client.PricingUnavailable as exc:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
@@ -116,16 +125,19 @@ async def retry_job(
         organization_id=original.organization_id, project_id=original.project_id,
         billing_sponsor_user_id=original.billing_sponsor_user_id,
     )
-    session.add(replacement)
-    await session.flush()
-    replacement.engine_job_id = str(replacement.id)
-    session.add(JobProvenance(job_id=replacement.id, document=provenance, digest=digest(provenance)))
-    await session.commit()
     try:
-        await dispatch_persisted_job(str(replacement.id), None if db_base.is_configured() else session)
-    except Exception:
+        session.add(replacement)
+        await session.flush()
+        replacement.engine_job_id = str(replacement.id)
+        session.add(JobProvenance(job_id=replacement.id, document=provenance, digest=digest(provenance)))
+        await session.commit()
+    except BaseException:
+        # No job came out of this: the reservation goes back.
         await metering.release(space_client.get_gate(), reservation)
         raise
+    # The job exists from here on. If dispatch fails the sweep or a worker settles
+    # it later, which gives the slot back; releasing it here would do so twice.
+    await dispatch_persisted_job(str(replacement.id), None if db_base.is_configured() else session)
     return _view(replacement, user)
 
 

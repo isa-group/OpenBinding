@@ -93,6 +93,19 @@ def test_refusal_renders_identically_as_exception_and_as_problem() -> None:
     assert body["detail"] == "Out of solves."
 
 
+def test_the_launch_codes_that_mean_not_now_are_the_ones_the_verdicts_emit() -> None:
+    from openbinding_gateway.study_jobs import RETRYABLE_LAUNCH_CODES
+
+    emitted = {
+        refusal_for_verdict(Verdict.no("", LimitUsage(limit_id=limit_id, limit=1, used=1))).code
+        for limit_id in ("concurrentJobs", "monthlySolves")
+    }
+
+    assert emitted == {"concurrency_limit_exceeded", "quota_exceeded"}
+    assert emitted <= RETRYABLE_LAUNCH_CODES
+    assert "quota_exhausted" not in RETRYABLE_LAUNCH_CODES
+
+
 def test_concurrency_refusal_carries_retry_after_in_both_styles() -> None:
     refusal = refusal_for_verdict(Verdict.no("", LimitUsage(limit_id="concurrentJobs", limit=3, used=3)))
 

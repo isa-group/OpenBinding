@@ -69,7 +69,15 @@ from ..models.platform import (
 )
 from ..space_client import PricingUnavailable, get_gate
 from ..security.apikeys import allows_engine
-from ..study_jobs import StudyLaunchError, cell_job_mismatches, launch_study_cell, metrics_from_job
+from ..study_jobs import (
+    RETRYABLE_LAUNCH_CODES,
+    StudyLaunchError,
+    cell_job_mismatches,
+    commit_launched,
+    fail_cell,
+    launch_study_cell,
+    metrics_from_job,
+)
 from ..studies import aggregate_metrics, expand_study
 from ..v1.canonical import canonical_json, digest
 from ..artifacts import store_blob, version_content
@@ -600,6 +608,14 @@ async def run_study(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> StudyRunView:
+    # Start a run and launch its cells one by one, each committed before it is queued.
+    #
+    # A retryable refusal (``RETRYABLE_LAUNCH_CODES``: concurrency, quota,
+    # pricing) stops the loop and leaves the remaining cells queued for
+    # ``study_jobs._sync`` to launch as the earlier jobs finish. When the very
+    # first cell is refused there is no job whose end would trigger that, so the
+    # run stays queued with nothing running until the reconciler advances it.
+    # (A comment, not a docstring: a docstring would become the OpenAPI description.)
     organization, found_project = await _context(session, org, project, user, OrganizationRole.MEMBER)
     found = await _study(session, found_project.id, study, user, check_engines=False)
     if found.archived:
@@ -663,23 +679,14 @@ async def run_study(
     for cell in cells:
         try:
             await launch_study_cell(session, cell, user, organization, found_project.id)
+            # The cell now points at its job; only a committed job is queued.
+            await commit_launched(session)
         except StudyLaunchError as exc:
-            if exc.code in {"quota_exhausted", "concurrency_limit_exceeded"}:
-                # Concurrency limit reached; leave remaining cells queued to be picked up by _sync.
+            if exc.code in RETRYABLE_LAUNCH_CODES:
+                # Limit reached; leave remaining cells queued to be picked up by _sync.
                 cell.state = RunState.QUEUED
                 break
-            cell.state = RunState.FAILED
-            cell.metrics = {
-                "status": "failed",
-                "feasible": False,
-                "code": exc.code,
-                "detail": exc.detail,
-                "engine": (
-                    f"{cell.engine_ref.get('namespace')}/{cell.engine_ref.get('name')}"
-                    f"@{cell.engine_ref.get('version')}"
-                ),
-                "seed": cell.seed,
-            }
+            fail_cell(cell, exc)
     if cells and all(cell.state is RunState.FAILED and cell.job_id is None for cell in cells):
         # Nothing was launched, so the run should not cost a studyRuns unit.
         await get_gate().adjust_usage(user.id, {"studyRuns": -1})
@@ -813,8 +820,19 @@ async def cancel_study_run(
     run.finished_at = utcnow()
     cells = (await session.execute(select(StudyCell).where(StudyCell.study_run_id == run.id))).scalars().all()
     for cell in cells:
-        job = await session.get(Job, cell.job_id) if cell.job_id else None
+        # Locked like cancel_job: a worker finishing the job must not be overwritten.
+        job = None
+        if cell.job_id:
+            job = (
+                await session.execute(
+                    select(Job)
+                    .where(Job.id == cell.job_id)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalars().first()
         if job is not None and job.state not in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
+            # A running job is left to its worker, which sees the request and stops at its lease.
             job.cancellation_requested = True
             if job.state is JobState.QUEUED:
                 job.state = JobState.CANCELLED
@@ -938,6 +956,8 @@ async def retry_study_cell(
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, exc.code, exc.detail) from exc
     replacement.retry_of_id = previous_job_id
     _audit(session, user, "study.cell.retried", cell, organization.id)
+    # Commit the replacement with its link to the cell, and only then queue it.
+    await commit_launched(session)
     return {
         "id": str(cell.id),
         "state": cell.state.value,

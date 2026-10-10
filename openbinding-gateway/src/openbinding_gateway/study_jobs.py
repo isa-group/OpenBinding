@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
@@ -208,7 +208,13 @@ async def launch_study_cell(
     organization: Organization,
     project_id: uuid.UUID,
 ) -> Job:
-    """Create one normal persisted job from an immutable study cell."""
+    """Create one normal persisted job from an immutable study cell.
+
+    The job is written with its ``study_cell_id`` and the cell's ``job_id`` is
+    set in the caller's transaction, which is neither committed nor dispatched
+    here. The caller must ``commit_launched`` (or commit and then
+    ``dispatch_after_commit``); an existing job of the cell is returned as is.
+    """
 
     # Import lazily: the v1 router owns compilation and engine selection, while
     # the router imports the durable dispatcher that later calls us back.
@@ -274,33 +280,125 @@ async def launch_study_cell(
         "optimization": execution_optimization,
         "options": options,
     }
-    # Deterministic, so launching a cell again is a replay and not a second job.
-    # A retry detaches the previous job from the cell first; each earlier launch
-    # leaves its key behind, and the next one gets a numbered key.
-    key = f"study-cell:{cell.id}"
-    earlier = await session.scalar(
-        select(func.count()).select_from(Job).where(Job.idempotency_key.startswith(key, autoescape=True))
+    # What keeps a cell to one job is the unique ``study_cell_id`` on the job,
+    # written by the INSERT itself. The key only makes a replay of the first
+    # launch cheap; a retry detaches the previous job from the cell but that
+    # job keeps its key, so the replacement goes without one.
+    key: str | None = f"{v1.STUDY_CELL_KEY_PREFIX}{cell.id}"
+    held = await session.scalar(
+        select(Job.id).where(Job.owner_id == user.id, Job.idempotency_key == key).limit(1)
     )
-    if earlier:
-        key = f"{key}:{earlier}"
-    created = _response_payload(
-        await v1.create_job(_job_request(payload, key), caller=user, session=session)
-    )
+    if held is not None:
+        key = None
+
+    # The job, the cell's link to it and the reservation live and die together:
+    # nothing is committed here, so the locks the caller holds on the cell and
+    # the account last until the cell points at its job. The caller commits and
+    # then dispatches (``commit_launched``).
+    pending = v1.pending_launches(session)
+    before = set(pending)
+    savepoint = await session.begin_nested()
+    rejection: StudyLaunchError | None = None
     try:
-        job_id = uuid.UUID(str(created["id"]))
-    except (KeyError, ValueError) as exc:
-        raise StudyLaunchError("job_rejected", "The job pipeline returned an invalid identity.") from exc
-    job = await session.get(Job, job_id)
-    if job is None:
-        raise StudyLaunchError("job_not_persisted", "The study job was not persisted.")
-    job.organization_id = organization.id
-    job.project_id = project_id
-    job.study_cell_id = cell.id
-    job.billing_sponsor_user_id = organization.billing_sponsor_user_id
-    cell.job_id = job.id
-    await session.flush()
-    await sync_study_job(str(job.id), session)
+        try:
+            created = _response_payload(
+                await v1._create_job_core(
+                    _job_request(payload, key),
+                    user,
+                    session,
+                    commit=False,
+                    dispatch=False,
+                    study_cell_id=cell.id,
+                )
+            )
+        except StudyLaunchError as exc:
+            # Refused before any job existed; the pipeline gave back what it took.
+            rejection = exc
+        else:
+            try:
+                job_id = uuid.UUID(str(created["id"]))
+            except (KeyError, ValueError) as exc:
+                raise StudyLaunchError(
+                    "job_rejected", "The job pipeline returned an invalid identity."
+                ) from exc
+            job = await session.get(Job, job_id)
+            if job is None:
+                raise StudyLaunchError("job_not_persisted", "The study job was not persisted.")
+            if job.study_cell_id != cell.id:
+                raise StudyLaunchError("job_not_persisted", "The study job is not linked to its cell.")
+            job.organization_id = organization.id
+            job.project_id = project_id
+            job.billing_sponsor_user_id = organization.billing_sponsor_user_id
+            cell.job_id = job.id
+            await session.flush()
+            await _sync(session, job.id)
+    except BaseException:
+        try:
+            if savepoint.is_active:
+                await savepoint.rollback()
+        finally:
+            await v1.release_pending_launches(session, set(pending) - before)
+        raise
+    await savepoint.commit()
+    if rejection is not None:
+        raise rejection
     return job
+
+
+async def dispatch_after_commit(session: AsyncSession) -> None:
+    """Queue the jobs ``launch_study_cell`` created on this session.
+
+    Call it only once the transaction that holds them is committed: a job
+    dispatched earlier can finish, or be claimed by a worker, before its cell
+    points at it. In inline mode the job runs on ``session``.
+    """
+
+    from .routes import v1
+
+    pending = v1.pending_launches(session)
+    job_ids = list(pending)
+    pending.clear()
+    for job_id in job_ids:
+        await v1.dispatch_persisted_job(str(job_id), None if db_base.is_configured() else session)
+
+
+async def commit_launched(session: AsyncSession) -> None:
+    """Commit the session, then dispatch the jobs launched on it.
+
+    If the commit fails the jobs do not exist, so what they reserved goes back.
+    """
+
+    from .routes import v1
+
+    try:
+        await session.commit()
+    except BaseException:
+        await v1.release_pending_launches(session)
+        raise
+    await dispatch_after_commit(session)
+
+
+#: Launch failures that say "not now" rather than "never": the cell stays queued.
+RETRYABLE_LAUNCH_CODES = frozenset(
+    {"concurrency_limit_exceeded", "quota_exceeded", "pricing_unavailable"}
+)
+
+
+def fail_cell(cell: StudyCell, error: StudyLaunchError) -> None:
+    """Record that a cell can never be launched, so the cells after it are not held up."""
+
+    cell.state = RunState.FAILED
+    cell.metrics = {
+        "status": "failed",
+        "feasible": False,
+        "code": error.code,
+        "detail": error.detail,
+        "engine": (
+            f"{cell.engine_ref.get('namespace')}/{cell.engine_ref.get('name')}"
+            f"@{cell.engine_ref.get('version')}"
+        ),
+        "seed": cell.seed,
+    }
 
 
 async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
@@ -324,31 +422,40 @@ async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
         cell.metrics = metrics_from_job(job, cell)
         run_obj = await session.get(StudyRun, cell.study_run_id)
         if run_obj and run_obj.state is not RunState.CANCELLED:
-            queued_cell = (
-                await session.execute(
-                    select(StudyCell)
-                    .where(
-                        StudyCell.study_run_id == run_obj.id,
-                        StudyCell.job_id.is_(None),
-                        StudyCell.state == RunState.QUEUED,
+            user = await session.get(User, run_obj.created_by_id)
+            org = await session.get(Organization, job.organization_id)
+            # A cell that can never launch is failed and the next one is tried,
+            # so it cannot hold up the cells behind it.
+            while user and org and job.project_id:
+                queued_cell = (
+                    await session.execute(
+                        select(StudyCell)
+                        .where(
+                            StudyCell.study_run_id == run_obj.id,
+                            StudyCell.job_id.is_(None),
+                            StudyCell.state == RunState.QUEUED,
+                        )
+                        .order_by(StudyCell.ordinal)
+                        .limit(1)
+                        .with_for_update(skip_locked=True)
+                        .execution_options(populate_existing=True)
                     )
-                    .order_by(StudyCell.ordinal)
-                    .limit(1)
-                    .with_for_update(skip_locked=True)
-                    .execution_options(populate_existing=True)
-                )
-            ).scalars().first()
-            # populate_existing reloads the row as the lock saw it, so a launch
-            # committed by another worker meanwhile shows up in job_id here
-            # (SQLite ignores the lock).
-            if queued_cell is not None and queued_cell.job_id is None:
-                user = await session.get(User, run_obj.created_by_id)
-                org = await session.get(Organization, job.organization_id)
-                if user and org and job.project_id:
-                    try:
-                        await launch_study_cell(session, queued_cell, user, org, job.project_id)
-                    except StudyLaunchError:
-                        pass
+                ).scalars().first()
+                # populate_existing reloads the row as the lock saw it, so a launch
+                # committed by another worker meanwhile shows up in job_id here
+                # (SQLite ignores the lock).
+                if queued_cell is None or queued_cell.job_id is not None:
+                    break
+                try:
+                    # The launch commits nothing: the caller commits, then dispatches.
+                    await launch_study_cell(session, queued_cell, user, org, job.project_id)
+                except StudyLaunchError as exc:
+                    if exc.code in RETRYABLE_LAUNCH_CODES:
+                        break  # stays queued; a later transition launches it
+                    fail_cell(queued_cell, exc)
+                    await session.flush()
+                    continue
+                break
 
     run = await session.get(StudyRun, cell.study_run_id)
     if run is None or run.state is RunState.CANCELLED:
@@ -379,12 +486,25 @@ async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
 async def sync_study_job(job_id: str, session: AsyncSession | None = None) -> None:
     """Reflect a child job transition onto its cell and aggregate its run."""
 
+    from .routes import v1
+
     parsed = uuid.UUID(job_id)
     if session is not None:
-        await _sync(session, parsed)
+        try:
+            await _sync(session, parsed)
+        except BaseException:
+            await v1.release_pending_launches(session)
+            raise
+        if v1.pending_launches(session):
+            # A cell was launched: commit it with its link, and only then queue it.
+            await commit_launched(session)
         return
     if not db_base.is_configured():
         raise RuntimeError("Study job synchronization requires an initialized database.")
     async with db_base.session_factory()() as owned:
-        await _sync(owned, parsed)
-        await owned.commit()
+        try:
+            await _sync(owned, parsed)
+        except BaseException:
+            await v1.release_pending_launches(owned)
+            raise
+        await commit_launched(owned)

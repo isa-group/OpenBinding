@@ -305,6 +305,15 @@ async def test_a_request_waiting_on_the_account_lock_gets_a_replay_not_a_429(
     assert len(released) == 1
 
 
+async def test_clients_cannot_claim_the_study_cell_key_prefix(api_client, db_session, account):
+    headers, snapshot = account
+    response = await _post(api_client, headers, _body(snapshot), key="study-cell:" + "0" * 8)
+
+    assert response.status_code == 422, response.text
+    assert response.json()["title"] == "reserved_idempotency_key"
+    assert await _job_count(db_session) == 0
+
+
 async def test_study_launches_replay_with_an_idempotency_key(api_client, db_session, account):
     headers, snapshot = account
     user = (await db_session.execute(select(User))).scalars().one()
