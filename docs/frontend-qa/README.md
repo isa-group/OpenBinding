@@ -6,21 +6,30 @@ levantar el backend.
 
 ## Cómo regenerarla
 
-Desde `frontend/` (el servidor de desarrollo de Vite lo arranca Playwright):
+Desde `frontend/` (el servidor de desarrollo de Vite lo arranca Playwright). Se regenera un viewport por comando; cada
+uno tarda unos 3 minutos, por eso se lanzan por separado:
 
 ```bash
-pnpm exec playwright test e2e/qa-gallery.spec.ts
+# escritorio: docs/frontend-qa/screenshots/desktop/<id>.png (86 ficheros)
+E2E_SCREENSHOTS=1 pnpm exec playwright test e2e/qa-gallery.spec.ts --grep 'desktop' --reporter=line
+
+# móvil: docs/frontend-qa/screenshots/mobile/<id>.png (86 ficheros)
+E2E_SCREENSHOTS=1 pnpm exec playwright test e2e/qa-gallery.spec.ts --grep 'mobile' --reporter=line
 ```
 
-Los specs `s*.spec.ts` guardan sus capturas de estados (en `test-results/`, fuera del repositorio) solo con
-`E2E_SCREENSHOTS=1`; sin ella siguen comprobando que nada desborda en horizontal, pero no escriben imágenes (las capturas
-completas de cada estado eran lo que más tardaba: sin ellas los grupos de comprobación caben holgadamente en el tiempo).
-La galería de este directorio no depende de esa variable. `e2e/routes-smoke.spec.ts` recorre las 86 rutas en un solo
-worker (≈ 1,5 min).
+Sin `--grep` se generan ambos viewports seguidos. `qa-gallery.spec.ts` escribe sus capturas siempre; `E2E_SCREENSHOTS=1`
+es lo que activa las capturas de estados de los specs `s*.spec.ts` y `pricing.spec.ts` (que van a `test-results/`, fuera
+del repositorio) y se mantiene en los comandos para que una pasada de galería deje todo el material de revisión
+coherente. Sin la variable esos specs siguen comprobando que nada desborda en horizontal, pero no escriben imágenes.
+`e2e/routes-smoke.spec.ts` recorre las 86 rutas en un solo worker (≈ 1,5 min); con `VITE_ROUTES_REQUIRE_LIVE=1` exige
+que cada ruta cargue su pantalla real:
 
-Solo un viewport: añade `--grep desktop` o `--grep mobile`. Los ficheros se escriben en
-`docs/frontend-qa/screenshots/desktop/<id>.png` y `docs/frontend-qa/screenshots/mobile/<id>.png`. Cada captura es del
-viewport (no `fullPage`) y se hace con el scroll arriba, sin foco y con animaciones desactivadas.
+```bash
+VITE_ROUTES_REQUIRE_LIVE=1 pnpm exec playwright test e2e/routes-smoke.spec.ts --reporter=line
+```
+
+Cada captura es del viewport (no `fullPage`) y se hace con el scroll arriba, sin foco y con animaciones desactivadas.
+Tras regenerar, todas las capturas deben salir de la misma versión del código: no mezcles ficheros de pasadas distintas.
 
 ## Cómo está hecha
 
@@ -48,12 +57,18 @@ viewport (no `fullPage`) y se hace con el scroll arriba, sin foco y con animacio
 - Fechas e identificadores de los fixtures son fijos. Los milisegundos que mide `/status` con el reloj del navegador se
   sustituyen por «120 ms» antes de capturar.
 - Los enlaces absolutos de publicaciones muestran el origen del servidor de pruebas (`http://127.0.0.1:4177`).
-- La fuente de titulares es `PP Editorial Old`, que solo se declara (no hay ficheros ni licencia todavía): el navegador
-  usa el siguiente tipo de la pila, **Georgia** (`'PP Editorial Old', Georgia, serif`; decisión de la persona responsable
-  hasta tener archivos legítimos). `Times New Roman` ya no forma parte de la pila, aunque `tokens.json` (referencia
-  importada de `docs/design-handoff`, que no se toca) todavía la nombre. En Linux sin Georgia se ve una serif de sistema
-  (la captura lo refleja); en equipos con Georgia los titulares salen en Georgia. `src/hygiene.test.ts` falla si
-  `Times New Roman` aparece antes de Georgia en `--font-display`.
+### Tipografía
+
+- La pila de titulares es `--font-display: 'PP Editorial Old', Georgia, serif` (`src/styles/globals.css`). **No hay
+  archivo de PP Editorial Old** (ni licencia todavía): solo se declara en la pila, de modo que el navegador usa el
+  siguiente tipo disponible, **Georgia**, y si no existe, la serif genérica del sistema. Es una decisión de la persona
+  responsable hasta tener archivos legítimos.
+- **Las capturas de este entorno Linux no tienen Georgia**: los titulares con `--font-display` (p. ej. «Welcome back»,
+  «Pricing control room», «Workbench») se ven en la serif genérica del sistema. Es lo esperado; en equipos con Georgia
+  saldrán en Georgia. El titular de la portada (`pub-home`) usa deliberadamente la sans del cuerpo.
+- `Times New Roman` no forma parte de la pila, aunque `tokens.json` (referencia importada de `docs/design-handoff`, que
+  no se toca) todavía la nombre. `src/hygiene.test.ts` falla si `Times New Roman` aparece antes de Georgia en
+  `--font-display`.
 
 ## Pantallas y capturas
 
@@ -153,7 +168,7 @@ Parámetros de ejemplo: `:org` = `isa-demo`, `:project` = `qos-benchmarks`, `:ca
 | `admin-pricing-draft` | `/app/admin/pricing/drafts/new` | [png](screenshots/desktop/admin-pricing-draft.png) | [png](screenshots/mobile/admin-pricing-draft.png) |
 | `admin-pricing-release` | `/app/admin/pricing/:version` | [png](screenshots/desktop/admin-pricing-release.png) | [png](screenshots/mobile/admin-pricing-release.png) |
 
-## Pantallas que no se muestran pobladas
+## Pantallas que se muestran en estado inicial
 
 Todas las pantallas cuyo contenido viene de la API están pobladas. Estas se capturan en su estado inicial por lo que
 son, no por falta de mock:
