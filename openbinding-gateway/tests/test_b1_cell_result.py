@@ -14,6 +14,7 @@ from _repo import REPO_ROOT
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job, JobState, StudyCell
 from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services import execution
 from openbinding_gateway.v1.package import load_package
 
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
@@ -35,7 +36,7 @@ async def build_world(api_client, db_session, registration, gate, monkeypatch, *
         }
 
     monkeypatch.setattr(get_settings(), "job_dispatch_mode", "inline")
-    monkeypatch.setattr(routes, "solve_remote", solve)
+    monkeypatch.setattr(execution, "solve_remote", solve)
     owner, headers = await make_account(api_client, registration, db_session, gate)
     package = load_package(EXAMPLE)
     snapshot = await api_client.post(

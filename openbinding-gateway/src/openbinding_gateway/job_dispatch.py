@@ -116,11 +116,10 @@ def configure_broker() -> RedisBroker:
 
 
 async def _execute(job_id: str, request_session: AsyncSession | None = None) -> None:
-    # Lazy import keeps the BIM router free of a module cycle.
-    from .routes.v1 import _run_persisted_job
+    from .services.execution import run_persisted_job
     from .study_jobs import sync_study_job
 
-    await _run_persisted_job(job_id, request_session)
+    await run_persisted_job(job_id, request_session)
     await sync_study_job(job_id, request_session)
 
 

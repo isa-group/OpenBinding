@@ -215,7 +215,7 @@ async def test_admin_engine_routing_endpoints(api_client, db_session, registrati
 
 @pytest.mark.asyncio
 async def test_create_job_with_engine_auto(api_client, registration, monkeypatch):
-    from openbinding_gateway.routes import v1 as routes
+    from openbinding_gateway.services import execution
     from openbinding_gateway.v1.package import load_package
     from _repo import REPO_ROOT
 
@@ -234,7 +234,7 @@ async def test_create_job_with_engine_auto(api_client, registration, monkeypatch
             "provenance": {"engineReported": "mock"},
         }
 
-    monkeypatch.setattr(routes, "solve_remote", mock_solve)
+    monkeypatch.setattr(execution, "solve_remote", mock_solve)
 
     details = registration()
     await api_client.post("/v1/auth/register", json=details)
@@ -316,7 +316,7 @@ async def test_adversarial_feature_extraction_and_capacity():
 
 @pytest.mark.asyncio
 async def test_failed_auto_job_records_observation_and_failure(api_client, registration, db_session, monkeypatch):
-    from openbinding_gateway.routes import v1 as routes
+    from openbinding_gateway.services import execution
     from openbinding_gateway.routes.v1 import RemoteEngineError
     from openbinding_gateway.v1.package import load_package
     from openbinding_gateway.engine_routing import get_health_monitor
@@ -325,7 +325,7 @@ async def test_failed_auto_job_records_observation_and_failure(api_client, regis
     async def failing_solve(*args, **kwargs):
         raise RemoteEngineError("Engine crashed unexpectedly")
 
-    monkeypatch.setattr(routes, "solve_remote", failing_solve)
+    monkeypatch.setattr(execution, "solve_remote", failing_solve)
 
     details = registration()
     await api_client.post("/v1/auth/register", json=details)
@@ -379,7 +379,7 @@ async def test_failed_auto_job_records_observation_and_failure(api_client, regis
 
 @pytest.mark.asyncio
 async def test_fallback_engine_activation_on_primary_failure(api_client, registration, monkeypatch):
-    from openbinding_gateway.routes import v1 as routes
+    from openbinding_gateway.services import execution
     from openbinding_gateway.routes.v1 import RemoteEngineError
     from openbinding_gateway.v1.package import load_package
     from _repo import REPO_ROOT
@@ -407,7 +407,7 @@ async def test_fallback_engine_activation_on_primary_failure(api_client, registr
             "provenance": {"engineReported": "fallback-mock"},
         }
 
-    monkeypatch.setattr(routes, "solve_remote", fallback_aware_solve)
+    monkeypatch.setattr(execution, "solve_remote", fallback_aware_solve)
 
     details = registration()
     await api_client.post("/v1/auth/register", json=details)

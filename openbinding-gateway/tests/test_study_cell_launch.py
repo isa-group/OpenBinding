@@ -15,6 +15,7 @@ from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job, Organization, RunState, StudyCell, User
 from openbinding_gateway.routes import studies as study_routes
 from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services import execution
 from openbinding_gateway.v1.package import load_package
 from _pricing import fake_pricing_gate
 
@@ -115,7 +116,7 @@ async def test_launching_the_same_cell_again_returns_the_same_job(
     api_client, db_session, registration, study_gate, monkeypatch
 ) -> None:
     monkeypatch.setattr(get_settings(), "job_dispatch_mode", "inline")
-    monkeypatch.setattr(routes, "solve_remote", _solve)
+    monkeypatch.setattr(execution, "solve_remote", _solve)
     headers = await _study(api_client, registration, [1])
     run = await api_client.post(BASE, headers=headers)
     assert run.status_code == 202, run.text
@@ -142,7 +143,7 @@ async def test_sync_does_not_launch_a_cell_that_already_has_a_job(
     api_client, db_session, registration, study_gate, monkeypatch
 ) -> None:
     monkeypatch.setattr(get_settings(), "job_dispatch_mode", "inline")
-    monkeypatch.setattr(routes, "solve_remote", _solve)
+    monkeypatch.setattr(execution, "solve_remote", _solve)
     headers = await _study(api_client, registration, [1, 2])
     run = await api_client.post(BASE, headers=headers)
     assert run.status_code == 202, run.text
@@ -168,7 +169,7 @@ async def test_sync_of_a_single_cell_run_never_adds_a_job(
     api_client, db_session, registration, study_gate, monkeypatch
 ) -> None:
     monkeypatch.setattr(get_settings(), "job_dispatch_mode", "inline")
-    monkeypatch.setattr(routes, "solve_remote", _solve)
+    monkeypatch.setattr(execution, "solve_remote", _solve)
     headers = await _study(api_client, registration, [1])
     run = await api_client.post(BASE, headers=headers)
     (cell,) = await _cells(db_session, run.json()["id"])

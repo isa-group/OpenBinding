@@ -15,6 +15,7 @@ from openbinding_gateway import space_client
 from openbinding_gateway.db.models import Job, JobState, StudyCell
 from openbinding_gateway.models.platform import StudyDefinition
 from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services import execution
 from openbinding_gateway.routes import studies as study_routes
 from _pricing import fake_pricing_gate, largest_plan
 from openbinding_gateway.studies import aggregate_metrics, expand_study, nondominated
@@ -291,7 +292,7 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
 
     from openbinding_gateway.core.settings import get_settings
     monkeypatch.setattr(get_settings(), "job_dispatch_mode", "inline")
-    monkeypatch.setattr(routes, "solve_remote", solve)
+    monkeypatch.setattr(execution, "solve_remote", solve)
     headers = await _headers(api_client, registration)
     package = load_package(EXAMPLE)
     snapshot = await api_client.post(

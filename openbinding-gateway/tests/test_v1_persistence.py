@@ -10,6 +10,7 @@ from _repo import REPO_ROOT
 from openbinding_gateway.db.models import InstanceResource, User, UserRole
 from openbinding_gateway.main import app
 from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services import execution
 from openbinding_gateway.v1.package import InstancePackage, load_package, strict_json_loads
 
 
@@ -62,7 +63,7 @@ async def test_v1_snapshot_and_job_are_owner_scoped_and_persisted(
             ],
         }
 
-    monkeypatch.setattr(routes, "solve_remote", solve)
+    monkeypatch.setattr(execution, "solve_remote", solve)
     headers = await _register_and_login(api_client, registration())
     package = load_package(EXAMPLE)
 
@@ -150,7 +151,7 @@ async def test_persisted_job_is_committed_before_the_background_session(
             }],
         }
 
-    monkeypatch.setattr(routes, "solve_remote", solve)
+    monkeypatch.setattr(execution, "solve_remote", solve)
     previous_gate = space_client.get_gate()
     previous_overrides = dict(app.dependency_overrides)
     engine = db_base.init_engine(f"sqlite+aiosqlite:///{tmp_path / 'gateway.db'}")
@@ -234,7 +235,7 @@ async def test_v1_plan_limits_are_persisted_in_options_and_provenance(
             ],
         }
 
-    monkeypatch.setattr(routes, "solve_remote", solve)
+    monkeypatch.setattr(execution, "solve_remote", solve)
     headers = await _register_and_login(api_client, registration())
     package = load_package(EXAMPLE)
     created = await api_client.post(

@@ -59,6 +59,7 @@ async def test_live_report_seed_upgrades_drafts_and_preserves_two_editions(
     from openbinding_gateway import space_client
     from openbinding_gateway.core.settings import get_settings
     from openbinding_gateway.routes import v1 as routes
+    from openbinding_gateway.services import execution
     from openbinding_gateway.db.models import Project, InstanceSnapshot, Study, StudyRun
     from openbinding_gateway.v1.package import load_package
     import uuid
@@ -73,7 +74,7 @@ async def test_live_report_seed_upgrades_drafts_and_preserves_two_editions(
     space_client.set_gate(gate)
     try:
         monkeypatch.setattr(get_settings(), 'job_dispatch_mode', 'inline')
-        monkeypatch.setattr(routes, 'solve_remote', solve)
+        monkeypatch.setattr(execution, 'solve_remote', solve)
         headers = await _headers(api_client, registration)
         profile = (await api_client.get('/v1/users/me', headers=headers)).json()
         user = await db_session.get(User, uuid.UUID(profile['id']))

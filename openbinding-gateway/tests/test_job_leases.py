@@ -31,6 +31,7 @@ from openbinding_gateway import space_client
 from openbinding_gateway.access import metering
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
 from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services import execution
 from openbinding_gateway.space_client import FakePricingGate
 from openbinding_gateway.v1.package import load_package
 
@@ -256,7 +257,7 @@ async def test_a_job_that_finishes_is_completed_settled_and_unleased(
     async def solve(*_args, **_kwargs):
         return _answer()
 
-    monkeypatch.setattr(routes, "solve_remote", solve)
+    monkeypatch.setattr(execution, "solve_remote", solve)
     headers, snapshot_id = await _account_with_snapshot(api_client, registration)
 
     await _submit(api_client, headers, snapshot_id)
@@ -279,7 +280,7 @@ async def test_a_cancellation_that_arrives_during_the_solve_wins_over_its_late_r
         await db_session.flush()
         return _answer()
 
-    monkeypatch.setattr(routes, "solve_remote", solve)
+    monkeypatch.setattr(execution, "solve_remote", solve)
     headers, snapshot_id = await _account_with_snapshot(api_client, registration)
 
     await _submit(api_client, headers, snapshot_id)
@@ -305,7 +306,7 @@ async def test_a_result_that_arrives_after_the_job_was_taken_back_is_discarded(
         await db_session.commit()
         return _answer()
 
-    monkeypatch.setattr(routes, "solve_remote", solve)
+    monkeypatch.setattr(execution, "solve_remote", solve)
     headers, snapshot_id = await _account_with_snapshot(api_client, registration)
 
     await _submit(api_client, headers, snapshot_id)

@@ -9,6 +9,7 @@ from _repo import REPO_ROOT
 from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job
 from openbinding_gateway.routes import v1 as routes
+from openbinding_gateway.services import execution
 from openbinding_gateway.v1.canonical import digest
 from openbinding_gateway.v1.package import load_package
 
@@ -260,7 +261,7 @@ async def test_persisted_builtin_job_pins_registration_and_mode_guarantees(
             ],
         }
 
-    monkeypatch.setattr(routes, "solve_remote", solve)
+    monkeypatch.setattr(execution, "solve_remote", solve)
     headers, snapshot_id = await _authenticated_snapshot(api_client, registration)
     response = await api_client.post(
         "/v1/jobs",
