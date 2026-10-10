@@ -1,4 +1,5 @@
 import { HttpError } from '../../api/client';
+import { readDiagnostics } from '../../api/problem';
 import type { ResolveLocation, ResolveResponse } from '../../api/platform';
 
 /** The kinds the gateway's resolver accepts (`VALID_KINDS` in routes/resolve.py), with how to name them to a reader. */
@@ -36,12 +37,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function describeValidation(body: Record<string, unknown>): string {
-  const detail = body.detail;
-  if (Array.isArray(detail)) {
-    const messages = detail.flatMap((entry) => (isRecord(entry) && typeof entry.msg === 'string' ? [entry.msg] : []));
-    if (messages.length) return messages.join('; ');
-  }
-  if (typeof detail === 'string') return detail;
+  const messages = readDiagnostics(body.diagnostics).map((diagnostic) => diagnostic.message);
+  if (messages.length) return messages.join('; ');
+  if (typeof body.detail === 'string') return body.detail;
   return 'The resolver refused the request.';
 }
 
@@ -64,8 +62,9 @@ export function outcomeOf(result: { data?: unknown; error?: unknown; failed: boo
 }
 
 /**
- * Where a location lives in the application, built from routes this app serves. The gateway's own `web_url`
- * is not used: several of those paths belong to screens that no longer exist.
+ * Where a location lives in the application, built from routes this app serves. The gateway's own `web_url` now sends
+ * the same routes (`d1`..`d8`), but it is `null` for what has no screen and depends on who is asking, so the address
+ * is still built here from the slugs the location names.
  */
 export function locationHref(kind: string, location: ResolveLocation): { href: string; requiresAccount: boolean } | null {
   const organization = location.organization?.slug;

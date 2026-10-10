@@ -187,7 +187,7 @@ describe('Generator lab', () => {
     });
 
     it('shows the server’s 422 on the form, with the field it names', async () => {
-      generator.instance.mockRejectedValue(refusal(422, undefined, { detail: [{ loc: ['body', 'candidates'], msg: 'Too many candidates for these tasks', type: 'value_error' }] }));
+      generator.instance.mockRejectedValue(refusal(422, 'validation_error', { code: 'validation_error', detail: 'Request validation failed', diagnostics: [{ code: 'value_error', message: 'Too many candidates for these tasks', in: 'body', pointer: '/candidates', loc: ['body', 'candidates'] }] }));
       renderLab();
       generate();
 

@@ -12,9 +12,10 @@ import { Modal } from '../../components/ui/Modal';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/auth';
+import { problemField } from '../../api/problem';
 import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
-import { ancestorsOf, atLeast, higherRole, rankOf, ROLE_SUMMARY, ROLES, sponsorName } from './orgModel';
+import { ancestorsOf, atLeast, canGrantOwner, higherRole, OWNER_CHANGE_NOTE, OWNER_ROLE_NOTE, rankOf, ROLE_SUMMARY, ROLES, sponsorName } from './orgModel';
 import { classifyAuthError, generalFailure, isForbidden, marker, quotaOf, type AuthFailure } from './orgErrors';
 import { NeutralGate, PageSkeleton, RoleChip, SelectField } from './parts';
 import { OrgSettingsLayout } from './OrgSettingsLayout';
@@ -93,9 +94,11 @@ function effectiveOf(row: Row): { role: OrganizationRole | null; source: string 
   return { role: null, source: '' };
 }
 
-/** The words for each way the gateway can refuse a batch. */
-function batchRefusal(failure: AuthFailure, quota: ReturnType<typeof quotaOf>): string {
+/** The words for each way the gateway can refuse a batch. `who` names the first change it rejected, when it says which. */
+function batchRefusal(failure: AuthFailure, quota: ReturnType<typeof quotaOf>, who?: string): string {
   switch (failure.code) {
+    case 'owner_role_requires_owner':
+      return `${OWNER_ROLE_NOTE} ${who ? `The change for ${who} was refused${marker(failure)}` : `A change in this batch was refused${marker(failure)}`}, so nothing changed: a batch applies together or not at all. Undo that change, or ask an owner.`;
     case 'last_owner':
       return `At least one OWNER must remain${marker(failure)}. Keep someone as OWNER, or make another person OWNER in the same batch.`;
     case 'sponsor_quota_exceeded':
@@ -117,9 +120,11 @@ function batchRefusal(failure: AuthFailure, quota: ReturnType<typeof quotaOf>): 
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-function InviteDialog({ organization, sponsor, onClose, onInvited }: {
+function InviteDialog({ organization, sponsor, canOwner, onClose, onInvited }: {
   organization: Organization;
   sponsor: string;
+  /** Inviting someone as OWNER is granting OWNER: only an owner can. */
+  canOwner: boolean;
   onClose: () => void;
   onInvited: (invitation: OrganizationInvitation) => void;
 }) {
@@ -144,6 +149,7 @@ function InviteDialog({ organization, sponsor, onClose, onInvited }: {
     } catch (caught) {
       const failure = classifyAuthError(caught);
       if (failure.kind === 'invalid') setError(`Enter a valid email address${marker(failure)}.`);
+      else if (failure.code === 'owner_role_requires_owner') setError(`${OWNER_ROLE_NOTE} Choose another role${marker(failure)}.`);
       else if (isForbidden(failure)) setError(`You need ADMIN here to invite${marker(failure)}.`);
       else setError(generalFailure(failure, 'no invitation was created'));
     } finally {
@@ -182,8 +188,10 @@ function InviteDialog({ organization, sponsor, onClose, onInvited }: {
           autoComplete="off"
           spellCheck={false}
         />
-        <SelectField label="Role when they join" value={role} onChange={(value) => setRole(value as OrganizationRole)}>
-          {[...ROLES].reverse().map((item) => <option key={item} value={item}>{item} · {ROLE_SUMMARY[item]}</option>)}
+        <SelectField label="Role when they join" value={role} onChange={(value) => setRole(value as OrganizationRole)} hint={canOwner ? undefined : OWNER_ROLE_NOTE}>
+          {[...ROLES].reverse().map((item) => (
+            <option key={item} value={item} disabled={item === 'OWNER' && !canOwner}>{item} · {ROLE_SUMMARY[item]}</option>
+          ))}
         </SelectField>
         <span className="org-muted">The invitation lasts 7 days. They count as a member of {sponsor}’s organizations once they accept.</span>
         <div aria-live="assertive">
@@ -200,10 +208,12 @@ function InviteDialog({ organization, sponsor, onClose, onInvited }: {
 
 function MembersBody({ organization }: { organization: Organization }) {
   const { context } = useRouteOrganization();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const slug = organization.slug;
   const role = organization.effective_role;
   const canWrite = atLeast(role, 'ADMIN');
+  // Granting OWNER, and changing or removing an OWNER, are for owners; an ADMIN sees those controls out of reach.
+  const canOwner = canGrantOwner(role, isAdmin);
   const sponsorIsMe = user?.id === organization.billing_sponsor_user_id;
   const me = user ? { id: user.id, username: user.username } : null;
 
@@ -227,6 +237,8 @@ function MembersBody({ organization }: { organization: Organization }) {
   const [applying, setApplying] = useState(false);
   const [toast, setToast] = useState('');
   const [refusal, setRefusal] = useState<{ text: string; quota: boolean } | null>(null);
+  /** The person whose change the gateway rejected first; the batch is atomic, so the others were not applied either. */
+  const [rejected, setRejected] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
   const [invited, setInvited] = useState<PendingInvitation[]>([]);
 
@@ -242,6 +254,7 @@ function MembersBody({ organization }: { organization: Organization }) {
   const stage = (row: Row, next: OrganizationRole | null) => {
     setToast('');
     setRefusal(null);
+    setRejected(null);
     setChanges((current) => {
       const rest = { ...current };
       if (next === row.direct) delete rest[row.userId];
@@ -251,17 +264,21 @@ function MembersBody({ organization }: { organization: Organization }) {
     });
   };
 
-  const undo = (userId: string) => setChanges((current) => {
-    const rest = { ...current };
-    delete rest[userId];
-    return rest;
-  });
+  const undo = (userId: string) => {
+    setRejected((current) => (current === userId ? null : current));
+    setChanges((current) => {
+      const rest = { ...current };
+      delete rest[userId];
+      return rest;
+    });
+  };
 
   const apply = async () => {
     const batch: MemberChange[] = staged.map(([user_id, next]) => ({ user_id, role: next }));
     setApplying(true);
     setToast('');
     setRefusal(null);
+    setRejected(null);
     try {
       const members = await platformApi.updateMembersBatch(slug, batch);
       setApplied(members);
@@ -270,7 +287,12 @@ function MembersBody({ organization }: { organization: Organization }) {
       await context.reload();
     } catch (caught) {
       const refused = classifyAuthError(caught);
-      setRefusal({ text: batchRefusal(refused, quotaOf(caught)), quota: refused.code === 'sponsor_quota_exceeded' });
+      // The gateway names the first change it refused: by `user_id`, and by its `index` in the batch we sent.
+      const named = problemField(caught, 'user_id');
+      const at = problemField(caught, 'index');
+      const culprit = typeof named === 'string' ? named : typeof at === 'number' ? batch[at]?.user_id : undefined;
+      if (refused.code === 'owner_role_requires_owner' && culprit) setRejected(culprit);
+      setRefusal({ text: batchRefusal(refused, quotaOf(caught), culprit ? nameOf(culprit) : undefined), quota: refused.code === 'sponsor_quota_exceeded' });
     } finally {
       setApplying(false);
     }
@@ -389,14 +411,18 @@ function MembersBody({ organization }: { organization: Organization }) {
                 const shown = hasChange ? changes[row.userId] : row.direct;
                 const effective = effectiveOf(row);
                 const isMe = row.userId === user?.id;
+                // An ADMIN can't touch an OWNER's direct role: changing or removing it is for owners.
+                const ownerLocked = !canOwner && row.direct === 'OWNER';
+                const isRejected = rejected === row.userId;
                 return (
-                  <tr key={row.userId} className={hasChange ? 'is-staged' : undefined}>
+                  <tr key={row.userId} className={isRejected ? 'is-rejected' : hasChange ? 'is-staged' : undefined}>
                     <td>
                       <span className="org-person">
                         <span className="org-avatar is-sm" aria-hidden="true">{row.name.slice(0, 2).toUpperCase()}</span>
                         <span>
                           <strong>{row.name}{isMe && <small> (you)</small>}</strong>
                           {row.email && <small>{row.email}</small>}
+                          {isRejected && <small className="org-row-error" id={`rejected-${row.userId}`}>Refused: {OWNER_ROLE_NOTE}</small>}
                         </span>
                       </span>
                     </td>
@@ -406,9 +432,12 @@ function MembersBody({ organization }: { organization: Organization }) {
                           className={`org-role-select${hasChange ? ' is-staged' : ''}`}
                           aria-label={`Role for ${row.name}`}
                           value={shown ?? NO_DIRECT_ROLE}
+                          disabled={ownerLocked}
+                          aria-invalid={isRejected || undefined}
+                          aria-describedby={isRejected ? `rejected-${row.userId}` : ownerLocked || !canOwner ? 'owner-role-note' : undefined}
                           onChange={(event) => stage(row, event.target.value === NO_DIRECT_ROLE ? null : event.target.value as OrganizationRole)}
                         >
-                          {ROLES.map((item) => <option key={item} value={item}>{item}</option>)}
+                          {ROLES.map((item) => <option key={item} value={item} disabled={item === 'OWNER' && !canOwner && row.direct !== 'OWNER'}>{item}</option>)}
                           <option value={NO_DIRECT_ROLE}>No direct role</option>
                         </select>
                       ) : row.direct ? <RoleChip role={row.direct} /> : <span className="org-role is-none">None here</span>}
@@ -427,6 +456,9 @@ function MembersBody({ organization }: { organization: Organization }) {
                           className="org-remove"
                           aria-label={`Remove ${row.name}`}
                           aria-pressed={hasChange && changes[row.userId] === null}
+                          aria-describedby={ownerLocked ? 'owner-role-note' : undefined}
+                          disabled={ownerLocked}
+                          title={ownerLocked ? OWNER_CHANGE_NOTE : undefined}
                           onClick={() => stage(row, hasChange && changes[row.userId] === null ? row.direct : null)}
                         >
                           {hasChange && changes[row.userId] === null ? 'Will be removed' : 'Remove'}
@@ -460,6 +492,10 @@ function MembersBody({ organization }: { organization: Organization }) {
             </div>
           )}
 
+          {canWrite && !canOwner && (
+            <p id="owner-role-note" className="org-muted">{OWNER_ROLE_NOTE} {OWNER_CHANGE_NOTE}</p>
+          )}
+
           <p className="org-muted">
             Inherited roles come from the parent organizations you can see and are changed there. Invitations are listed only until you leave this page:
             the API returns an invitation once, when it is created.
@@ -471,6 +507,7 @@ function MembersBody({ organization }: { organization: Organization }) {
         <InviteDialog
           organization={organization}
           sponsor={sponsor}
+          canOwner={canOwner}
           onClose={() => setInviting(false)}
           onInvited={(invitation) => setInvited((current) => [...current, { id: invitation.id, email: invitation.email, role: invitation.role, expiresAt: invitation.expires_at }])}
         />

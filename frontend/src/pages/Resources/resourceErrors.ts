@@ -1,4 +1,5 @@
 import { HttpError } from '../../api/client';
+import { problemField } from '../../api/problem';
 import { formatByteSize } from '../../utils/format';
 import { quotaOf } from '../Organization/orgErrors';
 import { classifyAuthError, generalFailure, marker, type AuthFailure } from '../Project/projectErrors';
@@ -78,11 +79,47 @@ export function oversizeRefusal(fileName: string, size: number, ceiling: number,
   };
 }
 
-/** Deleting a file. The prototype also shows a 409 for a file a sealed version refers to; the gateway checks only the role and the file. */
+const REFERENCE_NAMES: Record<string, [singular: string, plural: string]> = {
+  library_version: ['library version', 'library versions'],
+  report: ['report', 'reports'],
+  collection_revision: ['collection revision', 'collection revisions'],
+  case_revision: ['case revision', 'case revisions'],
+  snapshot: ['snapshot', 'snapshots'],
+  project_resource_revision: ['resource revision', 'resource revisions'],
+  publication: ['publication', 'publications'],
+};
+
+/** What still refers to a file (`409 blob_in_use`): `[{ type: 'report', count: 1 }]` → `[{ type, count, label: '1 report' }]`. */
+export function fileReferences(caught: unknown): Array<{ type: string; count: number; label: string }> {
+  const raw = problemField(caught, 'references');
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry) => {
+    if (typeof entry !== 'object' || entry === null) return [];
+    const { type, count } = entry as { type?: unknown; count?: unknown };
+    if (typeof type !== 'string') return [];
+    const amount = typeof count === 'number' && count > 0 ? count : 1;
+    const [singular, plural] = REFERENCE_NAMES[type] ?? [type.replace(/_/g, ' '), `${type.replace(/_/g, ' ')}s`];
+    return [{ type, count: amount, label: `${amount} ${amount === 1 ? singular : plural}` }];
+  });
+}
+
+/** “2 library versions and 1 report”, “1 report, 2 snapshots and 1 publication”. */
+export function listReferences(labels: readonly string[]): string {
+  if (labels.length <= 1) return labels.join('');
+  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
+}
+
+/** Deleting a file. A 409 `blob_in_use` names the kinds of element that still refer to it (never their names). */
 export function deleteFileRefusal(caught: unknown, name: string): Refusal {
   const failure = classifyAuthError(caught);
   if (failure.status === 409) {
-    return { kind: 'in-use', text: `“${name}” is used by a sealed version, so it can’t be deleted${marker(failure)}.` };
+    const used = listReferences(fileReferences(caught).map((reference) => reference.label));
+    return {
+      kind: 'in-use',
+      text: used
+        ? `“${name}” is used by ${used}, so it can’t be deleted${marker(failure)}. Remove it from there first.`
+        : `“${name}” is used by a sealed version, so it can’t be deleted${marker(failure)}.`,
+    };
   }
   if (failure.status === 403) {
     return { kind: 'forbidden', text: `You need ADMIN in the organization to delete files${marker(failure)}. Nothing was deleted.` };

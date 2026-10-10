@@ -1,5 +1,6 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import { diagnosticLines } from '../../api/problem';
 import { formatDate } from '../../utils/format';
 import { limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -27,17 +28,8 @@ export interface Refusal {
   permission?: string;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function detailsOf(caught: unknown): string[] {
-  if (!(caught instanceof HttpError)) return [];
-  const rows = Array.isArray(caught.diagnostics) ? caught.diagnostics : [];
-  return rows
-    .map((row) => (isRecord(row) ? (typeof row.message === 'string' ? row.message : typeof row.code === 'string' ? row.code : '') : ''))
-    .filter(Boolean)
-    .slice(0, 8);
+  return caught instanceof HttpError ? diagnosticLines(caught, 8) : [];
 }
 
 function renewal(renewsAt: string | null | undefined): string {

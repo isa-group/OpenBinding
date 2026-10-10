@@ -408,7 +408,7 @@ export function UsageCard({ userId, catalog, version }: UsageProps) {
       {confirm && (
         <ConfirmDialog title="Resync concurrency?" confirmLabel="Resync" busy={busy} onConfirm={() => void recount()} onClose={() => setConfirm(false)}>
           <p>The gateway counts the account’s queued and running jobs and corrects the slots SPACE has recorded for it. Nothing else changes.</p>
-          <p className="adm-muted">The gateway doesn’t write this to the audit log.</p>
+          <p className="adm-muted">The resync is recorded in the audit log with your name.</p>
         </ConfirmDialog>
       )}
     </section>

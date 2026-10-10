@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import {
-  accessIn, cellBreakdown, countWord, GATEWAY_PACKAGE_LIMIT, importCeiling, integrityOf, jobStatus, latestRun, planLimit, reportStanding,
+  accessIn, canOpenSection, canRead, canWrite, levelOf, cellBreakdown, countWord, GATEWAY_PACKAGE_LIMIT, importCeiling, integrityOf, jobStatus, latestRun, planLimit, reportStanding,
   sealedShare, visibilityEffects,
 } from './projectModel';
 import { createRefusal, deleteRefusal, exportFailure, importRefusal, updateRefusal } from './projectErrors';
@@ -20,6 +20,51 @@ describe('who can do what in a project', () => {
     expect(accessIn({ effective_role: null })).toMatchObject({ canCreate: false, canAdminister: false });
     expect(accessIn({ effective_role: null }, true)).toMatchObject({ canCreate: true, canAdminister: true });
     expect(accessIn({ effective_role: 'VIEWER' }, true)).toMatchObject({ canCreate: false, canAdminister: false });
+  });
+
+  it('keeps the level beside the booleans: the role, ADMIN reach for a platform administrator, nothing for a stranger', () => {
+    expect(accessIn(org('a', { effective_role: 'MEMBER' }), false, 'member')).toMatchObject({ level: 'MEMBER', publicRead: false, role: 'MEMBER' });
+    expect(accessIn({ effective_role: null }, true)).toMatchObject({ level: 'ADMIN', publicRead: false });
+    expect(accessIn({ effective_role: null })).toMatchObject({ level: null, publicRead: false });
+  });
+
+  it('never lets public reading write, whoever reads: a role-less visitor, a stray role or a platform administrator', () => {
+    for (const platformAdmin of [false, true]) {
+      for (const role of [null, 'VIEWER', 'MEMBER', 'ADMIN', 'OWNER'] as const) {
+        expect(accessIn({ effective_role: role }, platformAdmin, 'public_read')).toMatchObject({ level: 'public_read', publicRead: true, canCreate: false, canAdminister: false });
+      }
+    }
+  });
+});
+
+describe('access levels', () => {
+  it('puts public reading below VIEWER and gives it no write', () => {
+    expect(canRead('public_read')).toBe(true);
+    expect(canRead('public_read', 'VIEWER')).toBe(false);
+    expect(canRead('VIEWER', 'VIEWER')).toBe(true);
+    expect(canRead('MEMBER', 'ADMIN')).toBe(false);
+    expect(canRead(null)).toBe(false);
+    expect(canWrite('public_read')).toBe(false);
+    expect(canWrite('VIEWER')).toBe(false);
+    expect(canWrite('MEMBER')).toBe(true);
+    expect(canWrite('MEMBER', 'ADMIN')).toBe(false);
+    expect(canWrite('OWNER', 'ADMIN')).toBe(true);
+    expect(canWrite(null)).toBe(false);
+  });
+
+  it('reads the level from the project’s access and the role', () => {
+    expect(levelOf('public_read', 'OWNER')).toBe('public_read');
+    expect(levelOf('member', 'VIEWER')).toBe('VIEWER');
+    expect(levelOf(undefined, null)).toBeNull();
+  });
+
+  it('keeps jobs, the package and the settings from a visitor, and everything else open to them', () => {
+    for (const section of ['jobs', 'package', 'settings']) {
+      expect(canOpenSection('public_read', section)).toBe(false);
+      expect(canOpenSection('VIEWER', section)).toBe(true);
+    }
+    for (const section of ['overview', 'cases', 'library', 'studies', 'reports', 'files']) expect(canOpenSection('public_read', section)).toBe(true);
+    expect(canOpenSection('ADMIN', 'settings')).toBe(true);
   });
 });
 

@@ -108,7 +108,36 @@ describe('audit events in words', () => {
     expect(auditFamily('contract.subscription.changed')).toBe('contract');
     expect(auditFamily('pricing.live.activated')).toBe('pricing');
     expect(auditFamily('maintenance.expired.purged')).toBe('maintenance');
-    expect(auditFamily('organization.sponsor_transferred')).toBe('other');
+    expect(auditFamily('organization.sponsor_transferred')).toBe('organization');
+    expect(auditFamily('organization.sponsor.proposed')).toBe('organization');
+    expect(auditFamily('admin.user.updated')).toBe('account');
+    expect(auditFamily('admin.usage.resynced')).toBe('account');
+    expect(auditFamily('account.cas.linked')).toBe('account');
+    expect(auditFamily('engine.published')).toBe('other');
+  });
+
+  it('describes the account events the gateway now records, never repeating a secret', () => {
+    const base = AUDIT.events[0];
+    expect(describeAuditEvent({ ...base, action: 'admin.user.updated', detail: { username: 'sam', changes: { is_active: { from: true, to: false } } } }))
+      .toMatchObject({ text: 'Account sam was updated: status active → inactive.', facts: [['Status', 'active → inactive']] });
+    expect(describeAuditEvent({ ...base, action: 'admin.user.updated', detail: {} }).text).toBe('An account was updated.');
+    expect(describeAuditEvent({ ...base, action: 'admin.api_key.revoked', detail: { key: { id: 'k1', name: 'ci', prefix: 'obk_1', hash: 'must-not-show', secret: 'must-not-show' } } }))
+      .toMatchObject({ text: 'API key “ci” (obk_1…) was revoked.', facts: [['Key name', 'ci'], ['Key prefix', 'obk_1'], ['Key id', 'k1']] });
+    expect(describeAuditEvent({ ...base, action: 'admin.usage.resynced', detail: { corrected_by: 0, username: 'sam' } }).text).toBe('Running-job slots of sam were recounted (no drift).');
+    expect(describeAuditEvent({ ...base, action: 'account.cas.linked', detail: { plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false } } }))
+      .toMatchObject({ before: 'BASIC', after: 'RESEARCH', facts: [['Plan', 'BASIC → RESEARCH · no extra cost']] });
+    expect(describeAuditEvent({ ...base, action: 'account.cas.linked', detail: {} }).text).toBe('An institutional identity was linked.');
+  });
+
+  it('describes the sponsor events of an organization', () => {
+    const base = { ...AUDIT.events[0], organizationId: 'org-1', organizationSlug: 'isa-demo' };
+    const view = describeAuditEvent({ ...base, action: 'organization.sponsor.proposed', detail: { proposed_user_id: 'user-priya-0001', expires_at: '2026-10-24T09:00:00Z' } });
+    expect(view.text).toBe('A request to become the billing sponsor was sent.');
+    expect(view.facts).toEqual([['Asked to sponsor', 'user-pri…'], ['Expires', 'Oct 24, 2026']]);
+    expect(describeAuditEvent({ ...base, action: 'organization.sponsor.expired', detail: { reason: 'expired' } }).text).toBe('A request to become the billing sponsor expired.');
+    expect(describeAuditEvent({ ...base, action: 'organization.updated', detail: { name: 'New' } }).text).toBe('The organization’s settings were updated.');
+    expect(describeAuditEvent({ ...base, action: 'organization.updated', detail: { new_sponsor_user_id: 'user-nora-00001' } }).facts).toEqual([['New sponsor', 'user-nor…']]);
+    expect(describeAuditEvent({ ...base, action: 'organization.sponsor_transferred', detail: {} }).text).toBe('The organization’s billing sponsor was changed.');
   });
 
   it('describes a contract change with its before and after', () => {

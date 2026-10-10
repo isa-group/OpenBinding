@@ -170,7 +170,7 @@ function FilesBody({ organization, project, access }: { organization: Organizati
         </div>
       </header>
 
-      <Storage sponsor={sponsor} files={list} />
+      {!access.publicRead && <Storage sponsor={sponsor} files={list} />}
 
       {keyCannotWrite && problem && <Notice tone="warning">{problem.text}</Notice>}
       {!access.canCreate && <ReadOnlyNote role={access.role}>You can download files; uploading needs MEMBER and deleting needs ADMIN.</ReadOnlyNote>}
@@ -251,10 +251,14 @@ function FilesBody({ organization, project, access }: { organization: Organizati
           </tbody>
         </DataTable>
       )}
-      <p className="org-muted">
-        {access.role && <>Your role here: <RoleChip role={access.role} />. </>}
-        Project packages carry the files they refer to. <Link to={`${root}/package`}>Export or import a package</Link>.
-      </p>
+      {access.publicRead ? (
+        <p className="org-muted">Only the files this project has made public are listed. Anyone can download them.</p>
+      ) : (
+        <p className="org-muted">
+          {access.role && <>Your role here: <RoleChip role={access.role} />. </>}
+          Project packages carry the files they refer to. <Link to={`${root}/package`}>Export or import a package</Link>.
+        </p>
+      )}
       {list.some((file) => file.public) && <p className="lib-footnote"><Chip tone="accent">Public by fingerprint</Chip> files can be read by anyone who knows their fingerprint.</p>}
 
       {removing && (

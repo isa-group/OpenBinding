@@ -1,4 +1,5 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
+import { failureBody, validationBody } from './helpers/problems';
 import type { BindingCase, CaseRevision } from '../src/api/platform';
 import { irDocument, refOf, revisionDocument } from '../src/pages/Cases/fixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
@@ -17,7 +18,7 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 
 type Handler = (route: Route) => Promise<void> | void;
 const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json({ detail: { code, error, ...extra } }, status);
+const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
 const unavailable: Handler = json({ detail: 'The service is not reachable.' }, 503);
 
 const token = (expiresInSeconds: number) => [
@@ -40,6 +41,8 @@ const org = (id: string, slug: string, name: string, role: Role, sponsor = 'user
 const project = (n: number, orgId: string, slug: string, name: string) => ({
   id: `project-${n}`, organization_id: orgId, slug, name, description: '', visibility: 'private', created_by_id: 'user-1',
   created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
+  // The contract's `ProjectView.access`: these specs reach every project as a member.
+  access: 'member' as const, effective_role: 'OWNER' as Role,
 });
 
 const projectsOf: Record<string, ReturnType<typeof project>[]> = {
@@ -607,7 +610,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // The server refuses the combination (422): the field it names is marked.
       await main.getByLabel('Tasks', { exact: true }).fill('6');
-      state.refuse.instance = json({ detail: [{ loc: ['body', 'candidates'], msg: 'Too many candidates for these tasks', type: 'value_error' }] }, 422);
+      state.refuse.instance = json(validationBody('candidates', [{ code: 'value_error', message: 'Too many candidates for these tasks', pointer: '/candidates' }]), 422);
       await main.getByRole('button', { name: 'Generate instance' }).click();
       await expect(main.getByRole('alert')).toContainText('These settings can’t be generated (422 · invalid generation config): the server rejected the combination.');
       await expect(main.getByLabel('Candidates per task')).toHaveAttribute('aria-invalid', 'true');
@@ -694,7 +697,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('button', { name: 'Convert to a package' })).toBeDisabled();
       await main.getByLabel('Or paste its text').fill('TASK 1 CANDIDATES 5\nTASK 2 CANDIDATES 3');
       await capture(page, testInfo, `lab-${name}-convert`);
-      state.refuse.convert = json({ detail: [{ loc: ['body', 'raw_text'], msg: 'Not a legacy instance', type: 'value_error' }] }, 422);
+      state.refuse.convert = json(validationBody('raw_text', [{ code: 'value_error', message: 'Not a legacy instance', pointer: '/raw_text' }]), 422);
       await main.getByRole('button', { name: 'Convert to a package' }).click();
       await expect(main.getByRole('alert')).toContainText('That text can’t be converted (422 · invalid legacy instance)');
       await capture(page, testInfo, `lab-${name}-convert-422`);
@@ -746,3 +749,27 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     });
   });
 }
+
+test.describe('desktop · S5d generator lab, a calibration the gateway refuses', () => {
+  test.use({ viewport: viewports[0].viewport, isMobile: false, deviceScaleFactor: 1 });
+
+  test('gen-lab /app/generator · the gateway refuses to calibrate (403 platform_admin_required)', async ({ page }, testInfo) => {
+    const critical = watchCriticalErrors(page);
+    // The page offers the form (the account looks like an administrator) but the gateway has the last word.
+    const state = await mockApi(page, { admin: true });
+    await page.goto(LAB);
+    const main = page.locator('#platform-main');
+
+    await main.getByRole('tab', { name: 'Calibrate engines' }).click();
+    await main.getByRole('combobox', { name: 'Engine' }).selectOption('random-search');
+    const runs = [{ workload_features: { S: 6 }, latency: 12.5, quality: 0.9, success: true }];
+    await main.getByLabel('Or paste the runs as JSON').fill(JSON.stringify(runs));
+    state.refuse.calibrate = detail(403, 'platform_admin_required', 'Platform administrator required.');
+    await main.getByRole('button', { name: 'Calibrate', exact: true }).click();
+    await expect(main.getByRole('alert')).toContainText('Only platform administrators can calibrate an engine (403 · platform_admin_required). The model is shared by everyone, so nothing was calibrated.');
+    expect(state.sent.calibrate).toEqual({ engine: 'random-search', mode: 'default', observations: runs });
+    await expect(main.getByText('fitted on 6 runs')).toHaveCount(0);
+    await capture(page, testInfo, 'lab-desktop-calibrate-403');
+    expect(critical).toEqual([]);
+  });
+});

@@ -1,6 +1,8 @@
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import type { AdminAuditPage, PricingCatalog } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import { diagnosticsOf } from '../../api/problem';
+import { formatDate } from '../../utils/format';
 import { describeLimit, LIMIT_ORDER, limitInfo, type LimitText } from '../../utils/limits';
 import type { ApiErrorEventItem } from './types';
 
@@ -73,8 +75,12 @@ export function describeAdminFailure(error: unknown, what: string): Failure {
       return { status, code, tone: 'error', quota, title: withCode('Over a limit'), text: reason || 'A limit would be passed.' };
     case 409:
       return { status, code, tone: 'error', quota, title: withCode('The gateway refused the change'), text: reason || 'The change conflicts with the current state.' };
-    case 422:
-      return { status, code, tone: 'error', quota, title: withCode('That isn’t valid'), text: reason || 'The gateway refused the value.' };
+    case 422: {
+      // The problem's `detail` is one summary sentence; its diagnostics say which fields (pointers into the document) are wrong.
+      const findings = diagnosticsOf(error).map((diagnostic) => (diagnostic.pointer ? `${diagnostic.pointer}: ${diagnostic.message}` : diagnostic.message));
+      const text = [reason, ...findings.filter((finding) => !reason.includes(finding))].filter(Boolean).slice(0, 4).join(' ');
+      return { status, code, tone: 'error', quota, title: withCode('That isn’t valid'), text: text || 'The gateway refused the value.' };
+    }
     case 503:
       return {
         status, code, tone: 'warning', quota,
@@ -325,13 +331,15 @@ export function isCeiling(limitId: string, definition?: Dict): boolean {
 // -- Audit events -------------------------------------------------------------------------------------------
 
 export type AuditEvent = AdminAuditPage['events'][number];
-export type AuditFamily = 'contract' | 'pricing' | 'maintenance' | 'other';
+export type AuditFamily = 'contract' | 'pricing' | 'maintenance' | 'account' | 'organization' | 'other';
 
 export const AUDIT_FAMILIES: ReadonlyArray<{ id: AuditFamily | ''; label: string }> = [
   { id: '', label: 'All' },
   { id: 'contract', label: 'Contracts' },
   { id: 'pricing', label: 'Pricing' },
   { id: 'maintenance', label: 'Maintenance' },
+  { id: 'account', label: 'Accounts' },
+  { id: 'organization', label: 'Organizations' },
   { id: 'other', label: 'Other' },
 ];
 
@@ -339,6 +347,8 @@ export function auditFamily(action: string): AuditFamily {
   if (action.startsWith('contract.')) return 'contract';
   if (action.startsWith('pricing.')) return 'pricing';
   if (action.startsWith('maintenance.')) return 'maintenance';
+  if (action.startsWith('admin.') || action.startsWith('account.')) return 'account';
+  if (action.startsWith('organization.')) return 'organization';
   return 'other';
 }
 
@@ -400,7 +410,88 @@ export function describeAuditEvent(event: AuditEvent): AuditView {
         .map((field): [string, string] => [humanize(field), String(detail[field])]);
       return { text: 'Expired data was purged.', before: null, after: null, facts };
     }
+    case 'admin.user.updated': {
+      const changes = dictOf(detail.changes);
+      const facts: Array<[string, string]> = [];
+      const parts: string[] = [];
+      for (const [field, label] of [['role', 'Role'], ['is_active', 'Status']] as const) {
+        const change = dictOf(changes[field]);
+        if (change.from === undefined && change.to === undefined) continue;
+        const word = (value: unknown) => (field === 'is_active' ? (value === true ? 'active' : 'inactive') : String(value));
+        parts.push(`${label.toLowerCase()} ${word(change.from)} → ${word(change.to)}`);
+        facts.push([label, `${word(change.from)} → ${word(change.to)}`]);
+      }
+      const who = textOf(detail.username);
+      return { text: `${who ? `Account ${who}` : 'An account'} was updated${parts.length ? `: ${parts.join('; ')}` : ''}.`, before: null, after: null, facts };
+    }
+    case 'admin.api_key.revoked': {
+      const key = dictOf(detail.key);
+      const name = textOf(key.name);
+      const prefix = textOf(key.prefix);
+      const facts: Array<[string, string]> = [];
+      if (name) facts.push(['Key name', name]);
+      if (prefix) facts.push(['Key prefix', prefix]);
+      if (textOf(key.id)) facts.push(['Key id', textOf(key.id)]);
+      if (textOf(detail.user_id)) facts.push(['Account', shortId(textOf(detail.user_id))]);
+      return { text: `API key${name ? ` “${name}”` : ''}${prefix ? ` (${prefix}…)` : ''} was revoked.`, before: null, after: null, facts };
+    }
+    case 'admin.usage.resynced': {
+      const before = dictOf(detail.before).concurrent_jobs_recorded;
+      const after = dictOf(detail.after).concurrent_jobs_recorded;
+      const corrected = typeof detail.corrected_by === 'number' ? detail.corrected_by : null;
+      const who = textOf(detail.username);
+      const facts: Array<[string, string]> = [];
+      if (textOf(detail.plan)) facts.push(['Plan', textOf(detail.plan)]);
+      if (typeof before === 'number' && typeof after === 'number') facts.push(['Slots recorded', `${before} → ${after}`]);
+      if (typeof detail.slots_in_flight === 'number') facts.push(['Jobs in flight', String(detail.slots_in_flight)]);
+      return {
+        text: `Running-job slots${who ? ` of ${who}` : ''} were recounted${corrected === null ? '' : corrected === 0 ? ' (no drift)' : ` (corrected by ${corrected})`}.`,
+        before: null, after: null, facts,
+      };
+    }
+    case 'account.cas.linked': {
+      const change = dictOf(detail.plan_changed);
+      const from = textOf(change.from);
+      const to = textOf(change.to);
+      const facts: Array<[string, string]> = [];
+      if (textOf(detail.provider)) facts.push(['Provider', textOf(detail.provider)]);
+      if (from && to) facts.push(['Plan', `${from} → ${to}${change.extra_cost === false ? ' · no extra cost' : ''}`]);
+      return {
+        text: from && to ? `An institutional identity was linked and the plan went from ${from} to ${to} at no extra cost.` : 'An institutional identity was linked.',
+        before: from || null, after: to || null, facts,
+      };
+    }
+    case 'organization.sponsor_transferred':
+    case 'organization.updated': {
+      const previous = textOf(detail.previous_sponsor_user_id);
+      const next = textOf(detail.new_sponsor_user_id);
+      const facts: Array<[string, string]> = [];
+      if (previous) facts.push(['Previous sponsor', shortId(previous)]);
+      if (next) facts.push(['New sponsor', shortId(next)]);
+      return {
+        text: event.action === 'organization.sponsor_transferred' || next ? 'The organization’s billing sponsor was changed.' : 'The organization’s settings were updated.',
+        before: null, after: null, facts,
+      };
+    }
     default: {
+      if (event.action.startsWith('organization.sponsor.')) {
+        const step = event.action.slice('organization.sponsor.'.length);
+        const phrase: Record<string, string> = {
+          proposed: 'A request to become the billing sponsor was sent',
+          accepted: 'A request to become the billing sponsor was accepted',
+          declined: 'A request to become the billing sponsor was declined',
+          cancelled: 'A request to become the billing sponsor was cancelled',
+          expired: 'A request to become the billing sponsor expired',
+        };
+        const facts: Array<[string, string]> = [];
+        if (textOf(detail.proposed_user_id)) facts.push(['Asked to sponsor', shortId(textOf(detail.proposed_user_id))]);
+        if (textOf(detail.proposed_by_user_id)) facts.push(['Sent by', shortId(textOf(detail.proposed_by_user_id))]);
+        if (textOf(detail.expires_at)) facts.push(['Expires', formatDate(textOf(detail.expires_at)) ?? textOf(detail.expires_at)]);
+        if (textOf(detail.previous_sponsor_user_id)) facts.push(['Previous sponsor', shortId(textOf(detail.previous_sponsor_user_id))]);
+        if (textOf(detail.new_sponsor_user_id)) facts.push(['New sponsor', shortId(textOf(detail.new_sponsor_user_id))]);
+        if (textOf(detail.reason)) facts.push(['Reason', humanize(textOf(detail.reason))]);
+        return { text: `${phrase[step] ?? humanize(event.action.replace(/\./g, ' '))}.`, before: null, after: null, facts };
+      }
       if (event.action.startsWith('pricing.')) {
         const version = textOf(detail.version) || textOf(detail.pricingVersion) || (event.targetId ?? '');
         const verb = event.action.slice('pricing.'.length).replace(/[._]/g, ' ');

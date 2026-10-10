@@ -1,4 +1,5 @@
 import { expect as baseExpect, test, type Page, type Request, type Route, type TestInfo } from '@playwright/test';
+import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 
 // S3 · pub-pricing /pricing, with the API answered by page.route() (there is no backend).
@@ -10,7 +11,7 @@ const API = 'http://localhost:8000';
 const expect = baseExpect.configure({ timeout: 15_000 });
 
 const json = (body: unknown, status = 200) => (route: Route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string) => json({ detail: { code, error } }, status);
+const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}) => json(failureBody(status, code, error, extra), status);
 
 /** A pricing token shaped like the gateway's, with two features evaluated. */
 const token = (expiresInSeconds: number) => [

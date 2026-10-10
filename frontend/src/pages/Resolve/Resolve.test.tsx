@@ -244,7 +244,7 @@ describe('Resolve', () => {
     });
 
     it('shows the resolver’s own words when it refuses the request with a 422', async () => {
-      platform.resolveElement.mockResolvedValue({ detail: [{ msg: 'Input should be less than or equal to 100' }] });
+      platform.resolveElement.mockResolvedValue({ code: 'validation_error', detail: 'Request validation failed: limit: Input should be less than or equal to 100', diagnostics: [{ code: 'less_than_equal', message: 'Input should be less than or equal to 100', in: 'query', parameter: 'limit' }] });
       renderResolve();
 
       const alert = await screen.findByRole('alert');

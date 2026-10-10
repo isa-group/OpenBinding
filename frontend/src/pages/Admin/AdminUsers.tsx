@@ -222,7 +222,7 @@ function UsersScreen() {
                     <td data-label="Role"><Tag tone={account.role === 'admin' ? 'dark' : 'plain'}>{account.role === 'admin' ? 'Admin' : 'User'}</Tag></td>
                     <td data-label="Plan">
                       <Tag tone={planTone(account.plan)}>{account.plan}</Tag>
-                      {account.cas_verified && <span className="adm-cas"> ✓ CAS</span>}
+                      {account.cas_verified && <> <Tag tone="success">Institutional identity verified</Tag></>}
                     </td>
                     <td data-label="Status">
                       <Tag tone={account.is_active ? 'info' : 'plain'}>{account.is_active ? 'Active' : 'Inactive'}</Tag>
@@ -276,7 +276,7 @@ function UsersScreen() {
           onClose={() => setPending(null)}
         >
           <p>{WORDING[pending.kind].text}</p>
-          <p className="adm-muted">The gateway doesn’t write this change to the audit log.</p>
+          <p className="adm-muted">The change is recorded in the audit log with your name.</p>
         </ConfirmDialog>
       )}
     </AdminFrame>

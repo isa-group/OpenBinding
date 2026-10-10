@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
-import { studyRefusal } from './studyErrors';
+import { mismatchedFields, studyRefusal } from './studyErrors';
 
 const refused = (status: number, code?: string, message = 'refused', extra: Partial<HttpError> = {}) => Object.assign(new HttpError(status, message), { code }, extra);
 
@@ -49,6 +49,33 @@ describe('why the gateway refuses a study', () => {
     expect(studyRefusal(refused(409, 'cell_not_retryable'), 'retry').title).toBe('This cell can’t be retried (409 · cell_not_retryable)');
     expect(studyRefusal(refused(409, 'job_not_finished'), 'attach').title).toBe('That job hasn’t finished (409 · job_not_finished)');
     expect(studyRefusal(refused(409, 'study_history_retained'), 'delete').title).toBe('This study has runs (409 · study_history_retained)');
+  });
+
+  it('says which of case, engine, mode and seed a job does not share with the cell (409 cell_job_mismatch)', () => {
+    const perField = studyRefusal(refused(409, 'cell_job_mismatch', 'mismatch', {
+      problem: { detail: { code: 'cell_job_mismatch', fields: ['engine', 'seed'], details: { engine: { cell: 'bim.builtin/evolutionary@1.0.0', job: 'bim.builtin/random-search@1.0.0' }, seed: { cell: 2, job: 7 } } } },
+    }), 'attach');
+    expect(perField).toMatchObject({
+      kind: 'conflict',
+      title: 'That job isn’t a run of this cell (409 · cell_job_mismatch)',
+      details: ['Engine: the cell has bim.builtin/evolutionary@1.0.0, the job ran bim.builtin/random-search@1.0.0', 'Seed: the cell has 2, the job ran 7'],
+    });
+    expect(perField.text).toContain('It differs in the engine and seed.');
+    expect(perField.text).toContain('Nothing changed.');
+
+    const perSide = studyRefusal(refused(409, 'cell_job_mismatch', 'mismatch', {
+      problem: { code: 'cell_job_mismatch', fields: ['case_revision', 'mode', 'seed'], details: { cell: { case_revision: 'r2', mode: 'optimize', seed: 1 }, job: { case_revision: 'r1', mode: null, seed: 1 } } },
+    }), 'attach');
+    expect(perSide.text).toContain('It differs in the case, mode and seed.');
+    expect(perSide.details).toEqual(['Case: the cell has r2, the job ran r1', 'Mode: the cell has optimize, the job ran none', 'Seed: the cell has 1, the job ran 1']);
+
+    expect(studyRefusal(refused(409, 'cell_job_mismatch'), 'attach')).toMatchObject({ title: 'That job isn’t a run of this cell (409 · cell_job_mismatch)', details: [] });
+    expect(mismatchedFields(refused(409, 'cell_job_mismatch', 'x', { problem: { detail: { fields: ['seed'] } } }))).toEqual([{ field: 'seed', label: 'seed' }]);
+  });
+
+  it('words the other two refusals of an attached result', () => {
+    expect(studyRefusal(refused(409, 'job_result_missing'), 'attach')).toMatchObject({ kind: 'terminal', title: 'That job finished without a result (409 · job_result_missing)' });
+    expect(studyRefusal(refused(409, 'job_already_attached'), 'attach')).toMatchObject({ kind: 'conflict', title: 'That job is already the result of another cell (409 · job_already_attached)' });
   });
 
   it('words each 422 by what the study asked for', () => {

@@ -56,6 +56,31 @@ describe('Reports of a project', () => {
     expect(platform.reports).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks');
   });
 
+  it('shows a visitor of a public project the published reports only, and none of the controls that write', async () => {
+    platform.project.mockResolvedValue({ ...qos, organization_id: 'org-open', created_by_id: null, access: 'public_read', effective_role: null });
+    renderList('open-lab');
+
+    const list = await screen.findByRole('list', { name: 'Reports of the project' });
+    const rows = within(list).getAllByRole('listitem');
+    expect(rows).toHaveLength(1);
+    expect(within(rows[0]).getByRole('link', { name: /Engine comparison at checkout/ })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/reports/engine-comparison');
+    expect(within(rows[0]).getByText('Published')).toBeInTheDocument();
+    expect(screen.getByText(/Only published reports are shown here/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Drafts' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New report' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Delete / })).not.toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Project sections' })).queryByRole('link', { name: 'Jobs' })).not.toBeInTheDocument();
+  });
+
+  it('says a public project has published nothing yet', async () => {
+    platform.project.mockResolvedValue({ ...qos, organization_id: 'org-open', created_by_id: null, access: 'public_read', effective_role: null });
+    platform.reports.mockResolvedValue([]);
+    renderList('open-lab');
+
+    expect(await screen.findByText('No published reports yet')).toBeInTheDocument();
+    expect(screen.queryByText('No reports yet')).not.toBeInTheDocument();
+  });
+
   it('narrows the list to drafts or to frozen editions', async () => {
     renderList();
     const list = await screen.findByRole('list', { name: 'Reports of the project' });

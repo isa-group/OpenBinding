@@ -289,6 +289,9 @@
 .adm-dot.is-contract { background: var(--tp-primary-deep); }
 .adm-dot.is-maintenance { background: var(--tp-severity-warning); }
 .adm-dot.is-other { background: var(--tp-stone); }
+.adm-dot.is-account { background: var(--tp-link); }
+.adm-dot.is-organization { background: var(--tp-sunshine-800); }
+.adm-event-org { margin-left: auto; }
 
 .adm-event {
   display: flex;

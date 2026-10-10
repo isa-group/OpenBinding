@@ -168,6 +168,45 @@ describe('One cell of a run', () => {
     expect(await within(dialog).findByText('A sealed report cites this run (409 · sealed_evidence)')).toBeInTheDocument();
   });
 
+  it('names what differs when the job is not a run of this cell (409 cell_job_mismatch)', async () => {
+    const mine = [jobOf('job-mine-a', 'random-search', 'completed', 'FEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:01:00Z')];
+    platform.projectJobs.mockResolvedValue(mine);
+    jobs.jobsApi.mine.mockResolvedValue(mine);
+    platform.attachStudyCellResult.mockRejectedValue(Object.assign(refusal(409, 'cell_job_mismatch'), {
+      problem: { detail: { code: 'cell_job_mismatch', fields: ['case_revision', 'engine', 'mode', 'seed'], details: { seed: { cell: 2, job: 9 }, engine: { cell: 'evolutionary', job: 'random-search' } } } },
+    }));
+    renderCell(5);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Use an existing job’s result' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/the same case revision, engine, mode and seed/)).toBeInTheDocument();
+    fireEvent.click(await within(dialog).findByRole('radio', { name: /random-search · completed/ }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Attach this result' }));
+
+    expect(await within(dialog).findByText('That job isn’t a run of this cell (409 · cell_job_mismatch)')).toBeInTheDocument();
+    expect(within(dialog).getByText(/It differs in the case, engine, mode and seed\./)).toBeInTheDocument();
+    expect(within(dialog).getByText('Seed: the cell has 2, the job ran 9')).toBeInTheDocument();
+    expect(within(dialog).getByText('Engine: the cell has evolutionary, the job ran random-search')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['job_result_missing', 'That job finished without a result (409 · job_result_missing)'],
+    ['job_already_attached', 'That job is already the result of another cell (409 · job_already_attached)'],
+  ])('says why a job can not be attached: %s', async (code, title) => {
+    const mine = [jobOf('job-mine-a', 'random-search', 'completed', 'FEASIBLE', '2026-10-01T09:00:00Z', '2026-10-01T09:01:00Z')];
+    platform.projectJobs.mockResolvedValue(mine);
+    jobs.jobsApi.mine.mockResolvedValue(mine);
+    platform.attachStudyCellResult.mockRejectedValue(refusal(409, code));
+    renderCell(5);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Use an existing job’s result' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(await within(dialog).findByRole('radio', { name: /random-search · completed/ }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Attach this result' }));
+
+    expect(await within(dialog).findByText(title)).toBeInTheDocument();
+  });
+
   it('says there is nothing to attach when the account has no finished job here', async () => {
     renderCell(5);
 

@@ -434,7 +434,11 @@ describe('Auth screens', () => {
 
     it('maps field-level validation answers to their fields', async () => {
       const refused = problem(422);
-      refused.problem = { detail: [{ loc: ['body', 'email'], msg: 'value is not a valid email address' }] };
+      refused.problem = {
+        code: 'validation_error',
+        detail: 'Request validation failed: /email: value is not a valid email address',
+        diagnostics: [{ code: 'value_error', message: 'value is not a valid email address', in: 'body', pointer: '/email', loc: ['body', 'email'] }],
+      };
       registerMock.mockRejectedValue(refused);
       renderWithAuth(<Register />, '/register');
 

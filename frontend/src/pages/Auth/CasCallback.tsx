@@ -6,28 +6,43 @@ import { InstitutionMark } from '../../components/InstitutionMark';
 import { INSTITUTION_NAME, useInstitutionalBranding } from '../../components/InstitutionMark/institution';
 import { Notice } from '../../components/ui/Notice';
 import { useAuth } from '../../contexts/auth';
-import { casFlowFor, exchangeCasOnce, forgetCasFlow, type CasMode } from '../../utils/authFlow';
+import { casFlowFor, exchangeCasOnce, forgetCasFlow, notePlanChanged, rememberCasFlow, type CasMode } from '../../utils/authFlow';
 import { classifyAuthError } from './authErrors';
 
 /**
- * What stopped the CAS round trip. The gateway answers some of these on its own callback step (before this page
- * is ever reached) and some on the code exchange; both are read here, the first from an optional `?error=` code.
+ * What stopped the CAS round trip. The gateway answers every failure of its own callback step with `?error=<code>` (a closed list,
+ * so nothing from the address is ever shown) and some on the code exchange; both end here.
  */
-type CasFailure = 'code' | 'unavailable' | 'pricing' | 'linked-elsewhere' | 'collision';
+type CasFailure =
+  | 'code' | 'unavailable' | 'pricing' | 'pricing-down' | 'state' | 'ticket' | 'inactive' | 'error' | 'linked-elsewhere' | 'collision';
 
 type Phase = { name: 'loading' } | { name: 'empty' } | { name: 'error'; failure: CasFailure } | { name: 'success' };
 
-const PRICING_CODES = new Set(['institutional_pricing_invalid']);
-const UNAVAILABLE_CODES = new Set(['pricing_unavailable', 'cas_unavailable']);
+/** The `?error=` codes of the callback (docs/ACCOUNTS_AND_PLANS.md), and what each one means for the person. */
+const REPORTED = new Map<string, CasFailure>([
+  ['cas_unavailable', 'unavailable'],
+  ['cas_state_invalid', 'state'],
+  ['cas_ticket_invalid', 'ticket'],
+  ['account_inactive', 'inactive'],
+  ['identity_in_use', 'linked-elsewhere'],
+  ['account_collision', 'collision'],
+  ['pricing_unavailable', 'pricing-down'],
+  ['institutional_pricing_invalid', 'pricing'],
+  ['cas_error', 'error'],
+]);
 
 function failureFor(code: string | undefined, status: number | undefined): CasFailure {
-  if (code === 'identity_in_use') return 'linked-elsewhere';
-  if (code === 'account_collision') return 'collision';
-  if (code && PRICING_CODES.has(code)) return 'pricing';
-  if ((code && UNAVAILABLE_CODES.has(code)) || status === 503) return 'unavailable';
+  const known = code ? REPORTED.get(code) : undefined;
+  if (known) return known;
+  if (status === 503) return 'unavailable';
   if (status === 409) return 'linked-elsewhere';
   return 'code';
 }
+
+/** Failures after which starting the CAS sign-in again can work. */
+const RETRYABLE = new Set<CasFailure>(['code', 'unavailable', 'pricing-down', 'state', 'ticket', 'error']);
+/** Failures that say something about the service rather than about the person. */
+const SERVICE = new Set<CasFailure>(['code', 'unavailable', 'pricing', 'pricing-down', 'error']);
 
 /** Lands here from the university's sign-in: exchanges the one-time code for a session, or explains why it cannot. */
 export function CasCallback() {
@@ -38,6 +53,7 @@ export function CasCallback() {
   const params = new URLSearchParams(location.search);
   const code = params.get('code');
   const reported = params.get('error');
+  const announced = params.get('plan_changed');
   // The screen is mounted again once the exchange signs the person in (the interface below the account
   // provider restarts when the account changes), so the flow and the exchange are kept against the code.
   const [flow] = useState(() => casFlowFor(code));
@@ -53,13 +69,18 @@ export function CasCallback() {
     // One-time memory: whatever happens next, the next CAS round trip starts from a clean slate.
     forgetCasFlow();
     if (!code) return;
-    void exchangeCasOnce(code, () => apiClient.exchangeCasCode(code).then(refresh))
+    // Linking CAS raises BASIC to RESEARCH at no cost. The exchange says so; the redirect's `plan_changed` is the same news a step earlier.
+    void exchangeCasOnce(code, () => apiClient.exchangeCasCode(code).then((change) => {
+      if (change) notePlanChanged({ from: change.from, to: change.to, extraCost: change.extra_cost });
+      else if (announced) notePlanChanged({ to: announced, extraCost: false });
+      return refresh();
+    }))
       .then(() => setPhase({ name: 'success' }))
       .catch((caught: unknown) => {
         const result = classifyAuthError(caught);
         setPhase({ name: 'error', failure: failureFor(result.code, result.status) });
       });
-  }, [code, refresh]);
+  }, [code, announced, refresh]);
 
   const linking = mode === 'link';
   const workspace = (!linking && flow?.returnTo) || '/app';
@@ -96,7 +117,11 @@ export function CasCallback() {
 
         {phase.name === 'error' && (
           <>
-            <h1>{phase.failure === 'linked-elsewhere' || phase.failure === 'collision' ? 'This identity can’t be used here' : 'Sign-in stopped'}</h1>
+            <h1>
+              {phase.failure === 'linked-elsewhere' || phase.failure === 'collision'
+                ? 'This identity can’t be used here'
+                : phase.failure === 'inactive' ? 'This account can’t sign in' : 'Sign-in stopped'}
+            </h1>
             {phase.failure === 'code' && (
               <Notice tone="error" title="This code can’t be used.">
                 It’s invalid or was already used; each code works once and expires quickly. Start the CAS sign-in again.
@@ -107,9 +132,34 @@ export function CasCallback() {
                 The current pricing has no valid RESEARCH plan, so CAS accounts can’t be set up right now. You can still log in with a password.
               </Notice>
             )}
+            {phase.failure === 'pricing-down' && (
+              <Notice tone="error" title="The pricing service didn’t answer (503 · pricing_unavailable).">
+                Your plan’s limits couldn’t be read, so the sign-in stopped before changing anything. Try again in a moment, or log in with a password.
+              </Notice>
+            )}
             {phase.failure === 'unavailable' && (
               <Notice tone="error" title="Institutional sign-in is unavailable right now (503).">
                 The university’s sign-in or the pricing service didn’t answer. Nothing was changed on your account. You can still log in with a password.
+              </Notice>
+            )}
+            {phase.failure === 'state' && (
+              <Notice tone="error" title="This sign-in attempt has expired (cas_state_invalid).">
+                The sign-in was started a while ago, was already used, or didn’t start from here. Nothing was changed. Start it again and finish it without delay.
+              </Notice>
+            )}
+            {phase.failure === 'ticket' && (
+              <Notice tone="error" title="The university didn’t accept this sign-in (cas_ticket_invalid).">
+                Its ticket was missing or refused, which happens when the page is reloaded or the sign-in takes too long. Nothing was changed. Try again.
+              </Notice>
+            )}
+            {phase.failure === 'inactive' && (
+              <Notice tone="warning" title="This account is deactivated (account_inactive).">
+                The account being signed in or linked is deactivated or no longer exists, so nothing was changed. If you think this is a mistake, ask an administrator to reactivate it.
+              </Notice>
+            )}
+            {phase.failure === 'error' && (
+              <Notice tone="error" title="The sign-in couldn’t be finished (cas_error).">
+                Something went wrong on our side while finishing it. Nothing was changed. Try again; if it keeps failing, check the service status.
               </Notice>
             )}
             {phase.failure === 'linked-elsewhere' && (
@@ -124,9 +174,12 @@ export function CasCallback() {
             )}
             <div className="auth-card-actions">
               <Link className="auth-btn auth-btn-primary" to="/login" viewTransition>Back to log in</Link>
+              {RETRYABLE.has(phase.failure) && (linking
+                ? <Link className="auth-btn auth-btn-secondary" to="/app/account/identities" viewTransition>Try again from Account › Identities</Link>
+                : <a className="auth-btn auth-btn-secondary" href={apiClient.casStartUrl('login')} onClick={() => rememberCasFlow('login', flow?.returnTo)}>Try again</a>)}
               {phase.failure === 'linked-elsewhere' || phase.failure === 'collision'
                 ? <Link className="auth-btn auth-btn-secondary" to="/app/account/identities" viewTransition>Go to Account › Identities</Link>
-                : <Link className="auth-btn auth-btn-secondary" to="/status" viewTransition>Service status</Link>}
+                : SERVICE.has(phase.failure) && <Link className="auth-btn auth-btn-secondary" to="/status" viewTransition>Service status</Link>}
             </div>
           </>
         )}

@@ -34,7 +34,7 @@ export function JobFrame({ organization, project, trail, width = 'wide', childre
       <div className="proj-band">
         <div className="proj-band-inner"><Breadcrumb items={items} /></div>
       </div>
-      <ProjectTabs active="jobs" orgSlug={organization.slug} projectSlug={project.slug} />
+      <ProjectTabs active="jobs" orgSlug={organization.slug} projectSlug={project.slug} access={project.access} />
       <div className={`proj-body is-${width}`} aria-live="polite">{children}</div>
     </div>
   );

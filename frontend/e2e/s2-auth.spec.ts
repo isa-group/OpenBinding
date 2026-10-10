@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route, type TestInfo } from '@playwright/test';
+import { failureBody } from './helpers/problems';
 
 // S2 · authentication, invitations and the state gallery:
 // auth-login, auth-register, auth-reset-request, auth-reset-complete, auth-cas-callback, org-invite-accept, sys-states.
@@ -31,7 +32,7 @@ const membership = {
 };
 
 const json = (body: unknown, status = 200) => (route: Route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string) => json({ detail: { code, error } }, status);
+const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}) => json(failureBody(status, code, error, extra), status);
 
 type Handler = (route: Route) => Promise<void> | void;
 
@@ -370,6 +371,41 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('This identity is already linked to another account.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Go to Account › Identities' })).toHaveAttribute('href', '/app/account/identities');
       await capture(page, testInfo, `cas-${name}-linked-elsewhere`);
+
+      // The gateway reports its own failures in the address, each with a message of its own and a way forward.
+      const reported: Array<[string, string]> = [
+        ['cas_unavailable', 'Institutional sign-in is unavailable right now (503).'],
+        ['cas_state_invalid', 'This sign-in attempt has expired (cas_state_invalid).'],
+        ['cas_ticket_invalid', 'The university didn’t accept this sign-in (cas_ticket_invalid).'],
+        ['account_inactive', 'This account is deactivated (account_inactive).'],
+        ['pricing_unavailable', 'The pricing service didn’t answer (503 · pricing_unavailable).'],
+        ['cas_error', 'The sign-in couldn’t be finished (cas_error).'],
+      ];
+      for (const [code, title] of reported) {
+        await page.goto(`/auth/cas/callback?error=${code}`);
+        await expect(main.getByText(title)).toBeVisible();
+        await expect(main.getByRole('link', { name: 'Back to log in' })).toHaveAttribute('href', '/login');
+      }
+      await page.goto('/auth/cas/callback?error=cas_ticket_invalid');
+      await expect(main.getByRole('link', { name: 'Try again' })).toHaveAttribute('href', `${API}/v1/auth/cas/start?mode=login`);
+      await capture(page, testInfo, `cas-${name}-ticket-invalid`);
+      await page.goto('/auth/cas/callback?error=account_inactive');
+      await expect(main.getByRole('link', { name: 'Try again' })).toHaveCount(0);
+
+      // Linking CAS raised the plan to RESEARCH at no cost: the exchange says so, and the screen the person lands on tells them once.
+      await page.route(`${API}/v1/auth/cas/exchange`, json({ ...tokens, plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false } }));
+      await page.evaluate(() => sessionStorage.setItem('openbinding-cas-flow', JSON.stringify({ mode: 'login', returnTo: '/app', at: Date.now() })));
+      await page.goto(`/auth/cas/callback?code=${CAS_CODE}&plan_changed=RESEARCH`);
+      await expect(main.getByRole('heading', { name: 'You’re signed in' })).toBeVisible();
+      await main.getByRole('link', { name: 'Continue to your workspace' }).click();
+      const planNote = page.getByText('Your account is now on the RESEARCH plan. There is no extra cost.');
+      await expect(planNote).toBeVisible();
+      await capture(page, testInfo, `cas-${name}-plan-changed`);
+      await page.getByRole('button', { name: 'Dismiss' }).click();
+      await expect(planNote).toHaveCount(0);
+      await page.reload();
+      await expect(page.locator('#platform-main')).toBeVisible();
+      await expect(planNote).toHaveCount(0);
       expect(critical).toEqual([]);
     });
 

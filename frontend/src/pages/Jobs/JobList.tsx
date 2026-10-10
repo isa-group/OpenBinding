@@ -14,7 +14,8 @@ import { useAuth } from '../../contexts/auth';
 import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
-import { ProjectGate, ProjectSkeleton } from '../Project/parts';
+import { canOpenSection } from '../Project/accessLevel';
+import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts';
 import { useRouteProject } from '../Project/useRouteProject';
 import { refusalOf, type Refusal } from './jobErrors';
 import { STATUS_FILTERS, canRetryState, formatTook, isActive, normalizeStatus, statusCounts, tookOf, tookPercent, type StatusFilter } from './jobsModel';
@@ -249,5 +250,6 @@ export function JobList() {
   if (!organization || !project) {
     return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
   }
+  if (!canOpenSection(access.level, 'jobs')) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
   return <JobListBody key={`${organization.slug}/${project.slug}`} organization={organization} project={project} canLaunch={access.canCreate} />;
 }

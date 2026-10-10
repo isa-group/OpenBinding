@@ -36,6 +36,8 @@ export function NotificationDropdown() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [busyItem, setBusyItem] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
+  /** Requests to become somebody's billing sponsor that wait for this account's answer. */
+  const [pendingSponsor, setPendingSponsor] = useState(0);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -45,6 +47,12 @@ export function NotificationDropdown() {
       setNotifications(data);
     } catch {
       // Retain previous state gracefully on network hiccup
+    }
+    try {
+      const requests = await apiClient.listMySponsorProposals('pending');
+      setPendingSponsor(requests.length);
+    } catch {
+      // The requests are an extra: the bell works without them
     }
   }, []);
 
@@ -93,6 +101,9 @@ export function NotificationDropdown() {
 
   const unreadNotifications = notifications.filter((item) => !item.read_at);
   const unreadCount = unreadNotifications.length;
+  // Each waiting request also arrives as an unread notice, so the badge shows the larger of the two instead of adding them.
+  const badgeCount = Math.max(unreadCount, pendingSponsor);
+  const requestsText = `${pendingSponsor} sponsor ${pendingSponsor === 1 ? 'request' : 'requests'} waiting for you`;
 
   const toggleOpen = () => {
     setIsOpen((current) => {
@@ -158,21 +169,21 @@ export function NotificationDropdown() {
         onClick={toggleOpen}
         aria-label={
           unreadCount > 0
-            ? `${unreadCount} unread notifications`
-            : 'Notifications'
+            ? `${unreadCount} unread notifications${pendingSponsor > 0 ? `, ${requestsText}` : ''}`
+            : pendingSponsor > 0 ? `Notifications, ${requestsText}` : 'Notifications'
         }
         aria-expanded={isOpen}
         aria-haspopup="dialog"
       >
-        {unreadCount > 0 ? (
+        {badgeCount > 0 ? (
           <BellDot className="notification-icon has-unread" aria-hidden="true" />
         ) : (
           <Bell className="notification-icon" aria-hidden="true" />
         )}
 
-        {unreadCount > 0 && (
+        {badgeCount > 0 && (
           <span className="notification-badge" aria-hidden="true">
-            {unreadCount > 99 ? '99+' : unreadCount}
+            {badgeCount > 99 ? '99+' : badgeCount}
           </span>
         )}
       </button>
@@ -217,6 +228,13 @@ export function NotificationDropdown() {
               </button>
             </div>
           </header>
+
+          {pendingSponsor > 0 && (
+            <Link to="/app/account/notifications" className="notification-requests" onClick={() => setIsOpen(false)}>
+              <strong>{requestsText}</strong>
+              <span>Review and answer</span>
+            </Link>
+          )}
 
           <div className="notification-tabs" role="tablist" aria-label="Notification filter">
             <button

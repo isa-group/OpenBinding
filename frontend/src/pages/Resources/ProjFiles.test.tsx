@@ -235,6 +235,37 @@ describe('Project files', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
+  it('lists what still uses a file that cannot be deleted (409 blob_in_use)', async () => {
+    platform.deleteArtifact.mockRejectedValue(Object.assign(refusal(409, 'blob_in_use'), {
+      problem: { code: 'blob_in_use', detail: { code: 'blob_in_use', error: 'in use', references: [{ type: 'library_version', count: 2 }, { type: 'report', count: 1 }] } },
+    }));
+    renderFiles(admin);
+    await settled();
+
+    fireEvent.click(screen.getByRole('button', { name: `Delete ${ARCHIVE}` }));
+    const dialog = await screen.findByRole('dialog', { name: `Delete ${ARCHIVE}?` });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete file' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(`“${ARCHIVE}” is used by 2 library versions and 1 report, so it can’t be deleted (409 · blob_in_use).`);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('shows a visitor of a public project the public files only: no storage, no upload, no delete, no package', async () => {
+    platform.project.mockResolvedValue({ ...qos, organization_id: 'org-open', created_by_id: null, access: 'public_read', effective_role: null });
+    platform.artifacts.mockResolvedValue([results]);
+    renderProjectScreen(<ProjFiles />, { path: '/app/:org/:project/files', url: '/app/open-lab/qos-benchmarks/files', organizations: [member] });
+
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+    expect(screen.getByText('You are viewing a public project (read-only).')).toBeInTheDocument();
+    expect(screen.queryByText('Drop files to upload')).not.toBeInTheDocument();
+    expect(screen.queryByRole('meter', { name: 'Storage used' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Storage · sponsored by/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Delete / })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Export or import a package' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Download / })).toBeInTheDocument();
+    expect(screen.getByText('Only the files this project has made public are listed. Anyone can download them.')).toBeInTheDocument();
+  });
+
   it('gives a MEMBER the upload and no delete', async () => {
     renderFiles(member);
     await settled();

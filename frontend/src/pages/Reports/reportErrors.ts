@@ -1,5 +1,6 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import { diagnosticLines } from '../../api/problem';
 import { limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import type { Refusal } from '../Jobs/jobErrors';
@@ -22,11 +23,7 @@ const NOTHING: Record<ReportAction, string> = {
 const ADMIN_ACTIONS: ReportAction[] = ['delete', 'publish', 'withdraw'];
 
 function detailsOf(caught: unknown): string[] {
-  if (!(caught instanceof HttpError) || !Array.isArray(caught.diagnostics)) return [];
-  return caught.diagnostics
-    .map((row) => (typeof row === 'object' && row !== null ? ((row as Record<string, unknown>).message ?? (row as Record<string, unknown>).code) : ''))
-    .filter((line): line is string => typeof line === 'string' && line !== '')
-    .slice(0, 6);
+  return caught instanceof HttpError ? diagnosticLines(caught) : [];
 }
 
 /** What a 422 of the report endpoints means: the evidence and provenance a sealed report must carry, and what a public one may cite. */

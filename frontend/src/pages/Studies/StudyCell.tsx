@@ -58,7 +58,7 @@ function AttachDialog({ scope, runId, cell, onClose, onAttached }: { scope: Stud
   };
   return (
     <Modal title="Use an existing job’s result" size="lg" onClose={() => !busy && onClose()}>
-      <p>A job you already ran becomes this cell’s result as it is. The gateway doesn’t check that it used the same case, engine and seed, so pick one that did.</p>
+      <p>A job you already ran becomes this cell’s result as it is. It has to be a run of this cell: the same case revision, engine, mode and seed. The gateway checks, and names what differs if it isn’t.</p>
       {jobs.status === 'loading' && <div role="status" aria-busy="true"><span className="sr-only">Loading your jobs…</span><Skeleton variant="tile" /></div>}
       {jobs.status === 'error' && <Notice tone="error" action={<Action variant="secondary" size="sm" onClick={jobs.reload}>Retry</Action>}>Your jobs couldn’t be loaded{marker(classifyAuthError(jobs.error))}.</Notice>}
       {jobs.status === 'ready' && list.length === 0 && <p className="org-muted">You have no finished job in this project to attach.</p>}

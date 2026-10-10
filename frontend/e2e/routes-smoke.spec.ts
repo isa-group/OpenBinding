@@ -52,6 +52,7 @@ const organization = {
 const project = {
   id: 'project-1', organization_id: 'org-1', slug: 'qos', name: 'QoS Benchmarks', description: 'Smoke project',
   visibility: 'private', created_by_id: 'smoke-user-id', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
+  access: 'member', effective_role: 'OWNER',
 };
 
 async function mockApi(page: Page, role: 'user' | 'admin' | null) {

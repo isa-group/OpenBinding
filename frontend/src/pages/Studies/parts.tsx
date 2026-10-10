@@ -30,7 +30,7 @@ export function StudyFrame({ organization, project, trail, width = 'wide', child
       <div className="proj-band">
         <div className="proj-band-inner"><Breadcrumb items={items} /></div>
       </div>
-      <ProjectTabs active="studies" orgSlug={organization.slug} projectSlug={project.slug} />
+      <ProjectTabs active="studies" orgSlug={organization.slug} projectSlug={project.slug} access={project.access} />
       <div className={`proj-body st-body is-${width}`} aria-live="polite">{children}</div>
     </div>
   );

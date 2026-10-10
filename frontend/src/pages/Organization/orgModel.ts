@@ -14,6 +14,18 @@ export function atLeast(role: OrganizationRole | null | undefined, minimum: Orga
   return rankOf(role) >= RANK[minimum];
 }
 
+/** The reason shown wherever the OWNER role is out of reach (`403 owner_role_requires_owner` otherwise). */
+export const OWNER_ROLE_NOTE = 'Only an owner can grant the owner role.';
+export const OWNER_CHANGE_NOTE = 'Only an owner can change or remove an owner.';
+
+/**
+ * Can this person grant OWNER, or change or remove an existing OWNER? Only an effective OWNER of the organization can; a platform
+ * administrator keeps what the gateway allows them, which is that same reach when they already have ADMIN access.
+ */
+export function canGrantOwner(role: OrganizationRole | null | undefined, platformAdmin = false): boolean {
+  return role === 'OWNER' || (platformAdmin && atLeast(role, 'ADMIN'));
+}
+
 export function higherRole(a: OrganizationRole | null | undefined, b: OrganizationRole | null | undefined): OrganizationRole | null {
   return rankOf(a) >= rankOf(b) ? a ?? null : b ?? null;
 }

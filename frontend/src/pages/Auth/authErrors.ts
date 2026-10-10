@@ -1,11 +1,13 @@
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import { diagnosticsByField, diagnosticsOf } from '../../api/problem';
 
 /**
  * What went wrong with an authentication request, in the terms the screens speak.
  *
- * The gateway answers errors in two shapes (RFC 9457 problem+json, and `{ detail: { code, error } }`);
- * the client has already folded both into an HttpError, so this only looks at status and code.
+ * The gateway answers errors in two shapes (RFC 9457 problem+json, with `code` and `diagnostics` on every 422, and
+ * `{ detail: { code, error } }` for the other statuses); the client has already folded both into an HttpError,
+ * so this only looks at status and code.
  */
 export type AuthFailureKind =
   | 'rejected' // 401: wrong credentials, spent token, bad code
@@ -48,18 +50,8 @@ export function classifyAuthError(error: unknown): AuthFailure {
 
 export type FieldErrors = Partial<Record<string, string>>;
 
-/** Per-field messages out of a FastAPI validation body (`detail: [{ loc: ['body', 'email'], msg }]`). */
+/** Per-field messages out of a 422's diagnostics (`pointer: '/email'` or `parameter`), keyed by the field's own name. */
 export function fieldErrorsFrom(error: unknown): FieldErrors {
   if (!(error instanceof HttpError)) return {};
-  const body = error.problem;
-  const detail = typeof body === 'object' && body !== null ? (body as { detail?: unknown }).detail : undefined;
-  if (!Array.isArray(detail)) return {};
-  const fields: FieldErrors = {};
-  for (const item of detail) {
-    if (typeof item !== 'object' || item === null) continue;
-    const { loc, msg } = item as { loc?: unknown; msg?: unknown };
-    const field = Array.isArray(loc) ? loc[loc.length - 1] : undefined;
-    if (typeof field === 'string' && typeof msg === 'string' && !(field in fields)) fields[field] = msg;
-  }
-  return fields;
+  return diagnosticsByField(diagnosticsOf(error));
 }

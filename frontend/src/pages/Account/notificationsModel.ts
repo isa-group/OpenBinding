@@ -2,6 +2,9 @@ import type { ContractChangePayload, Notification } from '../../api/auth';
 
 export type NotificationGroup = 'contract' | 'job' | 'invite' | 'other';
 
+/** Fired when something changed the inbox or the requests waiting for the account; the header bell reads its count again. */
+export const NOTIFICATIONS_UPDATED = 'openbinding:notifications-updated';
+
 /** The filters of the screen; `other` notices appear under All only. */
 export const NOTIFICATION_FILTERS = [
   { id: 'all', label: 'All' },

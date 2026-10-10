@@ -1,4 +1,5 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
+import { failureBody, validationBody } from './helpers/problems';
 import { DRAFT_RELEASE, DRAINING_RELEASE, LIVE_RELEASE, PRICING_ROOM, previewOf } from '../src/pages/Admin/pricingFixtures';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { ALEX, MARIA, PENDING_ENGINE, usageOf } from '../src/test/fixtures/admin';
@@ -15,7 +16,7 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 
 type Handler = (route: Route) => Promise<void> | void;
 const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string): Handler => json({ detail: { code, error } }, status);
+const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
 const down = detail(503, 'accounts_unavailable', 'The accounts database is not reachable.');
 const forbidden = detail(403, 'insufficient_api_key_permission', 'The API key does not include this permission.');
 
@@ -717,7 +718,12 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `draft-${name}-validated`, { height: tall(2600) });
 
       // A document the gateway refuses (422) can’t go on.
-      state.refuse.validate = json({ detail: [{ loc: ['body', 'yaml'], msg: 'plans.PRO.usageLimits: unknown limit' }] }, 422);
+      state.refuse.validate = json(
+        validationBody('The document was refused.', [
+          { code: 'value_error', message: 'plans.PRO.usageLimits: unknown limit', pointer: '/yaml' },
+        ]),
+        422,
+      );
       await validation.getByLabel('Draft version').fill('0.2.0-draft.2');
       await validation.getByRole('button', { name: 'Validate' }).click();
       await expect(validation.getByText('plans.PRO.usageLimits: unknown limit')).toBeVisible();

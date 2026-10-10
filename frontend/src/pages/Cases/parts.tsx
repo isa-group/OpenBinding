@@ -31,7 +31,7 @@ export function CaseFrame({ organization, project, trail, width = 'wide', childr
       <div className="proj-band">
         <div className="proj-band-inner"><Breadcrumb items={items} /></div>
       </div>
-      <ProjectTabs active="cases" orgSlug={organization.slug} projectSlug={project.slug} />
+      <ProjectTabs active="cases" orgSlug={organization.slug} projectSlug={project.slug} access={project.access} />
       <div className={`proj-body is-${width}`} aria-live="polite">{children}</div>
     </div>
   );

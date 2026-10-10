@@ -58,7 +58,7 @@ function Body({ organization, project, access }: { organization: Organization; p
 
   return (
     <ResourceFrame organization={organization} project={project} section="library" trail={[{ label: 'Collections' }]}>
-      <ProjectLibraryNav current="collections" orgSlug={slug} projectSlug={project.slug} />
+      <ProjectLibraryNav current="collections" orgSlug={slug} projectSlug={project.slug} publicRead={access.publicRead} />
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Collections</h1>
@@ -109,7 +109,7 @@ function Body({ organization, project, access }: { organization: Organization; p
           })}
         </ul>
       )}
-      {collections.status === 'ready' && rows.length > 0 && (
+      {collections.status === 'ready' && rows.length > 0 && !access.publicRead && (
         <p className="org-muted">Your role here: <RoleChip role={access.role} />. Deleting needs ADMIN and leaves everything a collection pointed to untouched.</p>
       )}
 

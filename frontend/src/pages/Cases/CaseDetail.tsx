@@ -74,8 +74,10 @@ function Description({ organization, project, item, canEdit, onSaved }: {
   );
 }
 
-function RevisionCard({ root, caseSlug, revision, previous, latest, model }: {
+function RevisionCard({ root, caseSlug, revision, previous, latest, model, publicRead }: {
   root: string; caseSlug: string; revision: RouteCaseContent['revisions'][number]; previous: RouteCaseContent['revisions'][number] | undefined; latest: boolean; model: ModelState | undefined;
+  /** A visitor of a public project reads the revision; running it, studying it and collecting it are for members. */
+  publicRead: boolean;
 }) {
   const { copy, status } = useCopy();
   const uses = resourceUses(revision.document);
@@ -123,9 +125,9 @@ function RevisionCard({ root, caseSlug, revision, previous, latest, model }: {
         )}
         <div className="case-rev-links">
           <Link to={href} viewTransition>Open</Link>
-          <Link to={`${root}/jobs/new?case=${encodeURIComponent(caseSlug)}&revision=${revision.revision}`} viewTransition>Run</Link>
-          <Link to={`${root}/studies/new?case=${encodeURIComponent(caseSlug)}&revision=${revision.revision}`} viewTransition>Add to study</Link>
-          <Link to={`${root}/collections`} viewTransition>Add to collection</Link>
+          {!publicRead && <Link to={`${root}/jobs/new?case=${encodeURIComponent(caseSlug)}&revision=${revision.revision}`} viewTransition>Run</Link>}
+          {!publicRead && <Link to={`${root}/studies/new?case=${encodeURIComponent(caseSlug)}&revision=${revision.revision}`} viewTransition>Add to study</Link>}
+          {!publicRead && <Link to={`${root}/collections`} viewTransition>Add to collection</Link>}
           {revision.source_snapshot_id && <Link to={`${root}/snapshots/${revision.source_snapshot_id}`} viewTransition>Compiled snapshot</Link>}
         </div>
       </div>
@@ -172,6 +174,7 @@ function DetailBody({ organization, project, content, canCreate, canAdminister, 
   const navigate = useNavigate();
   const { item, revisions } = content;
   const root = `/app/${organization.slug}/${project.slug}`;
+  const publicRead = project.access === 'public_read';
   const latest = revisions[0];
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState('');
@@ -190,7 +193,7 @@ function DetailBody({ organization, project, content, canCreate, canAdminister, 
           {revisions.length >= 2
             ? <Action to={`${root}/cases/${item.slug}/compare`} variant="secondary">Compare revisions</Action>
             : <span className="ui-action is-secondary is-md" aria-disabled="true" title="Comparing needs two revisions">Compare revisions</span>}
-          {latest && <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${latest.revision}`} variant="secondary">Run latest</Action>}
+          {latest && !publicRead && <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${latest.revision}`} variant="secondary">Run latest</Action>}
           {latest && <Action to={`${root}/workbench?case=${encodeURIComponent(item.slug)}&revision=${latest.id}`} variant="secondary">Open in Workbench</Action>}
           {canAdminister && <Action variant="danger-outline" onClick={() => setDeleting(true)}>Delete case</Action>}
         </div>
@@ -221,6 +224,7 @@ function DetailBody({ organization, project, content, canCreate, canAdminister, 
                   previous={revisions[index + 1]}
                   latest={index === 0}
                   model={index === 0 ? glanceState.data : undefined}
+                  publicRead={publicRead}
                 />
               ))}
             </ol>

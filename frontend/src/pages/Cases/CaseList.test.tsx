@@ -57,6 +57,23 @@ describe('Case list', () => {
     expect(within(tabs).getByRole('link', { name: 'Cases' })).toHaveAttribute('aria-current', 'page');
   });
 
+  it('lists the cases of a public project read-only for someone who is not a member: nothing to run, create or delete', async () => {
+    platform.project.mockResolvedValue({ ...qos, organization_id: 'org-open', created_by_id: null, access: 'public_read', effective_role: null });
+    renderList(group, 'open-lab');
+
+    const list = await screen.findByRole('list', { name: 'Cases' });
+    const first = within(within(list).getAllByRole('listitem')[0]);
+    expect(first.getByRole('link', { name: /Flujo de checkout/ })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/cases/flujo-checkout');
+    expect(first.queryByRole('link', { name: 'Run latest' })).not.toBeInTheDocument();
+    expect(first.queryByRole('link', { name: 'New revision' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New case' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Delete / })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Your role here/)).not.toBeInTheDocument();
+    expect(screen.getByText('You are viewing a public project (read-only).')).toBeInTheDocument();
+    const tabs = screen.getByRole('navigation', { name: 'Project sections' });
+    expect(within(tabs).queryByRole('link', { name: 'Jobs' })).not.toBeInTheDocument();
+  });
+
   it('finds a case by name or address and says when none matches', async () => {
     renderList();
     await screen.findByRole('list', { name: 'Cases' });

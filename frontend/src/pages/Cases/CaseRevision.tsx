@@ -212,6 +212,7 @@ function RevisionBody({ organization, project, content, revision }: {
   const { item, revisions } = content;
   const root = `/app/${organization.slug}/${project.slug}`;
   const base = `${root}/cases/${item.slug}`;
+  const publicRead = project.access === 'public_read';
   const uses = resourceUses(revision.document);
   const modelState = useResource<ModelState>(`model:${revision.source_snapshot_id ?? 'none'}`, () => loadModel(revision.source_snapshot_id));
   const resolved = useLoadedMap(uses.map((use) => `${use.role}/${use.alias}`), (key) => {
@@ -242,9 +243,9 @@ function RevisionBody({ organization, project, content, revision }: {
           </label>
         </div>
         <div className="proj-actions">
-          <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="primary">Run this revision</Action>
-          <Action to={compare} variant="secondary">Compare</Action>
-          <Action to={`${root}/studies/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="secondary">Add to study</Action>
+          {!publicRead && <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="primary">Run this revision</Action>}
+          <Action to={compare} variant={publicRead ? 'primary' : 'secondary'}>Compare</Action>
+          {!publicRead && <Action to={`${root}/studies/new?case=${encodeURIComponent(item.slug)}&revision=${revision.revision}`} variant="secondary">Add to study</Action>}
         </div>
       </header>
 

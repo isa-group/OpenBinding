@@ -11,7 +11,7 @@ import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { ViewSource } from '../Engines/EngineParts';
 import { AdminFrame, AdminOnly, FailureNotice, Pager, Tag } from './AdminChrome';
-import { AUDIT_FAMILIES, auditFamily, describeAdminFailure, describeAuditEvent, shortId, type AuditEvent, type AuditFamily } from './adminModel';
+import { AUDIT_FAMILIES, auditFamily, describeAdminFailure, describeAuditEvent, shortId, UUID, type AuditEvent, type AuditFamily } from './adminModel';
 
 const PAGE = 100;
 
@@ -19,6 +19,8 @@ const FAMILY_TONE: Record<AuditFamily, 'dark' | 'info' | 'warning' | 'plain'> = 
   contract: 'dark',
   pricing: 'info',
   maintenance: 'warning',
+  account: 'info',
+  organization: 'plain',
   other: 'plain',
 };
 
@@ -26,11 +28,16 @@ function AuditScreen() {
   const [family, setFamily] = useState<AuditFamily | ''>('');
   const [action, setAction] = useState('');
   const [applied, setApplied] = useState('');
+  const [organization, setOrganization] = useState('');
+  const [appliedOrganization, setAppliedOrganization] = useState('');
+  const [organizationError, setOrganizationError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [selectedId, setSelectedId] = useState('');
   const { copy, status } = useCopy();
 
-  const list = useResource(`admin-audit:${applied}:${offset}`, () => apiClient.adminAudit({ action: applied || undefined, offset, limit: PAGE }));
+  const list = useResource(`admin-audit:${applied}:${appliedOrganization}:${offset}`, () => apiClient.adminAudit({
+    action: applied || undefined, organizationId: appliedOrganization || undefined, offset, limit: PAGE,
+  }));
   const page = list.data ?? list.stale;
   const failure = list.status === 'error' ? describeAdminFailure(list.error, 'The audit log couldn’t be loaded') : null;
 
@@ -39,10 +46,27 @@ function AuditScreen() {
   const view = selected ? describeAuditEvent(selected) : null;
   const loading = list.status === 'loading' && !page;
 
-  const filterByAction = (value: string) => {
-    setApplied(value.trim());
+  const applyFilters = (nextAction: string, nextOrganization: string) => {
+    setApplied(nextAction.trim());
+    setAppliedOrganization(nextOrganization.trim());
     setOffset(0);
     setSelectedId('');
+  };
+
+  const submit = () => {
+    const wanted = organization.trim();
+    if (wanted && !UUID.test(wanted)) {
+      setOrganizationError('Use the organization’s id: a UUID such as 3f2a91c0-….');
+      return;
+    }
+    setOrganizationError(null);
+    applyFilters(action, wanted);
+  };
+
+  const onlyOrganization = (id: string) => {
+    setOrganization(id);
+    setOrganizationError(null);
+    applyFilters(action, id);
   };
 
   return (
@@ -50,24 +74,38 @@ function AuditScreen() {
       section="audit"
       trail={[{ label: 'Administration', to: '/app/admin' }, { label: 'Audit log' }]}
       title="Audit log"
-      lede="Who changed contracts, pricing and platform maintenance, and when. Changes made inside an organization, such as a sponsorship transfer, are in that organization’s own audit log."
+      lede="Who changed contracts, pricing, accounts and platform maintenance, and when. Events recorded inside an organization, such as a sponsor request, appear here too with the organization named."
     >
-      <form className="adm-toolbar" role="search" onSubmit={(event) => { event.preventDefault(); filterByAction(action); }}>
+      <form className="adm-toolbar" role="search" onSubmit={(event) => { event.preventDefault(); submit(); }}>
         <FilterPills ariaLabel="Kind of event" options={AUDIT_FAMILIES.map((item) => ({ id: item.id, label: item.label }))} value={family} onChange={(id) => setFamily(id as AuditFamily | '')} />
         <label className="adm-select">
           <span>Exact action</span>
           <input value={action} onChange={(event) => setAction(event.target.value)} placeholder="contract.subscription.changed" autoComplete="off" spellCheck={false} />
         </label>
+        <label className="adm-select">
+          <span>Organization id (optional)</span>
+          <input
+            value={organization}
+            onChange={(event) => { setOrganization(event.target.value); setOrganizationError(null); }}
+            placeholder="Only this organization’s events"
+            aria-invalid={organizationError ? true : undefined}
+            aria-describedby={organizationError ? 'adm-audit-org-error' : undefined}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </label>
         <Action type="submit" size="sm" variant="secondary">Filter</Action>
-        {applied && <Action size="sm" variant="link" onClick={() => { setAction(''); filterByAction(''); }}>Clear “{applied}”</Action>}
+        {applied && <Action size="sm" variant="link" onClick={() => { setAction(''); applyFilters('', appliedOrganization); }}>Clear “{applied}”</Action>}
+        {appliedOrganization && <Action size="sm" variant="link" onClick={() => { setOrganization(''); applyFilters(applied, ''); }}>Clear organization filter</Action>}
       </form>
+      {organizationError && <span id="adm-audit-org-error" className="adm-muted" role="alert">{organizationError}</span>}
 
       {failure && <FailureNotice failure={failure} onRetry={list.reload} />}
       {loading && <div aria-busy="true" className="adm-skeleton"><span className="sr-only">Loading the audit log</span><Skeleton variant="panel" /></div>}
 
       {page && events.length === 0 && (
         <EmptyState icon={<ScrollText />} title="No events for this filter" dashed>
-          {applied || family ? 'Try another kind of event, or clear the filter.' : 'Nothing has been recorded at platform level yet.'}
+          {applied || appliedOrganization || family ? 'Try another kind of event, or clear the filter.' : 'Nothing has been recorded yet.'}
         </EmptyState>
       )}
 
@@ -85,6 +123,7 @@ function AuditScreen() {
                     <button type="button" aria-pressed={on} className={`adm-event${on ? ' is-on' : ''}`} onClick={() => setSelectedId(event.id)}>
                       <span className="adm-event-head">
                         <Tag tone={FAMILY_TONE[kind]} mono>{event.action}</Tag>
+                        {event.organizationId && <span className="adm-event-org"><Tag>{event.organizationSlug ?? shortId(event.organizationId)}</Tag></span>}
                         <span className="adm-muted">{formatDateTime(event.createdAt) ?? event.createdAt}</span>
                       </span>
                       <span>{item.text}</span>
@@ -107,6 +146,18 @@ function AuditScreen() {
                   </dd>
                 </div>
                 <div><dt>Target</dt><dd>{selected.targetType} · <span className="is-mono" title={selected.targetId ?? undefined}>{selected.targetId ? shortId(selected.targetId) : 'the platform'}</span></dd></div>
+                {selected.organizationId && (
+                  <div>
+                    <dt>Organization</dt>
+                    <dd>
+                      {selected.organizationSlug && <>{selected.organizationSlug} · </>}
+                      <span className="is-mono" title={selected.organizationId}>{shortId(selected.organizationId)}</span>
+                      {selected.organizationId !== appliedOrganization && (
+                        <> <Action size="sm" variant="link" onClick={() => onlyOrganization(selected.organizationId as string)}>Only this organization</Action></>
+                      )}
+                    </dd>
+                  </div>
+                )}
                 <div><dt>When</dt><dd>{formatDateTime(selected.createdAt) ?? selected.createdAt}</dd></div>
                 {view.facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
                 <div><dt>Event id</dt><dd className="is-mono">{selected.id}</dd></div>

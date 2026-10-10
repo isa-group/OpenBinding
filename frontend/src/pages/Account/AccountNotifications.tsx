@@ -14,7 +14,8 @@ import { formatDate, formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, fallbackMessage } from './accountErrors';
 import { AccountLayout, LoadFailure, PermissionNotice } from './AccountLayout';
-import { contractChange, groupOf, NOTIFICATION_FILTERS, unreadCount, type NotificationGroup } from './notificationsModel';
+import { contractChange, groupOf, NOTIFICATION_FILTERS, NOTIFICATIONS_UPDATED, unreadCount, type NotificationGroup } from './notificationsModel';
+import { SponsorRequestsForYou } from './SponsorRequestsForYou';
 import './AccountNotifications.css';
 
 const ICONS: Record<NotificationGroup, typeof Bell> = { contract: FileText, job: CircleCheck, invite: Mail, other: Bell };
@@ -29,7 +30,7 @@ const PREFERENCES: ReadonlyArray<{ key: keyof NotificationPreferences; label: st
 
 /** The header bell listens for this to refresh its count. */
 function announceChange() {
-  window.dispatchEvent(new CustomEvent('openbinding:notifications-updated'));
+  window.dispatchEvent(new CustomEvent(NOTIFICATIONS_UPDATED));
 }
 
 function Detail({ item, onMarkRead, busy }: { item: Notification; onMarkRead: () => void; busy: boolean }) {
@@ -150,6 +151,8 @@ export function AccountNotifications() {
         </Action>
       )}
     >
+      <SponsorRequestsForYou />
+
       <div className="notif-filters">
         <FilterPills options={NOTIFICATION_FILTERS} value={filter} onChange={setFilter} ariaLabel="Filter notifications" />
         <label className="acct-check">

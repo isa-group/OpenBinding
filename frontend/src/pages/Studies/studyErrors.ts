@@ -1,5 +1,6 @@
 import { QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
+import { diagnosticLines, problemField } from '../../api/problem';
 import { formatDate } from '../../utils/format';
 import { limitInfo } from '../../utils/limits';
 import { classifyAuthError, marker } from '../Account/accountErrors';
@@ -22,11 +23,36 @@ const NOTHING: Record<StudyAction, string> = {
 };
 
 function detailsOf(caught: unknown): string[] {
-  if (!(caught instanceof HttpError) || !Array.isArray(caught.diagnostics)) return [];
-  return caught.diagnostics
-    .map((row) => (typeof row === 'object' && row !== null ? ((row as Record<string, unknown>).message ?? (row as Record<string, unknown>).code) : ''))
-    .filter((line): line is string => typeof line === 'string' && line !== '')
-    .slice(0, 6);
+  return caught instanceof HttpError ? diagnosticLines(caught) : [];
+}
+
+/** What a mismatch between a cell and a job can differ in (`cell_job_mismatch.fields`), in the words of the cell. */
+const MISMATCH_FIELDS: Record<string, string> = { case_revision: 'case', engine: 'engine', mode: 'mode', seed: 'seed' };
+
+function shown(value: unknown): string {
+  if (value === null || value === undefined) return 'none';
+  return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Which of case, engine, mode and seed a job does not share with the cell it was meant for (`409 cell_job_mismatch`), with what each
+ * side has when the gateway says. `details` is read either per field (`{ seed: { cell, job } }`) or per side (`{ cell: { seed }, job: { seed } }`).
+ */
+export function mismatchedFields(caught: unknown): Array<{ field: string; label: string; cell?: string; job?: string }> {
+  const raw = problemField(caught, 'fields');
+  const names = Array.isArray(raw) ? raw.filter((name): name is string => typeof name === 'string') : [];
+  const details = problemField(caught, 'details');
+  const sides = isRecord(details) ? details : {};
+  return names.map((field) => {
+    const own = sides[field];
+    const cell = isRecord(own) && 'cell' in own ? shown(own.cell) : isRecord(sides.cell) && field in sides.cell ? shown(sides.cell[field]) : undefined;
+    const job = isRecord(own) && 'job' in own ? shown(own.job) : isRecord(sides.job) && field in sides.job ? shown(sides.job[field]) : undefined;
+    return { field, label: MISMATCH_FIELDS[field] ?? field.replace(/_/g, ' '), ...(cell !== undefined ? { cell } : {}), ...(job !== undefined ? { job } : {}) };
+  });
 }
 
 function renewal(renewsAt: string | null | undefined): string {
@@ -120,6 +146,24 @@ export function studyRefusal(caught: unknown, action: StudyAction): Refusal {
         return { ...base, kind: 'terminal', title: `This cell can’t be retried${at}`, text: `Only failed or cancelled cells can. ${nothing}` };
       case 'job_not_finished':
         return { ...base, kind: 'terminal', title: `That job hasn’t finished${at}`, text: `Attach a job that completed, failed or was cancelled. ${nothing}` };
+      case 'job_result_missing':
+        return { ...base, kind: 'terminal', title: `That job finished without a result${at}`, text: `There is nothing to attach. Pick a job that produced a result. ${nothing}` };
+      case 'job_already_attached':
+        return { ...base, kind: 'conflict', title: `That job is already the result of another cell${at}`, text: `A job stands for one cell only. Pick another job. ${nothing}` };
+      case 'cell_job_mismatch': {
+        const differing = mismatchedFields(caught);
+        const names = differing.map((item) => item.label);
+        const list = names.length ? ` It differs in the ${names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`}.` : '';
+        return {
+          ...base,
+          kind: 'conflict',
+          title: `That job isn’t a run of this cell${at}`,
+          text: `A cell takes the result of a job that ran its case revision with its engine, mode and seed.${list} Pick a job that matches. ${nothing}`,
+          details: differing.length
+            ? differing.map((item) => `${item.label[0].toUpperCase()}${item.label.slice(1)}: ${item.cell !== undefined || item.job !== undefined ? `the cell has ${item.cell ?? 'unknown'}, the job ran ${item.job ?? 'unknown'}` : 'does not match'}`)
+            : base.details,
+        };
+      }
       case 'study_history_retained':
         return { ...base, kind: 'conflict', title: `This study has runs${at}`, text: `Runs are history, so it can’t be deleted; it can be archived. ${nothing}` };
       default:

@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Notification, NotificationPreferences, UserProfile } from '../../api/auth';
+import { PricingUnavailableError, QuotaError } from '../../api/auth';
+import type { Notification, NotificationPreferences, SponsorProposal, UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { AuthContext } from '../../contexts/auth';
 import { AccountNotifications } from './AccountNotifications';
@@ -12,6 +13,9 @@ const api = vi.hoisted(() => ({
   updateNotificationPreferences: vi.fn(),
   markNotificationRead: vi.fn(),
   markAllNotificationsRead: vi.fn(),
+  listMySponsorProposals: vi.fn(),
+  acceptSponsorProposal: vi.fn(),
+  declineSponsorProposal: vi.fn(),
 }));
 
 vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: api }));
@@ -57,6 +61,8 @@ describe('Notifications', () => {
     api.updateNotificationPreferences.mockImplementation(async (value: NotificationPreferences) => value);
     api.markNotificationRead.mockResolvedValue({ ...contract, read_at: '2026-10-09T12:00:00Z' });
     api.markAllNotificationsRead.mockResolvedValue([]);
+    api.listMySponsorProposals.mockReset();
+    api.listMySponsorProposals.mockResolvedValue([]);
   });
 
   it('lists the notices, says how many are unread and marks them', async () => {
@@ -140,6 +146,104 @@ describe('Notifications', () => {
     renderNotifications();
     fireEvent.click(await row('Job completed'));
     expect(screen.getByRole('link', { name: 'Open job history' })).toHaveAttribute('href', '/app/jobs');
+  });
+
+  describe('sponsor requests for you', () => {
+    const request = (over: Partial<SponsorProposal> = {}): SponsorProposal => ({
+      id: 'prop-1', organization_id: 'org-1', organization_slug: 'isa-demo', organization_name: 'ISA Demo Group',
+      proposed_user_id: 'user-id', proposed_username: 'lucia', proposed_by_user_id: 'user-nora', proposed_by_username: 'nora',
+      status: 'pending', created_at: '2026-10-08T09:00:00Z', expires_at: '2099-12-31T09:00:00Z',
+      decided_at: null, decided_by_user_id: null, decision_reason: null,
+      ...over,
+    });
+    const block = () => screen.findByRole('region', { name: 'Sponsor requests for you' });
+
+    it('shows nothing at all when no one asks', async () => {
+      renderNotifications();
+      await row('Job completed');
+      expect(screen.queryByRole('region', { name: 'Sponsor requests for you' })).not.toBeInTheDocument();
+      expect(api.listMySponsorProposals).toHaveBeenCalledWith('pending');
+    });
+
+    it('lists who asks for what, with Accept and Decline', async () => {
+      api.listMySponsorProposals.mockResolvedValue([request()]);
+      renderNotifications();
+
+      const section = within(await block());
+      expect(section.getByRole('heading', { name: 'Sponsor requests for you' })).toBeInTheDocument();
+      expect(section.getByText('ISA Demo Group')).toBeInTheDocument();
+      expect(section.getByText(/nora asks you to sponsor it and everything under it/)).toBeInTheDocument();
+      expect(section.getByText(/Expires Dec 31, 2099/)).toBeInTheDocument();
+      expect(section.getByRole('button', { name: 'Accept sponsoring ISA Demo Group' })).toBeInTheDocument();
+      expect(section.getByRole('button', { name: 'Decline sponsoring ISA Demo Group' })).toBeInTheDocument();
+    });
+
+    it('explains whose quota and plan are used before accepting, and accepts only on confirmation', async () => {
+      api.listMySponsorProposals.mockResolvedValueOnce([request()]).mockResolvedValue([]);
+      api.acceptSponsorProposal.mockResolvedValue(request({ status: 'accepted' }));
+      const heard = vi.fn();
+      window.addEventListener('openbinding:notifications-updated', heard);
+      renderNotifications();
+
+      fireEvent.click(within(await block()).getByRole('button', { name: 'Accept sponsoring ISA Demo Group' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Sponsor ISA Demo Group?' });
+      expect(dialog).toHaveTextContent('passes to your quota and is limited by your plan (RESEARCH)');
+      expect(dialog).toHaveTextContent('If they don’t fit, nothing changes and the request stays open');
+      expect(api.acceptSponsorProposal).not.toHaveBeenCalled();
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Accept and sponsor' }));
+      await waitFor(() => expect(api.acceptSponsorProposal).toHaveBeenCalledWith('prop-1'));
+      expect(await screen.findByText('You are now the sponsor of ISA Demo Group. Its consumption counts against your plan.')).toBeInTheDocument();
+      expect(heard).toHaveBeenCalled();
+      window.removeEventListener('openbinding:notifications-updated', heard);
+    });
+
+    it('declines on confirmation and says nothing changes', async () => {
+      api.listMySponsorProposals.mockResolvedValueOnce([request()]).mockResolvedValue([]);
+      api.declineSponsorProposal.mockResolvedValue(request({ status: 'declined' }));
+      renderNotifications();
+
+      fireEvent.click(within(await block()).getByRole('button', { name: 'Decline sponsoring ISA Demo Group' }));
+      const dialog = await screen.findByRole('dialog', { name: 'Decline sponsoring ISA Demo Group?' });
+      expect(dialog).toHaveTextContent('Nothing changes: ISA Demo Group keeps its current sponsor');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Decline request' }));
+
+      await waitFor(() => expect(api.declineSponsorProposal).toHaveBeenCalledWith('prop-1'));
+      expect(await screen.findByText('You declined to sponsor ISA Demo Group.')).toBeInTheDocument();
+    });
+
+    it.each([
+      ['402 over the plan', new QuotaError('sponsor_quota_exceeded', 'full', { limit_id: 'members', limit: 15, used: 18 }),
+        'Your plan can’t take this organization and everything under it (402 · sponsor_quota_exceeded). members: 18 of 15 used. The request is still waiting'],
+      ['503 pricing', new PricingUnavailableError('down'), 'Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed; the request is still waiting. Try again in a moment.'],
+      ['409 expired', Object.assign(new HttpError(409, 'expired'), { code: 'sponsor_proposal_expired' }), 'This request expired (409 · sponsor_proposal_expired).'],
+      ['409 answered already', Object.assign(new HttpError(409, 'no'), { code: 'sponsor_proposal_not_pending', problem: { detail: { status: 'cancelled' } } }), 'This request was already cancelled (409 · sponsor_proposal_not_pending).'],
+    ])('keeps the dialog open and says why when accepting fails: %s', async (_name, error, text) => {
+      api.listMySponsorProposals.mockResolvedValue([request()]);
+      api.acceptSponsorProposal.mockRejectedValue(error);
+      renderNotifications();
+
+      fireEvent.click(within(await block()).getByRole('button', { name: 'Accept sponsoring ISA Demo Group' }));
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Accept and sponsor' }));
+
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(text);
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('offers to try again after a pricing outage', async () => {
+      api.listMySponsorProposals.mockResolvedValue([request()]);
+      api.acceptSponsorProposal.mockRejectedValueOnce(new PricingUnavailableError('down')).mockResolvedValueOnce(request({ status: 'accepted' }));
+      renderNotifications();
+
+      fireEvent.click(within(await block()).getByRole('button', { name: 'Accept sponsoring ISA Demo Group' }));
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Accept and sponsor' }));
+      fireEvent.click(await within(dialog).findByRole('button', { name: 'Try again' }));
+
+      await waitFor(() => expect(api.acceptSponsorProposal).toHaveBeenCalledTimes(2));
+      expect(await screen.findByText(/You are now the sponsor of ISA Demo Group/)).toBeInTheDocument();
+    });
   });
 
   it('says when it is all caught up and when a filter hides everything', async () => {

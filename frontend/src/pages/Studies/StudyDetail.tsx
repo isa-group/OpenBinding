@@ -89,7 +89,11 @@ function RunsCard({ scope, runs }: { scope: StudyScopeValue; runs: Resource<Runs
         </Notice>
       )}
       {data && data.runs.length === 0 && (
-        <p className="org-muted">No runs yet. Running uses 1 study run from your month and up to {plural(definitionSize(study.definition).cells, 'solve')}.</p>
+        <p className="org-muted">
+          {scope.access.publicRead
+            ? 'No runs yet.'
+            : <>No runs yet. Running uses 1 study run from your month and up to {plural(definitionSize(study.definition).cells, 'solve')}.</>}
+        </p>
       )}
       {data && data.runs.length > 0 && (
         <ul className="st-runs">
@@ -152,7 +156,11 @@ function DetailBody({ scope }: { scope: StudyScopeValue }) {
     const entries = await Promise.all(newest.slice(0, RUNS_WITH_BARS).map(async (run) => [run.id, await platformApi.studyCells(org, slug, study.slug, run.id).catch(() => undefined)] as const));
     return { runs: newest, cells: Object.fromEntries(entries.filter((entry): entry is readonly [string, StudyCell[]] => entry[1] !== undefined)) };
   });
-  const versions = useResource<ArtifactVersion[] | null>(`study-versions:${study.definition_artifact_id}`, () => libraryApi.versions(study.definition_artifact_id).catch(() => null));
+  // The definition lives in the organization’s library, which a visitor of a public project doesn’t read.
+  const versions = useResource<ArtifactVersion[] | null>(
+    `study-versions:${study.definition_artifact_id}:${access.publicRead ? 'public' : 'member'}`,
+    () => (access.publicRead ? Promise.resolve(null) : libraryApi.versions(study.definition_artifact_id).catch(() => null)),
+  );
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [busy, setBusy] = useState<'run' | 'archive' | 'version' | 'delete' | null>(null);
   const [editing, setEditing] = useState(false);
@@ -249,13 +257,19 @@ function DetailBody({ scope }: { scope: StudyScopeValue }) {
       {study.archived && (
         <Notice tone="info">Archived studies keep their runs and results but can’t start new runs until restored.</Notice>
       )}
-      {!access.canCreate && <p className="org-muted">You can read this study. Running, archiving and editing it need MEMBER in {organization.name}.</p>}
+      {!access.canCreate && (
+        <p className="org-muted">
+          {access.publicRead
+            ? 'You can read this study and its runs. Only members of the organization run, archive or edit it.'
+            : `You can read this study. Running, archiving and editing it need MEMBER in ${organization.name}.`}
+        </p>
+      )}
 
       <DefinitionMatrix study={study} org={org} project={slug} />
 
       <div className="st-two">
         <RunsCard scope={scope} runs={runs} />
-        <VersionsCard scope={scope} versions={versions} onPick={(id) => void pickVersion(id)} busy={busy === 'version'} />
+        {!access.publicRead && <VersionsCard scope={scope} versions={versions} onPick={(id) => void pickVersion(id)} busy={busy === 'version'} />}
       </div>
 
       <details className="st-source">

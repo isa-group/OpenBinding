@@ -42,6 +42,15 @@ describe('Project settings', () => {
     api.getOwnUsage.mockResolvedValue(usageWithProjects());
   });
 
+  it('is for members: a visitor of a public project gets the neutral gate, with nothing of the settings', async () => {
+    platform.project.mockResolvedValue({ ...qos, visibility: 'public', organization_id: 'org-open', created_by_id: null, access: 'public_read', effective_role: null });
+    renderSettings('open-lab');
+
+    expect(await screen.findByRole('heading', { name: 'Members only' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Delete project/ })).not.toBeInTheDocument();
+  });
+
   it('frames the page with the breadcrumb, the project tabs, the role and the fixed address', async () => {
     renderSettings();
 

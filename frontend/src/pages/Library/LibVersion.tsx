@@ -98,7 +98,7 @@ function VersionBody({ organization, item, version: fetched, versions }: {
 }) {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
-  const access: ProjectAccess = organization ? accessIn(organization, isAdmin) : { role: null, canCreate: false, canAdminister: false };
+  const access: ProjectAccess = organization ? accessIn(organization, isAdmin) : accessIn({ effective_role: null });
   const slug = organization?.slug ?? '';
   const member = Boolean(organization);
   const own = Boolean(organization) && item.organization_id === organization?.id;

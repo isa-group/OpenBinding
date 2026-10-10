@@ -101,6 +101,7 @@ async function openProjectFiles(page: Page) {
   const project = {
     id: 'project-1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '',
     visibility: 'private', created_by_id: 'resp-user-id', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
+    access: 'member', effective_role: 'OWNER',
   };
   const account = { id: 'resp-user-id', username: 'lucia', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'BASIC', created_at: '2026-09-01T00:00:00Z' };
   await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 'responsive-token'));

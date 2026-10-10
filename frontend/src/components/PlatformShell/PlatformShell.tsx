@@ -1,7 +1,8 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { platformApi } from '../../api/platform';
-import type { Organization, Project } from '../../api/platform';
+import type { Organization, Project, ProjectAccessKind } from '../../api/platform';
+import { PlanChangedNotice } from '../PlanChangedNotice/PlanChangedNotice';
 import { SiteFooter } from '../SiteFooter/SiteFooter';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { AppHeader } from './AppHeader';
@@ -14,6 +15,11 @@ export interface PlatformOutletContext {
   projects: Project[];
   organization?: Organization;
   project?: Project;
+  /**
+   * How the account reaches `project`: `member`, or `public_read` for a visitor of a public project. Unset when the shell
+   * doesn't know (the address names a project of an organization the account isn't in: the project screens ask the gateway).
+   */
+  access?: ProjectAccessKind;
   loading: boolean;
   reload: () => Promise<void>;
 }
@@ -60,9 +66,11 @@ export function PlatformShell() {
     [projects, organization],
   );
   const project = orgProjects.find((item) => item.slug === projectSlug) ?? orgProjects[0];
+  // The projects of the account's own organizations are all reached as a member; an address outside them says nothing here.
+  const access: ProjectAccessKind | undefined = project && (!org || organizations.some((item) => item.slug === org)) ? project.access ?? 'member' : undefined;
   const context = useMemo<PlatformOutletContext>(() => ({
-    organizations, projects: orgProjects, organization, project, loading, reload: load,
-  }), [organizations, orgProjects, organization, project, loading, load]);
+    organizations, projects: orgProjects, organization, project, access, loading, reload: load,
+  }), [organizations, orgProjects, organization, project, access, loading, load]);
 
   return (
     <div className="platform-shell">
@@ -70,6 +78,8 @@ export function PlatformShell() {
       <AppHeader organizations={organizations} projects={orgProjects} organization={organization} project={project} />
       <main id="platform-main" className="platform-main" tabIndex={-1}>
         {error && <div className="platform-error" role="alert">{error}</div>}
+        {/* A plan changed by signing in is told once, wherever the person lands; Identities tells it itself, where they link. */}
+        {location.pathname !== '/app/account/identities' && <PlanChangedNotice className="platform-plan-notice" />}
         <ErrorBoundary resetKey={location.pathname}>
           <Suspense fallback={<RouteFallback />}>
             <Outlet context={context} key={location.pathname} />

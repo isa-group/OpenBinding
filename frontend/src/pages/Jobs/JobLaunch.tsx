@@ -17,7 +17,8 @@ import { useResource } from '../../utils/useResource';
 import { randomUUID } from '../../utils/uuid';
 import { classifyAuthError } from '../Account/accountErrors';
 import { loadCases } from '../Project/projectData';
-import { ProjectGate, ProjectSkeleton } from '../Project/parts';
+import { canOpenSection } from '../Project/accessLevel';
+import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts';
 import type { CaseContent } from '../Project/projectModel';
 import { useRouteProject } from '../Project/useRouteProject';
 import { refusalOf, type Refusal } from './jobErrors';
@@ -310,5 +311,6 @@ export function JobLaunch() {
   if (!organization || !project) {
     return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
   }
+  if (!canOpenSection(access.level, 'jobs')) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
   return <LaunchBody key={`${organization.slug}/${project.slug}`} organization={organization} project={project} canLaunch={access.canCreate} role={access.role} />;
 }

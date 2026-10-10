@@ -1,4 +1,5 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
+import { failureBody } from './helpers/problems';
 import type { Job, Study, StudyCell, StudyRun } from '../src/api/platform';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { jobOf } from '../src/test/fixtures/jobs';
@@ -18,7 +19,7 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 
 type Handler = (route: Route) => Promise<void> | void;
 const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json({ detail: { code, error, ...extra } }, status);
+const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
 const unavailable: Handler = json({ detail: 'The service is not reachable.' }, 503);
 
 const token = (expiresInSeconds: number) => [
@@ -41,6 +42,8 @@ const org = (id: string, slug: string, name: string, role: Role, sponsor = 'user
 const project = (n: number, orgId: string, slug: string, name: string) => ({
   id: `project-${n}`, organization_id: orgId, slug, name, description: '', visibility: 'private', created_by_id: 'user-1',
   created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
+  // The contract's `ProjectView.access`: these specs reach every project as a member.
+  access: 'member' as const, effective_role: 'OWNER' as Role,
 });
 
 const projectsOf: Record<string, ReturnType<typeof project>[]> = {
@@ -989,3 +992,35 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
     });
   });
 }
+
+test.describe('desktop · S7a study-cell, a job that is not a run of the cell', () => {
+  test.describe.configure({ mode: 'default' });
+  test.use({ viewport: viewports[0].viewport, isMobile: false, deviceScaleFactor: 1 });
+
+  test('study-cell /app/:org/:project/studies/:study/runs/:run/cells/:cell · attaching a job that differs from the cell (409 cell_job_mismatch)', async ({ page }, testInfo) => {
+    const critical = watchCriticalErrors(page);
+    const state = await mockApi(page);
+    const main = page.locator('#platform-main');
+
+    await page.goto(cellPath(5));
+    await main.getByRole('button', { name: 'Use an existing job’s result' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Use an existing job’s result' });
+    await dialog.getByRole('radiogroup', { name: 'Finished jobs' }).getByRole('radio', { name: /random-search · completed/ }).check();
+    state.refuse.attach = detail(409, 'cell_job_mismatch', 'The job did not run this cell.', {
+      fields: ['engine', 'seed'],
+      details: { engine: { cell: 'evolutionary', job: 'random-search' }, seed: { cell: 2, job: 9 } },
+    });
+    await dialog.getByRole('button', { name: 'Attach this result' }).click();
+    await expect(dialog.getByText('That job isn’t a run of this cell (409 · cell_job_mismatch)')).toBeVisible();
+    await expect(dialog.getByText(/It differs in the engine and seed\./)).toBeVisible();
+    await expect(dialog.getByText('Engine: the cell has evolutionary, the job ran random-search')).toBeVisible();
+    await expect(dialog.getByText('Seed: the cell has 2, the job ran 9')).toBeVisible();
+    await capture(page, testInfo, 'cell-desktop-attach-409-mismatch');
+
+    // The dialog stays open, and the same choice goes through once the gateway accepts it.
+    state.refuse.attach = undefined;
+    await dialog.getByRole('button', { name: 'Attach this result' }).click();
+    await expect(main.getByText('Result attached. It now counts as this cell’s result.')).toBeVisible();
+    expect(critical).toEqual([]);
+  });
+});

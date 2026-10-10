@@ -42,7 +42,8 @@ describe('admin-users · accounts', () => {
     const alex = row('alex.rivera');
     expect(within(alex).getByText('you')).toBeInTheDocument();
     expect(within(alex).getByText('Admin')).toBeInTheDocument();
-    expect(within(row('maria.santos')).getByText('✓ CAS')).toBeInTheDocument();
+    expect(within(row('maria.santos')).getByText('Institutional identity verified')).toBeInTheDocument();
+    expect(within(row('sam.okafor')).queryByText('Institutional identity verified')).not.toBeInTheDocument();
     expect(screen.getByText('Showing 1–6 of 6 accounts')).toBeInTheDocument();
   });
 
@@ -111,7 +112,8 @@ describe('admin-users · accounts', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Deactivate sam.okafor' }));
     const dialog = screen.getByRole('dialog', { name: 'Deactivate sam.okafor?' });
     expect(api.adminUpdateUser).not.toHaveBeenCalled();
-    expect(within(dialog).getByText(/The gateway doesn’t write this change to the audit log/)).toBeInTheDocument();
+    expect(within(dialog).getByText('The change is recorded in the audit log with your name.')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/doesn’t write/)).not.toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Deactivate' }));
     expect(await screen.findByText('sam.okafor was deactivated.')).toBeInTheDocument();
     expect(api.adminUpdateUser).toHaveBeenCalledWith(SAM.id, { is_active: false });

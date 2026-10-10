@@ -120,8 +120,21 @@ describe('pricingModel · what the gateway says', () => {
   });
 
   it('reads a 422 as a refusal with the reasons it lists', () => {
-    expect(readValidation({ detail: [{ loc: ['body', 'yaml'], msg: 'Field required' }] })).toMatchObject({ valid: false, refused: true, errors: ['Field required'] });
+    expect(readValidation({ code: 'validation_error', detail: 'Request validation failed: /yaml: Field required', diagnostics: [{ code: 'missing', message: 'Field required', pointer: '/yaml' }] }))
+      .toMatchObject({ valid: false, refused: true, errors: ['Field required'] });
+    expect(readValidation({ code: 'json_invalid', detail: 'The body is not JSON' })).toMatchObject({ valid: false, refused: true, errors: ['The body is not JSON'] });
     expect(readValidation(undefined)).toMatchObject({ valid: false, refused: true });
+  });
+
+  it('reads the 422 of an invalid document as the verdict it carries beside its diagnostics', () => {
+    const body = {
+      type: 't', title: 'invalid_pricing', status: 422, code: 'invalid_pricing', detail: 'The pricing document is invalid',
+      valid: false, version: '0.2.0-draft.1', digest: 'sha256-x', syntax_version: '3.0', plans: ['BASIC'], add_ons: [],
+      errors: ['plans.PRO: unknown limit'], warnings: [],
+      diagnostics: [{ code: 'invalid_field', message: 'plans.PRO: unknown limit', pointer: '/plans/PRO/usageLimits/x' }],
+    };
+    expect(readValidation(body)).toMatchObject({ valid: false, refused: false, errors: ['plans.PRO: unknown limit'], plans: ['BASIC'], version: '0.2.0-draft.1' });
+    expect(readValidation({ ...body, errors: [] })).toMatchObject({ valid: false, refused: false, errors: ['plans.PRO: unknown limit'] });
   });
 
   it('words the failures of pricing administration', () => {

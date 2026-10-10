@@ -10,7 +10,7 @@ import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { shortDigest } from '../../utils/digest';
 import { useResource } from '../../utils/useResource';
-import { ProjectGate, ProjectSkeleton } from '../Project/parts';
+import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts';
 import { planLimit } from '../Project/projectModel';
 import { classifyAuthError, composeRefusal, isMissing, marker, resolveRefusal, type Issue } from './caseErrors';
 import {
@@ -493,6 +493,8 @@ export function CaseComposer() {
     return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
   }
   const root = `/app/${organization.slug}/${project.slug}`;
+  // Composing writes, and reads the organization’s library: both are for members.
+  if (access.publicRead) return <MembersOnlyGate root={root} />;
   const trail = [{ label: 'Cases', to: `${root}/cases` }, { label: caseSlug, to: `${root}/cases/${caseSlug}` }, { label: 'New revision' }];
   if (content.status === 'loading' && !loaded) {
     return (

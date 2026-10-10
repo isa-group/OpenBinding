@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
+import { failureBody, validationBody } from './helpers/problems';
 import JSZip from 'jszip';
 import type {
   BindingCase, CaseRevision, Collection, CollectionItem, CollectionRevision, ProjectResource, ProjectResourceRevision, StoredBlob,
@@ -21,12 +22,12 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 
 type Handler = (route: Route) => Promise<void> | void;
 const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json({ detail: { code, error, ...extra } }, status);
+const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
 const noContent: Handler = (route) => route.fulfill({ status: 204 });
 /** A service that does not answer: a 503 with no machine code, as a proxy in front of the gateway would send it. */
 const unavailable: Handler = json({ detail: 'The service is not reachable.' }, 503);
 /** What FastAPI answers to a body that fails validation: a list, with no machine code. */
-const invalid = (message: string): Handler => json({ detail: [{ loc: ['body'], msg: message, type: 'value_error' }] }, 422);
+const invalid = (message: string): Handler => json(validationBody(message, [{ code: 'value_error', message }]), 422);
 
 const token = (expiresInSeconds: number) => [
   'header',
@@ -54,6 +55,8 @@ const organizations = [
 const project = (n: number, orgId: string, slug: string, name: string) => ({
   id: `project-${n}`, organization_id: orgId, slug, name, description: '', visibility: 'private', created_by_id: 'user-1',
   created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
+  // The contract's `ProjectView.access`: these specs reach every project as a member.
+  access: 'member' as const, effective_role: 'OWNER' as Role,
 });
 
 const projectsOf: Record<string, ReturnType<typeof project>[]> = {
@@ -560,7 +563,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       state.refuse.createResource = invalid('String should match pattern');
       await dialog.getByRole('button', { name: 'Create' }).click();
-      await expect(dialog.getByRole('alert')).toContainText('Use lowercase letters, numbers and hyphens for the address (422)');
+      await expect(dialog.getByRole('alert')).toContainText('Use lowercase letters, numbers and hyphens for the address (422 · validation_error)');
       await capture(page, testInfo, `resources-${name}-dialog-422`);
 
       // A kind the library owns is sent to the library instead of creating a resource that would never be listed.
@@ -673,7 +676,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await form.getByLabel('title', { exact: true }).fill('Latency probes v2');
       state.refuse.saveResourceRevision = invalid('Document is not valid');
       await form.getByRole('button', { name: 'Save revision' }).click();
-      await expect(form.getByRole('alert')).toContainText('The gateway refused this content (422)');
+      await expect(form.getByRole('alert')).toContainText('The gateway refused this content (422 · validation_error)');
       await capture(page, testInfo, `resource-${name}-422`);
       state.refuse.saveResourceRevision = undefined;
       const posted = request(page, 'POST', `${API_ROOT}/resources/weights/revisions`);
@@ -878,7 +881,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The gateway’s 422s keep the list: a repeated item, then a fingerprint that is no longer valid.
       state.refuse.saveCollectionRevision = invalid('Value error, a collection revision cannot repeat a target');
       await main.getByRole('button', { name: 'Save as revision 3' }).click();
-      await expect(main.getByRole('alert')).toContainText('An item appears twice (422)');
+      await expect(main.getByRole('alert')).toContainText('An item appears twice (422 · validation_error)');
       await capture(page, testInfo, `collection-${name}-422-duplicate`);
       state.refuse.saveCollectionRevision = detail(422, 'collection_target_mismatch', 'The collection target must belong to this project and match its pinned digest.');
       await main.getByRole('button', { name: 'Save as revision 3' }).click();

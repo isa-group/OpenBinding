@@ -272,7 +272,11 @@ export function labRefusal(caught: unknown, doing: string, action: LabAction = '
     const where = marker(caught.status, caught.code);
     switch (caught.status) {
       case 401: return { kind: 'session', text: action === 'keep' ? `Saving to a project needs an account${where}.` : `Your session has ended${where}. Log in again to continue.` };
-      case 403: return { kind: 'forbidden', text: action === 'keep' ? `You can generate, but you don’t have permission to add to that project${where}.` : `Your account can’t do this${where}, so ${doing}.` };
+      case 403:
+        // Calibrating retunes the model every account shares, so the gateway asks for a platform administrator (and a key that may administer).
+        if (caught.code === 'platform_admin_required') return { kind: 'forbidden', text: `Only platform administrators can calibrate an engine${where}. The model is shared by everyone, so ${doing}.` };
+        if (caught.code === 'insufficient_api_key_permission') return { kind: 'forbidden', text: `This API key can’t calibrate an engine${where}: it needs the admin:accounts:write permission. ${doing[0].toUpperCase()}${doing.slice(1)}.` };
+        return { kind: 'forbidden', text: action === 'keep' ? `You can generate, but you don’t have permission to add to that project${where}.` : `Your account can’t do this${where}, so ${doing}.` };
       case 404: return { kind: 'missing', text: action === 'keep' ? `That project no longer exists or you lost access${where}.` : `That wasn’t found${where}, so ${doing}.` };
       case 422: {
         const fields: FieldErrors = {};
@@ -281,7 +285,9 @@ export function labRefusal(caught: unknown, doing: string, action: LabAction = '
           if (key && message) fields[key] = message;
         }
         const words = REJECTED[action === 'keep' ? 'settings' : action];
-        return { kind: 'config', fields, text: `${words.subject}${caught.code ? where : ` (422 · ${words.code})`}: ${words.verdict}.` };
+        // `validation_error` is every malformed request; a more specific code is worth showing.
+        const specific = caught.code && caught.code !== 'validation_error';
+        return { kind: 'config', fields, text: `${words.subject}${specific ? where : ` (422 · ${words.code})`}: ${words.verdict}.` };
       }
       case 429: return { kind: 'busy', text: `Too many requests${where}. Wait a moment and try again.` };
       default:

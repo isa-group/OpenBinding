@@ -11,6 +11,10 @@ import type {
   AdminOverview,
   AdminQueueStatus,
   AdminSponsorTransferResult,
+  CasSession,
+  PlanChange,
+  SponsorProposal,
+  SponsorProposalStatus,
   CreateApiKeyRequest,
   CreatedApiKey,
   ContractChangeReason,
@@ -574,7 +578,10 @@ export class ApiClient {
     const problemObject = isRecord(problem) ? problem : undefined;
     const rawDetail = problemObject?.detail;
     const detail = isRecord(rawDetail) ? rawDetail : undefined;
+    // The canonical `code` sits at the top of every coded failure (and a 422 has nothing else); the old
+    // `detail.code` and the BIM routes' `title` (always equal to `code`) are what older bodies carry.
     const code =
+      (typeof problemObject?.code === 'string' ? problemObject.code : undefined) ??
       (typeof detail?.code === 'string' ? detail.code : undefined) ??
       (typeof problemObject?.title === 'string' ? problemObject.title : undefined);
     const message =
@@ -610,7 +617,7 @@ export class ApiClient {
       return new PricingUnavailableError(message);
     }
     const error = new HttpError(response.status, message);
-    error.code = typeof problemObject?.title === 'string' ? problemObject.title : code;
+    error.code = code;
     error.problem = problem;
     error.diagnostics = Array.isArray(problemObject?.diagnostics)
       ? problemObject.diagnostics
@@ -853,7 +860,8 @@ export class ApiClient {
       valid: false,
       refusal: {
         status: typeof body?.status === 'number' ? body.status : 422,
-        code: (typeof body?.title === 'string' ? body.title : undefined)
+        code: (typeof body?.code === 'string' ? body.code : undefined)
+          ?? (typeof body?.title === 'string' ? body.title : undefined)
           ?? (typeof detailRecord?.code === 'string' ? detailRecord.code : undefined) ?? 'invalid_request',
         message: (typeof detail === 'string' ? detail : undefined)
           ?? (typeof detailRecord?.message === 'string' ? detailRecord.message : undefined)
@@ -1056,11 +1064,17 @@ export class ApiClient {
     return response.url;
   }
 
-  async exchangeCasCode(code: string): Promise<void> {
-    const tokens = await this.request<TokenPair>('/v1/auth/cas/exchange', {
+  /**
+   * Trade the one-time code of the CAS redirect for a session. Answers the plan change that signing in caused (linking CAS raises
+   * BASIC to RESEARCH, at no extra cost), or `null` when the plan did not change.
+   */
+  async exchangeCasCode(code: string): Promise<PlanChange | null> {
+    const session = await this.request<CasSession>('/v1/auth/cas/exchange', {
       method: 'POST', body: JSON.stringify({ code }),
     }, undefined, false, true);
-    this.setTokens(tokens);
+    this.setTokens(session);
+    const change = session.plan_changed;
+    return change && typeof change.to === 'string' ? change : null;
   }
 
   async listOwnIdentities(): Promise<ExternalIdentity[]> {
@@ -1253,13 +1267,17 @@ export class ApiClient {
   }
 
   /**
-   * The platform audit log (events that belong to no organization), newest first. `action` is an exact action name;
+   * The platform audit log, newest first: platform events and the events recorded inside an organization (`organizationId`,
+   * `organizationSlug`). `action` is an exact action name and `organizationId` keeps one organization's events;
    * the gateway's page is 100 events unless `limit` (at most 500) says otherwise.
    */
-  async adminAudit(filter?: string | { action?: string; offset?: number; limit?: number }): Promise<AdminAuditPage> {
-    const { action, offset, limit } = typeof filter === 'string' ? { action: filter, offset: undefined, limit: undefined } : filter ?? {};
+  async adminAudit(filter?: string | { action?: string; organizationId?: string; offset?: number; limit?: number }): Promise<AdminAuditPage> {
+    const { action, organizationId, offset, limit } = typeof filter === 'string'
+      ? { action: filter, organizationId: undefined, offset: undefined, limit: undefined }
+      : filter ?? {};
     const query = new URLSearchParams();
     if (action) query.set('action', action);
+    if (organizationId) query.set('organization_id', organizationId);
     if (offset) query.set('offset', String(offset));
     if (limit) query.set('limit', String(limit));
     const suffix = query.toString() ? `?${query}` : '';
@@ -1276,15 +1294,55 @@ export class ApiClient {
   }
 
   /**
-   * Move the billing sponsorship of an organization and its whole subtree to another active account.
-   * 404 unknown organization, 422 `invalid_sponsor` (not active), 402 `sponsor_quota_exceeded` (the new sponsor's
-   * limits would be passed; a {@link QuotaError} naming the first dimension), 503 when limits can't be read.
+   * Name the billing sponsor of an organization and its whole subtree. Nobody can make another person pay: naming somebody else
+   * answers 202 with a pending {@link SponsorProposal} and the sponsor does not change until that person accepts; naming the
+   * administrator themselves changes it at once (200, the organization).
+   * 404 unknown organization, 422 `invalid_sponsor` (not active), 409 `sponsor_proposal_pending` (with `proposal_id`; the
+   * proposer may send `replacePending`) or `already_sponsor`, 402 `sponsor_quota_exceeded` (naming oneself: a {@link QuotaError}
+   * naming the first dimension), 503 when limits can't be read.
    */
-  async adminTransferSponsor(organizationId: string, sponsorUserId: string): Promise<AdminSponsorTransferResult> {
-    return this.request<AdminSponsorTransferResult>(`/v1/admin/organizations/${encodeURIComponent(organizationId)}/sponsor`, {
+  async adminTransferSponsor(organizationId: string, sponsorUserId: string, replacePending = false): Promise<AdminSponsorTransferResult | SponsorProposal> {
+    return this.request<AdminSponsorTransferResult | SponsorProposal>(`/v1/admin/organizations/${encodeURIComponent(organizationId)}/sponsor`, {
       method: 'POST',
-      body: JSON.stringify({ billing_sponsor_user_id: sponsorUserId }),
+      body: JSON.stringify({ billing_sponsor_user_id: sponsorUserId, ...(replacePending ? { replace_pending_proposal: true } : {}) }),
     }, undefined, true, true);
+  }
+
+  // -- Sponsor requests ------------------------------------------------
+
+  /** The requests addressed to me (`GET /v1/users/me/sponsor-proposals`), newest first as the gateway sends them. */
+  async listMySponsorProposals(status?: SponsorProposalStatus): Promise<SponsorProposal[]> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    return this.request<SponsorProposal[]>(`/v1/users/me/sponsor-proposals${query}`);
+  }
+
+  /** The requests made for one organization. OWNER or ADMIN of it (and platform administrators); 404 for a non-member, 403 below ADMIN. */
+  async listOrganizationSponsorProposals(organization: string, status?: SponsorProposalStatus): Promise<SponsorProposal[]> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    return this.request<SponsorProposal[]>(`/v1/organizations/${encodeURIComponent(organization)}/sponsor-proposals${query}`);
+  }
+
+  private async answerSponsorProposal(id: string, answer: 'accept' | 'decline' | 'cancel'): Promise<SponsorProposal> {
+    return this.request<SponsorProposal>(`/v1/sponsor-proposals/${encodeURIComponent(id)}/${answer}`, { method: 'POST' }, undefined, true, true);
+  }
+
+  /**
+   * Accept being the sponsor (only the person it names). The consumption of the organization and its subtree moves to their plan.
+   * 402 `sponsor_quota_exceeded` and 503 `pricing_unavailable` leave the request pending, so it can be tried again.
+   * 409 `sponsor_proposal_expired` or `sponsor_proposal_not_pending`.
+   */
+  async acceptSponsorProposal(id: string): Promise<SponsorProposal> {
+    return this.answerSponsorProposal(id, 'accept');
+  }
+
+  /** Decline being the sponsor (only the person it names). */
+  async declineSponsorProposal(id: string): Promise<SponsorProposal> {
+    return this.answerSponsorProposal(id, 'decline');
+  }
+
+  /** Withdraw a request: its proposer, an OWNER of the organization or a platform administrator. An ADMIN of the organization gets 403. */
+  async cancelSponsorProposal(id: string): Promise<SponsorProposal> {
+    return this.answerSponsorProposal(id, 'cancel');
   }
 
   async adminMaintenancePreview(retentionDays = 365): Promise<MaintenancePreview> {

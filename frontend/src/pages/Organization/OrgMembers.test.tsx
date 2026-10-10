@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import type { OrganizationMember } from '../../api/platform';
-import { member, org, renderScreen, researchUsage } from './testKit';
+import { iker, member, org, renderScreen, researchUsage } from './testKit';
 import { OrgMembers } from './OrgMembers';
 
 const api = vi.hoisted(() => ({ getOwnUsage: vi.fn() }));
@@ -225,13 +225,106 @@ describe('Members', () => {
     expect(screen.queryByText('To confirm')).not.toBeInTheDocument();
   });
 
-  it('leaves the OWNER grant unrestricted for an ADMIN, without an internal note about it', async () => {
-    renderMembers([{ ...group, effective_role: 'ADMIN' }]);
+  describe('the OWNER role is for owners', () => {
+    it('disables the OWNER option for an ADMIN, with the reason one screen-reader announcement away', async () => {
+      renderMembers([{ ...group, effective_role: 'ADMIN' }]);
 
-    expect(await screen.findByLabelText('Role for marco')).toBeInTheDocument();
-    expect(screen.queryByText('To confirm')).not.toBeInTheDocument();
-    expect(screen.queryByText(/open question/)).not.toBeInTheDocument();
-    expect(within(roleSelect('marco')).getByRole('option', { name: 'OWNER' })).toBeInTheDocument();
+      expect(await screen.findByLabelText('Role for marco')).toBeInTheDocument();
+      expect(screen.queryByText('To confirm')).not.toBeInTheDocument();
+      expect(within(roleSelect('marco')).getByRole('option', { name: 'OWNER' })).toBeDisabled();
+      expect(within(roleSelect('marco')).getByRole('option', { name: 'ADMIN' })).toBeEnabled();
+      const note = document.getElementById('owner-role-note');
+      expect(note).toHaveTextContent('Only an owner can grant the owner role.');
+      expect(roleSelect('marco')).toHaveAccessibleDescription(/Only an owner can grant the owner role\./);
+    });
+
+    it('does not let an ADMIN change or remove an OWNER', async () => {
+      renderMembers([{ ...group, effective_role: 'ADMIN' }]);
+
+      expect(await screen.findByLabelText('Role for lucia')).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Remove lucia' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Remove lucia' })).toHaveAccessibleDescription(/Only an owner can change or remove an owner\./);
+      // The people below OWNER are still theirs to manage.
+      expect(roleSelect('marco')).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Remove marco' })).toBeEnabled();
+    });
+
+    it('leaves OWNER available to an OWNER, who can also change another OWNER', async () => {
+      platform.members.mockResolvedValue([lucia, member('ines', 'OWNER'), marco]);
+      renderMembers();
+
+      expect(await screen.findByLabelText('Role for ines')).toBeEnabled();
+      expect(within(roleSelect('marco')).getByRole('option', { name: 'OWNER' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Remove ines' })).toBeEnabled();
+      expect(document.getElementById('owner-role-note')).toBeNull();
+    });
+
+    it('keeps what the gateway allows a platform administrator who already has ADMIN access', async () => {
+      renderScreen(<OrgMembers />, { path: '/app/:org/settings/members', url: '/app/isa-demo/settings/members', organizations: [{ ...group, effective_role: 'ADMIN' }], user: iker });
+
+      expect(await screen.findByLabelText('Role for marco')).toBeInTheDocument();
+      expect(within(roleSelect('marco')).getByRole('option', { name: 'OWNER' })).toBeEnabled();
+      expect(roleSelect('lucia')).toBeEnabled();
+    });
+
+    it('marks the row the gateway refused and says the batch changed nothing (403 owner_role_requires_owner)', async () => {
+      platform.updateMembersBatch.mockRejectedValue(Object.assign(new HttpError(403, 'Only an owner can grant the owner role.'), {
+        code: 'owner_role_requires_owner',
+        problem: { code: 'owner_role_requires_owner', detail: { code: 'owner_role_requires_owner', error: 'Only an owner can grant the owner role.', index: 1, user_id: 'user-sofia' } },
+      }));
+      renderMembers();
+      fireEvent.change(await screen.findByLabelText('Role for marco'), { target: { value: 'ADMIN' } });
+      fireEvent.change(roleSelect('sofia'), { target: { value: 'OWNER' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply 2 changes' }));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('Only an owner can grant the owner role. The change for sofia was refused (403 · owner_role_requires_owner), so nothing changed');
+      const refused = rowOf(/sofia@example\.test/);
+      expect(refused).toHaveClass('is-rejected');
+      expect(within(refused).getByText(/Refused: Only an owner can grant the owner role\./)).toBeInTheDocument();
+      expect(roleSelect('sofia')).toBeInvalid();
+      expect(rowOf(/marco@example\.test/)).not.toHaveClass('is-rejected');
+      // The whole queue is still there, for the person to fix.
+      expect(screen.getByRole('button', { name: 'Apply 2 changes' })).toBeEnabled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Undo change for sofia' }));
+      expect(rowOf(/sofia@example\.test/)).not.toHaveClass('is-rejected');
+    });
+
+    it('finds the refused person by the index of the batch when the gateway sends no id', async () => {
+      platform.updateMembersBatch.mockRejectedValue(Object.assign(new HttpError(403, 'refused'), {
+        code: 'owner_role_requires_owner', problem: { detail: { code: 'owner_role_requires_owner', index: 0 } },
+      }));
+      renderMembers();
+      fireEvent.change(await screen.findByLabelText('Role for marco'), { target: { value: 'ADMIN' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply 1 change' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('The change for marco was refused');
+      expect(rowOf(/marco@example\.test/)).toHaveClass('is-rejected');
+    });
+
+    it('disables OWNER in the invitation for an ADMIN, and explains the refusal if the gateway still says no', async () => {
+      platform.inviteMember.mockRejectedValue(refusal(403, 'owner_role_requires_owner'));
+      renderMembers([{ ...group, effective_role: 'ADMIN' }]);
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Invite by email' }));
+      const dialog = await screen.findByRole('dialog');
+      const role = within(dialog).getByLabelText('Role when they join');
+      expect(within(role).getByRole('option', { name: /^OWNER/ })).toBeDisabled();
+      expect(role).toHaveAccessibleDescription('Only an owner can grant the owner role.');
+
+      fireEvent.change(within(dialog).getByLabelText('Email'), { target: { value: 'invitada@example.test' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Create invitation' }));
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('Only an owner can grant the owner role. Choose another role (403 · owner_role_requires_owner).');
+    });
+
+    it('lets an OWNER invite as OWNER', async () => {
+      renderMembers();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Invite by email' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(within(dialog).getByLabelText('Role when they join')).getByRole('option', { name: /^OWNER/ })).toBeEnabled();
+    });
   });
 
   it('offers to invite when you are the only member', async () => {

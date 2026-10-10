@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
+import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { digestOf, irDocument, refOf, revisionDocument, sourceContents } from '../src/pages/Cases/fixtures';
 
@@ -15,7 +16,7 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 
 type Handler = (route: Route) => Promise<void> | void;
 const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json({ detail: { code, error, ...extra } }, status);
+const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
 const noContent: Handler = (route) => route.fulfill({ status: 204 });
 /** A service that does not answer: a 503 with no machine code, as a proxy in front of the gateway would send it. */
 const unavailable: Handler = json({ detail: 'The service is not reachable.' }, 503);
@@ -46,6 +47,8 @@ const organizations = [
 const project = (n: number, orgId: string, slug: string, name: string, visibility: 'public' | 'private' = 'private') => ({
   id: `project-${n}`, organization_id: orgId, slug, name, description: '', visibility, created_by_id: 'user-1',
   created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
+  // The contract's `ProjectView.access`: these specs reach every project as a member.
+  access: 'member' as const, effective_role: 'OWNER' as Role,
 });
 
 const projectsOf: Record<string, ReturnType<typeof project>[]> = {

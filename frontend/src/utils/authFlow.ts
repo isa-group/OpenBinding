@@ -61,6 +61,47 @@ export function hasRecentSignIn(): boolean {
   return Number.isFinite(at) && at > 0 && Date.now() - at < SIGN_IN_MAX_AGE_MS;
 }
 
+const PLAN_CHANGE_KEY = 'openbinding-plan-changed';
+
+/** The plan change that signing in caused, kept for the screen the person lands on: linking CAS raises BASIC to RESEARCH at no extra cost. */
+export interface PlanChangeNote {
+  from: string | null;
+  to: string;
+  /** `false` when the gateway says the change costs nothing. */
+  extraCost: boolean | null;
+}
+
+const PLAN_NAME = /^[A-Za-z0-9_-]{1,32}$/;
+
+/** Remember a plan change until the next screen has shown it. Anything that isn't a plan name is ignored. */
+export function notePlanChanged(change: { from?: string | null; to: string; extraCost?: boolean | null }): void {
+  if (!PLAN_NAME.test(change.to)) return;
+  const from = change.from && PLAN_NAME.test(change.from) ? change.from : null;
+  storage()?.setItem(PLAN_CHANGE_KEY, JSON.stringify({ from, to: change.to, extraCost: change.extraCost ?? null }));
+}
+
+/** The remembered plan change, without forgetting it (a screen may be rendered twice before it has shown it). */
+export function peekPlanChanged(): PlanChangeNote | null {
+  const raw = storage()?.getItem(PLAN_CHANGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { from?: unknown; to?: unknown; extraCost?: unknown };
+    if (typeof parsed.to !== 'string' || !PLAN_NAME.test(parsed.to)) return null;
+    return {
+      from: typeof parsed.from === 'string' && PLAN_NAME.test(parsed.from) ? parsed.from : null,
+      to: parsed.to,
+      extraCost: typeof parsed.extraCost === 'boolean' ? parsed.extraCost : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Forget it: the screen that showed it did, so a reload doesn't show it again. */
+export function forgetPlanChanged(): void {
+  storage()?.removeItem(PLAN_CHANGE_KEY);
+}
+
 const casExchanges = new Map<string, Promise<void>>();
 const casFlows = new Map<string, CasFlow | null>();
 

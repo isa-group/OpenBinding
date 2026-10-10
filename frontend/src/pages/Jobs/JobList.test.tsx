@@ -60,6 +60,16 @@ describe('Jobs of a project', () => {
     expect(platform.projectJobs).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks');
   });
 
+  it('is for members: a visitor of a public project gets the neutral gate and the jobs are never asked for', async () => {
+    platform.project.mockResolvedValue({ ...qos, organization_id: 'org-open', created_by_id: null, access: 'public_read', effective_role: null });
+    renderList({ slug: 'open-lab' });
+
+    expect(await screen.findByRole('heading', { name: 'Members only' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Back to the project' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks');
+    expect(platform.projectJobs).not.toHaveBeenCalled();
+    expect(screen.queryByRole('region', { name: 'Jobs of the project' })).not.toBeInTheDocument();
+  });
+
   it('opens only the runs this account launched; the others are summaries', async () => {
     renderList();
 

@@ -1,4 +1,5 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
+import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 
 // S4a · organization and collaboration, part 1: app-home, org-create, org-overview, org-settings, org-members, org-audit.
@@ -14,7 +15,7 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 
 type Handler = (route: Route) => Promise<void> | void;
 const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json({ detail: { code, error, ...extra } }, status);
+const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
 const noContent: Handler = (route) => route.fulfill({ status: 204 });
 /** A service that does not answer: a 503 with no machine code, as a proxy in front of the gateway would send it. */
 const unavailable: Handler = json({ detail: 'Accounts are not reachable.' }, 503);
@@ -79,7 +80,7 @@ const membersOf = (): Record<string, Member[]> => ({
 
 const project = (n: number, orgId: string, slug: string, name: string, description: string, visibility: 'public' | 'private') => ({
   id: `project-${n}`, organization_id: orgId, slug, name, description, visibility, created_by_id: 'user-1',
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
+  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z', access: 'member' as const, effective_role: 'OWNER' as Role,
 });
 
 const projectsOf = (): Record<string, unknown[]> => ({
@@ -152,12 +153,39 @@ const notifications = () => [{
 
 type Refusable = 'jobs' | 'create' | 'patch' | 'remove' | 'projects' | 'batch' | 'invite' | 'audit' | 'usage';
 
+/** A request to become the sponsor of an organization (`SponsorProposalView`): naming somebody else creates one, and the sponsor stays as it is. */
+interface Proposal {
+  id: string;
+  organization_id: string;
+  organization_slug: string;
+  organization_name: string;
+  proposed_user_id: string;
+  proposed_username: string;
+  proposed_by_user_id: string;
+  proposed_by_username: string;
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired';
+  created_at: string;
+  expires_at: string;
+  decided_at: string | null;
+  decided_by_user_id: string | null;
+  decision_reason: string | null;
+}
+
+const proposalOf = (target: Org, userId: string, n: number): Proposal => ({
+  id: `prop-${n}`, organization_id: target.id, organization_slug: target.slug, organization_name: target.name,
+  proposed_user_id: userId, proposed_username: userId.replace(/^user-/, ''), proposed_by_user_id: 'user-1', proposed_by_username: 'lucia.vega',
+  status: 'pending', created_at: '2026-10-09T12:00:00Z', expires_at: '2026-10-23T12:00:00Z', decided_at: null, decided_by_user_id: null, decision_reason: null,
+});
+
 interface State {
   organizations: Org[];
   members: Record<string, Member[]>;
   projects: Record<string, unknown[]>;
   jobs: ReturnType<typeof jobs>;
   notifications: ReturnType<typeof notifications>;
+  proposals: Proposal[];
+  /** The ids of the requests that were cancelled. */
+  cancelled: string[];
   /** A refusal for one action; unset means the action succeeds. */
   refuse: Partial<Record<Refusable, Handler>>;
 }
@@ -174,6 +202,8 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     projects: projectsOf(),
     jobs: jobs(),
     notifications: notifications(),
+    proposals: [],
+    cancelled: [],
     refuse: {},
     ...overrides,
   };
@@ -218,7 +248,15 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     const found = state.organizations.find((item) => item.slug === slug);
     if (methodOf(route) === 'PATCH') {
       if (state.refuse.patch) return state.refuse.patch(route);
-      const body = route.request().postDataJSON() as { name?: string; parent_id?: string; move_to_root?: boolean; billing_sponsor_user_id?: string };
+      const body = route.request().postDataJSON() as { name?: string; parent_id?: string; move_to_root?: boolean; billing_sponsor_user_id?: string; replace_pending_proposal?: boolean };
+      // Naming somebody else only makes a request (202) and leaves the sponsor alone; only one can wait.
+      if (found && body.billing_sponsor_user_id && body.billing_sponsor_user_id !== 'user-1') {
+        const waiting = state.proposals.find((item) => item.organization_slug === slug && item.status === 'pending');
+        if (waiting && !body.replace_pending_proposal) return detail(409, 'sponsor_proposal_pending', 'A sponsor proposal is already pending.', { proposal_id: waiting.id })(route);
+        const made = proposalOf(found, body.billing_sponsor_user_id, state.proposals.length + 1);
+        state.proposals = [made, ...state.proposals.map((item) => (item.organization_slug === slug && item.status === 'pending' ? { ...item, status: 'cancelled' as const, decision_reason: 'replaced' } : item))];
+        return route.fulfill({ status: 202, json: made });
+      }
       state.organizations = state.organizations.map((item) => (item.slug === slug ? {
         ...item,
         ...(body.name ? { name: body.name } : {}),
@@ -235,6 +273,16 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     return found ? json(found)(route) : detail(404, 'not_found', 'Organization not found.')(route);
   });
 
+  await page.route(orgPath('/sponsor-proposals'), (route) => {
+    const slug = slugOf(route, '/sponsor-proposals');
+    return json(state.proposals.filter((item) => item.organization_slug === slug))(route);
+  });
+  await page.route(new RegExp(`^${API}/v1/sponsor-proposals/([^/]+)/cancel$`), (route) => {
+    const id = /sponsor-proposals\/([^/]+)\/cancel/.exec(route.request().url())?.[1] ?? '';
+    state.cancelled.push(id);
+    state.proposals = state.proposals.map((item) => (item.id === id ? { ...item, status: 'cancelled' as const } : item));
+    return json(state.proposals.find((item) => item.id === id))(route);
+  });
   await page.route(orgPath('/projects'), (route) => (state.refuse.projects ? state.refuse.projects(route) : json(state.projects[slugOf(route, '/projects')] ?? [])(route)));
   await page.route(orgPath('/members'), (route) => json(state.members[slugOf(route, '/members')] ?? [])(route));
   await page.route(orgPath('/members/batch'), async (route) => {
@@ -603,19 +651,49 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByLabel('New sponsor').selectOption('self');
       state.refuse.patch = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 15 members.', { quota: { limit_id: 'members', limit: 15, used: 16 } });
       await main.getByRole('button', { name: 'Change sponsor' }).click();
-      await expect(main.getByRole('alert')).toContainText('The new sponsor has no room left for this organization’s projects and members (402 · sponsor_quota_exceeded). members: 16 of 15. Nothing changed.');
+      await expect(main.getByRole('alert')).toContainText('The new sponsor’s plan has no room for this organization and everything under it (402 · sponsor_quota_exceeded). members: 16 of 15 used. Nothing changed.');
       await capture(page, testInfo, `settings-${name}-sponsor-402`);
       state.refuse.patch = detail(422, 'invalid_sponsor', 'Sponsor must be active.');
       await main.getByRole('button', { name: 'Change sponsor' }).click();
-      await expect(main.getByRole('alert')).toContainText('That account can’t sponsor this organization (422 · invalid_sponsor).');
+      await expect(main.getByRole('alert')).toContainText('That account can’t be a sponsor (422 · invalid_sponsor): sponsors must be active accounts.');
       state.refuse.patch = detail(503, 'pricing_unavailable', 'Limits cannot be checked.');
       await main.getByRole('button', { name: 'Change sponsor' }).click();
-      await expect(main.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed.');
+      await expect(main.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed. Try again in a moment.');
       state.refuse.patch = undefined;
       const sponsored = request(page, 'PATCH', '/v1/organizations/partner-lab');
       await main.getByRole('button', { name: 'Change sponsor' }).click();
       expect((await sponsored).postDataJSON()).toEqual({ billing_sponsor_user_id: 'user-1' });
       await expect(main.getByText('Sponsor changed. Size limits now come from the new sponsor’s plan.')).toBeVisible();
+
+      // Naming somebody else only sends a request: the sponsor stays, and a card says who has to accept and until when.
+      const hubChild = org(6, 'hub-child', 'Hub Child', 'OWNER', { parent_id: 'org-4', billing_sponsor_user_id: 'user-pilar' });
+      state.organizations = [...state.organizations, hubChild];
+      state.members['hub-child'] = [person(hubChild, 'lucia.vega', 'user-1', 'OWNER')];
+      await page.goto('/app/hub-child/settings');
+      await main.getByLabel('New sponsor').selectOption('parent');
+      await expect(main.getByText(/This sends them a request\. Nothing changes until they accept/)).toBeVisible();
+      await capture(page, testInfo, `settings-${name}-sponsor-request-choice`);
+      const proposed = request(page, 'PATCH', '/v1/organizations/hub-child');
+      await main.getByRole('button', { name: 'Send sponsor request' }).click();
+      expect((await proposed).postDataJSON()).toEqual({ billing_sponsor_user_id: 'user-nora' });
+      await expect(main.getByText('Sponsor request sent to nora. Nothing changes until they accept.')).toBeVisible();
+      const requestCard = main.getByRole('region', { name: 'Sponsor request sent' });
+      await expect(requestCard.getByText('Pending', { exact: true })).toBeVisible();
+      await expect(requestCard.getByLabel('Sponsor request')).toContainText('nora');
+      await expect(requestCard.getByLabel('Sponsor request')).toContainText('Oct 23, 2026');
+      await expect(main.getByText('Another account', { exact: true })).toBeVisible();
+      const requests = main.getByRole('region', { name: 'Sponsor requests' });
+      await expect(requests.getByRole('row')).toHaveCount(2);
+      await expect(requests.getByRole('row').nth(1)).toContainText('Pending');
+      await capture(page, testInfo, `settings-${name}-sponsor-request-sent`);
+
+      // An OWNER can take the request back; the list keeps it as cancelled and the sponsor was never touched.
+      await requestCard.getByRole('button', { name: 'Cancel' }).click();
+      await expect(main.getByText('Sponsor request cancelled. The sponsor stays as it was.')).toBeVisible();
+      expect(state.cancelled).toEqual(['prop-1']);
+      await expect(requestCard).toHaveCount(0);
+      await expect(requests.getByRole('row').nth(1)).toContainText('Cancelled');
+      await expect(main.getByText('Another account', { exact: true })).toBeVisible();
 
       // An ADMIN can edit, but the sponsor stays locked.
       await page.goto('/app/research-hub/settings');
@@ -719,6 +797,13 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.refuse.batch = detail(503, 'pricing_unavailable', 'Limits cannot be checked.');
       await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
       await expect(main.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed; try again in a moment.');
+      // Granting OWNER is for owners: if the gateway still refuses, the row it names is marked and the whole queue stays.
+      state.refuse.batch = detail(403, 'owner_role_requires_owner', 'Only an owner can grant the owner role.', { index: 0, user_id: 'user-marco' });
+      await queue.getByRole('button', { name: 'Apply 2 changes' }).click();
+      await expect(main.getByRole('alert')).toContainText('Only an owner can grant the owner role. The change for marco was refused (403 · owner_role_requires_owner), so nothing changed');
+      await expect(table.getByRole('row', { name: /marco@example\.org/ })).toContainText('Refused: Only an owner can grant the owner role.');
+      await expect(queue.getByRole('button', { name: 'Apply 2 changes' })).toBeEnabled();
+      await capture(page, testInfo, `members-${name}-owner-refused`);
 
       state.refuse.batch = undefined;
       await queue.getByRole('button', { name: 'Undo change for lucia.vega' }).click();
@@ -760,6 +845,20 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('button', { name: 'Invite by email' })).toHaveCount(0);
       await expect(main.getByText('Only admins can change roles.')).toBeVisible();
       await capture(page, testInfo, `members-${name}-read-only`);
+
+      // An ADMIN manages everybody but the owners: OWNER can't be granted, and an owner can't be changed or removed.
+      await page.goto('/app/research-hub/settings/members');
+      await expect(main.getByLabel('Role for lucia.vega')).toBeEnabled();
+      await expect(main.getByLabel('Role for lucia.vega').locator('option', { hasText: /^OWNER$/ })).toBeDisabled();
+      await expect(main.getByLabel('Role for lucia.vega').locator('option', { hasText: /^VIEWER$/ })).toBeEnabled();
+      await expect(main.getByLabel('Role for nora')).toBeDisabled();
+      await expect(main.getByRole('button', { name: 'Remove nora' })).toBeDisabled();
+      await expect(main.locator('#owner-role-note')).toContainText('Only an owner can grant the owner role.');
+      await main.getByRole('button', { name: 'Invite by email' }).click();
+      const adminInvite = page.getByRole('dialog', { name: 'Invite to Research Hub' });
+      await expect(adminInvite.getByLabel('Role when they join').locator('option', { hasText: /^OWNER/ })).toBeDisabled();
+      await expect(adminInvite.getByText('Only an owner can grant the owner role.')).toBeVisible();
+      await capture(page, testInfo, `members-${name}-admin`);
       expect(critical).toEqual([]);
     });
 

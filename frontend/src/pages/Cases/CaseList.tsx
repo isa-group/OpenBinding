@@ -19,8 +19,8 @@ import { caseSortKey, newestFirst, plural } from './casesModel';
 import { DeleteCaseDialog, NewCaseDialog } from './dialogs';
 import { CaseFrame, ReadOnlyNote } from './parts';
 
-function CaseRow({ root, entry, canCreate, canAdminister, onDelete }: {
-  root: string; entry: CaseContent; canCreate: boolean; canAdminister: boolean; onDelete: () => void;
+function CaseRow({ root, entry, canCreate, canAdminister, publicRead, onDelete }: {
+  root: string; entry: CaseContent; canCreate: boolean; canAdminister: boolean; publicRead: boolean; onDelete: () => void;
 }) {
   const { item } = entry;
   const revisions = newestFirst(entry.revisions);
@@ -41,7 +41,7 @@ function CaseRow({ root, entry, canCreate, canAdminister, onDelete }: {
         </span>
       </Link>
       <span className="case-row-actions">
-        {latest && <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${latest.revision}`} variant="secondary" size="sm">Run latest</Action>}
+        {latest && !publicRead && <Action to={`${root}/jobs/new?case=${encodeURIComponent(item.slug)}&revision=${latest.revision}`} variant="secondary" size="sm">Run latest</Action>}
         {canCreate && <Action to={`${root}/cases/${item.slug}/compose`} variant="secondary" size="sm">New revision</Action>}
         {canAdminister && <Action variant="danger-outline" size="sm" onClick={onDelete} aria-label={`Delete ${item.name}`}>Delete</Action>}
       </span>
@@ -54,6 +54,7 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
 }) {
   const location = useLocation();
   const root = `/app/${organization.slug}/${project.slug}`;
+  const publicRead = project.access === 'public_read';
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'recent' | 'name'>('recent');
   const [creating, setCreating] = useState(false);
@@ -123,22 +124,26 @@ function ListBody({ organization, project, canCreate, canAdminister, role }: {
       {cases.status === 'ready' && all.length === 0 && (
         <section className="case-guide" aria-labelledby="case-guide-title">
           <h2 id="case-guide-title">No cases yet</h2>
-          <p>Start from a ready example, or compose one from your organization’s library: pick a workflow, a candidate catalog, constraints and a goal.</p>
-          <div className="proj-actions">
-            <Action to="/examples" variant="primary">Import an example</Action>
-            <Action to={`/app/${organization.slug}/library`} variant="secondary">Open the library</Action>
-          </div>
+          {publicRead ? <p>This project hasn’t shared any case yet.</p> : (
+            <>
+              <p>Start from a ready example, or compose one from your organization’s library: pick a workflow, a candidate catalog, constraints and a goal.</p>
+              <div className="proj-actions">
+                <Action to="/examples" variant="primary">Import an example</Action>
+                <Action to={`/app/${organization.slug}/library`} variant="secondary">Open the library</Action>
+              </div>
+            </>
+          )}
         </section>
       )}
       {cases.status === 'ready' && all.length > 0 && shown.length === 0 && <p className="org-muted">No case matches “{query.trim()}”.</p>}
       {shown.length > 0 && (
         <ul className="case-list" aria-label="Cases">
           {shown.map((entry) => (
-            <CaseRow key={entry.item.id} root={root} entry={entry} canCreate={canCreate} canAdminister={canAdminister} onDelete={() => setRemoving(entry)} />
+            <CaseRow key={entry.item.id} root={root} entry={entry} canCreate={canCreate} canAdminister={canAdminister} publicRead={publicRead} onDelete={() => setRemoving(entry)} />
           ))}
         </ul>
       )}
-      {cases.status === 'ready' && all.length > 0 && (
+      {cases.status === 'ready' && all.length > 0 && !publicRead && (
         <p className="org-muted">Your role here: <RoleChip role={role} />. Deleting needs ADMIN and works only while a case has no sealed revision.</p>
       )}
 

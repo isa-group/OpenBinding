@@ -1,4 +1,5 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
+import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 
 // S3 · pricing and account: acct-profile, acct-usage, acct-keys, acct-key-new, acct-identities, acct-notifications.
@@ -13,7 +14,7 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 
 type Handler = (route: Route) => Promise<void> | void;
 const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string): Handler => json({ detail: { code, error } }, status);
+const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
 const noContent: Handler = (route) => route.fulfill({ status: 204 });
 
 /** A pricing token shaped like the gateway's: three dot-separated parts, the middle one a JSON payload. */
@@ -115,6 +116,14 @@ const notifications = () => [
   { id: 'n3', kind: 'organization.invitation', subject: 'You were invited to ISA Demo Group', body: 'Pablo invited you as MEMBER.', payload: {}, read_at: null, created_at: hoursAgo(2) },
 ];
 
+/** A request that the account become the billing sponsor of an organization (`SponsorProposalView`): nothing changes until the account accepts. */
+const sponsorRequest = (id: string, organization: string, slug: string, by: string) => ({
+  id, organization_id: `org-${slug}`, organization_slug: slug, organization_name: organization,
+  proposed_user_id: 'user-1', proposed_username: 'lucia.vega', proposed_by_user_id: `user-${by}`, proposed_by_username: by,
+  status: 'pending' as 'pending' | 'accepted' | 'declined', created_at: '2026-10-08T09:00:00Z', expires_at: '2026-10-22T09:00:00Z',
+  decided_at: null as string | null, decided_by_user_id: null as string | null, decision_reason: null as string | null,
+});
+
 interface State {
   account: Account;
   pricingToken: Handler;
@@ -123,8 +132,12 @@ interface State {
   identities: Array<{ id: string; provider: string; subject: string; verifiedAt: string }>;
   notifications: ReturnType<typeof notifications>;
   preferences: { inbox: boolean; email_contract_changes: boolean; email_invitations: boolean; email_job_failures: boolean };
+  /** The requests addressed to the account. */
+  sponsorRequests: Array<ReturnType<typeof sponsorRequest>>;
+  /** How each request was answered. */
+  answered: Array<{ id: string; answer: string }>;
   /** A refusal for one action; unset means the action succeeds. */
-  refuse: Partial<Record<'patch' | 'delete' | 'list' | 'create' | 'revoke' | 'rotate' | 'link' | 'unlink' | 'notifications' | 'preferences' | 'savePreferences', Handler>>;
+  refuse: Partial<Record<'patch' | 'delete' | 'list' | 'create' | 'revoke' | 'rotate' | 'link' | 'unlink' | 'notifications' | 'preferences' | 'savePreferences' | 'accept', Handler>>;
 }
 
 const methodOf = (route: Route) => route.request().method();
@@ -138,6 +151,8 @@ async function mockApi(page: Page, account: Account, overrides: Partial<State> =
     identities: account.cas_verified ? [{ id: 'i1', provider: 'us-cas', subject: 'lvega1', verifiedAt: '2026-09-01T00:00:00Z' }] : [],
     notifications: notifications(),
     preferences: { inbox: true, email_contract_changes: true, email_invitations: true, email_job_failures: false },
+    sponsorRequests: [],
+    answered: [],
     refuse: {},
     ...overrides,
   };
@@ -159,7 +174,7 @@ async function mockApi(page: Page, account: Account, overrides: Partial<State> =
   }]));
   await page.route(`${API}/v1/organizations/isa-demo/projects`, json([{
     id: 'project-1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '', visibility: 'private',
-    created_by_id: 'user-1', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
+    created_by_id: 'user-1', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z', access: 'member', effective_role: 'OWNER',
   }]));
   // The CAS round trip leaves the application; stand in for the university's side of it.
   await page.route('**/api/v1/auth/cas/start**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<h1>CAS (simulated)</h1>' }));
@@ -205,6 +220,18 @@ async function mockApi(page: Page, account: Account, overrides: Partial<State> =
     return noContent(route);
   });
 
+  // The requests to sponsor an organization that wait for this account, and the two ways of answering one.
+  await page.route(new RegExp(`^${API}/v1/users/me/sponsor-proposals(\\?.*)?$`), (route) => {
+    const wanted = new URL(route.request().url()).searchParams.get('status');
+    return json(state.sponsorRequests.filter((item) => !wanted || item.status === wanted))(route);
+  });
+  await page.route(new RegExp(`^${API}/v1/sponsor-proposals/([^/]+)/(accept|decline)$`), async (route) => {
+    const [, id, answer] = /sponsor-proposals\/([^/]+)\/(accept|decline)/.exec(route.request().url()) ?? [];
+    if (answer === 'accept' && state.refuse.accept) return state.refuse.accept(route);
+    state.answered.push({ id, answer });
+    state.sponsorRequests = state.sponsorRequests.map((item) => (item.id === id ? { ...item, status: answer === 'accept' ? 'accepted' as const : 'declined' as const } : item));
+    return json(state.sponsorRequests.find((item) => item.id === id))(route);
+  });
   await page.route(`${API}/v1/users/me/identities`, (route) => json(state.identities)(route));
   await page.route(new RegExp(`^${API}/v1/users/me/identities/([^/?]+)`), async (route) => {
     if (state.refuse.unlink) return state.refuse.unlink(route);
@@ -706,7 +733,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/Shown on signed-in pages because your plan includes the institutional identity/)).toBeVisible();
       await expect(main.getByRole('img', { name: 'Universidad de Sevilla' })).toHaveAttribute('src', '/brands/us-fama.png');
       await expect(header.getByRole('img', { name: 'Universidad de Sevilla' }).first()).toBeAttached();
-      await expect(main.getByText(/your plan is whatever your contract says/)).toBeVisible();
+      await expect(main.getByText(/Linking one moves an account on the default plan to RESEARCH automatically, at no extra cost/)).toBeVisible();
       await capture(page, testInfo, `identities-${name}-linked`);
       if (isMobile) {
         await main.getByRole('button', { name: 'Unlink' }).click();
@@ -774,6 +801,52 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       state.refuse.unlink = undefined;
       await dialog.getByRole('button', { name: 'Unlink' }).click();
       await expect(main.getByText('Identity unlinked.', { exact: true })).toBeVisible();
+    });
+
+    test('acct-notifications: the requests to sponsor an organization are answered here', async ({ page }, testInfo) => {
+      const critical = watchCriticalErrors(page);
+      const state = await mockApi(page, lucia, {
+        sponsorRequests: [sponsorRequest('prop-1', 'ISA Demo Group', 'isa-demo', 'nora'), sponsorRequest('prop-2', 'QoS Lab', 'qos-lab', 'pilar')],
+      });
+      await page.goto('/app/account/notifications');
+      const main = page.locator('#platform-main');
+      const block = main.getByRole('region', { name: 'Sponsor requests for you' });
+
+      await expect(block.getByRole('heading', { name: 'Sponsor requests for you' })).toBeVisible();
+      await expect(block.getByRole('listitem')).toHaveCount(2);
+      await expect(block.getByText(/nora asks you to sponsor it and everything under it/)).toBeVisible();
+      await expect(block.getByText(/(Expires|Expired) Oct 22, 2026/).first()).toBeVisible();
+      // The header bell counts what waits for an answer.
+      if (!isMobile) await expect(page.locator('header.app-header').getByRole('button', { name: /2 sponsor requests waiting for you/ })).toBeVisible();
+      await capture(page, testInfo, `notifications-${name}-sponsor-requests`);
+
+      // Declining says that nothing changes, and tells the person who asked.
+      await block.getByRole('button', { name: 'Decline sponsoring QoS Lab' }).click();
+      const declining = page.getByRole('dialog', { name: 'Decline sponsoring QoS Lab?' });
+      await expect(declining).toContainText('Nothing changes: QoS Lab keeps its current sponsor');
+      await declining.getByRole('button', { name: 'Decline request' }).click();
+      await expect(main.getByText('You declined to sponsor QoS Lab.')).toBeVisible();
+      expect(state.answered).toEqual([{ id: 'prop-2', answer: 'decline' }]);
+      await expect(block.getByRole('listitem')).toHaveCount(1);
+
+      // Accepting says whose quota and plan it uses; a plan that can’t take it leaves the request open.
+      await block.getByRole('button', { name: 'Accept sponsoring ISA Demo Group' }).click();
+      const accepting = page.getByRole('dialog', { name: 'Sponsor ISA Demo Group?' });
+      await expect(accepting).toContainText('passes to your quota and is limited by your plan (RESEARCH)');
+      await expect(accepting).toContainText('If they don’t fit, nothing changes and the request stays open');
+      await capture(page, testInfo, `notifications-${name}-sponsor-accept`);
+      state.refuse.accept = json({ detail: { code: 'sponsor_quota_exceeded', error: 'The sponsor contract allows 15 members.', quota: { limit_id: 'members', limit: 15, used: 18 } } }, 402);
+      await accepting.getByRole('button', { name: 'Accept and sponsor' }).click();
+      await expect(accepting.getByRole('alert')).toContainText('Your plan can’t take this organization and everything under it (402 · sponsor_quota_exceeded). members: 18 of 15 used. The request is still waiting');
+      state.refuse.accept = json({ detail: { code: 'pricing_unavailable', error: 'The pricing service is not reachable.' } }, 503);
+      await accepting.getByRole('button', { name: 'Accept and sponsor' }).click();
+      await expect(accepting.getByRole('alert')).toContainText('Limits can’t be checked right now (503 · pricing_unavailable). Nothing changed; the request is still waiting. Try again in a moment.');
+      state.refuse.accept = undefined;
+      await accepting.getByRole('button', { name: 'Try again' }).click();
+      await expect(main.getByText('You are now the sponsor of ISA Demo Group. Its consumption counts against your plan.')).toBeVisible();
+      expect(state.answered).toEqual([{ id: 'prop-2', answer: 'decline' }, { id: 'prop-1', answer: 'accept' }]);
+      await expect(block.getByRole('listitem')).toHaveCount(0);
+      expect(critical).toEqual([]);
     });
 
     test('acct-notifications /app/account/notifications', async ({ page }, testInfo) => {

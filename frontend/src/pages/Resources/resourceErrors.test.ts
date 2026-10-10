@@ -3,7 +3,7 @@ import { PricingUnavailableError, QuotaError } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import {
   classifyAuthError, collectionCreateRefusal, collectionDeleteRefusal, collectionRenameRefusal, collectionSaveRefusal, deleteFileRefusal, downloadRefusal,
-  filesListRefusal, isMissing, oversizeRefusal, resourceCreateRefusal, resourceDeleteRefusal, resourceRevisionRefusal, resourceUpdateRefusal, uploadRefusal,
+  fileReferences, filesListRefusal, isMissing, listReferences, oversizeRefusal, resourceCreateRefusal, resourceDeleteRefusal, resourceRevisionRefusal, resourceUpdateRefusal, uploadRefusal,
 } from './resourceErrors';
 
 const http = (status: number, code?: string, text = 'refused', extra: Record<string, unknown> = {}) => Object.assign(new HttpError(status, text), code ? { code } : {}, extra);
@@ -61,6 +61,15 @@ describe('uploading a file', () => {
 describe('the other things done with a file', () => {
   it('explains a file that cannot be deleted because something sealed uses it', () => {
     expect(deleteFileRefusal(http(409, 'in_use'), 'results.csv')).toEqual({ kind: 'in-use', text: '“results.csv” is used by a sealed version, so it can’t be deleted (409 · in_use).' });
+  });
+
+  it('lists what still uses the file when the gateway names it (409 blob_in_use)', () => {
+    const problem = { code: 'blob_in_use', detail: { code: 'blob_in_use', error: 'in use', references: [{ type: 'library_version', count: 2 }, { type: 'report', count: 1 }] } };
+    expect(deleteFileRefusal(http(409, 'blob_in_use', 'in use', { problem }), 'results.csv').text)
+      .toBe('“results.csv” is used by 2 library versions and 1 report, so it can’t be deleted (409 · blob_in_use). Remove it from there first.');
+    expect(fileReferences(http(409, 'blob_in_use', 'in use', { problem: { detail: { references: [{ type: 'project_resource_revision', count: 1 }, { type: 'snapshot', count: 3 }, { type: 'publication', count: 1 }] } } })).map((entry) => entry.label))
+      .toEqual(['1 resource revision', '3 snapshots', '1 publication']);
+    expect(listReferences(['1 report', '2 snapshots', '1 publication'])).toBe('1 report, 2 snapshots and 1 publication');
   });
 
   it('names the role a deletion needs, and a file that is already gone', () => {
@@ -139,7 +148,7 @@ describe('collections', () => {
     });
 
     it('tells a repeated item from the validation body, which has no machine code', () => {
-      const refusal = collectionSaveRefusal(http(422, undefined, 'Unprocessable Entity', { problem: { detail: [{ msg: 'Value error, a collection revision cannot repeat a target' }] } }));
+      const refusal = collectionSaveRefusal(http(422, undefined, 'Unprocessable Entity', { problem: { code: 'validation_error', detail: 'Request validation failed', diagnostics: [{ code: 'value_error', message: 'Value error, a collection revision cannot repeat a target' }] } }));
       expect(refusal).toEqual({ kind: 'duplicate', text: 'An item appears twice (422): a revision can’t repeat a target. Remove the duplicate. Nothing was saved.' });
     });
 

@@ -33,7 +33,7 @@ function Body({ organization, project, access }: { organization: Organization; p
 
   return (
     <ResourceFrame organization={organization} project={project} section="library" trail={[{ label: 'Resources' }]}>
-      <ProjectLibraryNav current="resources" orgSlug={slug} projectSlug={project.slug} />
+      <ProjectLibraryNav current="resources" orgSlug={slug} projectSlug={project.slug} publicRead={access.publicRead} />
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Project resources</h1>
@@ -100,7 +100,7 @@ function Body({ organization, project, access }: { organization: Organization; p
           </tbody>
         </DataTable>
       )}
-      {resources.status === 'ready' && rows.length > 0 && (
+      {resources.status === 'ready' && rows.length > 0 && !access.publicRead && (
         <p className="org-muted">Your role here: <RoleChip role={access.role} />. Deleting needs ADMIN and keeps the library versions.</p>
       )}
 

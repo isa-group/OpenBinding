@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiClient } from './client';
+import { problemField } from './problem';
 import type {
   BimResourceRef,
   EngineManifest,
@@ -14,10 +15,10 @@ const REF: BimResourceRef = {
   digest: DIGEST,
 };
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
   });
 }
 
@@ -258,5 +259,53 @@ describe('a 422 is an error unless the caller asks for its body', () => {
   it('keeps a refused package as a result of validatePackage', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ title: 'invalid_package', status: 422, diagnostics: [{ message: 'bad file' }] }, 422));
     await expect(client.validatePackage(new Uint8Array([1]))).resolves.toMatchObject({ valid: false, refusal: { code: 'invalid_package' } });
+    fetchMock.mockResolvedValueOnce(jsonResponse({ type: 't', title: 'invalid_instance', code: 'invalid_instance', status: 422, detail: 'Instance refused', diagnostics: [{ code: 'x', message: 'bad file' }] }, 422));
+    await expect(client.validatePackage(new Uint8Array([1]))).resolves.toMatchObject({ valid: false, refusal: { code: 'invalid_instance', message: 'Instance refused' } });
+  });
+});
+
+describe('the canonical problem document', () => {
+  const client = new ApiClient('https://gateway.example');
+  const fetchMock = vi.fn<typeof fetch>();
+
+  beforeEach(() => {
+    localStorage.clear();
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  it('reads the code and the sentence of a 422 from the top of the document, with the diagnostics beside them', async () => {
+    const diagnostics = [{ code: 'greater_than', message: 'Input should be greater than 0', in: 'body', pointer: '/tasks', loc: ['body', 'tasks'] }];
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      type: 'https://openbinding.dev/problems/validation_error', title: 'validation_error', status: 422, code: 'validation_error',
+      detail: 'Request validation failed: /tasks: Input should be greater than 0', diagnostics,
+    }, 422));
+    const error = await client.request('/v1/generator/instances', { method: 'POST' }).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ status: 422, code: 'validation_error', diagnostics, message: 'HTTP 422: Request validation failed: /tasks: Input should be greater than 0' });
+  });
+
+  it('prefers the top-level code of a coded failure and keeps the extras where the platform puts them', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({
+      type: 'https://openbinding.dev/problems/owner_role_requires_owner', title: 'owner_role_requires_owner', status: 403, code: 'owner_role_requires_owner',
+      detail: { code: 'owner_role_requires_owner', error: 'Only an owner can grant the owner role.', index: 2, user_id: 'u-3' },
+    }, 403));
+    const error = await client.request('/v1/organizations/acme/members/batch').catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ status: 403, code: 'owner_role_requires_owner', message: 'HTTP 403: Only an owner can grant the owner role.' });
+    expect(problemField(error, 'index')).toBe(2);
+    expect(problemField(error, 'user_id')).toBe('u-3');
+  });
+
+  it('still reads the code of an older body that has only detail.code', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: { code: 'last_owner', error: 'Keep one owner.' } }, 409));
+    await expect(client.request('/v1/x')).rejects.toMatchObject({ status: 409, code: 'last_owner' });
+  });
+
+  it('keeps Retry-After on a rate-limited public read', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(
+      { type: 't', title: 'rate_limit_exceeded', status: 429, code: 'rate_limit_exceeded', detail: { code: 'rate_limit_exceeded', error: 'Too many reads.' } },
+      429,
+      { 'Retry-After': '42' },
+    ));
+    await expect(client.request('/v1/organizations/o/projects/p')).rejects.toMatchObject({ status: 429, code: 'rate_limit_exceeded', retryAfter: 42 });
   });
 });

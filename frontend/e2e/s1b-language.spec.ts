@@ -309,7 +309,7 @@ async function mockApi(page: Page, mocks: Mocks = {}) {
     await page.route(`${API}/v1/engine-registrations`, json({ registrations: [registration] }));
     await page.route(`${API}/v1/engine-registrations/edge-solver/report**`, json(edgeReport));
     await page.route(`${API}/v1/organizations`, json([{ id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null, billing_sponsor_user_id: lucia.id, effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z' }]));
-    await page.route(`${API}/v1/organizations/isa-demo/projects`, json([{ id: 'p1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '', visibility: 'private', created_by_id: lucia.id, created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z' }]));
+    await page.route(`${API}/v1/organizations/isa-demo/projects`, json([{ id: 'p1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '', visibility: 'private', created_by_id: lucia.id, created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z', access: 'member', effective_role: 'OWNER' }]));
   }
   await page.route(`${API}/v1/explore/engines`, mocks.engines ?? json({ engines: [randomSearch, evolutionary, minizinc] }));
   // EngineDetail reads the live catalog (the deprecated YAML at /v1/pricing is no longer requested).

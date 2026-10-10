@@ -214,30 +214,100 @@ describe('Project overview', () => {
     expect(screen.queryByRole('region', { name: 'Recent jobs' })).not.toBeInTheDocument();
   });
 
+  describe('a public project opened by someone who is not a member', () => {
+    const visitor = { ...qos, organization_id: 'org-open', created_by_id: null, access: 'public_read' as const, effective_role: null };
+
+    function renderVisitor() {
+      platform.project.mockResolvedValue(visitor);
+      return renderOverview({ slug: 'open-lab' });
+    }
+
+    it('opens read-only, with the strip, the reading tabs and no control that writes or reaches the members’ parts', async () => {
+      renderVisitor();
+
+      const title = await screen.findByRole('heading', { level: 1, name: 'QoS Benchmarks' });
+      expect(platform.project).toHaveBeenCalledWith('open-lab', 'qos-benchmarks');
+      const band = title.closest('.proj-band') as HTMLElement;
+      expect(screen.getByText('You are viewing a public project (read-only).')).toBeInTheDocument();
+      expect(within(band).getByText('Public')).toBeInTheDocument();
+      expect(within(band).queryByText('No role')).not.toBeInTheDocument();
+      for (const name of ['New case', 'Run', 'New study', 'New report', 'Export package']) {
+        expect(within(band).queryByText(name)).not.toBeInTheDocument();
+      }
+      expect(within(band).getByRole('link', { name: 'Browse cases' })).toHaveAttribute('href', '/app/open-lab/qos-benchmarks/cases');
+      const tabs = within(screen.getByRole('navigation', { name: 'Project sections' }));
+      expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Cases', 'Library', 'Studies', 'Reports', 'Files']);
+      expect(tabs.queryByRole('link', { name: 'Jobs' })).not.toBeInTheDocument();
+      expect(tabs.queryByRole('link', { name: 'Package' })).not.toBeInTheDocument();
+      expect(tabs.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
+    });
+
+    it('reads cases, studies and reports, and never asks for the jobs, which the gateway refuses to visitors', async () => {
+      renderVisitor();
+
+      expect(await screen.findByRole('link', { name: /Flujo de checkout/ })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Studies' })).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Reports' })).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Recent jobs' })).not.toBeInTheDocument();
+      expect(platform.projectJobs).not.toHaveBeenCalled();
+      expect(api.listOwnJobs).not.toHaveBeenCalled();
+    });
+
+    it('does not show the get-started guide of a member when it is empty', async () => {
+      platform.cases.mockResolvedValue([]);
+      platform.studies.mockResolvedValue([]);
+      platform.reports.mockResolvedValue([]);
+      renderVisitor();
+
+      expect(await screen.findByText('Nothing has been shared in this project yet.')).toBeInTheDocument();
+      expect(screen.queryByRole('region', { name: 'Get started' })).not.toBeInTheDocument();
+    });
+
+    it('treats a platform administrator who is not a member as a visitor too: public reading never writes', async () => {
+      platform.project.mockResolvedValue(visitor);
+      renderOverview({ slug: 'open-lab', user: iker });
+
+      const title = await screen.findByRole('heading', { level: 1, name: 'QoS Benchmarks' });
+      expect(within(title.closest('.proj-band') as HTMLElement).queryByText('New case')).not.toBeInTheDocument();
+    });
+  });
+
   describe('when the project can’t be opened', () => {
     it('404: not found, with no hint about what exists, and a way back', async () => {
       platform.project.mockRejectedValue(refusal(404, 'not_found'));
       renderOverview();
 
       expect(await screen.findByRole('heading', { name: 'Project not found' })).toBeInTheDocument();
-      expect(screen.getByText(/It doesn’t exist, or you’re not a member of its organization\. Even public projects open here only for members\./)).toBeInTheDocument();
+      expect(screen.getByText(/It doesn’t exist, or it’s private and you’re not a member of its organization\./)).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/app');
+      expect(screen.getByRole('link', { name: 'Explore public projects' })).toHaveAttribute('href', '/explore');
       expect(screen.queryByRole('link', { name: 'See its public card in Explore' })).not.toBeInTheDocument();
     });
 
-    it('404 of a public project: the gate points to its Explore card', async () => {
-      platform.project.mockRejectedValue(refusal(404, 'not_found'));
-      platform.publicProjects.mockResolvedValue([{ organization: { slug: 'isa-demo', name: 'ISA' }, project: { slug: 'qos-benchmarks', name: 'QoS', description: '' } }]);
-      renderOverview();
-
-      expect(await screen.findByRole('link', { name: 'See its public card in Explore' })).toHaveAttribute('href', '/explore');
-    });
-
-    it('the same message when the organization itself is not one of the account’s', async () => {
+    it('the same message when the organization itself is not one of the account’s and the project is private', async () => {
+      platform.project.mockRejectedValue(refusal(403, 'organization_forbidden'));
       renderOverview({ slug: 'ghost-lab' });
 
       expect(await screen.findByRole('heading', { name: 'Project not found' })).toBeInTheDocument();
-      expect(platform.project).not.toHaveBeenCalled();
+      expect(platform.project).toHaveBeenCalledWith('ghost-lab', 'qos-benchmarks');
+      expect(screen.queryByText(/Your role doesn’t reach this/)).not.toBeInTheDocument();
+    });
+
+    it('429: too many reads of public projects says when to try again, with a countdown', async () => {
+      platform.project.mockRejectedValue(Object.assign(refusal(429, 'rate_limit_exceeded'), { retryAfter: 42 }));
+      renderOverview({ slug: 'open-lab' });
+
+      expect(await screen.findByRole('heading', { name: 'You’re reading public projects too fast' })).toBeInTheDocument();
+      expect(screen.getByText('42s')).toBeInTheDocument();
+      expect(screen.getByText('Retry is available when the countdown ends.')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Retry now' })).toBeDisabled();
+    });
+
+    it('503 for an organization that is not the account’s says nothing about its access', async () => {
+      platform.project.mockRejectedValue(refusal(503, 'unavailable'));
+      renderOverview({ slug: 'open-lab' });
+
+      expect(await screen.findByRole('heading', { name: 'The project couldn’t be loaded (503 · unavailable)' })).toBeInTheDocument();
     });
 
     it('403: the role is too low', async () => {

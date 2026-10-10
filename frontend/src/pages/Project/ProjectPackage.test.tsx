@@ -58,6 +58,15 @@ describe('Project package', () => {
     api.getPricingCatalog.mockResolvedValue({});
   });
 
+  it('is for members: a visitor of a public project gets the neutral gate and nothing is exported', async () => {
+    platform.project.mockResolvedValue({ ...qos, organization_id: 'org-open', created_by_id: null, access: 'public_read', effective_role: null });
+    renderPackage('open-lab');
+
+    expect(await screen.findByRole('heading', { name: 'Members only' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Import' })).not.toBeInTheDocument();
+    expect(platform.exportPackage).not.toHaveBeenCalled();
+  });
+
   it('frames the page and says what goes in and what stays behind', async () => {
     renderPackage();
 

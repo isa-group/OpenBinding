@@ -152,11 +152,32 @@ describe('the words for a refusal', () => {
     expect(labRefusal(failure(403, 'forbidden'), 'nothing was calibrated', 'runs').text).toBe('Your account can’t do this (403 · forbidden), so nothing was calibrated.');
   });
 
+  it('says why the gateway refuses a calibration: a shared model needs a platform administrator, and a key that may administer', () => {
+    expect(labRefusal(failure(403, 'platform_admin_required'), 'nothing was calibrated', 'runs')).toEqual({
+      kind: 'forbidden',
+      text: 'Only platform administrators can calibrate an engine (403 · platform_admin_required). The model is shared by everyone, so nothing was calibrated.',
+    });
+    expect(labRefusal(failure(403, 'insufficient_api_key_permission'), 'nothing was calibrated', 'runs')).toEqual({
+      kind: 'forbidden',
+      text: 'This API key can’t calibrate an engine (403 · insufficient_api_key_permission): it needs the admin:accounts:write permission. Nothing was calibrated.',
+    });
+  });
+
   it('reads a 422 as the settings, the text or the runs being rejected, and finds the field it names', () => {
-    const problem = { detail: [{ loc: ['body', 'tasks'], msg: 'Input should be greater than or equal to 2', type: 'greater_than_equal' }] };
+    const problem = {
+      code: 'validation_error',
+      detail: 'Request validation failed: /tasks: Input should be greater than or equal to 2',
+      diagnostics: [{ code: 'greater_than_equal', message: 'Input should be greater than or equal to 2', in: 'body', pointer: '/tasks', loc: ['body', 'tasks'] }],
+    };
     expect(labRefusal(failure(422, undefined, problem), 'nothing was generated')).toEqual({
       kind: 'config',
       fields: { tasks: 'Input should be greater than or equal to 2' },
+      text: 'These settings can’t be generated (422 · invalid generation config): the server rejected the combination.',
+    });
+    // The generic code of every malformed request adds nothing; the same fields are found from a pointer-less `loc`.
+    expect(labRefusal(failure(422, 'validation_error', { diagnostics: [{ code: 'missing', message: 'Field required', loc: ['body', 'tasks'] }] }), 'nothing was generated')).toEqual({
+      kind: 'config',
+      fields: { tasks: 'Field required' },
       text: 'These settings can’t be generated (422 · invalid generation config): the server rejected the combination.',
     });
     expect(labRefusal(failure(422), 'x', 'text').text).toBe('That text can’t be converted (422 · invalid legacy instance): the server could not read it as an old-format instance.');

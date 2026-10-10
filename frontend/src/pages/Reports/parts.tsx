@@ -31,7 +31,7 @@ export function ReportFrame({ organization, project, trail, width = 'wide', chil
       <div className="proj-band">
         <div className="proj-band-inner"><Breadcrumb items={items} /></div>
       </div>
-      <ProjectTabs active="reports" orgSlug={organization.slug} projectSlug={project.slug} />
+      <ProjectTabs active="reports" orgSlug={organization.slug} projectSlug={project.slug} access={project.access} />
       <div className={`proj-body rp-body is-${width}`} aria-live="polite">{children}</div>
     </div>
   );

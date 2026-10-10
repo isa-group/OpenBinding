@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { catalogFixture } from '../Pricing/pricingFixture';
 import {
-  TILE_COLOURS, ancestorsOf, atLeast, buildForest, descendantsOf, flatten, initialsOf, pathOf, roleSource, slugFromName, sponsorName, tileColour,
+  TILE_COLOURS, ancestorsOf, atLeast, buildForest, canGrantOwner, descendantsOf, flatten, initialsOf, pathOf, roleSource, slugFromName, sponsorName, tileColour,
 } from './orgModel';
 import { roomFromCatalog, roomFromUsage, roomText, roomTone } from './roomModel';
 import { auditFixture } from './auditFixture';
@@ -19,6 +19,16 @@ describe('roles', () => {
     expect(atLeast('MEMBER', 'ADMIN')).toBe(false);
     expect(atLeast('OWNER', 'MEMBER')).toBe(true);
     expect(atLeast(null, 'VIEWER')).toBe(false);
+  });
+
+  it('lets only an effective OWNER grant or change OWNER, and a platform administrator keep what an ADMIN reach allows', () => {
+    expect(canGrantOwner('OWNER')).toBe(true);
+    expect(canGrantOwner('ADMIN')).toBe(false);
+    expect(canGrantOwner('MEMBER')).toBe(false);
+    expect(canGrantOwner(null)).toBe(false);
+    expect(canGrantOwner('ADMIN', true)).toBe(true);
+    expect(canGrantOwner('MEMBER', true)).toBe(false);
+    expect(canGrantOwner(null, true)).toBe(false);
   });
 
   it('reads a role as inherited when a visible ancestor already grants it, and as own when it is higher', () => {

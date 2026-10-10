@@ -1,4 +1,5 @@
 import type { PricingRelease } from '../../api/platform';
+import { readDiagnostics } from '../../api/problem';
 import { describeLimit, limitInfo, LIMIT_ORDER } from '../../utils/limits';
 import {
   emitYamlMap, isYamlMap, parseYaml, replaceYamlSection, replaceYamlVersion, YamlError, type YamlMap, type YamlValue,
@@ -419,26 +420,36 @@ export interface ServerValidation {
   refused: boolean;
 }
 
-/** `POST …/pricing/validate` answers its verdict as a body, and a 422 as a list of what was wrong with the request. */
+/**
+ * `POST …/pricing/validate` answers its verdict as a body: `200` with `valid: true`, or a `422` (`invalid_pricing`) that
+ * keeps the same view (`valid: false`, `errors`, `warnings`…) beside the problem's `diagnostics`. A 422 without a verdict
+ * (the request itself was malformed) is read from its diagnostics.
+ */
 export function readValidation(answer: unknown): ServerValidation {
   const body = (typeof answer === 'object' && answer !== null ? answer : {}) as Record<string, unknown>;
   const strings = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []);
   if (typeof body.valid === 'boolean') {
+    const errors = strings(body.errors);
     return {
       valid: body.valid,
       version: typeof body.version === 'string' ? body.version : null,
       digest: typeof body.digest === 'string' ? body.digest : null,
       plans: strings(body.plans),
       addOns: strings(body.add_ons),
-      errors: strings(body.errors),
+      errors: !body.valid && errors.length === 0 ? messagesOf(body) : errors,
       warnings: strings(body.warnings),
       refused: false,
     };
   }
-  const detail = Array.isArray(body.detail)
-    ? body.detail.map((item) => (typeof item === 'object' && item !== null && 'msg' in item ? String((item as { msg: unknown }).msg) : String(item)))
-    : typeof body.detail === 'string' ? [body.detail] : [];
+  const detail = messagesOf(body);
   return { valid: false, version: null, digest: null, plans: [], addOns: [], errors: detail.length > 0 ? detail : ['The gateway refused the document (422).'], warnings: [], refused: true };
+}
+
+/** What a problem body says: the message of each diagnostic, or its `detail` sentence. */
+function messagesOf(body: Record<string, unknown>): string[] {
+  const messages = readDiagnostics(body.diagnostics).map((diagnostic) => diagnostic.message);
+  if (messages.length > 0) return messages;
+  return typeof body.detail === 'string' && body.detail !== '' ? [body.detail] : [];
 }
 
 /** The failure of a pricing request: the generic wording, with what is particular to pricing administration. */

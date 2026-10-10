@@ -66,6 +66,8 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
   const org = organization.slug;
   const slug = project.slug;
   const root = `/app/${org}/${slug}`;
+  // A visitor of a public project reads the studies; the sponsor’s allowances are not theirs to see.
+  const publicRead = project.access === 'public_read';
   const studies = useResource<StudyContent[]>(`studies-list:${org}/${slug}`, () => loadStudies(org, slug, WITH_CELLS));
   const usage = useResource<UsageView | null>('studies-usage', () => apiClient.getOwnUsage().catch(() => null));
   const [showArchived, setShowArchived] = useState(false);
@@ -130,20 +132,22 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
         {canCreate && <div className="proj-actions"><Action to={`${root}/studies/new`} variant="primary">New study</Action></div>}
       </header>
 
-      <div className="st-meters">
-        <Meter
-          label="Study definitions (sponsor)"
-          usage={mySponsorship ? usage.data?.limits?.studies : undefined}
-          missing={mySponsorship ? 'Your usage isn’t available right now' : 'Counted against the sponsor’s plan; their usage isn’t shown to you'}
-          note={() => 'Counted across the sponsor’s organizations · doesn’t renew'}
-        />
-        <Meter
-          label="Study runs this month (you)"
-          usage={usage.data?.limits?.studyRuns}
-          missing="Your usage isn’t available right now"
-          note={renews}
-        />
-      </div>
+      {!publicRead && (
+        <div className="st-meters">
+          <Meter
+            label="Study definitions (sponsor)"
+            usage={mySponsorship ? usage.data?.limits?.studies : undefined}
+            missing={mySponsorship ? 'Your usage isn’t available right now' : 'Counted against the sponsor’s plan; their usage isn’t shown to you'}
+            note={() => 'Counted across the sponsor’s organizations · doesn’t renew'}
+          />
+          <Meter
+            label="Study runs this month (you)"
+            usage={usage.data?.limits?.studyRuns}
+            missing="Your usage isn’t available right now"
+            note={renews}
+          />
+        </div>
+      )}
 
       {data && archivedCount > 0 && (
         <label className="st-check">
@@ -172,7 +176,7 @@ function StudyListBody({ organization, project, canCreate, canAdminister }: { or
             <span>2 case revisions × 2 engines × 2 seeds = 8 runs, all with the same rules. That’s a study.</span>
             {canCreate
               ? <Action to={`${root}/studies/new`} variant="primary">Build a study</Action>
-              : <small className="org-muted">Creating a study needs MEMBER in {organization.name}.</small>}
+              : <small className="org-muted">{publicRead ? 'This project hasn’t shared a study yet.' : `Creating a study needs MEMBER in ${organization.name}.`}</small>}
           </div>
         </section>
       )}

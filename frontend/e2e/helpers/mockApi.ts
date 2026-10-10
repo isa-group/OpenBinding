@@ -82,9 +82,11 @@ const ORGANIZATIONS = [
   org('org-read-lab', 'read-lab', 'Read Lab', 'VIEWER', { billing_sponsor_user_id: '00000000-0000-4000-8000-000000000004', created_at: '2026-05-01T00:00:00Z' }),
 ];
 
-const project = (slug: string, orgId: string, name: string, description: string, visibility: 'public' | 'private') => ({
+/** A `ProjectView`: the caller reaches every project of the gallery as a member (`access`), with the role of the organization. */
+const project = (slug: string, orgId: string, name: string, description: string, visibility: 'public' | 'private', role: 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER' = 'OWNER') => ({
   id: `project-${slug}`, organization_id: orgId, slug, name, description, visibility, created_by_id: ME_ID,
   created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
+  access: 'member' as const, effective_role: role,
 });
 const PROJECTS: Record<string, ReturnType<typeof project>[]> = {
   'isa-demo': [
@@ -92,7 +94,7 @@ const PROJECTS: Record<string, ReturnType<typeof project>[]> = {
     project('payments-checkout', 'org-isa-demo', 'Payments checkout', 'Internal payments case with proprietary candidates.', 'private'),
   ],
   'qos-lab': [project('edge-placement', 'org-qos-lab', 'Edge placement', 'Exploration with pools and latencies.', 'private')],
-  'partner-lab': [project('shared-corpus', 'org-partner-lab', 'Shared corpus', 'Cases the partner lab contributes.', 'private')],
+  'partner-lab': [project('shared-corpus', 'org-partner-lab', 'Shared corpus', 'Cases the partner lab contributes.', 'private', 'ADMIN')],
   'read-lab': [],
 };
 
@@ -619,6 +621,8 @@ function organizationRoutes(request: Request): Reply {
   switch (section) {
     case 'members': return ok(MEMBERS[found.slug] ?? []);
     case 'audit': return ok({ events: ORG_AUDIT, total: ORG_AUDIT.length, offset: 0, limit: 50 });
+    // No sponsor request is open in the gallery: the sponsor is who it always was.
+    case 'sponsor-proposals': return ok([]);
     case 'library': {
       const own = found.slug === 'isa-demo' ? LIBRARY : [];
       return ok(query.get('include_public') === 'true' ? [...own, external] : own);
@@ -673,6 +677,7 @@ function userRoutes(request: Request): Reply {
     case 'jobs': return ok({ jobs: OWN_JOBS.map(summaryOf), total: OWN_JOBS.length, retention_days: 180 });
     case 'api-keys': return subId ? { status: 204 } : ok({ api_keys: API_KEYS });
     case 'identities': return ok([{ id: 'i1', provider: 'us-cas', subject: 'arivera1', verifiedAt: '2026-09-01T00:00:00Z' }]);
+    case 'sponsor-proposals': return ok([]);
     default: return method === 'GET' ? notFound() : { status: 204 };
   }
 }

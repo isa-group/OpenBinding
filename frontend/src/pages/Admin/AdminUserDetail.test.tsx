@@ -62,7 +62,8 @@ describe('admin-user-detail · one account', () => {
     await ready();
     expect(screen.getByText(/sam-okafor@example\.invalid · since Jun 15, 2026/)).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent('Accounts');
-    expect(screen.getByText('Not shown by the gateway')).toBeInTheDocument();
+    expect(screen.getByText('None linked')).toBeInTheDocument();
+    expect(screen.queryByText('Institutional identity verified')).not.toBeInTheDocument();
     expect(screen.getByText(/Pinned to pricing 0\.1\.0 · renews Nov 1, 2026/)).toBeInTheDocument();
     expect(await screen.findByText('10 of 10')).toBeInTheDocument();
     expect(screen.getByText('Solves')).toBeInTheDocument();
@@ -225,6 +226,8 @@ describe('admin-user-detail · one account', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Resync concurrency' }));
     const dialog = screen.getByRole('dialog', { name: 'Resync concurrency?' });
     expect(api.adminResyncUsage).not.toHaveBeenCalled();
+    expect(within(dialog).getByText('The resync is recorded in the audit log with your name.')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/doesn’t write/)).not.toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Resync' }));
     expect(await screen.findByText('Corrected by')).toBeInTheDocument();
     expect(screen.getByText('-1')).toBeInTheDocument();
@@ -245,7 +248,8 @@ describe('admin-user-detail · one account', () => {
     const dialog = screen.getByRole('dialog', { name: 'Revoke the key of sam.okafor?' });
     expect(api.adminRevokeApiKey).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke key' }));
-    expect(await screen.findByText(/Key revoked\. Requests with it fail from now on/)).toBeInTheDocument();
+    expect(await screen.findByText(/Key revoked\. Requests with it fail from now on\. It is recorded in the audit log with your name\./)).toBeInTheDocument();
+    expect(screen.queryByText(/doesn’t write this to the audit log/)).not.toBeInTheDocument();
     expect(api.adminRevokeApiKey).toHaveBeenCalledWith(SAM.id, KEY_ID);
 
     api.adminRevokeApiKey.mockRejectedValueOnce(refusal(404, 'not_found'));

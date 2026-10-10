@@ -1,5 +1,6 @@
 import { expect as baseExpect, test, type Locator, type Page, type Route, type TestInfo } from '@playwright/test';
-import type { AdminUserView } from '../src/api/auth';
+import { failureBody } from './helpers/problems';
+import type { AdminAuditPage, AdminUserView, SponsorProposal } from '../src/api/auth';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import {
   ALEX, AUDIT, CONTROL_ROOM, DANA, EMPTY_QUEUES, ERROR_EVENTS, ERROR_OVERVIEW, MARIA, MODERATION, ORG, OVERVIEW, PRIYA, SAM, SUB_ORG, USERS,
@@ -18,7 +19,7 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 
 type Handler = (route: Route) => Promise<void> | void;
 const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json({ detail: { code, error, ...extra } }, status);
+const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
 const down = detail(503, 'accounts_unavailable', 'The accounts database is not reachable.');
 const forbidden = detail(403, 'insufficient_api_key_permission', 'The API key does not include this permission.');
 
@@ -39,6 +40,10 @@ interface State {
   addOns: Record<string, Record<string, number>>;
   /** Who sponsors the organization now. */
   sponsor: string;
+  /** The requests made for the organization: naming somebody else only creates one, and the sponsor stays as it is. */
+  proposals: SponsorProposal[];
+  /** Events recorded inside an organization or by the account actions of B2, added to the platform log when set. */
+  extraAudit: AdminAuditPage['events'];
   sent: {
     patch: Array<{ id: string; body: Record<string, unknown> }>;
     subscription: Array<{ id: string; body: Record<string, unknown> }>;
@@ -46,8 +51,18 @@ interface State {
     resync: string[];
     revoked: string[];
     sponsor: Array<{ id: string; body: Record<string, unknown> }>;
+    cancelled: string[];
+    auditQueries: string[];
   };
 }
+
+/** A request for `user` to become the sponsor of the organization, as the gateway answers (202) when somebody else is named. */
+const proposalFor = (user: AdminUserView, over: Partial<SponsorProposal> = {}): SponsorProposal => ({
+  id: 'prop-1', organization_id: ORG.id, organization_slug: ORG.slug, organization_name: ORG.name,
+  proposed_user_id: user.id, proposed_username: user.username, proposed_by_user_id: ALEX.id, proposed_by_username: ALEX.username,
+  status: 'pending', created_at: '2026-10-09T12:00:00Z', expires_at: '2026-10-23T12:00:00Z', decided_at: null, decided_by_user_id: null, decision_reason: null,
+  ...over,
+});
 
 const KEY_ID = '00000000-0000-4000-8000-0000000003a1';
 const KEY_MISSING = '00000000-0000-4000-8000-000000000404';
@@ -64,7 +79,9 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     users: structuredClone(USERS),
     addOns: {},
     sponsor: MARIA.id,
-    sent: { patch: [], subscription: [], plan: [], resync: [], revoked: [], sponsor: [] },
+    proposals: [],
+    extraAudit: [],
+    sent: { patch: [], subscription: [], plan: [], resync: [], revoked: [], sponsor: [], cancelled: [], auditQueries: [] },
   };
   const me = options.role === 'user' ? { ...MARIA, role: 'user' } : { ...ALEX, institutional_branding: false };
   const answer = (key: Key, body: unknown): Handler => (route) => (state.refuse[key] ? state.refuse[key](route) : json(body)(route));
@@ -93,7 +110,14 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
       if (['isa-demo', ORG.id].includes(decodeURIComponent(parts[2]))) return answer('organization', { ...ORG, billing_sponsor_user_id: state.sponsor })(route);
       return detail(403, 'organization_forbidden', 'This action requires viewer access to the organization.')(route);
     }
+    if (parts[3] === 'sponsor-proposals') return json(state.proposals)(route);
     return json([])(route);
+  });
+  await page.route(new RegExp(`^${API}/v1/sponsor-proposals/[^/]+/cancel$`), (route) => {
+    const id = new URL(route.request().url()).pathname.split('/')[3];
+    state.sent.cancelled.push(id);
+    state.proposals = state.proposals.map((item) => (item.id === id ? { ...item, status: 'cancelled' } : item));
+    return json(state.proposals.find((item) => item.id === id) ?? proposalFor(PRIYA, { status: 'cancelled' }))(route);
   });
 
   // --- administration
@@ -129,7 +153,11 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
 
     if (path === 'audit') {
       const action = params.get('action');
-      const events = AUDIT.events.filter((event) => !action || event.action === action);
+      const organization = params.get('organization_id');
+      state.sent.auditQueries.push(url.search);
+      const events = [...state.extraAudit, ...AUDIT.events]
+        .filter((event) => !action || event.action === action)
+        .filter((event) => !organization || event.organizationId === organization);
       return answer('audit', { ...AUDIT, events, total: events.length })(route);
     }
 
@@ -187,8 +215,19 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
       if (state.refuse.sponsor) return state.refuse.sponsor(route);
       const sponsor = userOf(String(body.billing_sponsor_user_id));
       if (!sponsor?.is_active) return detail(422, 'invalid_sponsor', 'Sponsor must be active.')(route);
-      state.sponsor = sponsor.id;
-      return json({ ...ORG, billing_sponsor_user_id: sponsor.id })(route);
+      // Naming oneself moves it at once; naming somebody else only makes a request, and only one can wait.
+      if (sponsor.id === ALEX.id) {
+        state.sponsor = sponsor.id;
+        state.proposals = [];
+        return json({ ...ORG, billing_sponsor_user_id: sponsor.id })(route);
+      }
+      const waiting = state.proposals.find((item) => item.status === 'pending');
+      if (waiting && !body.replace_pending_proposal) {
+        return detail(409, 'sponsor_proposal_pending', 'A sponsor proposal is already pending for this organization.', { proposal_id: waiting.id })(route);
+      }
+      const made = proposalFor(sponsor, { id: `prop-${state.sent.sponsor.length}` });
+      state.proposals = [made];
+      return route.fulfill({ status: 202, json: made });
     }
     return detail(404, 'not_found', 'not mocked')(route);
   });
@@ -329,6 +368,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('row', { name: 'jordan.lee', exact: true }).getByText('contract pending')).toBeVisible();
       await expect(main.getByRole('row', { name: 'dana.kim', exact: true }).getByText('Inactive', { exact: true })).toBeVisible();
       await expect(main.getByRole('row', { name: 'alex.rivera', exact: true }).getByText('you', { exact: true })).toBeVisible();
+      // The institutional identity is real now: only the account that has one carries the chip.
+      await expect(main.getByRole('row', { name: 'maria.santos', exact: true }).getByText('Institutional identity verified')).toBeVisible();
+      await expect(main.getByRole('row', { name: 'sam.okafor', exact: true }).getByText('Institutional identity verified')).toHaveCount(0);
       await expect(main.getByText('Showing 1–6 of 6 accounts')).toBeVisible();
       await capture(page, testInfo, `users-${name}-list`, { height: tall(1800) });
 
@@ -355,6 +397,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Deactivate sam.okafor' }).click();
       const dialog = page.getByRole('dialog', { name: 'Deactivate sam.okafor?' });
       await capture(page, testInfo, `users-${name}-confirm`);
+      await expect(dialog.getByText('The change is recorded in the audit log with your name.')).toBeVisible();
       await dialog.getByRole('button', { name: 'Deactivate', exact: true }).click();
       await expect(main.getByText('sam.okafor was deactivated.')).toBeVisible();
       expect(state.sent.patch).toEqual([{ id: SAM.id, body: { is_active: false } }]);
@@ -443,6 +486,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // Usage can be recounted, and a key can be taken back by its id.
       await main.getByRole('button', { name: 'Resync concurrency' }).click();
       await capture(page, testInfo, `detail-${name}-resync-dialog`);
+      await expect(page.getByRole('dialog', { name: 'Resync concurrency?' }).getByText('The resync is recorded in the audit log with your name.')).toBeVisible();
       await page.getByRole('dialog', { name: 'Resync concurrency?' }).getByRole('button', { name: 'Resync', exact: true }).click();
       await expect(main.getByText('Corrected by')).toBeVisible();
       expect(state.sent.resync).toEqual([SAM.id]);
@@ -450,7 +494,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await main.getByRole('button', { name: 'Revoke key' }).click();
       await capture(page, testInfo, `detail-${name}-revoke-dialog`);
       await page.getByRole('dialog', { name: 'Revoke the key of sam.okafor?' }).getByRole('button', { name: 'Revoke key' }).click();
-      await expect(main.getByText(/Key revoked\. Requests with it fail from now on/)).toBeVisible();
+      await expect(main.getByText(/Key revoked\. Requests with it fail from now on\. It is recorded in the audit log with your name\./)).toBeVisible();
       expect(state.sent.revoked).toEqual([KEY_ID]);
       await main.getByLabel('Key id').fill(KEY_MISSING);
       await main.getByRole('button', { name: 'Revoke key' }).click();
@@ -471,7 +515,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // An account found by name, and one that does not exist.
       await page.goto('/app/admin/users/maria.santos');
       await expect(main.getByRole('heading', { level: 1, name: 'maria.santos', exact: true })).toBeVisible();
-      await expect(main.getByText('Verified (us-cas)')).toBeVisible();
+      await expect(main.getByText('Institutional identity verified')).toBeVisible();
       await page.goto('/app/admin/users/00000000-0000-4000-8000-0000000000ff');
       await expect(main.getByText('No such account', { exact: true })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-404`, { height: tall(900) });
@@ -507,6 +551,39 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('list', { name: 'Events, newest first' }).getByRole('listitem')).toHaveCount(1);
       await main.getByRole('button', { name: 'Clear “pricing.live.activated”' }).click();
       await expect(main.getByRole('list', { name: 'Events, newest first' }).getByRole('listitem')).toHaveCount(3);
+
+      // B2: account actions, the CAS link and the events recorded inside an organization are in the log, the latter with their organization.
+      const recorded = (id: number, action: string, eventDetail: Record<string, unknown>, over: Partial<AdminAuditPage['events'][number]> = {}): AdminAuditPage['events'][number] => ({
+        id: `00000000-0000-4000-8000-00000000090${id}`, organizationId: null, organizationSlug: null, actorId: ALEX.id, action, targetType: 'User', targetId: SAM.id,
+        detail: eventDetail, createdAt: `2026-10-0${id}T09:00:00Z`, ...over,
+      });
+      state.extraAudit = [
+        recorded(7, 'organization.sponsor.proposed', { proposal_id: 'prop-1', proposed_user_id: PRIYA.id, proposed_by_user_id: ALEX.id, expires_at: '2026-10-23T12:00:00Z' },
+          { organizationId: ORG.id, organizationSlug: 'isa-demo', targetType: 'SponsorProposal', targetId: 'prop-1' }),
+        recorded(6, 'admin.user.updated', { username: 'sam.okafor', changes: { is_active: { from: true, to: false } } }),
+        recorded(5, 'admin.api_key.revoked', { user_id: SAM.id, key: { id: 'key-1', name: 'ci pipeline', prefix: 'obk_ab12' } }, { targetType: 'ApiKey', targetId: 'key-1' }),
+        recorded(4, 'account.cas.linked', { provider: 'us-cas', plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false } }),
+      ];
+      await page.goto('/app/admin/audit');
+      await expect(main.getByText('A request to become the billing sponsor was sent.')).toBeVisible();
+      await expect(main.getByText('Account sam.okafor was updated: status active → inactive.')).toBeVisible();
+      await expect(main.getByText('API key “ci pipeline” (obk_ab12…) was revoked.')).toBeVisible();
+      await expect(main.getByText('An institutional identity was linked and the plan went from BASIC to RESEARCH at no extra cost.')).toBeVisible();
+      const timeline = main.getByRole('list', { name: 'Events, newest first' });
+      await expect(timeline.getByRole('listitem').first().getByText('isa-demo', { exact: true })).toBeVisible();
+      await expect(main.getByRole('complementary', { name: 'Event detail' }).getByText('Organization', { exact: true })).toBeVisible();
+      await capture(page, testInfo, `audit-${name}-account-events`, { height: tall(1700) });
+      await main.getByRole('group', { name: 'Kind of event' }).getByRole('button', { name: 'Accounts' }).click();
+      await expect(timeline.getByRole('listitem')).toHaveCount(3);
+      await main.getByRole('group', { name: 'Kind of event' }).getByRole('button', { name: 'All', exact: true }).click();
+
+      // Only one organization’s events: the gateway filters by `organization_id`.
+      await main.getByRole('button', { name: 'Only this organization' }).click();
+      await expect(timeline.getByRole('listitem')).toHaveCount(1);
+      expect(state.sent.auditQueries[state.sent.auditQueries.length - 1]).toContain(`organization_id=${ORG.id}`);
+      await main.getByRole('button', { name: 'Clear organization filter' }).click();
+      await expect(timeline.getByRole('listitem')).toHaveCount(7);
+      state.extraAudit = [];
 
       state.refuse.audit = json({ events: [], total: 0, offset: 0, limit: 100 });
       await page.goto('/app/admin/audit');
@@ -629,7 +706,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('ISA Demo Group', { exact: true })).toBeVisible();
       await expect(main.locator('strong', { hasText: 'maria.santos' }).first()).toBeVisible();
       await expect(main.getByText(/QoS Lab \(sub-organization\)/)).toBeVisible();
-      await expect(main.getByText(/organization owners can set any active account/)).toBeVisible();
+      await expect(main.getByText(/Nobody can make another person pay: naming someone else sends them a request/)).toBeVisible();
       await capture(page, testInfo, `sponsor-${name}-start`, { height: tall(1500) });
 
       await main.getByRole('searchbox', { name: 'Search accounts' }).fill('priya');
@@ -637,19 +714,19 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await candidate.click();
       await expect(main.getByRole('table').getByText('Storage', { exact: true })).toBeVisible();
       await expect(main.getByText('Can sponsor', { exact: true })).toBeVisible();
-      await expect(main.getByText(/The gateway has no dry run/)).toBeVisible();
+      await expect(main.getByText(/This sends priya\.nair a request; nothing moves until they accept/)).toBeVisible();
       await capture(page, testInfo, `sponsor-${name}-limits`, { height: tall(2300) });
 
       // An inactive account cannot be a sponsor.
       await main.getByRole('searchbox', { name: 'Search accounts' }).fill('dana');
       await main.getByRole('radio', { name: /dana\.kim/ }).click();
       await expect(main.getByText('Can’t sponsor', { exact: true })).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Transfer sponsorship' })).toBeDisabled();
+      await expect(main.getByRole('button', { name: 'Send sponsor request' })).toBeDisabled();
       await capture(page, testInfo, `sponsor-${name}-inactive`, { height: tall(2100) });
 
-      // The gateway refuses when the new sponsor’s limits would be passed.
-      await main.getByRole('searchbox', { name: 'Search accounts' }).fill('priya');
-      await main.getByRole('radio', { name: /priya\.nair/ }).click();
+      // Naming oneself is the only direct change, and it is checked against one’s own plan.
+      await main.getByRole('searchbox', { name: 'Search accounts' }).fill('alex');
+      await main.getByRole('radio', { name: /alex\.rivera/ }).click();
       state.refuse.sponsor = detail(402, 'sponsor_quota_exceeded', 'The sponsor contract allows 15 members; this operation would exceed it.', { quota: { limit_id: 'members', limit: 15, used: 18 } });
       await main.getByRole('button', { name: 'Transfer sponsorship' }).click();
       const confirm = page.getByRole('dialog', { name: 'Transfer sponsorship of ISA Demo Group?' });
@@ -658,14 +735,41 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Over the new sponsor’s limits (402 · sponsor_quota_exceeded)')).toBeVisible();
       await expect(main.getByText(/allows 15 members; with this organization they would use 18/)).toBeVisible();
       await capture(page, testInfo, `sponsor-${name}-402`, { height: tall(2300) });
-
-      // Once it fits, it moves.
       state.refuse.sponsor = undefined;
-      await main.getByRole('button', { name: 'Transfer sponsorship' }).click();
-      await page.getByRole('dialog', { name: 'Transfer sponsorship of ISA Demo Group?' }).getByRole('button', { name: 'Transfer', exact: true }).click();
-      await expect(main.getByText(/Sponsorship of ISA Demo Group moved to priya\.nair/)).toBeVisible();
+
+      // Naming somebody else sends a request: nothing moves, and the card says who has to accept and until when.
+      await main.getByRole('searchbox', { name: 'Search accounts' }).fill('priya');
+      await main.getByRole('radio', { name: /priya\.nair/ }).click();
+      await main.getByRole('button', { name: 'Send sponsor request' }).click();
+      const ask = page.getByRole('dialog', { name: 'Ask priya.nair to sponsor ISA Demo Group?' });
+      await capture(page, testInfo, `sponsor-${name}-request-confirm`);
+      await ask.getByRole('button', { name: 'Send request', exact: true }).click();
+      await expect(main.getByText(/Sponsor request sent to priya\.nair\. Nothing changes until they accept/)).toBeVisible();
       expect(state.sent.sponsor[state.sent.sponsor.length - 1]).toEqual({ id: ORG.id, body: { billing_sponsor_user_id: PRIYA.id } });
-      await expect(main.locator('strong', { hasText: 'priya.nair' }).first()).toBeVisible();
+      const card = main.getByRole('region', { name: 'Sponsor request sent' });
+      await expect(card.getByText('Pending', { exact: true })).toBeVisible();
+      await expect(card.getByLabel('Sponsor request')).toContainText('priya.nair');
+      await expect(card.getByLabel('Sponsor request')).toContainText('Oct 23, 2026');
+      await expect(main.locator('strong', { hasText: 'maria.santos' }).first()).toBeVisible();
+      expect(state.sponsor).toBe(MARIA.id);
+      await capture(page, testInfo, `sponsor-${name}-request-sent`, { height: tall(1700) });
+
+      // A second request while one waits: the one who sent it may replace it.
+      await main.getByRole('searchbox', { name: 'Search accounts' }).fill('sam');
+      await main.getByRole('radio', { name: /sam\.okafor/ }).click();
+      await main.getByRole('button', { name: 'Send sponsor request' }).click();
+      await page.getByRole('dialog', { name: 'Ask sam.okafor to sponsor ISA Demo Group?' }).getByRole('button', { name: 'Send request', exact: true }).click();
+      await expect(main.getByText('A request is already waiting (409 · sponsor_proposal_pending)')).toBeVisible();
+      await capture(page, testInfo, `sponsor-${name}-request-pending`, { height: tall(1700) });
+      await main.getByRole('region', { name: 'Sponsor request sent' }).getByRole('button', { name: 'Replace request' }).click();
+      await expect(main.getByText(/Sponsor request sent to sam\.okafor/)).toBeVisible();
+      expect(state.sent.sponsor[state.sent.sponsor.length - 1]).toEqual({ id: ORG.id, body: { billing_sponsor_user_id: SAM.id, replace_pending_proposal: true } });
+
+      // And a platform administrator can take it back.
+      await main.getByRole('region', { name: 'Sponsor request sent' }).getByRole('button', { name: 'Cancel', exact: true }).click();
+      await expect(main.getByText('Sponsor request cancelled. The sponsor stays as it was.')).toBeVisible();
+      expect(state.sent.cancelled).toEqual(['prop-4']);
+      await expect(main.getByRole('region', { name: 'Sponsor request sent' })).toHaveCount(0);
       await capture(page, testInfo, `sponsor-${name}-done`, { height: tall(1500) });
       expect(DANA.is_active).toBe(false);
 

@@ -172,7 +172,7 @@ describe('admin-pricing-draft · a new private draft, made with forms', { timeou
   });
 
   it('shows a document the gateway refuses (422), and does not let it be saved', async () => {
-    platform.validatePricing.mockResolvedValue({ detail: [{ loc: ['body', 'yaml'], msg: 'plans.PRO.usageLimits: unknown limit' }] });
+    platform.validatePricing.mockResolvedValue({ code: 'validation_error', detail: 'Request validation failed', diagnostics: [{ code: 'value_error', message: 'plans.PRO.usageLimits: unknown limit', pointer: '/yaml' }] });
     renderAdmin(<AdminPricingDraft />);
     await toValidation();
     const validation = step('3 · Validate');

@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
-import { QuotaError } from '../../api/auth';
-import type { AdminUserView } from '../../api/auth';
+import { isSponsorProposal, QuotaError } from '../../api/auth';
+import type { AdminUserView, SponsorProposal } from '../../api/auth';
 import { apiClient, HttpError } from '../../api/client';
 import { platformApi, type Organization } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { DataTable } from '../../components/ui/DataTable';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { useAuth } from '../../contexts/auth';
 import { describeLimit, limitInfo } from '../../utils/limits';
 import { useResource } from '../../utils/useResource';
 import { ConfirmDialog } from '../Engines/EngineDialogs';
+import { SponsorRequestCard } from '../Organization/SponsorCards';
+import { pendingOf, sponsorRefusal } from '../Organization/sponsorModel';
 import { AdminFrame, AdminOnly, FailureNotice, Tag } from './AdminChrome';
 import { describeAdminFailure, planTone, shortId, UUID, type Failure } from './adminModel';
 
@@ -45,14 +48,20 @@ function subtreeOf(root: Organization, all: Organization[]): Array<{ organizatio
 
 function SponsorScreen({ param }: { param: string }) {
   const navigate = useNavigate();
+  const { user: me } = useAuth();
   const [draft, setDraft] = useState('');
   const [query, setQuery] = useState('');
   const [targetId, setTargetId] = useState('');
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [done, setDone] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<{ title: string; text: string; tone: 'error' | 'warning' } | null>(null);
   const [orgInput, setOrgInput] = useState('');
+  /** The request just sent, shown at once while the list is read again. */
+  const [sent, setSent] = useState<SponsorProposal | null>(null);
+  /** A request was already waiting when somebody else was named: its sender may replace it. */
+  const [replacing, setReplacing] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setQuery(draft.trim()), 350);
@@ -63,6 +72,18 @@ function SponsorScreen({ param }: { param: string }) {
   const organization = (found.data ?? found.stale)?.organization ?? null;
   const organizationId = organization?.id ?? (UUID.test(param) ? param : null);
   const sponsorId = organization?.billing_sponsor_user_id ?? null;
+
+  const requestsFor = organization?.slug ?? organizationId;
+  const requests = useResource<SponsorProposal[] | null>(`admin-sponsor-requests:${requestsFor ?? ''}`, async () => {
+    if (!requestsFor) return null;
+    try {
+      return await apiClient.listOrganizationSponsorProposals(requestsFor);
+    } catch {
+      return null;
+    }
+  });
+  const waitingRequest = pendingOf(requests.data) ?? (sent && sent.status === 'pending' ? sent : null);
+  const sentByMe = Boolean(waitingRequest && me && waitingRequest.proposed_by_user_id === me.id);
 
   const sponsor = useResource(`admin-sponsor-current:${sponsorId ?? ''}`, async () => (sponsorId ? (await apiClient.adminGetSubscription(sponsorId).catch(() => null)) : null));
   const visible = useResource(`admin-sponsor-tree:${organization?.id ?? ''}`, async () => (organization ? subtreeOf(organization, await platformApi.organizations().catch(() => [organization])) : []));
@@ -86,17 +107,30 @@ function SponsorScreen({ param }: { param: string }) {
     if (value) void navigate(`/app/admin/organizations/${encodeURIComponent(value)}/sponsor`);
   };
 
-  const transfer = async () => {
+  // Naming yourself changes the sponsor at once; naming anybody else sends them a request that they have to accept.
+  const namesSelf = Boolean(target && me && target.id === me.id);
+
+  const transfer = async (replace = false) => {
     if (!organizationId || !target) return;
     setBusy(true);
     setRefusal(null);
+    setReplacing(false);
     try {
-      await apiClient.adminTransferSponsor(organizationId, target.id);
-      setDone(`Sponsorship of ${organization?.name ?? param} moved to ${target.username}. The change is recorded in the organization’s audit log.`);
+      const result = replace
+        ? await apiClient.adminTransferSponsor(organizationId, target.id, true)
+        : await apiClient.adminTransferSponsor(organizationId, target.id);
+      if (isSponsorProposal(result)) {
+        setSent(result);
+        setDone(`Sponsor request sent to ${target.username}. Nothing changes until they accept; it lapses after 14 days. It is recorded in the audit log.`);
+      } else {
+        setSent(null);
+        setDone(`Sponsorship of ${organization?.name ?? param} moved to ${target.username}. It is recorded in the audit log.`);
+      }
       setTargetId('');
       setDraft('');
       setQuery('');
       found.reload();
+      requests.reload();
     } catch (error: unknown) {
       if (error instanceof QuotaError) {
         const quota = error.quota;
@@ -110,13 +144,41 @@ function SponsorScreen({ param }: { param: string }) {
         });
       } else {
         const refused = describeAdminFailure(error, 'The sponsorship couldn’t be moved');
-        setRefusal(refused.code === 'invalid_sponsor'
-          ? { tone: 'error', title: 'That account can’t be a sponsor (422 · invalid_sponsor)', text: 'Sponsors must be active accounts.' }
-          : { tone: refused.tone, title: refused.title, text: refused.text });
+        if (refused.code === 'invalid_sponsor') {
+          setRefusal({ tone: 'error', title: 'That account can’t be a sponsor (422 · invalid_sponsor)', text: 'Sponsors must be active accounts.' });
+        } else if (refused.code === 'sponsor_proposal_pending') {
+          // Whoever sent the waiting request may replace it; anybody else cancels it first. The list says which this is.
+          setReplacing(true);
+          requests.reload();
+          setRefusal({ tone: 'error', title: 'A request is already waiting (409 · sponsor_proposal_pending)', text: 'This organization already has a sponsor request waiting for an answer. Replace it if you sent it; otherwise cancel it first.' });
+        } else if (refused.code === 'already_sponsor') {
+          setRefusal({ tone: 'error', title: 'That account is already the sponsor (409 · already_sponsor)', text: 'Pick another account.' });
+        } else if (refused.code === 'sponsor_proposal_expired' || refused.code === 'sponsor_proposal_not_pending') {
+          setRefusal({ tone: 'error', title: refused.title, text: sponsorRefusal(error, 'propose').text });
+        } else {
+          setRefusal({ tone: refused.tone, title: refused.title, text: refused.text });
+        }
       }
     } finally {
       setBusy(false);
       setConfirm(false);
+    }
+  };
+
+  const cancelRequest = async (proposal: SponsorProposal) => {
+    setCancelling(true);
+    setRefusal(null);
+    try {
+      await apiClient.cancelSponsorProposal(proposal.id);
+      setSent(null);
+      setReplacing(false);
+      setDone('Sponsor request cancelled. The sponsor stays as it was.');
+      requests.reload();
+    } catch (error: unknown) {
+      const refused = describeAdminFailure(error, 'The request couldn’t be cancelled');
+      setRefusal({ tone: refused.tone, title: refused.title, text: sponsorRefusal(error, 'cancel').text });
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -128,10 +190,19 @@ function SponsorScreen({ param }: { param: string }) {
       section="overview"
       trail={trail}
       title="Transfer sponsorship"
-      lede="The sponsor’s plan is what an organization and everything under it counts against: members, projects, storage and so on. Moving it needs the new sponsor’s plan to fit the combined use."
+      lede="The sponsor’s plan is what an organization and everything under it counts against: members, projects, storage and so on. Nobody can make another person pay: naming someone else sends them a request, and it moves only when they accept and their plan fits the combined use."
     >
       {failure && <FailureNotice failure={failure} onRetry={found.reload} />}
       {done && <Notice tone="success">{done}</Notice>}
+      {waitingRequest && (
+        <SponsorRequestCard
+          proposal={waitingRequest}
+          cancel={{ busy: cancelling, onCancel: () => void cancelRequest(waitingRequest) }}
+          replace={replacing && sentByMe && target ? { busy, onReplace: () => void transfer(true) } : undefined}
+        >
+          {replacing && !sentByMe && <span className="adm-muted">Someone else sent this request. Cancel it first, then send yours.</span>}
+        </SponsorRequestCard>
+      )}
 
       <div className="adm-two">
         <section className="adm-card" aria-labelledby="adm-sponsor-org">
@@ -238,28 +309,39 @@ function SponsorScreen({ param }: { param: string }) {
             </DataTable>
           )}
           <span className="adm-muted">
-            The gateway has no dry run. When you transfer, it adds this organization and everything under it to what {target.username} already sponsors,
-            counting members once, and refuses with a 402 naming the first limit that would be passed. Nothing moves unless every limit fits.
+            {namesSelf
+              ? <>The gateway has no dry run. When you transfer, it adds this organization and everything under it to what {target.username} already sponsors, counting members once, and refuses with a 402 naming the first limit that would be passed. Nothing moves unless every limit fits.</>
+              : <>This sends {target.username} a request; nothing moves until they accept. They accept with their own plan: the gateway then adds this organization and everything under it to what they already sponsor, counting members once, and refuses with a 402 naming the first limit that would be passed. The request stays open so they can try again.</>}
           </span>
           {refusal && <Notice tone={refusal.tone} title={refusal.title}>{refusal.text}</Notice>}
           <div className="adm-buttons">
-            <Action variant="primary" disabled={!eligible || !organizationId || busy} onClick={() => setConfirm(true)}>Transfer sponsorship</Action>
-            <span className="adm-muted">{eligible ? 'Recorded in the organization’s audit log.' : 'Pick an active account that isn’t already the sponsor.'}</span>
+            <Action variant="primary" disabled={!eligible || !organizationId || busy} onClick={() => setConfirm(true)}>{namesSelf ? 'Transfer sponsorship' : 'Send sponsor request'}</Action>
+            <span className="adm-muted">{eligible ? 'Recorded in the audit log.' : 'Pick an active account that isn’t already the sponsor.'}</span>
           </div>
         </section>
       )}
 
-      <span className="adm-muted">
-        Heads-up: organization owners can set any active account as their organization’s sponsor from its settings, with the same limit check; no consent from that account is asked.
-      </span>
-
       {confirm && target && (
-        <ConfirmDialog title={`Transfer sponsorship of ${title}?`} confirmLabel="Transfer" busy={busy} onConfirm={() => void transfer()} onClose={() => setConfirm(false)}>
-          <p>
-            From {currentSponsor?.username ?? (sponsorId ? shortId(sponsorId) : 'the current sponsor')} to <strong>{target.username}</strong>.
-            {' '}{Math.max(1, tree.length)} {Math.max(1, tree.length) === 1 ? 'organization' : 'organizations'} will count against {target.plan} limits from now on.
-          </p>
-          <p className="adm-muted">This change is recorded in the organization’s audit log with your name.</p>
+        <ConfirmDialog
+          title={namesSelf ? `Transfer sponsorship of ${title}?` : `Ask ${target.username} to sponsor ${title}?`}
+          confirmLabel={namesSelf ? 'Transfer' : 'Send request'}
+          busy={busy}
+          onConfirm={() => void transfer()}
+          onClose={() => setConfirm(false)}
+        >
+          {namesSelf ? (
+            <p>
+              From {currentSponsor?.username ?? (sponsorId ? shortId(sponsorId) : 'the current sponsor')} to <strong>{target.username}</strong>.
+              {' '}{Math.max(1, tree.length)} {Math.max(1, tree.length) === 1 ? 'organization' : 'organizations'} will count against {target.plan} limits from now on.
+            </p>
+          ) : (
+            <p>
+              <strong>{target.username}</strong> will be asked to become the sponsor of {title}. Nothing changes until they accept; if they do,
+              {' '}{Math.max(1, tree.length)} {Math.max(1, tree.length) === 1 ? 'organization' : 'organizations'} will count against their {target.plan} limits.
+              The request lapses after 14 days.
+            </p>
+          )}
+          <p className="adm-muted">This is recorded in the audit log with your name.</p>
         </ConfirmDialog>
       )}
     </AdminFrame>

@@ -270,8 +270,8 @@ function GetStarted({ root, canCreate }: { root: string; canCreate: boolean }) {
   );
 }
 
-function OverviewBody({ organization, project, canCreate, role, roleTitle }: {
-  organization: Organization; project: Project; canCreate: boolean; role: Organization['effective_role'] | 'PLATFORM ADMIN'; roleTitle?: string;
+function OverviewBody({ organization, project, canCreate, publicRead, role, roleTitle }: {
+  organization: Organization; project: Project; canCreate: boolean; publicRead: boolean; role: Organization['effective_role'] | 'PLATFORM ADMIN'; roleTitle?: string;
 }) {
   const { isAdmin } = useAuth();
   const org = organization.slug;
@@ -279,7 +279,9 @@ function OverviewBody({ organization, project, canCreate, role, roleTitle }: {
   const root = `/app/${org}/${slug}`;
 
   const cases = useResource(`overview-cases:${org}/${slug}`, () => loadCases(org, slug));
-  const jobs = useResource<JobsData>(`overview-jobs:${org}/${slug}`, async () => {
+  // A visitor of a public project never reads its jobs (the gateway refuses them), so the card is neither asked for nor shown.
+  const jobs = useResource<JobsData>(`overview-jobs:${org}/${slug}:${publicRead ? 'public' : 'member'}`, async () => {
+    if (publicRead) return { rows: [], mine: null };
     const [rows, own] = await Promise.all([platformApi.projectJobs(org, slug), apiClient.listOwnJobs({ limit: 100 }).catch(() => null)]);
     return { rows, mine: own ? new Set(own.jobs.map((job) => job.id)) : null };
   });
@@ -301,31 +303,39 @@ function OverviewBody({ organization, project, canCreate, role, roleTitle }: {
           <span className="proj-title-line">
             <h1>{project.name}</h1>
             <VisibilityChip visibility={project.visibility} />
-            <RoleChip role={role} title={roleTitle} />
+            {!publicRead && <RoleChip role={role} title={roleTitle} />}
           </span>
           <p>{project.description || 'No description yet.'}</p>
         </div>
         <div className="proj-actions">
-          <RoleAction allowed={canCreate} to={`${root}/cases`} variant="primary">New case</RoleAction>
-          <RoleAction allowed={canCreate} to={`${root}/jobs/new`} variant="secondary">Run</RoleAction>
-          <RoleAction allowed={canCreate} to={`${root}/studies/new`} variant="secondary">New study</RoleAction>
-          <RoleAction allowed={canCreate} to={`${root}/reports`} variant="secondary">New report</RoleAction>
+          {publicRead ? (
+            <Action to={`${root}/cases`} variant="primary">Browse cases</Action>
+          ) : (
+            <>
+              <RoleAction allowed={canCreate} to={`${root}/cases`} variant="primary">New case</RoleAction>
+              <RoleAction allowed={canCreate} to={`${root}/jobs/new`} variant="secondary">Run</RoleAction>
+              <RoleAction allowed={canCreate} to={`${root}/studies/new`} variant="secondary">New study</RoleAction>
+              <RoleAction allowed={canCreate} to={`${root}/reports`} variant="secondary">New report</RoleAction>
+            </>
+          )}
           <Action to={`${root}/workbench`} variant="secondary">Workbench</Action>
-          <Action to={`${root}/package`} variant="secondary">Export package</Action>
+          {!publicRead && <Action to={`${root}/package`} variant="secondary">Export package</Action>}
         </div>
       </div>
-      {!canCreate && <small className="org-muted">You’re a VIEWER: you can read everything here and export the package; creating needs MEMBER.</small>}
+      {publicRead && <small className="org-muted">Cases, studies, the files marked public and the published reports are open to read. Only members can change anything or see jobs.</small>}
+      {!publicRead && !canCreate && <small className="org-muted">You’re a VIEWER: you can read everything here and export the package; creating needs MEMBER.</small>}
     </>
   );
 
   return (
     <ProjectFrame organization={organization} project={project} section="overview" header={header}>
-      {empty && <GetStarted root={root} canCreate={canCreate} />}
+      {empty && !publicRead && <GetStarted root={root} canCreate={canCreate} />}
+      {empty && publicRead && <p className="org-muted">Nothing has been shared in this project yet.</p>}
       {sealed && !empty && <IntegrityStrip items={sealed} />}
       {!empty && (
         <div className="proj-grid">
           <CasesCard root={root} resource={cases} />
-          <JobsCard root={root} resource={jobs} platformAdmin={isAdmin} />
+          {!publicRead && <JobsCard root={root} resource={jobs} platformAdmin={isAdmin} />}
           <StudiesCard root={root} resource={studies} />
           <ReportsCard root={root} resource={reports} />
         </div>
@@ -348,6 +358,7 @@ export function ProjectOverview() {
       organization={organization}
       project={project}
       canCreate={access.canCreate}
+      publicRead={access.publicRead}
       role={role}
       roleTitle={roleSource(organization, context.organizations).text}
     />

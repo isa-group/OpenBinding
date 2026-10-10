@@ -14,7 +14,7 @@ import { ForecastBars } from '../Jobs/LaunchSteps';
 import { forecastBar, type ForecastBar } from '../Jobs/jobsModel';
 import { planCeilingsOf } from '../Jobs/launchModel';
 import { RefusalNotice } from '../Jobs/parts';
-import { ProjectGate, ProjectSkeleton } from '../Project/parts';
+import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts';
 import { loadCases } from '../Project/projectData';
 import { SLUG_PATTERN, slugFromName, type CaseContent } from '../Project/projectModel';
 import { useRouteProject } from '../Project/useRouteProject';
@@ -339,5 +339,6 @@ export function StudyBuilder() {
   if (!organization || !project) {
     return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
   }
+  if (access.publicRead) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
   return <BuilderBody key={`${organization.slug}/${project.slug}`} organization={organization} project={project} canCreate={access.canCreate} />;
 }

@@ -29,6 +29,8 @@ function ReportListBody({ organization, project, canCreate, canAdminister }: { o
   const org = organization.slug;
   const slug = project.slug;
   const root = `/app/${org}/${slug}`;
+  // A visitor of a public project is served the published reports only; drafts and unpublished editions are not theirs to see.
+  const publicRead = project.access === 'public_read';
   const content = useResource(`reports-list:${org}/${slug}`, () => loadReports(org, slug));
   const studies = useResource(`reports-runs:${org}/${slug}`, () => loadStudies(org, slug).catch(() => []));
   const [filter, setFilter] = useState('all');
@@ -39,7 +41,9 @@ function ReportListBody({ organization, project, canCreate, canAdminister }: { o
 
   const data = content.data ?? content.stale;
   const failure = content.status === 'error' ? classifyAuthError(content.error) : null;
-  const rows = (data?.reports ?? []).filter((report) => filter === 'all' || report.state === filter);
+  const rows = (data?.reports ?? [])
+    .filter((report) => !publicRead || (report.state === 'frozen' && livePublication(report, data?.publications ?? [])))
+    .filter((report) => filter === 'all' || report.state === filter);
   const reload = content.reload;
 
   const remove = async (report: Report) => {
@@ -75,7 +79,8 @@ function ReportListBody({ organization, project, canCreate, canAdminister }: { o
       )}
       {outcome?.tone === 'error' && <RefusalNotice refusal={outcome.refusal} />}
 
-      {data && data.reports.length > 0 && <FilterPills ariaLabel="State" value={filter} options={FILTERS} onChange={setFilter} />}
+      {publicRead && <Notice tone="info">Only published reports are shown here. Drafts and editions that aren’t published are for members.</Notice>}
+      {data && data.reports.length > 0 && !publicRead && <FilterPills ariaLabel="State" value={filter} options={FILTERS} onChange={setFilter} />}
 
       {content.status === 'loading' && !data && <div role="status" aria-busy="true"><span className="sr-only">Loading the reports…</span><Skeleton variant="panel" /></div>}
       {failure && !data && (
@@ -86,12 +91,15 @@ function ReportListBody({ organization, project, canCreate, canAdminister }: { o
         </Notice>
       )}
 
-      {data && data.reports.length === 0 && (
+      {data && rows.length === 0 && publicRead && (
+        <EmptyState dashed icon={<FileText />} title="No published reports yet">This project hasn’t published a report.</EmptyState>
+      )}
+      {data && data.reports.length === 0 && !publicRead && (
         <EmptyState dashed icon={<FileText />} title="No reports yet">
           Create one from a study run or from a saved analysis.{!canCreate && ` Creating a report needs MEMBER in ${organization.name}.`}
         </EmptyState>
       )}
-      {data && data.reports.length > 0 && rows.length === 0 && <EmptyState icon={<FileText />} title="No reports in this state">Try another filter.</EmptyState>}
+      {data && data.reports.length > 0 && rows.length === 0 && !publicRead && <EmptyState icon={<FileText />} title="No reports in this state">Try another filter.</EmptyState>}
 
       {rows.length > 0 && (
         <ul className="rp-list" aria-label="Reports of the project">

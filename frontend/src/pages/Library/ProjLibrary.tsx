@@ -115,7 +115,7 @@ function Body({ organization, project, access }: { organization: Organization; p
 
   return (
     <ProjectFrame organization={organization} project={project} section="library" crumb="Library">
-      <ProjectLibraryNav current="library" orgSlug={slug} projectSlug={project.slug} />
+      <ProjectLibraryNav current="library" orgSlug={slug} projectSlug={project.slug} publicRead={access.publicRead} />
       <header className="proj-title-row">
         <div className="proj-title">
           <h1>Library used here</h1>
@@ -138,8 +138,14 @@ function Body({ organization, project, access }: { organization: Organization; p
       {items.status === 'ready' && rows.length === 0 && (
         <section className="lib-dashed lib-nothing" aria-labelledby="pl-empty">
           <strong id="pl-empty">Nothing associated yet</strong>
-          <span>Add the catalogs, workflows and settings this project uses so they’re one click away.</span>
-          <Action to={`/app/${slug}/library`} variant="secondary">Browse the library</Action>
+          {access.publicRead ? (
+            <span>This project doesn’t list any published library item.</span>
+          ) : (
+            <>
+              <span>Add the catalogs, workflows and settings this project uses so they’re one click away.</span>
+              <Action to={`/app/${slug}/library`} variant="secondary">Browse the library</Action>
+            </>
+          )}
         </section>
       )}
       {rows.length > 0 && (

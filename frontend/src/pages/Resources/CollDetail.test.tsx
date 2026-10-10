@@ -163,7 +163,7 @@ describe('Collection detail', () => {
   });
 
   it('says a repeated item is refused (422) and keeps the list', async () => {
-    platform.createCollectionRevision.mockRejectedValue(refusal(422, undefined, { problem: { detail: [{ msg: 'Value error, a collection revision cannot repeat a target' }] } }));
+    platform.createCollectionRevision.mockRejectedValue(refusal(422, undefined, { problem: { code: 'validation_error', detail: 'Request validation failed', diagnostics: [{ code: 'value_error', message: 'Value error, a collection revision cannot repeat a target' }] } }));
     renderDetail();
     const list = await items();
 

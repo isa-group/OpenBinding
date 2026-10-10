@@ -1,4 +1,5 @@
 import { HttpError } from '../../api/client';
+import { diagnosticLines } from '../../api/problem';
 import { classifyAuthError, generalFailure, marker, type AuthFailure } from '../Project/projectErrors';
 
 export { classifyAuthError, marker };
@@ -66,11 +67,14 @@ const MISSING_CODES = new Set(['instance_required', 'missing_dependency']);
 /** The messages inside a 422's diagnostics, so the person sees where the composition is wrong. */
 function diagnosticsOf(caught: unknown): string[] {
   if (!(caught instanceof HttpError)) return [];
+  // A refusal with nothing finer to say carries one diagnostic that restates its own sentence: the notice already says it.
+  const said = diagnosticLines(caught, 100);
   return (caught.diagnostics ?? []).flatMap((item) => {
     if (typeof item !== 'object' || item === null) return [];
-    const { message, path } = item as { message?: unknown; path?: unknown };
-    if (typeof message !== 'string') return [];
-    return [typeof path === 'string' && path ? `${message} (${path})` : message];
+    const { message, path, pointer } = item as { message?: unknown; path?: unknown; pointer?: unknown };
+    if (typeof message !== 'string' || !said.includes(message)) return [];
+    const where = typeof path === 'string' && path ? path : typeof pointer === 'string' && pointer ? pointer : '';
+    return [where ? `${message} (${where})` : message];
   }).slice(0, 6);
 }
 

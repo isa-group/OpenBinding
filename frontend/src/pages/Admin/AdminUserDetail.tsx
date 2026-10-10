@@ -58,7 +58,7 @@ function KeysCard({ userId, username, count }: { userId: string; username: strin
     setBusy(true);
     try {
       await apiClient.adminRevokeApiKey(userId, keyId.trim());
-      setMessage({ tone: 'success', text: 'Key revoked. Requests with it fail from now on. The gateway doesn’t write this to the audit log.' });
+      setMessage({ tone: 'success', text: 'Key revoked. Requests with it fail from now on. It is recorded in the audit log with your name.' });
       setKeyId('');
     } catch (error: unknown) {
       const refused = describeAdminFailure(error, 'The key couldn’t be revoked');
@@ -190,7 +190,7 @@ function DetailScreen({ param }: { param: string }) {
 
       <dl className="adm-facts" aria-label="Account facts">
         <Fact label="Plan"><Tag tone="dark">{subscription.plan}</Tag></Fact>
-        <Fact label="CAS identity">{user.cas_verified ? 'Verified (us-cas)' : 'Not shown by the gateway'}</Fact>
+        <Fact label="Institutional identity">{user.cas_verified ? <Tag tone="success">Institutional identity verified</Tag> : 'None linked'}</Fact>
         <Fact label="Contract">{user.contract_pending ? 'Pending: settles on the next authenticated request' : 'Settled'}</Fact>
         <Fact label="Pricing pinned">{subscription.pricing_version}</Fact>
         <Fact label="API keys">{user.api_key_count}</Fact>

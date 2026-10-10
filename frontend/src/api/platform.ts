@@ -1,3 +1,4 @@
+import type { SponsorProposal } from './auth';
 import { apiClient } from './client';
 
 export type Visibility = 'private' | 'public';
@@ -65,6 +66,12 @@ export interface OrganizationAuditPage {
   limit: number;
 }
 
+/**
+ * How the caller reaches a project: `member` (a role, see `effective_role`) or `public_read` (somebody who is not a member
+ * reading a public project: GET only, and never a role).
+ */
+export type ProjectAccessKind = 'member' | 'public_read';
+
 export interface Project {
   id: string;
   organization_id: string;
@@ -72,9 +79,14 @@ export interface Project {
   name: string;
   description: string;
   visibility: Visibility;
-  created_by_id: string;
+  /** Null for a visitor of a public project. */
+  created_by_id: string | null;
   created_at: string;
   updated_at: string;
+  /** Absent in older answers, which were all `member`. */
+  access?: ProjectAccessKind;
+  /** The caller's membership role; null for a visitor. */
+  effective_role?: OrganizationRole | null;
 }
 
 export interface BindingCase {
@@ -410,9 +422,15 @@ export const platformApi = {
     apiClient.request<Organization>('/v1/organizations', {
       method: 'POST', body: JSON.stringify(value),
     }, undefined, true, true),
-  /** Renaming and moving need ADMIN; changing `billing_sponsor_user_id` needs OWNER and moves the whole subtree. */
-  updateOrganization: (org: string, value: { name?: string; parent_id?: string | null; move_to_root?: boolean; billing_sponsor_user_id?: string | null }) =>
-    apiClient.request<Organization>(root(org), {
+  /**
+   * Renaming and moving need ADMIN; naming a sponsor needs OWNER. Naming yourself changes the sponsor at once (200, the organization);
+   * naming somebody else answers 202 with a pending {@link SponsorProposal} and leaves the sponsor alone (the other fields are applied).
+   * 409 `sponsor_proposal_pending` when one is already waiting: its proposer may send `replace_pending_proposal`.
+   */
+  updateOrganization: (org: string, value: {
+    name?: string; parent_id?: string | null; move_to_root?: boolean; billing_sponsor_user_id?: string | null; replace_pending_proposal?: boolean;
+  }) =>
+    apiClient.request<Organization | SponsorProposal>(root(org), {
       method: 'PATCH', body: JSON.stringify(value),
     }, undefined, true, true),
   deleteOrganization: (org: string) =>

@@ -1,10 +1,10 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QuotaError } from '../../api/auth';
-import type { UserProfile } from '../../api/auth';
+import type { SponsorProposal, UserProfile } from '../../api/auth';
 import { catalogFixture } from '../Pricing/pricingFixture';
 import { AdminSponsor } from './AdminSponsor';
-import { DANA, MARIA, ORG, PRIYA, SUB_ORG, USERS, subscriptionOf, usageOf, userPage } from '../../test/fixtures/admin';
+import { ALEX, DANA, MARIA, ORG, PRIYA, SUB_ORG, USERS, subscriptionOf, usageOf, userPage } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 
 const api = vi.hoisted(() => ({
@@ -13,7 +13,20 @@ const api = vi.hoisted(() => ({
   adminGetUserUsage: vi.fn(),
   adminTransferSponsor: vi.fn(),
   getPricingCatalog: vi.fn(),
+  listOrganizationSponsorProposals: vi.fn(),
+  cancelSponsorProposal: vi.fn(),
 }));
+
+/** The pending request the gateway answers (202) when somebody else is named. */
+function request(over: Partial<SponsorProposal> = {}): SponsorProposal {
+  return {
+    id: 'prop-1', organization_id: ORG.id, organization_slug: ORG.slug, organization_name: ORG.name,
+    proposed_user_id: PRIYA.id, proposed_username: PRIYA.username, proposed_by_user_id: ALEX.id, proposed_by_username: ALEX.username,
+    status: 'pending', created_at: '2026-10-10T09:00:00Z', expires_at: '2099-12-31T09:00:00Z',
+    decided_at: null, decided_by_user_id: null, decision_reason: null,
+    ...over,
+  };
+}
 
 const platform = vi.hoisted(() => ({ organization: vi.fn(), organizations: vi.fn() }));
 
@@ -49,7 +62,9 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
     api.adminGetSubscription.mockImplementation(async (id: string) => subscriptionOf(USERS.find((account) => account.id === id) ?? MARIA));
     api.adminGetUserUsage.mockImplementation(async () => usageOf('ADVANCED'));
     api.getPricingCatalog.mockResolvedValue(catalogFixture);
-    api.adminTransferSponsor.mockResolvedValue({ ...ORG, billing_sponsor_user_id: PRIYA.id });
+    api.adminTransferSponsor.mockResolvedValue(request());
+    api.listOrganizationSponsorProposals.mockResolvedValue([]);
+    api.cancelSponsorProposal.mockResolvedValue(request({ status: 'cancelled' }));
   });
 
   afterEach(() => {
@@ -79,7 +94,7 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
     expect(api.adminListUsers).toHaveBeenCalledWith({ search: 'priy', limit: 20 });
     expect(api.adminGetUserUsage).toHaveBeenCalledWith(PRIYA.id);
     expect(screen.getByText('Can sponsor')).toBeInTheDocument();
-    expect(screen.getByText(/The gateway has no dry run/)).toBeInTheDocument();
+    expect(screen.getByText(/This sends priya\.nair a request; nothing moves until they accept/)).toBeInTheDocument();
   });
 
   it('does not offer the current sponsor as the new one', async () => {
@@ -90,18 +105,52 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
     expect(screen.getByRole('radio', { name: /maria\.santos.*current sponsor/ })).toBeInTheDocument();
   });
 
-  it('moves the sponsorship only after a confirmation', async () => {
+  it('sends a request, not a transfer, when somebody else is named, and only after a confirmation', async () => {
     open();
     await screen.findByText('maria.santos', { selector: 'strong' });
     await choose('priya.nair');
     await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('button', { name: 'Send sponsor request' }));
+    const dialog = screen.getByRole('dialog', { name: 'Ask priya.nair to sponsor ISA Demo Group?' });
+    expect(api.adminTransferSponsor).not.toHaveBeenCalled();
+    expect(within(dialog).getByText(/Nothing changes until they accept/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/2 organizations will count against their ADVANCED limits/)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Send request' }));
+
+    expect(await screen.findByText(/Sponsor request sent to priya\.nair\. Nothing changes until they accept/)).toBeInTheDocument();
+    expect(api.adminTransferSponsor).toHaveBeenCalledWith(ORG.id, PRIYA.id);
+    expect(screen.queryByText(/moved to/)).not.toBeInTheDocument();
+    const card = await screen.findByRole('region', { name: 'Sponsor request sent' });
+    expect(within(card).getByText('Pending')).toBeInTheDocument();
+    expect(within(card).getByLabelText('Sponsor request')).toHaveTextContent('priya.nair');
+    expect(within(card).getByLabelText('Sponsor request')).toHaveTextContent('Dec 31, 2099');
+  });
+
+  it('cancels the request that was sent', async () => {
+    api.listOrganizationSponsorProposals.mockResolvedValue([request()]);
+    open();
+
+    const card = await screen.findByRole('region', { name: 'Sponsor request sent' });
+    api.listOrganizationSponsorProposals.mockResolvedValue([request({ status: 'cancelled' })]);
+    fireEvent.click(within(card).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(api.cancelSponsorProposal).toHaveBeenCalledWith('prop-1'));
+    expect(await screen.findByText('Sponsor request cancelled. The sponsor stays as it was.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Sponsor request sent' })).not.toBeInTheDocument());
+  });
+
+  it('moves the sponsorship at once only when the administrator names themselves', async () => {
+    api.adminTransferSponsor.mockResolvedValue({ ...ORG, billing_sponsor_user_id: ALEX.id });
+    open();
+    await screen.findByText('maria.santos', { selector: 'strong' });
+    await choose('alex.rivera', [ALEX, PRIYA]);
+    await screen.findByRole('table');
     fireEvent.click(screen.getByRole('button', { name: 'Transfer sponsorship' }));
     const dialog = screen.getByRole('dialog', { name: 'Transfer sponsorship of ISA Demo Group?' });
-    expect(api.adminTransferSponsor).not.toHaveBeenCalled();
-    expect(within(dialog).getByText(/2 organizations will count against ADVANCED limits/)).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Transfer' }));
-    expect(await screen.findByText(/Sponsorship of ISA Demo Group moved to priya\.nair/)).toBeInTheDocument();
-    expect(api.adminTransferSponsor).toHaveBeenCalledWith(ORG.id, PRIYA.id);
+
+    expect(await screen.findByText(/Sponsorship of ISA Demo Group moved to alex\.rivera/)).toBeInTheDocument();
+    expect(api.adminTransferSponsor).toHaveBeenCalledWith(ORG.id, ALEX.id);
+    expect(screen.queryByRole('region', { name: 'Sponsor request sent' })).not.toBeInTheDocument();
     await waitFor(() => expect(platform.organization).toHaveBeenCalledTimes(2));
   });
 
@@ -111,14 +160,14 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
     await choose('dana.kim');
     expect(await screen.findByText('Can’t sponsor')).toBeInTheDocument();
     expect(screen.getByText('That account can’t be a sponsor (422 · invalid_sponsor)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Transfer sponsorship' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send sponsor request' })).toBeDisabled();
   });
 
-  it('names the limit the new sponsor would pass when the gateway refuses with 402', async () => {
+  it('names the limit the new sponsor would pass when naming oneself is refused with 402', async () => {
     api.adminTransferSponsor.mockRejectedValue(new QuotaError('sponsor_quota_exceeded', 'The sponsor contract allows 15 members', { limit_id: 'members', limit: 15, used: 18 }));
     open();
     await screen.findByText('maria.santos', { selector: 'strong' });
-    await choose('priya.nair');
+    await choose('alex.rivera', [ALEX, PRIYA]);
     await screen.findByRole('table');
     fireEvent.click(screen.getByRole('button', { name: 'Transfer sponsorship' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer' }));
@@ -133,14 +182,62 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
     await screen.findByText('maria.santos', { selector: 'strong' });
     await choose('priya.nair');
     await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: 'Transfer sponsorship' }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send sponsor request' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Send request' }));
     expect(await screen.findByText('That account can’t be a sponsor (422 · invalid_sponsor)')).toBeInTheDocument();
 
     api.adminTransferSponsor.mockRejectedValueOnce(refusal(503, 'pricing_unavailable', 'SPACE is down'));
-    fireEvent.click(screen.getByRole('button', { name: 'Transfer sponsorship' }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send sponsor request' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Send request' }));
     expect(await screen.findByText('A service isn’t available right now (503 · pricing_unavailable)')).toBeInTheDocument();
+  });
+
+  it('offers Replace request when a request is waiting and the administrator sent it, resending with the replace flag', async () => {
+    api.listOrganizationSponsorProposals.mockResolvedValue([request({ proposed_user_id: DANA.id, proposed_username: DANA.username })]);
+    api.adminTransferSponsor.mockRejectedValueOnce(refusal(409, 'sponsor_proposal_pending', 'A proposal is pending.'));
+    open();
+    await screen.findByText('maria.santos', { selector: 'strong' });
+    await choose('priya.nair');
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('button', { name: 'Send sponsor request' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Send request' }));
+
+    expect(await screen.findByText('A request is already waiting (409 · sponsor_proposal_pending)')).toBeInTheDocument();
+    const card = await screen.findByRole('region', { name: 'Sponsor request sent' });
+    api.adminTransferSponsor.mockResolvedValueOnce(request({ id: 'prop-2' }));
+    fireEvent.click(within(card).getByRole('button', { name: 'Replace request' }));
+    await waitFor(() => expect(api.adminTransferSponsor).toHaveBeenLastCalledWith(ORG.id, PRIYA.id, true));
+    expect(await screen.findByText(/Sponsor request sent to priya\.nair/)).toBeInTheDocument();
+  });
+
+  it('does not offer Replace when somebody else sent the waiting request', async () => {
+    api.listOrganizationSponsorProposals.mockResolvedValue([request({ proposed_by_user_id: MARIA.id, proposed_by_username: MARIA.username })]);
+    api.adminTransferSponsor.mockRejectedValueOnce(refusal(409, 'sponsor_proposal_pending', 'A proposal is pending.'));
+    open();
+    await screen.findByText('maria.santos', { selector: 'strong' });
+    await choose('priya.nair');
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('button', { name: 'Send sponsor request' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Send request' }));
+
+    // The card is already there from the list; the hint arrives with the refusal.
+    await screen.findByText('Someone else sent this request. Cancel it first, then send yours.');
+    const card = screen.getByRole('region', { name: 'Sponsor request sent' });
+    expect(within(card).getByText('Someone else sent this request. Cancel it first, then send yours.')).toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Replace request' })).not.toBeInTheDocument();
+    // A platform administrator can cancel any request.
+    expect(within(card).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+  });
+
+  it('says the account is already the sponsor (409)', async () => {
+    api.adminTransferSponsor.mockRejectedValueOnce(refusal(409, 'already_sponsor', 'Already the sponsor.'));
+    open();
+    await screen.findByText('maria.santos', { selector: 'strong' });
+    await choose('priya.nair');
+    await screen.findByRole('table');
+    fireEvent.click(screen.getByRole('button', { name: 'Send sponsor request' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Send request' }));
+    expect(await screen.findByText('That account is already the sponsor (409 · already_sponsor)')).toBeInTheDocument();
   });
 
   it('asks for the id when the organization cannot be read by name, because administrators who are not members cannot', async () => {
@@ -160,8 +257,8 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
     expect(await screen.findByText('Only the id is known')).toBeInTheDocument();
     await choose('priya.nair');
     await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: 'Transfer sponsorship' }));
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send sponsor request' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Send request' }));
     await waitFor(() => expect(api.adminTransferSponsor).toHaveBeenCalledWith(ORG.id, PRIYA.id));
   });
 
@@ -171,9 +268,11 @@ describe('admin-sponsor · transfer the billing sponsor of an organization', () 
     expect(await screen.findByText('A service isn’t available right now (503 · accounts_unavailable)')).toBeInTheDocument();
   });
 
-  it('says that owners can do the same from the organization’s own settings', async () => {
+  it('says that nobody can be made to pay, without any note about consent being skipped or the change going unaudited', async () => {
     open();
-    expect(await screen.findByText(/organization owners can set any active account as their organization’s sponsor/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nobody can make another person pay: naming someone else sends them a request/)).toBeInTheDocument();
+    expect(screen.queryByText(/no consent/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/not audited|isn’t audited/i)).not.toBeInTheDocument();
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {

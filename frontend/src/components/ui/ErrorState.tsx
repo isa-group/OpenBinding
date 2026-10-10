@@ -83,6 +83,8 @@ interface ErrorStateProps {
   actions?: ReactNode;
   /** A 429's `Retry-After`: shows a countdown and keeps the retry action disabled until it ends. */
   retryAfter?: number;
+  /** What the countdown says when it ends. Defaults to the wording of a busy job slot. */
+  retryReadyText?: string;
   /** Retry handler of the 429 and 503 variants. Without it those variants show no retry button. */
   onRetry?: () => void;
   /** A retry is in flight (503). */
@@ -93,13 +95,13 @@ interface ErrorStateProps {
   layout?: 'card' | 'page';
 }
 
-function Countdown({ seconds, onRetry }: { seconds: number; onRetry?: () => void }) {
+function Countdown({ seconds, onRetry, doneText }: { seconds: number; onRetry?: () => void; doneText: string }) {
   const { left, done, restart } = useCountdown(seconds);
   return (
     <>
       <div className="ui-state-countdown">
         <span className="ui-state-countdown-value" aria-hidden="true">{done ? '0s' : `${left}s`}</span>
-        <span role="status">{done ? 'A slot may be free now.' : 'Retry is available when the countdown ends.'}</span>
+        <span role="status">{done ? doneText : 'Retry is available when the countdown ends.'}</span>
       </div>
       <div className="ui-state-actions">
         <StateAction tone="primary" disabled={!done} onClick={() => { onRetry?.(); restart(); }}>Retry now</StateAction>
@@ -114,7 +116,7 @@ function Countdown({ seconds, onRetry }: { seconds: number; onRetry?: () => void
  * turned into the same props, so people never see a raw answer.
  */
 export function ErrorState({
-  variant, status, code, title, children, details, actions, retryAfter, onRetry, checking = false, tone = 'default', layout = 'card',
+  variant, status, code, title, children, details, actions, retryAfter, retryReadyText = 'A slot may be free now.', onRetry, checking = false, tone = 'default', layout = 'card',
 }: ErrorStateProps) {
   const preset = variant ? PRESETS[variant] : undefined;
   const chip = status ?? variant ?? '';
@@ -130,7 +132,7 @@ export function ErrorState({
       <h2 className="ui-state-title">{title ?? preset?.title}</h2>
       {(children ?? preset?.body) && <p className="ui-state-body">{children ?? preset?.body}</p>}
       {details}
-      {variant === '429' && retryAfter !== undefined && <Countdown seconds={retryAfter} onRetry={onRetry} />}
+      {variant === '429' && retryAfter !== undefined && <Countdown seconds={retryAfter} onRetry={onRetry} doneText={retryReadyText} />}
       {checking && <span className="ui-state-checking" role="status"><i aria-hidden="true" />Checking…</span>}
       {shownActions && <div className="ui-state-actions">{shownActions}</div>}
     </article>

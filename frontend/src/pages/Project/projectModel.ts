@@ -1,8 +1,9 @@
 import type { PricingCatalog, UsageView } from '../../api/auth';
-import type { BindingCase, CaseRevision, Organization, OrganizationRole, Publication, Report, Study, StudyCell, StudyRun, Visibility } from '../../api/platform';
-import { atLeast } from '../Organization/orgModel';
+import type { BindingCase, CaseRevision, Organization, OrganizationRole, ProjectAccessKind, Publication, Report, Study, StudyCell, StudyRun, Visibility } from '../../api/platform';
+import { canWrite, levelOf, type AccessLevel } from './accessLevel';
 
 export { atLeast, SLUG_PATTERN, slugFromName } from '../Organization/orgModel';
+export { canOpenSection, canRead, canWrite, levelOf, type AccessLevel } from './accessLevel';
 
 /** The longest a name and a description may be (`ProjectCreate` in the contract). */
 export const NAME_MAX = 160;
@@ -11,18 +12,30 @@ export const DESCRIPTION_MAX = 2000;
 /** Who can do what in a project: its organization decides, by the role the account has there. */
 export interface ProjectAccess {
   role: OrganizationRole | null;
+  /** `public_read` for a visitor of a public project, else the role (`ADMIN` for a platform administrator with none); `null` when there is no way in. */
+  level: AccessLevel | null;
+  /** A visitor of a public project: everything reads, nothing writes, and jobs, package and settings are out of reach. */
+  publicRead: boolean;
   /** Create cases, studies and reports; import packages. */
   canCreate: boolean;
   /** Rename, change visibility, delete. */
   canAdminister: boolean;
 }
 
-export function accessIn(organization: Pick<Organization, 'effective_role'>, platformAdmin = false): ProjectAccess {
+/**
+ * Who can do what in a project. `kind` is the project's own `access`: `public_read` wins over everything, a platform
+ * administrator included, because the gateway answers a visitor with GET only.
+ */
+export function accessIn(organization: Pick<Organization, 'effective_role'>, platformAdmin = false, kind?: ProjectAccessKind): ProjectAccess {
   const role = organization.effective_role;
+  // A platform administrator who is not a member keeps the reach the gateway gives them (they act as ADMIN).
+  const level = levelOf(kind, role) ?? (platformAdmin ? 'ADMIN' : null);
   return {
     role,
-    canCreate: atLeast(role, 'MEMBER') || (!role && platformAdmin),
-    canAdminister: atLeast(role, 'ADMIN') || (!role && platformAdmin),
+    level,
+    publicRead: level === 'public_read',
+    canCreate: canWrite(level, 'MEMBER'),
+    canAdminister: canWrite(level, 'ADMIN'),
   };
 }
 

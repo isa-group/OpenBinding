@@ -1,11 +1,10 @@
 import type { ReactNode } from 'react';
 import type { Organization, Project, Visibility } from '../../api/platform';
-import { platformApi } from '../../api/platform';
 import { ProjectTabs, type ProjectSection } from '../../components/PlatformShell/ProjectTabs';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useResource } from '../../utils/useResource';
 import { Breadcrumb, Gate } from '../Organization/parts';
 import { marker, type AuthFailure } from './projectErrors';
 import { visibilityLabel } from './projectModel';
@@ -47,7 +46,7 @@ export function ProjectFrame({ organization, project, section, crumb, header, wi
           {header}
         </div>
       </div>
-      <ProjectTabs active={section} orgSlug={organization.slug} projectSlug={project.slug} />
+      <ProjectTabs active={section} orgSlug={organization.slug} projectSlug={project.slug} access={project.access} />
       <div className={`proj-body is-${width}`} aria-live="polite">{children}</div>
     </div>
   );
@@ -63,14 +62,6 @@ export function ProjectSkeleton() {
   );
 }
 
-/** A link to the Explore card of a public project: public projects still open here only for members (gap L4), but anyone can see the card. */
-function ExploreCardLink({ orgSlug, projectSlug }: { orgSlug: string; projectSlug: string }) {
-  const cards = useResource(`explore-card:${orgSlug}/${projectSlug}`, () => platformApi.publicProjects().catch(() => []));
-  const isPublic = (cards.data ?? []).some((card) => card.organization.slug === orgSlug && card.project.slug === projectSlug);
-  if (!isPublic) return null;
-  return <Action to="/explore" variant="link">See its public card in Explore</Action>;
-}
-
 interface ProjectGateProps {
   failure: AuthFailure | null;
   orgSlug: string;
@@ -80,10 +71,28 @@ interface ProjectGateProps {
 }
 
 /**
- * Why a project can’t be shown. A missing project and one the account isn’t in read the same (gap L3: the answer must not
- * reveal what exists); a public project still needs membership to open here (gap L4), so its gate points to the Explore card.
+ * Why a project can’t be shown. A missing project and a private one the account isn’t in read the same (the answer must not
+ * reveal what exists); a public project doesn’t come here at all, it opens read-only. Too many public reads (429) say when to
+ * try again.
  */
-export function ProjectGate({ failure, orgSlug, projectSlug, organizationName, onRetry }: ProjectGateProps) {
+export function ProjectGate({ failure, organizationName, onRetry }: ProjectGateProps) {
+  if (failure?.status === 429) {
+    return (
+      <div className="proj-body is-wide">
+        <ErrorState
+          variant="429"
+          status="429"
+          code={failure.code ?? 'rate_limit_exceeded'}
+          title="You’re reading public projects too fast"
+          retryAfter={failure.retryAfter ?? 30}
+          retryReadyText="You can try again now."
+          onRetry={onRetry}
+        >
+          Reading other people’s public projects is limited per minute. Nothing is wrong with your account; wait for the countdown and try again.
+        </ErrorState>
+      </div>
+    );
+  }
   if (failure?.status === 403) {
     return (
       <div className="proj-body is-wide">
@@ -119,11 +128,25 @@ export function ProjectGate({ failure, orgSlug, projectSlug, organizationName, o
         action={(
           <>
             <Action to="/app" variant="primary">Back to Home</Action>
-            <ExploreCardLink orgSlug={orgSlug} projectSlug={projectSlug} />
+            <Action to="/explore" variant="link">Explore public projects</Action>
           </>
         )}
       >
-        It doesn’t exist, or you’re not a member of its organization. Even public projects open here only for members.
+        It doesn’t exist, or it’s private and you’re not a member of its organization.
+      </Gate>
+    </div>
+  );
+}
+
+/**
+ * Jobs, the package export and the settings are for members: a visitor of a public project is told so, without any hint of
+ * what is behind them (the same answer the gateway gives), and is offered the way back to what they can read.
+ */
+export function MembersOnlyGate({ root }: { root: string }) {
+  return (
+    <div className="proj-body is-wide">
+      <Gate title="Members only" action={<Action to={root} variant="primary">Back to the project</Action>}>
+        This part of the project is only for members of its organization. You’re viewing a public project read-only.
       </Gate>
     </div>
   );

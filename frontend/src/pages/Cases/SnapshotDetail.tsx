@@ -255,8 +255,8 @@ function SnapshotBody({ organization, project, snapshotId }: { organization: Org
           </p>
         </div>
         <div className="proj-actions">
-          <Action to={`${root}/jobs/new?snapshot=${encodeURIComponent(snapshotId)}`} variant="primary">Run from this snapshot</Action>
-          <Action variant="secondary" onClick={() => void copy([`instance ${data.instanceDigest}`, `package ${data.packageDigest}`, ...(data.ir ? [`compiled ${data.ir.digest}`] : [])].join('\n'), 'all')}>
+          {project.access !== 'public_read' && <Action to={`${root}/jobs/new?snapshot=${encodeURIComponent(snapshotId)}`} variant="primary">Run from this snapshot</Action>}
+          <Action variant={project.access === 'public_read' ? 'primary' : 'secondary'} onClick={() => void copy([`instance ${data.instanceDigest}`, `package ${data.packageDigest}`, ...(data.ir ? [`compiled ${data.ir.digest}`] : [])].join('\n'), 'all')}>
             {status('all') === 'copied' ? `Copied all ${data.ir ? 'three' : 'two'}` : status('all') === 'failed' ? 'Copy failed' : 'Copy all fingerprints'}
           </Action>
         </div>

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExternalIdentity, UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { AuthContext } from '../../contexts/auth';
+import { forgetPlanChanged, notePlanChanged } from '../../utils/authFlow';
 import { catalogFixture } from '../Pricing/pricingFixture';
 import { AccountIdentities } from './AccountIdentities';
 
@@ -47,6 +48,7 @@ const unlinkDialog = () => screen.findByRole('dialog', { name: 'Unlink your Univ
 describe('Identities', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    forgetPlanChanged();
     api.listOwnIdentities.mockResolvedValue([]);
     api.createCasLinkIntent.mockResolvedValue('/api/v1/auth/cas/start?mode=link&intent=abc');
     api.unlinkOwnIdentity.mockResolvedValue(undefined);
@@ -63,8 +65,30 @@ describe('Identities', () => {
       expect(screen.getByRole('button', { name: 'Link CAS identity' })).toBeEnabled();
       expect(screen.getByRole('navigation', { name: 'Account' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Identities', current: 'page' })).toBeInTheDocument();
-      expect(screen.getByText(/Linking one verifies it; your plan is whatever your contract says/)).toBeInTheDocument();
+      expect(screen.getByText(/Linking one moves an account on the default plan to RESEARCH automatically, at no extra cost/)).toBeInTheDocument();
       expect(screen.queryByText(/becomes RESEARCH/)).not.toBeInTheDocument();
+      expect(screen.queryByText('Plan updated')).not.toBeInTheDocument();
+    });
+
+    it('tells once, when the person is back from linking, that their plan is now RESEARCH at no extra cost', async () => {
+      notePlanChanged({ from: 'BASIC', to: 'RESEARCH', extraCost: false });
+      const { unmount } = render(
+        <MemoryRouter>
+          <AuthContext.Provider value={{ user: person('RESEARCH'), loading: false, signIn: vi.fn(), register: vi.fn(), signOut: vi.fn(), refresh: vi.fn(), isAdmin: false }}>
+            <AccountIdentities />
+          </AuthContext.Provider>
+        </MemoryRouter>,
+      );
+
+      expect(await screen.findByText('Your account is now on the RESEARCH plan. There is no extra cost.')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+      expect(screen.queryByText('Your account is now on the RESEARCH plan. There is no extra cost.')).not.toBeInTheDocument();
+
+      // Opening the screen again (a reload) doesn't repeat it.
+      unmount();
+      renderIdentities('RESEARCH');
+      await screen.findByText('Universidad de Sevilla · CAS');
+      expect(screen.queryByText(/Your account is now on the RESEARCH plan/)).not.toBeInTheDocument();
     });
 
     it('starts the CAS round trip with the one-use address the gateway gives', async () => {

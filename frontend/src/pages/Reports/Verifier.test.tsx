@@ -116,6 +116,19 @@ describe('Verifier', () => {
     expect(screen.queryByRole('region', { name: 'Matches' })).not.toBeInTheDocument();
   });
 
+  it('reads someone else’s private item exactly like a fingerprint that was never registered, and never names it', async () => {
+    // The gateway filters by what the caller may see and answers the same status, fields and detail for both.
+    platform.verifierCheck.mockResolvedValue(verdict({ status: 'not_found', matches: false, entities: [], detail: 'Digest not registered in platform ledger.' }));
+    renderVerifier();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Fingerprint' }), { target: { value: EDITION } });
+    check();
+
+    expect(await screen.findByText(/Someone else’s private item reads exactly like one that was never registered/)).toBeInTheDocument();
+    const verdictRegion = screen.getByRole('region', { name: 'Verdict' });
+    expect(within(verdictRegion).queryByText(/isa-demo|QoS Benchmarks/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Matches' })).not.toBeInTheDocument();
+  });
+
   it('refuses something that is not a fingerprint without asking the server', async () => {
     renderVerifier();
     fireEvent.change(screen.getByRole('textbox', { name: 'Fingerprint' }), { target: { value: 'sha256-123' } });

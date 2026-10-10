@@ -1,4 +1,5 @@
 import { expect as baseExpect, test, type Page, type Route, type TestInfo } from '@playwright/test';
+import { failureBody } from './helpers/problems';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import { REPORT_MARKER, samplePackage } from '../src/pages/Project/packageFixture';
 
@@ -14,8 +15,14 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 
 type Handler = (route: Route) => Promise<void> | void;
 const json = (body: unknown, status = 200): Handler => (route) => route.fulfill({ status, json: body });
-const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json({ detail: { code, error, ...extra } }, status);
+const detail = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Handler => json(failureBody(status, code, error, extra), status);
 const noContent: Handler = (route) => route.fulfill({ status: 204 });
+/** Too many reads of public projects: a 429 with `Retry-After`, which the gateway exposes to the browser. */
+const rateLimited = (seconds: number): Handler => (route) => route.fulfill({
+  status: 429,
+  headers: { 'Retry-After': String(seconds), 'Access-Control-Expose-Headers': 'Retry-After' },
+  json: { type: 'https://openbinding.dev/problems/rate_limit_exceeded', title: 'rate_limit_exceeded', status: 429, code: 'rate_limit_exceeded', detail: { code: 'rate_limit_exceeded', error: 'Too many reads of public projects.' } },
+});
 /** A service that does not answer: a 503 with no machine code, as a proxy in front of the gateway would send it. */
 const unavailable: Handler = json({ detail: 'The service is not reachable.' }, 503);
 
@@ -57,23 +64,32 @@ interface Project {
   name: string;
   description: string;
   visibility: 'public' | 'private';
-  created_by_id: string;
+  created_by_id: string | null;
   created_at: string;
   updated_at: string;
+  /** The contract's `ProjectView.access`: a member, or `public_read` for a visitor of a public project. */
+  access: 'member' | 'public_read';
+  effective_role: Role | null;
 }
 
-const project = (n: number, orgId: string, slug: string, name: string, description: string, visibility: 'public' | 'private'): Project => ({
+const project = (n: number, orgId: string, slug: string, name: string, description: string, visibility: 'public' | 'private', role: Role = 'OWNER'): Project => ({
   id: `project-${n}`, organization_id: orgId, slug, name, description, visibility, created_by_id: 'user-1',
-  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z',
+  created_at: '2026-04-01T00:00:00Z', updated_at: '2026-10-08T00:00:00Z', access: 'member', effective_role: role,
 });
+
+/** A public project of an organization the account is not in: read-only, no role, no creator (the contract's `public_read`). */
+const openBench: Project = {
+  ...project(5, 'org-open', 'open-bench', 'Open bench', 'A public project anyone can read.', 'public'),
+  created_by_id: null, access: 'public_read', effective_role: null,
+};
 
 const projectsOf = (): Record<string, Project[]> => ({
   'isa-demo': [
     project(1, 'org-1', 'qos-benchmarks', 'QoS Benchmarks', 'Reference binding cases with workflow and placement.', 'public'),
     project(2, 'org-1', 'checkout-privado', 'Checkout (privado)', 'Internal payments case with proprietary candidates.', 'private'),
   ],
-  'consultora-demo': [project(3, 'org-3', 'client-case', 'Client case', 'Work for a client.', 'private')],
-  'member-lab': [project(4, 'org-4', 'bench', 'Bench', 'A bench.', 'private')],
+  'consultora-demo': [project(3, 'org-3', 'client-case', 'Client case', 'Work for a client.', 'private', 'VIEWER')],
+  'member-lab': [project(4, 'org-4', 'bench', 'Bench', 'A bench.', 'private', 'MEMBER')],
 });
 
 const digest = (char: string) => `sha256-${char.repeat(64)}`;
@@ -134,6 +150,10 @@ type Refusable = 'jobs' | 'create' | 'project' | 'patch' | 'remove' | 'export' |
 interface State {
   organizations: Org[];
   projects: Record<string, Project[]>;
+  /** Public projects of organizations the account is not in, by organization address. */
+  visitor: Record<string, Project[]>;
+  /** The answer to opening one of those (a 429, say); unset means it opens. */
+  visitorRefusal?: Handler;
   /** Content per project slug; a project not listed here is empty. */
   filled: Set<string>;
   /** A refusal for one action; unset means the action succeeds. */
@@ -147,7 +167,8 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
   const state: State = {
     organizations: [isaDemo, consultora, memberLab],
     projects: projectsOf(),
-    filled: new Set(['qos-benchmarks']),
+    visitor: { 'open-lab': [openBench] },
+    filled: new Set(['qos-benchmarks', 'open-bench']),
     refuse: {},
     ...overrides,
   };
@@ -179,7 +200,11 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
     if (section === 'members') return json([])(route);
     if (section !== 'projects') return json(found ?? { detail: { code: 'not_found', error: 'Organization not found.' } }, found ? 200 : 404)(route);
 
-    const list = state.projects[orgSlug] ?? [];
+    const visitorList = state.visitor[orgSlug];
+    // An organization the account is not in: its public projects open read-only; anything else is refused the same way.
+    if (!found && projectSlug && !visitorList) return detail(403, 'organization_forbidden', 'This action requires viewer access to the organization.')(route);
+    if (visitorList && projectSlug && !sub && state.visitorRefusal) return state.visitorRefusal(route);
+    const list = state.projects[orgSlug] ?? visitorList ?? [];
     if (!projectSlug) {
       if (method === 'POST') {
         if (state.refuse.create) return state.refuse.create(route);
@@ -216,6 +241,8 @@ async function mockApi(page: Page, overrides: Partial<State> = {}): Promise<Stat
         if (subId && subSub === 'revisions') return json(filled ? caseRevisions : [])(route);
         return json(filled ? [checkoutCase] : [])(route);
       case 'jobs':
+        // A visitor never reads the jobs of a project; the screen must not ask.
+        if (visitorList) return detail(403, 'organization_forbidden', 'Jobs are for members.')(route);
         return state.refuse.jobs ? state.refuse.jobs(route) : json(filled ? qosJobs() : [])(route);
       case 'studies':
         if (subId && subSub === 'runs' && parts.includes('cells')) return json(cells)(route);
@@ -396,18 +423,49 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // The gateway answers the same whether the project is missing or the account is not in it.
       await page.goto('/app/isa-demo/ghost');
       await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
-      await expect(main.getByText(/Even public projects open here only for members\./)).toBeVisible();
+      await expect(main.getByText(/It doesn’t exist, or it’s private and you’re not a member of its organization\./)).toBeVisible();
       await capture(page, testInfo, `overview-${name}-not-found`);
+
+      // A private project of an organization the account is not in reads the same: 403, and no hint that it exists.
+      await page.goto('/app/secret-lab/hidden');
+      await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
+      await expect(main.getByRole('link', { name: 'Explore public projects' })).toHaveAttribute('href', '/explore');
+
+      // A public project of an organization the account is not in opens read-only: no gate that sends it to Explore.
+      await page.goto('/app/open-lab/open-bench');
+      await expect(main.getByRole('heading', { level: 1, name: 'Open bench' })).toBeVisible();
+      await expect(main.getByText('You are viewing a public project (read-only).')).toBeVisible();
+      const publicTabs = main.getByRole('navigation', { name: 'Project sections' });
+      await expect(publicTabs.getByRole('link')).toHaveText(['Overview', 'Cases', 'Library', 'Studies', 'Reports', 'Files']);
+      await expect(band.getByRole('link', { name: 'Browse cases' })).toHaveAttribute('href', '/app/open-lab/open-bench/cases');
+      for (const hidden of ['New case', 'Run', 'New study', 'New report', 'Export package']) await expect(band.getByText(hidden, { exact: true })).toHaveCount(0);
+      await expect(main.getByRole('region', { name: 'Recent jobs' })).toHaveCount(0);
+      await expect(main.getByRole('link', { name: /Flujo de checkout/ })).toBeVisible();
+      await capture(page, testInfo, `overview-${name}-public-read`);
+
+      // Its members-only parts show the neutral gate, not the screens.
+      for (const part of ['jobs', 'package', 'settings']) {
+        await page.goto(`/app/open-lab/open-bench/${part}`);
+        await expect(main.getByRole('heading', { name: 'Members only' })).toBeVisible();
+        await expect(main.getByRole('link', { name: 'Back to the project' })).toHaveAttribute('href', '/app/open-lab/open-bench');
+      }
+      await capture(page, testInfo, `overview-${name}-public-read-members-only`);
       if (isMobile) {
         expect(critical).toEqual([]);
         return;
       }
 
-      // A public project the account is not in: the gate points to its card in Explore.
-      await page.goto('/app/consultora-demo/public-card');
-      await expect(main.getByRole('heading', { name: 'Project not found' })).toBeVisible();
-      await expect(main.getByRole('link', { name: 'See its public card in Explore' })).toHaveAttribute('href', '/explore');
-      await capture(page, testInfo, `overview-${name}-public-gate`);
+      // Reading other people’s public projects too fast: 429 with a countdown, then it can be asked again.
+      state.visitorRefusal = rateLimited(4);
+      await page.goto('/app/open-lab/open-bench');
+      await expect(main.getByRole('heading', { name: 'You’re reading public projects too fast' })).toBeVisible();
+      await expect(main.getByText('Retry is available when the countdown ends.')).toBeVisible();
+      await capture(page, testInfo, `overview-${name}-public-read-429`);
+      state.visitorRefusal = undefined;
+      const retry = main.getByRole('button', { name: 'Retry now' });
+      await expect(retry).toBeEnabled({ timeout: 10_000 });
+      await retry.click();
+      await expect(main.getByRole('heading', { level: 1, name: 'Open bench' })).toBeVisible();
 
       // The role is too low.
       state.refuse.project = detail(403, 'organization_forbidden', 'Your role does not reach this.');

@@ -32,7 +32,7 @@ export function ResourceFrame({ organization, project, section, trail, width = '
       <div className="proj-band">
         <div className="proj-band-inner"><Breadcrumb items={items} /></div>
       </div>
-      <ProjectTabs active={section} orgSlug={organization.slug} projectSlug={project.slug} />
+      <ProjectTabs active={section} orgSlug={organization.slug} projectSlug={project.slug} access={project.access} />
       <div className={`proj-body is-${width}`} aria-live="polite">{children}</div>
     </div>
   );

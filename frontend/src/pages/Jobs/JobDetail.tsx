@@ -10,7 +10,8 @@ import { formatDateTime } from '../../utils/format';
 import { useResource } from '../../utils/useResource';
 import { classifyAuthError, marker } from '../Account/accountErrors';
 import { saveBytes } from '../Project/download';
-import { ProjectGate, ProjectSkeleton } from '../Project/parts';
+import { canOpenSection } from '../Project/accessLevel';
+import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts';
 import { useRouteProject } from '../Project/useRouteProject';
 import { Provenance, Routing, Settings, Timeline } from './JobFacts';
 import { ResultSection, type Origin } from './JobResult';
@@ -216,10 +217,11 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
 /** One run (`job-detail`, `/app/:org/:project/jobs/:job`): live state, the authoritative result, the settings and what it ran on. */
 export function JobDetail() {
   const { job: jobId = '' } = useParams();
-  const { orgSlug, projectSlug, organization, project, waiting, failure, reload } = useRouteProject();
+  const { orgSlug, projectSlug, organization, project, access, waiting, failure, reload } = useRouteProject();
   if (waiting) return <ProjectSkeleton />;
   if (!organization || !project) {
     return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
   }
+  if (!canOpenSection(access.level, 'jobs')) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
   return <JobDetailBody key={jobId} organization={organization} project={project} jobId={jobId} />;
 }

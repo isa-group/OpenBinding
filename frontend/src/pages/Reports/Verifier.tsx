@@ -69,7 +69,7 @@ const VERDICTS: Record<VerifierStatus, { title: string; text: string; tone: 'ok'
   verified: { title: 'Verified', text: 'The fingerprint is what OpenBinding recorded.', tone: 'ok', Icon: Check },
   computed: { title: 'Computed, not on record', text: 'We computed its fingerprint, but OpenBinding hasn’t recorded anything with it. That’s normal for drafts or local files.', tone: 'info', Icon: Info },
   mismatch: { title: 'Doesn’t match', text: 'The content you gave hashes differently from the fingerprint you expected. It was changed somewhere along the way.', tone: 'bad', Icon: TriangleAlert },
-  not_found: { title: 'Nothing found', text: 'OpenBinding has no element recorded with this fingerprint, or you can’t see it.', tone: 'plain', Icon: CircleHelp },
+  not_found: { title: 'Nothing found', text: 'OpenBinding has no element recorded with this fingerprint that you can see. Someone else’s private item reads exactly like one that was never registered, so this doesn’t say which it is.', tone: 'plain', Icon: CircleHelp },
 };
 
 function problemOf(caught: unknown): { title: string; text: string; session: boolean } {

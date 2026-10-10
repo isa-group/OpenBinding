@@ -287,6 +287,18 @@
 .org-sponsor > span:last-child { display: flex; flex-direction: column; }
 .org-sponsor small { color: var(--tp-steel); font-size: 0.75rem; }
 
+/* A sponsor request: who has to accept, until when, and what can still be done. */
+.org-request { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); border-color: var(--tp-severity-warning-border); background: var(--tp-severity-warning-bg); }
+.org-request-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tp-spacing-xs); }
+.org-request-head h3 { margin: 0; font-family: var(--font-body); font-size: 1rem; font-weight: 600; }
+.org-request-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--tp-spacing-xs); margin: 0; }
+.org-request-facts div { display: flex; flex-direction: column-reverse; padding: 8px var(--tp-spacing-sm); border-radius: var(--tp-radius-md); background: var(--tp-canvas); }
+.org-request-facts dt { color: var(--tp-steel); font-size: 0.75rem; }
+.org-request-facts dd { margin: 0; font-size: 0.9375rem; font-weight: 500; overflow-wrap: anywhere; }
+.org-request-actions { display: flex; flex-wrap: wrap; gap: var(--tp-spacing-xs); }
+.org-request-reason { color: var(--tp-steel); }
+.org-request-list { display: flex; flex-direction: column; gap: var(--tp-spacing-sm); margin: 0; padding: 0; list-style: none; }
+
 .org-impact { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--tp-spacing-xs); margin: 0; }
 .org-impact div { padding: 10px var(--tp-spacing-sm); border-radius: var(--tp-radius-md); background: var(--tp-severity-error-bg); }
 .org-impact dt { color: var(--tp-slate); font-size: 0.75rem; }
@@ -425,6 +437,11 @@
 }
 
 .org-role-select.is-staged { border-color: var(--tp-primary); }
+.org-role-select:disabled { background: var(--tp-surface); color: var(--tp-steel); cursor: not-allowed; }
+.ui-table tr.is-rejected { background: var(--tp-severity-error-bg); }
+.org-role-select[aria-invalid='true'] { border-color: var(--color-error); }
+.org-person small.org-row-error { color: var(--color-error); }
+.org-remove:disabled { border-color: var(--tp-hairline); color: var(--tp-steel); background: var(--tp-surface); cursor: not-allowed; }
 
 .org-remove {
   height: 30px;

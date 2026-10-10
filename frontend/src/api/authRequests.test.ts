@@ -8,6 +8,11 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', ...headers } });
 }
 
+/** The one 422 document of docs/ERRORS.md. */
+function problem(code: string, detail: string, diagnostics: Array<Record<string, unknown>>) {
+  return { type: `https://openbinding.dev/problems/${code}`, title: code, status: 422, code, detail, diagnostics };
+}
+
 describe('authentication requests', () => {
   const client = new ApiClient('https://gateway.example');
   const fetchMock = vi.fn<typeof fetch>();
@@ -20,28 +25,34 @@ describe('authentication requests', () => {
   });
 
   it('throws a 422 from login instead of storing tokens that are not there', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: [{ loc: ['body', 'password'], msg: 'field required' }] }, 422));
+    fetchMock.mockResolvedValueOnce(jsonResponse(problem('validation_error', 'Request validation failed: /password: Field required', [
+      { code: 'missing', message: 'Field required', in: 'body', pointer: '/password', loc: ['body', 'password'] },
+    ]), 422));
 
-    await expect(client.login('alice', '')).rejects.toMatchObject({ status: 422 });
+    await expect(client.login('alice', '')).rejects.toMatchObject({ status: 422, code: 'validation_error' });
     expect(localStorage.getItem('openbinding-access-token')).toBeNull();
   });
 
   it('keeps the field-level answer of a 422 on the error', async () => {
-    const body = { detail: [{ loc: ['body', 'email'], msg: 'bad email' }] };
+    const body = problem('validation_error', 'Request validation failed: /email: bad email', [
+      { code: 'value_error', message: 'bad email', in: 'body', pointer: '/email', loc: ['body', 'email'] },
+    ]);
     fetchMock.mockResolvedValueOnce(jsonResponse(body, 422));
 
     const error = await client.register({ username: 'alice', email: 'x', password: 'long-enough-password' }).catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(HttpError);
     expect((error as HttpError).problem).toEqual(body);
+    expect((error as HttpError).diagnostics).toEqual(body.diagnostics);
+    expect((error as HttpError).message).toBe('HTTP 422: Request validation failed: /email: bad email');
   });
 
-  it('reads the code of a detail-object refusal (weak password)', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: { code: 'weak_password', error: 'Too common.' } }, 422));
+  it('reads the code and the sentence of a refusal from the top of the problem (weak password)', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(problem('weak_password', 'Too common.', [{ code: 'weak_password', message: 'Too common.' }]), 422));
 
     const error = await client.register({ username: 'alice', email: 'a@example.org', password: 'password1234' }).catch((caught: unknown) => caught);
 
-    expect(error).toMatchObject({ status: 422, code: 'weak_password' });
+    expect(error).toMatchObject({ status: 422, code: 'weak_password', message: 'HTTP 422: Too common.' });
     expect((error as HttpError).message).toContain('Too common.');
   });
 
@@ -67,12 +78,46 @@ describe('authentication requests', () => {
 
   it('stores the tokens a CAS exchange returns, and throws what it refuses', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ access_token: 'a', refresh_token: 'r', token_type: 'bearer', expires_in: 60 }));
-    await client.exchangeCasCode('x'.repeat(32));
+    await expect(client.exchangeCasCode('x'.repeat(32))).resolves.toBeNull();
     expect(localStorage.getItem('openbinding-access-token')).toBe('a');
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ code: 'x'.repeat(32) });
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ detail: { code: 'cas_code_invalid', error: 'used' } }, 401));
     await expect(client.exchangeCasCode('y'.repeat(32))).rejects.toMatchObject({ status: 401, code: 'cas_code_invalid' });
+  });
+
+  it('hands back the plan change a CAS exchange caused, and null when the plan did not change', async () => {
+    const session = { access_token: 'a', refresh_token: 'r', token_type: 'bearer', expires_in: 60 };
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ...session, plan_changed: { from: 'BASIC', to: 'RESEARCH', extra_cost: false } }));
+    await expect(client.exchangeCasCode('x'.repeat(32))).resolves.toEqual({ from: 'BASIC', to: 'RESEARCH', extra_cost: false });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ ...session, plan_changed: null }));
+    await expect(client.exchangeCasCode('y'.repeat(32))).resolves.toBeNull();
+  });
+
+  it('names a sponsor with the replace flag only when asked to replace, and reads the requests of the account', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'prop-1', status: 'pending' }, 202));
+    await client.adminTransferSponsor('org-1', 'user-1');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ billing_sponsor_user_id: 'user-1' });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'prop-2', status: 'pending' }, 202));
+    await client.adminTransferSponsor('org-1', 'user-1', true);
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ billing_sponsor_user_id: 'user-1', replace_pending_proposal: true });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse([]));
+    await client.listMySponsorProposals('pending');
+    expect(fetchMock.mock.calls[2][0]).toBe('https://gateway.example/v1/users/me/sponsor-proposals?status=pending');
+
+    fetchMock.mockResolvedValueOnce(jsonResponse([]));
+    await client.listOrganizationSponsorProposals('isa-demo');
+    expect(fetchMock.mock.calls[3][0]).toBe('https://gateway.example/v1/organizations/isa-demo/sponsor-proposals');
+
+    for (const [index, answer] of (['accept', 'decline', 'cancel'] as const).entries()) {
+      fetchMock.mockResolvedValueOnce(jsonResponse({ id: 'prop-1', status: 'accepted' }));
+      await client[`${answer}SponsorProposal` as const]('prop-1');
+      expect(fetchMock.mock.calls[4 + index][0]).toBe(`https://gateway.example/v1/sponsor-proposals/prop-1/${answer}`);
+      expect(fetchMock.mock.calls[4 + index][1]?.method).toBe('POST');
+    }
   });
 
   it('remembers that a CAS link leaves the app, and builds the start URL for either mode', async () => {
@@ -123,7 +168,7 @@ describe('invitation acceptance', () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ detail: { code: 'not_found', error: 'Invitation is invalid or expired.' } }, 404));
     await expect(platformApi.acceptInvitation('obi_secret_value')).rejects.toMatchObject({ status: 404 });
 
-    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: [{ loc: ['body', 'token'], msg: 'too short' }] }, 422));
+    fetchMock.mockResolvedValueOnce(jsonResponse(problem('validation_error', 'Request validation failed: /token: too short', [{ code: 'string_too_short', message: 'too short', pointer: '/token' }]), 422));
     await expect(platformApi.acceptInvitation('short')).rejects.toMatchObject({ status: 422 });
   });
 

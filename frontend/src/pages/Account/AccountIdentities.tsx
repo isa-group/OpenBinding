@@ -4,6 +4,7 @@ import { Fingerprint, MoveRight, ShieldCheck, TriangleAlert } from 'lucide-react
 import { apiClient } from '../../api/client';
 import type { ExternalIdentity } from '../../api/auth';
 import { InstitutionMark } from '../../components/InstitutionMark';
+import { PlanChangedNotice } from '../../components/PlanChangedNotice/PlanChangedNotice';
 import { INSTITUTION_NAME, useInstitutionalBranding } from '../../components/InstitutionMark/institution';
 import { Action } from '../../components/ui/Action';
 import { Chip } from '../../components/ui/Chip';
@@ -179,6 +180,7 @@ export function AccountIdentities() {
 
   return (
     <AccountLayout section="identities" title="Identities" lede="Institutional identities linked to your account.">
+      <PlanChangedNotice />
       {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
       {failure?.status === 403 && <PermissionNotice permissions={['account:read', 'account:write']} action="link or unlink identities" />}
       {failure && failure.status !== 403 && <LoadFailure onRetry={identities.reload}>{fallbackMessage(failure, 'loaded')}</LoadFailure>}
@@ -235,8 +237,8 @@ export function AccountIdentities() {
           )}
 
           <Notice tone="info">
-            RESEARCH needs a verified CAS identity. Linking one verifies it; your plan is whatever your contract says, and it is shown here
-            once you’re back. Unlinking while on RESEARCH moves you back to the default plan. See{' '}
+            RESEARCH needs a verified CAS identity. Linking one moves an account on the default plan to RESEARCH automatically, at no extra cost;
+            an account on another plan keeps it. Unlinking while on RESEARCH moves you back to the default plan. See{' '}
             <Link to="/pricing" viewTransition>the plans</Link>.
           </Notice>
         </>

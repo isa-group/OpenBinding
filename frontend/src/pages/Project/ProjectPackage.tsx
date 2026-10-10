@@ -20,7 +20,8 @@ import {
   compareWithProject, countRows, FORMATS, humanizeCount, inspectPackage, packageFileName, packageImportCounts,
   type PackageInspection, type RowOutcome,
 } from './packageModel';
-import { ProjectFrame, ProjectGate, ProjectSkeleton } from './parts';
+import { canOpenSection } from './accessLevel';
+import { MembersOnlyGate, ProjectFrame, ProjectGate, ProjectSkeleton } from './parts';
 import { useRouteProject } from './useRouteProject';
 import './Project.css';
 
@@ -366,5 +367,6 @@ export function ProjectPackage() {
   if (!organization || !project) {
     return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
   }
+  if (!canOpenSection(access.level, 'package')) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
   return <PackageBody organization={organization} project={project} canImport={access.canCreate} />;
 }

@@ -1,10 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
 import { HttpError, apiClient } from '../../api/client';
 import { AuthContext } from '../../contexts/auth';
-import { clearSessionEnded, forgetCasExchanges, forgetCasFlow, readCasFlow, rememberCasFlow } from '../../utils/authFlow';
+import { clearSessionEnded, forgetCasExchanges, forgetCasFlow, forgetPlanChanged, peekPlanChanged, readCasFlow, rememberCasFlow } from '../../utils/authFlow';
 import { CasCallback } from './CasCallback';
 
 const exchange = vi.spyOn(apiClient, 'exchangeCasCode');
@@ -42,10 +42,89 @@ describe('CasCallback', () => {
     clearSessionEnded();
     forgetCasFlow();
     forgetCasExchanges();
+    forgetPlanChanged();
+  });
+
+  describe('a plan changed by signing in', () => {
+    it('keeps the change the exchange reports, for the screen the person lands on', async () => {
+      exchange.mockResolvedValue({ from: 'BASIC', to: 'RESEARCH', extra_cost: false });
+      renderAt('?code=one-time-code&plan_changed=RESEARCH');
+
+      await screen.findByRole('heading', { name: 'You’re signed in' });
+      expect(peekPlanChanged()).toEqual({ from: 'BASIC', to: 'RESEARCH', extraCost: false });
+    });
+
+    it('takes the redirect’s plan_changed when the exchange says nothing', async () => {
+      exchange.mockResolvedValue(null);
+      renderAt('?code=one-time-code&plan_changed=RESEARCH');
+
+      await screen.findByRole('heading', { name: 'You’re signed in' });
+      expect(peekPlanChanged()).toEqual({ from: null, to: 'RESEARCH', extraCost: false });
+    });
+
+    it('keeps nothing when the plan did not change, and ignores a value that is not a plan name', async () => {
+      exchange.mockResolvedValue(null);
+      renderAt('?code=plain');
+      await screen.findByRole('heading', { name: 'You’re signed in' });
+      expect(peekPlanChanged()).toBeNull();
+
+      forgetCasExchanges();
+      renderAt('?code=other&plan_changed=%3Cb%3Eboom%3C%2Fb%3E');
+      await waitFor(() => expect(screen.getAllByRole('heading', { name: 'You’re signed in' })).toHaveLength(2));
+      expect(exchange).toHaveBeenCalledTimes(2);
+      expect(peekPlanChanged()).toBeNull();
+    });
+
+    it('keeps nothing when the exchange fails', async () => {
+      exchange.mockRejectedValue(problem(401, 'cas_code_invalid'));
+      renderAt('?code=spent&plan_changed=RESEARCH', null);
+
+      await screen.findByRole('alert');
+      expect(peekPlanChanged()).toBeNull();
+    });
+  });
+
+  it.each([
+    ['cas_unavailable', 'Institutional sign-in is unavailable right now (503).', true],
+    ['cas_state_invalid', 'This sign-in attempt has expired (cas_state_invalid).', true],
+    ['cas_ticket_invalid', 'The university didn’t accept this sign-in (cas_ticket_invalid).', true],
+    ['account_inactive', 'This account is deactivated (account_inactive).', false],
+    ['identity_in_use', 'This identity is already linked to another account.', false],
+    ['account_collision', 'An account with these details already exists.', false],
+    ['pricing_unavailable', 'The pricing service didn’t answer (503 · pricing_unavailable).', true],
+    ['institutional_pricing_invalid', 'Institutional sign-in is paused (503 · institutional_pricing_invalid).', false],
+    ['cas_error', 'The sign-in couldn’t be finished (cas_error).', true],
+  ])('names the failure the gateway reports as ?error=%s, and says what to do next', (reportedCode, title, canRetry) => {
+    renderAt(`?error=${reportedCode}`, null);
+
+    expect(screen.getByText(title)).toBeInTheDocument();
+    expect(exchange).not.toHaveBeenCalled();
+    expect(screen.getByRole('link', { name: 'Back to log in' })).toHaveAttribute('href', '/login');
+    const retry = screen.queryByRole('link', { name: 'Try again' });
+    if (canRetry) expect(retry).toHaveAttribute('href', expect.stringContaining('/v1/auth/cas/start?mode=login'));
+    else expect(retry).not.toBeInTheDocument();
+  });
+
+  it('sends a signed-in person back to Identities to try linking again', () => {
+    rememberCasFlow('link');
+    renderAt('?error=cas_ticket_invalid');
+
+    expect(screen.getByRole('link', { name: 'Try again from Account › Identities' })).toHaveAttribute('href', '/app/account/identities');
+    expect(screen.queryByRole('link', { name: 'Try again' })).not.toBeInTheDocument();
+  });
+
+  it('remembers where the person was heading when they try the CAS sign-in again', () => {
+    rememberCasFlow('login', '/app/org/project');
+    renderAt('?error=cas_state_invalid', null);
+
+    // The browser would leave for the university; the test only watches what is remembered on the way out.
+    document.addEventListener('click', (event) => event.preventDefault(), { once: true });
+    fireEvent.click(screen.getByRole('link', { name: 'Try again' }));
+    expect(readCasFlow()).toEqual({ mode: 'login', returnTo: '/app/org/project' });
   });
 
   it('exchanges the one-time code once and refreshes the session', async () => {
-    exchange.mockResolvedValue(undefined);
+    exchange.mockResolvedValue(null);
     const { refresh } = renderAt('?code=one-time-code');
 
     expect(screen.getByRole('heading', { name: 'Finishing sign-in…' })).toBeInTheDocument();
@@ -59,7 +138,7 @@ describe('CasCallback', () => {
   });
 
   it('keeps the plan the account has when it is not institutional', async () => {
-    exchange.mockResolvedValue(undefined);
+    exchange.mockResolvedValue(null);
     renderAt('?code=one-time-code', person({ plan: 'FREE' }));
 
     expect(await screen.findByText(/Your plan stays FREE; RESEARCH applies only when the pricing grants it\./)).toBeInTheDocument();
@@ -67,7 +146,7 @@ describe('CasCallback', () => {
   });
 
   it('shows the institution mark only when the account is institutional, never from the email', async () => {
-    exchange.mockResolvedValue(undefined);
+    exchange.mockResolvedValue(null);
     renderAt('?code=one-time-code', person({ plan: 'RESEARCH', email: 'lucia@us.es' }));
 
     expect(await screen.findByText('Universidad de Sevilla · verified')).toBeInTheDocument();
@@ -77,7 +156,7 @@ describe('CasCallback', () => {
   });
 
   it('does not take an e-mail at us.es for an institutional account', async () => {
-    exchange.mockResolvedValue(undefined);
+    exchange.mockResolvedValue(null);
     renderAt('?code=one-time-code', person({ plan: 'FREE', email: 'lucia@us.es' }));
 
     await screen.findByRole('heading', { name: 'You’re signed in' });
@@ -86,7 +165,7 @@ describe('CasCallback', () => {
 
   it('takes the “link identity” flow back to the identities screen', async () => {
     rememberCasFlow('link');
-    exchange.mockResolvedValue(undefined);
+    exchange.mockResolvedValue(null);
     renderAt('?code=one-time-code');
 
     expect(screen.getByText('Universidad de Sevilla · CAS · link identity')).toBeInTheDocument();
@@ -97,7 +176,7 @@ describe('CasCallback', () => {
 
   it('goes where the person was heading when the login started', async () => {
     rememberCasFlow('login', '/app/org/project');
-    exchange.mockResolvedValue(undefined);
+    exchange.mockResolvedValue(null);
     renderAt('?code=one-time-code');
 
     expect(await screen.findByRole('link', { name: 'Continue to your workspace' })).toHaveAttribute('href', '/app/org/project');
@@ -106,7 +185,7 @@ describe('CasCallback', () => {
   it('does not spend the code twice when the screen is mounted again after it signed the person in', async () => {
     // Signing in changes the account, and the interface below the account provider is mounted again.
     rememberCasFlow('login', '/app/org/project');
-    exchange.mockResolvedValue(undefined);
+    exchange.mockResolvedValue(null);
     const { view } = renderAt('?code=one-time-code');
     await screen.findByRole('heading', { name: 'You’re signed in' });
 

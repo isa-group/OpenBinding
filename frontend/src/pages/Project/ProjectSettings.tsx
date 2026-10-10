@@ -17,7 +17,8 @@ import { roomFromUsage } from '../Organization/roomModel';
 import { loadCases, loadReports, loadStudies } from './projectData';
 import { deleteRefusal, updateRefusal, type ProjectRefusal } from './projectErrors';
 import { countWord, DESCRIPTION_MAX, integrityOf, NAME_MAX, visibilityEffects, visibilityLabel } from './projectModel';
-import { ProjectFrame, ProjectGate, ProjectSkeleton } from './parts';
+import { canOpenSection } from './accessLevel';
+import { MembersOnlyGate, ProjectFrame, ProjectGate, ProjectSkeleton } from './parts';
 import { useRouteProject } from './useRouteProject';
 import './Project.css';
 
@@ -295,5 +296,6 @@ export function ProjectSettings() {
   if (!organization || !project) {
     return <ProjectGate failure={organization ? failure : null} orgSlug={orgSlug} projectSlug={projectSlug} organizationName={organization?.name} onRetry={reload} />;
   }
+  if (!canOpenSection(access.level, 'settings')) return <MembersOnlyGate root={`/app/${organization.slug}/${project.slug}`} />;
   return <SettingsBody organization={organization} project={project} canEdit={access.canAdminister} reloadProject={reload} reloadWorkspace={context.reload} />;
 }

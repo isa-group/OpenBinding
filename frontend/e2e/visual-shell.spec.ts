@@ -17,6 +17,7 @@ const organization = {
 const project = {
   id: 'project-1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: 'Checkout flow benchmarks',
   visibility: 'private', created_by_id: 'shell-user-id', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
+  access: 'member', effective_role: 'OWNER',
 };
 
 const notifications = [

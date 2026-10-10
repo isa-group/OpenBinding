@@ -181,6 +181,25 @@ describe('ProjectTabs', () => {
     expect(current.map((link) => link.textContent)).toEqual([label]);
   });
 
+  describe('for someone who reads a public project without being a member', () => {
+    it('drops the tabs only members can open and says the project is read-only', () => {
+      render(<MemoryRouter><ProjectTabs orgSlug="open" projectSlug="qos" access="public_read" /></MemoryRouter>);
+
+      const nav = screen.getByRole('navigation', { name: 'Project sections' });
+      expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Overview', 'Cases', 'Library', 'Studies', 'Reports', 'Files']);
+      expect(screen.getByRole('note')).toHaveTextContent('You are viewing a public project (read-only).');
+    });
+
+    it('shows every tab and no strip to a member, or when nothing says otherwise', () => {
+      const { rerender } = render(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" access="member" /></MemoryRouter>);
+      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(9);
+      expect(screen.queryByRole('note')).not.toBeInTheDocument();
+
+      rerender(<MemoryRouter><ProjectTabs orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
+      expect(within(screen.getByRole('navigation', { name: 'Project sections' })).getAllByRole('link')).toHaveLength(9);
+    });
+  });
+
   describe('on a row that scrolls', () => {
     const scrolled: HTMLElement[] = [];
 

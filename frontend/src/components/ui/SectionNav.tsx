@@ -17,19 +17,21 @@ interface ProjectLibraryNavProps {
   current: ProjectLibrarySection;
   orgSlug: string;
   projectSlug: string;
+  /** A visitor of a public project: the organization's own library is for its members, so it is not offered. */
+  publicRead?: boolean;
 }
 
 /**
  * Pill navigation of the library inside a project: what the project uses, its collections, the older resources view, the
  * organization's library and the workbench. The current one is not a link.
  */
-export function ProjectLibraryNav({ current, orgSlug, projectSlug }: ProjectLibraryNavProps) {
+export function ProjectLibraryNav({ current, orgSlug, projectSlug, publicRead = false }: ProjectLibraryNavProps) {
   const root = `/app/${orgSlug}/${projectSlug}`;
   const sections: ReadonlyArray<{ id: ProjectLibrarySection | 'organization' | 'workbench'; label: string; to: string }> = [
     { id: 'library', label: 'Library used here', to: `${root}/library` },
     { id: 'collections', label: 'Collections', to: `${root}/collections` },
     { id: 'resources', label: 'Project resources (older view)', to: `${root}/resources` },
-    { id: 'organization', label: 'Organization library', to: `/app/${orgSlug}/library` },
+    ...(publicRead ? [] : [{ id: 'organization' as const, label: 'Organization library', to: `/app/${orgSlug}/library` }]),
     { id: 'workbench', label: 'Workbench', to: `${root}/workbench` },
   ];
   return (
