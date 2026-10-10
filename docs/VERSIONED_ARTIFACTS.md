@@ -39,6 +39,8 @@ A `BindingCase` describes the experiment. Revision creation accepts `resources`,
 
 The workbench is scoped by user, project path, case and revision. Permanent case links carry the selected revision. The study builder lists every executable case revision. The default QoS forms require the matching `apiVersion`; other languages use expert editing.
 
+The pure language core that computes these digests is packaged separately; see [BIM core](BIM_CORE.md) for its boundary and why its bytes must not change outside a contract release.
+
 Built-in Profile and Dialect releases use SemVer build metadata derived from the
 complete contract: `1.0.0+<base32-sha256>`. Adapter labels also include their binary
 digest. The full hash is retained, with labels fitting the 64-character version
