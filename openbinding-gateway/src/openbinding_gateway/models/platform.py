@@ -493,6 +493,27 @@ class JobView(BaseModel):
     provenance: Optional[dict[str, Any]] = None
 
 
+def job_view(job: Any, viewer: Any, *, include_results: bool = True) -> JobView:
+    """A ``JobView`` of an ORM job as ``viewer`` may see it.
+
+    Provenance is copied, never edited in place, and loses the administrative
+    routing record unless the viewer is a platform administrator.
+    """
+    provenance = dict(job.provenance) if include_results and job.provenance is not None else None
+    if provenance is not None and getattr(viewer, "is_admin", False) is not True:
+        provenance.pop("engineRoutingAdmin", None)
+    return JobView(
+        id=job.id, engine_id=job.engine_id, status=job.state.value,
+        cancellation_requested=job.cancellation_requested,
+        retry_of_id=job.retry_of_id, organization_id=job.organization_id,
+        project_id=job.project_id, created_at=job.created_at, finished_at=job.finished_at,
+        result=job.result if include_results else None, termination=job.termination,
+        options=job.options,
+        original_request=job.original_request if include_results else None,
+        provenance=provenance,
+    )
+
+
 class SnapshotView(BaseModel):
     id: uuid.UUID
     owner_id: Optional[uuid.UUID] = None

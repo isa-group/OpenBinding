@@ -171,6 +171,12 @@ class Settings(BaseSettings):
     #: (``PUBLIC_READ_RATE_PER_MINUTE``; 0 switches the limit off).
     public_read_rate_per_minute: int = Field(default=240, ge=0)
 
+    # -- Diagnostics ------------------------------------------------------
+    #: Anonymous 401/404 responses persisted as error events per client
+    #: address and minute; the rest are served but not stored
+    #: (``ANONYMOUS_ERROR_EVENTS_PER_MINUTE``; 0 switches the limit off).
+    anonymous_error_events_per_minute: int = Field(default=30, ge=0)
+
     # -- Optional account notifications --------------------------------
     smtp_url: Optional[str] = None
     mail_from: Optional[str] = None

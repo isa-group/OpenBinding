@@ -69,6 +69,7 @@ from ..models.platform import (
     InvitationCreate,
     InvitationCreated,
     JobView,
+    job_view,
     MemberBatchUpdate,
     MemberUpsert,
     MemberView,
@@ -1468,15 +1469,4 @@ async def list_project_jobs(
     if not include_results:
         query = query.options(defer(Job.result), defer(Job.original_request), defer(Job.provenance))
     rows = (await session.execute(query)).scalars().all()
-    return [
-        JobView(
-            id=job.id, engine_id=job.engine_id, status=job.state.value,
-            cancellation_requested=job.cancellation_requested,
-            retry_of_id=job.retry_of_id, organization_id=job.organization_id,
-            project_id=job.project_id, created_at=job.created_at, finished_at=job.finished_at,
-            result=job.result if include_results else None, termination=job.termination, options=job.options,
-            original_request=job.original_request if include_results else None,
-            provenance=job.provenance if include_results else None,
-        )
-        for job in rows
-    ]
+    return [job_view(job, user, include_results=include_results) for job in rows]

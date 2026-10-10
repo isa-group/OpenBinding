@@ -18,21 +18,14 @@ from ..db import base as db_base
 from ..db.models import Job, JobProvenance, JobState, User, utcnow
 from ..job_dispatch import dispatch_persisted_job
 from ..models.errors import api_error
-from ..models.platform import JobView
+from ..models.platform import JobView, job_view
 from ..v1.canonical import digest
 
 router = APIRouter(prefix="/v1/jobs", tags=["Jobs"])
 
 
-def _view(job: Job) -> JobView:
-    return JobView(
-        id=job.id, engine_id=job.engine_id, status=job.state.value,
-        cancellation_requested=job.cancellation_requested,
-        retry_of_id=job.retry_of_id, organization_id=job.organization_id,
-        project_id=job.project_id, created_at=job.created_at, finished_at=job.finished_at,
-        result=job.result, termination=job.termination, options=job.options,
-        original_request=job.original_request, provenance=job.provenance,
-    )
+def _view(job: Job, viewer: User) -> JobView:
+    return job_view(job, viewer)
 
 
 async def _owned(
@@ -62,7 +55,7 @@ async def list_jobs(
     if state is not None:
         query = query.where(Job.state == state)
     rows = (await session.execute(query.order_by(Job.created_at.desc()).limit(max(1, min(limit, 500))))).scalars().all()
-    return [_view(row) for row in rows]
+    return [_view(row, user) for row in rows]
 
 
 @router.post("/{job_id}/cancel", response_model=JobView, operation_id="cancelJob")
@@ -80,7 +73,7 @@ async def cancel_job(
         job.finished_at = utcnow()
         await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
     await session.flush()
-    return _view(job)
+    return _view(job, user)
 
 
 @router.post("/{job_id}/retry", response_model=JobView, status_code=202, operation_id="retryJob")
@@ -101,7 +94,7 @@ async def retry_job(
         )
     ).scalars().first()
     if existing is not None:
-        return _view(existing)
+        return _view(existing, user)
     provenance = dict(original.provenance or {})
     registration = provenance.get("registration")
     federated = (
@@ -164,7 +157,7 @@ async def retry_job(
     except Exception:
         await metering.release(space_client.get_gate(), reservation)
         raise
-    return _view(replacement)
+    return _view(replacement, user)
 
 
 @router.get(

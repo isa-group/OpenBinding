@@ -95,6 +95,13 @@ def test_space_is_off_until_it_is_configured():
     assert configured.space_url is None
 
 
+def test_anonymous_error_events_are_limited_by_default_and_not_negative():
+    assert settings().anonymous_error_events_per_minute == 30
+    assert settings(anonymous_error_events_per_minute=0).anonymous_error_events_per_minute == 0
+    with pytest.raises(ValueError):
+        settings(anonymous_error_events_per_minute=-1)
+
+
 def test_the_default_space_failure_mode_refuses_to_solve():
     # Unaccounted compute is the thing the pricing integration exists to
     # prevent, so the unreachable-SPACE default is to refuse, not to allow.

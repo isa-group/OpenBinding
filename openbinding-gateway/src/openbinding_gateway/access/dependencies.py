@@ -199,6 +199,15 @@ async def _user_for_credential(
     return user
 
 
+def _record_caller(request: Request, user: Optional[User]) -> None:
+    """Tell the error-telemetry middleware who was authenticated, if anyone.
+
+    Only a credential that resolved to an active account counts; the middleware
+    reads this instead of looking at the (forgeable) Authorization header.
+    """
+    request.state.user_id = user.id if user is not None else None
+
+
 def _route_path(request: Request) -> str:
     route = request.scope.get("route")
     return str(getattr(route, "path", request.url.path))
@@ -257,6 +266,7 @@ async def get_optional_user(
     still has to serve them. Insisting on a session would turn "nobody is signed
     in" into a 503 on a deployment where nobody can sign in at all.
     """
+    _record_caller(request, None)
     if session is None:
         return None
 
@@ -267,6 +277,7 @@ async def get_optional_user(
     user = await _user_for_credential(credential, session, settings)
     if user is None or not user.is_active:
         return None
+    _record_caller(request, user)
     _authorize_api_key(request, user)
     return user
 
@@ -284,6 +295,7 @@ async def get_current_user(
     separate kind of failure, so that disabling someone takes effect on their
     next request without needing their tokens back.
     """
+    _record_caller(request, None)
     credential = _credential(request, bearer, api_key)
     if not credential:
         if public_read.allows_anonymous(request):
@@ -308,6 +320,7 @@ async def get_current_user(
             headers=_AUTHENTICATE_CHALLENGE,
         )
 
+    _record_caller(request, user)
     _authorize_api_key(request, user)
 
     # An account registered while SPACE was unreachable owes a contract, and
@@ -341,6 +354,7 @@ async def solve_caller(
         require_accounts()
         raise AssertionError("require_accounts() must refuse an unconfigured gateway")
 
+    _record_caller(request, None)
     credential = _credential(request, bearer, api_key)
 
     if not credential:
@@ -359,6 +373,7 @@ async def solve_caller(
             "That credential is not valid.",
             headers=_AUTHENTICATE_CHALLENGE,
         )
+    _record_caller(request, user)
     _authorize_api_key(request, user)
     await settle_pending_contract(user, session)
     await reconcile_contract_renewal(user, session)
