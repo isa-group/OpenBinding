@@ -242,7 +242,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
   test.describe(`${name} · S9a administration`, () => {
     test.use({ viewport, isMobile, deviceScaleFactor });
 
-    test('admin-overview /app/admin · the blocks, the tools and the panels that have no screen yet', async ({ page }, testInfo) => {
+    test('admin-overview /app/admin · the blocks, and the tools that lead to every administration screen', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto('/app/admin');
@@ -265,19 +265,21 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('link', { name: /^Pricing release/ })).toHaveAttribute('href', '/app/admin/pricing/0.1.0');
       await capture(page, testInfo, `overview-${name}-top`, { height: tall(1900) });
 
-      // The panels that have no screen of their own yet keep working here.
-      await expect(main.getByRole('row', { name: 'lucia-vega/edge-solver' })).toBeVisible();
-      await expect(main.getByText('Terminal jobs')).toBeVisible();
+      // Reviewing publications and purging expired data are screens of their own (s9b-admin covers them): the overview leads there.
+      await expect(main.getByRole('row', { name: 'lucia-vega/edge-solver' })).toHaveCount(0);
+      await expect(main.getByRole('button', { name: 'Purge expired data' })).toHaveCount(0);
+      const tools = main.getByRole('region', { name: 'Tools', exact: true });
+      await expect(tools.getByRole('link', { name: /^Moderation/ })).toHaveAttribute('href', '/app/admin/moderation');
+      await expect(tools.getByRole('link', { name: /^Maintenance/ })).toHaveAttribute('href', '/app/admin/maintenance');
       await capture(page, testInfo, `overview-${name}-full`);
-      await main.getByRole('row', { name: 'lucia-vega/edge-solver' }).getByRole('button', { name: 'Reject' }).click();
-      const reject = page.getByRole('dialog', { name: 'Reject publication of lucia-vega/edge-solver?' });
-      await capture(page, testInfo, `overview-${name}-reject-dialog`);
-      await reject.getByRole('button', { name: 'Cancel' }).click();
-      await main.getByRole('button', { name: 'Purge expired data' }).click();
-      const purge = page.getByRole('dialog', { name: 'Purge expired data?' });
-      await expect(purge.getByRole('button', { name: 'Confirm purge' })).toBeDisabled();
-      await capture(page, testInfo, `overview-${name}-purge-dialog`);
-      await purge.getByRole('button', { name: 'Cancel' }).click();
+      await tools.getByRole('link', { name: /^Maintenance/ }).click();
+      await expect(page).toHaveURL(/\/app\/admin\/maintenance$/);
+      await expect(page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Maintenance' })).toBeVisible();
+      await page.goBack();
+      await expect(main.getByRole('heading', { level: 1, name: 'Administration', exact: true })).toBeVisible();
+      await tools.getByRole('link', { name: /^Moderation/ }).click();
+      await expect(page).toHaveURL(/\/app\/admin\/moderation$/);
+      await expect(page.locator('#platform-main').getByRole('heading', { level: 1, name: 'Moderation' })).toBeVisible();
 
       // One block failing leaves the rest of the page as it was.
       state.refuse.queues = detail(503, 'accounts_unavailable', 'down');

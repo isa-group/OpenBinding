@@ -38,6 +38,19 @@ const isToolPath = (pathname: string) =>
   under(pathname, '/app/verifier') || under(pathname, '/app/engines') || under(pathname, '/app/language')
   || under(pathname, '/app/generator') || under(pathname, '/engines') || under(pathname, '/language');
 
+/** `/app/:org/…` screens that belong to the organization, not to one of its projects. */
+const ORGANIZATION_SCREENS = new Set(['settings', 'library', 'new-project']);
+
+/**
+ * The workspace home is where organizations and projects are browsed: `/app`, an organization with its own screens, a project's overview.
+ * The sections inside a project (cases, studies, reports, files, …) mark themselves in the project tabs, so the header leaves Home alone there.
+ */
+function isWorkspaceHome(pathname: string): boolean {
+  const parts = pathname.split('/').filter(Boolean);
+  if (parts[0] !== 'app') return false;
+  return parts.length <= 3 || ORGANIZATION_SCREENS.has(parts[2]);
+}
+
 /** Which entry of the main navigation the current address belongs to. */
 export function currentSection(pathname: string): MainSection {
   if (under(pathname, '/app/admin')) return 'admin';
@@ -46,7 +59,7 @@ export function currentSection(pathname: string): MainSection {
   if (isToolPath(pathname)) return 'tools';
   if (under(pathname, '/explore')) return 'explore';
   if (under(pathname, '/app/account') || under(pathname, '/app/system')) return null;
-  return pathname === '/app' || pathname.startsWith('/app/') ? 'home' : null;
+  return isWorkspaceHome(pathname) ? 'home' : null;
 }
 
 export function isToolActive(pathname: string, link: NavLinkItem): boolean {

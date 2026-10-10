@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { CircleDashed } from 'lucide-react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { analysisApi, decisionReceipt, type ArchiveQuery, type DecisionReceipt } from '../../analysis/archive';
@@ -30,6 +30,18 @@ type Export = 'receipt' | 'csv' | 'json';
 function ChooseSources({ title, children }: { title: string; children: string }) {
   return (
     <EmptyState dashed icon={<CircleDashed />} title={title} action={<Action to={SOURCES} variant="primary">Choose sources</Action>}>{children}</EmptyState>
+  );
+}
+
+/** The page title for the states that have no ranking yet (reading, refused, nothing chosen), so the screen always has its heading. */
+function Waiting({ children }: { children: ReactNode }) {
+  return (
+    <AnalysisFrame trail={[{ label: 'Analysis', to: SOURCES }, { label: 'Decision space' }]}>
+      <header className="proj-title-row">
+        <div className="proj-title"><h1>Decision space</h1></div>
+      </header>
+      {children}
+    </AnalysisFrame>
   );
 }
 
@@ -192,17 +204,17 @@ function DecisionSpace({ initial, receipt, origin }: { initial: ArchiveQuery; re
 /** The saved decision of a report (`?report=org/project/slug`), read before the space opens on its sources. */
 function SavedSpace({ org, project, slug }: { org: string; project: string; slug: string }) {
   const saved = useResource(`saved-decision:${org}/${project}/${slug}`, () => platformApi.report(org, project, slug));
-  if (saved.status === 'loading') return <AnalysisFrame trail={[{ label: 'Analysis', to: SOURCES }, { label: 'Decision space' }]}><Skeleton variant="panel" /></AnalysisFrame>;
+  if (saved.status === 'loading') return <Waiting><Skeleton variant="panel" /></Waiting>;
   const report = saved.data;
   const receipt = report ? decisionReceipt(report.document) : null;
   if (saved.status === 'error' || !report || !receipt) {
     return (
-      <AnalysisFrame trail={[{ label: 'Analysis', to: SOURCES }, { label: 'Decision space' }]}>
+      <Waiting>
         {saved.status === 'error'
           ? <ProblemNotice problem={analysisProblem(saved.error, 'open the saved decision')} />
           : <Notice tone="error" title="This report doesn’t hold a decision">It has no valid binding-decision snapshot to reopen.</Notice>}
         <Action to={SOURCES} variant="secondary">Choose sources</Action>
-      </AnalysisFrame>
+      </Waiting>
     );
   }
   return <DecisionSpace initial={receipt.query} receipt={receipt} origin={`saved in ${report.title}`} />;
@@ -217,22 +229,22 @@ function WorkspaceScreen() {
 
   const fromStudy = target.jobs.length === 0 && target.study !== null;
   if (fromStudy && study.status === 'loading') {
-    return <AnalysisFrame trail={[{ label: 'Analysis', to: SOURCES }, { label: 'Decision space' }]}><div role="status" aria-busy="true"><span className="sr-only">Reading the study…</span><Skeleton variant="panel" /></div></AnalysisFrame>;
+    return <Waiting><div role="status" aria-busy="true"><span className="sr-only">Reading the study…</span><Skeleton variant="panel" /></div></Waiting>;
   }
   if (fromStudy && study.status === 'error') {
     return (
-      <AnalysisFrame trail={[{ label: 'Analysis', to: SOURCES }, { label: 'Decision space' }]}>
+      <Waiting>
         <ProblemNotice problem={analysisProblem(study.error, 'read the study evidence')} />
         <Action to={SOURCES} variant="secondary">Choose sources</Action>
-      </AnalysisFrame>
+      </Waiting>
     );
   }
   const sources = target.jobs.length ? target.jobs : study.jobs;
   if (sources.length === 0) {
     return (
-      <AnalysisFrame trail={[{ label: 'Analysis', to: SOURCES }, { label: 'Decision space' }]}>
+      <Waiting>
         <ChooseSources title="No sources chosen">Pick the finished runs to compare. A job, a study cell or a saved decision can open this page directly.</ChooseSources>
-      </AnalysisFrame>
+      </Waiting>
     );
   }
   const view = viewOf(params.get('view'));

@@ -42,12 +42,15 @@ async function signIn(page: Page, persona: keyof typeof personas) {
 }
 
 async function openWorkspace(page: Page) {
-  // A placeholder screen keeps the page behind the header independent of any API data.
+  // A project screen whose data is not mocked (the API answers 404) keeps the page behind the header independent of any API data.
   await page.goto('/app/isa-demo/qos-benchmarks/files');
   await expect(page.locator('header.app-header')).toBeVisible();
   await expect(page.getByRole('button', { name: '1 unread notifications' })).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
 }
+
+// Each test opens every menu of the header in turn while the development server compiles on demand.
+test.setTimeout(90_000);
 
 const viewports = [
   { name: 'desktop', viewport: { width: 1440, height: 900 }, isMobile: false, deviceScaleFactor: 1 },
@@ -108,6 +111,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
         } else {
           const nav = header.getByRole('navigation', { name: 'Main' });
           await expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/app');
+          // A project screen is not the workspace home: its own tabs say where you are, and Home is not marked.
+          await expect(nav.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current', 'page');
           await expect(nav.getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/app/jobs');
           await expect(nav.getByRole('link', { name: 'Analysis' })).toHaveAttribute('href', '/app/analysis');
           await expect(nav.getByRole('link', { name: 'Explore' })).toHaveAttribute('href', '/explore');

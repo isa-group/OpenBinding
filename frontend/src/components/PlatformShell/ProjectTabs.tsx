@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import './SectionNav.css';
 
@@ -24,9 +25,16 @@ const trailing: ReadonlyArray<{ key: ProjectSection; label: string; suffix: stri
   { key: 'settings', label: 'Settings', suffix: '/settings' },
 ];
 
-/** Section tabs shown at the top of every project screen. */
+/** Section tabs shown at the top of every project screen. On a narrow screen the row scrolls, and the current tab is always brought into view. */
 export function ProjectTabs({ active = 'overview', orgSlug, projectSlug }: ProjectTabsProps) {
   const root = `/app/${orgSlug}/${projectSlug}`;
+  const nav = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    // `scrollIntoView` is missing where there is no layout (the unit-test DOM): nothing to scroll there.
+    nav.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [active, root]);
+
   const renderTab = ({ key, label, suffix }: (typeof tabs)[number]) => (
     <Link key={key} to={`${root}${suffix}`} viewTransition className="project-tab" aria-current={active === key ? 'page' : undefined}>
       {label}
@@ -35,7 +43,7 @@ export function ProjectTabs({ active = 'overview', orgSlug, projectSlug }: Proje
 
   return (
     <div className="project-tabs">
-      <nav className="project-tabs-inner" aria-label="Project sections">
+      <nav ref={nav} className="project-tabs-inner" aria-label="Project sections">
         <div className="project-tabs-main">{tabs.map(renderTab)}</div>
         <div className="project-tabs-trailing">{trailing.map(renderTab)}</div>
       </nav>

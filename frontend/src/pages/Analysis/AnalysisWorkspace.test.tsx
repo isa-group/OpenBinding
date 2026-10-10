@@ -257,6 +257,8 @@ describe('The decision space', () => {
     renderWorkspace('');
 
     expect(await screen.findByText('No sources chosen')).toBeInTheDocument();
+    // The screen keeps its own heading before there is a ranking.
+    expect(screen.getByRole('heading', { level: 1, name: 'Decision space' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Choose sources' })).toHaveAttribute('href', '/app/analysis');
     expect(api.query).not.toHaveBeenCalled();
   });

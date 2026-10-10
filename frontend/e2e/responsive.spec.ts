@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 // Public routes of the redesigned site. About and Status are still placeholders but must already fit the viewport.
 const PUBLIC_ROUTES = [
@@ -77,7 +77,7 @@ test('engine catalogue and pricing stay visible before the mobile breakpoint', a
   await expect(pricing).toBeVisible();
   await engines.click();
   await expect(page).toHaveURL(/\/engines$/);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Engines');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Engine catalog');
   await page.goto('/');
   await pricing.click();
   await expect(page).toHaveURL(/\/pricing$/);
@@ -91,9 +91,60 @@ for (const route of ['/profiles', '/schemas', '/playground', '/team', '/changelo
   });
 }
 
+/** A signed-in account with one organization and one project; anything else on the API origin answers 404. */
+async function openProjectFiles(page: Page) {
+  const API = 'http://localhost:8000';
+  const organization = {
+    id: 'org-1', slug: 'isa-demo', name: 'ISA Demo Group', parent_id: null,
+    billing_sponsor_user_id: 'resp-user-id', effective_role: 'OWNER', created_at: '2026-09-01T00:00:00Z',
+  };
+  const project = {
+    id: 'project-1', organization_id: 'org-1', slug: 'qos-benchmarks', name: 'QoS Benchmarks', description: '',
+    visibility: 'private', created_by_id: 'resp-user-id', created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
+  };
+  const account = { id: 'resp-user-id', username: 'lucia', email: 'lucia@example.org', role: 'user', is_active: true, plan: 'BASIC', created_at: '2026-09-01T00:00:00Z' };
+  await page.addInitScript(() => localStorage.setItem('openbinding-access-token', 'responsive-token'));
+  await page.route(`${API}/**`, (route) => route.fulfill({ status: 404, json: { detail: 'not mocked' } }));
+  await page.route(`${API}/v1/users/me`, (route) => route.fulfill({ json: account }));
+  await page.route(`${API}/v1/users/me/pricing-token`, (route) => route.fulfill({ json: { pricing_token: 'responsive-token' } }));
+  await page.route(`${API}/v1/organizations`, (route) => route.fulfill({ json: [organization] }));
+  await page.route(`${API}/v1/organizations/isa-demo/projects`, (route) => route.fulfill({ json: [project] }));
+  await page.route(`${API}/v1/organizations/isa-demo/projects/qos-benchmarks`, (route) => route.fulfill({ json: project }));
+  await page.route(`${API}/v1/notifications**`, (route) => route.fulfill({ json: [] }));
+  await page.goto('/app/isa-demo/qos-benchmarks/files');
+  return page.getByRole('navigation', { name: 'Project sections' });
+}
+
+test('on a phone the project tabs scroll sideways and keep the open tab in view', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const tabs = await openProjectFiles(page);
+
+  const files = tabs.getByRole('link', { name: 'Files', exact: true });
+  await expect(files).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
+  await expect(files).toBeInViewport();
+  // Jobs, Studies, Reports and Files do not fit beside the other tabs: the row has moved to show the open one.
+  await expect.poll(() => tabs.evaluate((row) => row.scrollLeft)).toBeGreaterThan(0);
+  expect(await tabs.evaluate((row) => row.scrollWidth > row.clientWidth)).toBe(true);
+});
+
+test('a project screen does not mark Home in the application header', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const tabs = await openProjectFiles(page);
+
+  await expect(tabs.getByRole('link', { name: 'Files', exact: true })).toHaveAttribute('aria-current', 'page', { timeout: 30_000 });
+  const main = page.locator('header.app-header').getByRole('navigation', { name: 'Main' });
+  await expect(main.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current', 'page');
+  await expect(main.locator('[aria-current="page"]')).toHaveCount(0);
+});
+
 test('reduced motion removes entry animations', async ({ page }) => {
+  // The cards of the home page rise in; asking for reduced motion takes the animation away, and only that preference does.
+  await page.goto('/');
+  const card = page.locator('.home-card').first();
+  await expect(card).toBeVisible();
+  await expect(card).toHaveCSS('animation-name', 'home-in');
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/language');
-  await expect(page.locator('.role-detail')).toBeVisible();
-  await expect(page.locator('.role-detail')).toHaveCSS('animation-name', 'none');
+  await expect(card).toHaveCSS('animation-name', 'none');
 });

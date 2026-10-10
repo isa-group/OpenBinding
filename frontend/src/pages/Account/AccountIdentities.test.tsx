@@ -5,7 +5,7 @@ import type { ExternalIdentity, UserProfile } from '../../api/auth';
 import { HttpError } from '../../api/client';
 import { AuthContext } from '../../contexts/auth';
 import { catalogFixture } from '../Pricing/pricingFixture';
-import { AccountIdentities } from './AccountServices';
+import { AccountIdentities } from './AccountIdentities';
 
 const api = vi.hoisted(() => ({
   listOwnIdentities: vi.fn(),

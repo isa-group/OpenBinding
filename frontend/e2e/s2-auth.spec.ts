@@ -418,7 +418,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // (Opening the same address again would be a reload, which keeps the token in the entry's state on purpose.)
       await page.goto('/status');
       await page.goto('/invitations/accept');
-      await expect(main.getByRole('heading', { level: 1, name: 'Paste your invitation' })).toBeVisible();
+      // A full page load again, on a development server that is compiling for other workers: the session is read before the page shows.
+      await expect(main.getByRole('heading', { level: 1, name: 'Paste your invitation' })).toBeVisible({ timeout: 20_000 });
       await expect(main.getByText('the API has no endpoint to preview an invitation')).toBeVisible();
       await capture(page, testInfo, `invite-${name}-paste`);
       await main.getByRole('button', { name: 'Accept invitation' }).click();

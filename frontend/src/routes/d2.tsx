@@ -9,7 +9,7 @@ const Account = lazy(() => import('../pages/Account/Account').then((module) => (
 const AccountUsage = lazy(() => import('../pages/Account/AccountUsage').then((module) => ({ default: module.AccountUsage })));
 const AccountKeys = lazy(() => import('../pages/Account/AccountKeys').then((module) => ({ default: module.AccountKeys })));
 const AccountKeyNew = lazy(() => import('../pages/Account/AccountKeyNew').then((module) => ({ default: module.AccountKeyNew })));
-const AccountIdentities = lazy(() => import('../pages/Account/AccountServices').then((module) => ({ default: module.AccountIdentities })));
+const AccountIdentities = lazy(() => import('../pages/Account/AccountIdentities').then((module) => ({ default: module.AccountIdentities })));
 const AccountNotifications = lazy(() => import('../pages/Account/AccountNotifications').then((module) => ({ default: module.AccountNotifications })));
 
 export const d2Routes: RouteDefinition[] = [

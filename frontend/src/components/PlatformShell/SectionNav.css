@@ -76,6 +76,13 @@
 .project-tab[aria-current="page"] { border-bottom-color: var(--tp-primary); color: var(--tp-primary); }
 .project-tab:focus-visible { outline-offset: -2px; }
 
+/* On a narrow screen every tab is one row that scrolls sideways (ProjectTabs brings the current one into view). */
+@media (max-width: 760px) {
+  .project-tabs-inner { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .project-tabs-inner::-webkit-scrollbar { display: none; }
+  .project-tabs-main { flex: none; overflow: visible; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .section-nav-link { transition: none; }
 }

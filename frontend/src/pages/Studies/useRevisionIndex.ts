@@ -14,7 +14,8 @@ export interface RevisionDirectory {
 /** The case revisions of the project by id, to name the rows of a matrix. A project whose cases can't be read still draws: its rows read by id. */
 export function useRevisionIndex(org: string, project: string): RevisionDirectory {
   const resource = useResource<CaseContent[]>(`study-cases:${org}/${project}`, () => loadCases(org, project).catch(() => []));
-  const cases = resource.data ?? resource.stale ?? [];
+  const { data, stale } = resource;
+  const cases = useMemo(() => data ?? stale ?? [], [data, stale]);
   const index = useMemo(() => revisionIndex(cases), [cases]);
   return { cases, index, settled: resource.status !== 'loading' || Boolean(resource.stale) };
 }

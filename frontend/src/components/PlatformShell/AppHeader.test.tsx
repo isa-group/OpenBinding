@@ -110,6 +110,25 @@ describe('AppHeader', () => {
     expect(within(mainNav()).getByRole('button', { name: /Tools/ })).toHaveClass('is-active');
   });
 
+  it.each([
+    ['D1', '/app/system/states', null],
+    ['D2', '/app/account/usage', null],
+    ['D3', '/app/isa-demo/settings/members', 'Home'],
+    ['D4', '/app/isa-demo/qos/cases', null],
+    ['D5', '/app/isa-demo/qos/jobs/job-1', 'Jobs'],
+    ['D6 analysis', '/app/analysis/workspace', 'Analysis'],
+    ['D6 studies', '/app/isa-demo/qos/studies/engines-vs-seeds', null],
+    ['D7', '/app/engines/registrations', 'Tools'],
+    ['D8', '/app/admin/pricing', 'Admin'],
+  ] as const)('marks one entry of the main navigation for a screen of %s (%s)', (_domain, path, expected) => {
+    renderHeader(adminUser, { path });
+
+    const marked = within(mainNav()).getAllByRole('link').concat(within(mainNav()).getAllByRole('button', { name: /Tools/ }))
+      .filter((item) => item.getAttribute('aria-current') === 'page' || item.classList.contains('is-active'))
+      .map((item) => item.textContent?.trim().replace(/\s+/g, ' '));
+    expect(marked).toEqual(expected ? [expected] : []);
+  });
+
   it('opens the Tools menu with the keyboard and closes it with Escape, returning focus', () => {
     renderHeader();
     const tools = within(mainNav()).getByRole('button', { name: /Tools/ });

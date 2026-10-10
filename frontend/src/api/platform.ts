@@ -749,29 +749,7 @@ export const platformApi = {
     `/v1/admin/pricing/drafts/${encodeURIComponent(version)}`,
     { method: 'DELETE', body: JSON.stringify({ confirmation: version }) }, undefined, true, true,
   ),
-  inspectVerifier: (payload: VerifierInspectRequest) =>
-    apiClient.request<VerifierInspectResponse>('/v1/verifier/inspect', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
-  inspectVerifierFile: async (file: File | Blob, filename?: string) => {
-    const arrayBuffer = await file.arrayBuffer();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/octet-stream',
-    };
-    if (filename || ('name' in file && (file as File).name)) {
-      headers['X-Filename'] = filename || (file as File).name;
-    }
-    return apiClient.request<VerifierInspectResponse>('/v1/verifier/inspect-file', {
-      method: 'POST',
-      headers,
-      body: arrayBuffer,
-    });
-  },
-  /**
-   * `POST /v1/verifier/inspect` with the request the contract defines (`digest`, `document`). A 422 throws; 401 ends the session.
-   * Not `inspectVerifier`: that one sends field names the gateway rejects.
-   */
+  /** `POST /v1/verifier/inspect` with the request the contract defines (`digest`, `document`). A 422 throws; 401 ends the session. */
   verifierCheck: (payload: VerifierCheckRequest) =>
     apiClient.request<VerifierVerdict>('/v1/verifier/inspect', {
       method: 'POST', body: JSON.stringify(payload),
@@ -871,31 +849,6 @@ export interface ReplicationCitation {
   bibtex: string;
   markdown_badge: string;
   uri?: string;
-}
-
-export interface VerifierEntityMatch {
-  kind: string;
-  identity: string;
-  slug?: string | null;
-  name?: string | null;
-  canonical_digest: string;
-  raw_sha256?: string | null;
-  verified_at: string;
-  replication_citation?: ReplicationCitation | null;
-}
-
-export interface VerifierInspectResponse {
-  verified: boolean;
-  computed_canonical_digest: string;
-  computed_raw_sha256?: string | null;
-  match?: VerifierEntityMatch | null;
-  detail: string;
-}
-
-export interface VerifierInspectRequest {
-  target_kind?: string;
-  target_digest?: string;
-  document?: Record<string, unknown> | unknown[];
 }
 
 /** What `POST /v1/verifier/inspect` accepts (`VerifierInspectRequest` of the contract): a digest, a document, or both to compare them. */

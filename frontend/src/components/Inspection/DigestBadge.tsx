@@ -10,7 +10,7 @@ import {
   BookOpen,
   Info,
 } from 'lucide-react';
-import { platformApi, type VerifierInspectResponse } from '../../api/platform';
+import { platformApi, type VerifierStatus, type VerifierVerdict } from '../../api/platform';
 import { computeCanonicalDigest } from '../../utils/canonicalDigest';
 import './DigestBadge.css';
 
@@ -23,6 +23,14 @@ export interface DigestBadgeProps {
   className?: string;
 }
 
+/** What the verifier's answer means for the person reading it. Only `verified` says the fingerprint is on record. */
+const VERDICT_TITLES: Record<VerifierStatus, string> = {
+  verified: 'Authoritative Integrity Verified',
+  computed: 'Computed, not on record',
+  mismatch: 'Digest does not match',
+  not_found: 'Nothing found',
+};
+
 export const DigestBadge: React.FC<DigestBadgeProps> = ({
   digest,
   kind,
@@ -33,7 +41,8 @@ export const DigestBadge: React.FC<DigestBadgeProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [verification, setVerification] = useState<VerifierInspectResponse | null>(null);
+  const [verification, setVerification] = useState<VerifierVerdict | null>(null);
+  const [failed, setFailed] = useState(false);
   const [clientDigest, setClientDigest] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -45,6 +54,8 @@ export const DigestBadge: React.FC<DigestBadgeProps> = ({
     e.stopPropagation();
     setIsOpen(true);
     setLoading(true);
+    setFailed(false);
+    setVerification(null);
 
     try {
       // 1. Client-side canonical computation if document is available
@@ -58,19 +69,10 @@ export const DigestBadge: React.FC<DigestBadgeProps> = ({
       }
 
       // 2. Server-side authoritative verification
-      const res = await platformApi.inspectVerifier({
-        target_kind: kind,
-        target_digest: digest,
-        document: document as Record<string, unknown> | undefined,
-      });
-      setVerification(res);
+      setVerification(await platformApi.verifierCheck({ digest, kind, document }));
     } catch {
-      // Fallback response on network / auth refusal
-      setVerification({
-        verified: true,
-        computed_canonical_digest: digest,
-        detail: 'Digest format valid. Live verifier check completed.',
-      });
+      // A check that did not happen verifies nothing: say so, never "verified".
+      setFailed(true);
     } finally {
       setLoading(false);
     }
@@ -82,8 +84,8 @@ export const DigestBadge: React.FC<DigestBadgeProps> = ({
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const match = verification?.match;
-  const citation = match?.replication_citation;
+  const match = verification?.entities?.[0];
+  const citation = verification?.status === 'verified' ? verification.citation : null;
 
   return (
     <>
@@ -91,7 +93,7 @@ export const DigestBadge: React.FC<DigestBadgeProps> = ({
         type="button"
         className={`digest-badge-btn size-${size} is-verified ${className}`}
         onClick={handleOpen}
-        title={`Verified Cryptographic Digest: ${digest} (Click to inspect provenance)`}
+        title={`Digest: ${digest} (Click to check it with the verifier)`}
       >
         <ShieldCheck size={size === 'sm' ? 12 : size === 'lg' ? 16 : 14} className="digest-badge-icon" />
         {label && <span className="digest-badge-label">{label}:</span>}
@@ -123,18 +125,20 @@ export const DigestBadge: React.FC<DigestBadgeProps> = ({
 
             <div className="digest-modal-body">
               {/* Status Banner */}
-              <div className={`digest-status-banner ${verification?.verified ? 'is-valid' : 'is-warning'}`}>
+              <div className={`digest-status-banner ${verification?.status === 'verified' ? 'is-valid' : 'is-warning'}`} role="status">
                 <ShieldCheck size={20} style={{ flexShrink: 0 }} />
                 <div>
                   <strong>
                     {loading
-                      ? 'Verifying cryptographic signature…'
-                      : verification?.verified
-                        ? 'Authoritative Integrity Verified'
-                        : 'Unregistered Digest'}
+                      ? 'Verifying…'
+                      : verification
+                        ? VERDICT_TITLES[verification.status]
+                        : 'Could not verify'}
                   </strong>
                   <div style={{ fontSize: '0.8rem', opacity: 0.9, marginTop: '2px' }}>
-                    {verification?.detail || 'Canonical RFC 8785 JSON digest matches platform registry.'}
+                    {failed
+                      ? 'The verifier did not answer, so nothing was checked. This says nothing about the digest. Try again in a moment.'
+                      : verification?.detail}
                   </div>
                 </div>
               </div>
@@ -173,8 +177,8 @@ export const DigestBadge: React.FC<DigestBadgeProps> = ({
                 <div className="digest-field">
                   <label>Registered Platform Entity</label>
                   <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary, #d4d4d8)' }}>
-                    Kind: <strong>{match.kind}</strong> · Identity: <code>{match.identity}</code>
-                    {match.name && <span> · Name: <strong>{match.name}</strong></span>}
+                    Kind: <strong>{match.entity_type}</strong> · Identity: <code>{match.id}</code>
+                    {match.title_or_name && <span> · Name: <strong>{match.title_or_name}</strong></span>}
                   </div>
                 </div>
               )}

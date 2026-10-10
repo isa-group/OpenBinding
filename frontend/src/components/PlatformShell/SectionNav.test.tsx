@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AccountNav, type AccountSection } from './AccountNav';
 import { OrgNav, type OrgSection } from './OrgNav';
 import { ProjectLibraryNav, type ProjectLibrarySection } from '../ui/SectionNav';
@@ -129,5 +129,35 @@ describe('ProjectTabs', () => {
 
     const current = currentOf(screen.getByRole('navigation', { name: 'Project sections' }));
     expect(current.map((link) => link.textContent)).toEqual([label]);
+  });
+
+  describe('on a row that scrolls', () => {
+    const scrolled: HTMLElement[] = [];
+
+    beforeEach(() => {
+      scrolled.length = 0;
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+        configurable: true,
+        value(this: HTMLElement) { scrolled.push(this); },
+      });
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+    });
+
+    it.each(['jobs', 'studies', 'reports', 'files', 'settings'] as ProjectSection[])('brings the current tab (%s) into view', (active) => {
+      render(<MemoryRouter><ProjectTabs active={active} orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
+
+      expect(scrolled.map((tab) => tab.getAttribute('aria-current'))).toEqual(['page']);
+      expect(scrolled[0]).toBe(currentOf(screen.getByRole('navigation', { name: 'Project sections' }))[0]);
+    });
+
+    it('follows the current tab when the section changes', () => {
+      const { rerender } = render(<MemoryRouter><ProjectTabs active="cases" orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
+      rerender(<MemoryRouter><ProjectTabs active="files" orgSlug="isa-demo" projectSlug="qos" /></MemoryRouter>);
+
+      expect(scrolled.map((tab) => tab.textContent)).toEqual(['Cases', 'Files']);
+    });
   });
 });
