@@ -14,8 +14,8 @@ user/permission settings and the whole startup order are untested. Read
 
 | Service | Image / build | `mem_limit` | Notes |
 | --- | --- | --- | --- |
-| `postgres` | `postgres:16-alpine` | 384 MiB | volume `lab_pg`, `pg_isready` healthcheck, `user: 70:70` |
-| `redis` | `redis:7-alpine` | 96 MiB | volume `lab_redis`, AOF, `maxmemory 64mb` + `noeviction`, `user: 999:1000` |
+| `postgres` | `postgres:16-alpine` | 384 MiB | volume `lab-pg`, `PGDATA=/var/lib/postgresql/data/pgdata`, `pg_isready` healthcheck, `user: 70:70` |
+| `redis` | `redis:7-alpine` | 96 MiB | volume `lab-redis`, AOF, `maxmemory 64mb` + `noeviction`, `user: 999:1000` |
 | `engine-random-search` | `engines/random-search/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
 | `engine-many-heuristic` | `engines/many-heuristic/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
 | `engine-evolutionary-heuristics` | `engines/evolutionary-heuristics/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
@@ -86,7 +86,7 @@ start command writes the file from `DEMO_BIM_TOKEN` into a tmpfs
    the gateway's environment (minus the session secret and BIM; see below).
 4. `status` / `logs`: look at `web`, `gateway`, `worker` first.
 5. `down` removes containers and the network and **keeps the named volumes**
-   (`lab_pg`, `lab_redis`, `lab_artifacts`), so data survives a restart. Only
+   (`lab-pg`, `lab-redis`, `lab-artifacts`), so data survives a restart. Only
    an explicit volume removal deletes it.
 
 ### Seeding
@@ -158,15 +158,23 @@ Everything here is a hypothesis until it is observed.
    image differs, fix `user` (`docker run --rm postgres:16-alpine id postgres`,
    `docker run --rm redis:7-alpine id redis`). A volume created by a failed
    first start keeps its wrong ownership; remove that one volume before
-   retrying.
+   retrying. `PGDATA` is the `pgdata` subdirectory of the volume so `initdb`
+   creates it itself instead of needing the mount point to be empty and owned.
+   Service, volume and network names may only use lowercase letters, digits and
+   `-` (`^[a-z][a-z0-9-]{0,62}$`); `test_lab_compose.py` enforces it for both
+   compose files.
 2. **nginx as uid 101.** `web` is non-root, listens on 8080 and writes only to
    tmpfs mounts (`/run`, `/var/cache/nginx`). Look at `logs web` for
    `Permission denied`, `setgid`/`setuid`, or `open() "/run/nginx.pid" failed`.
    `curl http://127.0.0.1:18100/healthz` on the lab host must answer `ok`, and
    `/api/health/ready` must answer through the proxy.
-3. **Artifacts.** `lab_artifacts` is written by `gateway`, `worker` and
+3. **Artifacts.** `lab-artifacts` is written by `gateway`, `worker` and
    `seed`, all root in their containers; check that a job produces a
-   downloadable artifact.
+   downloadable artifact. Root needs no capability for this: the volume is
+   created root-owned, and uvicorn listens on 8000, `alembic` and the seed
+   tools only read the image and write the database and this volume.
+   `docker-entrypoint.sh` does no `chown`. The seed reads the bind-mounted
+   `tools/` as "other", so those files must be world-readable (the default).
 4. **Tokens file.** `logs bim-service`: `bearer authentication enabled with 1
    token(s)`. The tmpfs is created root-owned, mode 1777, and the service runs
    as uid 10001 (it writes its own file, `umask 077`). An error saying the

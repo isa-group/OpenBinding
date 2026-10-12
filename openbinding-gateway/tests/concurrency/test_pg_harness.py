@@ -150,7 +150,7 @@ def test_compose_mounts_are_structured_and_relative(compose):
     for name, mount in mounts:
         assert isinstance(mount, dict), f"{name}: volume entries must be objects, not strings"
         assert mount["type"] in {"bind", "volume", "tmpfs"}, (name, mount)
-        assert set(mount) <= {"type", "source", "target"}, (name, mount)
+        assert set(mount) <= {"type", "source", "target", "tmpfs"}, (name, mount)
         assert mount["target"].startswith("/"), (name, mount)
         if mount["type"] == "bind":
             source = mount["source"]
@@ -181,7 +181,24 @@ def test_postgres_has_healthcheck_and_seed_waits_for_it(compose):
 
 def test_postgres_data_is_ephemeral(compose):
     volumes = compose["services"]["postgres"]["volumes"]
-    assert {"type": "tmpfs", "target": "/var/lib/postgresql/data"} in volumes
+    data = [m for m in volumes if m["target"] == "/var/lib/postgresql/data"]
+    assert len(data) == 1 and data[0]["type"] == "tmpfs"
+    # Writable by the non-root postgres user: 0o1777 written in decimal, JSON has no octal.
+    assert data[0]["tmpfs"]["mode"] == 0o1777 == 1023
+    assert data[0]["tmpfs"]["size"] > 0
+
+
+def test_postgres_runs_as_non_root_with_pgdata_in_a_subdirectory(compose):
+    # The supervisor drops every capability, so the root entrypoint of the image cannot chown.
+    postgres = compose["services"]["postgres"]
+    assert postgres["user"] == "70:70"
+    assert postgres["environment"]["PGDATA"] == "/var/lib/postgresql/data/pgdata"
+
+
+def test_names_match_the_lab_compose_pattern(compose):
+    names = [*compose["services"], *(compose.get("volumes") or {}), *(compose.get("networks") or {})]
+    for name in names:
+        assert re.fullmatch(r"[a-z][a-z0-9-]{0,62}", name), name
 
 
 def test_seed_targets_a_test_database_matching_postgres(compose):

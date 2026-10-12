@@ -19,6 +19,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = ROOT / "compose.lab.json"
+PGTEST_COMPOSE = ROOT / "compose.pgtest.json"
+NAME_PATTERN = re.compile(r"[a-z][a-z0-9-]{0,62}")
 NGINX_DIR = ROOT / "lab" / "nginx"
 DEMO_DOC = ROOT / "docs" / "DEMO.md"
 
@@ -126,6 +128,32 @@ def test_top_level_volumes_and_networks_carry_only_labels(compose):
     for section in ("networks", "volumes"):
         for name, definition in (compose.get(section) or {}).items():
             assert set(definition or {}) <= {"labels"}, f"{section}.{name}"
+
+
+@pytest.mark.parametrize("path", [COMPOSE, PGTEST_COMPOSE], ids=lambda p: p.name)
+def test_service_volume_and_network_names_match_the_validator_pattern(path):
+    # Underscores are refused; environment variable keys are not names and may have them.
+    data = json.loads(path.read_text(encoding="utf-8"))
+    names = [*data["services"], *(data.get("volumes") or {}), *(data.get("networks") or {})]
+    assert names
+    bad = [name for name in names if not NAME_PATTERN.fullmatch(name)]
+    assert not bad, f"{path.name}: {bad}"
+    for service in data["services"].values():
+        for mount in service.get("volumes", []):
+            if mount["type"] == "volume":
+                assert NAME_PATTERN.fullmatch(mount["source"]), mount
+
+
+@pytest.mark.parametrize("path", [COMPOSE, PGTEST_COMPOSE], ids=lambda p: p.name)
+def test_postgres_runs_as_a_non_root_user_with_pgdata_in_a_subdirectory(path):
+    # The supervisor drops every capability; the stock root entrypoint cannot chown without them.
+    postgres = json.loads(path.read_text(encoding="utf-8"))["services"]["postgres"]
+    uid = str(postgres["user"]).split(":")[0]
+    assert uid.isdigit() and int(uid) != 0
+    pgdata = _env(postgres)["PGDATA"]
+    targets = [m["target"] for m in postgres["volumes"]]
+    assert pgdata.startswith(tuple(t.rstrip("/") + "/" for t in targets)), pgdata
+    assert postgres["healthcheck"]["test"]
 
 
 def test_service_count(services):
@@ -416,8 +444,8 @@ def test_gateway_waits_for_what_it_uses(services):
 
 
 def test_named_volumes_back_the_stateful_services(services):
-    assert {"type": "volume", "source": "lab_pg", "target": "/var/lib/postgresql/data"} in services["postgres"]["volumes"]
-    assert {"type": "volume", "source": "lab_redis", "target": "/data"} in services["redis"]["volumes"]
+    assert {"type": "volume", "source": "lab-pg", "target": "/var/lib/postgresql/data"} in services["postgres"]["volumes"]
+    assert {"type": "volume", "source": "lab-redis", "target": "/data"} in services["redis"]["volumes"]
     assert services["postgres"]["image"] == "postgres:16-alpine"
     assert services["redis"]["image"] == "redis:7-alpine"
     assert "pg_isready" in " ".join(services["postgres"]["healthcheck"]["test"])

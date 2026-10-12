@@ -3,7 +3,9 @@
   "services": {
     "postgres": {
       "image": "postgres:16-alpine",
+      "user": "70:70",
       "environment": {
+        "PGDATA": "/var/lib/postgresql/data/pgdata",
         "POSTGRES_DB": "test_openbinding",
         "POSTGRES_USER": "pgtest",
         "POSTGRES_PASSWORD": "pgtest-ephemeral-not-a-secret"
@@ -19,7 +21,11 @@
       "volumes": [
         {
           "type": "tmpfs",
-          "target": "/var/lib/postgresql/data"
+          "target": "/var/lib/postgresql/data",
+          "tmpfs": {
+            "mode": 1023,
+            "size": 167772160
+          }
         }
       ],
       "mem_limit": "384m",

@@ -5,6 +5,7 @@
       "image": "postgres:16-alpine",
       "user": "70:70",
       "environment": {
+        "PGDATA": "/var/lib/postgresql/data/pgdata",
         "POSTGRES_DB": "openbinding",
         "POSTGRES_USER": "openbinding",
         "POSTGRES_PASSWORD": "${DEMO_PG_PASSWORD}"
@@ -17,7 +18,7 @@
       "volumes": [
         {
           "type": "volume",
-          "source": "lab_pg",
+          "source": "lab-pg",
           "target": "/var/lib/postgresql/data"
         }
       ],
@@ -42,7 +43,7 @@
       "volumes": [
         {
           "type": "volume",
-          "source": "lab_redis",
+          "source": "lab-redis",
           "target": "/data"
         }
       ],
@@ -204,7 +205,7 @@
       "volumes": [
         {
           "type": "volume",
-          "source": "lab_artifacts",
+          "source": "lab-artifacts",
           "target": "/var/lib/openbinding/artifacts"
         },
         {
@@ -270,7 +271,7 @@
       "volumes": [
         {
           "type": "volume",
-          "source": "lab_artifacts",
+          "source": "lab-artifacts",
           "target": "/var/lib/openbinding/artifacts"
         }
       ],
@@ -375,7 +376,7 @@
         },
         {
           "type": "volume",
-          "source": "lab_artifacts",
+          "source": "lab-artifacts",
           "target": "/var/lib/openbinding/artifacts"
         }
       ],
@@ -383,8 +384,8 @@
     }
   },
   "volumes": {
-    "lab_pg": {},
-    "lab_redis": {},
-    "lab_artifacts": {}
+    "lab-pg": {},
+    "lab-redis": {},
+    "lab-artifacts": {}
   }
 }

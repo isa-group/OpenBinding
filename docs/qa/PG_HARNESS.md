@@ -19,7 +19,11 @@ supervisor's `up` starts only `postgres`; the tests run as the `seed` service
 (`docker compose run --rm --no-deps seed`), the same pattern as
 `compose.lab.json`:
 
-- `postgres`: `postgres:16-alpine`, data in a `tmpfs` volume, database
+- `postgres`: `postgres:16-alpine`, running as `user: "70:70"` (every capability
+  is dropped, so the root entrypoint cannot `chown`), `PGDATA` the `pgdata`
+  subdirectory of the data directory, data in a `tmpfs` volume
+  (`{"type": "tmpfs", "target": ..., "tmpfs": {"mode": 1023, "size": 167772160}}`:
+  1023 is `0o1777` in decimal, so the non-root user can write; 160 MiB), database
   `test_openbinding`, synthetic user/password valid only for this ephemeral
   database, healthcheck `pg_isready`, `mem_limit` 384m. No profile, so `up`
   starts it and `--wait` returns once it is healthy.
@@ -36,7 +40,11 @@ Format rules of lab_compose that the file follows (checked by
 - No top-level `networks` or `volumes` (they would only admit `labels`), no
   `networks` on services: both services use the Compose-managed default network
   of the project. No ports are published, no `network_mode`.
-- Every `volumes` entry is a structured object `{type, source, target}` (no
+- Service names (and volume/network names, if any) match
+  `^[a-z][a-z0-9-]{0,62}$`: no underscores.
+- Every `volumes` entry is a structured object `{type, source, target}`; only
+  `type` and `target` are required by the validator, the rest (such as the
+  `tmpfs` options) is passed to Compose (no
   `a:b:ro` strings, no service-level `tmpfs` key). Bind sources are literal
   relative paths inside the repository, without `${`; lab_compose mounts them
   read-only.
@@ -53,9 +61,8 @@ and of `docs`, `engines`, `pricings` and `space` are gone: nothing in
 `tests/concurrency` reads `docs`, `engines` or `pricings`, and binds are always
 read-only, so nested mounts below a mounted `/app` could not create their mount
 points. If lab_compose rejects the bind, the tests need to be baked into an
-image instead. The postgres data directory is a `tmpfs` volume without an
-explicit size (the structured form carries none); it is bounded by the 384m
-container limit.
+image instead. The postgres data directory is a `tmpfs` volume of 160 MiB,
+inside the 384m container limit.
 
 `space/` dependency: `tests/concurrency/test_job_leases_pg.py` reads the pricing
 catalogue through `tests/_pricing.py`, which finds `/app/space/pricing/openbinding.yml`
@@ -122,7 +129,8 @@ schema.
   `source_snapshot_id` / `engine_ref` at INSERT (migration triggers forbid
   updating them on `binding_case_revisions` and `study_cells`).
 - Timing assertions (`wait_for(..., timeout=10)`, `sleep(0.2/0.5)`) on a loaded host.
-- `tmpfs` ownership for the postgres data directory on some runtimes.
+- `tmpfs` ownership for the postgres data directory on some runtimes (mitigated
+  by mode `1777`, `user: 70:70` and `PGDATA` in a subdirectory).
 
 ## Recommended CI job (not added; `ci.yml` is out of scope here)
 
