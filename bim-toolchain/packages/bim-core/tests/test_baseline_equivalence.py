@@ -21,7 +21,7 @@ import warnings
 
 import pytest
 
-from conftest import (
+from core_support import (
     CORPUS_MARKER,
     GOLDEN_DIR,
     check_or_create_golden,

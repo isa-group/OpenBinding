@@ -9,7 +9,7 @@ import copy
 import pytest
 
 from bim_core import BindingProblem, EvaluationError, analyze_neighborhood, compile_instance, load_package
-from conftest import require_corpus_path
+from core_support import require_corpus_path
 
 from _language import BINDING, base_package
 

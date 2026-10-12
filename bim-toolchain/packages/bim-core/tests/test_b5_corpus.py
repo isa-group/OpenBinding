@@ -13,7 +13,7 @@ import json
 import pytest
 
 from bim_core import CompileError, compile_instance, load_package
-from conftest import require_corpus_path
+from core_support import require_corpus_path
 
 DEMOS = ["01_simple_seq", "02_parallel", "05_multi_obj"]
 OPEN_RANGES = {

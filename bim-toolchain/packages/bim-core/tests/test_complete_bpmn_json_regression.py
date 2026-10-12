@@ -5,7 +5,7 @@ The two examples belong to the OpenBinding corpus (``BIM_CORPUS_ROOT``); the tes
 
 from itertools import product
 
-from conftest import require_corpus_path
+from core_support import require_corpus_path
 
 from bim_core.compiler import compile_instance
 from bim_core.package import load_package

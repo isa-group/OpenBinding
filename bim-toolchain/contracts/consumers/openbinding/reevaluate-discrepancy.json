@@ -1,0 +1,461 @@
+{
+ "consumer": "openbinding",
+ "description": "An engine answer with invented numbers and an OPTIMAL it cannot back: only the binding survives.",
+ "name": "reevaluate-discrepancy",
+ "schema": "bim-toolchain/consumer-fixture/1",
+ "steps": [
+  {
+   "description": "Compile the demo package to its IR.",
+   "expect": {
+    "body": {
+     "analysis": {
+      "bindingSpaceBreakdown": {
+       "t1": 2,
+       "t2": 2
+      },
+      "bindingSpaceCardinality": "4",
+      "bindingSpaceLog10": 0.6020599913279624,
+      "candidates": 2,
+      "serviceTasks": 2
+     },
+     "inputDigest": "sha256-bab0665c7698af16aae5261f425d8a5110b3b97496e701433249a940ec18a916",
+     "instanceDigest": "sha256-3c3f7ae7926ecd01dea6535dd8f4170dfe73d30e17565a33eed622e979d7a1bd",
+     "ir": {
+      "apiVersion": "bim/v1",
+      "kind": "BindingProblem",
+      "semanticDigest": "sha256-88faceb9ed5ccd1d0db24093dd43b4845879c221b23a6aeb2790b01b7d08a743"
+     },
+     "packageDigest": "sha256-011e8f95939fae5b45e41687dfd3ffb0eb21648f6b591f7e2c1080a097dbff74",
+     "sourceMap": {
+      "/": {
+       "path": "instance.json",
+       "pointer": "/",
+       "resource": "instance"
+      },
+      "/spec/application/features/cost": {
+       "path": "application.json",
+       "pointer": "/spec/features/cost",
+       "resource": "app"
+      },
+      "/spec/application/features/latency": {
+       "path": "application.json",
+       "pointer": "/spec/features/latency",
+       "resource": "app"
+      },
+      "/spec/application/tasks/local": {
+       "path": "application.json",
+       "pointer": "/spec/tasks/local",
+       "resource": "app"
+      },
+      "/spec/application/tasks/t1": {
+       "path": "application.json",
+       "pointer": "/spec/tasks/t1",
+       "resource": "app"
+      },
+      "/spec/application/tasks/t2": {
+       "path": "application.json",
+       "pointer": "/spec/tasks/t2",
+       "resource": "app"
+      },
+      "/spec/application/workflow": {
+       "path": "application.json",
+       "pointer": "/spec/workflow",
+       "resource": "app"
+      },
+      "/spec/application/workflow/steps/0": {
+       "path": "application.json",
+       "pointer": "/spec/workflow/sequence/0",
+       "resource": "app"
+      },
+      "/spec/application/workflow/steps/1": {
+       "path": "application.json",
+       "pointer": "/spec/workflow/sequence/1",
+       "resource": "app"
+      },
+      "/spec/application/workflow/steps/1/body": {
+       "path": "application.json",
+       "pointer": "/spec/workflow/sequence/1/repeat/body",
+       "resource": "app"
+      },
+      "/spec/application/workflow/steps/2": {
+       "path": "application.json",
+       "pointer": "/spec/workflow/sequence/2",
+       "resource": "app"
+      },
+      "/spec/candidates/cat-a/c1": {
+       "path": "catalog-a.json",
+       "pointer": "/spec/candidates/c1",
+       "resource": "cat-a"
+      },
+      "/spec/candidates/cat-b/c1": {
+       "path": "catalog-b.json",
+       "pointer": "/spec/candidates/c1",
+       "resource": "cat-b"
+      },
+      "/spec/constraints/0": {
+       "path": "hard.json",
+       "pointer": "/spec/constraints/limit",
+       "resource": "hard"
+      },
+      "/spec/constraints/0/assert": {
+       "path": "hard.json",
+       "pointer": "/spec/constraints/limit/assert",
+       "resource": "hard",
+       "span": {
+        "end": 23,
+        "start": 0
+       }
+      },
+      "/spec/constraints/1": {
+       "path": "soft.json",
+       "pointer": "/spec/constraints/limit",
+       "resource": "soft"
+      },
+      "/spec/constraints/1/assert": {
+       "path": "soft.json",
+       "pointer": "/spec/constraints/limit/assert",
+       "resource": "soft",
+       "span": {
+        "end": 22,
+        "start": 0
+       }
+      },
+      "/spec/constraints/1/penalty": {
+       "path": "soft.json",
+       "pointer": "/spec/constraints/limit/penalty",
+       "resource": "soft"
+      },
+      "/spec/instance/resources/app": {
+       "path": "instance.json",
+       "pointer": "/spec/resources/application/app",
+       "resource": "instance"
+      },
+      "/spec/instance/resources/cat-a": {
+       "path": "instance.json",
+       "pointer": "/spec/resources/candidateCatalog/cat-a",
+       "resource": "instance"
+      },
+      "/spec/instance/resources/cat-b": {
+       "path": "instance.json",
+       "pointer": "/spec/resources/candidateCatalog/cat-b",
+       "resource": "instance"
+      },
+      "/spec/instance/resources/hard": {
+       "path": "instance.json",
+       "pointer": "/spec/resources/constraintSet/hard",
+       "resource": "instance"
+      },
+      "/spec/instance/resources/opt": {
+       "path": "instance.json",
+       "pointer": "/spec/resources/optimization/opt",
+       "resource": "instance"
+      },
+      "/spec/instance/resources/soft": {
+       "path": "instance.json",
+       "pointer": "/spec/resources/constraintSet/soft",
+       "resource": "instance"
+      },
+      "/spec/optimization/criteria/0": {
+       "path": "optimization.json",
+       "pointer": "/spec/criteria/0",
+       "resource": "opt"
+      },
+      "/spec/optimization/criteria/1": {
+       "path": "optimization.json",
+       "pointer": "/spec/criteria/1",
+       "resource": "opt"
+      }
+     }
+    },
+    "status": 200
+   },
+   "id": "compile",
+   "request": {
+    "body": {
+     "package": "UEsDBBQAAAAAAAAAIQDUyqvB+AEAAPgBAAAQAAAAYXBwbGljYXRpb24uanNvbnsiYXBpVmVyc2lvbiI6InFvcy1iaW5kaW5nL3YxIiwia2luZCI6IkFwcGxpY2F0aW9uIiwibWV0YWRhdGEiOnsibmFtZSI6ImFwcCJ9LCJzcGVjIjp7ImZlYXR1cmVzIjp7ImNvc3QiOnsiYWdncmVnYXRpb24iOiJzdW0iLCJkaXJlY3Rpb24iOiJtaW5pbWl6ZSIsInNjb3BlIjoic2VsZWN0ZWRDYW5kaWRhdGUiLCJ1bml0IjoiZXVyIn0sImxhdGVuY3kiOnsiYWdncmVnYXRpb24iOiJzdW0iLCJkaXJlY3Rpb24iOiJtaW5pbWl6ZSIsInVuaXQiOiJtcyJ9fSwidGFza3MiOnsibG9jYWwiOnsia2luZCI6ImxvY2FsIn0sInQxIjoic3ZjL3YxIiwidDIiOiJzdmMvdjEifSwid29ya2Zsb3ciOnsic2VxdWVuY2UiOlt7InRhc2siOnsiaWQiOiJ0MSIsInJlc291cmNlIjoiYXBwIn19LHsicmVwZWF0Ijp7ImJvZHkiOnsidGFzayI6eyJpZCI6InQyIiwicmVzb3VyY2UiOiJhcHAifX0sImV4cGVjdGVkQ291bnQiOjJ9fSx7InRhc2siOnsiaWQiOiJsb2NhbCIsInJlc291cmNlIjoiYXBwIn19XX19fVBLAwQUAAAAAAAAACEAmEOOBGABAABgAQAADgAAAGNhdGFsb2ctYS5qc29ueyJhcGlWZXJzaW9uIjoicW9zLWJpbmRpbmcvdjEiLCJraW5kIjoiQ2FuZGlkYXRlQ2F0YWxvZyIsIm1ldGFkYXRhIjp7Im5hbWUiOiJjYXRhbG9nLWEifSwic3BlYyI6eyJjYW5kaWRhdGVzIjp7ImMxIjp7ImZlYXR1cmVzIjp7ImNvc3QiOjUsImxhdGVuY3kiOjEwfSwicHJvdmlkZXIiOnsiaWQiOiJwYSIsInJlc291cmNlIjoiY2F0LWEifSwicHJvdmlkZXMiOiJzdmMvdjEifX0sImZlYXR1cmVCaW5kaW5ncyI6eyJjb3N0Ijp7ImlkIjoiY29zdCIsInJlc291cmNlIjoiYXBwIn0sImxhdGVuY3kiOnsiaWQiOiJsYXRlbmN5IiwicmVzb3VyY2UiOiJhcHAifX0sInByb3ZpZGVycyI6eyJwYSI6eyJuYW1lIjoiUEEifX19fVBLAwQUAAAAAAAAACEAfGNaqWABAABgAQAADgAAAGNhdGFsb2ctYi5qc29ueyJhcGlWZXJzaW9uIjoicW9zLWJpbmRpbmcvdjEiLCJraW5kIjoiQ2FuZGlkYXRlQ2F0YWxvZyIsIm1ldGFkYXRhIjp7Im5hbWUiOiJjYXRhbG9nLWIifSwic3BlYyI6eyJjYW5kaWRhdGVzIjp7ImMxIjp7ImZlYXR1cmVzIjp7ImNvc3QiOjcsImxhdGVuY3kiOjIwfSwicHJvdmlkZXIiOnsiaWQiOiJwYiIsInJlc291cmNlIjoiY2F0LWIifSwicHJvdmlkZXMiOiJzdmMvdjEifX0sImZlYXR1cmVCaW5kaW5ncyI6eyJjb3N0Ijp7ImlkIjoiY29zdCIsInJlc291cmNlIjoiYXBwIn0sImxhdGVuY3kiOnsiaWQiOiJsYXRlbmN5IiwicmVzb3VyY2UiOiJhcHAifX0sInByb3ZpZGVycyI6eyJwYiI6eyJuYW1lIjoiUEIifX19fVBLAwQUAAAAAAAAACEA/L2VOqwAAACsAAAACQAAAGhhcmQuanNvbnsiYXBpVmVyc2lvbiI6InFvcy1iaW5kaW5nL3YxIiwia2luZCI6IkNvbnN0cmFpbnRTZXQiLCJtZXRhZGF0YSI6eyJuYW1lIjoiaGFyZCJ9LCJzcGVjIjp7ImNvbnN0cmFpbnRzIjp7ImxpbWl0Ijp7ImFzc2VydCI6ImZlYXR1cmVzLmxhdGVuY3kgPD0gMTAwIiwiZW5mb3JjZW1lbnQiOiJoYXJkIn19fX1QSwMEFAAAAAAAAAAhAM+o8fJSAQAAUgEAAA0AAABpbnN0YW5jZS5qc29ueyJhcGlWZXJzaW9uIjoiYmltL3YxIiwia2luZCI6Ikluc3RhbmNlIiwibWV0YWRhdGEiOnsibmFtZSI6ImNvbnN1bWVyLWRlbW8ifSwic3BlYyI6eyJwcm9maWxlIjoicW9zLWJpbmRpbmcvdjEiLCJyZXNvdXJjZXMiOnsiYXBwbGljYXRpb24iOnsiYXBwIjoiYXBwbGljYXRpb24uanNvbiJ9LCJjYW5kaWRhdGVDYXRhbG9nIjp7ImNhdC1hIjoiY2F0YWxvZy1hLmpzb24iLCJjYXQtYiI6ImNhdGFsb2ctYi5qc29uIn0sImNvbnN0cmFpbnRTZXQiOnsiaGFyZCI6ImhhcmQuanNvbiIsInNvZnQiOiJzb2Z0Lmpzb24ifSwib3B0aW1pemF0aW9uIjp7Im9wdCI6Im9wdGltaXphdGlvbi5qc29uIn19fX1QSwMEFAAAAAAAAAAhAL6LWlB9AQAAfQEAABEAAABvcHRpbWl6YXRpb24uanNvbnsiYXBpVmVyc2lvbiI6InFvcy1iaW5kaW5nL3YxIiwia2luZCI6Ik9wdGltaXphdGlvbiIsIm1ldGFkYXRhIjp7Im5hbWUiOiJvcHQifSwic3BlYyI6eyJjcml0ZXJpYSI6W3siZmVhdHVyZSI6eyJpZCI6ImxhdGVuY3kiLCJyZXNvdXJjZSI6ImFwcCJ9LCJpZCI6ImxhdGVuY3kiLCJub3JtYWxpemUiOnsiY2xhbXAiOmZhbHNlLCJtYXgiOjEwMCwibWluIjowfX0seyJmZWF0dXJlIjp7ImlkIjoiY29zdCIsInJlc291cmNlIjoiYXBwIn0sImlkIjoiY29zdCIsIm5vcm1hbGl6ZSI6eyJjbGFtcCI6ZmFsc2UsIm1heCI6MjAsIm1pbiI6MH19XSwicGVuYWx0aWVzIjpbeyJjb25zdHJhaW50Ijp7ImlkIjoibGltaXQiLCJyZXNvdXJjZSI6InNvZnQifSwid2VpZ2h0IjoxfV19fVBLAwQUAAAAAAAAACEA2C3oz7cAAAC3AAAACQAAAHNvZnQuanNvbnsiYXBpVmVyc2lvbiI6InFvcy1iaW5kaW5nL3YxIiwia2luZCI6IkNvbnN0cmFpbnRTZXQiLCJtZXRhZGF0YSI6eyJuYW1lIjoic29mdCJ9LCJzcGVjIjp7ImNvbnN0cmFpbnRzIjp7ImxpbWl0Ijp7ImFzc2VydCI6Imhhcyh0YXNrcy50MS5wcm92aWRlcikiLCJlbmZvcmNlbWVudCI6InNvZnQiLCJwZW5hbHR5IjoyfX19fVBLAQIUAxQAAAAAAAAAIQDUyqvB+AEAAPgBAAAQAAAAAAAAAAAAAACkgQAAAABhcHBsaWNhdGlvbi5qc29uUEsBAhQDFAAAAAAAAAAhAJhDjgRgAQAAYAEAAA4AAAAAAAAAAAAAAKSBJgIAAGNhdGFsb2ctYS5qc29uUEsBAhQDFAAAAAAAAAAhAHxjWqlgAQAAYAEAAA4AAAAAAAAAAAAAAKSBsgMAAGNhdGFsb2ctYi5qc29uUEsBAhQDFAAAAAAAAAAhAPy9lTqsAAAArAAAAAkAAAAAAAAAAAAAAKSBPgUAAGhhcmQuanNvblBLAQIUAxQAAAAAAAAAIQDPqPHyUgEAAFIBAAANAAAAAAAAAAAAAACkgREGAABpbnN0YW5jZS5qc29uUEsBAhQDFAAAAAAAAAAhAL6LWlB9AQAAfQEAABEAAAAAAAAAAAAAAKSBjgcAAG9wdGltaXphdGlvbi5qc29uUEsBAhQDFAAAAAAAAAAhANgt6M+3AAAAtwAAAAkAAAAAAAAAAAAAAKSBOgkAAHNvZnQuanNvblBLBQYAAAAABwAHAJ4BAAAYCgAAAAA=",
+     "registeredResources": []
+    },
+    "method": "POST",
+    "path": "/bim/v1/compile"
+   },
+   "toolchain": {
+    "compilerDigest": "sha256-18a20c7d12fbba1c6b82dde90e6db40ed877959bb82d9a80083da8114c105172",
+    "irDigest": "sha256-f3d2aaaec30dddf81eee902508b71a8fc5beba40281abac476c445ce27b09b70"
+   }
+  },
+  {
+   "description": "Re-evaluate a lying OPTIMAL answer: numbers are replaced, termination lowered to UNKNOWN.",
+   "expect": {
+    "body": {
+     "provenance": {
+      "engine": "consumer-fixture"
+     },
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1",
+          "resource": "cat-a"
+         },
+         "t2": {
+          "id": "c1",
+          "resource": "cat-b"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "cost": 12.0,
+        "latency": 50.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "app"
+          },
+          "loss": 0.5,
+          "value": 50.0,
+          "weight": 0.5
+         },
+         {
+          "criteria": "cost",
+          "feature": {
+           "id": "cost",
+           "resource": "app"
+          },
+          "loss": 0.6,
+          "value": 12.0,
+          "weight": 0.5
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.55,
+        "type": "SINGLE"
+       },
+       "penalties": [
+        0.0
+       ],
+       "violations": []
+      }
+     ],
+     "termination": "UNKNOWN"
+    },
+    "status": 200
+   },
+   "id": "reevaluate",
+   "request": {
+    "body": {
+     "ir": {
+      "$ref": "compile#/ir"
+     },
+     "result": {
+      "provenance": {
+       "engine": "consumer-fixture"
+      },
+      "solutions": [
+       {
+        "decision": {
+         "binding": {
+          "t1": {
+           "id": "c1",
+           "resource": "cat-a"
+          },
+          "t2": {
+           "id": "c1",
+           "resource": "cat-b"
+          }
+         },
+         "kind": "binding"
+        },
+        "features": {
+         "cost": 0.0,
+         "latency": 0.0
+        },
+        "objectives": {
+         "components": [
+          {
+           "criteria": "latency",
+           "feature": {
+            "id": "latency",
+            "resource": "app"
+           },
+           "loss": 0.0,
+           "value": 0.0,
+           "weight": 0.5
+          },
+          {
+           "criteria": "cost",
+           "feature": {
+            "id": "cost",
+            "resource": "app"
+           },
+           "loss": 0.0,
+           "value": 0.0,
+           "weight": 0.5
+          }
+         ],
+         "penalty": 0.0,
+         "scalarization": "weighted-sum",
+         "score": 0.0,
+         "type": "SINGLE"
+        },
+        "penalties": [
+         0.0
+        ],
+        "violations": []
+       }
+      ],
+      "termination": "OPTIMAL"
+     }
+    },
+    "method": "POST",
+    "path": "/bim/v1/reevaluate"
+   }
+  },
+  {
+   "description": "The same when the mode is trusted with OPTIMAL.",
+   "expect": {
+    "body": {
+     "provenance": {
+      "engine": "consumer-fixture"
+     },
+     "solutions": [
+      {
+       "decision": {
+        "binding": {
+         "t1": {
+          "id": "c1",
+          "resource": "cat-a"
+         },
+         "t2": {
+          "id": "c1",
+          "resource": "cat-b"
+         }
+        },
+        "kind": "binding"
+       },
+       "features": {
+        "cost": 12.0,
+        "latency": 50.0
+       },
+       "objectives": {
+        "components": [
+         {
+          "criteria": "latency",
+          "feature": {
+           "id": "latency",
+           "resource": "app"
+          },
+          "loss": 0.5,
+          "value": 50.0,
+          "weight": 0.5
+         },
+         {
+          "criteria": "cost",
+          "feature": {
+           "id": "cost",
+           "resource": "app"
+          },
+          "loss": 0.6,
+          "value": 12.0,
+          "weight": 0.5
+         }
+        ],
+        "penalty": 0,
+        "scalarization": "weighted-sum",
+        "score": 0.55,
+        "type": "SINGLE"
+       },
+       "penalties": [
+        0.0
+       ],
+       "violations": []
+      }
+     ],
+     "termination": "OPTIMAL"
+    },
+    "status": 200
+   },
+   "id": "reevaluate-allowed",
+   "request": {
+    "body": {
+     "allowedTerminations": [
+      "OPTIMAL",
+      "FEASIBLE",
+      "INFEASIBLE",
+      "UNKNOWN"
+     ],
+     "ir": {
+      "$ref": "compile#/ir"
+     },
+     "result": {
+      "provenance": {
+       "engine": "consumer-fixture"
+      },
+      "solutions": [
+       {
+        "decision": {
+         "binding": {
+          "t1": {
+           "id": "c1",
+           "resource": "cat-a"
+          },
+          "t2": {
+           "id": "c1",
+           "resource": "cat-b"
+          }
+         },
+         "kind": "binding"
+        },
+        "features": {
+         "cost": 0.0,
+         "latency": 0.0
+        },
+        "objectives": {
+         "components": [
+          {
+           "criteria": "latency",
+           "feature": {
+            "id": "latency",
+            "resource": "app"
+           },
+           "loss": 0.0,
+           "value": 0.0,
+           "weight": 0.5
+          },
+          {
+           "criteria": "cost",
+           "feature": {
+            "id": "cost",
+            "resource": "app"
+           },
+           "loss": 0.0,
+           "value": 0.0,
+           "weight": 0.5
+          }
+         ],
+         "penalty": 0.0,
+         "scalarization": "weighted-sum",
+         "score": 0.0,
+         "type": "SINGLE"
+        },
+        "penalties": [
+         0.0
+        ],
+        "violations": []
+       }
+      ],
+      "termination": "OPTIMAL"
+     }
+    },
+    "method": "POST",
+    "path": "/bim/v1/reevaluate"
+   }
+  }
+ ]
+}

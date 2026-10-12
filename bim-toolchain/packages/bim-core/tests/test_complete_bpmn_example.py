@@ -5,7 +5,7 @@ and stays in OpenBinding; see docs/EXTRACTION_LOG.md.
 """
 
 from bim_core import compile_instance, load_package
-from conftest import require_corpus_path
+from core_support import require_corpus_path
 
 
 def test_complete_bpmn_example_lowers_every_showcase_construct() -> None:

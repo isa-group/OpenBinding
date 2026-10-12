@@ -13,7 +13,7 @@ import pytest
 from bim_core import ContractError, compile_instance, engine_contract_diagnostics, ir_features, mode_compatibility
 from bim_core import compat, resolve_optimization
 from bim_core.canonical import digest
-from conftest import engine_manifest_fixtures, require_corpus_path
+from core_support import engine_manifest_fixtures, require_corpus_path
 
 from _language import EXECUTION_MODE, base_package, demo_package, problem_with_criteria
 

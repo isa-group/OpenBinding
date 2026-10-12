@@ -1,0 +1,46 @@
+# bim-service: stateless HTTP API (bim-service/v1) over bim-core.
+#
+# License: no license has been chosen for the code. The holder's decision is
+# pending; see ../../NOTICE.md. The metadata therefore declares none.
+
+[project]
+name = "bim-service"
+version = "0.1.0"
+description = "Stateless HTTP API over bim-core: compile, validate, evaluate, re-evaluate and analyse BIM v1 packages"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "bim-core>=0.1,<0.2",
+    "fastapi>=0.110,<1.0",
+    "pydantic>=2.0,<3.0",
+    "uvicorn>=0.27,<1.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "httpx>=0.27,<1.0",
+    "pytest>=8.0,<9.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bim_service"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 110
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "B"]
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declares dependencies and parameters as default values.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Header", "fastapi.Body"]

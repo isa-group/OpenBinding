@@ -49,7 +49,8 @@ opaque and passed through unchanged (`test_vectors_extra.py` pins that, includin
 
 Engine manifests are plain dictionaries passed in. A rejection that the platform answered with an HTTP error is a
 `ContractError` with the same `code`, the same `diagnostics` and `http_status` (422): the host translates it. The
-library does not speak HTTP.
+library does not speak HTTP; `bim-service` is a host that does (`SERVICE.md`: `application/problem+json`, `status` =
+`http_status` or 422), and `bim-client` turns that back into the same errors (`CLIENT.md`).
 
 The host helpers replace `_schema_root`, `_dialect_type_matches`, `_dialect_xml_type_matches`,
 `_resource_schema_diagnostics`, `_dialect_descriptor` and `_profile_descriptor`. The old underscore names no

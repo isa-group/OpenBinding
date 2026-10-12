@@ -13,7 +13,7 @@ import pytest
 import bim_core
 from bim_core.toolchain import compiler_bundle_digest
 
-from conftest import TOOLCHAIN_ROOT, corpus_root
+from core_support import TOOLCHAIN_ROOT, corpus_root
 
 SRC = Path(bim_core.__file__).resolve().parent
 MODULES = sorted(path for path in SRC.glob("*.py"))

@@ -27,7 +27,7 @@ from bim_core.compiler import (
     _validate_feature_value,
 )
 from bim_core.package import strict_json_loads
-from conftest import require_corpus_path
+from core_support import require_corpus_path
 
 DEMO_BINDING = {
     "t1": {"resource": "catalog", "id": "c1a"},

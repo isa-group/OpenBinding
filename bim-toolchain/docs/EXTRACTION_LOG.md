@@ -213,3 +213,106 @@ digest (documented in `DIGESTS.md`). The test now asserts this, and a new test r
   `ProtocolError` to `RemoteEngineError`), its routes would translate `ContractError.http_status`, and the
   `meta-router-csp` question (a manifest is missing in the repository) should be settled before regenerating goldens.
 - The license decision; creating the remote repository; building and publishing a wheel; a `uv.lock`.
+
+## HTTP service, client and contracts (step 4)
+
+`bim-core` is the same: **no file under `packages/bim-core/src` changed**, so `compilerDigest`, the digests of the
+builtin Profile and Dialects and every `irDigest` are those of the previous step. New (all new code, no platform code
+copied):
+
+| Where | What |
+| --- | --- |
+| `packages/bim-service/` | `bim_service`: FastAPI application under `/bim/v1` (`app.py`), operations as plain functions over `bim_core` (`operations.py`), problem+json (`problems.py`), pure-ASGI middleware for context, authentication and the body limit (`middleware.py`), the concurrency gate (`runtime.py`), tokens from a file (`auth.py`), `BimServiceSettings` (`settings.py`), request models and the multipart reader (`models.py`, `wire.py`); `Dockerfile`; `.dockerignore` at the context root |
+| `packages/bim-client/` | `bim_client`: `BimPort` (`port.py`), `InProcessBim`, `HttpBim`, the errors and the problem → exception translation, the shared input/output rules (`wire.py`) and the `TypedDict` return types |
+| `contracts/` | `openapi/bim-service.v1.json` (generated) and `consumers/openbinding/*.json` (7 fixtures), see `contracts/README.md` |
+| `tools/` | `dump_service_openapi.py` (`--check` for CI) and `consumer_fixtures.py` (the demo package and the scripts behind the fixtures) |
+| `docs/` | `SERVICE.md`, `CLIENT.md`; this log, `README.md` and `CONTRACT.md` updated |
+| tests | `packages/bim-service/tests` (auth, API, limits, OpenAPI, consumer fixtures) and `packages/bim-client/tests` (port, equivalence battery) |
+
+### Decisions and deviations of this step
+
+- **`bim-service` does not depend on `bim-client`, and the glue exists twice.** The Dockerfile installs `bim-core` and
+  `bim-service` only; `operations.py` and `InProcessBim` therefore compose the same `bim_core` functions separately.
+  The equivalence battery is what keeps the two in step (it found no difference).
+- **`validate` and `validate-result` report findings as data** (`200` with `valid: false`); `compile` reports the same
+  findings as `422 compile_error`. A package that cannot be read at all is `422` in both. `/evaluate` always takes a list
+  of bindings (`onError` = `raise` or `collect`); the port has `evaluate` (one) and `evaluate_many`. `/compatibility` and
+  `/optimization/resolve` take the Engine manifest and a mode *id* (validated with `resolve_engine_mode`, so a manifest
+  with findings is `engine_contract_invalid`).
+- **Strict JSON on the wire, in both implementations.** `bim_core.validate_result` accepts a NaN by default and
+  `reevaluate_result` passes `provenance` through untouched (`CONTRACT.md`); through the port a NaN or an infinity is
+  `ContractError("request_invalid")` and the service validates with `finite=True`. So the adversarial vectors of
+  `golden/vectors_extra.json` that contain one are *refused identically* by both implementations instead of compared with
+  the golden (the others are compared with it).
+- **Anonymous mode is stricter than asked.** `BIM_SERVICE_ALLOW_ANONYMOUS_DEV=1` only applies when no tokens file is
+  configured; a configured file that is invalid stops the start even with the flag (a typo must not open the service).
+- **No `python-multipart`.** It is not in the gateway environment (`uv.lock`), and Starlette's form parsing needs it, so
+  `multipart/form-data` is read by a small strict reader (`wire.parse_multipart`: parts `package` and
+  `registeredResources`, no nesting, no transfer encodings).
+- **Authentication and the size limit are pure ASGI middleware**, outside the framework's body parsing, so that 401 and
+  413 are decided before the body is read (FastAPI would read it first and turns an exception raised while reading into a 400).
+- **Time budgets release the request, not the thread** (`SERVICE.md`); the slot and the tenant's share come back when the
+  thread ends.
+- **`bim-core` tests: helpers moved to `core_support.py`.** The three suites run in one pytest session (one registered
+  check), and the core tests did `from conftest import ...`, which only works while there is a single module called
+  `conftest`. The helpers moved unchanged to `tests/core_support.py`, `conftest.py` keeps the fixture, and the 15 test modules
+  import from `core_support`. Nothing else in them changed.
+- **Fixtures and the OpenAPI document were written by the tests.** The worker cannot run tools directly, so, as for the
+  goldens, the first run of `test_the_fixtures_exist_or_are_created` and `test_the_committed_openapi_is_the_generated_one`
+  created the files and failed on purpose; the next run compared. They were then read and the expectations that can be
+  stated in words (which Engine mode is compatible, how a discrepancy is repaired, ...) are asserted by tests.
+- **Fixtures never embed an IR** (`$ref` to an earlier step) and record normalized answers, so they survive a change of
+  `compilerDigest` (`contracts/README.md`).
+
+### A finding about `bim-core`, not changed here
+
+The IR compiled from a **directory** and from the **`.bim.zip` made from it** can differ in the *order* of the eligibility
+lists. `to_zip()` writes JSON in canonical form (sorted keys) and the eligible candidates of a task are listed in the order
+of the catalog's keys, so a catalog whose candidates are not in alphabetical order gives another `irDigest` and semantic
+digest once zipped. This happens in the corpus (`05_multi_obj`, `05_single_obj_various`); `golden/bim_baseline` records the
+directory form. `test_equivalence.py::test_a_package_and_its_directory_differ_only_in_the_order_of_the_eligibility_lists`
+shows that sorting the eligibility lists removes every difference. A comment in `InstancePackage.digest` says a
+pretty-printed directory and its ZIP "must have the same resource, Instance and IR digests"; for the IR that is not so
+(the resource and Instance digests were not compared here). Not fixed: it would change `irDigest` (a MAJOR change
+by the rules of `DIGESTS.md`), and it does not affect the production path (the platform stores and compiles the ZIP). A
+decision for the owner: canonicalize the order of candidates when lowering, or document it.
+
+### Verification status
+
+Run in the worker with the registered checks (`uv sync --locked --extra test`; `PYTHONPATH` on the three `src`
+directories; FastAPI 0.141.1, Starlette 1.3.1, pydantic 2.13.4, httpx 0.28.1):
+
+- `pytest packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests`: **1217 passed, 1 xfailed (strict,
+  ported as is), 0 failed, 0 skipped** in about 48 s, with the corpus present. The previous step had 1014 passed, 1 xfailed:
+  **203 new tests** (service and client). Without the corpus the corpus-dependent tests skip with a warning.
+- `tools/dump_service_openapi.py --check`: up to date. `ruff check ../bim-toolchain`: clean. `git diff --check`: clean.
+- No import of `openbinding_gateway` in any new file (`grep` over `bim-toolchain`; the only hits are the strings of the
+  boundary tests and the prose of this log). The registered isolation check runs `cd ..` from `openbinding-gateway` and
+  searched a directory that does not exist from there (`grep: bim-toolchain: No such file or directory`, and `git`
+  refused the repository for ownership), so it passed without testing anything; the isolation was checked with a search of
+  the tree instead. Everything written is under `bim-toolchain/`.
+- Runs that failed on the way, none because of a defect of `bim_core`: the first run had 15 collection errors (the
+  `conftest` name collision above); the second had the two files created on purpose, a wrong expectation of mine about the
+  demo (two eligible candidates per task, not one) and the two corpus packages of the finding above.
+
+### Not verified
+
+- **The Dockerfile has not been built** and the image has not been run. `pip install` of the two local projects, the
+  `groupadd`/`useradd` of `python:3.11-slim`, the `HEALTHCHECK` and `uvicorn --factory` are as written, not as observed.
+- **The service has only been run through ASGI** (`httpx.ASGITransport`, `TestClient`, and direct ASGI calls for the body
+  limit), never under `uvicorn`/`h11`: keep-alive and `Connection: close` after a 413, `--workers`, graceful shutdown and
+  the behaviour with real slow clients are untested. Starlette 1.3 warns that `TestClient` with `httpx` is deprecated
+  (it asks for `httpx2`); the tests use it for `HttpBim` and for the ASGI mount.
+- **No load or memory measurement.** A 32 MiB body is read whole into memory (JSON with base64 holds roughly three copies
+  of a package while it is decoded); the defaults of the limits are reasoned, not measured. The concurrency gate is tested
+  with blocked threads, not with real compilations under load.
+- **Multi-process behaviour**: the limits are per process; nothing shares them.
+- **A token file that changes while the service runs** is not re-read by the service (only by `HttpBim`).
+- **OpenBinding does not use any of this yet.** No file outside `bim-toolchain/` changed.
+
+### Missing
+
+- An OpenBinding adapter for `BimPort` (configuration choosing `InProcessBim` or `HttpBim`, mapping `BimError` and
+  `BimServiceError` to its HTTP errors) and a replay of `contracts/consumers/openbinding/` from OpenBinding's side.
+- Building the image; a `uv.lock` per package; publishing wheels; the remote repository; the license decision.
+- A decision on the eligibility order (above).

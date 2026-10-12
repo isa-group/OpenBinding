@@ -14,7 +14,7 @@ import json
 import pytest
 
 from bim_core import canonical_json, compile_instance, digest, load_package
-from conftest import require_corpus_path
+from core_support import require_corpus_path
 
 GOLDEN_CATALOG_BYTES_DIGEST = "sha256-9997045d41e96d413f7703a5385624cf4f42374409113ee348072f8bdd91653a"
 GOLDEN_CANDIDATES_DIGEST = "sha256-692b2c1ac3290aedde24c59fa6df4fc50a5d594d012cdac39c3c99dee83beec3"

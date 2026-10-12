@@ -9,7 +9,7 @@ import pytest
 from bim_core import ProtocolError, protocol_digest, protocol_document, validate_result
 from bim_core import protocol
 from bim_core.canonical import digest, digest_bytes
-from conftest import GOLDEN_DIR
+from core_support import GOLDEN_DIR
 
 
 def solution():

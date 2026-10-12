@@ -22,7 +22,7 @@ from bim_core import (
 )
 from bim_core.compat import resolve_optimization
 from bim_core.compiler import _schema_validator, _TaskFeatures
-from conftest import require_corpus_path
+from core_support import require_corpus_path
 
 from _language import (
     BINDING,

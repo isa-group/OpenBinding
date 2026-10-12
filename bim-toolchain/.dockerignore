@@ -1,0 +1,13 @@
+# Build context of packages/bim-service/Dockerfile is this directory. The image gets the sources of bim-core and
+# bim-service and the licence files, nothing else.
+.extraction-bootstrap
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/tests
+golden
+tools
+docs
+contracts
+packages/bim-client

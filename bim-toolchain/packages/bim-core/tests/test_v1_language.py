@@ -21,7 +21,7 @@ from bim_core import (
 )
 from bim_core.compiler import instance_digest
 from bim_core.expressions import compile_expression
-from conftest import require_corpus_path
+from core_support import require_corpus_path
 
 
 @pytest.fixture(scope="module")

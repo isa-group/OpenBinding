@@ -14,7 +14,7 @@ import pytest
 
 from bim_core import compile_instance, load_package, reevaluate_result, validate_result
 from bim_core.errors import ProtocolError
-from conftest import CORPUS_MARKER, GOLDEN_DIR, check_or_create_golden, corpus_root
+from core_support import CORPUS_MARKER, GOLDEN_DIR, check_or_create_golden, corpus_root
 
 EXTRA_GOLDEN = GOLDEN_DIR.parent / "vectors_extra.json"
 DEMO = "examples/demo/01_simple_seq"

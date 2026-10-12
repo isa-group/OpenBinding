@@ -19,7 +19,7 @@ from dataclasses import replace
 import pytest
 
 from bim_core import compile_instance, load_package
-from conftest import require_corpus_path
+from core_support import require_corpus_path
 
 SOURCE_POINTER = "/spec/candidates/c1a/features/latency"
 IR_POINTER = "/spec/candidates/catalog/candidates/c1a/features/latency"

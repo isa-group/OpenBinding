@@ -7,7 +7,7 @@ import pytest
 from bim_core import BindingProblem, ProtocolError, openapi_diagnostics, protocol_digest, protocol_document
 from bim_core import conformance
 from bim_core.compat import resolve_optimization
-from conftest import engine_manifest_fixtures
+from core_support import engine_manifest_fixtures
 
 BEARER = {"bearerAuth": {"type": "http", "scheme": "bearer"}, "basicAuth": {"type": "http", "scheme": "Basic"}}
 
