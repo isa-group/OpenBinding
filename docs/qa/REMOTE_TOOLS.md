@@ -105,6 +105,22 @@ Single JSON document on stdout, sections:
 - `candidates`: `mostRecentWithoutCu` with `why`; `ranking` (top 5); `excluded` (with CU, unreadable, not
   downloadable); `ambiguous` if another version ties on `createdAt` and version order.
 
+**Compact mode** `--summary` (for runners that keep only the last ~5000 characters of output; lab command:
+`DEMO_SEED_TOOL=remote_probe.py DEMO_SEED_ARGS=--summary`). The full report goes to **stderr**; the **last line
+of stdout** is one JSON line without indentation (under 4000 characters for a few dozen versions):
+
+- `sphere.orgs`: `[name, maskedId, isConfigured]`; `sphere.pricings.<slug>`: `saasName` (the most common one),
+  `versions` sorted by `createdAt` then version, each `[version, private(bool|null), createdAt as text,
+  kind(date|datetime|other|missing), hasCu(bool|null), number of CU findings, digest (12 hex), saasName]` where
+  the last item is `null` when it equals the pricing's `saasName` (to stay short); `status`/`total` appear only
+  when the call was not 200 or versions were cut by `--max-versions`.
+- `space.health` `[ok, status]`; `space.services` `[name, maskedId, versionCount, {status: [versions]}]`.
+- `denied`: `[service, call, status]` for 401/403; `cuNames`: CU counter names found in any version; `errors`:
+  failed sections.
+- `candidates.latestWithoutCu` `[slug, version, createdAt, digest12]` or `null`, with `candidates.reason`.
+
+Keys, headers and YAML bodies are never included. Without `--summary` the output is unchanged.
+
 Candidate criterion: latest YAML `createdAt` (a date means 00:00:00Z) among versions whose scan is `clean`;
 ties by numeric dotted version order. A document that cannot be parsed is never considered clean.
 

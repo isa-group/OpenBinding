@@ -372,8 +372,124 @@ async def run_probe(
     return report
 
 
+def _short_digest(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    return value.split("-", 1)[1][:12] if value.startswith("sha256-") else value[:12]
+
+
+def _summary_version(entry: dict[str, Any], common_saas: str | None) -> list[Any]:
+    cu = entry.get("cu") or {}
+    findings = cu.get("findings") or []
+    saas = entry.get("saasName")
+    return [
+        entry["version"],
+        entry.get("private"),
+        entry.get("createdAt"),
+        entry.get("createdAtKind", "missing"),
+        cu.get("hasCu"),
+        len(findings) if cu.get("parsed") else None,
+        _short_digest(entry.get("digest")),
+        None if saas is not None and saas == common_saas else saas,
+    ]
+
+
+def _short_reason(candidates: dict[str, Any]) -> str | None:
+    head = candidates.get("mostRecentWithoutCu")
+    if not head:
+        return candidates.get("why")
+    counts: dict[str, int] = {}
+    for item in candidates.get("excluded", []):
+        counts[item["reason"]] = counts.get(item["reason"], 0) + 1
+    excluded = ",".join(f"{n} {reason}" for reason, n in sorted(counts.items())) or "none"
+    tie = "; tie on createdAt+version" if candidates.get("ambiguous") else ""
+    return (
+        f"latest createdAt ({head.get('createdAtKind')}) of {candidates.get('eligibleCount')} "
+        f"without CU; excluded: {excluded}{tie}"
+    )
+
+
+def build_summary(report: dict[str, Any]) -> dict[str, Any]:
+    """Compact digest of ``run_probe``'s report: names, shapes and short digests only, never bodies."""
+    sphere = report.get("sphere") or {}
+    space = report.get("space") or {}
+    visible = sphere.get("visibleOrganizations")
+    orgs = [
+        [item.get("name") or item.get("displayName"), item.get("id"), item.get("isConfiguredOrganization")]
+        for item in (visible if isinstance(visible, list) else [])
+    ]
+
+    cu_names: set[str] = set()
+    pricings: dict[str, Any] = {}
+    for pricing in sphere.get("pricings", []):
+        ordered = sorted(
+            pricing.get("versions", []),
+            key=lambda e: (parse_created_at(e.get("createdAt")) or _EPOCH, version_key(e["version"])),
+        )
+        names = [entry.get("saasName") for entry in ordered if entry.get("saasName")]
+        common = max(set(names), key=names.count) if names else None
+        for entry in ordered:
+            for finding in (entry.get("cu") or {}).get("findings", []):
+                cu_names.add(str(finding.get("name")))
+        record: dict[str, Any] = {"saasName": common, "versions": [_summary_version(e, common) for e in ordered]}
+        if pricing.get("status") != 200:
+            record["status"] = pricing.get("status")
+        if pricing.get("versionCount", len(ordered)) != len(ordered):
+            record["total"] = pricing["versionCount"]
+        pricings[pricing["slug"]] = record
+
+    health = space.get("healthcheck") or {}
+    services = []
+    for item in space.get("services", []):
+        by_status: dict[str, list[str]] = {}
+        for v in item.get("versions", []):
+            by_status.setdefault(str(v.get("status")), []).append(v["version"])
+        services.append(
+            [
+                item["name"],
+                mask_id(str(item["id"])) if item.get("id") else None,
+                len(item.get("versions", [])),
+                by_status,
+            ]
+        )
+    denied = [
+        [item["service"], item["call"], item["status"]]
+        for item in (report.get("capabilities") or {}).get("denied", [])
+    ]
+    candidate = (report.get("candidates") or {}).get("mostRecentWithoutCu")
+    return {
+        "summary": 1,
+        "sphere": {"orgs": orgs, "pricings": pricings},
+        "space": {
+            "health": [health.get("ok"), health.get("status")],
+            "services": services,
+        },
+        "denied": denied,
+        "cuNames": sorted(cu_names),
+        "errors": [item.get("section") for item in report.get("errors", [])],
+        "candidates": {
+            "latestWithoutCu": (
+                [candidate["slug"], candidate["version"], candidate.get("createdAt"), _short_digest(candidate.get("digest"))]
+                if candidate
+                else None
+            ),
+            "reason": _short_reason(report.get("candidates") or {}),
+        },
+    }
+
+
+def emit_summary(report: dict[str, Any], redactor: Redactor) -> None:
+    document = json.dumps(redactor.obj(build_summary(report)), separators=(",", ":"), ensure_ascii=True, default=str)
+    print(redactor.exact(document))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Read-only probe of the private SPACE/SPHERE organizations.")
+    parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="Print a compact one-line JSON summary as the last thing on stdout; the full report goes to stderr.",
+    )
     parser.add_argument("--sphere-slug", action="append", default=[], help="Extra SPHERE pricing slug to inspect (repeatable).")
     parser.add_argument("--max-versions", type=int, default=100, help="Versions inspected per slug (highest first).")
     return parser
@@ -395,7 +511,11 @@ def main(argv: Sequence[str] | None = None, environ: dict[str, str] | None = Non
     except Exception as exc:  # noqa: BLE001
         print(redactor.error(exc), file=sys.stderr)
         return EXIT_INTERNAL
-    emit_json(report, redactor)
+    if args.summary:
+        emit_json(report, redactor, stream=sys.stderr)
+        emit_summary(report, redactor)
+    else:
+        emit_json(report, redactor)
     return EXIT_OK
 
 

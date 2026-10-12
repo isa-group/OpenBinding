@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 import httpx
 import pytest
@@ -185,6 +186,86 @@ def test_candidates_prefer_the_latest_created_at_over_a_higher_version():
 
     result = remote_probe.compute_candidates([{"slug": "s", "versions": [entry("9.0.0", "2026-01-01T00:00:00Z"), entry("1.0.0", "2026-06-01T00:00:00Z")]}])
     assert result["mostRecentWithoutCu"]["version"] == "1.0.0"
+
+
+def big_world(count: int = 40) -> FakeRemotes:
+    fake = FakeRemotes()
+    for index in range(count):
+        # Inserted in scrambled order so the summary has to sort; createdAt grows with the version.
+        position = (index * 7) % count
+        version = f"1.{position}.0"
+        created = f"2026-0{1 + position // 28}-{1 + position % 28:02d}T10:00:00Z"
+        fake.add_sphere("openbinding", version, pricing_yaml(version=version, created=created, cu=position == 39),
+                        private=position % 2 == 0)
+    fake.add_space("openbinding", [f"1.{i}.0" for i in range(count)])
+    return fake
+
+
+def summary_of(out: str) -> dict:
+    last = out.rstrip("\n").splitlines()[-1]
+    return json.loads(last)
+
+
+def test_summary_is_the_last_stdout_line_compact_ordered_and_secret_free(capsys):
+    fake = big_world()
+    code, out, err = run(fake, capsys, "--summary")
+    assert code == 0
+    assert_no_secrets(out, err)
+    lines = out.rstrip("\n").splitlines()
+    assert len(lines) == 1 and len(out) < 4000
+    summary = summary_of(out)
+    assert json.loads(err)["readOnly"] is True  # the full report moved to stderr
+
+    rows = summary["sphere"]["pricings"]["openbinding"]["versions"]
+    assert len(rows) == 40
+    assert [row[0] for row in rows] == [f"1.{i}.0" for i in range(40)]
+    assert [row[2] for row in rows] == sorted(row[2] for row in rows)
+    version, private, created, kind, has_cu, n_cu, digest, saas = rows[0]
+    assert (kind, has_cu, n_cu) == ("datetime", False, 0)
+    assert saas is None and summary["sphere"]["pricings"]["openbinding"]["saasName"] == "openbinding"  # null = the common name
+    assert isinstance(private, bool) and re.fullmatch(r"[0-9a-f]{12}", digest)
+    assert summary["sphere"]["orgs"] == [["OpenBinding", "sphe...0002", True]]
+    assert summary["space"]["health"] == [True, 200]
+    assert summary["space"]["services"][0][2] == 40 and summary["space"]["services"][0][1] == "svc-...ding"
+    assert summary["denied"] == []
+    assert "syntaxVersion" not in out and "currency" not in out
+
+
+def test_summary_candidate_is_the_latest_version_without_cu(capsys):
+    fake = big_world()
+    _, out, _ = run(fake, capsys, "--summary")
+    summary = summary_of(out)
+    rows = summary["sphere"]["pricings"]["openbinding"]["versions"]
+    with_cu = [row for row in rows if row[4]]
+    assert len(with_cu) == 1 and with_cu[0][2] == max(row[2] for row in rows)  # the newest one has CU
+    assert summary["cuNames"] == ["capacityUnits"]
+    clean = [row for row in rows if row[4] is False]
+    slug, version, created, digest = summary["candidates"]["latestWithoutCu"]
+    assert (slug, version, created) == ("openbinding", clean[-1][0], clean[-1][2])
+    assert digest == clean[-1][6]
+    assert "latest createdAt" in summary["candidates"]["reason"]
+
+
+def test_summary_without_candidate_and_with_denied_calls(capsys):
+    fake = production_world()
+    fake.statuses[("space.test", "GET", "/api/v1/services")] = 403
+    fake.statuses[("sphere.test", "GET", "/api/v1/users/me/orgs")] = 401
+    fake.raw_bodies[("sphere.test", "GET", "/api/v1/pricings/sphere-org-0002/openbinding")] = {"versions": "nope"}
+    code, out, err = run(fake, capsys, "--summary")
+    summary = summary_of(out)
+    assert code == 0
+    assert_no_secrets(out, err)
+    assert {tuple(item) for item in summary["denied"]} == {
+        ("space", "GET /services", 403),
+        ("sphere", "GET /users/me/orgs", 401),
+    }
+    assert summary["candidates"]["latestWithoutCu"] is None and summary["sphere"]["orgs"] == []
+    assert "no version without CU" in summary["candidates"]["reason"]
+
+
+def test_without_summary_stdout_is_still_the_single_full_document(capsys):
+    code, out, err = run(rich_world(), capsys)
+    assert code == 0 and err == "" and "summary" not in parse_single_document(out)
 
 
 @pytest.mark.parametrize("status, verdict", [(200, "allowed"), (401, "unauthorized"), (403, "forbidden"), (404, "not-found"), (500, "error"), (None, "unreachable")])
