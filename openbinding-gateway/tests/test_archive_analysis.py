@@ -311,8 +311,11 @@ async def test_analysis_worker_atomic_completion_failure_retry_and_cancel(db_ses
     await analysis_jobs.execute_analysis(task.id)
     failed = await analysis.get_pareto(uuid.UUID(task.id), owner, db_session)
     assert failed.state == "failed" and failed.result is None
+    assert (await db_session.get(AnalysisTask, uuid.UUID(task.id), populate_existing=True)).attempts == 1
     task = await analysis.start_pareto(query, owner, db_session)
     assert task.state == "queued"
+    # Resubmitting a failed task gives it the full allowance of claims again.
+    assert (await db_session.get(AnalysisTask, uuid.UUID(task.id), populate_existing=True)).attempts == 0
     # An expired worker lease is durably requeued before delivery, without a partial result.
     from datetime import timedelta
     from openbinding_gateway.db.models import utcnow

@@ -5,8 +5,10 @@ nothing is charged any more and what is left is the durability of the outcome.
 The reconciler's own tests are in ``test_job_reconciler.py``.)
 
 A worker writes the outcome and commits; if that commit fails the fallback in
-``run_persisted_job`` fails the job from a fresh session, and a sweep whose
-transaction is lost changes nothing, so the next one does the work. That two
+``run_persisted_job`` fails the job from a fresh session. A sweep commits the
+jobs it ended before it syncs their study cells, so a rollback afterwards undoes
+nothing of them; a requeue it leaves to the caller's commit, and if that
+transaction is lost the next sweep does the work. That two
 sweeps in two transactions skip each other's rows needs PostgreSQL and lives in
 ``tests/concurrency/test_job_leases_pg.py``.
 """
@@ -59,20 +61,37 @@ async def a_job(session, owner, *, state=JobState.RUNNING, age_s=OVERDUE_S, **ex
     return job
 
 
-async def test_a_sweep_whose_transaction_is_lost_changes_nothing_and_the_next_one_does_the_work(
+async def test_a_sweep_whose_requeue_is_lost_changes_nothing_and_the_next_one_does_the_work(
     db_session, owner
 ):
+    job = await a_job(
+        db_session, owner, lease_token="lost", lease_until=utcnow() - timedelta(seconds=5)
+    )
+    job_id = job.id
+
+    # A requeue ends no job, so the sweep leaves it to the caller's commit.
+    assert await reconciler.sweep_abandoned(db_session) == 0
+    await db_session.rollback()  # the commit that was to make it durable never happened
+
+    db_session.expire_all()
+    lost = await db_session.get(Job, job_id)
+    assert lost.state is JobState.RUNNING and lost.lease_token == "lost"
+
+    assert await reconciler.sweep_abandoned(db_session) == 0
+    await db_session.commit()
+    db_session.expire_all()
+    requeued = await db_session.get(Job, job_id)
+    assert requeued.state is JobState.QUEUED and requeued.lease_token is None
+
+
+async def test_a_sweep_commits_the_jobs_it_ended_before_it_syncs_their_cells(db_session, owner):
     job = await a_job(db_session, owner)
     job_id = job.id
 
     assert await reconciler.sweep_abandoned(db_session) == 1
-    await db_session.rollback()  # the commit that was to make it durable never happened
+    # Rolling back now undoes only what the sweep did not commit, which is nothing.
+    await db_session.rollback()
 
-    db_session.expire_all()
-    assert (await db_session.get(Job, job_id)).state is JobState.RUNNING
-
-    assert await reconciler.sweep_abandoned(db_session) == 1
-    await db_session.commit()
     db_session.expire_all()
     failed = await db_session.get(Job, job_id)
     assert failed.state is JobState.FAILED and failed.finished_at is not None

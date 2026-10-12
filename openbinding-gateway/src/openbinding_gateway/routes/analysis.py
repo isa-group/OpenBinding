@@ -337,6 +337,7 @@ async def start_pareto(payload: AnalysisQuery, caller: User = Depends(get_curren
                 AnalysisTask.fingerprint == fingerprint))).scalars().one()
     elif task.state in ("failed", "cancelled"):
         task.state, task.progress, task.result, task.error = "queued", 0, None, None
+        task.attempts = 0  # a resubmission gets the full allowance of claims again
         task.cancellation_requested, task.lease_token, task.lease_until = False, None, None
         task.updated_at = utcnow()
     await session.commit()

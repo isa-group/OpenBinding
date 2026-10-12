@@ -172,6 +172,34 @@ async def test_a_task_is_requeued_twice_and_failed_the_third_time_through_real_c
     assert task.state == "failed" and task.error == "analysis_abandoned" and task.attempts == 3
 
 
+@pytest.mark.parametrize("state", ["failed", "cancelled"])
+async def test_resubmitting_a_failed_or_cancelled_task_resets_its_attempts(
+    db_session, owner, dispatched, monkeypatch, state
+):
+    from types import SimpleNamespace
+
+    async def load(*_args, **_kwargs):
+        return SimpleNamespace(revision="r1")
+
+    async def compute(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(analysis_routes, "load_archive", load)
+    monkeypatch.setattr(analysis_routes, "compute", compute)
+    payload = AnalysisQuery(sources=["source"])
+    task = await a_task(
+        db_session, owner, state=state, attempts=analysis_jobs.MAX_ATTEMPTS, error="analysis_abandoned",
+        fingerprint=analysis_routes.task_fingerprint("r1", payload),
+    )
+
+    view = await analysis_routes.start_pareto(payload, owner, db_session)
+
+    await db_session.refresh(task)
+    assert view.id == str(task.id) and task.state == "queued"
+    assert task.attempts == 0 and task.error is None
+    assert dispatched == [str(task.id)]
+
+
 async def test_a_live_lease_is_left_alone(db_session, owner, dispatched):
     task = await a_task(
         db_session, owner, state="running", attempts=3, lease_token="alive",

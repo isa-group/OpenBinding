@@ -173,21 +173,69 @@ async def test_the_sweep_needs_no_pricing_service(db_session, owner):
     assert job.state is JobState.FAILED
 
 
-async def test_the_sweep_leaves_the_commit_to_its_caller(db_session, owner, monkeypatch):
-    for _ in range(3):
-        await a_job(db_session, owner, state=JobState.QUEUED)
-    commits: list[str] = []
+def record_events(db_session, monkeypatch) -> list[str]:
+    """Log every commit of the session and every study cell sync, in the order they happen."""
+    events: list[str] = []
     real_commit = db_session.commit
 
-    async def counting_commit():
-        commits.append("commit")
+    async def commit():
+        events.append("commit")
         await real_commit()
 
-    monkeypatch.setattr(db_session, "commit", counting_commit)
+    async def sync(session, job_id):
+        events.append(f"sync {job_id}")
 
-    assert await reconciler.sweep_abandoned(db_session) == 3
+    monkeypatch.setattr(db_session, "commit", commit)
+    monkeypatch.setattr(reconciler, "sync_study_cell", sync)
+    return events
 
-    assert commits == []
+
+async def test_the_sweep_commits_the_jobs_it_ended_before_syncing_any_study_cell(
+    db_session, owner, monkeypatch
+):
+    # Syncing a cell locks its run, and cancelling a run locks run, cells, jobs:
+    # the sweep must not still hold its job locks when it asks for the run's.
+    queued = await a_job(db_session, owner, state=JobState.QUEUED)
+    overdue = await a_job(db_session, owner, state=JobState.RUNNING)
+    ended = sorted([queued.id, overdue.id])
+    events = record_events(db_session, monkeypatch)
+
+    assert await reconciler.sweep_abandoned(db_session) == 2
+
+    assert events[0] == "commit"
+    assert [event for event in events if event.startswith("sync")] == [f"sync {job_id}" for job_id in ended]
+    # Each cell is synced and committed on its own, so no run lock outlives its sync.
+    assert events[1:] == [part for job_id in ended for part in (f"sync {job_id}", "commit")]
+
+
+async def test_the_sweep_has_nothing_to_commit_when_it_ended_no_job(db_session, owner, monkeypatch):
+    await a_job(db_session, owner, state=JobState.QUEUED, budget_s=300.0, age_s=10.0)
+    requeued = await a_job(
+        db_session, owner, state=JobState.RUNNING, lease_token="lost", lease_until=utcnow() - timedelta(seconds=5),
+    )
+    events = record_events(db_session, monkeypatch)
+
+    assert await reconciler.sweep_abandoned(db_session) == 0
+
+    assert events == []  # the requeue is left to the caller's commit
+    await db_session.refresh(requeued)
+    assert requeued.state is JobState.QUEUED
+
+
+async def test_a_sweep_that_ended_a_job_and_requeued_another_commits_both_before_syncing(
+    db_session, owner, monkeypatch
+):
+    ended = await a_job(db_session, owner, state=JobState.QUEUED)
+    requeued = await a_job(
+        db_session, owner, state=JobState.RUNNING, lease_token="lost", lease_until=utcnow() - timedelta(seconds=5),
+    )
+    events = record_events(db_session, monkeypatch)
+
+    assert await reconciler.sweep_abandoned(db_session) == 1
+
+    assert events == ["commit", f"sync {ended.id}", "commit"]
+    await db_session.refresh(requeued)
+    assert requeued.state is JobState.QUEUED
 
 
 async def test_a_job_whose_lease_was_renewed_since_it_was_read_is_not_failed(db_session, owner):

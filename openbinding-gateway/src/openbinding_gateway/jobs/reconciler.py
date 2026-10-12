@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import uuid
 from datetime import timedelta
 
 from sqlalchemy import BigInteger, func, literal, select, update
@@ -212,12 +213,18 @@ async def sweep_abandoned(session: AsyncSession) -> int:
     ``queue_timeout`` once it has waited ``QUEUE_TIMEOUT_S`` for a worker.
 
     Every comparison with the clock uses the database's (see ``clock``), so
-    replicas whose own clocks disagree cannot take a live job back. The caller
-    commits.
+    replicas whose own clocks disagree cannot take a live job back.
+
+    The job rows are locked only while their state is decided and written. That
+    transaction is committed before any study cell is synchronised, because
+    syncing locks the run and cancelling a run locks run, cells, then jobs: a
+    sweep holding a job while it waited for the run could deadlock with it. A
+    commit here is the one exception to "the caller commits", made only when
+    some job was ended; the study cells are synced, and committed, after it.
     """
     now = await clock.read_now(session)
     queue_timeout_s = get_settings().queue_timeout_s
-    failed = 0
+    ended: list[uuid.UUID] = []
     unfinished = await session.execute(
         select(Job)
         .where(Job.state.in_([JobState.QUEUED, JobState.RUNNING]))
@@ -233,8 +240,7 @@ async def sweep_abandoned(session: AsyncSession) -> int:
                 continue
             if await _fail_queue_timeout(session, job, queue_timeout_s):
                 logger.warning("Job %s waited %g s in the queue; failed it", job_id, queue_timeout_s)
-                await sync_study_cell(session, job_id)
-                failed += 1
+                ended.append(job_id)
             continue
         budget = job.requested_budget_s or 0.0
         if job.lease_token is not None and job.lease_until is not None:
@@ -250,9 +256,15 @@ async def sweep_abandoned(session: AsyncSession) -> int:
                 continue
 
         if await _fail_abandoned(session, job):
-            await sync_study_cell(session, job_id)
-            failed += 1
-    return failed
+            ended.append(job_id)
+
+    if not ended:
+        return 0
+    await session.commit()  # releases the job locks before the run's are taken
+    for job_id in ended:
+        await sync_study_cell(session, job_id)
+        await session.commit()
+    return len(ended)
 
 
 async def _reconcile_cycle(factory) -> None:

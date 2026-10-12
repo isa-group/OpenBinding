@@ -114,6 +114,28 @@ async def test_a_cancelled_run_launches_no_cell_when_a_job_finishes(db_session, 
     assert run.state is RunState.CANCELLED
 
 
+async def test_a_cell_of_a_cancelled_run_stays_cancelled_when_its_abandoned_job_is_synced(
+    db_session, world, monkeypatch
+):
+    run = await reopen(db_session, world, launched=True)
+    second, second_job = world.cells[1], world.jobs[1]
+
+    async def launch(*args, **kwargs):
+        raise AssertionError("a cancelled run must not launch a cell")
+
+    monkeypatch.setattr(study_jobs, "launch_study_cell", launch)
+    await study_jobs.cancel_run(db_session, run.id)
+    # What the sweep leaves behind when it fails the job before the worker saw the request.
+    second_job.state, second_job.finished_at = JobState.FAILED, second_job.created_at
+    await db_session.flush()
+
+    await study_jobs._sync(db_session, second_job.id)
+
+    assert second.state is RunState.CANCELLED
+    assert world.cells[0].state is RunState.COMPLETED
+    assert run.state is RunState.CANCELLED
+
+
 async def test_a_sync_locks_the_run_and_its_cells_before_it_launches_the_next_cell(db_session, world, monkeypatch):
     await reopen(db_session, world, launched=False)
     second = world.cells[1]

@@ -508,6 +508,15 @@ async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
         JobState.FAILED: RunState.FAILED,
         JobState.CANCELLED: RunState.CANCELLED,
     }
+    if (
+        run.state is RunState.CANCELLED
+        and cell.state is RunState.CANCELLED
+        and job.state is JobState.FAILED
+    ):
+        # cancel_run already cancelled this cell; the job it was waiting on ended
+        # abandoned (swept) before its worker saw the request. It stays cancelled.
+        await session.flush()
+        return
     cell.state = state_map[job.state]
     if job.state in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
         cell.metrics = metrics_from_job(job, cell)
