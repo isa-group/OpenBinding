@@ -1,10 +1,10 @@
-# Accounts, plans and quotas
+# Accounts, plans and limits
 
 The OpenBinding `/v1` gateway separates public validation from authenticated
-job ownership. When solve authentication is enabled, every `/v1/jobs` request
-resolves to an account, so concurrency and compute can be metered and limited.
+job ownership: every `/v1/jobs` request resolves to an account (`401`
+otherwise), which owns the job.
 
-Two ideas carry most of the weight:
+Three ideas carry most of the weight:
 
 **The web and the API share identity, not authority.** A browser session and an
 API key resolve to the same account, so one plan and one ownership boundary
@@ -12,17 +12,48 @@ apply. A session controls the account; each API key is narrower, with immutable
 permissions and either an exact Engine allow-list or access to all visible
 Engines. Every operation remains a documented gateway endpoint.
 
-**The gateway does not decide entitlements.** A [SPACE](https://github.com/isa-group/space)
-instance does. It holds a contract per user, knows what each plan allows, and
-the gateway asks and enforces the answer.
+**The gateway does not decide entitlements.** A SPACE instance does. SPACE
+(`https://space.score.us.es`) is a **remote** service administered in its own
+console; it holds a contract per user and knows what each plan allows. The
+pricing itself is published in the remote SPHERE and SPACE. OpenBinding
+*shows* the plan, permissions and links, *reads* the published pricing
+read-only, and delegates account creation and plan changes to the official
+SPACE client (`MANAGEMENT`-scoped key, `space_client/space.py`). It has no
+local SPACE stack, no pricing editor and no contract lifecycle of its own.
+
+**Nothing is metered or charged.** There are no credits, compute units or
+consumption counters. The plan decides *what* an account may do (features) and
+*how big* a request may be (ceilings); the only limit on *how much at once* is
+a technical concurrency cap that does not depend on the plan
+([below](#how-a-limit-behaves)).
+
+> **Retired.** The earlier consumption accounting (credits and capacity units,
+> reservations, settlement, usage resynchronisation) and the automatic Engine
+> selection were removed from the backend, the frontend and the compose files.
+> A future automatic-selection component is a separate, later research project
+> and is not a feature of this platform.
+
+## Roles
+
+Two independent role sets exist, both defined in the database models:
+
+- **Account role** `UserRole` (`db/models.py`): `USER` (`"user"`) and `ADMIN`
+  (`"admin"`). `ADMIN` is a platform administrator.
+- **Organization role** `OrganizationRole` (`db/platform_models.py`): `OWNER`,
+  `ADMIN`, `MEMBER`, `VIEWER`. See [below](#organization-roles-and-owner-only-changes).
+
+A platform role alone grants no access to a private organization, and
+organization roles grant nothing on the platform.
 
 ## Getting an account
 
-Registration is open: `POST /v1/auth/register` creates an account on the free
-plan and a contract to go with it. If SPACE is unreachable at that moment the
-account is still created and owes a contract, which is settled the next time
-that user turns up — losing a sign-up because a pricing service was restarting
-would be the worse failure.
+Registration is open: `POST /v1/auth/register` creates an account on the
+catalogue's default plan (the one non-institutional plan priced at zero,
+`PricingCatalog.default_plan` in `pricing_catalog.py`) and a contract to go
+with it. If SPACE is unreachable at that moment the account is still created
+and owes a contract (`contract_pending`), which is settled the next time that
+user turns up (`access/contracts.py`) — losing a sign-up because a pricing
+service was restarting would be the worse failure.
 
 Sessions are a short-lived access token plus a refresh token that is **rotated
 on every use**: presenting one spends it. That makes a stolen refresh token
@@ -49,9 +80,11 @@ filtered, and an exact disallowed resource answers `404` so the key does not
 learn that it exists. Registering a brand-new Engine revision requires an
 all-Engines key because its immutable digest cannot be selected in advance.
 
-The FREE plan permits 10 active keys. PRO has no active-key ceiling. Revoked
-keys do not count. The gateway serializes each account's count-and-create in
-the database so concurrent requests cannot step past the FREE limit.
+The number of active keys is the plan's `apiKeys` limit, read from the
+contract (`routes/users.py`); exceeding it is `402 quota_exceeded`. Revoked keys
+do not count. The gateway locks the account row so the count-and-create of
+concurrent requests cannot step past the limit (the row lock is effective on
+PostgreSQL; SQLite ignores it, see [IDEMPOTENCY.md](IDEMPOTENCY.md)).
 
 ## The first administrator
 
@@ -105,10 +138,6 @@ OWNER and, with it, outvote the real owners. This covers
   the ability to manage owners. A platform role alone grants no access to a
   private organization.
 
-`POST /v1/generator/calibrate-engine` refits a model shared by every account, so
-it needs a platform administrator (`403 platform_admin_required`) and, for API
-keys, the `admin:accounts:write` permission; see [the generator](BIM_GENERATOR.md).
-
 ## What an administrator can do
 
 List accounts, deactivate one, change its role, move it between plans, and
@@ -116,9 +145,10 @@ revoke a key. Deliberately not: change a password or an email address. Those are
 the two ways to sign in, so an administrator able to change them could take an
 account over without its owner noticing.
 
-Moving between plans is the only reason the paid plan works at all. There is no
-payment gateway: an upgrade is an administrator performing a **novation** on the
-SPACE contract. The novation happens before the cached plan is updated, so a
+There is no payment gateway. A plan change is performed through the SPACE
+client as a **novation** of the user's contract
+(`PricingGate.change_plan` / `change_subscription`, `space_client/gate.py`).
+The novation happens before the cached plan (`User.plan_cache`) is updated, so a
 failed one leaves nothing claiming otherwise.
 
 An administrator cannot deactivate or demote themselves. It is always a mistake,
@@ -143,7 +173,9 @@ leaves none, and neither does a `PATCH` that changes nothing.
 | `PATCH /v1/admin/users/{id}` (role, active) | `admin.user.updated` | `User` | `username`, `changes: {role: {from, to}, is_active: {from, to}}` (only fields that changed) |
 | `POST /v1/admin/users/{id}/plan`, `/subscription` | `contract.subscription.changed` | `User` | previous/current plan and add-ons, reason, pricing version (unchanged) |
 | `DELETE /v1/admin/users/{id}/api-keys/{key}` | `admin.api_key.revoked` | `ApiKey` | `user_id`, `key: {id, name, prefix}`, `before/after: {revoked}` |
-| `POST /v1/admin/users/{id}/usage/resync` | `admin.usage.resynced` | `User` | `username`, `plan`, `before/after: {concurrent_jobs_recorded}`, `slots_in_flight`, `corrected_by` |
+
+The earlier usage-resynchronisation action and its audit event no longer
+exist: there is no usage counter to correct.
 
 Events never carry a secret: for a key only its id, name and public prefix are
 written, never the value or the stored hash.
@@ -161,12 +193,14 @@ recorded as `organization.updated` with `previous_sponsor_user_id` /
 Proposing somebody else, and what happens to the proposal, are the
 `organization.sponsor.*` events below.
 
-## Billing sponsorship needs the sponsor's acceptance
+## Sponsorship needs the sponsor's acceptance
 
-The sponsor of an organization is the account whose plan pays for the
-consumption of the organization **and its whole subtree**. Nobody can make
-someone else pay: naming another person only creates a **proposal**, and the
-sponsor changes when that person accepts.
+The sponsor of an organization (`billing_sponsor_user_id`) is the account whose
+plan limits (organizations, members, projects, studies, storage, …) the
+organization **and its whole subtree** count against
+(`collaboration.enforce_sponsor_capacity`). No money changes hands. Nobody can
+be made to carry someone else's organization: naming another person only creates
+a **proposal**, and the sponsor changes when that person accepts.
 
 | Who | Does | Result |
 |---|---|---|
@@ -205,7 +239,7 @@ state but `pending` is terminal.
   errors as before: `402 sponsor_quota_exceeded`, `503 pricing_unavailable`. A
   refusal leaves the proposal **pending**, so the person can raise their plan and
   accept again. Only then does `billing_sponsor_user_id` change for the
-  organization and its subtree, which moves the consumption.
+  organization and its subtree, which moves what counts against the limits.
 - A deactivated or deleted account closes its pending proposals, those addressed
   to it and those it made (`cancelled`, `decision_reason: user_deactivated` /
   `user_deleted`).
@@ -235,7 +269,7 @@ API keys: the endpoints need `organizations:read` (reading) and
 See [`ACCESS_POLICY.md`](ACCESS_POLICY.md): a non-member (even anonymous) can read
 a *public* project through a deny-by-default matrix of GET routes
 (`access: "public_read"`), limited per caller by `PUBLIC_READ_RATE_PER_MINUTE`
-(default 240; `0` disables) and never charged to the project's sponsor.
+(default 240; `0` disables) and never counted against the project's sponsor.
 
 ## Signing in with Universidad de Sevilla CAS
 
@@ -291,17 +325,18 @@ the default plan.
 
 ## How a limit behaves
 
-Four outcomes, and which applies is a property of the thing being limited
-rather than an arbitrary preference.
+Which outcome applies is a property of the thing being limited rather than an
+arbitrary preference. Every limit below is either a plan entitlement read from
+the SPACE contract or the one technical cap; none of them is a consumption
+counter.
 
-| Kind | Example | What happens |
-|---|---|---|
-| A budget you asked for | `time_budget_ms`, `iterations`, `max_evaluations` | **Reduced** to what the plan allows, with an `OPTION_CLAMPED` warning alongside the result |
-| A periodic allowance you spend | monthly solver time, task starts, study runs, storage | **Refused** with `402 Payment Required` (`quota_exceeded`), naming the limit, allowance, current usage, and renewal date in a structured `quota` object (no `Retry-After` header) |
-| In-flight execution capacity | active simultaneous solves (`concurrentJobs`) | **Throttled** with `429 Too Many Requests` (`concurrency_limit_exceeded`), naming current and max slots in a structured `concurrency` object, with a `Retry-After: 15` header |
-| An unentitled capability | private federated engines, high-tier features, RBAC | **Refused** with `403 Forbidden` (`feature_not_entitled` or `forbidden`), because retrying without upgrading or authorization will never succeed |
-| A fact about the work | instance complexity (`maxInstanceComplexityLog10` evaluated against $\log_{10}(|S|)$ of the Binding Space) | **Refused** with `402 Payment Required` (`instance_complexity_too_large`), because there is no smaller version of an instance to run without upgrading |
-
+| Kind | Example | What happens | Code |
+|---|---|---|---|
+| A budget you asked for | `time_budget_ms`, `iterations`, `max_evaluations` (ceilings `maxTimeoutSeconds`, `maxIterations`) | **Reduced** to what the plan allows, with an `OPTION_CLAMPED` warning alongside the result | `access/policy.py` |
+| An unentitled capability | `solve`, `federatedEngines`, `studies` | **Refused** with `403` (`feature_not_entitled`), because retrying without a plan change will never succeed | `domain/entitlements.py` |
+| A fact about the work | instance complexity (`maxInstanceComplexityLog10` against log10 of the Binding Space size) | **Refused** with `402` (`instance_complexity_too_large`): there is no smaller version of the instance to run | `access/policy.py` |
+| A size or count allowance in the plan | `apiKeys`, `maxPayloadBytes`, `storageBytes`, organization/member/project counts of the sponsor | **Refused**: `402 quota_exceeded` / `storage_quota_exceeded` / `sponsor_quota_exceeded`, or a payload ceiling | `routes/users.py`, `routes/artifacts.py`, `collaboration.py` |
+| Technical concurrency | queued plus running jobs of one account | **Throttled** with `429 concurrency_limit_exceeded`, `Retry-After: 15` and a `concurrency: {limit, active}` object | `jobs/limits.py` |
 
 Clamping rather than refusing matters more than it sounds: defaults are applied
 before plan ceilings, so refusing an otherwise valid default could make a new
@@ -309,100 +344,76 @@ account's first request fail. Every reduction is reported, because a solve that
 quietly did a tenth of the work asked for would produce a worse answer with no
 explanation.
 
-When both a periodic commercial quota and concurrency are saturated simultaneously,
-`402` takes precedence over `429`: telling a client to retry in 15 seconds when their
-monthly account balance is exhausted would be misleading and lead to wasted retries.
+Not every plan limit in the published pricing is read by this code. The ones
+read at the time of writing are the identifiers found by searching the gateway
+for `caps.limit(...)` and `feature_refusal(...)`: `apiKeys`, `jobHistoryDays`,
+`maxTimeoutSeconds`, `maxIterations`, `maxPayloadBytes`, `storageBytes`,
+`maxInstanceComplexityLog10` and the features `solve`, `federatedEngines`,
+`studies` and `institutionalBranding`. Other identifiers in the pricing
+fixture (`space/pricing/openbinding.yml`) may be unused by the gateway; the
+fixture still declares consumption-style limits from before the retirement,
+which is pending clean-up and which this document does not describe as behaviour.
 
-## Accounting
+## The technical concurrency limit
 
-A solve costs a task and a concurrency slot up front; the solver seconds it
-actually spent are reported afterwards, preferring the engine's own figure over
-the clock around the call. Nobody knows how long a solve takes until it has
-taken it.
+`MAX_CONCURRENT_JOBS_PER_USER` (`core/settings.py`, default `8`, minimum `1`) is
+how many jobs one account may have `queued` or `running` at once. It protects
+the engines and does **not** depend on the plan or on SPACE. Every entry point
+that creates a job (`POST /v1/jobs`, retry, study cells) calls
+`jobs/limits.enforce_concurrency_limit` inside the transaction that inserts the
+job, after an idempotent replay has been ruled out, so a replay does not take a
+second slot. The check locks the account row (`FOR UPDATE`) so that two
+concurrent creations count each other; SQLite has no row locks, and there the
+count alone is the check (see [IDEMPOTENCY.md](IDEMPOTENCY.md)). A refused
+request is `429 concurrency_limit_exceeded`; a slot is released simply by the
+job reaching a terminal state.
 
-Asking and spending are separate calls, deliberately. SPACE will apply an
-expected consumption while it evaluates, but it applies the limits concurrently,
-each one a read-modify-write of the same contract — so with more than one limit
-involved the updates race and only one survives. Refusals are correct and
-unaffected; it is the writing that is not, so the gateway keeps its own accounts.
-See [`space/UPSTREAM.md`](../space/UPSTREAM.md).
+## Jobs nobody watches
 
-**Jobs nobody watches** are the interesting failure. A client that stops polling,
-a gateway that restarts, an engine that dies — each leaves a concurrency slot
-held, and for an account allowed one that means never solving again. SPACE's own
-revert expires after two minutes and these solves run for thirty, so a
-reconciler sweeps for jobs that nobody is working on any more and settles them.
+A client that stops polling, a gateway that restarts or an engine that dies
+leaves a job `queued` or `running` for ever, and a job in flight holds one of the
+account's concurrency slots. The job lifecycle lives in
+`openbinding_gateway/jobs/` and charges nothing:
 
-A worker that claims a job takes a 60-second lease and renews it every 20
-seconds while it solves. A lease that runs out means the worker died, which the
-reconciler tells apart from a slow solve:
-
-- **The first time**, the job goes back in the queue and runs again, at no
-  charge. A worker lost mid-solve is not the account's doing.
-- **The second time**, the job is failed. It is charged for the time it was
-  observed running (up to the last renewal of its lease), never more than its
-  budget: an abandoned solve that costs nothing is an invitation to abandon every
-  solve, but one that held the engine for ten seconds should not pay for
-  thirty minutes. A job nobody ever saw start is charged its whole budget.
-- A job with no lease to judge by is failed once its budget and two minutes of
-  grace have passed, counted from when it was claimed or else created. A job that
-  was still queued and nobody ever claimed never held an engine: it is failed
-  with no solver seconds charged, and its slot is released. A running job from
-  before leases (no claim time) keeps the old charge, its whole budget.
+- `leases.py`: a worker claims a job with `claim_job` (one conditional `UPDATE`
+  from `queued` to `running`) and takes a **60 s lease**, renewed by a
+  **20 s heartbeat**; at most `MAX_ATTEMPTS = 2` claims per job.
+- `reconciler.py` (`sweep_abandoned`): a lapsed lease means the worker died. The
+  **first** time the job goes back to `queued`; the **second** time it is
+  `failed`. A job without a lease (never claimed) is failed once its requested
+  budget plus a 120 s grace have passed, counted from its claim or else its
+  creation. The sweep runs every 60 s, takes rows with `FOR UPDATE SKIP LOCKED`
+  and writes each change with an `UPDATE` conditioned on the state it read, so a
+  heartbeat or claim that lands in between wins.
+- `lifecycle.py` / `reconciler._resync_study_cells`: a study cell is synchronised
+  when its job changes state, and the sweep catches up the cells of terminal jobs
+  that never heard of it (batches of 100).
+- `limits.py`: the technical concurrency cap described above.
 
 A worker that lost its lease cannot write a result, a failure or a cancellation
-afterwards, and does not settle: an answer arriving after the job was put back
-would otherwise overwrite the run that replaced it, or charge twice.
-
-A job that reached a terminal state but could not be settled (SPACE was down at
-that moment) is settled by a later sweep, once. It is charged the time between
-its claim and its end, up to its budget. A job that ended before leases existed
-has no claim time and releases its slot without charging solver time.
-
-**Settlement is per job.** The sweep takes the jobs in id order, skipping rows
-another transaction holds, and commits each settlement on its own as soon as
-SPACE has accepted it; a worker commits right after its own. The study cell of a
-job the sweep ends is brought up to date in the same transaction, and a later
-pass resyncs the cells of terminal jobs whose cell never heard of it.
-
-**Known limitation: no idempotency key towards SPACE.** The usage update is
-sent before the row is confirmed, and SPACE cannot be told "this is the same
-update as before". If the database fails to keep the settlement after SPACE took
-the charge, the gateway logs an `ERROR` with `job_id` and `delta`, stops the
-sweep, and remembers the charge in the memory of that process, so that settling
-the job again records it without charging a second time. That memory is lost if
-the process restarts before the job is settled again; then the charge is taken
-twice, and only the log and `POST /v1/admin/users/{id}/usage/resync` correct it.
+afterwards (`hold_lease` locks the row and checks the token before the outcome is
+committed), so an answer arriving after the job was put back cannot overwrite the
+run that replaced it. Details and what is and is not guaranteed are in
+[IDEMPOTENCY.md](IDEMPOTENCY.md).
 
 **Residual risk: clocks.** Leases are judged by the gateway's clock against
 deadlines written from a worker's. Gateway and worker clocks are assumed to be
 synchronised (NTP); the 60-second lease with a renewal every 20 seconds tolerates
-about 40 seconds of skew before a live worker can look dead, or a dead one alive
-for longer than intended. Beyond that, a healthy job may be put back in the
-queue once, free of charge, and its late answer is discarded.
-
-One limit remains: the concurrency slot and task are reserved before the job row
-exists, so a gateway that dies between the reservation and the commit of the row
-leaves a slot nothing can find. `POST /v1/admin/users/{id}/usage/resync`
-corrects that drift.
-
-Settlement flips `metered` and `concurrency_released` with a compare-and-set, so
-two polls arriving together charge once and release once. When those counts drift
-anyway, `POST /v1/admin/users/{id}/usage/resync` counts the jobs actually running
-and corrects the difference.
+about 40 seconds of skew before a live worker can look dead. Beyond that, a
+healthy job may be put back in the queue once and its late answer is discarded.
 
 ## When SPACE is unreachable
 
-`SPACE_FAIL_MODE` decides:
-
-- **`closed`** (production default) answers `503` with `Retry-After`. Handing out
-  an unmetered half-hour of solver time is worse than a temporary outage, and the
-  account may well have quota — saying `402` would be a lie about the reason.
-- **`open`** (development default) lets the request through uncounted.
-
-Plan ceilings are cached, so a brief outage does not immediately stop work in
-progress. `SPACE_ENABLED=false` runs a fake pricing gate with real balances, so
-quotas still refuse in development — they just live in memory.
+`SPACE_FAIL_MODE` is declared in `core/settings.py` (`closed` by default;
+`.env.example` sets `open` for development). SPACE being unreachable surfaces as
+`PricingUnavailable` (`space_client/gate.py`), deliberately distinct from a
+refusal: "your plan does not include this" and "I could not find out what your
+plan includes" call for different answers. I did not trace every call site of
+`SPACE_FAIL_MODE` for this document, so the exact per-endpoint behaviour is not
+described here; entitlement lookups fail closed (`PlanCaps.allows` is `False` for
+an unknown identifier). `SPACE_ENABLED=false` installs a fake pricing gate
+(`space_client/fake.py`) so that plan entitlements are still exercised in
+development.
 
 ## Configuration
 
@@ -410,8 +421,11 @@ quotas still refuse in development — they just live in memory.
 |---|---|
 | `DATABASE_URL` | Async SQLAlchemy URL. Unset means no accounts: the gateway serves anonymously, as it always did, and the account routes answer `503` explaining why. |
 | `GATEWAY_JWT_SECRET` | Signs session tokens. No default on purpose — a well-known signing key is worse than a missing one. |
-| `SPACE_ENABLED`, `SPACE_URL`, `SPACE_API_KEY` | The pricing service. The key must be a `MANAGEMENT`-scoped organization key; see [`space/README.md`](../space/README.md). |
+| `SPACE_ENABLED`, `SPACE_URL`, `SPACE_API_KEY`, `SPACE_TIMEOUT_MS` | The remote SPACE (`https://space.score.us.es`). The key must be a `MANAGEMENT`-scoped key created in the SPACE console. A development key lives in the same organizations as production ones and is high-risk: a shared organization does not isolate credentials. |
+| `SPHERE_ENABLED`, `SPHERE_URL`, `SPHERE_API_KEY`, `SPHERE_ORGANIZATION_ID` | The remote SPHERE, from which the published pricing is read. |
 | `SPACE_FAIL_MODE` | `closed` or `open`, above. |
+| `MAX_CONCURRENT_JOBS_PER_USER` | Technical cap on queued plus running jobs per account (default 8). |
+| `JOB_DISPATCH_MODE` | `inline` (tests, single-process development) or `dramatiq` (Redis-backed queue). |
 | `BOOTSTRAP_ADMIN_*` | The first administrator, above. |
 | `FEDERATION_SECRET_KEY` | Fernet key for credentials registered with federated engines. |
 | `CORS_ALLOW_ORIGINS` | Browser origins allowed to call the API, comma separated: a **closed list**. Default: only the local development origins `http://localhost:5173`, `http://127.0.0.1:5173` (Vite) and `http://localhost:4177`, `http://127.0.0.1:4177` (Playwright). There is no wildcard default, because session tokens live in the browser's `localStorage`. With `APP_ENV=prod`, an empty list or a `*` entry makes the gateway **refuse to start** (`CORS_ALLOW_ORIGINS … APP_ENV=prod`), so a production deployment must name its frontend origin(s) exactly. A `*` outside production still works and switches credentialed requests off. |

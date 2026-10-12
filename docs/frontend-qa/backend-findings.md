@@ -6,6 +6,12 @@ muestran el estado real del servidor (por ejemplo, un control deshabilitado) sin
 
 Cada punto indica el código del frontend afectado y el endpoint. Ningún cambio de este documento se ha hecho en el backend.
 
+> **Documento histórico.** Registra hallazgos y resoluciones de una ronda anterior a la retirada del cobro, de los créditos y de la selección automática de motores, y a la decisión de administrar SPACE/SPHERE en sus consolas. Lo que sigue describe el estado de entonces, no el actual. Afectan a esta lectura:
+> - Punto 3: `POST /v1/generator/calibrate-engine` y el enrutado de motores se retiraron; el endpoint ya no existe (`routes/generator.py`).
+> - Punto 11: la acción `admin.usage.resynced` y `POST /v1/admin/users/{id}/usage/resync` se retiraron junto con el contador de uso (no aparece entre las rutas de `routes/admin.py`). Siguen vigentes `admin.user.updated` y `admin.api_key.revoked`.
+> - Punto 17: el borrador y la publicación de pricing se gestionan en las consolas remotas de SPHERE/SPACE; las pantallas `admin-pricing*` y `admin-routing` ya no tienen ruta en `frontend/src/routes`. El código del gateway de `routes/pricing.py` es anterior a esta decisión y su retirada está pendiente.
+> - Punto 2 («cuota del patrocinador»): el patrocinio ya no traslada ningún consumo; solo decide contra los límites de qué plan cuenta la organización. Ver [ACCOUNTS_AND_PLANS.md](../ACCOUNTS_AND_PLANS.md).
+
 1. **Un ADMIN de organización puede conceder el rol OWNER (escalada de privilegios).**
    Frontend: `frontend/src/pages/Organization/OrgMembers.tsx` (selector de rol y cola de cambios; no restringe OWNER),
    `frontend/src/api/platform.ts` (`updateMember`, `updateMembersBatch`).

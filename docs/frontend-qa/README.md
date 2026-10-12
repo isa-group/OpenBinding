@@ -4,6 +4,8 @@ Una captura de la primera pantalla de **cada una de las 86 rutas** del registro 
 en escritorio (1440×900, escala 1) y en móvil (390×844, escala 2). Sirve para que el responsable valide el aspecto sin
 levantar el backend.
 
+> **Aviso de actualidad.** Esta galería es un registro de capturas. Las filas `admin-routing`, `admin-pricing`, `admin-pricing-draft` y `admin-pricing-release` corresponden a pantallas retiradas (la selección automática de motores y la gestión de pricing; el pricing se administra ahora en las consolas remotas de SPHERE/SPACE) y ya no tienen ruta en `frontend/src/routes`; sus capturas son **históricas**. `acct-usage` sigue teniendo ruta, pero la plataforma ya no mide ni cobra consumo. El número de rutas (86) y las cifras de «Última regeneración» no se han vuelto a comprobar tras esa retirada.
+
 ## Última regeneración
 
 2026-10-10: la galería se regeneró (desktop y mobile). Verificación final de esta rama: gateway 1209 tests ok
@@ -70,7 +72,7 @@ Tras regenerar, todas las capturas deben salir de la misma versión del código:
   siguiente tipo disponible, **Georgia**, y si no existe, la serif genérica del sistema. Es una decisión de la persona
   responsable hasta tener archivos legítimos.
 - **Las capturas de este entorno Linux no tienen Georgia**: los titulares con `--font-display` (p. ej. «Welcome back»,
-  «Pricing control room», «Workbench») se ven en la serif genérica del sistema. Es lo esperado; en equipos con Georgia
+  «Pricing», «Workbench») se ven en la serif genérica del sistema. Es lo esperado; en equipos con Georgia
   saldrán en Georgia. El titular de la portada (`pub-home`) usa deliberadamente la sans del cuerpo.
 - `Times New Roman` no forma parte de la pila, aunque `tokens.json` (referencia importada de `docs/design-handoff`, que
   no se toca) todavía la nombre. `src/hygiene.test.ts` falla si `Times New Roman` aparece antes de Georgia en
