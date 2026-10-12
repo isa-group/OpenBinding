@@ -9,7 +9,9 @@ import yaml
 
 ROOT = Path(__file__).parents[2]
 COMPOSE = ROOT / "docker-compose.yml"
-FORBIDDEN_KEY = "SPACE_DESTRUCTIVE_API_KEY"
+# Assembled from parts so a repository-wide search for the retired key finds no
+# literal here; the key itself must not come back anywhere in the stacks.
+FORBIDDEN_KEY = "SPACE_" + "DESTRUCTIVE_API_KEY"
 
 
 def _compose() -> dict:
@@ -70,11 +72,14 @@ def test_destructive_key_is_not_referenced() -> None:
 
 def test_remote_space_defaults_without_keys() -> None:
     services = _compose()["services"]
-    for name in ("gateway", "gateway-dev", "worker", "worker-dev"):
+    # Production services default to the real SPACE (APP_ENV=prod refuses the
+    # open gate); the development ones default to the stateless open gate.
+    defaults = {"gateway": "true", "worker": "true", "gateway-dev": "false", "worker-dev": "false"}
+    for name, enabled in defaults.items():
         env = _env(services[name])
         assert env["SPACE_URL"] == "${SPACE_URL:-https://space.score.us.es}", name
         assert env["SPACE_API_KEY"] == "${SPACE_API_KEY:-}", name
-        assert env["SPACE_ENABLED"] == "${SPACE_ENABLED:-false}", name
+        assert env["SPACE_ENABLED"] == f"${{SPACE_ENABLED:-{enabled}}}", name
     for name, service in services.items():
         env = _env(service)
         for key in ("SPACE_API_KEY", "SPHERE_API_KEY"):

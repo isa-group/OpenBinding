@@ -86,11 +86,11 @@ class UserProfile(BaseModel):
     is_active: bool
     plan: str = Field(
         ...,
-        min_length=1,
         max_length=128,
         description=(
             "Plan last seen on the SPACE contract. The contract itself decides what a "
-            "request is allowed to do; this is what the interface displays."
+            "request is allowed to do; this is what the interface displays. Empty when "
+            "the account has no plan (the stateless open gate, or SPACE has not assigned one)."
         ),
     )
     created_at: datetime
@@ -295,7 +295,7 @@ class UsageView(BaseModel):
     unlimited). It carries no consumption: nothing is counted per account.
     """
 
-    plan: str = Field(..., min_length=1, max_length=128)
+    plan: str = Field(..., max_length=128)
     contract_pending: bool = Field(
         default=False,
         description="True when the account has no contract yet because the pricing service was unreachable.",
@@ -349,7 +349,7 @@ class ChangePlanRequest(BaseModel):
     plan: str = Field(
         ..., min_length=1, max_length=128,
         pattern=r"^[A-Za-z][A-Za-z0-9._-]*$",
-        description="A plan identifier declared by the target pricing release.",
+        description="A plan identifier declared by the pricing version in SPACE.",
     )
 
 
@@ -380,7 +380,7 @@ class ChangeSubscriptionRequest(BaseModel):
 
 
 class ContractSubscriptionView(BaseModel):
-    plan: str = Field(..., min_length=1, max_length=128)
+    plan: str = Field(..., max_length=128)
     add_ons: dict[str, int]
     pricing_version: str
     renews_at: Optional[str] = None

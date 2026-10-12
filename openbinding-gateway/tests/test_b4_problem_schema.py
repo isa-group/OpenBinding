@@ -174,7 +174,9 @@ async def test_a_value_out_of_range_says_which_bound(api_client):
 
 async def test_an_unknown_body_field_is_pointed_at(api_client, admin):
     response = await api_client.post(
-        "/v1/admin/pricing/validate", headers=admin, json={"yaml": "a: 1", "nope": 1}
+        "/v1/admin/users/00000000-0000-0000-0000-000000000000/subscription",
+        headers=admin,
+        json={"plan": "X", "reason": "new_feature", "nope": 1},
     )
     body = assert_problem(response, code="validation_error")
     assert by_pointer(body)["/nope"]["code"] == "extra_forbidden"
@@ -325,66 +327,17 @@ async def test_a_bare_string_422_becomes_validation_error():
     assert body["diagnostics"] == [{"code": "validation_error", "message": "bad thing"}]
 
 
-# -- Pricing validation ---------------------------------------------------------
-
-PRICING_URL = "/v1/admin/pricing/validate"
+# -- Published pricing ----------------------------------------------------------
 
 
-async def test_the_shipped_pricing_validates_with_200(api_client, admin):
-    document = (REPO_ROOT / "space/pricing/openbinding.yml").read_text(encoding="utf-8")
-    response = await api_client.post(PRICING_URL, headers=admin, json={"yaml": document})
-    assert response.status_code == 200, response.text
-    assert response.json()["valid"] is True
-    assert response.json()["errors"] == []
-
-
-async def test_an_invalid_pricing_is_a_422_problem_that_still_carries_the_validation_view(api_client, admin):
-    response = await api_client.post(
-        PRICING_URL, headers=admin, json={"yaml": "syntaxVersion: '3.1'\nsaasName: nope\n"}
-    )
-    body = assert_problem(response, code="invalid_pricing")
-    assert body["detail"] == "Pricing validation failed."
-    # The view the screen already reads from this body.
-    assert body["valid"] is False
-    assert body["errors"] and isinstance(body["errors"], list)
-    assert {"version", "digest", "syntax_version", "plans", "add_ons", "warnings"} <= set(body)
-    assert [item["message"] for item in body["diagnostics"]] == body["errors"]
-    found = by_pointer(body)
-    assert "saasName must be openbinding." == found["/saasName"]["message"]
-    assert {"/saasName", "/version", "/plans", "/features", "/usageLimits"} <= set(found)
-
-
-async def test_pricing_diagnostics_point_into_the_document(api_client, admin):
-    unreadable = assert_problem(
-        await api_client.post(PRICING_URL, headers=admin, json={"yaml": "[1, 2"}), code="invalid_pricing"
-    )
-    assert unreadable["diagnostics"][0]["code"] == "invalid_yaml"
-    assert "pointer" not in unreadable["diagnostics"][0]
-
-    root = assert_problem(
-        await api_client.post(PRICING_URL, headers=admin, json={"yaml": "- a\n- b\n"}), code="invalid_pricing"
-    )
-    assert root["diagnostics"][0]["code"] == "invalid_root"
-
-    secret = assert_problem(
-        await api_client.post(
-            PRICING_URL,
-            headers=admin,
-            json={"yaml": "syntaxVersion: '3.1'\nsaasName: openbinding\nversion: 0.1.0\napiToken: abc\n"},
-        ),
-        code="invalid_pricing",
-    )
-    leaked = [item for item in secret["diagnostics"] if item["code"] == "secret_in_document"]
-    assert [item["pointer"] for item in leaked] == ["/apiToken"]
-    assert "abc" not in json.dumps(leaked)
-
-
-async def test_creating_a_draft_from_an_invalid_pricing_uses_the_same_document(api_client, admin):
-    response = await api_client.post(
-        "/v1/admin/pricing/drafts", headers=admin, json={"yaml": "syntaxVersion: '3.1'\nsaasName: nope\n"}
-    )
-    body = assert_problem(response, code="invalid_pricing")
-    assert "/saasName" in by_pointer(body)
+async def test_an_unreadable_published_pricing_is_a_coded_503_with_the_canonical_keys(api_client):
+    # SPHERE is switched off in the suite, so the read-only pricing endpoints refuse.
+    for path in ("/v1/pricing/catalog", "/v1/pricing/current", "/v1/pricing"):
+        response = await api_client.get(path)
+        body = response.json()
+        assert response.status_code == 503, path
+        assert body["detail"]["code"] == "pricing_unavailable"
+        assert (body["code"], body["status"]) == ("pricing_unavailable", 503)
 
 
 # -- The other refusals keep their shape and gain the canonical keys ------------

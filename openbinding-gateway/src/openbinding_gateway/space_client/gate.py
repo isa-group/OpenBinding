@@ -3,8 +3,8 @@
 Entitlements are not decided here. They are decided by a SPACE instance, which
 holds a contract per user and knows what each plan allows. This module is the
 seam between the two: a narrow protocol the rest of the gateway talks to, an
-adapter over SPACE's own client, and a fake the tests use so that a plan can be
-exercised without a SPACE instance existing.
+adapter over SPACE's own client, and a stateless open gate for development. The
+tests build their own fake from a synthetic pricing fixture (``tests/_pricing.py``).
 
 The seam is the point. SPACE is early-stage software whose API will move, and
 when it does ``SpacePricingGate`` changes and nothing else does.
@@ -89,6 +89,16 @@ class PricingUnavailable(RuntimeError):
     """
 
 
+class SubscriptionRejected(PricingUnavailable):
+    """SPACE did not accept the requested plan/add-on selection.
+
+    SPACE validates every novation against the pricing version it has deployed;
+    this is that refusal, so a caller can answer "that selection is invalid"
+    instead of "the pricing service is down". It is still a ``PricingUnavailable``
+    for callers that do not tell the two apart.
+    """
+
+
 @runtime_checkable
 class PricingGate(Protocol):
     """Everything the gateway asks a pricing service."""
@@ -99,11 +109,14 @@ class PricingGate(Protocol):
     async def create_contract(
         self,
         user_id: uuid.UUID,
-        plan: str,
+        plan: Optional[str],
         email: str,
         pricing_version: Optional[str] = None,
     ) -> None:
-        """Put a newly registered account on a plan."""
+        """Create a newly registered account's contract.
+
+        ``plan`` may be ``None``: SPACE then assigns the plan itself.
+        """
 
     async def change_plan(
         self, user_id: uuid.UUID, plan: str, pricing_version: Optional[str] = None
@@ -121,9 +134,6 @@ class PricingGate(Protocol):
         pricing_version: Optional[str] = None,
     ) -> SubscriptionSnapshot:
         """Novate a plan/add-on selection against an explicit pricing release."""
-
-    async def migrate_due_contract(self, user_id: uuid.UUID, pricing_version: str) -> bool:
-        """Move an expired contract to ``pricing_version`` before SPACE renews it."""
 
     async def pricing_token(self, user_id: uuid.UUID) -> str:
         """A signed token the browser evaluates features against locally."""

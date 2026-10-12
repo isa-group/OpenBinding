@@ -27,7 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..access.contracts import sweep_contract_renewals
+from ..access.contracts import live_pricing_version
 from ..access.dependencies import require_admin, session_dependency
 from ..collaboration import (
     descendant_ids,
@@ -53,7 +53,6 @@ from ..db.models import (
     JobState,
     Organization,
     OrganizationMembership,
-    PricingRelease,
     Project,
     ProjectResource,
     ProjectResourceRevision,
@@ -86,8 +85,7 @@ from ..models.errors import (
 )
 from ..models.platform import OrganizationView, SponsorProposalView
 from .. import sponsor_proposals
-from ..space_client import PricingUnavailable, get_gate
-from ..pricing_catalog import PricingCatalogError, live_catalog
+from ..space_client import PricingUnavailable, SubscriptionRejected, get_gate
 from ..mailer import send_mail
 from .users import cas_verified_ids, usage_view_for
 
@@ -395,9 +393,10 @@ async def _apply_subscription(
     await _assert_research_identity(session, user, plan)
     gate = get_gate()
     try:
-        catalog = await live_catalog(session, settings)
         before = await gate.subscription(user.id)
-        target_version = catalog.version
+        # The version is SPACE_PRICING_VERSION when configured; otherwise the
+        # contract keeps the one it is pinned to. SPACE validates the novation.
+        target_version = live_pricing_version(settings) or before.pricing_version
         configuration_changed = before.plan != plan or before.add_ons != add_ons
         version_changed = before.pricing_version != target_version
         after = (
@@ -405,7 +404,7 @@ async def _apply_subscription(
             if configuration_changed or version_changed
             else before
         )
-    except PricingCatalogError as error:
+    except SubscriptionRejected as error:
         raise api_error(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             "invalid_subscription",
@@ -563,17 +562,6 @@ async def revoke_api_key(
     return None
 
 
-@router.post(
-    "/maintenance/reconcile-contracts",
-    operation_id="adminReconcileContractRenewals",
-    summary="Move expired contracts to the LIVE pricing release",
-)
-async def reconcile_contracts(
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> dict[str, int]:
-    return {"migrated": await sweep_contract_renewals(session)}
-
-
 @router.get("/overview", operation_id="adminPlatformOverview")
 async def platform_overview(
     session: AsyncSession = Depends(session_dependency, scope="function"),
@@ -595,7 +583,6 @@ async def platform_overview(
         "studyRuns": StudyRun,
         "artifacts": Blob,
         "apiKeys": ApiKey,
-        "pricingReleases": PricingRelease,
     }
     counts = {
         name: int(await session.scalar(select(func.count()).select_from(model)) or 0)

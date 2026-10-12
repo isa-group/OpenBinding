@@ -38,7 +38,6 @@ from openbinding_gateway.db.models import (
     AuditEvent,
     BindingCase,
     Organization,
-    PricingRelease,
     Project,
     User,
     UserRole,
@@ -772,33 +771,23 @@ async def test_admin_sponsor_transfer_endpoint_enforces_api_key_write_permission
 
 
 @pytest.mark.asyncio
-async def test_cannot_delete_last_admin_who_authored_pricing_releases(
+async def test_an_administrator_is_deleted_without_any_pricing_authorship_rule(
     api_client, registration, gate, db_session
 ):
+    """Pricings are authored in SPHERE and SPACE, so deleting an account never depends on them."""
     admin, admin_headers = await create_account(
         api_client, registration, db_session, admin=True
     )
     admin_id = uuid.UUID(admin["id"])
+    assert admin_id in gate.contracts
 
-    # Create a pricing release authored by this sole admin
-    db_session.add(
-        PricingRelease(
-            version="2026.9.1-test",
-            digest="sha256-" + "b" * 64,
-            sphere_organization="OpenBinding",
-            sphere_organization_id="org_123",
-            sphere_slug="openbinding",
-            created_by_id=admin_id,
-        )
-    )
-    await db_session.flush()
-
-    # Sole admin tries to delete account
     del_res = await api_client.request(
         "DELETE",
         "/v1/users/me",
         headers=admin_headers,
         json={"confirmation": admin["username"], "current_password": "correct-horse-battery"},
     )
-    assert del_res.status_code == 409
-    assert del_res.json()["detail"]["code"] == "last_pricing_admin"
+
+    assert del_res.status_code == 204, del_res.text
+    assert await db_session.get(User, admin_id) is None
+    assert admin_id not in gate.contracts

@@ -80,18 +80,6 @@ class ReportState(str, enum.Enum):
     FROZEN = "frozen"
 
 
-class PricingSphereState(str, enum.Enum):
-    PRIVATE_DRAFT = "PRIVATE_DRAFT"
-    PUBLIC_RELEASE = "PUBLIC_RELEASE"
-
-
-class PricingSpaceState(str, enum.Enum):
-    NOT_DEPLOYED = "NOT_DEPLOYED"
-    ACTIVE = "ACTIVE"
-    DRAINING = "DRAINING"
-    ARCHIVED = "ARCHIVED"
-
-
 class AuthIdentity(Base):
     """An external login identity; provider + subject is the only identity key."""
 
@@ -650,45 +638,6 @@ class AuditEvent(Base):
     detail: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now(), index=True
-    )
-
-
-class PricingRelease(Base):
-    """Only remote metadata: the Pricing2Yaml body always remains in SPHERE."""
-
-    __tablename__ = "pricing_releases"
-    __table_args__ = (
-        UniqueConstraint("version", name="uq_pricing_release_version"),
-        CheckConstraint("sphere_organization = 'OpenBinding'", name="pricing_fixed_organization"),
-        CheckConstraint("sphere_slug = 'openbinding'", name="pricing_fixed_slug"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    version: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    digest: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    sphere_organization: Mapped[str] = mapped_column(String(64), nullable=False, default="OpenBinding")
-    sphere_organization_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    sphere_slug: Mapped[str] = mapped_column(String(64), nullable=False, default="openbinding")
-    sphere_state: Mapped[PricingSphereState] = enum_column(
-        PricingSphereState, PricingSphereState.PRIVATE_DRAFT
-    )
-    # Private URLs are deliberately never persisted. A preview is fetched by
-    # exact remote identifiers through the authenticated server-side client.
-    public_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
-    space_state: Mapped[PricingSpaceState] = enum_column(
-        PricingSpaceState, PricingSpaceState.NOT_DEPLOYED
-    )
-    is_live: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
-    changelog: Mapped[str] = mapped_column(String(4000), nullable=False, default="")
-    migration_manifest: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    created_by_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow, server_default=func.now()
     )
 
 

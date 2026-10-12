@@ -10,11 +10,9 @@ from __future__ import annotations
 
 import pytest
 import pytest_asyncio
-import yaml
 
 from openbinding_gateway import space_client
-from openbinding_gateway.pricing_catalog import PricingCatalog
-from _pricing import PRICING_YAML, caps_for, fake_pricing_gate, largest_plan, pricing_catalog
+from _pricing import caps_for, fake_pricing_gate, largest_plan, pricing_catalog
 
 CATALOG = pricing_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
@@ -28,25 +26,6 @@ async def gate():
     space_client.set_gate(installed)
     yield installed
     space_client.set_gate(None)
-
-
-async def test_catalog_endpoint_returns_the_active_yaml_without_projection(api_client, gate):
-    document = yaml.safe_load(PRICING_YAML.read_bytes())
-    document["features"]["catalogMutation"] = {
-        "description": "Visible directly from the active document",
-        "type": "DOMAIN",
-        "valueType": "BOOLEAN",
-        "defaultValue": False,
-        "expression": "pricingContext['features']['catalogMutation']",
-    }
-    gate.catalog = PricingCatalog.parse(yaml.safe_dump(document).encode())
-
-    response = await api_client.get("/v1/pricing/catalog")
-
-    assert response.status_code == 200
-    assert response.json() == gate.catalog.public_view()
-    assert "catalogMutation" in response.json()["features"]
-    assert "openbinding" not in (response.json().get("custom") or {})
 
 
 async def account(client, registration) -> tuple[dict, dict]:

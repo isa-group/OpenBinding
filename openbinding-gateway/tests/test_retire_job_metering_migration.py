@@ -41,12 +41,15 @@ def job_objects(database: Path, kind: str) -> dict[str, str]:
         return dict(rows.fetchall())
 
 
-def test_this_revision_is_the_single_head_on_top_of_the_previous_one():
+def test_this_revision_sits_on_the_previous_one_in_a_single_chain():
     config = Config(str(ROOT / "alembic.ini"))
     config.set_main_option("script_location", str(ROOT / "alembic"))
     scripts = ScriptDirectory.from_config(config)
 
-    assert scripts.get_heads() == [THIS_REVISION]
+    # Later migrations move the head; this one only has to stay in the chain.
+    assert len(scripts.get_heads()) == 1
+    history = {script.revision for script in scripts.walk_revisions()}
+    assert THIS_REVISION in history
     assert scripts.get_revision(THIS_REVISION).down_revision == PREVIOUS_REVISION
 
 

@@ -24,7 +24,7 @@ from ..models.accounts import CasSession, PlanChange
 from ..models.errors import api_error
 from ..security.passwords import hash_password
 from .auth import _issue_session
-from ..pricing_catalog import PricingCatalogError, live_catalog
+from ..access.contracts import live_pricing_version
 
 logger = logging.getLogger(__name__)
 
@@ -150,24 +150,19 @@ async def _upgrade_to_research(user: User, session: AsyncSession) -> PlanChange 
     automatic and costs nothing. An account on any other plan is left alone.
     The caller reports the returned change to the person (``plan_changed``).
     """
-    try:
-        catalog = await live_catalog(session, get_settings())
-    except PricingCatalogError as exc:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
-    if "RESEARCH" not in catalog.plans:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "institutional_pricing_invalid",
-            "The active iPricing must declare the CAS-only RESEARCH plan.",
-        )
+    settings = get_settings()
+    default_plan = settings.space_default_plan
+    if not default_plan:
+        # Without a configured default plan there is no "default-plan account"
+        # to upgrade; plans are SPACE's to assign.
+        return None
     try:
         gate = space_client.get_gate()
         current = await gate.subscription(user.id)
-        if current.plan != catalog.default_plan:
+        if current.plan != default_plan:
             return None
-        await gate.change_plan(
-            user.id, "RESEARCH", catalog.version
-        )
+        # SPACE rejects the novation if the pricing version has no RESEARCH plan.
+        await gate.change_plan(user.id, "RESEARCH", live_pricing_version(settings))
     except space_client.PricingUnavailable as exc:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
     user.plan_cache = "RESEARCH"
@@ -300,16 +295,6 @@ async def _complete_callback(
             # Deliberately never auto-link by email: the existing account must
             # authenticate and start a link flow itself.
             raise api_error(status.HTTP_409_CONFLICT, "account_collision", "Sign in to the existing account and link CAS explicitly.")
-        try:
-            catalog = await live_catalog(session, settings)
-        except PricingCatalogError as exc:
-            raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
-        if "RESEARCH" not in catalog.plans:
-            raise api_error(
-                status.HTTP_503_SERVICE_UNAVAILABLE,
-                "institutional_pricing_invalid",
-                "The active iPricing must declare the CAS-only RESEARCH plan.",
-            )
         user = User(
             username=username, email=email,
             password_hash=hash_password(secrets.token_urlsafe(48)), password_enabled=False,
@@ -322,7 +307,7 @@ async def _complete_callback(
                 user.id,
                 "RESEARCH",
                 user.email,
-                catalog.version,
+                live_pricing_version(settings),
             )
             user.contract_pending = False
         except space_client.PricingUnavailable:
@@ -421,12 +406,19 @@ async def unlink_identity(
                 "research_downgrade_confirmation_required",
                 "Type DOWNGRADE RESEARCH to remove US CAS and lose institutional access.",
             )
-        try:
-            catalog = await live_catalog(session, get_settings())
-            await space_client.get_gate().change_plan(
-                user.id, catalog.default_plan, catalog.version
+        settings = get_settings()
+        default_plan = settings.space_default_plan
+        if not default_plan:
+            raise api_error(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "pricing_unavailable",
+                "SPACE_DEFAULT_PLAN is not configured, so there is no plan to return this account to.",
             )
-        except (space_client.PricingUnavailable, PricingCatalogError) as exc:
+        try:
+            await space_client.get_gate().change_plan(
+                user.id, default_plan, live_pricing_version(settings)
+            )
+        except space_client.PricingUnavailable as exc:
             raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
-        user.plan_cache = catalog.default_plan
+        user.plan_cache = default_plan
     await session.delete(identity)

@@ -45,8 +45,6 @@ from .models.problem import (
     summarize,
     validation_diagnostics,
 )
-from .pricing_catalog import PricingCatalogError
-from .pricing_bootstrap import reconcile_pricing
 from .routes.admin import router as admin_router
 from .routes.analysis import router as analysis_router
 from .routes.artifacts import router as artifacts_router
@@ -56,7 +54,6 @@ from .routes.cas import identity_router, router as cas_router
 from .routes.jobs import router as jobs_router
 from .routes.notifications import router as notifications_router
 from .routes.organizations import invitation_router, router as organizations_router
-from .routes.pricing import admin_router as pricing_admin_router
 from .routes.pricing import public_router as pricing_router
 from .routes.studies import public_router as public_studies_router
 from .routes.studies import router as studies_router
@@ -101,7 +98,6 @@ configure_logging(
     secrets=(
         _startup_settings.gateway_jwt_secret or "",
         _startup_settings.space_api_key or "",
-        _startup_settings.space_destructive_api_key or "",
         _startup_settings.sphere_api_key or "",
         _startup_settings.bootstrap_admin_password or "",
         _startup_settings.federation_secret_key or "",
@@ -115,68 +111,26 @@ async def lifespan(app: FastAPI):
     if settings.database_url:
         db_base.init_engine(settings.database_url)
 
-    async def resolve_catalog(version: str):
-        if not settings.database_url:
-            raise PricingCatalogError("A database is required to resolve pricing metadata")
-        from .pricing_catalog import catalog_for_version
-
-        async with db_base.session_factory()() as catalog_session:
-            return await catalog_for_version(catalog_session, settings, version)
-
-    space_client.set_gate(
-        space_client.build_gate(
-            settings,
-            catalog_resolver=resolve_catalog if settings.database_url else None,
-        )
-    )
+    space_client.set_gate(space_client.build_gate(settings))
 
     if settings.database_url:
         async with db_base.session_factory()() as session:
-            try:
-                configured = await ensure_administrator(session, settings)
-                if (
-                    not configured
-                    and settings.app_env != "prod"
-                    and await seed_default_administrator(session)
-                ):
-                    logging.getLogger(__name__).warning(
-                        "No administrator existed, so bootstrap account '%s' was created. "
-                        "Sign in, create a real administrator, and delete the bootstrap account.",
-                        DEFAULT_ADMIN_USERNAME,
-                    )
-            except PricingCatalogError as error:
+            configured = await ensure_administrator(session, settings)
+            if (
+                not configured
+                and settings.app_env != "prod"
+                and await seed_default_administrator(session, settings)
+            ):
                 logging.getLogger(__name__).warning(
-                    "Account bootstrap is waiting for an active SPHERE pricing: %s",
-                    error,
+                    "No administrator existed, so bootstrap account '%s' was created. "
+                    "Sign in, create a real administrator, and delete the bootstrap account.",
+                    DEFAULT_ADMIN_USERNAME,
                 )
             await session.commit()
 
-        if settings.sphere_enabled:
-            async with db_base.session_factory()() as session:
-                from sqlalchemy import select
-
-                from .db.models import User, UserRole
-
-                administrator = await session.scalar(
-                    select(User).where(User.role == UserRole.ADMIN).limit(1)
-                )
-                if administrator is None:
-                    raise RuntimeError(
-                        "Pricing startup reconciliation requires an administrator account."
-                    )
-                try:
-                    await reconcile_pricing(session, settings, administrator)
-                except Exception as error:
-                    raise RuntimeError(
-                        f"Pricing startup reconciliation failed: {error}"
-                    ) from error
-                await session.commit()
-
     reconciler = None
     if settings.database_url:
-        reconciler = asyncio.create_task(
-            job_reconciler.run_reconciler(settings=settings)
-        )
+        reconciler = asyncio.create_task(job_reconciler.run_reconciler())
     try:
         yield
     finally:
@@ -204,8 +158,13 @@ TAGS_METADATA = [
     {"name": "Jobs", "description": "Durable job lifecycle, retries and events."},
     {"name": "Notifications", "description": "Account inbox and preferences."},
     {"name": "Explore", "description": "Public projects, publications and immutable resources."},
-    {"name": "Pricing", "description": "The public LIVE pricing metadata and compatibility proxy."},
-    {"name": "Pricing Administration", "description": "SPHERE and SPACE pricing lifecycle control room."},
+    {
+        "name": "Pricing",
+        "description": (
+            "The published pricing, read only from SPHERE. Pricings, versions, plans and "
+            "contracts are administered in the SPHERE and SPACE consoles."
+        ),
+    },
 ]
 
 app = FastAPI(
@@ -372,7 +331,6 @@ app.include_router(users_router)
 app.include_router(identity_router)
 app.include_router(admin_router)
 app.include_router(pricing_router)
-app.include_router(pricing_admin_router)
 app.include_router(organizations_router)
 app.include_router(sponsor_organization_router)
 app.include_router(sponsor_me_router)
@@ -1400,7 +1358,6 @@ def openapi_with_security_contract() -> dict:
     add_problem(resource, 404, "The exact published resource does not exist.")
     add_problem(resource_approval, 404, "The exact resource revision does not exist.")
     add_problem(paths["/v1/schemas/{kind}"]["get"], 404, "The requested BIM schema does not exist.")
-    add_problem(paths["/v1/pricing"]["get"], 404, "This deployment has no pricing document.")
     add_problem(paths["/v1/examples/{example_path}"]["get"], 404, "The example package does not exist.")
     add_problem(paths["/v1/examples/{example_path}"]["get"], 422, "The installed example package is invalid.")
     add_problem(engines["post"], 403, "The manifest namespace does not belong to the caller.")

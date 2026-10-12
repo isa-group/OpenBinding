@@ -8,9 +8,6 @@
 !experimentation/
 !experimentation/qacobench/
 !experimentation/qacobench/**
-!space/
-!space/pricing/
-!space/pricing/openbinding.yml
 !datasets/
 !datasets/scripts/
 !datasets/scripts/transform_*.py

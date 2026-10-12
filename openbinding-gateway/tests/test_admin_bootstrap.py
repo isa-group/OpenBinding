@@ -14,7 +14,6 @@ from _pricing import fake_pricing_gate, pricing_catalog
 from openbinding_gateway.core.settings import Settings
 from openbinding_gateway.db.bootstrap import (
     DEFAULT_ADMIN_PASSWORD,
-    DEFAULT_ADMIN_PLAN,
     DEFAULT_ADMIN_USERNAME,
     ensure_administrator,
     seed_default_administrator,
@@ -38,16 +37,32 @@ async def test_an_empty_database_gets_an_administrator(db_session):
     assert seeded.role is UserRole.ADMIN
 
 
-async def test_an_administrator_is_seeded_on_the_plan_it_needs(db_session):
-    # Administration authority and commercial entitlements are independent.
-    await seed_default_administrator(db_session)
+async def test_an_administrator_is_seeded_without_a_plan_unless_one_is_configured(db_session):
+    # Administration authority and commercial entitlements are independent, and
+    # the bootstrap reads no pricing to choose a plan: SPACE assigns it unless
+    # BOOTSTRAP_ADMIN_PLAN names one.
+    await seed_default_administrator(db_session, Settings(_env_file=None))
     admin = (
         await db_session.execute(
             select(User).where(User.username == DEFAULT_ADMIN_USERNAME)
         )
     ).scalar_one()
 
-    assert admin.plan_cache == DEFAULT_ADMIN_PLAN
+    assert admin.plan_cache == ""
+    assert admin.contract_pending is True
+
+
+async def test_a_configured_bootstrap_plan_is_used_as_given(db_session):
+    await seed_default_administrator(
+        db_session, Settings(_env_file=None, bootstrap_admin_plan="PRO")
+    )
+    admin = (
+        await db_session.execute(
+            select(User).where(User.username == DEFAULT_ADMIN_USERNAME)
+        )
+    ).scalar_one()
+
+    assert admin.plan_cache == "PRO"
 
 
 async def test_the_seeded_password_is_the_documented_one(db_session):
@@ -154,7 +169,7 @@ async def test_an_existing_account_is_promoted_rather_than_duplicated(db_session
     assert everybody[0].role is UserRole.ADMIN
 
 
-async def test_an_existing_configured_admin_is_kept_on_operational_plan(db_session):
+async def test_an_existing_configured_admin_is_kept_on_the_configured_plan(db_session):
     db_session.add(
         User(
             username="admin",
@@ -167,10 +182,30 @@ async def test_an_existing_configured_admin_is_kept_on_operational_plan(db_sessi
     )
     await db_session.flush()
 
-    assert await ensure_administrator(db_session, configured(bootstrap_admin_username="admin")) is True
+    settings = configured(bootstrap_admin_username="admin", bootstrap_admin_plan="PRO")
+    assert await ensure_administrator(db_session, settings) is True
     admin = (await db_session.execute(select(User).where(User.username == "admin"))).scalar_one()
-    assert admin.plan_cache == DEFAULT_ADMIN_PLAN
+    assert admin.plan_cache == "PRO"
     assert admin.contract_pending is True
+
+
+async def test_an_existing_admin_keeps_its_plan_when_none_is_configured(db_session):
+    db_session.add(
+        User(
+            username="admin",
+            email="admin@example.org",
+            password_hash="x",
+            role=UserRole.ADMIN,
+            plan_cache="BASIC",
+            contract_pending=False,
+        )
+    )
+    await db_session.flush()
+
+    assert await ensure_administrator(db_session, configured(bootstrap_admin_username="admin")) is False
+    admin = (await db_session.execute(select(User).where(User.username == "admin"))).scalar_one()
+    assert admin.plan_cache == "BASIC"
+    assert admin.contract_pending is False
 
 
 async def test_nothing_happens_once_an_administrator_exists(db_session):

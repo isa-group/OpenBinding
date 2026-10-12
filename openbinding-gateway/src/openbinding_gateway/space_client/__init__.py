@@ -1,50 +1,38 @@
 """The pricing service, and the seam that keeps it replaceable."""
 
-import os
-from collections.abc import Awaitable, Callable
-from pathlib import Path
 from typing import Optional
 
 from ..core.settings import Settings
-from ..pricing_catalog import PricingCatalog
-from .fake import FakePricingGate
 from .gate import (
     SERVICE_NAME,
     PlanCaps,
     PricingGate,
     PricingUnavailable,
+    SubscriptionRejected,
     SubscriptionSnapshot,
     feature_id,
 )
+from .open import OpenCaps, OpenGate
 from .space import SpacePricingGate
 
 _gate: Optional[PricingGate] = None
 
 
-def build_gate(
-    settings: Settings,
-    *,
-    catalog: PricingCatalog | None = None,
-    catalog_resolver: Callable[[str], Awaitable[PricingCatalog]] | None = None,
-) -> PricingGate:
+def build_gate(settings: Settings) -> PricingGate:
     """The gate this deployment should use.
 
-    A gateway with SPACE switched off still has a working pricing gate - the
-    fake one - so that plan entitlements are exercised in development rather
-    than only in production.
+    SPACE is the only source of plans and contracts. With it switched off
+    (development and QacoBench; ``Settings`` refuses this in ``APP_ENV=prod``)
+    the gateway runs a stateless open gate that grants every functional
+    capability and keeps no plan or counter.
     """
     if settings.space_enabled:
-        return SpacePricingGate(settings, catalog_resolver=catalog_resolver)
-    local_catalog = os.environ.get("LOCAL_PRICING_CATALOG")
-    if catalog is None and local_catalog:
-        catalog = PricingCatalog.parse(Path(local_catalog).read_bytes())
-    gate = FakePricingGate(catalog)
-    local_plan = os.environ.get("LOCAL_PRICING_PLAN")
-    if local_plan:
-        if catalog is None or local_plan not in catalog.plans:
-            raise ValueError(f"LOCAL_PRICING_PLAN {local_plan!r} is absent from the local catalog")
-        gate.default_plan = local_plan
-    return gate
+        return SpacePricingGate(settings)
+    if settings.app_env == "prod":
+        raise RuntimeError(
+            "SPACE_ENABLED is false while APP_ENV=prod: production needs SPACE for plans and contracts."
+        )
+    return OpenGate()
 
 
 def set_gate(gate: Optional[PricingGate]) -> None:
@@ -54,24 +42,26 @@ def set_gate(gate: Optional[PricingGate]) -> None:
 
 
 def get_gate() -> PricingGate:
-    """The installed gate, building a fallback if the lifespan never ran.
+    """The installed gate.
 
-    The fallback matters for tests that import a route module directly rather
-    than starting the application.
+    There is deliberately no fallback: a process that never installed a gate
+    must not guess one, because the guess would decide what accounts may do.
+    Tests install theirs in ``tests/conftest.py``.
     """
-    global _gate
     if _gate is None:
-        _gate = FakePricingGate()
+        raise RuntimeError("No pricing gate is installed; the application lifespan did not run.")
     return _gate
 
 
 __all__ = [
-    "FakePricingGate",
+    "OpenCaps",
+    "OpenGate",
     "PlanCaps",
     "PricingGate",
     "PricingUnavailable",
     "SERVICE_NAME",
     "SpacePricingGate",
+    "SubscriptionRejected",
     "SubscriptionSnapshot",
     "build_gate",
     "feature_id",

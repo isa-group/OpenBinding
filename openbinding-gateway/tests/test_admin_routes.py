@@ -18,8 +18,6 @@ from openbinding_gateway import space_client
 from openbinding_gateway.db.models import (
     AuthIdentity,
     Notification,
-    PricingRelease,
-    PricingSphereState,
     User,
     UserRole,
 )
@@ -396,27 +394,40 @@ async def test_research_requires_verified_us_cas_and_never_accepts_add_ons(
     assert accepted.json()["subscription"]["plan"] == INSTITUTIONAL_PLAN
 
 
-async def test_expired_contract_moves_to_live_before_the_next_request(
+async def test_an_expired_contract_is_left_to_space_to_renew(
     api_client, registration, gate, db_session
 ):
+    """Renewal and version migration are SPACE's own lifecycle, not a request side effect."""
     profile, headers = await account(api_client, registration)
     user_id = uuid.UUID(profile["id"])
     gate.versions[user_id] = "previous-version"
-    gate.renews_at[user_id] = datetime.now(timezone.utc) - timedelta(seconds=1)
-    db_session.add(PricingRelease(
-        version=CATALOG.version,
-        digest=CATALOG.digest,
-        sphere_organization_id="openbinding-org", sphere_state=PricingSphereState.PUBLIC_RELEASE,
-        public_url=f"https://sphere.example/static/pricings/openbinding/{CATALOG.version}.yaml",
-        is_live=True, created_by_id=user_id,
-    ))
-    await db_session.flush()
+    expired = datetime.now(timezone.utc) - timedelta(seconds=1)
+    gate.renews_at[user_id] = expired
 
     response = await api_client.get("/v1/users/me", headers=headers)
 
     assert response.status_code == 200
-    assert gate.versions[user_id] == CATALOG.version
-    assert gate.renews_at[user_id] > datetime.now(timezone.utc)
+    assert gate.versions[user_id] == "previous-version"
+    assert gate.renews_at[user_id] == expired
+
+
+async def test_an_administrator_change_pins_the_configured_pricing_version(
+    api_client, registration, gate, db_session
+):
+    profile, _ = await account(api_client, registration)
+    _, admin = await account(api_client, registration, db_session, admin=True)
+    user_id = uuid.UUID(profile["id"])
+    gate.versions[user_id] = CATALOG.version
+
+    response = await api_client.post(
+        f"/v1/admin/users/{profile['id']}/subscription",
+        headers=admin,
+        json={"plan": LARGER_PLAN, "add_ons": {}, "reason": "administrative_decision"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["subscription"]["pricing_version"] == "0.1.0"
+    assert gate.versions[user_id] == "0.1.0"
 
 
 # -- Usage ------------------------------------------------------------------

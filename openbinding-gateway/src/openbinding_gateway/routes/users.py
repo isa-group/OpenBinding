@@ -6,15 +6,15 @@ import uuid
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Request, status
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_current_user, get_user_by_identifier, session_dependency
 from ..db.models import (
     ApiKey, Blob, AuthIdentity, Artifact, ArtifactVersion, ArtifactDraft, ArtifactPublication, BindingCase, BindingCaseRevision, Collection,
     CollectionItem, CollectionRevision, Job, Organization, OrganizationMembership,
-    OrganizationRole, PricingRelease, Project, ProjectResource,
-    ProjectResourceRevision, Publication, Report, Study, StudyRun, User, UserRole, utcnow,
+    OrganizationRole, Project, ProjectResource,
+    ProjectResourceRevision, Publication, Report, Study, StudyRun, User, utcnow,
 )
 from ..models.accounts import (
     ApiKeyList,
@@ -781,29 +781,6 @@ async def delete_own_account(
     )).all()
     for pub, org_id in publications:
         pub.published_by_id = await require_org_owner(org_id)
-
-    if user.is_admin:
-        replacement_admin = (await session.execute(
-            select(User)
-            .where(User.id != user.id, User.role == UserRole.ADMIN, User.is_active.is_(True))
-            .order_by(User.created_at)
-        )).scalars().first()
-        if replacement_admin is not None:
-            await session.execute(
-                update(PricingRelease)
-                .where(PricingRelease.created_by_id == user.id)
-                .values(created_by_id=replacement_admin.id)
-            )
-        else:
-            authored_pricing = await session.scalar(
-                select(func.count(PricingRelease.id)).where(PricingRelease.created_by_id == user.id)
-            )
-            if authored_pricing:
-                raise api_error(
-                    status.HTTP_409_CONFLICT,
-                    "last_pricing_admin",
-                    "Cannot delete the last administrator who authored pricing releases.",
-                )
 
     try:
         remove_contract = getattr(get_gate(), "remove_contract", None)

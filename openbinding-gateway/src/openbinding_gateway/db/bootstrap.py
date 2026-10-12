@@ -16,13 +16,16 @@ If that account already exists it is promoted rather than recreated, so an
 administrator who registered normally can be granted the role by restarting
 with their username set. And nothing happens at all once any administrator
 exists, so leaving the variables in place is harmless.
+
+The bootstrap writes accounts only. It reads no pricing and chooses no plan
+from one: the administrator's plan is ``BOOTSTRAP_ADMIN_PLAN`` when configured;
+otherwise the account is created without a plan and SPACE assigns the
+contract's.
 """
 
 from __future__ import annotations
 
 import logging
-from functools import lru_cache
-from pathlib import Path
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,36 +47,9 @@ DEFAULT_ADMIN_PASSWORD = "4dm1n"
 DEFAULT_ADMIN_EMAIL = "admin@example.org"
 
 
-@lru_cache(maxsize=1)
-def _published_operational_plan() -> str:
-    """The highest-capacity plan of the published iPricing, without naming one in code."""
-    from ..pricing_catalog import PricingCatalog, PricingCatalogError
-
-    root = Path(__file__).resolve()
-    for candidate in (
-        Path("/app/space/pricing/openbinding.yml"),
-        Path("/space/pricing/openbinding.yml"),
-        root.parents[4] / "space" / "pricing" / "openbinding.yml",
-        root.parents[3] / "space" / "pricing" / "openbinding.yml",
-    ):
-        if candidate.is_file():
-            catalog = PricingCatalog.parse(candidate.read_bytes())
-            return max(catalog.plans, key=lambda plan: catalog.entitlements(plan)[1]["taskStarts"])
-    raise PricingCatalogError(
-        "No operational plan is configured (BOOTSTRAP_ADMIN_PLAN) and no published iPricing was found"
-    )
-
-
 def operational_plan(settings: Settings | None = None) -> str:
-    """The plan of the bootstrap administrator: configured, else the published catalog's largest."""
-    return (settings or get_settings()).bootstrap_admin_plan or _published_operational_plan()
-
-
-def __getattr__(name: str) -> str:
-    # ``DEFAULT_ADMIN_PLAN`` stays importable, resolved from configuration on first use.
-    if name == "DEFAULT_ADMIN_PLAN":
-        return operational_plan()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    """The plan of the bootstrap administrator: ``BOOTSTRAP_ADMIN_PLAN``, else none (``""``)."""
+    return ((settings or get_settings()).bootstrap_admin_plan or "").strip()
 
 
 async def ensure_administrator(session: AsyncSession, settings: Settings) -> bool:
@@ -86,9 +62,12 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
     result = await session.execute(select(User).where(User.username == username))
     account = result.scalars().first()
 
-    # Keep the configured bootstrap administrator on the operational plan
-    # required by the deployment, even when the account predates SPACE.
+    # Keep the configured bootstrap administrator on the plan required by the
+    # deployment, even when the account predates SPACE. Without a configured
+    # plan the account's current one is left alone.
     if account is not None and account.role is UserRole.ADMIN:
+        if not plan:
+            return False
         changed = account.plan_cache != plan
         account.plan_cache = plan
         if changed:
@@ -105,7 +84,8 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
 
     if account is not None:
         account.role = UserRole.ADMIN
-        account.plan_cache = plan
+        if plan:
+            account.plan_cache = plan
         account.contract_pending = True
         await session.flush()
         logger.info("Promoted '%s' to administrator", username)
@@ -135,7 +115,7 @@ async def ensure_administrator(session: AsyncSession, settings: Settings) -> boo
 
 
 def _administrator(username: str, email: str, password: str, plan: str) -> User:
-    """The configured administrator on the deployment's operational plan."""
+    """The configured administrator, on ``plan`` (empty: SPACE assigns it)."""
     return User(
         username=username,
         email=email,
@@ -143,7 +123,7 @@ def _administrator(username: str, email: str, password: str, plan: str) -> User:
         role=UserRole.ADMIN,
         plan_cache=plan,
         # No contract yet; the same reconciliation an ordinary registration
-        # relies on will settle it, on this plan.
+        # relies on will settle it.
         contract_pending=True,
     )
 

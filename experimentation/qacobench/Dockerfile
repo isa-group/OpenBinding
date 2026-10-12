@@ -4,7 +4,6 @@ ENV PYTHONUNBUFFERED=1 PYTHONPATH=/workspace/openbinding-gateway/src:/workspace 
 WORKDIR /workspace
 COPY openbinding-gateway/ openbinding-gateway/
 COPY schemas/ schemas/
-COPY space/pricing/openbinding.yml space/pricing/openbinding.yml
 COPY experimentation/qacobench/ experimentation/qacobench/
 COPY datasets/scripts/transform_*.py transformations/scripts/
 RUN uv pip install --system -r experimentation/qacobench/requirements.lock

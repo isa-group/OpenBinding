@@ -19,9 +19,16 @@ import uuid
 
 import pytest
 
+from _fake_space import FakePricingGate
 from _pricing import largest_plan, pricing_catalog
 from openbinding_gateway.core.settings import Settings
-from openbinding_gateway.space_client import FakePricingGate, PricingGate, PricingUnavailable, SpacePricingGate
+from openbinding_gateway.space_client import (
+    OpenGate,
+    PricingGate,
+    PricingUnavailable,
+    SpacePricingGate,
+    SubscriptionRejected,
+)
 
 CATALOG = pricing_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
@@ -118,7 +125,8 @@ def a_pristine_environment(monkeypatch):
         "SPACE_ENABLED",
         "SPACE_URL",
         "SPACE_API_KEY",
-        "SPACE_FAIL_MODE",
+        "SPACE_PRICING_VERSION",
+        "SPACE_DEFAULT_PLAN",
         "SPACE_TIMEOUT_MS",
         "FEDERATION_SECRET_KEY",
         "FEDERATION_REQUIRE_HTTPS",
@@ -126,15 +134,8 @@ def a_pristine_environment(monkeypatch):
         monkeypatch.delenv(name, raising=False)
 
 
-def gate_over(recorder: Recorder) -> SpacePricingGate:
-    async def resolve(version: str):
-        if version != CATALOG.version:
-            raise AssertionError(f"unexpected catalog version {version}")
-        return CATALOG
-
-    return SpacePricingGate(
-        Settings(_env_file=None), client=recorder, catalog_resolver=resolve
-    )
+def gate_over(recorder: Recorder, **settings) -> SpacePricingGate:
+    return SpacePricingGate(Settings(_env_file=None, **settings), client=recorder)
 
 
 @pytest.fixture
@@ -148,7 +149,7 @@ def test_it_refuses_to_start_without_a_url_or_key():
         SpacePricingGate(Settings(_env_file=None, space_enabled=True))
 
 
-@pytest.mark.parametrize("gate_class", [PricingGate, SpacePricingGate, FakePricingGate])
+@pytest.mark.parametrize("gate_class", [PricingGate, SpacePricingGate, FakePricingGate, OpenGate])
 def test_no_gate_offers_to_evaluate_or_consume(gate_class):
     consuming = [name for name in dir(gate_class) if any(word in name for word in ("usage", "evaluat", "revert"))]
 
@@ -247,11 +248,31 @@ async def test_a_contract_that_space_quietly_refused_is_an_error(user_id):
     assert "pricing version" in str(error.value)
 
 
-async def test_a_contract_requires_an_explicit_pricing_version(user_id):
-    with pytest.raises(PricingUnavailable, match="exact LIVE pricing version"):
+async def test_a_contract_requires_a_pricing_version_from_the_call_or_the_configuration(user_id):
+    with pytest.raises(PricingUnavailable, match="SPACE_PRICING_VERSION"):
         await gate_over(Recorder()).create_contract(
             user_id, DEFAULT_PLAN, "someone@example.org"
         )
+
+
+async def test_the_configured_pricing_version_is_used_when_the_call_names_none(user_id):
+    recorder = Recorder()
+
+    await gate_over(recorder, space_pricing_version=CATALOG.version).create_contract(
+        user_id, DEFAULT_PLAN, "someone@example.org"
+    )
+
+    assert recorder.calls[0][1].contracted_services == {"openbinding": CATALOG.version}
+
+
+async def test_a_contract_without_a_plan_leaves_the_plan_to_space(user_id):
+    recorder = Recorder()
+
+    await gate_over(recorder).create_contract(user_id, None, "someone@example.org", CATALOG.version)
+
+    contract = recorder.calls[0][1]
+    assert contract.subscription_plans == {}
+    assert contract.contracted_services == {"openbinding": CATALOG.version}
 
 
 async def test_a_new_contract_spells_out_an_empty_phone(user_id):
@@ -276,39 +297,41 @@ async def test_changing_plan_novates_the_subscription(user_id):
     assert subscription.subscription_plans == {"openbinding": LARGER_PLAN}
 
 
-async def test_an_expired_contract_is_novated_to_live_with_plan_and_add_ons_preserved(user_id):
+async def test_a_plan_change_keeps_the_version_the_contract_is_pinned_to(user_id):
+    recorder = Recorder(contract=contract_for(version="pinned-version"))
+
+    await gate_over(recorder).change_plan(user_id, LARGER_PLAN)
+
+    subscription = next(call[2] for call in recorder.calls if call[0] == "novate")
+    assert subscription.contracted_services == {"openbinding": "pinned-version"}
+    assert subscription.subscription_plans == {"openbinding": LARGER_PLAN}
+
+
+async def test_a_plan_change_keeps_the_add_ons_and_follows_the_configured_version(user_id):
     add_on_name, add_on = next(iter(CATALOG.add_ons.items()))
     plan = next(iter(add_on.available_for))
     selected = {add_on_name: add_on.minimum}
-    recorder = Recorder(
-        contract=contract_for(
-            plan,
-            version="previous-version",
-            add_ons=selected,
-            end_date="2020-01-01T00:00:00Z",
-        )
-    )
+    recorder = Recorder(contract=contract_for(plan, version="previous-version", add_ons=selected))
 
-    changed = await gate_over(recorder).migrate_due_contract(user_id, CATALOG.version)
+    await gate_over(recorder, space_pricing_version=CATALOG.version).change_plan(user_id, plan)
 
-    assert changed is True
     subscription = next(call[2] for call in recorder.calls if call[0] == "novate")
     assert subscription.contracted_services == {"openbinding": CATALOG.version}
-    assert subscription.subscription_plans == {"openbinding": plan}
     assert subscription.subscription_add_ons == {"openbinding": selected}
 
 
-async def test_a_contract_is_not_migrated_before_its_renewal(user_id):
-    recorder = Recorder(
-        contract=contract_for(
-            version="previous-version", end_date="2999-01-01T00:00:00Z"
-        )
-    )
+async def test_a_novation_space_quietly_refused_is_a_rejected_subscription(user_id):
+    """Like ``add_contract``, the client answers a refused novation with a quiet None."""
+    recorder = Recorder(contract=contract_for(DEFAULT_PLAN))
+    recorder.contracts.update_contract_subscription = lambda *_args: None
 
-    changed = await gate_over(recorder).migrate_due_contract(user_id, CATALOG.version)
+    with pytest.raises(SubscriptionRejected, match="did not accept"):
+        await gate_over(recorder).change_plan(user_id, LARGER_PLAN, CATALOG.version)
 
-    assert changed is False
-    assert all(call[0] != "novate" for call in recorder.calls)
+
+async def test_the_gate_has_no_renewal_or_version_migration():
+    for gate_class in (SpacePricingGate, PricingGate, OpenGate, FakePricingGate):
+        assert [name for name in dir(gate_class) if "migrate" in name or "renew" in name] == []
 
 
 async def test_a_pricing_token_is_returned(user_id):
@@ -323,8 +346,8 @@ async def test_a_pricing_token_that_never_arrives_is_an_outage(user_id):
 
 
 async def test_an_unreachable_space_is_an_outage_not_a_refusal(user_id):
-    # The difference decides what SPACE_FAIL_MODE does; a refusal is never
-    # negotiable, an outage might be.
+    # Callers answer 503 pricing_unavailable (fail closed) for an outage; a
+    # refusal is a different answer and is never negotiable.
     with pytest.raises(PricingUnavailable):
         await gate_over(Recorder(explode=True)).caps(user_id)
 

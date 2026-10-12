@@ -20,7 +20,6 @@ ALLOWED_LEGACY = frozenset(
     {
         "analysis_jobs",
         "artifacts",
-        "pricing_bootstrap",
         "reports",
         "study_jobs",
     }

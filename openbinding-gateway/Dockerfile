@@ -33,10 +33,6 @@ COPY openbinding-gateway/alembic/ alembic/
 COPY schemas/ schemas/
 COPY examples/ examples/
 
-# The first administrator is provisioned on the plan with the most task starts in
-# the pricing catalogue; db/bootstrap.py looks for it at /app/space/pricing.
-COPY space/pricing/openbinding.yml space/pricing/openbinding.yml
-
 # Add test runner script
 RUN echo '#!/bin/sh\npytest "$@"' > /usr/local/bin/test && \
     chmod +x /usr/local/bin/test

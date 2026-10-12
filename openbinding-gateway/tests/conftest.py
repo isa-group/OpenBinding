@@ -34,7 +34,11 @@ os.environ.setdefault("GATEWAY_JWT_SECRET", "test-secret-not-used-anywhere-real"
 os.environ.setdefault("JOB_DISPATCH_MODE", "inline")
 os.environ["SPHERE_ENABLED"] = "false"
 os.environ.pop("SPHERE_ORGANIZATION_ID", None)
-os.environ.pop("SPACE_DESTRUCTIVE_API_KEY", None)
+# The fake gate installed below is built from tests/fixtures/pricing_test.yml
+# (version 0.1.0, default plan BASIC); the gateway names that version and plan
+# when it creates contracts.
+os.environ["SPACE_PRICING_VERSION"] = "0.1.0"
+os.environ["SPACE_DEFAULT_PLAN"] = "BASIC"
 os.environ.pop("BOOTSTRAP_ADMIN_USERNAME", None)
 os.environ.pop("BOOTSTRAP_ADMIN_PASSWORD", None)
 os.environ.pop("BOOTSTRAP_ADMIN_EMAIL", None)
@@ -52,7 +56,6 @@ def micro_placement_instance():
 def clean_mock_env(monkeypatch):
     monkeypatch.setenv("SPHERE_ENABLED", "false")
     monkeypatch.delenv("SPHERE_ORGANIZATION_ID", raising=False)
-    monkeypatch.delenv("SPACE_DESTRUCTIVE_API_KEY", raising=False)
     monkeypatch.delenv("BOOTSTRAP_ADMIN_USERNAME", raising=False)
     monkeypatch.delenv("BOOTSTRAP_ADMIN_PASSWORD", raising=False)
     monkeypatch.delenv("BOOTSTRAP_ADMIN_EMAIL", raising=False)
@@ -60,7 +63,7 @@ def clean_mock_env(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def pricing_catalog_gate():
-    """Every test gets an explicit catalog-backed SPACE substitute."""
+    """Every test gets a SPACE substitute built from the synthetic pricing fixture."""
     from _pricing import fake_pricing_gate
     from openbinding_gateway import space_client
 

@@ -13,6 +13,7 @@ lives in ``tests/concurrency/test_job_leases_pg.py``.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import uuid
 from datetime import timedelta
@@ -325,8 +326,6 @@ def one_pass(db_session, monkeypatch):
     )
     monkeypatch.setattr(db_base, "is_configured", lambda: True)
     monkeypatch.setattr(db_base, "session_factory", lambda: factory)
-    monkeypatch.setattr(contracts, "archive_drained_pricings", zero)
-    monkeypatch.setattr(contracts, "sweep_contract_renewals", zero)
     monkeypatch.setattr(job_dispatch, "redeliver_queued_jobs", redeliver)
     monkeypatch.setattr(sponsor_proposals, "sweep_expired", zero)
     monkeypatch.setattr(analysis_jobs, "redeliver_analysis", zero)
@@ -359,6 +358,13 @@ async def test_the_reconciler_resyncs_study_cells_after_its_sweep(
         await reconciler.run_reconciler(interval_s=0)
 
     assert await cell_state(db_session, cell_id) is RunState.COMPLETED
+
+
+def test_contract_renewal_and_version_archiving_are_spaces_not_the_reconcilers():
+    """The sweep no longer novates contracts or archives pricing versions."""
+    renewal_hooks = [name for name in dir(contracts) if "renewal" in name or "archive" in name]
+    assert renewal_hooks == []
+    assert "contracts" not in inspect.getsource(reconciler.run_reconciler)
 
 
 async def test_a_resync_that_fails_does_not_stop_the_rest_of_the_reconciler(one_pass, monkeypatch):

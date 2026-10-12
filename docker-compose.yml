@@ -51,12 +51,13 @@ services:
       - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET before starting the prod profile}
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
-      - SPACE_ENABLED=${SPACE_ENABLED:-false}
+      # Production refuses to start with SPACE_ENABLED=false (APP_ENV=prod).
+      - SPACE_ENABLED=${SPACE_ENABLED:-true}
       - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-closed}
       - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
       - REDIS_URL=redis://redis:6379/0
       - JOB_DISPATCH_MODE=dramatiq
       - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
@@ -116,7 +117,6 @@ services:
       # deliberately not mounted or committed.
       - ./experimentation:/app/experimentation:ro
       - ./pricings:/app/pricings:ro
-      - ./space:/app/space:ro
       - artifacts:/var/lib/openbinding/artifacts
     environment:
       - APP_ENV=dev
@@ -130,12 +130,13 @@ services:
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
       - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
+      # false (the default here) builds the stateless open gate: development only.
       - SPACE_ENABLED=${SPACE_ENABLED:-false}
       - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-open}
       - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
       - REDIS_URL=redis://redis:6379/0
       - JOB_DISPATCH_MODE=dramatiq
       - ARTIFACT_ROOT=/var/lib/openbinding/artifacts
@@ -190,12 +191,13 @@ services:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
       - REDIS_URL=redis://redis:6379/0
       - JOB_DISPATCH_MODE=dramatiq
-      - SPACE_ENABLED=${SPACE_ENABLED:-false}
+      # Same gate as the production gateway: SPACE decides plans and contracts.
+      - SPACE_ENABLED=${SPACE_ENABLED:-true}
       - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-closed}
       - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
       - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
       - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-true}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
@@ -237,7 +239,6 @@ services:
       - ./schemas:/app/schemas:ro
       - ./openbinding-gateway:/app
       - ./pricings:/app/pricings:ro
-      - ./space:/app/space:ro
       - artifacts:/var/lib/openbinding/artifacts
     environment:
       - SCHEMAS_DIR=/app/schemas
@@ -249,8 +250,8 @@ services:
       - SPACE_URL=${SPACE_URL:-https://space.score.us.es}
       - SPACE_API_KEY=${SPACE_API_KEY:-}
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
-      - SPACE_FAIL_MODE=${SPACE_FAIL_MODE:-open}
       - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
+      - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
       - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
       - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-false}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000

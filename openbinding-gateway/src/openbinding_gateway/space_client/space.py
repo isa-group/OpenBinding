@@ -21,16 +21,15 @@ import binascii
 import inspect
 import json
 import uuid
-from collections.abc import Awaitable, Callable
-from datetime import datetime, timezone
+from collections.abc import Callable
 from typing import Any, Dict, Optional, TypeVar
 
 from ..core.settings import Settings
-from ..pricing_catalog import PricingCatalog, PricingCatalogError
 from .gate import (
     SERVICE_NAME,
     PlanCaps,
     PricingUnavailable,
+    SubscriptionRejected,
     SubscriptionSnapshot,
 )
 
@@ -40,13 +39,8 @@ T = TypeVar("T")
 class SpacePricingGate:
     """A ``PricingGate`` backed by a real SPACE deployment."""
 
-    def __init__(
-        self,
-        settings: Settings,
-        client: Optional[Any] = None,
-        catalog_resolver: Callable[[str], Awaitable[PricingCatalog]] | None = None,
-    ):
-        self._catalog_resolver = catalog_resolver
+    def __init__(self, settings: Settings, client: Optional[Any] = None):
+        self._settings = settings
         if client is not None:
             self._client = client
         else:
@@ -101,36 +95,19 @@ class SpacePricingGate:
     async def _contract(self, user_id: uuid.UUID) -> Optional[Any]:
         return await self._call(lambda: self._client.contracts.get_contract(str(user_id)))
 
-    async def _catalog(self, version: str) -> PricingCatalog:
-        if self._catalog_resolver is None:
-            raise PricingUnavailable("No SPHERE pricing catalog resolver is configured.")
-        try:
-            return await self._catalog_resolver(version)
-        except PricingCatalogError as exc:
-            raise PricingUnavailable(str(exc)) from exc
-
-    async def _catalog_for_user(self, user_id: uuid.UUID) -> PricingCatalog:
-        contract = await self._contract(user_id)
-        if contract is None:
-            raise PricingUnavailable("SPACE has no contract for this account.")
-        services = _attribute(contract, "contracted_services", "contractedServices") or {}
-        version = services.get(SERVICE_NAME)
-        if not version:
-            raise PricingUnavailable("The SPACE contract has no OpenBinding pricing version.")
-        return await self._catalog(str(version))
+    def _target_version(self, pricing_version: Optional[str]) -> Optional[str]:
+        """The explicit version, else the configured ``SPACE_PRICING_VERSION``."""
+        return pricing_version or self._settings.space_pricing_version or None
 
     async def caps(self, user_id: uuid.UUID) -> PlanCaps:
         claims = await self._entitlements(user_id)
         if claims is None:
             raise PricingUnavailable("SPACE did not return pricing entitlements.")
 
+        # Entitlement values come only from SPACE's token.
         contract = await self._contract(user_id)
         if contract is None:
             raise PricingUnavailable("SPACE has no contract for this account.")
-        services = _attribute(contract, "contracted_services", "contractedServices") or {}
-        # Resolve the exact SPHERE document to verify the contract version and
-        # digest. Entitlement values themselves come only from SPACE's token.
-        await self._catalog(str(services.get(SERVICE_NAME) or ""))
         plan = _plan_name(contract)
         pricing_context = claims.get("pricingContext")
         if not isinstance(pricing_context, dict):
@@ -161,7 +138,7 @@ class SpacePricingGate:
     async def create_contract(
         self,
         user_id: uuid.UUID,
-        plan: str,
+        plan: Optional[str],
         email: str,
         pricing_version: Optional[str] = None,
     ) -> None:
@@ -171,11 +148,13 @@ class SpacePricingGate:
             UserContact,
         )
 
+        pricing_version = self._target_version(pricing_version)
         if not pricing_version:
-            raise PricingUnavailable("An exact LIVE pricing version is required.")
-        # Resolve the exact SPHERE document and verify its digest. SPACE owns
-        # plan/add-on validation; duplicating it here creates a second contract.
-        await self._catalog(pricing_version)
+            raise PricingUnavailable(
+                "No pricing version to contract: set SPACE_PRICING_VERSION."
+            )
+        # SPACE owns plan/add-on validation; duplicating it here would be a
+        # second source of truth. Without a plan, SPACE assigns the contract's.
         await self._call(
             lambda: self._client.contracts.add_contract(ContractToCreate(
                 # `phone` is spelled out, empty, on purpose. Left unset the
@@ -189,7 +168,7 @@ class SpacePricingGate:
                 ),
                 billing_period=BillingPeriodToCreate(auto_renew=True, renewal_days=30),
                 contracted_services={SERVICE_NAME: pricing_version},
-                subscription_plans={SERVICE_NAME: plan},
+                subscription_plans={SERVICE_NAME: plan} if plan else {},
                 subscription_add_ons={},
             )),
         )
@@ -202,9 +181,8 @@ class SpacePricingGate:
         if await self._contract(user_id) is None:
             raise PricingUnavailable(
                 f"SPACE accepted no contract for this account on plan {plan!r}. The usual "
-                f"cause is that pricing version {pricing_version} of '{SERVICE_NAME}' does "
-                f"not declare that plan - check what is registered against "
-                f"space/pricing/openbinding.yml."
+                f"cause is that pricing version {pricing_version} of '{SERVICE_NAME}' is not "
+                f"deployed in SPACE or does not declare that plan - check it in the SPACE console."
             )
 
     async def change_plan(
@@ -237,11 +215,19 @@ class SpacePricingGate:
     ) -> SubscriptionSnapshot:
         from space_client.types.models import Subscription
 
-        if not pricing_version:
-            raise PricingUnavailable("An exact pricing version is required for a novation.")
-        target_version = pricing_version
-        # Verify the version bytes, then let SPACE validate the novation.
-        await self._catalog(target_version)
+        target_version = self._target_version(pricing_version)
+        if not target_version:
+            # A plan change keeps the version the contract is already pinned to.
+            existing = await self._contract(user_id)
+            if existing is None:
+                raise PricingUnavailable("SPACE has no contract for this account.")
+            services = _attribute(existing, "contracted_services", "contractedServices") or {}
+            target_version = str(services.get(SERVICE_NAME) or "")
+        if not target_version:
+            raise PricingUnavailable(
+                "No pricing version for the novation: set SPACE_PRICING_VERSION."
+            )
+        # SPACE validates the novation against the version it has deployed.
         updated = await self._call(
             lambda: self._client.contracts.update_contract_subscription(
                 str(user_id), Subscription(
@@ -255,8 +241,9 @@ class SpacePricingGate:
             updated = await self._contract(user_id)
             services = _attribute(updated, "contracted_services", "contractedServices") or {}
             if updated is None or _plan_name(updated) != plan or services.get(SERVICE_NAME) != target_version:
-                raise PricingUnavailable(
-                    "SPACE did not persist the requested subscription novation."
+                raise SubscriptionRejected(
+                    "SPACE did not accept the requested subscription novation: check the plan "
+                    f"and add-ons against pricing version {target_version} in SPACE."
                 )
         period = _attribute(updated, "billing_period", "billingPeriod")
         return SubscriptionSnapshot(
@@ -265,25 +252,6 @@ class SpacePricingGate:
             add_ons=dict(add_ons),
             renews_at=_attribute(period, "end_date", "endDate"),
         )
-
-    async def migrate_due_contract(self, user_id: uuid.UUID, pricing_version: str) -> bool:
-        existing = await self._contract(user_id)
-        if existing is None:
-            raise PricingUnavailable("SPACE has no contract for this account.")
-        services = _attribute(existing, "contracted_services", "contractedServices") or {}
-        if services.get(SERVICE_NAME) == pricing_version:
-            return False
-        period = _attribute(existing, "billing_period", "billingPeriod")
-        end_date = _attribute(period, "end_date", "endDate")
-        if not _is_due(end_date):
-            return False
-        await self.change_subscription(
-            user_id,
-            _plan_name(existing),
-            _service_add_ons(existing),
-            pricing_version,
-        )
-        return True
 
     async def pricing_token(self, user_id: uuid.UUID) -> str:
         token = await self._call(
@@ -338,21 +306,6 @@ def _service_add_ons(contract: Any) -> Dict[str, int]:
     if not isinstance(scoped, dict):
         return {}
     return {str(name): int(quantity) for name, quantity in scoped.items()}
-
-
-def _is_due(value: Any) -> bool:
-    if not value:
-        return False
-    if isinstance(value, datetime):
-        moment = value
-    else:
-        try:
-            moment = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-        except ValueError:
-            return False
-    if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=timezone.utc)
-    return moment <= datetime.now(timezone.utc)
 
 
 def _attribute(source: Any, *names: str) -> Any:

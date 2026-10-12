@@ -77,10 +77,6 @@ class Settings(BaseSettings):
     #: nginx has its own read timeout in front of this one; the two are meant
     #: to be kept in step, with nginx's the larger of the two.
     engine_solve_timeout_s: float = 1800.0
-    #: Absolute infrastructure guardrails, independent of any plan. Pricing
-    #: publication is rejected when it promises more than these values.
-    technical_max_payload_bytes: int = 512 * 1024 * 1024
-    pricing_document_max_bytes: int = 2 * 1024 * 1024
     #: Queued plus running jobs one account may have at once; a creation past it
     #: is refused with 429 ``concurrency_limit_exceeded``. A technical limit
     #: that protects the engines, independent of the plan
@@ -123,23 +119,30 @@ class Settings(BaseSettings):
     bootstrap_admin_email: Optional[str] = None
     bootstrap_admin_password: Optional[str] = None
     #: Plan the bootstrap administrator is contracted on. The backend names no
-    #: commercial plan: unset, it is the highest-capacity plan of the published
-    #: iPricing (``space/pricing/openbinding.yml``).
+    #: commercial plan: unset, the administrator is created without one and SPACE
+    #: assigns it (``SPACE_DEFAULT_PLAN`` applies to ordinary sign-ups only).
     bootstrap_admin_plan: Optional[str] = None
 
     # -- SPACE (pricing-driven access control) ---------------------------
+    #: SPACE and SPHERE own pricings, versions, plans and contracts and are
+    #: administered in their own consoles. The gateway only creates the user's
+    #: contract, changes its plan and reads what it allows, through SPACE's
+    #: official client.
+    #: ``SPACE_ENABLED=false`` builds a stateless open gate (every functional
+    #: capability granted, no plans, no counters). It exists for development and
+    #: QacoBench only: ``APP_ENV=prod`` refuses to start with it.
     space_enabled: bool = False
+    #: Origin of SPACE (``https://space.score.us.es``); the client adds ``/api/v1``.
     space_url: Optional[str] = None
+    #: SPACE key with the MANAGEMENT scope.
     space_api_key: Optional[str] = None
     space_timeout_ms: int = 5000
-    # Only a compatibility override for tooling. Runtime contracts always use
-    # the explicit LIVE release recorded in PostgreSQL.
+    #: The pricing version new contracts are pinned to, and the version the
+    #: public pricing endpoints show. SPACE/SPHERE own the version lifecycle.
     space_pricing_version: Optional[str] = None
-    #: What to do when SPACE cannot be reached. ``closed`` refuses to solve
-    #: rather than hand out unaccounted compute; ``open`` lets the request
-    #: through, which is what local development wants.
-    space_fail_mode: Literal["open", "closed"] = "closed"
-    space_destructive_api_key: Optional[str] = None
+    #: Plan a new sign-up starts on (for example ``BASIC``). Unset, the account
+    #: is created without a plan and SPACE assigns the contract's plan.
+    space_default_plan: Optional[str] = None
 
     # -- Durable jobs and artifacts -------------------------------------
     redis_url: str = "redis://redis:6379/0"
@@ -157,7 +160,7 @@ class Settings(BaseSettings):
     cas_store_backend: Literal["memory", "redis"] = "redis"
     expose_recovery_tokens: bool = False
 
-    # -- SPHERE pricing source ------------------------------------------
+    # -- SPHERE pricing source (read only) ------------------------------
     sphere_enabled: bool = False
     sphere_url: str = "https://sphere.score.us.es"
     sphere_api_key: Optional[str] = None
@@ -223,6 +226,22 @@ class Settings(BaseSettings):
             raise ValueError(
                 "CORS_ALLOW_ORIGINS contains '*' while APP_ENV=prod: a wildcard is not "
                 "allowed in production; list the exact frontend origins instead."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def space_required_in_production(self) -> "Settings":
+        """Refuse to start a production gateway without SPACE.
+
+        With ``SPACE_ENABLED=false`` the gateway grants every functional
+        capability and meters nothing, which is only acceptable for local
+        development and QacoBench.
+        """
+        if self.app_env == "prod" and not self.space_enabled:
+            raise ValueError(
+                "SPACE_ENABLED is false while APP_ENV=prod: production needs SPACE for plans "
+                "and contracts. Set SPACE_ENABLED=true with SPACE_URL and SPACE_API_KEY; the "
+                "stateless open gate is for development and QacoBench only."
             )
         return self
 

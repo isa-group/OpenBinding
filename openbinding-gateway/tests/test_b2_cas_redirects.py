@@ -298,24 +298,25 @@ async def test_a_pricing_outage_redirects_with_pricing_unavailable(
     assert query_of(response) == {"error": "pricing_unavailable"}
 
 
-async def test_a_research_plan_missing_from_the_pricing_redirects_with_institutional_pricing_invalid(
+async def test_a_research_plan_space_refuses_redirects_with_pricing_unavailable(
     api_client, registration, cas_environment, monkeypatch
 ):
+    """SPACE, not the gateway, knows whether the deployed version has a RESEARCH plan."""
     _, headers = await account(api_client, registration)
     principal_is(monkeypatch, "uvus-nopricing")
     started = await api_client.get("/v1/auth/cas/start?mode=link", headers=headers, follow_redirects=False)
 
-    async def without_research(_session, _settings):
-        return SimpleNamespace(plans={"BASIC": object()}, default_plan="BASIC", version="v")
+    async def refused(*_args, **_kwargs):
+        raise space_client.SubscriptionRejected("RESEARCH is not declared by this pricing version")
 
-    monkeypatch.setattr(cas_routes, "live_catalog", without_research)
+    monkeypatch.setattr(cas_environment, "change_plan", refused)
     response = await api_client.get(
         "/v1/auth/cas/callback",
         params={"state": state_of(started.headers["location"]), "ticket": "ST-1"},
         follow_redirects=False,
     )
 
-    assert query_of(response) == {"error": "institutional_pricing_invalid"}
+    assert query_of(response) == {"error": "pricing_unavailable"}
 
 
 async def test_an_error_the_list_does_not_know_collapses_to_cas_error(

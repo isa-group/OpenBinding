@@ -18,7 +18,6 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.settings import Settings
 from ..db import base as db_base
 from ..db.models import Job, JobState, RunState, StudyCell, utcnow
 from .leases import MAX_ATTEMPTS, aware
@@ -169,10 +168,7 @@ async def sweep_abandoned(session: AsyncSession) -> int:
     return failed
 
 
-async def run_reconciler(
-    interval_s: float = SWEEP_INTERVAL_S,
-    settings: Settings | None = None,
-) -> None:
+async def run_reconciler(interval_s: float = SWEEP_INTERVAL_S) -> None:
     """Sweep for abandoned jobs until cancelled. Started by the lifespan.
 
     Errors are logged and the loop continues: a reconciler that dies on a
@@ -198,12 +194,9 @@ async def run_reconciler(
                 # Requeued and failed jobs must be visible to whoever reads
                 # next, and the redelivery below reaches out to the broker.
                 await session.commit()
-                from ..access.contracts import archive_drained_pricings, sweep_contract_renewals
                 from ..job_dispatch import redeliver_queued_jobs
 
                 redelivered = await redeliver_queued_jobs(session)
-                migrated = await sweep_contract_renewals(session)
-                archived = await archive_drained_pricings(session, settings) if settings else 0
                 from ..sponsor_proposals import sweep_expired
 
                 proposals_expired = await sweep_expired(session)
@@ -223,10 +216,6 @@ async def run_reconciler(
                 await redeliver_analysis(analysis_session)
             if failed:
                 logger.info("Failed %d abandoned job(s)", failed)
-            if migrated:
-                logger.info("Migrated %d expired contract(s) to LIVE", migrated)
-            if archived:
-                logger.info("Archived %d drained pricing release(s)", archived)
             if redelivered:
                 logger.info("Redelivered %d queued job(s)", redelivered)
             if proposals_expired:

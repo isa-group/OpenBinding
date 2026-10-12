@@ -1,25 +1,20 @@
-"""Pricing test fixtures parsed from the same YAML that is published."""
+"""Pricing test helpers, built from the synthetic ``fixtures/pricing_test.yml``.
+
+The fixture is a minimal stand-in for a SPACE pricing (functional limits only,
+no consumption counters, version 0.1.0). The real pricings are administered in
+SPHERE and SPACE, never in this repository.
+"""
 
 from functools import lru_cache
 from pathlib import Path
 
-from openbinding_gateway.pricing_catalog import PricingCatalog
-from openbinding_gateway.space_client import FakePricingGate, PlanCaps
+from _fake_space import FakePricingGate, PricingCatalog
+from openbinding_gateway.space_client import PlanCaps
 
-def _find_pricing_yaml() -> Path:
-    candidates = [
-        Path(__file__).resolve().parents[2] / "space/pricing/openbinding.yml",
-        Path(__file__).resolve().parents[1] / "space/pricing/openbinding.yml",
-        Path("/app/space/pricing/openbinding.yml"),
-        Path("/space/pricing/openbinding.yml"),
-    ]
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
-    return candidates[0]
+PRICING_YAML = Path(__file__).resolve().parent / "fixtures" / "pricing_test.yml"
 
-
-PRICING_YAML = _find_pricing_yaml()
+#: The version the fixture declares; conftest points ``SPACE_PRICING_VERSION`` at it.
+FIXTURE_VERSION = "0.1.0"
 
 
 @lru_cache(maxsize=1)
@@ -38,7 +33,7 @@ def caps_for(plan: str) -> PlanCaps:
 
 
 def largest_plan(limit_id: str = "maxPayloadBytes") -> str:
-    """Pick a high-capacity fixture plan from YAML, without naming one in code.
+    """Pick a high-capacity fixture plan, without naming one in code.
 
     By a functional limit: the plan that allows the largest packages.
     """

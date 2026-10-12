@@ -16,7 +16,6 @@ FILES = (
     "experimentation/qacobench/requirements.lock",
     "experimentation/qacobench/gateway.lock",
     "experimentation/qacobench/compose.yaml",
-    "space/pricing/openbinding.yml",
     "datasets/07_qfbs/manifest.jsonl",
 )
 IMAGES = ("gateway", "runner", "minizinc", "random-search", "evolutionary-heuristics")

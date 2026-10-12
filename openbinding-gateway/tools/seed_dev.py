@@ -259,24 +259,21 @@ async def ensure_space_contracts(session: AsyncSession, users: dict[str, User]) 
         logger.debug("SPACE is disabled in settings; skipping external contract provisioning.")
         return
 
-    from openbinding_gateway.pricing_catalog import catalog_for_version
     from openbinding_gateway.access.contracts import live_pricing_version
 
-    async def resolve_catalog(version: str):
-        async with db_base.session_factory()() as catalog_session:
-            return await catalog_for_version(catalog_session, settings, version)
-
     try:
-        gate = space_client.build_gate(settings, catalog_resolver=resolve_catalog)
+        gate = space_client.build_gate(settings)
         space_client.set_gate(gate)
     except Exception as gate_err:
         logger.warning("Could not initialize pricing gate: %s", gate_err)
         return
 
-    try:
-        pricing_ver = await live_pricing_version(session)
-    except Exception:
-        pricing_ver = "0.1.1"
+    # Contracts are created through SPACE's official client; the version is
+    # SPACE_PRICING_VERSION and SPACE validates the plan against it.
+    pricing_ver = live_pricing_version(settings)
+    if not pricing_ver:
+        logger.warning("SPACE_PRICING_VERSION is not set; skipping external contract provisioning.")
+        return
 
     for entry in SEED_USERS:
         username = entry["username"]
@@ -1496,12 +1493,7 @@ async def main() -> int:
 
     db_base.init_engine(database_url)
 
-    async def resolve_catalog(version: str):
-        from openbinding_gateway.pricing_catalog import catalog_for_version
-        async with db_base.session_factory()() as catalog_session:
-            return await catalog_for_version(catalog_session, settings, version)
-
-    space_client.set_gate(space_client.build_gate(settings, catalog_resolver=resolve_catalog))
+    space_client.set_gate(space_client.build_gate(settings))
 
     try:
         async with db_base.session_factory()() as session:

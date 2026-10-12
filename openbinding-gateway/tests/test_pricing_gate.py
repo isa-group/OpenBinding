@@ -1,8 +1,10 @@
 """The pricing seam: entitlements, contracts, and what an outage is not.
 
 Plans live in a SPACE instance, so most of what matters here is the shape of
-the conversation. The fake gate serves the same entitlements from the catalog so
-that the refusal paths can be exercised without one; it counts no consumption.
+the conversation. The fake gate serves the same entitlements from the synthetic
+test pricing (``fixtures/pricing_test.yml``) so that the refusal paths can be
+exercised without one; it counts no consumption. The open gate is the stateless
+stand-in for ``SPACE_ENABLED=false``.
 """
 
 from __future__ import annotations
@@ -12,12 +14,16 @@ import uuid
 import pytest
 import yaml
 
-from openbinding_gateway.pricing_catalog import PricingCatalog, PricingCatalogError
+from _fake_space import FakePricingGate, PricingCatalog, PricingCatalogError
+from openbinding_gateway.core.settings import Settings
 from openbinding_gateway.space_client import (
-    FakePricingGate,
+    OpenGate,
     PricingGate,
     PricingUnavailable,
+    build_gate,
     feature_id,
+    get_gate,
+    set_gate,
 )
 from _pricing import PRICING_YAML, caps_for, fake_pricing_gate, largest_plan, pricing_catalog
 
@@ -152,8 +158,6 @@ def test_every_plan_bounds_a_single_request(plan):
 async def test_the_largest_ceiling_never_promises_more_than_the_gateway_waits():
     # Asking for a longer solve than ENGINE_SOLVE_TIMEOUT_S would be a promise
     # the gateway cannot keep: it stops waiting first.
-    from openbinding_gateway.core.settings import Settings
-
     assert caps_for(LARGER_PLAN).limit("maxTimeoutSeconds") <= Settings(
         _env_file=None
     ).engine_solve_timeout_s
@@ -185,3 +189,68 @@ async def test_a_pricing_token_is_issued_per_account(gate, user_id):
     other = uuid.uuid4()
 
     assert await gate.pricing_token(user_id) != await gate.pricing_token(other)
+
+
+def test_the_fixture_is_marked_as_a_test_pricing_without_consumption_or_cu():
+    document = yaml.safe_load(PRICING_YAML.read_bytes())
+    text = PRICING_YAML.read_text(encoding="utf-8")
+
+    assert text.startswith("# TEST FIXTURE, NOT A REAL PRICING.")
+    assert document["version"] == "0.1.0"
+    assert document["createdAt"] == "2026-10-12T00:00:00Z"
+    forbidden = {"capacityUnits", "taskStarts", "solverSeconds", "federatedTaskStarts"}
+    assert not forbidden & set(document["usageLimits"])
+    for plan in document["plans"].values():
+        assert not forbidden & set(plan["usageLimits"])
+    assert {"apiKeys", "concurrentJobs"} <= set(document["usageLimits"])
+
+
+# -- The open gate (SPACE_ENABLED=false) ------------------------------------------
+
+
+def test_the_open_gate_satisfies_the_protocol():
+    assert isinstance(OpenGate(), PricingGate)
+
+
+async def test_the_open_gate_grants_every_functional_capability_without_plans(user_id):
+    caps = await OpenGate().caps(user_id)
+
+    assert caps.plan == ""
+    assert caps.allows("solve") is True
+    assert caps.allows("a-feature-nobody-declared") is True
+    assert caps.limit("maxTimeoutSeconds") is None
+    assert caps.limit("apiKeys") is None
+    assert caps.http_view()["capabilities"] == {}
+
+
+async def test_the_open_gate_keeps_no_state_and_counts_nothing(user_id):
+    gate = OpenGate()
+    await gate.create_contract(user_id, "ANY", "someone@example.org", "0.1.0")
+    await gate.change_plan(user_id, "OTHER")
+
+    assert vars(gate) == {}
+    assert (await gate.subscription(user_id)).plan == ""
+    assert (await gate.caps(user_id)).plan == ""
+
+
+def test_space_disabled_builds_the_open_gate_outside_production():
+    for environment in ("dev", "test"):
+        built = build_gate(Settings(_env_file=None, app_env=environment, space_enabled=False))
+        assert isinstance(built, OpenGate)
+
+
+def test_production_without_space_has_no_gate_to_build():
+    settings = Settings.model_construct(app_env="prod", space_enabled=False)
+
+    with pytest.raises(RuntimeError, match="SPACE_ENABLED is false while APP_ENV=prod"):
+        build_gate(settings)
+
+
+def test_there_is_no_fallback_gate_when_none_was_installed():
+    previous = get_gate()
+    set_gate(None)
+    try:
+        with pytest.raises(RuntimeError, match="No pricing gate is installed"):
+            get_gate()
+    finally:
+        set_gate(previous)

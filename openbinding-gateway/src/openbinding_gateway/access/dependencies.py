@@ -37,7 +37,7 @@ from ..security.apikeys import (
 )
 from ..security.tokens import TokenError, bearer_token, read_access_token
 from . import public_read
-from .contracts import reconcile_contract_renewal, settle_pending_contract
+from .contracts import settle_pending_contract
 
 #: What an unauthenticated caller is told to send.
 _AUTHENTICATE_CHALLENGE = {"WWW-Authenticate": 'Bearer realm="openbinding"'}
@@ -326,7 +326,6 @@ async def get_current_user(
     # An account registered while SPACE was unreachable owes a contract, and
     # nothing else ever settles it. Doing it here is what the flag was for.
     await settle_pending_contract(user, session)
-    await reconcile_contract_renewal(user, session)
     public_read.bind(session, request, user)
     return user
 
@@ -374,7 +373,6 @@ async def solve_caller(
     _record_caller(request, user)
     _authorize_api_key(request, user)
     await settle_pending_contract(user, session)
-    await reconcile_contract_renewal(user, session)
     return user
 
 

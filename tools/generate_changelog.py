@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "frontend/src/content/changelog.generated.json"
 BASELINE = ROOT / "tools/changelog-baseline"
 CONVENTIONAL = re.compile(r"^(?P<kind>[a-z]+)(?:\((?P<scope>[^)]+)\))?!?:\s+(?P<title>.+)$")
-VERSION = re.compile(r"^version:\s*['\"]?([^'\"\s]+)", re.MULTILINE)
+VERSION = re.compile(r"^version\s*=\s*['\"]([^'\"\s]+)['\"]", re.MULTILINE)
 
 BIM_SCOPES = {"bim", "core", "engines", "engine", "federation", "experiments"}
 DOC_SCOPES = {"docs", "documentation"}
@@ -58,10 +58,15 @@ def tracks(scope: str, paths: list[str]) -> set[str]:
 
 
 def current_version() -> str:
-    source = (ROOT / "space/pricing/openbinding.yml").read_text(encoding="utf-8")
+    """The platform version: that of the gateway package.
+
+    It used to be read from the local pricing document; pricings now live in
+    SPHERE and SPACE, so the release label comes from the package itself.
+    """
+    source = (ROOT / "openbinding-gateway/pyproject.toml").read_text(encoding="utf-8")
     match = VERSION.search(source)
     if not match:
-        raise SystemExit("space/pricing/openbinding.yml has no version")
+        raise SystemExit("openbinding-gateway/pyproject.toml has no version")
     return match.group(1)
 
 

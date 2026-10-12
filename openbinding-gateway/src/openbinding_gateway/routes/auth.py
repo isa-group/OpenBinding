@@ -50,7 +50,6 @@ from ..security.tokens import (
 )
 from .. import space_client
 from ..space_client import PricingUnavailable
-from ..pricing_catalog import PricingCatalogError, live_catalog
 
 router = APIRouter(prefix="/v1/auth", tags=["Authentication"])
 
@@ -137,14 +136,9 @@ async def register(
             "That username or email is already in use.",
         )
 
-    try:
-        default_plan = (await live_catalog(session, settings)).default_plan
-    except PricingCatalogError as exc:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "pricing_unavailable",
-            f"The active pricing cannot be resolved: {exc}",
-        ) from exc
+    # The plan a sign-up starts on is configuration (SPACE_DEFAULT_PLAN). Unset,
+    # the account is created without one and SPACE assigns the contract's plan.
+    default_plan = settings.space_default_plan or None
 
     user = User(
         username=request.username,
@@ -152,7 +146,7 @@ async def register(
         password_hash=hash_password(request.password),
         password_enabled=True,
         role=UserRole.USER,
-        plan_cache=default_plan,
+        plan_cache=default_plan or "",
         # The SPACE contract is created next, by the caller of this module.
         # Until it exists the account is usable but unmetered, and this flag
         # is what later reconciles it.
@@ -173,7 +167,7 @@ async def register(
             user.id,
             default_plan,
             user.email,
-            await live_pricing_version(session),
+            live_pricing_version(settings),
         )
         user.contract_pending = False
     except PricingUnavailable:

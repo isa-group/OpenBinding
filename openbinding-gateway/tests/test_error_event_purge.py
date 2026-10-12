@@ -9,7 +9,6 @@ from types import SimpleNamespace
 import pytest
 
 from openbinding_gateway import analysis_jobs, job_dispatch, sponsor_proposals, telemetry
-from openbinding_gateway.access import contracts
 from openbinding_gateway.db import base as db_base
 from openbinding_gateway.jobs import reconciler
 
@@ -64,8 +63,6 @@ def sweeps(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     monkeypatch.setattr(db_base, "is_configured", lambda: True)
     monkeypatch.setattr(db_base, "session_factory", factory)
     monkeypatch.setattr(reconciler, "sweep_abandoned", sweep)
-    monkeypatch.setattr(contracts, "archive_drained_pricings", zero)
-    monkeypatch.setattr(contracts, "sweep_contract_renewals", zero)
     monkeypatch.setattr(job_dispatch, "redeliver_queued_jobs", zero)
     monkeypatch.setattr(sponsor_proposals, "sweep_expired", zero)
     monkeypatch.setattr(analysis_jobs, "redeliver_analysis", zero)

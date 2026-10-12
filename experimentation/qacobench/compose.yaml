@@ -9,11 +9,9 @@ x-worker-environment: &worker-environment
   BOOTSTRAP_ADMIN_USERNAME: benchmark
   BOOTSTRAP_ADMIN_EMAIL: benchmark@example.org
   BOOTSTRAP_ADMIN_PASSWORD: ${QACOBENCH_PASSWORD:-Benchmark2026!}
+  # The stateless open gate: every functional capability, no plans or counters.
+  # Allowed only outside APP_ENV=prod (this stack is APP_ENV=dev).
   SPACE_ENABLED: "false"
-  SPACE_FAIL_MODE: open
-  LOCAL_PRICING_CATALOG: /app/pricing/openbinding.yml
-  LOCAL_PRICING_PLAN: PRO
-  LOCAL_PRICING_UNMETERED: "true"
   JOB_DISPATCH_MODE: dramatiq
   ARTIFACT_ROOT: /var/lib/openbinding/artifacts
   PUBLIC_BASE_URL: http://gateway:8000
