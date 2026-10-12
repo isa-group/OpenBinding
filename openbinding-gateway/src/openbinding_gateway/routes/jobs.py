@@ -11,12 +11,13 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import space_client
-from ..access import metering
 from ..access.dependencies import get_current_user, session_dependency
 from ..db import base as db_base
-from ..db.models import Job, JobProvenance, JobState, User, utcnow
+from ..db.models import Job, JobProvenance, JobState, User
 from ..domain import entitlements
 from ..job_dispatch import dispatch_persisted_job
+from ..jobs import lifecycle
+from ..jobs import limits as job_limits
 from ..models.errors import api_error
 from ..models.platform import JobView, job_view
 from ..repositories import jobs as job_repository
@@ -62,11 +63,7 @@ async def cancel_job(
     job = await _owned(session, job_id, user.id, lock=True)
     if job.state in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
         raise api_error(status.HTTP_409_CONFLICT, "terminal_job", "The job is already terminal.")
-    job.cancellation_requested = True
-    if job.state is JobState.QUEUED:
-        job.state = JobState.CANCELLED
-        job.finished_at = utcnow()
-        await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
+    await lifecycle.request_cancellation(session, job)
     await session.flush()
     return _view(job, user)
 
@@ -91,16 +88,13 @@ async def retry_job(
         and registration.get("namespace") != "bim.builtin"
     )
     try:
-        verdict, reservation = await metering.reserve(
-            space_client.get_gate(),
-            user.id,
-            federated=federated,
-            session=session,
-        )
+        caps = await space_client.get_gate().caps(user.id)
     except space_client.PricingUnavailable as exc:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
-    if not verdict.allowed:
-        refusal = entitlements.refusal_for_verdict(verdict)
+    refusal = entitlements.feature_refusal(caps, "federatedEngines" if federated else "solve")
+    if refusal is None:
+        refusal = await job_limits.enforce_concurrency_limit(session, user.id)
+    if refusal is not None:
         raise api_error(
             refusal.status,
             refusal.code,
@@ -117,20 +111,13 @@ async def retry_job(
         idempotency_fingerprint=original.idempotency_fingerprint,
         requested_budget_s=original.requested_budget_s, retry_of_id=original.id,
         organization_id=original.organization_id, project_id=original.project_id,
-        billing_sponsor_user_id=original.billing_sponsor_user_id,
     )
-    try:
-        session.add(replacement)
-        await session.flush()
-        replacement.engine_job_id = str(replacement.id)
-        session.add(JobProvenance(job_id=replacement.id, document=provenance, digest=digest(provenance)))
-        await session.commit()
-    except BaseException:
-        # No job came out of this: the reservation goes back.
-        await metering.release(space_client.get_gate(), reservation)
-        raise
-    # The job exists from here on. If dispatch fails the sweep or a worker settles
-    # it later, which gives the slot back; releasing it here would do so twice.
+    session.add(replacement)
+    await session.flush()
+    replacement.engine_job_id = str(replacement.id)
+    session.add(JobProvenance(job_id=replacement.id, document=provenance, digest=digest(provenance)))
+    await session.commit()
+    # The job exists from here on. If dispatch fails, the redelivery sweep queues it again.
     await dispatch_persisted_job(str(replacement.id), None if db_base.is_configured() else session)
     return _view(replacement, user)
 

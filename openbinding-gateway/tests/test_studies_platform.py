@@ -369,9 +369,6 @@ async def test_study_run_persists_the_exact_cartesian_matrix(
     assert listed_runs.json()[0]["matrix_digest"] == run.json()["matrix_digest"]
     assert len(listed_cells.json()) == 4
     assert all(cell["state"] == "completed" for cell in listed_cells.json())
-    assert [feature for _, feature, _ in study_gate.evaluations].count(
-        "studies"
-    ) == 1
 
     report_doc = {'provenance': {
         'study': {'runId': run.json()['id'], 'matrixDigest': run.json()['matrix_digest']},
@@ -527,7 +524,6 @@ async def test_study_cancel_and_cell_retry_are_http_idempotent(
             provenance={},
             organization_id=organization.id,
             project_id=project_id,
-            billing_sponsor_user_id=organization.billing_sponsor_user_id,
         )
         session.add(job)
         await session.flush()

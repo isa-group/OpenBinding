@@ -88,7 +88,6 @@ from openbinding_gateway.db.models import (
     EngineRevision,
     InstanceSnapshot,
     Job,
-    JobState,
     User,
     UserRole,
     utcnow,
@@ -253,34 +252,6 @@ async def ensure_users(session: AsyncSession) -> dict[str, User]:
     return user_map
 
 
-async def resync_user_usage(session: AsyncSession, users: dict[str, User]) -> None:
-    """Reconcile in-flight job concurrency with SPACE usage counters."""
-    settings = get_settings()
-    if not settings.space_enabled:
-        return
-    gate = space_client.get_gate()
-    if not gate:
-        return
-    for username, user in users.items():
-        try:
-            in_flight = int(await session.scalar(
-                select(func.count()).select_from(Job).where(
-                    Job.owner_id == user.id,
-                    Job.metered.is_(False),
-                    Job.state.in_([JobState.QUEUED, JobState.RUNNING]),
-                )
-            ) or 0)
-            snapshot = await gate.usage(user.id)
-            limit_id = "concurrentJobs"
-            recorded = snapshot.limits[limit_id].used if limit_id in snapshot.limits else 0.0
-            drift = in_flight - recorded
-            if drift:
-                await gate.adjust_usage(user.id, {"concurrentJobs": drift})
-                logger.info("Resynced concurrentJobs for '%s': drift=%s (in_flight=%d, recorded=%s)", username, drift, in_flight, recorded)
-        except Exception as sync_err:
-            logger.debug("Could not resync usage for '%s': %s", username, sync_err)
-
-
 async def ensure_space_contracts(session: AsyncSession, users: dict[str, User]) -> None:
     """Ensure every seeded user has an active, valid contract in SPACE."""
     settings = get_settings()
@@ -325,9 +296,6 @@ async def ensure_space_contracts(session: AsyncSession, users: dict[str, User]) 
             logger.warning("Could not settle SPACE contract for '%s': %s", username, contract_err)
             user.contract_pending = True
             await session.flush()
-
-    # Reconcile any in-flight concurrentJobs drift from previous runs
-    await resync_user_usage(session, users)
 
 
 async def ensure_engine_revisions(
@@ -1058,7 +1026,6 @@ async def ensure_standalone_jobs(
             response = _response_payload(await routes_v1.create_job(request, caller=user, session=session))
             job = await session.get(Job, uuid.UUID(str(response["id"])))
             job.organization_id, job.project_id = org.id, project.id
-            job.billing_sponsor_user_id = org.billing_sponsor_user_id
             await session.commit()
             await _execute(str(job.id))
             await session.refresh(job)
@@ -1592,9 +1559,6 @@ async def main() -> int:
 
             # 10. Notifications & Audit
             await ensure_notifications_and_audit(session, org_map, project_map, user_map)
-
-            # 11. Reconcile usage
-            await resync_user_usage(session, user_map)
 
             await session.commit()
 

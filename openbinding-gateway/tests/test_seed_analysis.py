@@ -8,7 +8,7 @@ from sqlalchemy import select
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from seed_analysis import GALLERY, ensure_analysis_gallery, enumerate_gallery, gallery_execution, gallery_package
 from seed_dev import ensure_users, ensure_organizations, ensure_projects
-from openbinding_gateway.db.models import Job
+from openbinding_gateway.db.models import Job, JobState
 from openbinding_gateway.db.platform_models import StudyCell, StudyRun
 from openbinding_gateway.v1.compiler import compile_instance
 
@@ -71,7 +71,7 @@ async def test_gallery_persistence_is_additive_and_idempotent(db_session, monkey
     for cell in cells:
         job = await db_session.get(Job, cell.job_id)
         assert job.owner_id == users["alice"].id
-        assert job.metered and job.concurrency_released
+        assert job.state is JobState.COMPLETED and job.finished_at is not None
         assert job.instance_snapshot_id is not None
         assert job.result["provenance"]["analysisFixture"]["scenario"] == cell.metrics["analysisScenario"]
 

@@ -1,8 +1,8 @@
-"""The pricing seam: balances, refusals, and what an outage is not.
+"""The pricing seam: entitlements, contracts, and what an outage is not.
 
-Quotas live in a SPACE instance, so most of what matters here is the shape of
-the conversation rather than the arithmetic. The fake gate keeps real balances
-precisely so that the refusal paths can be exercised without one.
+Plans live in a SPACE instance, so most of what matters here is the shape of
+the conversation. The fake gate serves the same entitlements from the catalog so
+that the refusal paths can be exercised without one; it counts no consumption.
 """
 
 from __future__ import annotations
@@ -24,9 +24,6 @@ from _pricing import PRICING_YAML, caps_for, fake_pricing_gate, largest_plan, pr
 CATALOG = pricing_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
 LARGER_PLAN = largest_plan()
-TASKS = "taskStarts"
-CONCURRENT = "concurrentJobs"
-SOLVER_TIME = "solverSeconds"
 
 
 @pytest.fixture
@@ -51,89 +48,29 @@ def test_feature_identifiers_carry_the_service_name():
     assert feature_id("solve") == "openbinding-solve"
 
 
-async def test_a_fresh_account_may_solve(gate, user_id):
-    verdict = await gate.evaluate(user_id, "solve", {"taskStarts": 1})
+async def test_a_fresh_account_has_the_solve_feature(gate, user_id):
+    caps = await gate.caps(user_id)
 
-    assert verdict.allowed is True
-
-
-async def test_evaluating_spends_nothing(gate, user_id):
-    # Asking whether you may is not the same as doing it. SPACE loses all but
-    # one increment when several limits are involved, so the gateway keeps the
-    # accounts itself and the fake mirrors that.
-    await gate.evaluate(user_id, "solve", {"taskStarts": 1})
-
-    usage = await gate.usage(user_id)
-
-    assert usage.limits[TASKS].used == 0
+    assert caps.allows("solve") is True
 
 
-async def test_a_spent_limit_refuses(gate, user_id):
-    gate.exhaust(user_id, "taskStarts")
+def test_the_fake_keeps_no_consumption_state(gate):
+    # Nothing is counted per account: the fake holds contracts and nothing else.
+    state = [
+        name for name in dir(gate)
+        if any(word in name for word in ("consum", "evaluat", "spend", "exhaust", "usage"))
+    ]
 
-    verdict = await gate.evaluate(user_id, "solve", {"taskStarts": 1})
-
-    assert verdict.allowed is False
-    assert verdict.limit.limit_id == TASKS
-
-
-async def test_consumption_is_recorded_by_the_caller(gate, user_id):
-    # The gateway spends explicitly once it knows what it spent.
-    await gate.adjust_usage(user_id, {"taskStarts": 1})
-
-    usage = await gate.usage(user_id)
-
-    assert usage.limits[TASKS].used == 1
-
-
-async def test_work_that_did_not_happen_is_given_back(gate, user_id):
-    # There is nothing for a revert to undo, because evaluating spent nothing.
-    # A negative adjustment is what corrects an aborted solve.
-    await gate.adjust_usage(user_id, {"taskStarts": 1})
-
-    await gate.adjust_usage(user_id, {"taskStarts": -1})
-    usage = await gate.usage(user_id)
-
-    assert usage.limits[TASKS].used == 0
-
-
-async def test_usage_can_be_adjusted_once_the_real_cost_is_known(gate, user_id):
-    # Solver time is not charged up front - nobody knows how long a solve will
-    # take until it has taken it.
-    await gate.adjust_usage(user_id, {"solverSeconds": 42.5})
-
-    usage = await gate.usage(user_id)
-
-    assert usage.limits[SOLVER_TIME].used == 42.5
-
-
-async def test_a_released_slot_goes_back(gate, user_id):
-    await gate.adjust_usage(user_id, {"concurrentJobs": 1})
-
-    await gate.adjust_usage(user_id, {"concurrentJobs": -1})
-    usage = await gate.usage(user_id)
-
-    assert usage.limits[CONCURRENT].used == 0
-
-
-async def test_usage_never_goes_negative(gate, user_id):
-    # Releasing a slot twice - a reconciler racing a late poll - must not leave
-    # the account with credit it never had.
-    await gate.adjust_usage(user_id, {"concurrentJobs": -5})
-
-    usage = await gate.usage(user_id)
-
-    assert usage.limits[CONCURRENT].used == 0
+    assert state == []
 
 
 async def test_larger_yaml_plan_raises_allowances(gate, user_id):
-    baseline = await gate.usage(user_id)
+    baseline = await gate.caps(user_id)
     await gate.change_plan(user_id, LARGER_PLAN)
-    larger = await gate.usage(user_id)
+    larger = await gate.caps(user_id)
 
-    assert TASKS in baseline.limits
-    assert TASKS not in larger.limits  # Infinity is omitted from finite balances.
-    assert larger.limits[CONCURRENT].limit > baseline.limits[CONCURRENT].limit
+    assert larger.limit("maxPayloadBytes") > baseline.limit("maxPayloadBytes")
+    assert larger.limit("apiKeys") is None  # Infinity reads as unlimited.
 
 
 async def test_renaming_a_plan_in_yaml_changes_catalog_fake_and_contract_validation():
@@ -164,7 +101,7 @@ async def test_yaml_feature_limit_and_add_on_changes_drive_space_decisions():
     catalog_before = PricingCatalog.parse(PRICING_YAML.read_bytes())
     plan = catalog_before.default_plan
     document["plans"][plan]["features"]["solve"] = {"value": False}
-    document["plans"][plan]["usageLimits"]["taskStarts"] = {"value": 1}
+    document["plans"][plan]["usageLimits"]["maxIterations"] = {"value": 1}
     document["features"]["addedAtRuntime"] = {
         "description": "Mutation-test feature",
         "type": "DOMAIN",
@@ -181,9 +118,10 @@ async def test_yaml_feature_limit_and_add_on_changes_drive_space_decisions():
     gate = FakePricingGate(catalog)
     account_id = uuid.uuid4()
 
-    assert (await gate.evaluate(account_id, "solve")).allowed is False
-    assert (await gate.evaluate(account_id, "addedAtRuntime")).allowed is True
-    assert (await gate.usage(account_id)).limits["taskStarts"].limit == 1
+    caps = await gate.caps(account_id)
+    assert caps.allows("solve") is False
+    assert caps.allows("addedAtRuntime") is True
+    assert caps.limit("maxIterations") == 1
     add_on_plan = add_on["availableFor"][0]
     await gate.create_contract(account_id, add_on_plan, "dynamic@example.org")
     changed = await gate.change_subscription(
@@ -228,12 +166,12 @@ async def test_an_unmodelled_feature_fails_closed(gate, user_id):
 
 
 async def test_an_outage_is_not_a_refusal(gate, user_id):
-    # "You have no quota" and "I could not find out" call for different
+    # "Your plan lacks this" and "I could not find out" call for different
     # answers; conflating them either leaks compute or refuses everyone.
     gate.unavailable = True
 
     with pytest.raises(PricingUnavailable):
-        await gate.evaluate(user_id, "solve", {"taskStarts": 1})
+        await gate.caps(user_id)
 
 
 async def test_a_contract_records_the_plan(gate, user_id):

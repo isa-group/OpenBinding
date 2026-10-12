@@ -180,25 +180,18 @@ async def test_sync_of_a_single_cell_run_never_adds_a_job(
     assert await _job_count(db_session) == jobs_before
 
 
-async def test_the_study_run_charge_is_returned_once_when_every_cell_fails(
+async def test_a_run_whose_every_cell_fails_to_launch_is_terminal_and_has_no_job(
     api_client, db_session, registration, study_gate, monkeypatch
 ) -> None:
     async def reject(session, cell, user, organization, project_id):
         raise study_jobs.StudyLaunchError("invalid_engine", "no such engine")
 
-    adjustments: list[dict] = []
-    original = study_gate.adjust_usage
-
-    async def record(user_id, increments):
-        adjustments.append(dict(increments))
-        await original(user_id, increments)
-
     monkeypatch.setattr(study_routes, "launch_study_cell", reject)
-    monkeypatch.setattr(study_gate, "adjust_usage", record)
     headers = await _study(api_client, registration, [1, 2])
 
     run = await api_client.post(BASE, headers=headers)
 
     assert run.status_code == 202, run.text
     assert {cell.state for cell in await _cells(db_session, run.json()["id"])} == {RunState.FAILED}
-    assert adjustments == [{"studyRuns": 1}, {"studyRuns": -1}]
+    assert run.json()["state"] == "partial"
+    assert await _job_count(db_session) == 0

@@ -340,11 +340,9 @@ async def solve_caller(
 ) -> User:
     """The authenticated account allowed to use an Engine.
 
-    Solving is the expensive operation and the one a plan is sold by, and an
-    unattributed solve cannot be metered, cannot be attributed to a job
-    somebody can read back, and cannot be refused when an allowance runs out.
-    There used to be a switch to permit it; there is not, because a deployment
-    that turns metering off by accident finds out from its bill.
+    Solving is the expensive operation, and an unattributed solve cannot be
+    attributed to a job somebody can read back, cannot count against the
+    owner's concurrency limit and cannot be refused by the plan's entitlements.
 
     Engine execution is never anonymous. A deployment without the accounts
     module therefore reports that authentication is unavailable instead of

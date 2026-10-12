@@ -1,4 +1,4 @@
-"""Launching a job for a study cell is one transaction: job, link and reservation stand or fall together."""
+"""Launching a job for a study cell is one transaction: job and link stand or fall together."""
 
 from __future__ import annotations
 
@@ -6,17 +6,14 @@ import os
 import uuid
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from _pricing import fake_pricing_gate, largest_plan
 from test_idempotency_jobs import _body, _login, _snapshot
 from test_job_dispatch import _account
 from test_study_cell_launch import BASE, _cells, _study
 
-from openbinding_gateway import space_client, study_jobs
-from openbinding_gateway.access import metering
+from openbinding_gateway import study_jobs
 from openbinding_gateway.db.models import (
     Job,
     JobState,
@@ -30,35 +27,6 @@ from openbinding_gateway.db.models import (
 from openbinding_gateway.routes import jobs as job_routes
 from openbinding_gateway.routes import studies as study_routes
 from openbinding_gateway.routes import v1
-
-
-@pytest_asyncio.fixture
-async def gate():
-    previous = space_client.get_gate()
-    fake = fake_pricing_gate()
-    adjustments: list[dict] = []
-    original = fake.adjust_usage
-
-    async def record(user_id, increments):
-        adjustments.append(dict(increments))
-        await original(user_id, increments)
-
-    fake.adjust_usage = record
-    fake.adjustments = adjustments
-    space_client.set_gate(fake)
-    yield fake
-    space_client.set_gate(previous)
-
-
-def _concurrency(gate) -> float:
-    """Net concurrency slots taken, from every adjustment (the fake clamps its own counter at zero)."""
-    return sum(item.get("concurrentJobs", 0) for item in gate.adjustments)
-
-
-def _reserved_and_refunded_once(gate, since: int = 0) -> bool:
-    """From adjustment ``since`` on: one reservation was taken and exactly its negation given back."""
-    taken = gate.adjustments[since:]
-    return len(taken) == 2 and taken[1] == {name: -amount for name, amount in taken[0].items()}
 
 
 async def _queued_run(api_client, registration, monkeypatch, seeds, code="concurrency_limit_exceeded"):
@@ -102,7 +70,7 @@ def dispatched(monkeypatch):
 
 
 async def test_launch_links_the_cell_in_one_transaction_and_dispatches_after_the_commit(
-    api_client, db_session, registration, gate, monkeypatch, dispatched
+    api_client, db_session, registration, monkeypatch, dispatched
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
     user, organization, project = await _actors(db_session)
@@ -116,20 +84,20 @@ async def test_launch_links_the_cell_in_one_transaction_and_dispatches_after_the
     assert cell.job_id == job.id
     assert job.project_id == project.id
     assert seen == []
-    assert _concurrency(gate) == 1
+    assert v1.pending_launches(db_session) == [job.id]
 
     await study_jobs.commit_launched(db_session)
 
     assert seen == [(str(job.id), False)]
+    assert v1.pending_launches(db_session) == []
     assert await _jobs_of(db_session, cell.id) == 1
 
 
-async def test_a_second_launch_of_the_same_cell_returns_the_first_job_and_releases(
-    api_client, db_session, registration, gate, monkeypatch, dispatched
+async def test_a_second_launch_of_the_same_cell_returns_the_first_job(
+    api_client, db_session, registration, monkeypatch, dispatched
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
     user, organization, project = await _actors(db_session)
-    gate.plans[user.id] = largest_plan("concurrentJobs")
     (cell,) = await _cells(db_session, run_id)
     seen = dispatched(db_session)
     payloads: list[dict] = []
@@ -159,17 +127,15 @@ async def test_a_second_launch_of_the_same_cell_returns_the_first_job_and_releas
     assert again["idempotent"] is True
     assert replay.id == first.id
     assert await _jobs_of(db_session, cell.id) == 1
-    assert _concurrency(gate) == 1  # the loser reserved a slot and gave it back
-    assert v1.pending_launches(db_session) == {}
+    assert v1.pending_launches(db_session) == []
     assert [job_id for job_id, _ in seen] == [str(first.id)]
 
 
 async def test_a_retry_launch_after_detaching_the_old_job_creates_a_new_one(
-    api_client, db_session, registration, gate, monkeypatch, dispatched
+    api_client, db_session, registration, monkeypatch, dispatched
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
     user, organization, project = await _actors(db_session)
-    gate.plans[user.id] = largest_plan("concurrentJobs")
     (cell,) = await _cells(db_session, run_id)
     dispatched(db_session)
 
@@ -187,15 +153,14 @@ async def test_a_retry_launch_after_detaching_the_old_job_creates_a_new_one(
     assert second.idempotency_key is None
 
 
-async def test_a_failed_flush_after_the_job_is_created_leaves_no_job_and_no_usage(
-    api_client, db_session, registration, gate, monkeypatch, dispatched
+async def test_a_failed_flush_after_the_job_is_created_leaves_no_job(
+    api_client, db_session, registration, monkeypatch, dispatched
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
     user, organization, project = await _actors(db_session)
     (cell,) = await _cells(db_session, run_id)
     cell_id = cell.id
     seen = dispatched(db_session)
-    before = len(gate.adjustments)  # creating the run already charged a study run
     real_flush = AsyncSession.flush
 
     async def flush(self, *args, **kwargs):
@@ -212,15 +177,13 @@ async def test_a_failed_flush_after_the_job_is_created_leaves_no_job_and_no_usag
     monkeypatch.setattr(AsyncSession, "flush", real_flush)
     assert await db_session.scalar(select(func.count()).select_from(Job)) == 0
     assert await db_session.scalar(select(StudyCell.job_id).where(StudyCell.id == cell_id)) is None
-    assert _concurrency(gate) == 0
-    assert _reserved_and_refunded_once(gate, before)
-    assert v1.pending_launches(db_session) == {}
+    assert v1.pending_launches(db_session) == []
     assert seen == []
 
 
 @pytest.mark.parametrize("failing", ["commit", "persist_snapshot", "job_flush"])
-async def test_a_failure_between_the_reservation_and_the_commit_gives_it_back_once(
-    api_client, db_session, registration, gate, monkeypatch, failing
+async def test_a_failure_between_the_limit_check_and_the_commit_leaves_no_job(
+    api_client, db_session, registration, monkeypatch, failing
 ) -> None:
     headers = await _login(api_client, registration())
     snapshot = await _snapshot(api_client, headers)
@@ -252,19 +215,16 @@ async def test_a_failure_between_the_reservation_and_the_commit_gives_it_back_on
             await v1.create_job(request, caller=user, session=db_session)
 
     await db_session.rollback()
-    assert _concurrency(gate) == 0
-    assert _reserved_and_refunded_once(gate)
     assert await db_session.scalar(select(func.count()).select_from(Job)) == 0
 
 
-async def test_retry_does_not_release_a_job_that_was_already_committed(
-    api_client, db_session, registration, gate, monkeypatch
+async def test_a_retry_whose_dispatch_fails_keeps_its_committed_job(
+    api_client, db_session, registration, monkeypatch
 ) -> None:
     user_id, headers = await _account(api_client, registration)
     original = Job(
         owner_id=user_id, engine_id="random-search", engine_job_id="failed", service_url="http://engine",
-        state=JobState.FAILED, original_request={}, options={}, provenance={}, metered=True,
-        concurrency_released=True,
+        state=JobState.FAILED, original_request={}, options={}, provenance={},
     )
     db_session.add(original)
     await db_session.flush()
@@ -278,43 +238,6 @@ async def test_retry_does_not_release_a_job_that_was_already_committed(
 
     retries = await db_session.scalar(select(func.count(Job.id)).where(Job.retry_of_id == original.id))
     assert retries == 1
-    # The job exists and keeps its slot until it is settled; no refund was sent.
-    assert len(gate.adjustments) == 1
-    assert all(amount > 0 for amount in gate.adjustments[0].values())
-
-
-async def test_retry_reserves_with_the_default_cost_whatever_the_original_engine(
-    api_client, db_session, registration, gate, monkeypatch
-) -> None:
-    user_id, headers = await _account(api_client, registration)
-    routed = Job(
-        owner_id=user_id, engine_id="evolutionary-heuristics", engine_job_id="routed", service_url="http://engine",
-        state=JobState.FAILED, original_request={}, options={}, metered=True, concurrency_released=True,
-        provenance={},
-    )
-    plain = Job(
-        owner_id=user_id, engine_id="random-search", engine_job_id="plain", service_url="http://engine",
-        state=JobState.FAILED, original_request={}, options={}, provenance={}, metered=True,
-        concurrency_released=True,
-    )
-    db_session.add_all([routed, plain])
-    await db_session.flush()
-    reserved: list[dict] = []
-
-    async def reserve(gate_, uid, **kwargs):
-        reserved.append(kwargs)
-        return space_client.Verdict.yes(), metering.Reservation(user_id=uid, increments={})
-
-    async def queued(*args, **kwargs):
-        return None
-
-    monkeypatch.setattr(metering, "reserve", reserve)
-    monkeypatch.setattr(job_routes, "dispatch_persisted_job", queued)
-
-    assert (await api_client.post(f"/v1/jobs/{routed.id}/retry", headers=headers)).status_code == 202
-    assert (await api_client.post(f"/v1/jobs/{plain.id}/retry", headers=headers)).status_code == 202
-
-    assert [set(item) for item in reserved] == [{"federated", "session"}, {"federated", "session"}]
 
 
 async def _attach_job(db_session, cell, user, organization, project, state=JobState.QUEUED) -> Job:
@@ -322,7 +245,6 @@ async def _attach_job(db_session, cell, user, organization, project, state=JobSt
         owner_id=user.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()), service_url="http://engine",
         state=state, original_request={}, options={}, provenance={}, result={"termination": "FEASIBLE", "solutions": []},
         organization_id=organization.id, project_id=project.id, study_cell_id=cell.id,
-        billing_sponsor_user_id=organization.billing_sponsor_user_id,
     )
     db_session.add(job)
     await db_session.flush()
@@ -346,7 +268,7 @@ async def _stored(db_session, job_id):
     ],
 )
 async def test_cancelling_a_run_respects_the_state_of_each_job(
-    api_client, db_session, registration, gate, monkeypatch, behind_its_back, state, cancellation
+    api_client, db_session, registration, monkeypatch, behind_its_back, state, cancellation
 ) -> None:
     headers, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
     user, organization, project = await _actors(db_session)
@@ -365,6 +287,22 @@ async def test_cancelling_a_run_respects_the_state_of_each_job(
 
     assert cancelled.status_code == 200, cancelled.text
     assert tuple(await _stored(db_session, job.id)) == (state, cancellation)
+
+
+async def test_cancelling_a_queued_cell_job_through_the_job_route_cancels_its_cell(
+    api_client, db_session, registration, monkeypatch
+) -> None:
+    headers, run_id = await _queued_run(api_client, registration, monkeypatch, [1])
+    user, organization, project = await _actors(db_session)
+    (cell,) = await _cells(db_session, run_id)
+    job = await _attach_job(db_session, cell, user, organization, project)
+
+    cancelled = await api_client.post(f"/v1/jobs/{job.id}/cancel", headers=headers)
+
+    assert cancelled.status_code == 200, cancelled.text
+    assert cancelled.json()["status"] == "cancelled"
+    await db_session.refresh(cell)
+    assert cell.state is RunState.CANCELLED
 
 
 async def _launched_run(api_client, db_session, registration, monkeypatch, code):
@@ -397,7 +335,7 @@ async def _launched_run(api_client, db_session, registration, monkeypatch, code)
 
 
 async def test_a_cell_that_can_never_launch_is_failed_and_the_next_one_is_tried(
-    api_client, db_session, registration, gate, monkeypatch
+    api_client, db_session, registration, monkeypatch
 ) -> None:
     done, (first, second, third), calls = await _launched_run(
         api_client, db_session, registration, monkeypatch, "invalid_engine"
@@ -418,7 +356,7 @@ async def test_a_cell_that_can_never_launch_is_failed_and_the_next_one_is_tried(
 
 @pytest.mark.parametrize("code", sorted(study_jobs.RETRYABLE_LAUNCH_CODES))
 async def test_a_cell_refused_for_now_stays_queued_and_the_ones_behind_it_wait(
-    api_client, db_session, registration, gate, monkeypatch, code
+    api_client, db_session, registration, monkeypatch, code
 ) -> None:
     done, (_, second, third), calls = await _launched_run(api_client, db_session, registration, monkeypatch, code)
 
@@ -430,9 +368,9 @@ async def test_a_cell_refused_for_now_stays_queued_and_the_ones_behind_it_wait(
     assert third.job_id is None
 
 
-@pytest.mark.parametrize("code", ["quota_exceeded", "concurrency_limit_exceeded"])
-async def test_run_study_leaves_cells_queued_on_the_codes_the_gate_really_emits(
-    api_client, db_session, registration, gate, monkeypatch, code
+@pytest.mark.parametrize("code", ["concurrency_limit_exceeded", "pricing_unavailable"])
+async def test_run_study_leaves_cells_queued_on_the_codes_the_pipeline_really_emits(
+    api_client, db_session, registration, monkeypatch, code
 ) -> None:
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1, 2], code=code)
 

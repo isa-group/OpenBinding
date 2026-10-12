@@ -24,7 +24,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import space_client
-from .access import metering, public_read
+from .access import public_read
+from .jobs import reconciler as job_reconciler
 from .access.dependencies import session_dependency
 from .core.settings import get_settings
 from .core.logging import configure_logging
@@ -174,7 +175,7 @@ async def lifespan(app: FastAPI):
     reconciler = None
     if settings.database_url:
         reconciler = asyncio.create_task(
-            metering.run_reconciler(space_client.get_gate(), settings=settings)
+            job_reconciler.run_reconciler(settings=settings)
         )
     try:
         yield
@@ -1436,8 +1437,8 @@ def openapi_with_security_contract() -> dict:
     add_problem(jobs["post"], 413, "The request exceeds the caller or transport size limit.")
     add_problem(jobs["post"], 415, "The request media type is not supported.")
     add_problem(jobs["post"], 422, "The package, selection, mode or options are invalid.")
-    add_problem(jobs["post"], 402, "The caller's periodic or volume solve quota is exhausted.")
-    add_problem(jobs["post"], 429, "The caller's concurrency slots are exhausted.")
+    add_problem(jobs["post"], 402, "The instance exceeds the complexity ceiling of the caller's plan.")
+    add_problem(jobs["post"], 429, "The caller already has the maximum number of queued and running jobs.")
     add_problem(jobs["post"], 403, "The requested feature or engine is not entitled in the caller's plan.")
 
     # One 422 for the whole API: FastAPI's default `HTTPValidationError` is

@@ -37,7 +37,10 @@ def caps_for(plan: str) -> PlanCaps:
     return PlanCaps(plan=plan, features=features, limits=limits)
 
 
-def largest_plan(limit_id: str = "taskStarts") -> str:
-    """Pick a high-capacity fixture plan from YAML, without naming one in code."""
+def largest_plan(limit_id: str = "maxPayloadBytes") -> str:
+    """Pick a high-capacity fixture plan from YAML, without naming one in code.
+
+    By a functional limit: the plan that allows the largest packages.
+    """
     catalog = pricing_catalog()
     return max(catalog.plans, key=lambda plan: catalog.entitlements(plan)[1][limit_id])

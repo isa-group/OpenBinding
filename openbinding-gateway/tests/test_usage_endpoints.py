@@ -1,9 +1,9 @@
 """What an account can find out about its own entitlements, over HTTP.
 
-Everything the interface shows about plans and quotas comes from here, because
-the interface is a client of this API and not a privileged path into it. So
-these check the endpoints an account page needs, and that they say the same
-thing a solve will be judged by.
+Everything the interface shows about plans comes from here, because the
+interface is a client of this API and not a privileged path into it. So these
+check the endpoints an account page needs, and that they say the same thing a
+solve will be judged by. They carry no consumption: nothing is counted.
 """
 
 from __future__ import annotations
@@ -19,7 +19,6 @@ from _pricing import PRICING_YAML, caps_for, fake_pricing_gate, largest_plan, pr
 CATALOG = pricing_catalog()
 DEFAULT_PLAN = CATALOG.default_plan
 LARGER_PLAN = largest_plan()
-TASKS = "taskStarts"
 
 
 @pytest_asyncio.fixture
@@ -78,20 +77,19 @@ async def test_a_new_account_starts_on_the_basic_plan(api_client, registration, 
     assert usage.json()["plan"] == DEFAULT_PLAN
 
 
-async def test_usage_reports_every_limit_with_what_is_left(api_client, registration, gate):
+async def test_usage_reports_the_plan_and_its_features_and_no_consumption(api_client, registration, gate):
     _, headers = await account(api_client, registration)
 
     body = (await api_client.get("/v1/users/me/usage", headers=headers)).json()
 
-    limits = body["limits"]
-    assert TASKS in limits
-    assert limits[TASKS]["used"] == 0
-    assert limits[TASKS]["remaining"] == limits[TASKS]["limit"]
+    assert set(body) == {"plan", "contract_pending", "features", "capabilities"}
+    assert body["features"] == caps_for(DEFAULT_PLAN).features
+    assert "limits" not in body
 
 
 async def test_usage_reports_the_ceilings_one_request_runs_into(api_client, registration, gate):
     # These are what the Playground needs to seed and clamp its options, so
-    # they travel with the balances rather than in a second call.
+    # they travel with the plan rather than in a second call.
     _, headers = await account(api_client, registration)
 
     capabilities = (
@@ -99,19 +97,6 @@ async def test_usage_reports_the_ceilings_one_request_runs_into(api_client, regi
     ).json()["capabilities"]
 
     assert capabilities == caps_for(DEFAULT_PLAN).http_view()["capabilities"]
-
-
-async def test_spending_shows_up_in_usage(api_client, registration, gate):
-    profile, headers = await account(api_client, registration)
-
-    import uuid
-
-    gate.spend(uuid.UUID(profile["id"]), "taskStarts", 7)
-    body = (await api_client.get("/v1/users/me/usage", headers=headers)).json()
-
-    limits = body["limits"]
-    assert limits[TASKS]["used"] == 7
-    assert limits[TASKS]["remaining"] == limits[TASKS]["limit"] - 7
 
 
 async def test_moving_to_pro_raises_what_usage_reports(api_client, registration, gate):
@@ -247,4 +232,4 @@ async def test_a_pending_contract_is_settled_once_space_returns(
     ).json()
 
     assert body["contract_pending"] is False
-    assert body["limits"], "a settled contract brings the plan's limits with it"
+    assert body["capabilities"], "a settled contract brings the plan's limits with it"

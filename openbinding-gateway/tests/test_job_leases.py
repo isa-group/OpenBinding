@@ -1,11 +1,10 @@
 """A running job belongs to the worker that claimed it, for as long as it keeps saying so.
 
 Before leases a job that was running looked the same whether its worker was
-solving or dead, so the reconciler could only wait out the budget and then
-charge all of it. These tests pin the replacement: a claim carries a token and
-a deadline, a live worker pushes the deadline forward, a lost worker's job is
-put back once and then failed for the time it was actually seen running, and a
-worker that lost its lease cannot write anything afterwards.
+solving or dead, so the reconciler could only wait out the budget. These tests
+pin the replacement: a claim carries a token and a deadline, a live worker
+pushes the deadline forward, a lost worker's job is put back once and then
+failed, and a worker that lost its lease cannot write anything afterwards.
 """
 
 from __future__ import annotations
@@ -26,25 +25,16 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from _pricing import fake_pricing_gate, pricing_catalog
+from _pricing import pricing_catalog
 from _repo import REPO_ROOT as EXAMPLES_ROOT
-from openbinding_gateway import space_client
-from openbinding_gateway.access import metering
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
+from openbinding_gateway.jobs import leases, reconciler
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import execution
-from openbinding_gateway.space_client import FakePricingGate
 from openbinding_gateway.v1.package import load_package
 
 ROOT = Path(__file__).parents[1]
-SOLVER_TIME = "solverSeconds"
-CONCURRENT = "concurrentJobs"
 EXAMPLE = EXAMPLES_ROOT / "examples/demo/01_simple_seq"
-
-
-@pytest.fixture
-def gate() -> FakePricingGate:
-    return fake_pricing_gate()
 
 
 @pytest_asyncio.fixture
@@ -82,7 +72,7 @@ async def lose_the_worker(session, job: Job, *, ran_for_s: float) -> None:
     """Make a claimed job look like its worker beat for ``ran_for_s`` and then died."""
     lease_until = utcnow() - timedelta(seconds=1)
     job.lease_until = lease_until
-    job.claimed_at = lease_until - timedelta(seconds=metering.LEASE_S + ran_for_s)
+    job.claimed_at = lease_until - timedelta(seconds=leases.LEASE_S + ran_for_s)
     await session.commit()
 
 
@@ -97,7 +87,7 @@ async def test_claiming_a_queued_job_takes_a_lease(db_session, owner):
     job = await a_job(db_session, owner)
     before = utcnow()
 
-    token = await metering.claim_job(db_session, job.id)
+    token = await leases.claim_job(db_session, job.id)
     await db_session.refresh(job)
 
     assert token is not None
@@ -105,15 +95,15 @@ async def test_claiming_a_queued_job_takes_a_lease(db_session, owner):
     assert job.lease_token == token
     assert job.attempt == 1
     assert at(job.claimed_at) >= before
-    assert (at(job.lease_until) - at(job.claimed_at)).total_seconds() == metering.LEASE_S
-    assert metering.held_token(db_session, job.id) == token
+    assert (at(job.lease_until) - at(job.claimed_at)).total_seconds() == leases.LEASE_S
+    assert leases.held_token(db_session, job.id) == token
 
 
 async def test_a_job_is_claimed_by_one_worker_only(db_session, owner):
     job = await a_job(db_session, owner)
 
-    first = await metering.claim_job(db_session, job.id)
-    second = await metering.claim_job(db_session, job.id)
+    first = await leases.claim_job(db_session, job.id)
+    second = await leases.claim_job(db_session, job.id)
     await db_session.refresh(job)
 
     assert first is not None and second is None
@@ -123,11 +113,11 @@ async def test_a_job_is_claimed_by_one_worker_only(db_session, owner):
 
 async def test_only_the_holder_of_the_token_holds_the_lease(db_session, owner):
     job = await a_job(db_session, owner)
-    token = await metering.claim_job(db_session, job.id)
+    token = await leases.claim_job(db_session, job.id)
 
-    assert await metering.hold_lease(db_session, job.id, token) is True
-    assert await metering.hold_lease(db_session, job.id, str(uuid.uuid4())) is False
-    assert await metering.hold_lease(db_session, job.id, None) is False
+    assert await leases.hold_lease(db_session, job.id, token) is True
+    assert await leases.hold_lease(db_session, job.id, str(uuid.uuid4())) is False
+    assert await leases.hold_lease(db_session, job.id, None) is False
 
 
 # -- Heartbeat --------------------------------------------------------------
@@ -135,34 +125,34 @@ async def test_only_the_holder_of_the_token_holds_the_lease(db_session, owner):
 
 async def test_a_heartbeat_renews_the_lease_only_for_its_holder(db_session, owner):
     job = await a_job(db_session, owner)
-    token = await metering.claim_job(db_session, job.id)
+    token = await leases.claim_job(db_session, job.id)
     job.lease_until = utcnow() + timedelta(seconds=1)
     await db_session.commit()
     factory = async_sessionmaker(db_session.bind, expire_on_commit=False)
 
-    assert await metering.renew_lease(factory, job.id, str(uuid.uuid4())) is False
+    assert await leases.renew_lease(factory, job.id, str(uuid.uuid4())) is False
     await db_session.refresh(job)
     assert at(job.lease_until) < utcnow() + timedelta(seconds=5)
 
-    assert await metering.renew_lease(factory, job.id, token) is True
+    assert await leases.renew_lease(factory, job.id, token) is True
     await db_session.refresh(job)
-    assert at(job.lease_until) > utcnow() + timedelta(seconds=metering.LEASE_S - 5)
+    assert at(job.lease_until) > utcnow() + timedelta(seconds=leases.LEASE_S - 5)
 
 
 async def test_each_renewal_pushes_the_lease_further(db_session, owner, monkeypatch):
     job = await a_job(db_session, owner)
-    token = await metering.claim_job(db_session, job.id)
+    token = await leases.claim_job(db_session, job.id)
     await db_session.commit()
     factory = async_sessionmaker(db_session.bind, expire_on_commit=False)
     base = utcnow()
     clock = iter([base + timedelta(seconds=10 * step) for step in range(1, 4)])
-    monkeypatch.setattr(metering, "utcnow", lambda: next(clock))
+    monkeypatch.setattr(leases, "utcnow", lambda: next(clock))
 
     deadlines = []
     for _ in range(3):
         # Called one after another, never alongside the test's own session:
         # an in-memory SQLite database is one connection shared by all of them.
-        assert await metering.renew_lease(factory, job.id, token) is True
+        assert await leases.renew_lease(factory, job.id, token) is True
         await db_session.refresh(job)
         deadlines.append(at(job.lease_until))
 
@@ -187,7 +177,7 @@ def ticks(monkeypatch) -> Ticks:
     clock = Ticks()
     # Only the module's view of asyncio is swapped, so nothing else is slowed or sped up.
     monkeypatch.setattr(
-        metering,
+        leases,
         "asyncio",
         SimpleNamespace(
             sleep=clock.sleep,
@@ -213,7 +203,7 @@ def renewals(monkeypatch) -> asyncio.Queue:
         return outcome
 
     seen.outcomes = outcomes  # type: ignore[attr-defined]
-    monkeypatch.setattr(metering, "renew_lease", renew)
+    monkeypatch.setattr(leases, "renew_lease", renew)
     return seen
 
 
@@ -225,13 +215,13 @@ async def one_beat(ticks: Ticks, renewals: asyncio.Queue):
 async def test_the_heartbeat_keeps_beating_until_it_is_stopped(db_session, ticks, renewals):
     job_id, token = uuid.uuid4(), str(uuid.uuid4())
 
-    beat = metering.start_heartbeat(db_session, job_id, token, interval_s=7.0)
+    beat = leases.start_heartbeat(db_session, job_id, token, interval_s=7.0)
     seen = [await one_beat(ticks, renewals) for _ in range(3)]
     assert seen == [(job_id, token)] * 3
     assert ticks.intervals[:3] == [7.0] * 3
     assert not beat.done()
 
-    await metering.stop_heartbeat(beat)
+    await leases.stop_heartbeat(beat)
     ticks.allowed.release()
     await asyncio.sleep(0)
 
@@ -240,17 +230,17 @@ async def test_the_heartbeat_keeps_beating_until_it_is_stopped(db_session, ticks
 
 
 async def test_the_heartbeat_beats_at_the_default_interval(db_session, ticks, renewals):
-    beat = metering.start_heartbeat(db_session, uuid.uuid4(), "token")
+    beat = leases.start_heartbeat(db_session, uuid.uuid4(), "token")
     await one_beat(ticks, renewals)
-    await metering.stop_heartbeat(beat)
+    await leases.stop_heartbeat(beat)
 
-    assert ticks.intervals[0] == metering.HEARTBEAT_S
+    assert ticks.intervals[0] == leases.HEARTBEAT_S
 
 
 async def test_the_heartbeat_ends_when_the_job_was_taken_back(db_session, ticks, renewals):
     renewals.outcomes.append(False)  # type: ignore[attr-defined]
 
-    beat = metering.start_heartbeat(db_session, uuid.uuid4(), "token", interval_s=1.0)
+    beat = leases.start_heartbeat(db_session, uuid.uuid4(), "token", interval_s=1.0)
     await one_beat(ticks, renewals)
     await asyncio.wait_for(beat, timeout=5)
 
@@ -260,49 +250,43 @@ async def test_the_heartbeat_ends_when_the_job_was_taken_back(db_session, ticks,
 async def test_a_missed_beat_does_not_end_the_heartbeat(db_session, ticks, renewals):
     renewals.outcomes.append(RuntimeError("database hiccup"))  # type: ignore[attr-defined]
 
-    beat = metering.start_heartbeat(db_session, uuid.uuid4(), "token", interval_s=1.0)
+    beat = leases.start_heartbeat(db_session, uuid.uuid4(), "token", interval_s=1.0)
     await one_beat(ticks, renewals)
     await one_beat(ticks, renewals)
     still_beating = not beat.done()
-    await metering.stop_heartbeat(beat)
+    await leases.stop_heartbeat(beat)
 
     assert still_beating
 
 
 async def test_a_session_with_nothing_to_connect_to_has_no_heartbeat(monkeypatch):
-    monkeypatch.setattr(metering.db_base, "is_configured", lambda: False)
+    monkeypatch.setattr(leases.db_base, "is_configured", lambda: False)
     session = SimpleNamespace(bind=None)
 
-    assert metering.start_heartbeat(session, uuid.uuid4(), "token") is None
-    await metering.stop_heartbeat(None)
+    assert leases.start_heartbeat(session, uuid.uuid4(), "token") is None
+    await leases.stop_heartbeat(None)
 
 
 # -- A worker that lost its lease writes nothing ----------------------------
 
 
-async def test_a_failure_without_the_lease_is_not_recorded(gate, db_session, owner):
-    await metering.reserve(gate, owner.id)
-    space_client.set_gate(gate)
+async def test_a_failure_without_the_lease_is_not_recorded(db_session, owner):
     job = await a_job(db_session, owner)
-    await metering.claim_job(db_session, job.id)
+    await leases.claim_job(db_session, job.id)
     await db_session.commit()
     # Another worker's claim, as far as this session is concerned.
-    db_session.info.pop(metering.lease_key(job.id))
+    db_session.info.pop(leases.lease_key(job.id))
 
     await routes._fail_persisted_job(job, db_session, "boom", time.monotonic())
 
     await db_session.refresh(job)
     assert job.state is JobState.RUNNING
     assert job.result is None
-    assert job.metered is False
-    assert (await gate.usage(owner.id)).limits[CONCURRENT].used == 1
 
 
-async def test_a_failure_with_the_lease_is_recorded_and_settled(gate, db_session, owner):
-    await metering.reserve(gate, owner.id)
-    space_client.set_gate(gate)
+async def test_a_failure_with_the_lease_is_recorded(db_session, owner):
     job = await a_job(db_session, owner)
-    await metering.claim_job(db_session, job.id)
+    await leases.claim_job(db_session, job.id)
     await db_session.commit()
 
     await routes._fail_persisted_job(job, db_session, "boom", time.monotonic())
@@ -311,8 +295,7 @@ async def test_a_failure_with_the_lease_is_recorded_and_settled(gate, db_session
     assert job.state is JobState.FAILED
     assert job.result["error"] == "boom"
     assert job.lease_token is None and job.lease_until is None
-    assert job.metered is True
-    assert (await gate.usage(owner.id)).limits[CONCURRENT].used == 0
+    assert job.finished_at is not None
 
 
 async def _account_with_snapshot(client, registration) -> tuple[dict[str, str], str]:
@@ -365,7 +348,7 @@ def _answer() -> dict:
     }
 
 
-async def test_a_job_that_finishes_is_completed_settled_and_unleased(
+async def test_a_job_that_finishes_is_completed_and_unleased(
     api_client, db_session, registration, monkeypatch
 ):
     async def solve(*_args, **_kwargs):
@@ -382,7 +365,7 @@ async def test_a_job_that_finishes_is_completed_settled_and_unleased(
     assert job.attempt == 1
     assert job.claimed_at is not None
     assert job.lease_token is None and job.lease_until is None
-    assert job.metered is True
+    assert job.finished_at is not None
 
 
 async def test_a_cancellation_that_arrives_during_the_solve_wins_over_its_late_result(
@@ -404,7 +387,7 @@ async def test_a_cancellation_that_arrives_during_the_solve_wins_over_its_late_r
     assert job.state is JobState.CANCELLED
     assert job.result is None
     assert job.lease_token is None
-    assert job.metered is True
+    assert job.finished_at is not None
 
 
 async def test_a_result_that_arrives_after_the_job_was_taken_back_is_discarded(
@@ -416,7 +399,7 @@ async def test_a_result_that_arrives_after_the_job_was_taken_back_is_discarded(
         job = (await db_session.execute(select(Job))).scalars().one()
         job.lease_until = utcnow() - timedelta(seconds=1)
         await db_session.commit()
-        assert await metering.sweep_abandoned(space_client.get_gate(), db_session) == 0
+        assert await reconciler.sweep_abandoned(db_session) == 0
         await db_session.commit()
         return _answer()
 
@@ -429,7 +412,6 @@ async def test_a_result_that_arrives_after_the_job_was_taken_back_is_discarded(
     await db_session.refresh(job)
     assert job.state is JobState.QUEUED
     assert job.result is None
-    assert job.metered is False
     assert job.attempt == 1
 
 
@@ -455,7 +437,7 @@ async def test_a_claim_that_cannot_be_committed_is_given_up(db_session, owner, m
         await execution.finish_persisted_job(str(job.id), db_session)
 
     await db_session.refresh(job)
-    assert metering.held_token(db_session, job.id) is None
+    assert leases.held_token(db_session, job.id) is None
     assert job.state is JobState.QUEUED and job.lease_token is None and job.attempt == 0
 
 
@@ -482,7 +464,7 @@ async def test_the_session_is_idle_during_the_solve_and_committed_before_the_hea
         events.append(("solve", db_session.in_transaction(), has_token))
         return _answer()
 
-    real_stop, real_hold, real_refresh = metering.stop_heartbeat, metering.hold_lease, db_session.refresh
+    real_stop, real_hold, real_refresh = leases.stop_heartbeat, leases.hold_lease, db_session.refresh
 
     async def stop(task):
         events.append(("stop", db_session.in_transaction()))
@@ -497,8 +479,8 @@ async def test_the_session_is_idle_during_the_solve_and_committed_before_the_hea
         return await real_refresh(*args, **kwargs)
 
     monkeypatch.setattr(execution, "solve_remote", solve)
-    monkeypatch.setattr(metering, "stop_heartbeat", stop)
-    monkeypatch.setattr(metering, "hold_lease", hold)
+    monkeypatch.setattr(leases, "stop_heartbeat", stop)
+    monkeypatch.setattr(leases, "hold_lease", hold)
     monkeypatch.setattr(db_session, "refresh", refresh)
     headers, snapshot_id = await _account_with_snapshot(api_client, registration)
 
@@ -513,136 +495,62 @@ async def test_the_session_is_idle_during_the_solve_and_committed_before_the_hea
 # -- The reconciler ---------------------------------------------------------
 
 
-async def test_a_job_with_a_live_lease_is_left_alone(gate, db_session, owner):
+async def test_a_job_with_a_live_lease_is_left_alone(db_session, owner):
     job = await a_job(db_session, owner, budget_s=1.0, age_s=10_000)
-    await metering.claim_job(db_session, job.id)
+    await leases.claim_job(db_session, job.id)
 
-    assert await metering.sweep_abandoned(gate, db_session) == 0
+    assert await reconciler.sweep_abandoned(db_session) == 0
     await db_session.refresh(job)
     assert job.state is JobState.RUNNING
 
 
-async def test_a_lost_worker_gets_the_job_requeued_once_and_then_it_fails(gate, db_session, owner):
-    await metering.reserve(gate, owner.id)
+async def test_a_lost_worker_gets_the_job_requeued_once_and_then_it_fails(db_session, owner):
     job = await a_job(db_session, owner, budget_s=600.0)
 
-    await metering.claim_job(db_session, job.id)
+    await leases.claim_job(db_session, job.id)
     await lose_the_worker(db_session, job, ran_for_s=30)
-    assert await metering.sweep_abandoned(gate, db_session) == 0
+    assert await reconciler.sweep_abandoned(db_session) == 0
 
     await db_session.refresh(job)
-    usage = await gate.usage(owner.id)
     assert job.state is JobState.QUEUED and job.lease_token is None
-    assert job.attempt == 1 and job.metered is False
-    assert usage.limits[SOLVER_TIME].used == 0
-    assert usage.limits[CONCURRENT].used == 1
+    assert job.attempt == 1
 
-    assert await metering.claim_job(db_session, job.id) is not None
+    assert await leases.claim_job(db_session, job.id) is not None
     await lose_the_worker(db_session, job, ran_for_s=45)
-    assert await metering.sweep_abandoned(gate, db_session) == 1
+    assert await reconciler.sweep_abandoned(db_session) == 1
 
     await db_session.refresh(job)
-    usage = await gate.usage(owner.id)
     assert job.state is JobState.FAILED and job.attempt == 2
-    assert job.metered is True and job.lease_token is None
-    assert usage.limits[SOLVER_TIME].used == pytest.approx(45.0, abs=0.01)
-    assert usage.limits[CONCURRENT].used == 0
+    assert job.lease_token is None and job.lease_until is None
+    assert job.finished_at is not None
 
 
-async def test_the_charge_for_a_lost_job_never_exceeds_the_observed_time(gate, db_session, owner):
-    await metering.reserve(gate, owner.id)
-    job = await a_job(db_session, owner, budget_s=600.0)
-    await metering.claim_job(db_session, job.id)
-    await lose_the_worker(db_session, job, ran_for_s=5)
-    job.attempt = metering.MAX_ATTEMPTS
-    await db_session.commit()
-
-    await metering.sweep_abandoned(gate, db_session)
-
-    charged = (await gate.usage(owner.id)).limits[SOLVER_TIME].used
-    assert 0 < charged <= 5.01
-
-
-async def test_the_charge_for_a_lost_job_never_exceeds_its_budget(gate, db_session, owner):
-    await metering.reserve(gate, owner.id)
-    job = await a_job(db_session, owner, budget_s=60.0)
-    await metering.claim_job(db_session, job.id)
-    await lose_the_worker(db_session, job, ran_for_s=10_000)
-    job.attempt = metering.MAX_ATTEMPTS
-    await db_session.commit()
-
-    await metering.sweep_abandoned(gate, db_session)
-
-    assert (await gate.usage(owner.id)).limits[SOLVER_TIME].used == 60.0
-
-
-async def test_a_running_job_nobody_saw_start_is_charged_its_whole_budget(gate, db_session, owner):
-    await metering.reserve(gate, owner.id)
-    await a_job(
-        db_session, owner, budget_s=60.0, age_s=60 + metering.SETTLEMENT_GRACE_S + 1, state=JobState.RUNNING
+async def test_a_running_job_nobody_saw_start_is_failed_after_its_budget_and_grace(db_session, owner):
+    job = await a_job(
+        db_session, owner, budget_s=60.0, age_s=60 + reconciler.ABANDONED_GRACE_S + 1, state=JobState.RUNNING
     )
 
-    assert await metering.sweep_abandoned(gate, db_session) == 1
-    assert (await gate.usage(owner.id)).limits[SOLVER_TIME].used == 60.0
+    assert await reconciler.sweep_abandoned(db_session) == 1
+    await db_session.refresh(job)
+    assert job.state is JobState.FAILED
 
 
-async def test_the_deadline_of_a_claimed_job_counts_from_its_claim(gate, db_session, owner):
+async def test_the_deadline_of_a_claimed_job_counts_from_its_claim(db_session, owner):
     job = await a_job(db_session, owner, budget_s=60.0, age_s=10_000, claimed_at=utcnow() - timedelta(seconds=10))
 
-    assert await metering.sweep_abandoned(gate, db_session) == 0
+    assert await reconciler.sweep_abandoned(db_session) == 0
     await db_session.refresh(job)
     assert job.state is JobState.QUEUED
 
 
-async def test_a_finished_job_whose_settlement_failed_is_settled_once_when_the_gate_returns(
-    gate, db_session, owner
-):
-    await metering.reserve(gate, owner.id)
-    finished = utcnow()
+async def test_a_finished_job_is_never_swept(db_session, owner):
     job = await a_job(
-        db_session,
-        owner,
-        budget_s=600.0,
-        state=JobState.COMPLETED,
-        claimed_at=finished - timedelta(seconds=20),
-        finished_at=finished,
+        db_session, owner, budget_s=1.0, age_s=reconciler.ABANDONED_GRACE_S + 10, state=JobState.COMPLETED
     )
 
-    gate.unavailable = True
-    # A refusal from SPACE does not abort the sweep.
-    assert await metering.sweep_abandoned(gate, db_session) == 0
+    assert await reconciler.sweep_abandoned(db_session) == 0
     await db_session.refresh(job)
-    assert job.metered is False
-
-    gate.unavailable = False
-    assert await metering.sweep_abandoned(gate, db_session) == 1
-    assert await metering.sweep_abandoned(gate, db_session) == 0
-
-    await db_session.refresh(job)
-    usage = await gate.usage(owner.id)
-    assert job.metered is True and job.state is JobState.COMPLETED
-    assert usage.limits[SOLVER_TIME].used == pytest.approx(20.0, abs=0.01)
-    assert usage.limits[CONCURRENT].used == 0
-
-
-async def test_a_space_outage_leaves_a_lost_job_to_be_failed_by_the_next_sweep(gate, db_session, owner):
-    await metering.reserve(gate, owner.id)
-    job = await a_job(db_session, owner, budget_s=600.0)
-    await metering.claim_job(db_session, job.id)
-    await lose_the_worker(db_session, job, ran_for_s=15)
-    job.attempt = metering.MAX_ATTEMPTS
-    await db_session.commit()
-
-    gate.unavailable = True
-    assert await metering.sweep_abandoned(gate, db_session) == 0
-    await db_session.refresh(job)
-    assert job.state is JobState.RUNNING and job.metered is False
-
-    gate.unavailable = False
-    assert await metering.sweep_abandoned(gate, db_session) == 1
-    await db_session.refresh(job)
-    assert job.state is JobState.FAILED and job.metered is True
-    assert (await gate.usage(owner.id)).limits[SOLVER_TIME].used == pytest.approx(15.0, abs=0.01)
+    assert job.state is JobState.COMPLETED
 
 
 # -- The migration ----------------------------------------------------------

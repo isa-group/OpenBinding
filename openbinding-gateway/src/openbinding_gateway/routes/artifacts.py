@@ -1137,10 +1137,8 @@ async def import_project_package(
                                 service_url="package://imported", state=JobState(job_state),
                                 original_request=job_data.get("request"), options=job_data.get("options"),
                                 result=job_data.get("result"), termination=job_data.get("termination"),
-                                provenance=job_data.get("provenance"), metered=True,
-                                concurrency_released=True, organization_id=organization.id,
-                                project_id=found_project.id,
-                                billing_sponsor_user_id=organization.billing_sponsor_user_id,
+                                provenance=job_data.get("provenance"),
+                                organization_id=organization.id, project_id=found_project.id,
                             )
                             session.add(imported_job)
                             await session.flush()
@@ -1172,9 +1170,8 @@ async def import_project_package(
             configuration_version_id=configuration_version.id if configuration_version else None,
             engine_job_id='imported-' + str(identity), service_url='package://imported', state=JobState(job_data['state']),
             original_request=job_data.get('request'), options=job_data.get('options'), result=job_data.get('result'),
-            termination=job_data.get('termination'), provenance=job_data.get('provenance'), metered=True,
-            concurrency_released=True, organization_id=organization.id, project_id=found_project.id,
-            billing_sponsor_user_id=organization.billing_sponsor_user_id))
+            termination=job_data.get('termination'), provenance=job_data.get('provenance'),
+            organization_id=organization.id, project_id=found_project.id))
     await session.flush()
     await import_available_library()
     if pending_library:

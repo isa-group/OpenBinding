@@ -12,8 +12,7 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import space_client
-from ..access import metering, public_read
+from ..access import public_read
 from ..access.dependencies import get_current_user, session_dependency
 from ..collaboration import enforce_sponsor_capacity, organization_by_ref, require_project
 from ..db.models import (
@@ -46,6 +45,7 @@ from ..db.models import (
     utcnow,
 )
 from ..domain import entitlements
+from ..jobs import lifecycle
 from ..models.errors import ErrorResponse, api_error
 from ..models.platform import (
     AnalyticsView,
@@ -610,8 +610,8 @@ async def run_study(
 ) -> StudyRunView:
     # Start a run and launch its cells one by one, each committed before it is queued.
     #
-    # A retryable refusal (``RETRYABLE_LAUNCH_CODES``: concurrency, quota,
-    # pricing) stops the loop and leaves the remaining cells queued for
+    # A retryable refusal (``RETRYABLE_LAUNCH_CODES``: concurrency limit,
+    # pricing unavailable) stops the loop and leaves the remaining cells queued for
     # ``study_jobs._sync`` to launch as the earlier jobs finish. When the very
     # first cell is refused there is no job whose end would trigger that, so the
     # run stays queued with nothing running until the reconciler advances it.
@@ -632,22 +632,14 @@ async def run_study(
     if not _study_engines_allowed(user, definition_from_version(selected_version)):
         raise api_error(403, 'api_key_engine_forbidden', 'This key does not grant the Engines pinned by the selected version.')
     try:
-        verdict = await get_gate().evaluate(user.id, "studies", {"studyRuns": 1})
+        caps = await get_gate().caps(user.id)
     except PricingUnavailable as exc:
         raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
-    if not verdict.allowed:
-        refusal = entitlements.refusal_for_verdict(
-            verdict,
-            default_quota_detail="Study-run quota exhausted.",
-            default_not_entitled_detail="The current plan does not entitle studies.",
-        )
-        raise api_error(
-            refusal.status,
-            refusal.code,
-            refusal.detail,
-            headers=refusal.headers or None,
-            **refusal.extra,
-        )
+    refusal = entitlements.feature_refusal(
+        caps, "studies", default_not_entitled_detail="The current plan does not entitle studies."
+    )
+    if refusal is not None:
+        raise api_error(refusal.status, refusal.code, refusal.detail, **refusal.extra)
     if selected_version.manifest['kind'] != 'Study':
         raise api_error(409, 'evidence_only_study', 'This gallery contains stored evidence and is not an executable study definition.')
     definition = StudyCreate(
@@ -674,7 +666,6 @@ async def run_study(
         session.add(value)
         cells.append(value)
     await session.flush()
-    await get_gate().adjust_usage(user.id, {"studyRuns": 1})
     _audit(session, user, "study.run.created", run, organization.id, matrixDigest=matrix_digest)
     for cell in cells:
         try:
@@ -687,9 +678,6 @@ async def run_study(
                 cell.state = RunState.QUEUED
                 break
             fail_cell(cell, exc)
-    if cells and all(cell.state is RunState.FAILED and cell.job_id is None for cell in cells):
-        # Nothing was launched, so the run should not cost a studyRuns unit.
-        await get_gate().adjust_usage(user.id, {"studyRuns": -1})
     terminal = {RunState.COMPLETED, RunState.FAILED, RunState.CANCELLED}
     if all(cell.state in terminal for cell in cells):
         run.state = (
@@ -833,11 +821,7 @@ async def cancel_study_run(
             ).scalars().first()
         if job is not None and job.state not in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
             # A running job is left to its worker, which sees the request and stops at its lease.
-            job.cancellation_requested = True
-            if job.state is JobState.QUEUED:
-                job.state = JobState.CANCELLED
-                job.finished_at = utcnow()
-                await metering.settle(space_client.get_gate(), session, job.id, solver_seconds=0)
+            await lifecycle.request_cancellation(session, job, sync_cell=False)
         if cell.state in {RunState.QUEUED, RunState.RUNNING}:
             cell.state = RunState.CANCELLED
     _audit(session, user, "study.run.cancelled", run, organization.id)

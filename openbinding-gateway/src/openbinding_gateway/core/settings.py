@@ -81,6 +81,11 @@ class Settings(BaseSettings):
     #: publication is rejected when it promises more than these values.
     technical_max_payload_bytes: int = 512 * 1024 * 1024
     pricing_document_max_bytes: int = 2 * 1024 * 1024
+    #: Queued plus running jobs one account may have at once; a creation past it
+    #: is refused with 429 ``concurrency_limit_exceeded``. A technical limit
+    #: that protects the engines, independent of the plan
+    #: (``MAX_CONCURRENT_JOBS_PER_USER``).
+    max_concurrent_jobs_per_user: int = Field(default=8, ge=1)
 
     # -- v1 schemas ------------------------------------------------------
     #: Directory holding the BIM v1 schemas and manifests.

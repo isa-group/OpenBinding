@@ -139,7 +139,7 @@ async def test_reconciler_redelivers_only_persisted_queued_jobs(db_session, monk
 
 
 @pytest.mark.asyncio
-async def test_job_retry_is_idempotent_and_reserves_only_once(
+async def test_job_retry_is_idempotent_and_creates_only_one_replacement(
     api_client, db_session, registration, durable_gate
 ):
     user_id, headers = await _account(api_client, registration)
@@ -152,8 +152,6 @@ async def test_job_retry_is_idempotent_and_reserves_only_once(
         original_request={},
         options={},
         provenance={},
-        metered=True,
-        concurrency_released=True,
     )
     db_session.add(original)
     await db_session.flush()
@@ -170,7 +168,6 @@ async def test_job_retry_is_idempotent_and_reserves_only_once(
     assert first.status_code == second.status_code == 202
     assert first.json()["id"] == second.json()["id"]
     assert retries == 1
-    assert [entry[:2] for entry in durable_gate.evaluations].count((user_id, "solve")) == 1
 
 
 @pytest.mark.asyncio

@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 
 from _repo import REPO_ROOT
 
-from openbinding_gateway import space_client, study_jobs
+from openbinding_gateway import study_jobs
 from openbinding_gateway.db.artifact_models import Artifact, ArtifactVersion
 from openbinding_gateway.db.models import (
     BindingCase,
@@ -207,4 +207,3 @@ async def test_two_sessions_launching_one_cell_create_one_job_and_one_reservatio
     jobs = await first.scalar(select(func.count()).select_from(Job).where(Job.study_cell_id == waiting_id))
     assert jobs == 1
     assert dispatched == [str(job_ids[0])]
-    assert space_client.get_gate().consumed[user_id]["concurrentJobs"] == 1

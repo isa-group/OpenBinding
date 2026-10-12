@@ -21,7 +21,7 @@ in ``PUBLIC_READ_ALLOWED``. The rest of the project API stays deny-by-default:
 
 Reads are counted against the *caller* (the account, or the client address when
 anonymous) and never against the sponsor of the project: nothing here touches
-metering or the sponsor's quota.
+the sponsor's quota.
 """
 
 from __future__ import annotations

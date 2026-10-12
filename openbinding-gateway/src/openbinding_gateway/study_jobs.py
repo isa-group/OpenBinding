@@ -25,6 +25,7 @@ from .db.models import (
     User,
     utcnow,
 )
+from .jobs.leases import aware
 from .services.engines import engine_mode, manifest_async
 from .services.snapshots import persist_snapshot, snapshot_problem
 from .studies import aggregate_metrics
@@ -47,7 +48,8 @@ def metrics_from_job(job: Job, cell: StudyCell) -> dict[str, Any]:
     objectives = first.get("objectives") if isinstance(first.get("objectives"), dict) else {}
     runtime = None
     if job.finished_at and job.created_at:
-        runtime = max(0.0, (job.finished_at - job.created_at).total_seconds())
+        # SQLite hands timestamps back naive while a fresh one is aware.
+        runtime = max(0.0, (aware(job.finished_at) - aware(job.created_at)).total_seconds())
     return {
         "status": "completed" if job.state is JobState.COMPLETED else "failed",
         "feasible": job.state is JobState.COMPLETED and job.termination != "INFEASIBLE",
@@ -291,10 +293,10 @@ async def launch_study_cell(
     if held is not None:
         key = None
 
-    # The job, the cell's link to it and the reservation live and die together:
-    # nothing is committed here, so the locks the caller holds on the cell and
-    # the account last until the cell points at its job. The caller commits and
-    # then dispatches (``commit_launched``).
+    # The job and the cell's link to it live and die together: nothing is
+    # committed here, so the locks the caller holds on the cell and the account
+    # last until the cell points at its job. The caller commits and then
+    # dispatches (``commit_launched``).
     pending = v1.pending_launches(session)
     before = set(pending)
     savepoint = await session.begin_nested()
@@ -312,7 +314,7 @@ async def launch_study_cell(
                 )
             )
         except StudyLaunchError as exc:
-            # Refused before any job existed; the pipeline gave back what it took.
+            # Refused before any job existed.
             rejection = exc
         else:
             try:
@@ -328,7 +330,6 @@ async def launch_study_cell(
                 raise StudyLaunchError("job_not_persisted", "The study job is not linked to its cell.")
             job.organization_id = organization.id
             job.project_id = project_id
-            job.billing_sponsor_user_id = organization.billing_sponsor_user_id
             cell.job_id = job.id
             await session.flush()
             await _sync(session, job.id)
@@ -337,7 +338,7 @@ async def launch_study_cell(
             if savepoint.is_active:
                 await savepoint.rollback()
         finally:
-            await v1.release_pending_launches(session, set(pending) - before)
+            v1.discard_pending_launches(session, set(pending) - before)
         raise
     await savepoint.commit()
     if rejection is not None:
@@ -365,7 +366,7 @@ async def dispatch_after_commit(session: AsyncSession) -> None:
 async def commit_launched(session: AsyncSession) -> None:
     """Commit the session, then dispatch the jobs launched on it.
 
-    If the commit fails the jobs do not exist, so what they reserved goes back.
+    If the commit fails the jobs do not exist, so they are forgotten.
     """
 
     from .routes import v1
@@ -373,15 +374,13 @@ async def commit_launched(session: AsyncSession) -> None:
     try:
         await session.commit()
     except BaseException:
-        await v1.release_pending_launches(session)
+        v1.discard_pending_launches(session)
         raise
     await dispatch_after_commit(session)
 
 
 #: Launch failures that say "not now" rather than "never": the cell stays queued.
-RETRYABLE_LAUNCH_CODES = frozenset(
-    {"concurrency_limit_exceeded", "quota_exceeded", "pricing_unavailable"}
-)
+RETRYABLE_LAUNCH_CODES = frozenset({"concurrency_limit_exceeded", "pricing_unavailable"})
 
 
 def fail_cell(cell: StudyCell, error: StudyLaunchError) -> None:
@@ -493,7 +492,7 @@ async def sync_study_job(job_id: str, session: AsyncSession | None = None) -> No
         try:
             await _sync(session, parsed)
         except BaseException:
-            await v1.release_pending_launches(session)
+            v1.discard_pending_launches(session)
             raise
         if v1.pending_launches(session):
             # A cell was launched: commit it with its link, and only then queue it.
@@ -505,6 +504,6 @@ async def sync_study_job(job_id: str, session: AsyncSession | None = None) -> No
         try:
             await _sync(owned, parsed)
         except BaseException:
-            await v1.release_pending_launches(owned)
+            v1.discard_pending_launches(owned)
             raise
         await commit_launched(owned)

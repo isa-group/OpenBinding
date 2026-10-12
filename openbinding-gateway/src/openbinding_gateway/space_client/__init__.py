@@ -10,13 +10,10 @@ from ..pricing_catalog import PricingCatalog
 from .fake import FakePricingGate
 from .gate import (
     SERVICE_NAME,
-    LimitUsage,
     PlanCaps,
     PricingGate,
     PricingUnavailable,
     SubscriptionSnapshot,
-    UsageSnapshot,
-    Verdict,
     feature_id,
 )
 from .space import SpacePricingGate
@@ -33,8 +30,8 @@ def build_gate(
     """The gate this deployment should use.
 
     A gateway with SPACE switched off still has a working pricing gate - the
-    fake one, with real balances - so that quota handling is exercised in
-    development rather than only in production.
+    fake one - so that plan entitlements are exercised in development rather
+    than only in production.
     """
     if settings.space_enabled:
         return SpacePricingGate(settings, catalog_resolver=catalog_resolver)
@@ -70,15 +67,12 @@ def get_gate() -> PricingGate:
 
 __all__ = [
     "FakePricingGate",
-    "LimitUsage",
     "PlanCaps",
     "PricingGate",
     "PricingUnavailable",
     "SERVICE_NAME",
     "SpacePricingGate",
     "SubscriptionSnapshot",
-    "UsageSnapshot",
-    "Verdict",
     "build_gate",
     "feature_id",
     "get_gate",

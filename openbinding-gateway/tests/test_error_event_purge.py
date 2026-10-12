@@ -9,8 +9,9 @@ from types import SimpleNamespace
 import pytest
 
 from openbinding_gateway import analysis_jobs, job_dispatch, sponsor_proposals, telemetry
-from openbinding_gateway.access import contracts, metering
+from openbinding_gateway.access import contracts
 from openbinding_gateway.db import base as db_base
+from openbinding_gateway.jobs import reconciler
 
 
 class _Session:
@@ -57,12 +58,12 @@ def sweeps(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 
         return make
 
-    monkeypatch.setattr(metering, "_last_purge", None)
-    monkeypatch.setattr(metering, "time", SimpleNamespace(monotonic=lambda: state.clock))
-    monkeypatch.setattr(metering.asyncio, "sleep", sleep)
+    monkeypatch.setattr(reconciler, "_last_purge", None)
+    monkeypatch.setattr(reconciler, "time", SimpleNamespace(monotonic=lambda: state.clock))
+    monkeypatch.setattr(reconciler.asyncio, "sleep", sleep)
     monkeypatch.setattr(db_base, "is_configured", lambda: True)
     monkeypatch.setattr(db_base, "session_factory", factory)
-    monkeypatch.setattr(metering, "sweep_abandoned", sweep)
+    monkeypatch.setattr(reconciler, "sweep_abandoned", sweep)
     monkeypatch.setattr(contracts, "archive_drained_pricings", zero)
     monkeypatch.setattr(contracts, "sweep_contract_renewals", zero)
     monkeypatch.setattr(job_dispatch, "redeliver_queued_jobs", zero)
@@ -75,13 +76,13 @@ def sweeps(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 async def _run(state: SimpleNamespace, sweeps: int) -> None:
     state.remaining = sweeps
     with pytest.raises(asyncio.CancelledError):
-        await metering.run_reconciler(object(), interval_s=0)  # type: ignore[arg-type]
+        await reconciler.run_reconciler(interval_s=0)
 
 
 async def test_purge_runs_on_first_sweep_and_not_on_the_next(
     sweeps: SimpleNamespace, caplog: pytest.LogCaptureFixture
 ) -> None:
-    with caplog.at_level(logging.INFO, logger=metering.logger.name):
+    with caplog.at_level(logging.INFO, logger=reconciler.logger.name):
         await _run(sweeps, 2)
     assert sweeps.sweeps == 2
     assert sweeps.purges == 1
@@ -102,7 +103,7 @@ async def test_purge_failure_does_not_abort_the_sweep(
     sweeps: SimpleNamespace, caplog: pytest.LogCaptureFixture
 ) -> None:
     sweeps.fail = True
-    with caplog.at_level(logging.WARNING, logger=metering.logger.name):
+    with caplog.at_level(logging.WARNING, logger=reconciler.logger.name):
         await _run(sweeps, 1)
     assert sweeps.purges == 1
     assert "Purging old error events failed" in caplog.text

@@ -184,7 +184,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/admin/users/{user_id}/subscription", "get"),
         ("/v1/admin/users/{user_id}/subscription", "post"),
         ("/v1/admin/users/{user_id}/api-keys/{key_id}", "delete"),
-        ("/v1/admin/users/{user_id}/usage/resync", "post"),
         ("/v1/admin/audit", "get"),
         ("/v1/admin/maintenance/preview", "get"),
         ("/v1/admin/maintenance/purge", "post"),

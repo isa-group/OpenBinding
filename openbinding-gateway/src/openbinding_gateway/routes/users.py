@@ -27,7 +27,6 @@ from ..models.accounts import (
     CreatedApiKey,
     JobHistory,
     JobSummary,
-    LimitUsageView,
     PricingTokenView,
     UpdateProfileRequest,
     UsageView,
@@ -447,7 +446,7 @@ async def list_own_jobs(
     while nothing applied it, because there was no endpoint for it to bound.
     This is that endpoint, and the cutoff is applied here rather than by
     deleting rows: a job that has aged out of somebody's history is still the
-    row the metering reconciler and any audit need.
+    row the reconciler and any audit need.
 
     Summaries only. A result can be hundreds of megabytes, and a history is for
     finding the one you want; ``GET /v1/jobs/{id}`` returns the answer itself.
@@ -526,7 +525,7 @@ def _job_summary(job: Job) -> JobSummary:
     "/me/usage",
     response_model=UsageView,
     operation_id="getOwnUsage",
-    summary="Your plan, quotas and what is left of them",
+    summary="Your plan, its features and its functional limits",
     responses={
         401: UNAUTHORIZED_RESPONSE,
         503: {**UNAVAILABLE_RESPONSE, "description": "The pricing service is not reachable."},
@@ -541,38 +540,16 @@ async def usage_view_for(user: User) -> UsageView:
     """An account's entitlements, read from the contract.
 
     The plan on the ``User`` row is a display cache; the contract in the
-    pricing service is what actually decides. This reads the contract, so what
-    a caller sees is what a solve will be judged against. Shared with the
-    administration routes, so that an administrator and an account holder are
-    never shown different numbers.
+    pricing service is what actually decides. Shared with the administration
+    routes, so that an administrator and an account holder are never shown
+    different numbers.
     """
-    gate = get_gate()
-    try:
-        snapshot = await gate.usage(user.id)
-        caps = await gate.caps(user.id)
-    except PricingUnavailable as error:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "pricing_unavailable",
-            f"Quotas cannot be read right now: {error}",
-        ) from error
-
+    caps = await _caps_for(user)
     return UsageView(
-        plan=snapshot.plan,
+        plan=caps.plan,
         contract_pending=user.contract_pending,
         features=caps.features,
         capabilities=caps.http_view()["capabilities"],
-        limits={
-            name: LimitUsageView(
-                limit_id=limit.limit_id,
-                limit=limit.limit,
-                used=limit.used,
-                remaining=limit.remaining,
-                unit=limit.unit,
-                renews_at=limit.renews_at,
-            )
-            for name, limit in snapshot.limits.items()
-        },
     )
 
 

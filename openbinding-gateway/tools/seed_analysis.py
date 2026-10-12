@@ -222,13 +222,12 @@ async def ensure_analysis_gallery(session, org, project, user, examples_dir: Pat
             "packageDigest": package.package_digest, "instanceDigest": (await session.get(InstanceSnapshot, uuid.UUID(snapshot_id))).instance_digest,
             "analysisVersion": ANALYSIS_VERSION, "resultDigest": digest(result), **result["provenance"]}
         job = Job(owner_id=user.id, organization_id=org.id, project_id=project.id,
-                  billing_sponsor_user_id=org.billing_sponsor_user_id,
                   engine_id=f"analysis-gallery/{scenario}", engine_job_id=f"gallery-{scenario}-{run.id}",
                   service_url="https://example.invalid/development-archive-not-an-engine",
                   state=JobState.COMPLETED, termination="UNKNOWN", result=result,
                   provenance=provenance,
                   instance_snapshot_id=uuid.UUID(snapshot_id), options={"analysisScenario": scenario},
-                  metered=True, concurrency_released=True, finished_at=utcnow())
+                  finished_at=utcnow())
         session.add(job)
         await session.flush()
         session.add(JobProvenance(job_id=job.id, document=provenance, digest=digest(provenance)))
@@ -283,11 +282,11 @@ async def ensure_scale_archives(session, org, project, user, examples_dir: Path)
                     "instanceDigest": snapshot.instance_digest, "packageDigest": package.package_digest,
                     "resultDigest": digest(result), "analysisVersion": ANALYSIS_VERSION, **result["provenance"]}
                 job = Job(owner_id=user.id, organization_id=org.id, project_id=project.id,
-                    billing_sponsor_user_id=org.billing_sponsor_user_id, engine_id=f"analysis-gallery/{scenario}",
+                    engine_id=f"analysis-gallery/{scenario}",
                     engine_job_id=identity, service_url="https://example.invalid/development-archive-not-an-engine",
                     state=JobState.COMPLETED, termination="UNKNOWN", result=result, provenance=provenance,
                     instance_snapshot_id=snapshot_id, options={"analysisScenario": scenario, "offset": offset, "count": 500},
-                    idempotency_key=key, idempotency_fingerprint=identity, metered=True, concurrency_released=True, finished_at=utcnow())
+                    idempotency_key=key, idempotency_fingerprint=identity, finished_at=utcnow())
                 session.add(job)
                 await session.flush()
                 session.add(JobProvenance(job_id=job.id, document=provenance, digest=digest(provenance)))

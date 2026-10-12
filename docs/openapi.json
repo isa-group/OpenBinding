@@ -8355,62 +8355,6 @@
         ],
         "type": "object"
       },
-      "LimitUsageView": {
-        "description": "One usage limit and what is left of it.",
-        "properties": {
-          "limit": {
-            "description": "What the plan allows.",
-            "title": "Limit",
-            "type": "number"
-          },
-          "limit_id": {
-            "description": "Identifier of the limit in the pricing.",
-            "title": "Limit Id",
-            "type": "string"
-          },
-          "remaining": {
-            "description": "What is left. Never negative.",
-            "title": "Remaining",
-            "type": "number"
-          },
-          "renews_at": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "When a renewable limit next resets, if it renews.",
-            "title": "Renews At"
-          },
-          "unit": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit"
-          },
-          "used": {
-            "description": "What has been consumed so far.",
-            "title": "Used",
-            "type": "number"
-          }
-        },
-        "required": [
-          "limit_id",
-          "limit",
-          "used",
-          "remaining"
-        ],
-        "title": "LimitUsageView",
-        "type": "object"
-      },
       "LoginRequest": {
         "properties": {
           "password": {
@@ -12013,42 +11957,8 @@
         "title": "UpdateUserRequest",
         "type": "object"
       },
-      "UsageResyncResult": {
-        "description": "What a resync corrected.\n\nConcurrency is counted optimistically - a check and a claim are two calls,\nand a crash between them leaves a slot held. This is the escape hatch for\nan account whose count has drifted, and it reports what it found rather\nthan fixing it silently.",
-        "properties": {
-          "corrected_by": {
-            "description": "The adjustment applied. Zero means no drift.",
-            "title": "Corrected By",
-            "type": "number"
-          },
-          "plan": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Plan",
-            "type": "string"
-          },
-          "slots_in_flight": {
-            "description": "Jobs actually still running for this account.",
-            "title": "Slots In Flight",
-            "type": "integer"
-          },
-          "slots_recorded": {
-            "description": "What the pricing service had counted.",
-            "title": "Slots Recorded",
-            "type": "number"
-          }
-        },
-        "required": [
-          "plan",
-          "slots_in_flight",
-          "slots_recorded",
-          "corrected_by"
-        ],
-        "title": "UsageResyncResult",
-        "type": "object"
-      },
       "UsageView": {
-        "description": "What an account is on, what it has spent, and what bounds one request.\n\nServed so that the interface can draw quota bars without talking to the\npricing service itself, and so that an API client can find out the same\nthings the interface shows.",
+        "description": "What an account is on and what its plan allows.\n\nThe plan, the features it includes and its functional limits (``null`` means\nunlimited). It carries no consumption: nothing is counted per account.",
         "properties": {
           "capabilities": {
             "additionalProperties": {
@@ -12075,13 +11985,6 @@
               "type": "boolean"
             },
             "title": "Features",
-            "type": "object"
-          },
-          "limits": {
-            "additionalProperties": {
-              "$ref": "#/components/schemas/LimitUsageView"
-            },
-            "title": "Limits",
             "type": "object"
           },
           "plan": {
@@ -15309,108 +15212,12 @@
             "ApiKeyAuth": []
           }
         ],
-        "summary": "What an account has spent",
+        "summary": "What an account's plan allows",
         "tags": [
           "Administration"
         ],
         "x-required-api-key-permissions": [
           "admin:accounts:read"
-        ],
-        "x-required-role": "admin"
-      }
-    },
-    "/v1/admin/users/{user_id}/usage/resync": {
-      "post": {
-        "description": "Reconcile the recorded concurrency against the jobs actually in flight.\n\nConcurrency is counted optimistically - checking and claiming are two\ncalls - and the reconciler settles what it can see. This is the escape\nhatch for what it cannot: a slot recorded against an account that has\nnothing running. Counting the jobs is the authoritative answer, because\nthey are rows in this database rather than a number somebody incremented.",
-        "operationId": "adminResyncUsage",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "user_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "User Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UsageResyncResult"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "No usable credential was supplied."
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "The credential is valid but not allowed to do this."
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "No such resource, or none this caller may see."
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            },
-            "description": "The request does not satisfy the contract; `diagnostics` says where."
-          },
-          "503": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "A service the gateway depends on is not reachable."
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ],
-        "summary": "Correct a drifted concurrency count",
-        "tags": [
-          "Administration"
-        ],
-        "x-required-api-key-permissions": [
-          "admin:accounts:write"
         ],
         "x-required-role": "admin"
       }
@@ -20770,7 +20577,7 @@
                 }
               }
             },
-            "description": "The caller's periodic or volume solve quota is exhausted."
+            "description": "The instance exceeds the complexity ceiling of the caller's plan."
           },
           "403": {
             "content": {
@@ -20840,7 +20647,7 @@
                 }
               }
             },
-            "description": "The caller's concurrency slots are exhausted."
+            "description": "The caller already has the maximum number of queued and running jobs."
           },
           "503": {
             "content": {
@@ -31725,7 +31532,7 @@
     },
     "/v1/users/me/jobs": {
       "get": {
-        "description": "Your own solves, newest first, as far back as your plan keeps them.\n\nThe retention window comes from SPACE under the canonical ``jobHistoryDays``\nidentifier. It\nwas carried all the way to ``GET /v1/users/me/usage`` and displayed there\nwhile nothing applied it, because there was no endpoint for it to bound.\nThis is that endpoint, and the cutoff is applied here rather than by\ndeleting rows: a job that has aged out of somebody's history is still the\nrow the metering reconciler and any audit need.\n\nSummaries only. A result can be hundreds of megabytes, and a history is for\nfinding the one you want; ``GET /v1/jobs/{id}`` returns the answer itself.",
+        "description": "Your own solves, newest first, as far back as your plan keeps them.\n\nThe retention window comes from SPACE under the canonical ``jobHistoryDays``\nidentifier. It\nwas carried all the way to ``GET /v1/users/me/usage`` and displayed there\nwhile nothing applied it, because there was no endpoint for it to bound.\nThis is that endpoint, and the cutoff is applied here rather than by\ndeleting rows: a job that has aged out of somebody's history is still the\nrow the reconciler and any audit need.\n\nSummaries only. A result can be hundreds of megabytes, and a history is for\nfinding the one you want; ``GET /v1/jobs/{id}`` returns the answer itself.",
         "operationId": "listOwnJobs",
         "parameters": [
           {
@@ -32060,7 +31867,7 @@
             "ApiKeyAuth": []
           }
         ],
-        "summary": "Your plan, quotas and what is left of them",
+        "summary": "Your plan, its features and its functional limits",
         "tags": [
           "Users"
         ],

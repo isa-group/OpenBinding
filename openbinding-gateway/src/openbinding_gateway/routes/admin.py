@@ -27,7 +27,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..access import metering
 from ..access.contracts import sweep_contract_renewals
 from ..access.dependencies import require_admin, session_dependency
 from ..collaboration import (
@@ -66,6 +65,7 @@ from ..db.models import (
     UserRole,
     utcnow,
 )
+from ..jobs import reconciler
 from ..models.accounts import (
     AdminUserPage,
     AdminUserView,
@@ -74,7 +74,6 @@ from ..models.accounts import (
     ContractSubscriptionView,
     AdminSubscriptionView,
     UpdateUserRequest,
-    UsageResyncResult,
     UsageView,
 )
 from ..models.errors import (
@@ -136,11 +135,11 @@ async def _maintenance_preview(session: AsyncSession, retention_days: int) -> di
     ) or 0)
     abandoned = 0
     in_flight = (await session.execute(select(Job).where(
-        Job.metered.is_(False), Job.state.in_([JobState.QUEUED, JobState.RUNNING])
+        Job.state.in_([JobState.QUEUED, JobState.RUNNING])
     ))).scalars().all()
     for job in in_flight:
         deadline = _aware(job.created_at) + timedelta(
-            seconds=float(job.requested_budget_s or 0) + metering.SETTLEMENT_GRACE_S
+            seconds=float(job.requested_budget_s or 0) + reconciler.ABANDONED_GRACE_S
         )
         if now >= deadline:
             abandoned += 1
@@ -516,7 +515,7 @@ async def change_subscription(
     "/users/{user_id}/usage",
     response_model=UsageView,
     operation_id="adminGetUserUsage",
-    summary="What an account has spent",
+    summary="What an account's plan allows",
     responses={404: NOT_FOUND_RESPONSE, 503: UNAVAILABLE_RESPONSE},
 )
 async def user_usage(
@@ -562,73 +561,6 @@ async def revoke_api_key(
     )
     await session.flush()
     return None
-
-
-@router.post(
-    "/users/{user_id}/usage/resync",
-    response_model=UsageResyncResult,
-    operation_id="adminResyncUsage",
-    summary="Correct a drifted concurrency count",
-    responses={404: NOT_FOUND_RESPONSE, 503: UNAVAILABLE_RESPONSE},
-)
-async def resync_usage(
-    user_id: uuid.UUID,
-    administrator: User = Depends(require_admin),
-    session: AsyncSession = Depends(session_dependency, scope="function"),
-) -> UsageResyncResult:
-    """Reconcile the recorded concurrency against the jobs actually in flight.
-
-    Concurrency is counted optimistically - checking and claiming are two
-    calls - and the reconciler settles what it can see. This is the escape
-    hatch for what it cannot: a slot recorded against an account that has
-    nothing running. Counting the jobs is the authoritative answer, because
-    they are rows in this database rather than a number somebody incremented.
-    """
-    user = await _user_or_404(session, user_id)
-    gate = get_gate()
-
-    in_flight = await session.scalar(
-        select(func.count())
-        .select_from(Job)
-        .where(
-            Job.owner_id == user.id,
-            Job.metered.is_(False),
-            Job.state.in_([JobState.QUEUED, JobState.RUNNING]),
-        )
-    )
-    in_flight = int(in_flight or 0)
-
-    try:
-        snapshot = await gate.usage(user.id)
-        limit_id = "concurrentJobs"
-        recorded = snapshot.limits[limit_id].used if limit_id in snapshot.limits else 0.0
-        drift = in_flight - recorded
-        if drift:
-            await gate.adjust_usage(user.id, {"concurrentJobs": drift})
-    except PricingUnavailable as error:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "pricing_unavailable",
-            f"Usage cannot be resynchronised right now: {error}",
-        ) from error
-
-    _record_admin_action(
-        session, administrator, "admin.usage.resynced", "User", user.id,
-        {
-            "username": user.username,
-            "plan": snapshot.plan,
-            "before": {"concurrent_jobs_recorded": recorded},
-            "after": {"concurrent_jobs_recorded": recorded + drift},
-            "slots_in_flight": in_flight,
-            "corrected_by": drift,
-        },
-    )
-    return UsageResyncResult(
-        plan=snapshot.plan,
-        slots_in_flight=in_flight,
-        slots_recorded=recorded,
-        corrected_by=drift,
-    )
 
 
 @router.post(
@@ -931,14 +863,14 @@ async def reconcile_abandoned_jobs(
     administrator: User = Depends(require_admin),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> dict:
-    settled = await metering.sweep_abandoned(get_gate(), session)
+    failed = await reconciler.sweep_abandoned(session)
     session.add(AuditEvent(
         actor_id=administrator.id,
         action="maintenance.jobs.reconciled",
         target_type="JobQueue",
-        detail={"settled": settled},
+        detail={"failed": failed},
     ))
-    return {"settled": settled}
+    return {"failed": failed}
 
 
 @router.post("/maintenance/purge", operation_id="adminPurgeExpiredData")

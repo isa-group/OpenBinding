@@ -14,19 +14,8 @@ import pytest
 from sqlalchemy import select
 
 from _pricing import pricing_catalog
-from openbinding_gateway.access import metering
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
-from openbinding_gateway.space_client import FakePricingGate
-
-
-class CountingGate(FakePricingGate):
-    def __init__(self) -> None:
-        super().__init__(pricing_catalog())
-        self.adjustments: list[dict] = []
-
-    async def adjust_usage(self, user_id, increments) -> None:
-        await super().adjust_usage(user_id, increments)
-        self.adjustments.append(dict(increments))
+from openbinding_gateway.jobs import leases, limits, reconciler
 
 
 async def an_abandoned_job(session) -> Job:
@@ -46,7 +35,7 @@ async def an_abandoned_job(session) -> Job:
         service_url="http://engine",
         state=JobState.RUNNING,
         requested_budget_s=60.0,
-        created_at=utcnow() - timedelta(seconds=60 + metering.SETTLEMENT_GRACE_S + 1),
+        created_at=utcnow() - timedelta(seconds=60 + reconciler.ABANDONED_GRACE_S + 1),
     )
     session.add(job)
     await session.commit()
@@ -66,7 +55,7 @@ async def test_two_concurrent_claims_of_one_job_have_one_winner(two_sessions):
     await first.commit()
 
     async def claim(session):
-        token = await metering.claim_job(session, job.id)
+        token = await leases.claim_job(session, job.id)
         await session.commit()
         return token
 
@@ -81,35 +70,64 @@ async def test_two_concurrent_claims_of_one_job_have_one_winner(two_sessions):
 
 
 @pytest.mark.asyncio
-async def test_two_concurrent_sweeps_settle_an_abandoned_job_once(two_sessions):
+async def test_two_concurrent_sweeps_fail_an_abandoned_job_once(two_sessions):
     first, second = two_sessions
     job = await an_abandoned_job(first)
-    gate = CountingGate()
 
-    settled = await asyncio.gather(
-        metering.sweep_abandoned(gate, first), metering.sweep_abandoned(gate, second)
-    )
+    async def sweep(session):
+        failed = await reconciler.sweep_abandoned(session)
+        await session.commit()
+        return failed
 
-    assert sum(settled) == 1
-    assert [entry for entry in gate.adjustments if entry.get("concurrentJobs") == -1] == [
-        {"solverSeconds": 60.0, "concurrentJobs": -1}
-    ]
+    failed = await asyncio.gather(sweep(first), sweep(second))
+
+    assert sum(failed) == 1
     await first.refresh(job)
-    assert job.state is JobState.FAILED and job.metered is True
+    assert job.state is JobState.FAILED and job.finished_at is not None
 
 
 @pytest.mark.asyncio
 async def test_a_sweep_skips_a_job_another_transaction_holds_and_gets_it_later(two_sessions):
     first, second = two_sessions
     job = await an_abandoned_job(first)
-    gate = CountingGate()
 
     # A worker (or another sweep) is in the middle of something with the row.
     await first.execute(select(Job.id).where(Job.id == job.id).with_for_update())
     # The sweep must not queue up behind the lock: the guard is only a timeout.
-    assert await asyncio.wait_for(metering.sweep_abandoned(gate, second), timeout=10) == 0
-    assert gate.adjustments == []
+    assert await asyncio.wait_for(reconciler.sweep_abandoned(second), timeout=10) == 0
 
     await first.rollback()
-    assert await asyncio.wait_for(metering.sweep_abandoned(gate, second), timeout=10) == 1
-    assert len(gate.adjustments) == 1
+    assert await asyncio.wait_for(reconciler.sweep_abandoned(second), timeout=10) == 1
+    await second.commit()
+    await first.refresh(job)
+    assert job.state is JobState.FAILED
+
+
+@pytest.mark.asyncio
+async def test_two_concurrent_creations_cannot_pass_the_last_slot(two_sessions):
+    first, second = two_sessions
+    owner = User(
+        username=f"user{uuid.uuid4().hex[:8]}",
+        email=f"{uuid.uuid4().hex[:8]}@example.org",
+        password_hash="not-a-real-hash",
+        role=UserRole.USER,
+        plan_cache=pricing_catalog().default_plan,
+    )
+    first.add(owner)
+    await first.commit()
+
+    async def create(session):
+        # The limit is checked, and the job inserted, in one transaction.
+        refusal = await limits.enforce_concurrency_limit(session, owner.id, limit=1)
+        if refusal is None:
+            session.add(Job(
+                owner_id=owner.id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
+                service_url="http://engine", state=JobState.QUEUED,
+            ))
+        await session.commit()
+        return refusal
+
+    refusals = await asyncio.gather(create(first), create(second))
+
+    assert sorted(refusal is None for refusal in refusals) == [False, True]
+    assert await limits.count_in_flight(first, owner.id) == 1

@@ -4,29 +4,29 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
 from ..pricing_catalog import PricingCatalog, PricingCatalogError
-from .gate import LimitUsage, PlanCaps, PricingUnavailable, SubscriptionSnapshot, UsageSnapshot, Verdict
+from .gate import PlanCaps, PricingUnavailable, SubscriptionSnapshot
 
 
 class FakePricingGate:
-    """Exercise pricing enforcement without copying the commercial catalog."""
+    """Exercise plan entitlements without copying the commercial catalog.
+
+    Keeps contracts only: no consumption state of any kind.
+    """
 
     def __init__(self, catalog: PricingCatalog | None = None):
         self.catalog = catalog
         self.default_plan = catalog.default_plan if catalog else ""
         self.plans: Dict[uuid.UUID, str] = {}
-        self.consumed: Dict[uuid.UUID, Dict[str, float]] = {}
         self.contracts: Dict[uuid.UUID, str] = {}
         self.versions: Dict[uuid.UUID, str] = {}
         self.add_ons: Dict[uuid.UUID, Dict[str, int]] = {}
         self.renews_at: Dict[uuid.UUID, datetime] = {}
         self.unavailable = False
-        self.evaluations: list[tuple[uuid.UUID, str, Dict[str, float]]] = []
 
     def _check_available(self) -> PricingCatalog:
         if self.unavailable:
@@ -42,83 +42,9 @@ class FakePricingGate:
     def _entitlements(self, user_id: uuid.UUID) -> tuple[dict[str, bool], dict[str, float]]:
         catalog = self._check_available()
         try:
-            features, limits = catalog.entitlements(
-                self.plan_of(user_id), self.add_ons.get(user_id, {})
-            )
-            if os.environ.get("LOCAL_PRICING_UNMETERED") == "true":
-                for limit in ("capacityUnits", "taskStarts", "solverSeconds", "concurrentJobs", "federatedTaskStarts"):
-                    if limit in limits:
-                        limits[limit] = float("inf")
-            return features, limits
+            return catalog.entitlements(self.plan_of(user_id), self.add_ons.get(user_id, {}))
         except PricingCatalogError as exc:
             raise PricingUnavailable(str(exc)) from exc
-
-    def _consumed(self, user_id: uuid.UUID) -> Dict[str, float]:
-        return self.consumed.setdefault(user_id, {})
-
-    def _limit_id(self, role: str) -> str:
-        catalog = self._check_available()
-        if role not in catalog.limit_definitions:
-            raise PricingUnavailable(f"Unknown usage-limit identifier {role!r}")
-        return role
-
-    def spend(self, user_id: uuid.UUID, role: str, amount: float) -> None:
-        limit_id = self._limit_id(role)
-        self._consumed(user_id)[limit_id] = self._consumed(user_id).get(limit_id, 0.0) + amount
-
-    def exhaust(self, user_id: uuid.UUID, role: str) -> None:
-        _, limits = self._entitlements(user_id)
-        limit_id = self._limit_id(role)
-        self._consumed(user_id)[limit_id] = limits.get(limit_id, 0.0)
-
-    async def evaluate(
-        self, user_id: uuid.UUID, feature: str, expected: Optional[Dict[str, float]] = None
-    ) -> Verdict:
-        catalog = self._check_available()
-        expected = expected or {}
-        self.evaluations.append((user_id, feature, dict(expected)))
-        feature_name = feature
-        if feature_name not in catalog.feature_definitions:
-            return Verdict.no(f"Unknown feature identifier {feature_name!r}.")
-        features, limits = self._entitlements(user_id)
-        if not features.get(feature_name, False):
-            return Verdict.no(f"The current contract does not include {feature_name}.")
-        consumed = self._consumed(user_id)
-        exhausted: list[tuple[str, float, float]] = []
-        for limit_id in catalog.linked_limits.get(feature_name, ()):
-            allowed = limits.get(limit_id, 0.0)
-            if consumed.get(limit_id, 0.0) >= allowed:
-                exhausted.append((limit_id, allowed, consumed.get(limit_id, 0.0)))
-        if exhausted:
-            exhausted.sort(key=lambda item: (1 if item[0] == "concurrentJobs" else 0, item[0]))
-            limit_id, allowed, used_val = exhausted[0]
-            unit = getattr(catalog.limit_definitions.get(limit_id), "unit", None) if limit_id in catalog.limit_definitions else None
-            renews_at = (
-                self.renews_at.get(user_id).isoformat()
-                if user_id in self.renews_at and self.renews_at[user_id] is not None
-                else None
-            )
-            return Verdict.no(
-                f"{limit_id} is spent.",
-                LimitUsage(
-                    limit_id=limit_id,
-                    limit=allowed,
-                    used=used_val,
-                    unit=unit,
-                    renews_at=renews_at,
-                ),
-            )
-        return Verdict.yes()
-
-    async def revert(self, user_id: uuid.UUID, feature: str) -> None:
-        self._check_available()
-
-    async def adjust_usage(self, user_id: uuid.UUID, increments: Dict[str, float]) -> None:
-        self._check_available()
-        consumed = self._consumed(user_id)
-        for role, amount in increments.items():
-            limit_id = self._limit_id(role)
-            consumed[limit_id] = max(0.0, consumed.get(limit_id, 0.0) + amount)
 
     async def caps(self, user_id: uuid.UUID) -> PlanCaps:
         self._check_available()
@@ -127,23 +53,6 @@ class FakePricingGate:
             plan=self.plan_of(user_id),
             features=features,
             limits=limits,
-        )
-
-    async def usage(self, user_id: uuid.UUID) -> UsageSnapshot:
-        _, limits = self._entitlements(user_id)
-        consumed = self._consumed(user_id)
-        return UsageSnapshot(
-            plan=self.plan_of(user_id),
-            limits={
-                name: LimitUsage(
-                    name,
-                    allowed,
-                    max(0.0, float(consumed.get(name, 0.0) or 0.0)),
-                    unit=(self._check_available().limit_definitions.get(name) or {}).get("unit"),
-                )
-                for name, allowed in limits.items()
-                if allowed != float("inf")
-            },
         )
 
     async def create_contract(
@@ -211,7 +120,6 @@ class FakePricingGate:
 
     async def pricing_token(self, user_id: uuid.UUID) -> str:
         caps = await self.caps(user_id)
-        usage = await self.usage(user_id)
         service = "openbinding-"
         json_limits = {
             name: value if value != float("inf") else None
@@ -229,9 +137,6 @@ class FakePricingGate:
                 "features": {service + name: value for name, value in caps.features.items()},
                 "usageLimits": {service + name: value for name, value in json_limits.items()},
             },
-            "subscriptionContext": {
-                service + name: limit.used for name, limit in usage.limits.items()
-            },
         }
         payload = base64.urlsafe_b64encode(
             json.dumps(claims, allow_nan=False).encode()
@@ -242,7 +147,6 @@ class FakePricingGate:
         self._check_available()
         self.contracts.pop(user_id, None)
         self.plans.pop(user_id, None)
-        self.consumed.pop(user_id, None)
         self.versions.pop(user_id, None)
         self.add_ons.pop(user_id, None)
         self.renews_at.pop(user_id, None)

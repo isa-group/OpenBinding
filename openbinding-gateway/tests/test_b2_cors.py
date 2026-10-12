@@ -18,7 +18,7 @@ from openbinding_gateway.core.settings import (
     Settings,
     get_settings,
 )
-from openbinding_gateway.db.models import User
+from openbinding_gateway.db.models import Job, JobState, User
 from sqlalchemy import select
 from _pricing import fake_pricing_gate
 from _repo import REPO_ROOT
@@ -181,7 +181,9 @@ async def gate():
     space_client.set_gate(None)
 
 
-async def test_a_429_exposes_retry_after_to_the_browser(api_client, db_session, registration, gate):
+async def test_a_429_exposes_retry_after_to_the_browser(
+    api_client, db_session, registration, gate, monkeypatch
+):
     details = registration()
     assert (await api_client.post("/v1/auth/register", json=details)).status_code == 201
     user = (await db_session.execute(select(User).where(User.username == details["username"]))).scalars().one()
@@ -196,7 +198,13 @@ async def test_a_429_exposes_retry_after_to_the_browser(api_client, db_session, 
         content=load_package(EXAMPLE).to_zip(),
     )
     assert snapshot.status_code == 201, snapshot.text
-    gate.exhaust(user.id, "concurrentJobs")
+    # The account's only slot is taken by a job that is still queued.
+    monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
+    db_session.add(Job(
+        owner_id=user.id, engine_id="random-search", engine_job_id="busy",
+        service_url="http://engine", state=JobState.QUEUED,
+    ))
+    await db_session.commit()
     origin = allowed_origin()
 
     response = await api_client.post(

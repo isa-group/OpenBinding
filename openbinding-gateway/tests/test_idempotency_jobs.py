@@ -9,8 +9,8 @@ from sqlalchemy import func, select
 
 from _repo import REPO_ROOT
 
-from openbinding_gateway import space_client, study_jobs
-from openbinding_gateway.access import metering
+from openbinding_gateway import study_jobs
+from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db.models import Job, User
 from openbinding_gateway.domain import idempotency
 from openbinding_gateway.routes import v1 as routes
@@ -215,32 +215,20 @@ def _hide_from_first_lookups(monkeypatch, hidden):
     monkeypatch.setattr(routes, "_find_idempotent_job", find)
 
 
-async def test_losing_the_job_insert_race_returns_a_replay_and_releases(
+async def test_losing_the_job_insert_race_returns_a_replay(
     api_client, db_session, account, monkeypatch
 ):
     headers, snapshot = account
     first = await _post(api_client, headers, _body(snapshot))
     assert first.status_code == 202, first.text
 
-    released = []
-
-    async def reserve(gate, user_id, **kwargs):
-        # The winner never ran, so its concurrency slot is still taken; the loser is let through.
-        return space_client.Verdict.yes(), metering.Reservation(user_id=user_id, increments={})
-
-    async def release(gate, reservation):
-        released.append(reservation)
-
-    monkeypatch.setattr(metering, "reserve", reserve)
-    monkeypatch.setattr(metering, "release", release)
-    # Misses the pre-check and the post-reserve check; only the INSERT notices the winner.
+    # Misses the pre-check and the check after the account lock; only the INSERT notices the winner.
     _hide_from_first_lookups(monkeypatch, 2)
     loser = await _post(api_client, headers, _body(snapshot))
 
     assert loser.status_code == 202, loser.text
     assert loser.json()["id"] == first.json()["id"]
     assert loser.json()["idempotent"] is True
-    assert len(released) == 1
     assert await _job_count(db_session) == 1
 
 
@@ -251,24 +239,29 @@ async def test_a_request_waiting_on_the_account_lock_gets_a_replay_not_a_429(
     first = await _post(api_client, headers, _body(snapshot))
     assert first.status_code == 202, first.text
 
-    released = []
-
-    async def busy(*args, **kwargs):
-        limit = space_client.LimitUsage(limit_id="concurrentJobs", limit=1, used=1)
-        return space_client.Verdict.no("busy", limit), metering.Reservation(user_id=args[1], increments={})
-
-    async def release(gate, reservation):
-        released.append(reservation)
-
-    monkeypatch.setattr(metering, "reserve", busy)
-    monkeypatch.setattr(metering, "release", release)
+    # The winner's job holds the account's only slot, so a new job would be refused.
+    monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
+    # The pre-check misses, as if the winner had not committed when the request arrived;
+    # the lookup after the account lock sees it and answers with the replay.
     _hide_from_first_lookups(monkeypatch, 1)
     waited = await _post(api_client, headers, _body(snapshot))
 
     assert waited.status_code == 202, waited.text
     assert waited.json()["id"] == first.json()["id"]
     assert waited.json()["idempotent"] is True
-    assert len(released) == 1
+    assert await _job_count(db_session) == 1
+
+
+async def test_a_replay_with_the_limit_reached_returns_the_existing_job(api_client, db_session, account, monkeypatch):
+    headers, snapshot = account
+    monkeypatch.setattr(get_settings(), "max_concurrent_jobs_per_user", 1)
+    first = await _post(api_client, headers, _body(snapshot))
+    replay = await _post(api_client, headers, _body(snapshot))
+
+    assert first.status_code == replay.status_code == 202, replay.text
+    assert replay.json()["id"] == first.json()["id"]
+    assert replay.json()["idempotent"] is True
+    assert await _job_count(db_session) == 1
 
 
 async def test_clients_cannot_claim_the_study_cell_key_prefix(api_client, db_session, account):

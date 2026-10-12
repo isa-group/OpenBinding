@@ -1,4 +1,4 @@
-"""Layering: services and domain never reach back into the HTTP routes."""
+"""Layering: services, domain and jobs never reach back into the HTTP routes."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ SOURCE = Path(__file__).resolve().parents[1] / "src" / PACKAGE
 ROUTES = f"{PACKAGE}.routes"
 
 #: Layers that must stay independent of ``routes``.
-PROTECTED_LAYERS = ("services", "domain")
+PROTECTED_LAYERS = ("services", "domain", "jobs")
 
 #: Modules outside ``routes/`` that import ``routes`` at the time of writing,
 #: relative to the package (``artifacts`` is ``openbinding_gateway/artifacts.py``).
@@ -97,7 +97,7 @@ def test_detector_sees_every_import_form() -> None:
     assert lines == [1, 2, 3, 4, 5, 6, 8]
 
 
-def test_services_and_domain_do_not_import_routes() -> None:
+def test_services_domain_and_jobs_do_not_import_routes() -> None:
     offenders: list[str] = []
     for layer in PROTECTED_LAYERS:
         files = _python_files(SOURCE / layer)
@@ -106,7 +106,24 @@ def test_services_and_domain_do_not_import_routes() -> None:
             for line, name in routes_imports(path.read_text(encoding="utf-8"), _package_of(path)):
                 offenders.append(f"{path.relative_to(SOURCE.parent)}:{line} imports {name}")
 
-    assert not offenders, "services/domain must not import routes:\n" + "\n".join(offenders)
+    assert not offenders, "services/domain/jobs must not import routes:\n" + "\n".join(offenders)
+
+
+def test_nothing_imports_the_retired_metering_module() -> None:
+    offenders: list[str] = []
+    for path in _python_files(SOURCE):
+        text = path.read_text(encoding="utf-8")
+        for node in ast.walk(ast.parse(text)):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [alias.name for alias in node.names] + [node.module or ""]
+            else:
+                continue
+            if any(name == "metering" or name.endswith(".metering") for name in names):
+                offenders.append(f"{path.relative_to(SOURCE.parent)}:{node.lineno}")
+
+    assert not offenders, "the metering module was retired; use jobs/:\n" + "\n".join(offenders)
 
 
 def _modules_importing_routes() -> set[str]:

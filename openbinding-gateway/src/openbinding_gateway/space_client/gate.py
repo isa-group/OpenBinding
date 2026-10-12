@@ -3,16 +3,15 @@
 Entitlements are not decided here. They are decided by a SPACE instance, which
 holds a contract per user and knows what each plan allows. This module is the
 seam between the two: a narrow protocol the rest of the gateway talks to, an
-adapter over SPACE's own client, and a fake the tests use so that a solve can
-be refused for lack of quota without a SPACE instance existing.
+adapter over SPACE's own client, and a fake the tests use so that a plan can be
+exercised without a SPACE instance existing.
 
 The seam is the point. SPACE is early-stage software whose API will move, and
 when it does ``SpacePricingGate`` changes and nothing else does.
 
-One thing the protocol is deliberate about: **asking and spending are separate
-calls**. ``evaluate`` answers whether something may happen and changes nothing;
-``adjust_usage`` records what it cost, in SPACE. The gateway keeps job audit
-state but no second commercial balance.
+The protocol only reads and manages contracts: what a plan includes (``caps``),
+the contract itself and the token the browser evaluates features against. The
+gateway counts and charges no consumption.
 """
 
 from __future__ import annotations
@@ -71,27 +70,6 @@ class PlanCaps:
 
 
 @dataclass(frozen=True)
-class LimitUsage:
-    """One usage limit, as an account holder should see it."""
-
-    limit_id: str
-    limit: float
-    used: float
-    unit: Optional[str] = None
-    renews_at: Optional[str] = None
-
-    @property
-    def remaining(self) -> float:
-        return max(0.0, self.limit - self.used)
-
-
-@dataclass(frozen=True)
-class UsageSnapshot:
-    plan: str
-    limits: Dict[str, LimitUsage] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
 class SubscriptionSnapshot:
     """The immutable pricing selection currently pinned to one contract."""
 
@@ -101,31 +79,13 @@ class SubscriptionSnapshot:
     renews_at: Optional[str] = None
 
 
-@dataclass(frozen=True)
-class Verdict:
-    """The answer to "may this happen?"."""
-
-    allowed: bool
-    #: Which limit refused, when one did.
-    limit: Optional[LimitUsage] = None
-    reason: Optional[str] = None
-
-    @classmethod
-    def yes(cls) -> "Verdict":
-        return cls(allowed=True)
-
-    @classmethod
-    def no(cls, reason: str, limit: Optional[LimitUsage] = None) -> "Verdict":
-        return cls(allowed=False, reason=reason, limit=limit)
-
-
 class PricingUnavailable(RuntimeError):
     """SPACE could not be reached, and the caller has to decide what that means.
 
-    Deliberately distinct from a refusal: "you have no quota left" and "I could
-    not find out whether you have quota left" call for different answers, and
-    conflating them would either hand out unmetered compute or refuse everyone
-    the moment SPACE restarts.
+    Deliberately distinct from a refusal: "your plan does not include this" and
+    "I could not find out what your plan includes" call for different answers,
+    and conflating them would either hand out features to everyone or refuse
+    everyone the moment SPACE restarts.
     """
 
 
@@ -133,22 +93,8 @@ class PricingUnavailable(RuntimeError):
 class PricingGate(Protocol):
     """Everything the gateway asks a pricing service."""
 
-    async def evaluate(
-        self, user_id: uuid.UUID, feature: str, expected: Optional[Dict[str, float]] = None
-    ) -> Verdict:
-        """Whether a feature may be used. Asks; spends nothing."""
-
-    async def revert(self, user_id: uuid.UUID, feature: str) -> None:
-        """Undo an evaluation. Kept for completeness; spending is undone by adjusting."""
-
-    async def adjust_usage(self, user_id: uuid.UUID, increments: Dict[str, float]) -> None:
-        """Add to (or, negatively, release) usage levels once the real cost is known."""
-
     async def caps(self, user_id: uuid.UUID) -> PlanCaps:
-        """The static ceilings this user's plan imposes."""
-
-    async def usage(self, user_id: uuid.UUID) -> UsageSnapshot:
-        """What this user has spent, for display."""
+        """The features and static ceilings this user's plan imposes."""
 
     async def create_contract(
         self,

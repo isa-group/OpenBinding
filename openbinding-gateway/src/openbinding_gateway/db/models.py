@@ -174,10 +174,6 @@ class Job(Base):
     started. Giving them a row fixes both, and adds the thing the accounts
     module actually needs: an owner, so that a job identifier stops being a
     bearer token for whatever it names.
-
-    ``metered`` and ``concurrency_released`` are written with a compare-and-set,
-    because a client polling twice at once must not be able to bill the same
-    solve twice or release the same slot twice.
     """
 
     __tablename__ = "jobs"
@@ -233,19 +229,17 @@ class Job(Base):
     idempotency_key: Mapped[Optional[str]] = mapped_column(String(256), nullable=True, index=True)
     idempotency_fingerprint: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
 
-    #: What the caller was allowed to spend, so an abandoned job can be
-    #: reconciled against something rather than guessed at.
+    #: The wall-clock budget the job was given, so a job nobody ever claimed or
+    #: that outlived its lease can be judged abandoned against something.
     requested_budget_s: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    metered: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    concurrency_released: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     cancellation_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     #: Who is running this job, and until when. A worker claims a queued job by
     #: writing a fresh token and keeps ``lease_until`` ahead of the clock while
     #: it works; a running job whose lease lapsed has lost its worker.
     lease_token: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    #: When the current attempt started, so an abandoned job is charged for the
-    #: time it was observed running rather than for its whole budget.
+    #: When the current attempt started; an abandoned job without a lease is
+    #: judged from here.
     claimed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     retry_of_id: Mapped[Optional[uuid.UUID]] = mapped_column(
@@ -257,11 +251,8 @@ class Job(Base):
     project_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    billing_sponsor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
-    )
     #: The study cell this job was launched for. The partial unique index below
-    #: is what keeps two racing launches from both reserving a job for one cell.
+    #: is what keeps two racing launches from both creating a job for one cell.
     #: ``use_alter`` because study_cells.job_id points back at jobs.
     study_cell_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("study_cells.id", ondelete="SET NULL", name="fk_jobs_study_cell_id", use_alter=True),
@@ -275,7 +266,7 @@ class Job(Base):
 
 
 class AnalysisTask(Base):
-    """Durable archive computation, independent of solve jobs and metering."""
+    """Durable archive computation, independent of solve jobs."""
 
     __tablename__ = "analysis_tasks"
     __table_args__ = (UniqueConstraint("owner_id", "fingerprint", name="uq_analysis_tasks_owner_fingerprint"),)

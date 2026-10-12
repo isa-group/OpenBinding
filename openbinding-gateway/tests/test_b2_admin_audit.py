@@ -341,55 +341,19 @@ async def test_revoking_twice_records_only_the_first(api_client, registration, g
     assert len(await events(db_session, "admin.api_key.revoked")) == 1
 
 
-async def test_a_resync_leaves_one_event_with_the_correction(
+async def test_reconciling_jobs_leaves_one_event_with_the_failed_count(
     api_client, registration, gate, db_session
 ):
-    target, _ = await account(api_client, registration)
     admin_profile, admin = await account(api_client, registration, db_session, admin=True)
-    gate.spend(uuid.UUID(target["id"]), "concurrentJobs", 1)
 
-    response = await api_client.post(
-        f"/v1/admin/users/{target['id']}/usage/resync", headers=admin
-    )
+    response = await api_client.post("/v1/admin/maintenance/reconcile-jobs", headers=admin)
 
     assert response.status_code == 200
-    recorded = await events(db_session, "admin.usage.resynced")
+    assert response.json() == {"failed": 0}
+    recorded = await events(db_session, "maintenance.jobs.reconciled")
     assert len(recorded) == 1
-    event_row = recorded[0]
-    assert str(event_row.actor_id) == admin_profile["id"]
-    assert str(event_row.target_id) == target["id"]
-    assert event_row.detail["before"] == {"concurrent_jobs_recorded": 1}
-    assert event_row.detail["after"] == {"concurrent_jobs_recorded": 0}
-    assert event_row.detail["corrected_by"] == -1
-    assert event_row.detail["slots_in_flight"] == 0
-
-
-async def test_a_resync_without_drift_is_still_one_event(api_client, registration, gate, db_session):
-    target, _ = await account(api_client, registration)
-    _, admin = await account(api_client, registration, db_session, admin=True)
-
-    await api_client.post(f"/v1/admin/users/{target['id']}/usage/resync", headers=admin)
-
-    recorded = await events(db_session, "admin.usage.resynced")
-    assert len(recorded) == 1
-    assert recorded[0].detail["corrected_by"] == 0
-
-
-async def test_refused_resyncs_leave_no_event(api_client, registration, gate, db_session):
-    target, theirs = await account(api_client, registration)
-    _, admin = await account(api_client, registration, db_session, admin=True)
-    before = await total_events(db_session)
-
-    forbidden = await api_client.post(f"/v1/admin/users/{target['id']}/usage/resync", headers=theirs)
-    missing = await api_client.post(f"/v1/admin/users/{uuid.uuid4()}/usage/resync", headers=admin)
-    gate.unavailable = True
-    outage = await api_client.post(f"/v1/admin/users/{target['id']}/usage/resync", headers=admin)
-    gate.unavailable = False
-
-    assert forbidden.status_code == 403
-    assert missing.status_code == 404
-    assert outage.status_code == 503
-    assert await total_events(db_session) == before
+    assert str(recorded[0].actor_id) == admin_profile["id"]
+    assert recorded[0].detail == {"failed": 0}
 
 
 async def test_a_plan_change_by_an_administrator_is_one_audit_event(
@@ -417,14 +381,12 @@ async def test_the_new_events_are_listed_in_the_platform_audit(
     _, admin = await account(api_client, registration, db_session, admin=True)
     await api_client.patch(f"/v1/admin/users/{target['id']}", headers=admin, json={"role": "admin"})
     await api_client.delete(f"/v1/admin/users/{target['id']}/api-keys/{key['id']}", headers=admin)
-    await api_client.post(f"/v1/admin/users/{target['id']}/usage/resync", headers=admin)
 
     listing = await api_client.get("/v1/admin/audit?limit=500", headers=admin)
 
     actions = [item["action"] for item in listing.json()["events"]]
     assert actions.count("admin.user.updated") == 1
     assert actions.count("admin.api_key.revoked") == 1
-    assert actions.count("admin.usage.resynced") == 1
     for item in listing.json()["events"]:
         assert item["organizationId"] is None
         assert item["organizationSlug"] is None
