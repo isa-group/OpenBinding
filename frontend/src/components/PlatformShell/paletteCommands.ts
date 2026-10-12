@@ -79,7 +79,6 @@ export function buildCommands({ organizations = [], projects = [], organization,
   if (isAdmin) {
     commands.push(
       command('Admin', 'Administration', 'Users, queues and system health', '/app/admin'),
-      command('Admin', 'Pricing control room', 'Plan versions and releases', '/app/admin/pricing'),
     );
   }
   return commands;

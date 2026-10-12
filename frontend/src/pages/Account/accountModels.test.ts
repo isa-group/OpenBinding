@@ -58,9 +58,9 @@ describe('usage rows', () => {
     plan: 'PRO',
     contract_pending: false,
     features: { solve: true },
-    capabilities: { taskStarts: null, solverSeconds: 180_000, apiKeys: 25, maxTimeoutSeconds: 1800, organizations: 10, newThing: 5 },
+    capabilities: { studyRuns: 1000, federatedEngines: null, apiKeys: 25, maxTimeoutSeconds: 1800, organizations: 10, newThing: 5 },
     limits: {
-      solverSeconds: { limit_id: 'solverSeconds', limit: 180_000, used: 7_420, remaining: 172_580, unit: 'second/month', renews_at: '2026-11-01T00:00:00Z' },
+      studyRuns: { limit_id: 'studyRuns', limit: 1000, used: 40, remaining: 960, unit: 'run/month', renews_at: '2026-11-01T00:00:00Z' },
       apiKeys: { limit_id: 'apiKeys', limit: 25, used: 2, remaining: 23, unit: 'key', renews_at: null },
       maxTimeoutSeconds: { limit_id: 'maxTimeoutSeconds', limit: 1800, used: 0, remaining: 1800, unit: 'second' },
       organizations: { limit_id: 'organizations', limit: 10, used: 2, remaining: 8 },
@@ -70,13 +70,13 @@ describe('usage rows', () => {
   const row = (id: string) => rows.find((item) => item.id === id)!;
 
   it('joins what is counted with what the plan allows, in a stable order', () => {
-    expect(rows.map((item) => item.id)).toEqual(['taskStarts', 'solverSeconds', 'apiKeys', 'maxTimeoutSeconds', 'organizations', 'newThing']);
-    expect(row('solverSeconds')).toMatchObject({ limit: 180_000, used: 7_420, unit: 'second/month', renewsAt: '2026-11-01T00:00:00Z' });
+    expect(rows.map((item) => item.id)).toEqual(['studyRuns', 'federatedEngines', 'apiKeys', 'maxTimeoutSeconds', 'organizations', 'newThing']);
+    expect(row('studyRuns')).toMatchObject({ limit: 1000, used: 40, unit: 'run/month', renewsAt: '2026-11-01T00:00:00Z' });
     expect(row('apiKeys')).toMatchObject({ limit: 25, used: 2 });
   });
 
   it('reads an unlimited allowance (null capability, not counted) as no limit', () => {
-    expect(row('taskStarts')).toMatchObject({ limit: null, used: null, tracked: null });
+    expect(row('federatedEngines')).toMatchObject({ limit: null, used: null, tracked: null });
   });
 
   it('does not count a per-request ceiling as used', () => {
@@ -111,12 +111,12 @@ describe('notifications', () => {
     const change = contractChange(notification('contract.changed', {
       reason: 'institutional_agreement',
       previous: { plan: 'BASIC', addOns: {} },
-      current: { plan: 'ADVANCED', addOns: { COMPUTE_PACK: 2, STORAGE_PACK: 1 } },
+      current: { plan: 'ADVANCED', addOns: { COLLABORATION_PACK: 2, STORAGE_PACK: 1 } },
       pricingVersion: '0.1.0',
     }));
     expect(change).toEqual({
       before: { plan: 'BASIC', addOns: 'none' },
-      after: { plan: 'ADVANCED', addOns: 'COMPUTE_PACK ×2, STORAGE_PACK' },
+      after: { plan: 'ADVANCED', addOns: 'COLLABORATION_PACK ×2, STORAGE_PACK' },
       reason: 'institutional agreement',
       pricingVersion: '0.1.0',
     });

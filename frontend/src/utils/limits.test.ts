@@ -29,7 +29,6 @@ describe('describeLimit', () => {
     expect(describeLimit('days', 7)).toEqual({ text: '7 days' });
     expect(describeLimit('days', 1)).toEqual({ text: '1 day' });
     expect(describeLimit('count', 100_000)).toEqual({ text: '100,000' });
-    expect(describeLimit('capacity', 1_000_000)).toEqual({ text: '1,000,000' });
   });
 
   it('reads both ways an unlimited allowance arrives, and says when it is not known', () => {
@@ -45,7 +44,8 @@ describe('describeLimit', () => {
 
 describe('limitInfo', () => {
   it('knows the limits of the OpenBinding pricing', () => {
-    expect(limitInfo('taskStarts')).toMatchObject({ label: 'Solves', group: 'monthly', kind: 'count' });
+    expect(limitInfo('studyRuns')).toMatchObject({ label: 'Study runs', group: 'monthly', kind: 'count' });
+    expect(limitInfo('concurrentJobs')).toMatchObject({ label: 'Concurrent jobs', group: 'capacity', kind: 'count' });
     expect(limitInfo('apiKeys')).toMatchObject({ label: 'API keys', group: 'capacity' });
     expect(limitInfo('maxPayloadBytes')).toMatchObject({ label: 'Max package size', group: 'ceiling', kind: 'bytes' });
     expect(limitInfo('storageBytes')).toMatchObject({ label: 'Storage', group: 'sponsored', kind: 'bytes' });

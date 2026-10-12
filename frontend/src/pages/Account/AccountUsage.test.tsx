@@ -31,13 +31,11 @@ const basicUsage = (): UsageView => ({
   contract_pending: false,
   features: { authoring: true, solve: true, advancedAnalytics: false, institutionalBranding: false },
   capabilities: {
-    taskStarts: 10, solverSeconds: 900, studyRuns: 3, capacityUnits: 5000, concurrentJobs: 1, federatedEngines: 1, apiKeys: 1,
+    studyRuns: 3, concurrentJobs: 1, federatedEngines: 1, apiKeys: 1,
     maxTimeoutSeconds: 60, maxIterations: 10_000, maxPayloadBytes: 8_388_608, maxInstanceComplexityLog10: 9, jobHistoryDays: 7,
     organizations: 1, storageBytes: 104_857_600,
   },
   limits: {
-    taskStarts: limit('taskStarts', 10, 10, 'solve/month', RENEWS),
-    solverSeconds: limit('solverSeconds', 900, 610, 'second/month', RENEWS),
     studyRuns: limit('studyRuns', 3, 3, 'run/month', RENEWS),
     concurrentJobs: limit('concurrentJobs', 1, 1, 'job'),
     apiKeys: limit('apiKeys', 1, 1, 'key'),
@@ -91,24 +89,24 @@ describe('Usage & plan', () => {
     await screen.findByRole('heading', { name: 'This month' });
 
     expect(screen.getByText(/Renews Nov 1, 2026 \(in \d+ days\)\./)).toBeInTheDocument();
-    const time = screen.getByRole('meter', { name: 'Solver time' });
-    expect(time).toHaveAttribute('aria-valuenow', '610');
-    expect(time).toHaveAttribute('aria-valuemax', '900');
-    expect(screen.getByText('10.2 min of 15 min used')).toBeInTheDocument();
-    expect(screen.getByText('4.8 min left')).toBeInTheDocument();
+    const runs = screen.getByRole('meter', { name: 'Study runs' });
+    expect(runs).toHaveAttribute('aria-valuenow', '3');
+    expect(runs).toHaveAttribute('aria-valuemax', '3');
 
-    expect(screen.getAllByText('0 left')).toHaveLength(2);
-    expect(screen.getByText('Used up. New solves can’t start until it renews; a request now gets a 402.')).toBeInTheDocument();
+    expect(screen.getAllByText('0 left')).toHaveLength(1);
     expect(screen.getByText('Used up. New study runs can’t start until it renews; a request now gets a 402.')).toBeInTheDocument();
   });
 
   it('does not invent what was used for an allowance the gateway does not count', async () => {
+    const usage = basicUsage();
+    delete usage.limits.studyRuns;
+    api.getOwnUsage.mockResolvedValue(usage);
     renderUsage();
     await screen.findByRole('heading', { name: 'This month' });
 
-    const card = screen.getByText('Capacity units').closest('.usage-card') as HTMLElement;
+    const card = screen.getByText('Study runs').closest('.usage-card') as HTMLElement;
     expect(within(card).getByText('Used: not reported')).toBeInTheDocument();
-    expect(within(card).getByText('5,000 limit')).toBeInTheDocument();
+    expect(within(card).getByText('3 limit')).toBeInTheDocument();
   });
 
   it('shows the capacity in use with the way to manage it', async () => {
@@ -147,13 +145,13 @@ describe('Usage & plan', () => {
   it('reads an unlimited allowance as Unlimited', async () => {
     const usage = basicUsage();
     usage.plan = 'PRO';
-    usage.capabilities.taskStarts = null;
-    delete usage.limits.taskStarts;
+    usage.capabilities.studyRuns = null;
+    delete usage.limits.studyRuns;
     api.getOwnUsage.mockResolvedValue(usage);
     renderUsage();
 
     await screen.findByRole('heading', { name: 'This month' });
-    const card = screen.getByText('Solves').closest('.usage-card') as HTMLElement;
+    const card = screen.getByText('Study runs').closest('.usage-card') as HTMLElement;
     expect(within(card).getByText('Unlimited')).toBeInTheDocument();
   });
 

@@ -169,8 +169,8 @@ describe('Identities', () => {
 
       const dialog = within(await unlinkDialog());
       const change = within(dialog.getByLabelText('Plan change'));
-      expect(await change.findByText('50 solves / month')).toBeInTheDocument();
-      expect(change.getByText('10 solves / month')).toBeInTheDocument();
+      expect(await change.findByText('3 concurrent jobs')).toBeInTheDocument();
+      expect(change.getByText('1 concurrent job')).toBeInTheDocument();
       expect(change.getByText('RESEARCH')).toBeInTheDocument();
       expect(change.getByText('BASIC')).toBeInTheDocument();
 
@@ -189,7 +189,7 @@ describe('Identities', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Unlink' }));
 
       const dialog = within(await unlinkDialog());
-      await dialog.findByText('50 solves / month');
+      await dialog.findByText('3 concurrent jobs');
       fireEvent.change(dialog.getByLabelText('Type DOWNGRADE RESEARCH to confirm'), { target: { value: 'DOWNGRADE RESEARCH' } });
       fireEvent.click(dialog.getByRole('button', { name: 'Unlink' }));
 

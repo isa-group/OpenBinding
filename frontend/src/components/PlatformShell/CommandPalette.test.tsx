@@ -104,7 +104,7 @@ describe('CommandPalette', () => {
 
     renderPalette(true);
     openWithShortcut();
-    expect(resultLabels()).toEqual(expect.arrayContaining(['Administration', 'Pricing control room']));
+    expect(resultLabels()).toContain('Administration');
   });
 
   it('closes with Escape and gives focus back to the control that was focused', () => {

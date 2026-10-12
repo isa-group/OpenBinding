@@ -125,7 +125,7 @@ export function optionRows(provenance: Record<string, unknown> | null | undefine
     const details = isRecord(warning.details) ? warning.details : {};
     if (warning.code === 'OPTION_CLAMPED' && typeof details.option === 'string') reduced.set(details.option, warning);
   }
-  const names = [...new Set([...Object.keys(asked), ...Object.keys(used)])].filter((name) => name !== 'routing');
+  const names = [...new Set([...Object.keys(asked), ...Object.keys(used)])];
   return names.map((name) => {
     const warning = reduced.get(name);
     return {
@@ -139,7 +139,7 @@ export function optionRows(provenance: Record<string, unknown> | null | undefine
   });
 }
 
-// --- engine, routing and pins
+// --- engine and pins
 
 export interface ResourcePin {
   namespace: string;
@@ -186,60 +186,6 @@ export function readPins(provenance: Record<string, unknown> | null | undefined)
     checkedBy: text(p.evaluator),
     configuration: configuration ? `${text(configuration.name) ?? 'configuration'}@${text(configuration.version) ?? '?'}` : null,
     limits: limitLines,
-  };
-}
-
-export interface RoutingDecision {
-  engine: string;
-  mode: string;
-  reason: string;
-  utility: number | null;
-  credits: number | null;
-  fallback: boolean;
-}
-
-/** What the AutoRouter chose, when it chose. */
-export function readRouting(provenance: Record<string, unknown> | null | undefined): RoutingDecision | null {
-  const routing = provenance?.engineRouting;
-  if (!isRecord(routing)) return null;
-  return {
-    engine: text(routing.selectedEngine) ?? '—',
-    mode: text(routing.selectedMode) ?? '—',
-    reason: text(routing.adaptationReason) ?? '',
-    utility: num(routing.utilityScore),
-    credits: num(routing.creditsCost),
-    fallback: routing.fallbackActivated === true,
-  };
-}
-
-export interface RoutingCandidate {
-  engine: string;
-  admissible: boolean;
-  utility: number | null;
-  rejection: string | null;
-}
-
-export interface AdminRouting {
-  loop: string | null;
-  workload: Array<[string, string]>;
-  candidates: RoutingCandidate[];
-}
-
-/** The diagnostic telemetry the gateway only sends on an administrator's own jobs. */
-export function readAdminRouting(provenance: Record<string, unknown> | null | undefined): AdminRouting | null {
-  const admin = provenance?.engineRoutingAdmin;
-  if (!isRecord(admin)) return null;
-  const features = isRecord(admin.workloadFeatures) ? admin.workloadFeatures : {};
-  const candidates = Array.isArray(admin.candidateEvaluations) ? admin.candidateEvaluations.filter(isRecord) : [];
-  return {
-    loop: text(admin.adaptationLoopId),
-    workload: Object.entries(features).map(([key, value]) => [key, typeof value === 'number' ? String(Math.round(value * 1000) / 1000) : String(value)]),
-    candidates: candidates.map((candidate) => ({
-      engine: text(candidate.engine) ?? '—',
-      admissible: candidate.admissible === true,
-      utility: num(candidate.utility),
-      rejection: text(candidate.rejectionReason),
-    })),
   };
 }
 

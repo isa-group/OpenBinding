@@ -119,7 +119,7 @@ describe('AppHeader', () => {
     ['D6 analysis', '/app/analysis/workspace', 'Analysis'],
     ['D6 studies', '/app/isa-demo/qos/studies/engines-vs-seeds', null],
     ['D7', '/app/engines/registrations', 'Tools'],
-    ['D8', '/app/admin/pricing', 'Admin'],
+    ['D8', '/app/admin/audit', 'Admin'],
   ] as const)('marks one entry of the main navigation for a screen of %s (%s)', (_domain, path, expected) => {
     renderHeader(adminUser, { path });
 

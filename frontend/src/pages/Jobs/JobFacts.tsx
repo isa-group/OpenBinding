@@ -1,13 +1,12 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Compass } from 'lucide-react';
 import type { JobInstanceView } from '../../api/jobs';
 import { Chip } from '../../components/ui/Chip';
 import { useCopy } from '../../components/ui/useCopy';
 import { shortDigest } from '../../utils/digest';
 import { formatDateTime } from '../../utils/format';
 import type { Origin } from './JobResult';
-import { readAdminRouting, readPins, readRouting, timelineOf, optionRows, type ResourcePin } from './jobsModel';
+import { readPins, timelineOf, optionRows, type ResourcePin } from './jobsModel';
 
 const pinText = (pin: ResourcePin | null): string | null => (pin ? `${pin.namespace ? `${pin.namespace}/` : ''}${pin.name}${pin.version ? ` ${pin.version}` : ''}` : null);
 
@@ -64,56 +63,6 @@ export function Settings({ provenance }: { provenance: Record<string, unknown> }
             </tbody>
           </table>
         </div>
-      )}
-    </section>
-  );
-}
-
-/** What the AutoRouter chose and why; the diagnostic telemetry only appears on an administrator’s own runs. */
-export function Routing({ provenance }: { provenance: Record<string, unknown> }) {
-  const decision = readRouting(provenance);
-  const admin = readAdminRouting(provenance);
-  if (!decision) return null;
-  return (
-    <section className="job-card is-routing" aria-labelledby="job-routing">
-      <div className="job-card-head">
-        <h2 id="job-routing"><Compass aria-hidden="true" className="job-icon" />AutoRouter decision</h2>
-        <span className="job-chips">
-          <Chip tone="accent">{decision.engine} · {decision.mode}</Chip>
-          {decision.fallback && <Chip tone="warning">Fallback activated</Chip>}
-        </span>
-      </div>
-      <p>{decision.reason || 'The AutoRouter did not say why.'}</p>
-      <p className="org-muted">
-        {decision.utility !== null ? `Utility ${decision.utility.toFixed(3)}` : 'Utility not reported'}
-        {' · '}
-        {decision.credits !== null ? `Cost ${decision.credits} CU` : 'Cost 1 CU'}
-      </p>
-      {admin && (
-        <details className="job-source" open>
-          <summary>Routing diagnostics (administrators, own runs)</summary>
-          <dl className="job-facts">
-            {admin.loop && <div><dt>Adaptation loop</dt><dd><code>{admin.loop}</code></dd></div>}
-            {admin.workload.length > 0 && <div><dt>Workload</dt><dd>{admin.workload.map(([key, value]) => `${key} ${value}`).join(' · ')}</dd></div>}
-          </dl>
-          {admin.candidates.length > 0 && (
-            <div className="job-table" role="region" aria-label="Candidate engines considered" tabIndex={0}>
-              <table>
-                <thead><tr><th scope="col">Engine</th><th scope="col">Admissible</th><th scope="col">Utility</th><th scope="col">Rejected because</th></tr></thead>
-                <tbody>
-                  {admin.candidates.map((candidate) => (
-                    <tr key={candidate.engine}>
-                      <td><code>{candidate.engine}</code></td>
-                      <td>{candidate.admissible ? 'Yes' : 'No'}</td>
-                      <td>{candidate.utility !== null ? candidate.utility.toFixed(3) : '—'}</td>
-                      <td>{candidate.rejection ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </details>
       )}
     </section>
   );

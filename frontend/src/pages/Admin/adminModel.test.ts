@@ -61,12 +61,12 @@ describe('the pricing catalog, read for contracts', () => {
     expect(read.plans.map((plan) => plan.id)).toEqual(['BASIC', 'ADVANCED', 'RESEARCH', 'PRO']);
     expect(read.plans.find((plan) => plan.id === 'BASIC')?.byAgreement).toBe(false);
     expect(read.plans.find((plan) => plan.id === 'PRO')?.byAgreement).toBe(true);
-    expect(read.plans.find((plan) => plan.id === 'BASIC')?.limits.taskStarts).toBe(10);
-    expect(read.plans.find((plan) => plan.id === 'PRO')?.limits.taskStarts).toBeNull();
-    const compute = read.addOns.find((addOn) => addOn.id === 'COMPUTE_PACK');
-    expect(compute).toMatchObject({ name: 'Compute pack', plans: ['ADVANCED', 'PRO'], min: 1, max: 10, step: 1 });
-    expect(compute?.extensions.taskStarts).toBe(100);
-    expect(read.limitIds[0]).toBe('taskStarts');
+    expect(read.plans.find((plan) => plan.id === 'BASIC')?.limits.apiKeys).toBe(1);
+    expect(read.plans.find((plan) => plan.id === 'PRO')?.limits.apiKeys).toBeNull();
+    const pack = read.addOns.find((addOn) => addOn.id === 'COLLABORATION_PACK');
+    expect(pack).toMatchObject({ name: 'Collaboration pack', plans: ['ADVANCED', 'PRO'], min: 1, max: 10, step: 1 });
+    expect(pack?.extensions.projects).toBe(10);
+    expect(read.limitIds[0]).toBe('studyRuns');
   });
 
   it('is nothing when the document has no plans', () => {
@@ -75,30 +75,30 @@ describe('the pricing catalog, read for contracts', () => {
 
   it('adds what each add-on brings to the plan’s limits, and leaves an unlimited one unlimited', () => {
     const read = catalog();
-    expect(limitsOf(read, 'ADVANCED', {}).taskStarts).toBe(25);
-    expect(limitsOf(read, 'ADVANCED', { COMPUTE_PACK: 2 }).taskStarts).toBe(225);
-    expect(limitsOf(read, 'ADVANCED', { COMPUTE_PACK: 2 }).solverSeconds).toBe(18000 + 2 * 7200);
-    expect(limitsOf(read, 'PRO', { COMPUTE_PACK: 2 }).taskStarts).toBeNull();
+    expect(limitsOf(read, 'ADVANCED', {}).projects).toBe(25);
+    expect(limitsOf(read, 'ADVANCED', { COLLABORATION_PACK: 2 }).projects).toBe(45);
+    expect(limitsOf(read, 'ADVANCED', { COLLABORATION_PACK: 2 }).members).toBe(10 + 2 * 5);
+    expect(limitsOf(read, 'PRO', { COLLABORATION_PACK: 2 }).apiKeys).toBeNull();
   });
 
   it('finds what is wrong with an agreement before the gateway does', () => {
     const read = catalog();
-    expect(agreementIssues(read, 'ADVANCED', { COMPUTE_PACK: 3 })).toEqual([]);
-    expect(agreementIssues(read, 'BASIC', { COMPUTE_PACK: 1 })).toEqual(['Compute pack isn’t available for BASIC.']);
-    expect(agreementIssues(read, 'ADVANCED', { COMPUTE_PACK: 11 })).toEqual(['Compute pack must be 1–10 in steps of 1.']);
+    expect(agreementIssues(read, 'ADVANCED', { COLLABORATION_PACK: 3 })).toEqual([]);
+    expect(agreementIssues(read, 'BASIC', { COLLABORATION_PACK: 1 })).toEqual(['Collaboration pack isn’t available for BASIC.']);
+    expect(agreementIssues(read, 'ADVANCED', { COLLABORATION_PACK: 11 })).toEqual(['Collaboration pack must be 1–10 in steps of 1.']);
     expect(agreementIssues(read, 'NOPE', {})).toEqual(['Choose a plan from the active pricing.']);
-    expect(agreementIssues(read, 'ADVANCED', { COMPUTE_PACK: 0 })).toEqual([]);
+    expect(agreementIssues(read, 'ADVANCED', { COLLABORATION_PACK: 0 })).toEqual([]);
   });
 
   it('compares limits before and after, with the direction each one moves', () => {
     const read = catalog();
     const up = compareLimits(read, limitsOf(read, 'BASIC', {}), limitsOf(read, 'PRO', {}));
-    const solves = up.find((row) => row.id === 'taskStarts');
-    expect(solves).toMatchObject({ label: 'Solves', direction: 'up' });
-    expect(solves?.before.text).toBe('10');
-    expect(solves?.after.text).toBe('Unlimited');
+    const keys = up.find((row) => row.id === 'apiKeys');
+    expect(keys).toMatchObject({ label: 'API keys', direction: 'up' });
+    expect(keys?.before.text).toBe('1');
+    expect(keys?.after.text).toBe('Unlimited');
     const down = compareLimits(read, limitsOf(read, 'ADVANCED', {}), limitsOf(read, 'BASIC', {}));
-    expect(down.find((row) => row.id === 'taskStarts')?.direction).toBe('down');
+    expect(down.find((row) => row.id === 'apiKeys')?.direction).toBe('down');
     expect(compareLimits(read, limitsOf(read, 'BASIC', {}), limitsOf(read, 'BASIC', {})).every((row) => row.direction === 'same')).toBe(true);
   });
 });
@@ -151,9 +151,9 @@ describe('audit events in words', () => {
   it('describes add-ons in a contract change', () => {
     const view = describeAuditEvent({
       ...AUDIT.events[2],
-      detail: { previous: { plan: 'ADVANCED', addOns: {} }, current: { plan: 'ADVANCED', addOns: { COMPUTE_PACK: 2 } } },
+      detail: { previous: { plan: 'ADVANCED', addOns: {} }, current: { plan: 'ADVANCED', addOns: { STORAGE_PACK: 2 } } },
     });
-    expect(view.after).toBe('ADVANCED · compute pack ×2');
+    expect(view.after).toBe('ADVANCED · storage pack ×2');
   });
 
   it('describes the maintenance and pricing events the gateway writes', () => {

@@ -166,34 +166,6 @@ export function engineChoices(engines: readonly EngineCatalogEntry[]): EngineCho
   }));
 }
 
-export interface SolverEstimate {
-  /** The most solver time the matrix may use, in seconds. */
-  seconds: number;
-  /** Every cell has a known budget (its own, the engine's default, or the plan's ceiling). */
-  complete: boolean;
-}
-
-/**
- * An upper bound for the solver time of one run: each cell may use its time budget, which the plan reduces to its ceiling.
- * A cell with no budget anywhere (no default, no ceiling) counts as zero and makes the estimate incomplete.
- */
-export function solverEstimate(input: { cases: number; seeds: number; engines: readonly EngineChoice[]; settings: ReadonlyArray<Record<string, unknown>>; ceiling: number | null }): SolverEstimate {
-  let seconds = 0;
-  let complete = true;
-  for (const engine of input.engines) {
-    for (const parameters of input.settings) {
-      const asked = typeof parameters.time_budget_ms === 'number' ? parameters.time_budget_ms / 1000 : engine.defaultSeconds;
-      const budget = asked ?? input.ceiling;
-      if (budget === null) {
-        complete = false;
-        continue;
-      }
-      seconds += (input.ceiling === null ? budget : Math.min(budget, input.ceiling)) * input.cases * input.seeds;
-    }
-  }
-  return { seconds, complete };
-}
-
 // --- case revisions
 
 export interface RevisionInfo {

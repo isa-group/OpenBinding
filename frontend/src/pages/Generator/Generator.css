@@ -100,18 +100,7 @@
 }
 
 .gl-drop svg { width: 26px; height: 26px; color: var(--tp-primary); }
-.gl-drop.is-compact { padding: 14px; border-color: var(--tp-hairline-strong); border-width: 1px; background: var(--tp-surface); }
 .gl-drop:focus-within { outline: 2px solid var(--tp-primary); outline-offset: 2px; }
-
-.gl-tbc { display: flex; gap: 10px; padding: 10px 12px; border: 1px solid var(--tp-severity-warning-border); border-radius: var(--tp-radius-md); background: var(--tp-severity-warning-bg); font-size: 0.8125rem; }
-.gl-tbc .ui-chip { flex: none; align-self: flex-start; }
-.gl-locked { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--tp-slate); }
-.gl-locked svg { width: 16px; height: 16px; color: var(--tp-steel); }
-.gl-coefficient-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: var(--tp-spacing-sm); }
-.gl-coefficients { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
-.gl-coefficients caption { padding-bottom: 4px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 600; text-align: left; }
-.gl-coefficients th, .gl-coefficients td { padding: 4px 6px; border-top: 1px solid var(--tp-hairline-soft); text-align: left; font-weight: 400; }
-.gl-coefficients td { font-family: var(--font-mono); text-align: right; }
 
 /* The preview and keeping the result */
 .gl-generating { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8125rem; }

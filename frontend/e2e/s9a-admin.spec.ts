@@ -3,7 +3,7 @@ import { failureBody } from './helpers/problems';
 import type { AdminAuditPage, AdminUserView, SponsorProposal } from '../src/api/auth';
 import { CURRENT_FIXTURE, catalogFixture } from '../src/pages/Pricing/pricingFixture';
 import {
-  ALEX, AUDIT, CONTROL_ROOM, DANA, EMPTY_QUEUES, ERROR_EVENTS, ERROR_OVERVIEW, MARIA, MODERATION, ORG, OVERVIEW, PRIYA, SAM, SUB_ORG, USERS,
+  ALEX, AUDIT, DANA, EMPTY_QUEUES, ERROR_EVENTS, ERROR_OVERVIEW, MARIA, MODERATION, ORG, OVERVIEW, PRIYA, SAM, SUB_ORG, USERS,
   queuesAt, subscriptionOf, usageOf, userPage,
 } from '../src/test/fixtures/admin';
 
@@ -31,7 +31,7 @@ const token = (expiresInSeconds: number) => [
 
 type Key =
   | 'overview' | 'queues' | 'moderation' | 'errorOverview' | 'errors' | 'audit' | 'users' | 'subscription' | 'usage' | 'catalog'
-  | 'sponsor' | 'organization' | 'controlRoom';
+  | 'sponsor' | 'organization';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
@@ -48,7 +48,6 @@ interface State {
     patch: Array<{ id: string; body: Record<string, unknown> }>;
     subscription: Array<{ id: string; body: Record<string, unknown> }>;
     plan: Array<{ id: string; plan: string }>;
-    resync: string[];
     revoked: string[];
     sponsor: Array<{ id: string; body: Record<string, unknown> }>;
     cancelled: string[];
@@ -81,7 +80,7 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     sponsor: MARIA.id,
     proposals: [],
     extraAudit: [],
-    sent: { patch: [], subscription: [], plan: [], resync: [], revoked: [], sponsor: [], cancelled: [], auditQueries: [] },
+    sent: { patch: [], subscription: [], plan: [], revoked: [], sponsor: [], cancelled: [], auditQueries: [] },
   };
   const me = options.role === 'user' ? { ...MARIA, role: 'user' } : { ...ALEX, institutional_branding: false };
   const answer = (key: Key, body: unknown): Handler => (route) => (state.refuse[key] ? state.refuse[key](route) : json(body)(route));
@@ -132,12 +131,9 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
     if (path === 'queues') return answer('queues', queuesAt(Date.now()))(route);
     if (path === 'moderation') return answer('moderation', MODERATION)(route);
     if (path === 'errors/overview') return answer('errorOverview', ERROR_OVERVIEW)(route);
-    if (path === 'pricing/control-room') return answer('controlRoom', CONTROL_ROOM)(route);
     if (path === 'maintenance/preview') {
       return json({ expiredArtifacts: 2, expiredApiKeys: 1, terminalJobs: 14, abandonedJobs: 1, terminalJobCutoff: '2025-10-09T00:00:00Z' })(route);
     }
-    if (path === 'engine-routing/metrics') return json({ summary: {}, engines: {} })(route);
-    if (path === 'engine-routing/observations') return json({ total: 0, limit: 15, offset: 0, observations: [] })(route);
 
     if (path === 'errors') {
       const wantedStatus = params.get('status_code');
@@ -197,10 +193,6 @@ async function mockApi(page: Page, options: { role?: 'admin' | 'user' } = {}): P
         return json(account)(route);
       }
       if (rest === 'usage') return answer('usage', usageOf(account.plan, 10))(route);
-      if (rest === 'usage/resync' && method === 'POST') {
-        state.sent.resync.push(account.id);
-        return json({ plan: account.plan, slots_in_flight: 1, slots_recorded: 2, corrected_by: -1 })(route);
-      }
       if (rest.startsWith('api-keys/') && method === 'DELETE') {
         const keyId = rest.slice('api-keys/'.length);
         if (keyId === KEY_MISSING) return detail(404, 'not_found', 'No such API key.')(route);
@@ -307,12 +299,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('region', { name: 'Moderation', exact: true }).getByText('Engine publication requests')).toBeVisible();
       await expect(main.getByRole('region', { name: 'Errors, last 24 h', exact: true }).getByText('9 events in total')).toBeVisible();
       const pricing = main.getByRole('region', { name: 'Pricing', exact: true });
-      await expect(pricing.getByText('SPHERE reachable')).toBeVisible();
-      await expect(pricing.getByText('SPACE unreachable')).toBeVisible();
-      await expect(pricing.getByText('1 private draft')).toBeVisible();
+      await expect(pricing.getByText('0.1.0', { exact: true })).toBeVisible();
+      await expect(pricing.getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute('target', '_blank');
+      await expect(pricing.getByRole('link', { name: 'Open SPHERE console' })).toHaveAttribute('target', '_blank');
       await expect(main.getByRole('region', { name: 'Recent changes', exact: true }).getByText('contract.subscription.changed')).toBeVisible();
       await expect(main.getByRole('link', { name: /^Account agreement/ })).toHaveAttribute('href', '/app/admin/users');
-      await expect(main.getByRole('link', { name: /^Pricing release/ })).toHaveAttribute('href', '/app/admin/pricing/0.1.0');
       await capture(page, testInfo, `overview-${name}-top`, { height: tall(1900) });
 
       // Reviewing publications and purging expired data are screens of their own (s9b-admin covers them): the overview leads there.
@@ -453,9 +444,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // Choosing another plan shows what changes before anything is sent.
       await plans.getByRole('radio', { name: /^ADVANCED/ }).click();
-      await main.getByRole('button', { name: 'More compute pack' }).click();
-      await expect(main.getByLabel('Compute pack quantity')).toHaveText('1');
-      await expect(main.getByRole('table').getByText('Solves', { exact: true })).toBeVisible();
+      await main.getByRole('button', { name: 'More collaboration pack' }).click();
+      await expect(main.getByLabel('Collaboration pack quantity')).toHaveText('1');
+      await expect(main.getByRole('table').getByText('Projects', { exact: true })).toBeVisible();
       await main.getByLabel(/^Detail/).fill('Agreement 2026-14');
       await capture(page, testInfo, `detail-${name}-editing`, { height: tall(3000) });
       await main.getByRole('button', { name: 'Apply agreement', exact: true }).click();
@@ -465,9 +456,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/Agreement updated for sam\.okafor \(institutional agreement\)/)).toBeVisible();
       expect(state.sent.subscription).toEqual([{
         id: SAM.id,
-        body: { plan: 'ADVANCED', add_ons: { COMPUTE_PACK: 1 }, reason: 'institutional_agreement', detail: 'Agreement 2026-14' },
+        body: { plan: 'ADVANCED', add_ons: { COLLABORATION_PACK: 1 }, reason: 'institutional_agreement', detail: 'Agreement 2026-14' },
       }]);
-      await expect(main.getByText('compute pack ×1')).toBeVisible();
+      await expect(main.getByText('collaboration pack ×1')).toBeVisible();
       await expect(main.getByRole('radio', { name: /^ADVANCED · current/ })).toBeChecked();
       await capture(page, testInfo, `detail-${name}-applied`, { height: tall(1400) });
 
@@ -483,13 +474,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText(/Agreement updated for sam\.okafor \(administrative decision\)/)).toBeVisible();
       expect(state.sent.plan).toEqual([{ id: SAM.id, plan: 'PRO' }]);
 
-      // Usage can be recounted, and a key can be taken back by its id.
-      await main.getByRole('button', { name: 'Resync concurrency' }).click();
-      await capture(page, testInfo, `detail-${name}-resync-dialog`);
-      await expect(page.getByRole('dialog', { name: 'Resync concurrency?' }).getByText('The resync is recorded in the audit log with your name.')).toBeVisible();
-      await page.getByRole('dialog', { name: 'Resync concurrency?' }).getByRole('button', { name: 'Resync', exact: true }).click();
-      await expect(main.getByText('Corrected by')).toBeVisible();
-      expect(state.sent.resync).toEqual([SAM.id]);
+      // A key can be taken back by its id.
+      await expect(main.getByRole('button', { name: /resync/i })).toHaveCount(0);
       await main.getByLabel('Key id').fill(KEY_ID);
       await main.getByRole('button', { name: 'Revoke key' }).click();
       await capture(page, testInfo, `detail-${name}-revoke-dialog`);
@@ -508,7 +494,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.goto(`/app/admin/users/${SAM.id}`);
       await expect(main.getByText('The active pricing couldn’t be read')).toBeVisible();
       await expect(main.getByRole('radiogroup', { name: 'New plan' })).toHaveCount(0);
-      await expect(main.getByRole('button', { name: 'Resync concurrency' })).toBeVisible();
+      await expect(main.getByRole('group', { name: 'Ceilings for each request' })).toBeVisible();
       await capture(page, testInfo, `detail-${name}-pricing-503`, { height: tall(1800) });
       state.refuse.catalog = undefined;
 
@@ -616,7 +602,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(groups.getByRole('listitem')).toHaveCount(3);
       const aside = main.getByRole('complementary', { name: 'Error detail' });
       await expect(aside.getByText('402 · quota_exceeded')).toBeVisible();
-      await expect(aside.getByLabel('Quota at the time').getByText('10 of 10 solve/month')).toBeVisible();
+      await expect(aside.getByLabel('Quota at the time').getByText('10 of 10 run/month')).toBeVisible();
       await capture(page, testInfo, `errors-${name}-list`, { height: tall(2300) });
       await capture(page, testInfo, `errors-${name}-full`);
 

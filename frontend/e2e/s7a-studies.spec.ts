@@ -161,8 +161,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
     limits: {
       studies: tracked('studies', 25, 1),
       studyRuns: tracked('studyRuns', 100, 4, { renews_at: '2026-11-01T00:00:00Z' }),
-      taskStarts: tracked('taskStarts', 50, 18),
-      solverSeconds: tracked('solverSeconds', 30_000, 7_420),
       concurrentJobs: tracked('concurrentJobs', 3, 1),
     },
   })));
@@ -492,8 +490,6 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(aside.getByText('2 case revisions × 2 engines × 2 settings × 3 seeds')).toBeVisible();
       await expect(aside.getByText('1 used + up to 1 = 2 of 25')).toBeVisible();
       await expect(aside.getByText('4 used + up to 1 = 5 of 100')).toBeVisible();
-      await expect(aside.getByText('18 used + up to 24 = 42 of 50')).toBeVisible();
-      await expect(aside.getByText('7,420 used + up to 1,080 = 8,500 of 30,000 s')).toBeVisible();
       await expect(aside.getByText(/Each run uses 1 of your study runs this month \(96 left\)/)).toBeVisible();
       await expect(create).toBeEnabled();
       await capture(page, testInfo, `builder-${name}-filled`);
@@ -513,7 +509,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await main.getByRole('link', { name: 'Open the study' }).click();
       await expect(main.getByRole('heading', { level: 1, name: 'Budgets and seeds' })).toBeVisible();
-      await expect(main.getByText('No runs yet. Running uses 1 study run from your month and up to 24 solves.')).toBeVisible();
+      await expect(main.getByText('No runs yet. Running uses 1 study run from your month and runs up to 24 cells.')).toBeVisible();
       expect(critical).toEqual([]);
     });
 
@@ -747,10 +743,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `run-${name}-409`, { height: 1300 });
       state.refuse.retry = undefined;
       await table.getByRole('button', { name: 'Retry cell 1' }).click();
-      await expect(main.getByText('Cell 1 queued again. It counts as a new solve.')).toBeVisible();
+      await expect(main.getByText('Cell 1 queued again.')).toBeVisible();
       expect(state.sent.retry).toEqual([cells[1].id, cells[1].id]);
       await main.getByRole('button', { name: 'Retry 2 unfinished cells' }).click();
-      await expect(main.getByText('2 cells queued again. Each counts as a new solve.')).toBeVisible();
+      await expect(main.getByText('2 cells queued again.')).toBeVisible();
 
       // A draft report pinned to the run.
       await main.getByRole('button', { name: 'Create a report' }).click();
@@ -861,9 +857,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('Failed: The engine deployment didn’t answer in time.')).toBeVisible();
       await expect(main.getByText(/Code engine_unreachable · timeout\./)).toBeVisible();
       await capture(page, testInfo, `cell-${name}-failed`, { height: 1500 });
-      state.refuse.retry = detail(402, 'quota_exceeded', 'Solve quota exhausted.', { quota: { limit_id: 'taskStarts', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' } });
+      state.refuse.retry = detail(402, 'quota_exceeded', 'Study runs exhausted.', { quota: { limit_id: 'studyRuns', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' } });
       await main.getByRole('button', { name: 'Retry this cell' }).click();
-      await expect(main.getByText('Out of solves (402 · quota_exceeded)')).toBeVisible();
+      await expect(main.getByText('No study runs left this month (402 · quota_exceeded)')).toBeVisible();
       await capture(page, testInfo, `cell-${name}-402`, { height: 1500 });
       state.refuse.retry = (route) => route.fulfill({
         status: 429, headers: { 'Retry-After': '15' },
@@ -873,7 +869,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByText('All your job slots are busy (429 · concurrency_limit_exceeded)')).toBeVisible();
       state.refuse.retry = undefined;
       await main.getByRole('button', { name: 'Retry this cell' }).click();
-      await expect(main.getByText('Cell queued again. It counts as a new solve.')).toBeVisible();
+      await expect(main.getByText('Cell queued again.')).toBeVisible();
       expect(state.sent.retry).toHaveLength(3);
 
       // A cancelled cell can take the result of a job that was already run.

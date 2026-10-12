@@ -52,20 +52,18 @@ const PROTOTYPE: Record<keyof typeof routesByDomain, Array<[string, string]>> = 
     ['admin-overview', '/app/admin'], ['admin-users', '/app/admin/users'], ['admin-user-detail', '/app/admin/users/:user'],
     ['admin-audit', '/app/admin/audit'], ['admin-errors', '/app/admin/errors'], ['admin-queues', '/app/admin/queues'],
     ['admin-moderation', '/app/admin/moderation'], ['admin-maintenance', '/app/admin/maintenance'],
-    ['admin-routing', '/app/admin/engine-routing'], ['admin-sponsor', '/app/admin/organizations/:org/sponsor'],
-    ['admin-pricing', '/app/admin/pricing'], ['admin-pricing-draft', '/app/admin/pricing/drafts/new'],
-    ['admin-pricing-release', '/app/admin/pricing/:version'],
+    ['admin-sponsor', '/app/admin/organizations/:org/sponsor'],
   ],
 };
 
-const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 18, D5: 4, D6: 12, D7: 4, D8: 13 };
+const DOMAIN_SIZES = { D1: 18, D2: 7, D3: 10, D4: 18, D5: 4, D6: 12, D7: 4, D8: 9 };
 
 const sample = (path: string) => path.replace(/:[A-Za-z]+/g, 'sample');
 
 describe('route registry', () => {
-  it('registers exactly the 86 screens of the prototype', () => {
-    expect(routeDefinitions).toHaveLength(86);
-    expect(Object.values(PROTOTYPE).flat()).toHaveLength(86);
+  it('registers exactly the 82 screens of the prototype', () => {
+    expect(routeDefinitions).toHaveLength(82);
+    expect(Object.values(PROTOTYPE).flat()).toHaveLength(82);
   });
 
   it.each(Object.entries(DOMAIN_SIZES))('domain %s has %i screens', (domain, size) => {
@@ -102,7 +100,7 @@ describe('route registry', () => {
 
   it('requires an administrator for every admin screen and for nothing else', () => {
     const admin = routeDefinitions.filter((definition) => definition.id.startsWith('admin-'));
-    expect(admin).toHaveLength(13);
+    expect(admin).toHaveLength(9);
     for (const definition of admin) {
       expect(definition.requireAdmin, definition.id).toBe(true);
       expect(definition.path, definition.id).toMatch(/^\/app\/admin(\/|$)/);
@@ -129,10 +127,6 @@ describe('route registry', () => {
     expect(resolve('/app/admin/organizations/isa-demo/sponsor')).toBe('admin-sponsor');
     expect(resolve('/app/admin/moderation')).toBe('admin-moderation');
     expect(resolve('/app/admin/maintenance')).toBe('admin-maintenance');
-    expect(resolve('/app/admin/engine-routing')).toBe('admin-routing');
-    expect(resolve('/app/admin/pricing')).toBe('admin-pricing');
-    expect(resolve('/app/admin/pricing/drafts/new')).toBe('admin-pricing-draft');
-    expect(resolve('/app/admin/pricing/0.1.0')).toBe('admin-pricing-release');
   });
 
   it('reads the registration detail below the registrations list and /engines/new as the form', () => {
@@ -180,7 +174,6 @@ describe('route registry', () => {
     expect(resolve('/app/acme/settings')).toBe('org-settings');
     expect(resolve('/app/acme/library')).toBe('lib-list');
     expect(resolve('/app/acme/atlas/jobs/new')).toBe('job-launch');
-    expect(resolve('/app/admin/pricing/drafts/new')).toBe('admin-pricing-draft');
   });
 
   it('no longer serves the legacy routes that have no equivalent in the prototype', () => {

@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
-import { HttpError, apiClient, type BimAnalysisData, type BimAnalysisResponse, type EngineRoutingUserProvenance } from '../../api/client';
+import { HttpError, apiClient, type BimAnalysisData, type BimAnalysisResponse } from '../../api/client';
 import type { ArtifactVersion } from '../../api/library';
 import { platformApi, type CaseRevision } from '../../api/platform';
 import { workbenchApi } from '../../api/workbench';
@@ -20,7 +20,6 @@ import {
 export type EditorTab = 'resources' | 'form' | 'bpmn';
 export type SourceView = 'json' | 'yaml' | 'workflow' | 'bpmnXml' | 'ir' | 'diff';
 export type RunState = 'idle' | 'queued' | 'running' | 'completed' | 'failed';
-export type AutoProfile = 'balanced' | 'quality_first' | 'latency_first' | 'cost_first';
 
 /** Where the package on screen was last checked from: the editor, or a file or example that was brought in. */
 export type CheckOrigin = 'package' | 'import' | 'example';
@@ -189,13 +188,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   const [resultJobId, setResultJobId] = useState<string>();
   const [selectedMode, setSelectedMode] = useState('');
   const [configuration, setConfiguration] = useState<{ org: string; version: ArtifactVersion } | null>(null);
-  const [routingProvenance, setRoutingProvenance] = useState<EngineRoutingUserProvenance | null>(null);
-  const [autoProfile, setAutoProfile] = useState<AutoProfile>('balanced');
-  const [autoMaxCredits, setAutoMaxCredits] = useState(40);
-  const [autoMinQuality, setAutoMinQuality] = useState(0.85);
-  const [autoMaxFailureRisk, setAutoMaxFailureRisk] = useState(0.3);
-  const [autoRequireExact, setAutoRequireExact] = useState(false);
-  const [autoAllowFallback, setAutoAllowFallback] = useState(true);
 
   // The editor
   const [editorTab, setEditorTab] = useState<EditorTab>('resources');
@@ -245,7 +237,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     setCompatibleModes([]);
     setAnalysisData(null);
     setDigests(null);
-    setSelectedMode((current) => (current === 'auto' ? 'auto' : ''));
+    setSelectedMode('');
     snapshotRef.current = null;
     setSnapshot(null);
     setSnapshotIssue(null);
@@ -355,7 +347,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     showBpmnOf(baseline);
     setSelectedPath('instance.json');
     setEditorTab('resources');
-    setRoutingProvenance(null);
     clearChecks();
   };
 
@@ -382,7 +373,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
       setCompatibleModes(modes);
       setAnalysisData(response.analysis || null);
       setDigests(digestsOf(response));
-      setSelectedMode((current) => (current === 'auto' ? 'auto' : modes.some((item) => executionKey(item) === current) ? current : modes[0] ? executionKey(modes[0]) : ''));
+      setSelectedMode((current) => (modes.some((item) => executionKey(item) === current) ? current : modes[0] ? executionKey(modes[0]) : ''));
       setDiagnostics((response.diagnostics ?? []) as Diagnostic[]);
       setStatus('valid');
       return response;
@@ -513,14 +504,13 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
   // --- the run
 
   const run = async () => {
-    const isAutoRouter = selectedMode === 'auto';
     let mode = selectedCompatibility;
-    if (!mode && !executionConfiguration && !isAutoRouter) {
+    if (!mode && !executionConfiguration) {
       const analysis = await validate();
       if (!analysis) return;
       mode = modesFromAnalysis(analysis)[0];
     }
-    if (!mode && !executionConfiguration && !isAutoRouter) {
+    if (!mode && !executionConfiguration) {
       setRunState('failed');
       setRunError('No engine mode is compatible with this package. Open “Engines that can run it” to see why.');
       return;
@@ -528,7 +518,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     setRunState('queued');
     setRunError(null);
     setRunRange(false);
-    setRoutingProvenance(null);
     setResult(null);
     runWatcher.current?.abort();
     const watcher = new AbortController();
@@ -536,21 +525,9 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     screenOpen.current?.signal.addEventListener('abort', () => watcher.abort(), { once: true });
     try {
       const made = await ensureSnapshot();
-      const receipt = isAutoRouter
-        ? await apiClient.createAutoRouterBimJob(made.id, {
-          strategy: 'auto',
-          profile: autoProfile,
-          hardConstraints: {
-            maxCredits: autoMaxCredits,
-            minQuality: autoMinQuality,
-            maxFailureRisk: autoMaxFailureRisk,
-            requireExact: autoRequireExact,
-          },
-          adaptation: { allowFallback: autoAllowFallback },
-        })
-        : executionConfiguration
-          ? await apiClient.createConfiguredBimJob(made.id, executionConfiguration.ref)
-          : await apiClient.createBimJob(made.id, mode!.engine, mode!.registration, mode!.mode);
+      const receipt = executionConfiguration
+        ? await apiClient.createConfiguredBimJob(made.id, executionConfiguration.ref)
+        : await apiClient.createBimJob(made.id, mode!.engine, mode!.registration, mode!.mode);
       if (watcher.signal.aborted) return;
       const job = await pollV1Job(receipt.id, { signal: watcher.signal, onStatus: (reading) => { if (reading.status === 'running') setRunState('running'); } });
       if (job.status === 'failed') {
@@ -558,9 +535,6 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
         throw new Error(detail);
       }
       setResultJobId(receipt.id);
-      if (isRecord(job.provenance) && isRecord(job.provenance.engineRouting)) {
-        setRoutingProvenance(job.provenance.engineRouting as unknown as EngineRoutingUserProvenance);
-      }
       setResult(isRecord(job.result) ? job.result as BindingResult : null);
       setRunState('completed');
     } catch (caught: unknown) {
@@ -654,9 +628,7 @@ export function useWorkbench({ orgSlug, projectSlug, userId, pathname, caseRef, 
     // snapshot and revision
     snapshot, snapshotBusy, snapshotIssue, compiledIr, irLoading, irError, saveBusy, saved, saveIssue,
     // run
-    hasRanges, runRange, runState, runError, result, resultJobId, selectedMode, setSelectedMode, executionConfiguration, setExecutionConfiguration, routingProvenance,
-    autoProfile, setAutoProfile, autoMaxCredits, setAutoMaxCredits, autoMinQuality, setAutoMinQuality, autoMaxFailureRisk, setAutoMaxFailureRisk,
-    autoRequireExact, setAutoRequireExact, autoAllowFallback, setAutoAllowFallback,
+    hasRanges, runRange, runState, runError, result, resultJobId, selectedMode, setSelectedMode, executionConfiguration, setExecutionConfiguration,
     // editor
     editorTab, setEditorTab, sourceOpen, setSourceOpen, sourceView, setSourceView, focusedBpmnElement, editorSelection,
     // actions

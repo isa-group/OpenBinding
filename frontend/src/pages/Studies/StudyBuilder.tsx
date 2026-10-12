@@ -22,7 +22,7 @@ import { AdoptPanel, CasesField, EnginesField, SettingsField } from './BuilderFi
 import { StudyFrame } from './parts';
 import {
   MAX_CASES, MAX_CELLS, MAX_ENGINES, MAX_SETTINGS, collectionMembers, defaultSelection, emptyVariant, engineChoices, formulaOf,
-  matrixSize, parametersKey, plural, readSeeds, readVariant, solverEstimate, studyContentSize, type Variant,
+  matrixSize, parametersKey, plural, readSeeds, readVariant, studyContentSize, type Variant,
 } from './studiesModel';
 import { studyRefusal, type Refusal } from './studyErrors';
 
@@ -39,19 +39,12 @@ const usedOf = (usage: UsageView | null | undefined, id: string): { used: number
 };
 
 /** What one run of this study adds to the sponsor's and the account's allowances. */
-function forecastFor(input: { usage: UsageView | null; cells: number; seconds: number | null; secondsComplete: boolean; sponsor: boolean }): ForecastBar[] {
+function forecastFor(input: { usage: UsageView | null; sponsor: boolean }): ForecastBar[] {
   const runs = usedOf(input.usage, 'studyRuns');
-  const solves = usedOf(input.usage, 'taskStarts');
-  const time = usedOf(input.usage, 'solverSeconds');
   const studies = usedOf(input.usage, 'studies');
   const bars: ForecastBar[] = [];
   if (input.sponsor) bars.push(forecastBar('Study definitions of the sponsor', studies.used, studies.limit, 1, ''));
   bars.push(forecastBar('Study runs this month', runs.used, runs.limit, 1, ''));
-  bars.push(forecastBar('Solves this month, once run', solves.used, solves.limit, input.cells, ''));
-  if (input.seconds !== null) {
-    const timeBar = forecastBar('Solver time this month, once run', time.used, time.limit, Math.round(input.seconds), ' s');
-    bars.push(input.secondsComplete ? timeBar : { ...timeBar, text: `${timeBar.text} · some engines name no budget, so this is a lower bound` });
-  }
   return bars;
 }
 
@@ -132,10 +125,9 @@ function BuilderBody({ organization, project, canCreate }: { organization: Organ
   const adoptedSize = adoptContent.data ?? null;
 
   const ceilings = planCeilingsOf(usage.data ?? null, pricing.data ?? null, user?.plan);
-  const estimate = solverEstimate({ cases: caseCount, seeds: seeds.seeds.length, engines: chosen, settings, ceiling: ceilings.seconds });
   const sponsor = organization.billing_sponsor_user_id === user?.id;
   const cells = mode === 'adopt' ? adoptedSize?.cells ?? 0 : size.cells;
-  const bars = forecastFor({ usage: usage.data ?? null, cells, seconds: mode === 'adopt' ? null : estimate.seconds, secondsComplete: estimate.complete, sponsor });
+  const bars = forecastFor({ usage: usage.data ?? null, sponsor });
   const left = usage.data?.limits?.studyRuns?.remaining;
 
   const effectiveName = name || (mode === 'adopt' ? studyArtifacts.find((item) => item.id === adoptArtifact)?.display_name ?? '' : '');

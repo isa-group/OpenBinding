@@ -69,7 +69,7 @@ describe('admin-errors · what is failing on the platform', () => {
     expect(within(aside).getByText('POST /v1/jobs')).toBeInTheDocument();
     expect(within(aside).getByRole('link', { name: SAM.email })).toHaveAttribute('href', `/app/admin/users/${SAM.id}`);
     const quota = within(aside).getByLabelText('Quota at the time');
-    expect(within(quota).getByText('10 of 10 solve/month')).toBeInTheDocument();
+    expect(within(quota).getByText('10 of 10 run/month')).toBeInTheDocument();
     expect(within(aside).getByText('View source')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /pricing_unavailable/ }));

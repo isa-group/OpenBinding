@@ -24,10 +24,10 @@ import type { CaseContent } from '../Project/projectModel';
 import { useRouteProject } from '../Project/useRouteProject';
 import { refusalOf, type Refusal } from './jobErrors';
 import { shortJobId } from './jobsModel';
-import { AutoNote, EngineStep, ForecastBars, SettingsStep, SlotCountdown, SourceStep, type Prepared } from './LaunchSteps';
+import { EngineStep, ForecastBars, SettingsStep, SlotCountdown, SourceStep, type Prepared } from './LaunchSteps';
 import {
-  DEFAULT_POLICY, PROFILE_LABELS, buildRequest, forecastOf, initialChoice, modeChoices, modeOfCatalog, optionInputs, parseEngineParam, planCeilingsOf,
-  planOptions, requestOptions, sourceChoices, type AutoPolicy, type SettingsSource, type SourceChoice,
+  buildRequest, forecastOf, initialChoice, modeChoices, modeOfCatalog, optionInputs, parseEngineParam, planCeilingsOf,
+  planOptions, requestOptions, sourceChoices, type SettingsSource, type SourceChoice,
 } from './launchModel';
 import { JobFrame, RefusalNotice } from './parts';
 
@@ -78,7 +78,6 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   const [settings, setSettings] = useState<SettingsSource>('inline');
   const [configuration, setConfiguration] = useState<ArtifactVersion | null>(null);
   const [values, setValues] = useState<Record<string, string>>({});
-  const [policy, setPolicy] = useState<AutoPolicy>(DEFAULT_POLICY);
   const [sending, setSending] = useState(false);
   const [refusal, setRefusal] = useState<Refusal | null>(null);
   const [receipt, setReceipt] = useState<JobReceipt | null>(null);
@@ -94,10 +93,9 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   const modes = ready ? modeChoices(compatible, catalog.data ?? [], ranges) : [];
   const wanted = engineParam ? modes.find((mode) => mode.compat !== 'no' && mode.engine.namespace === engineParam.namespace && mode.engine.name === engineParam.name
     && mode.engine.version === engineParam.version && mode.engine.digest === engineParam.digest) : undefined;
-  const fallbackKey = wanted?.key ?? modes.find((mode) => mode.compat === 'yes')?.key ?? modes.find((mode) => mode.compat === 'unknown')?.key ?? 'auto';
-  const selectedKey = pickedMode && (pickedMode === 'auto' || modes.some((mode) => mode.key === pickedMode)) ? pickedMode : fallbackKey;
-  const auto = selectedKey === 'auto';
-  const mode = auto ? null : modes.find((candidate) => candidate.key === selectedKey) ?? null;
+  const fallbackKey = wanted?.key ?? modes.find((mode) => mode.compat === 'yes')?.key ?? modes.find((mode) => mode.compat === 'unknown')?.key ?? '';
+  const selectedKey = pickedMode && modes.some((mode) => mode.key === pickedMode) ? pickedMode : fallbackKey;
+  const mode = modes.find((candidate) => candidate.key === selectedKey) ?? null;
 
   const ceilings = planCeilingsOf(usage.data ?? null, pricing.data ?? null, user?.plan);
   const inputs = optionInputs(modeOfCatalog(catalog.data ?? [], mode), ceilings);
@@ -105,7 +103,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   const invalid = plans.some((plan) => plan.invalid);
   const reduced = plans.filter((plan) => plan.reduced);
   const request = buildRequest({
-    snapshot: ready?.snapshotId ?? '', settings, configuration: configuration?.ref ?? null, auto, policy, mode, options: requestOptions(plans),
+    snapshot: ready?.snapshotId ?? '', settings, configuration: configuration?.ref ?? null, mode, options: requestOptions(plans),
   });
   const sendable = canLaunch && request !== null && !invalid && !sending && receipt === null;
 
@@ -158,20 +156,17 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
   };
 
   const bindingSpace = ready && ready.analysis.state === 'ok' ? ready.analysis.result.analysis.bindingSpace : null;
-  const timeBudget = plans.find((plan) => plan.input.kind === 'time')?.effective ?? ceilings.seconds ?? 0;
-  const forecast = forecastOf({ usage: usage.data ?? null, ceilings, seconds: settings === 'inline' && !auto ? timeBudget : ceilings.seconds ?? 0, bindingSpace, plan: user?.plan });
+  const forecast = forecastOf({ usage: usage.data ?? null, ceilings, bindingSpace, plan: user?.plan });
 
-  const modeLabel = auto ? 'the AutoRouter' : mode ? `${mode.engine.name} · ${mode.mode}` : 'the engine you pick';
+  const modeLabel = mode ? `${mode.engine.name} · ${mode.mode}` : 'the engine you pick';
   const engineText = settings === 'saved' ? 'From the saved settings'
-    : auto ? `AutoRouter · ${PROFILE_LABELS[policy.profile]}`
-      : mode ? `${mode.engine.name} ${mode.engine.version} · mode ${mode.mode}${mode.federated ? ' · your deployment' : ''}` : 'None chosen';
+    : mode ? `${mode.engine.name} ${mode.engine.version} · mode ${mode.mode}${mode.federated ? ' · your deployment' : ''}` : 'None chosen';
   const settingsText = settings === 'saved'
     ? (configuration ? `Saved: ${configuration.ref.name} v${configuration.ref.version}` : 'Saved settings (none chosen)')
-    : auto ? `Policy ${PROFILE_LABELS[policy.profile].toLowerCase()}, up to ${policy.maxCredits} capacity units`
-      : plans.length ? plans.map((plan) => `${plan.input.label} ${plan.effective === null ? 'default' : `${plan.effective.toLocaleString('en-US')} ${plan.input.unit}`}${plan.reduced ? ' (reduced)' : ''}`).join(' · ') : 'Engine defaults';
+    : plans.length ? plans.map((plan) => `${plan.input.label} ${plan.effective === null ? 'default' : `${plan.effective.toLocaleString('en-US')} ${plan.input.unit}`}${plan.reduced ? ' (reduced)' : ''}`).join(' · ') : 'Engine defaults';
   const stepNotes = [
     choice?.label ?? 'Pick one',
-    settings === 'saved' ? 'From saved settings' : auto ? 'AutoRouter' : mode ? mode.engine.name : 'Pick one',
+    settings === 'saved' ? 'From saved settings' : mode ? mode.engine.name : 'Pick one',
     settings === 'saved' ? 'Saved settings' : reduced.length ? 'Some reduced' : 'Within plan',
     'Review',
   ];
@@ -186,7 +181,7 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
             <h1>Run accepted · {receipt.status === 'queued' ? 'queued' : receipt.status}</h1>
             <p>
               Job {shortJobId(receipt.id)}. {receipt.idempotent ? 'This exact run had already been sent, so no second run was started. ' : ''}
-              {reduced.length > 0 && settings === 'inline' && !auto
+              {reduced.length > 0 && settings === 'inline'
                 ? `${reduced.map((plan) => `${plan.input.label} was reduced to ${plan.effective} ${plan.input.unit}`).join(', ')}, what your plan allows; the job carries that note.`
                 : 'Nothing was reduced.'}
             </p>
@@ -260,15 +255,12 @@ function LaunchBody({ organization, project, canLaunch, role }: { organization: 
             )}
 
             {step === 3 && ready && (
-              <>
-                {auto && settings === 'inline' && <AutoNote />}
-                <SettingsStep
-                  org={org} auto={auto} source={settings} onSource={setSettings} plans={plans} values={values}
-                  onValue={(name, value) => setValues((current) => ({ ...current, [name]: value }))}
-                  policy={policy} onPolicy={setPolicy} configuration={configuration} onConfiguration={setConfiguration}
-                  libraryHref={`/app/${org}/library`} modeLabel={modeLabel}
-                />
-              </>
+              <SettingsStep
+                org={org} source={settings} onSource={setSettings} plans={plans} values={values}
+                onValue={(name, value) => setValues((current) => ({ ...current, [name]: value }))}
+                configuration={configuration} onConfiguration={setConfiguration}
+                libraryHref={`/app/${org}/library`} modeLabel={modeLabel}
+              />
             )}
 
             {step === 4 && ready && (

@@ -77,21 +77,6 @@ const rows = {
 const projectRows: Job[] = [rows.running, rows.queued, rows.failed, rows.cancelled, rows.feasible, rows.infeasible, rows.theirs];
 const ownRows: Job[] = [rows.running, rows.queued, rows.failed, rows.cancelled, rows.feasible, rows.infeasible, rows.routed, rows.live];
 
-const routedProvenance = provenanceOf({
-  requestedOptions: {}, options: {}, warnings: [],
-  engineRouting: {
-    selectedEngine: 'evolutionary-heuristics', selectedMode: 'elitist-genetic', adaptationReason: 'Selected evolutionary-heuristics with utility score 0.884',
-    utilityScore: 0.884, creditsCost: 8, fallbackActivated: false,
-  },
-  engineRoutingAdmin: {
-    adaptationLoopId: 'loop-xyz-99', workloadFeatures: { S: 12.3, N_tasks: 10 },
-    candidateEvaluations: [
-      { engine: 'evolutionary-heuristics', admissible: true, utility: 0.884 },
-      { engine: 'minizinc-csp', admissible: false, utility: 0.45, rejectionReason: 'Exceeded phase transition limit' },
-    ],
-  },
-});
-
 /** What `GET /v1/jobs/{id}` answers for each run, given the state of the test; `null` is a 404. */
 const detailTable: Record<string, (state: State) => ReturnType<typeof detailOf> | null> = {
   'job-feasible-1': () => detailOf('job-feasible-1', 'completed'),
@@ -102,7 +87,7 @@ const detailTable: Record<string, (state: State) => ReturnType<typeof detailOf> 
   'job-infeasible-6': () => detailOf('job-infeasible-6', 'completed', {
     result: { termination: 'INFEASIBLE', solutions: [{ violations: [{ constraint: 'sla-latencia', message: 'Total latency is 742 ms; at most 600 ms is allowed.' }] }] },
   }),
-  'job-routed-7': () => detailOf('job-routed-7', 'completed', { provenance: routedProvenance }),
+  'job-routed-7': () => detailOf('job-routed-7', 'completed'),
   'job-live-10': (state) => detailOf('job-live-10', state.liveDone ? 'completed' : 'running'),
   'job-new-9': () => detailOf('job-new-9', 'queued', { provenance: provenanceOf({ requestedOptions: { time_budget_ms: 600000 }, options: { time_budget_ms: 60000 } }) }),
 };
@@ -183,7 +168,7 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/users/me/usage`, json(usageOf({
     plan: 'RESEARCH',
     capabilities: { maxPayloadBytes: 134_217_728, maxTimeoutSeconds: 60, maxIterations: 1_000_000, maxInstanceComplexityLog10: 20 },
-    limits: { taskStarts: tracked('taskStarts', 50, 18), solverSeconds: tracked('solverSeconds', 30_000, 7_420), concurrentJobs: tracked('concurrentJobs', 3, 1) },
+    limits: { concurrentJobs: tracked('concurrentJobs', 3, 1) },
   })));
   await page.route(`${API}/v1/users/me/pricing-token`, json({ pricing_token: token(3600) }));
   await page.route(new RegExp(`^${API}/v1/notifications(\\?.*)?$`), json([]));
@@ -342,15 +327,15 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // A retry of a failed run of its own, then one the account cannot afford.
       await table.getByRole('button', { name: 'Retry' }).first().click();
-      await expect(main.getByText('Retry queued. It counts as a new solve.')).toBeVisible();
+      await expect(main.getByText('Retry queued.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-9`);
       expect(state.sent.retry).toBe('job-failed-4');
       await capture(page, testInfo, `list-${name}-retry`);
-      state.refuse.retry = detail(402, 'quota_exceeded', 'Solve quota exhausted.', {
-        quota: { limit_id: 'taskStarts', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' },
+      state.refuse.retry = detail(402, 'quota_exceeded', 'Study runs exhausted.', {
+        quota: { limit_id: 'studyRuns', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' },
       });
       await table.getByRole('button', { name: 'Retry' }).last().click();
-      await expect(main.getByText('Retry refused: Out of solves this month (402 · quota_exceeded)')).toBeVisible();
+      await expect(main.getByText('Retry refused: Out of study runs (402 · quota_exceeded)')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
       await capture(page, testInfo, `list-${name}-402`);
       expect(critical).toEqual([]);
@@ -480,9 +465,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // A failed run says why, and a retry is a new attempt.
       await page.goto(`${ROOT}/jobs/job-failed-4`);
-      await expect(main.getByRole('alert').filter({ hasText: 'The run failed' })).toContainText('Retrying starts a new attempt and counts as a solve.');
+      await expect(main.getByRole('alert').filter({ hasText: 'The run failed' })).toContainText('Retrying starts a new attempt.');
       await main.getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByText('Retry queued as a new attempt. It counts as a new solve.')).toBeVisible();
+      await expect(main.getByText('Retry queued as a new attempt.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-9`);
       expect(state.sent.retry).toBe('job-failed-4');
       await capture(page, testInfo, `detail-${name}-failed-retry`, { height: 1500 });
@@ -504,18 +489,10 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-detail /app/:org/:project/jobs/:job · the AutoRouter decision, a run that is not yours and a key without access', async ({ page }, testInfo) => {
+    test('job-detail /app/:org/:project/jobs/:job · a run that is not yours and a key without access', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       const main = page.locator('#platform-main');
-
-      await page.goto(`${ROOT}/jobs/job-routed-7`);
-      const card = main.getByRole('region', { name: 'AutoRouter decision' });
-      await expect(card.getByText('evolutionary-heuristics · elitist-genetic')).toBeVisible();
-      await expect(card.getByText(/Utility 0\.884/)).toBeVisible();
-      await expect(card.getByText('loop-xyz-99')).toBeVisible();
-      await expect(card.getByText('Exceeded phase transition limit')).toBeVisible();
-      await capture(page, testInfo, `detail-${name}-autorouter`, { area: card });
 
       // A run of another member, or one that does not exist: the same neutral answer, even for an administrator.
       await page.goto(`${ROOT}/jobs/job-theirs-8`);
@@ -555,7 +532,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       const engineGroup = main.getByRole('radiogroup', { name: 'Engine' });
       await expect(engineGroup.getByRole('radio', { name: /^random-search.*Can run this/ })).toBeChecked();
       await expect(engineGroup.getByRole('radio', { name: /^edge-solver.*It cannot read a RoutingOverlay\./ })).toBeDisabled();
-      await expect(engineGroup.getByRole('radio', { name: /^AutoRouter/ })).toBeEnabled();
+      await expect(engineGroup.getByRole('radio')).toHaveCount(3);
       await capture(page, testInfo, `launch-${name}-step2`);
 
       await next.click();
@@ -569,8 +546,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await next.click();
       await expect(main.getByRole('heading', { name: 'Before you send' })).toBeVisible();
       await expect(main.getByText('Time budget 60 s (reduced) · Iterations 100,000 iterations')).toBeVisible();
-      await expect(main.getByText('18 used + up to 1 = 19 of 50')).toBeVisible();
-      await expect(main.getByText('7,420 used + up to 60 = 7,480 of 30,000 s')).toBeVisible();
+      await expect(main.getByText('1 used + up to 1 = 2 of 3')).toBeVisible();
       await expect(main.getByText('≈ 10^5.1 of up to 10^20 on your RESEARCH plan')).toBeVisible();
       await capture(page, testInfo, `launch-${name}-step4`);
 
@@ -590,7 +566,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('job-launch /app/:org/:project/jobs/new · the AutoRouter policy and every way the gateway refuses', async ({ page }, testInfo) => {
+    test('job-launch /app/:org/:project/jobs/new · an exact engine from a snapshot and every way the gateway refuses', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(`${ROOT}/jobs/new?snapshot=snapshot-2`);
@@ -599,31 +575,22 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('radio', { name: /Snapshot snapshot/ })).toBeChecked();
       await next.click();
-      await main.getByRole('radio', { name: /^AutoRouter/ }).check();
+      await expect(main.getByRole('radiogroup', { name: 'Engine' }).getByRole('radio', { name: /^random-search/ })).toBeChecked();
       await next.click();
-      const policy = main.getByRole('group', { name: 'AutoRouter policy' });
-      await expect(policy).toBeVisible();
-      await policy.getByLabel('Optimization profile').selectOption('cost_first');
-      await policy.getByLabel('Require an exact solver').check();
-      await capture(page, testInfo, `launch-${name}-autorouter`);
       await next.click();
-      await expect(main.getByText('AutoRouter · Cost first')).toBeVisible();
       const send = main.getByRole('button', { name: 'Send run' });
 
-      // 402: out of solves this month.
-      state.refuse.launch = detail(402, 'quota_exceeded', 'Solve quota exhausted.', { quota: { limit_id: 'taskStarts', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' } });
+      // 402: out of an allowance.
+      state.refuse.launch = detail(402, 'quota_exceeded', 'Study runs exhausted.', { quota: { limit_id: 'studyRuns', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' } });
       await send.click();
       // An error is an alert; a refusal that is about the plan or the credential is a status. Either way it is the one notice on screen.
       const refusal = main.locator('.ui-notice');
-      await expect(refusal).toContainText('Out of solves this month (402 · quota_exceeded)');
-      await expect(refusal).toContainText('You’ve used 50 of 50 solves. They renew on Nov 1, 2026. Nothing was started.');
+      await expect(refusal).toContainText('Out of study runs (402 · quota_exceeded)');
+      await expect(refusal).toContainText('You’ve used 50 of 50 study runs. They renew on Nov 1, 2026. Nothing was started.');
       await expect(refusal.getByRole('link', { name: 'See usage' })).toHaveAttribute('href', '/app/account/usage');
       await expect(send).toBeEnabled();
       await capture(page, testInfo, `launch-${name}-402`);
-      expect(state.sent.launch).toMatchObject({
-        snapshot: 'snapshot-2', engine: 'auto',
-        options: { routing: { strategy: 'auto', profile: 'cost_first', hardConstraints: { requireExact: true }, adaptation: { allowFallback: true } } },
-      });
+      expect(state.sent.launch).toMatchObject({ snapshot: 'snapshot-2', engine: ENGINE, mode: 'sampling' });
 
       // 402: too big for the plan.
       state.refuse.launch = detail(402, 'instance_complexity_too_large', 'instance binding space exceeds the caller plan limit', { quota: { limit_id: 'maxInstanceComplexityLog10', limit: 9 } });
@@ -731,11 +698,11 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(state.sent.cancel).toBe('job-running-2');
       await capture(page, testInfo, `history-${name}-cancel`);
       await list.getByRole('listitem').filter({ hasText: 'evolutionary' }).first().getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByText('Retry queued. It counts as a new solve.')).toBeVisible();
+      await expect(main.getByText('Retry queued.')).toBeVisible();
       await expect(main.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-9`);
-      state.refuse.retry = detail(402, 'quota_exceeded', 'Solve quota exhausted.', { quota: { limit_id: 'taskStarts', limit: 10, used: 10 } });
+      state.refuse.retry = detail(402, 'quota_exceeded', 'Study runs exhausted.', { quota: { limit_id: 'studyRuns', limit: 10, used: 10 } });
       await list.getByRole('listitem').filter({ hasText: 'random-search' }).getByRole('button', { name: 'Retry' }).first().click();
-      await expect(main.getByText('Retry refused: Out of solves this month (402 · quota_exceeded)')).toBeVisible();
+      await expect(main.getByText('Retry refused: Out of study runs (402 · quota_exceeded)')).toBeVisible();
       await capture(page, testInfo, `history-${name}-402`);
       expect(critical).toEqual([]);
     });

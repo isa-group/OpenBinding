@@ -197,7 +197,7 @@ function CellBody({ scope, runId, cellId }: { scope: StudyScopeValue; runId: str
     setOutcome(null);
     try {
       await platformApi.retryStudyCell(org, slug, study.slug, runId, cell.id);
-      setOutcome({ tone: 'success', text: 'Cell queued again. It counts as a new solve.' });
+      setOutcome({ tone: 'success', text: 'Cell queued again.' });
       reloadAll();
     } catch (caught) {
       setOutcome({ tone: 'error', refusal: studyRefusal(caught, 'retry') });
@@ -274,7 +274,7 @@ function CellBody({ scope, runId, cellId }: { scope: StudyScopeValue; runId: str
       )}
       {cell.state === 'failed' && failure && (
         <Notice tone="error" title={`Failed: ${failure.title}`}>
-          {metrics.code ? `Code ${metrics.code}${failure.detail ? ` · ${failure.detail}` : ''}. ` : ''}Retrying usually helps; it counts as a new solve.
+          {metrics.code ? `Code ${metrics.code}${failure.detail ? ` · ${failure.detail}` : ''}. ` : ''}Retrying usually helps.
         </Notice>
       )}
       {cell.state === 'cancelled' && <Notice tone="info">Cancelled before it ran. Retry it, or attach the result of a job you already ran with the same inputs.</Notice>}

@@ -102,7 +102,7 @@ describe('One run of a study', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 1' }));
 
-    expect(await screen.findByText('Cell 1 queued again. It counts as a new solve.')).toBeInTheDocument();
+    expect(await screen.findByText('Cell 1 queued again.')).toBeInTheDocument();
     expect(platform.retryStudyCell).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', RUN_ID, '00000000-0000-4000-8000-000000000201');
   });
 
@@ -249,13 +249,13 @@ describe('One run of a study', () => {
     expect(screen.getByText('Showing 51–100 of 700')).toBeInTheDocument();
   });
 
-  it('keeps the quota in the words of a retry that is out of solves', async () => {
-    platform.retryStudyCell.mockRejectedValue(new QuotaError('quota_exceeded', 'full', { limit_id: 'taskStarts', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' }));
+  it('keeps the quota in the words of a retry that is out of study runs', async () => {
+    platform.retryStudyCell.mockRejectedValue(new QuotaError('quota_exceeded', 'full', { limit_id: 'studyRuns', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' }));
     renderRun();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Retry cell 1' }));
 
-    expect(await screen.findByText(/Out of solves \(402 · quota_exceeded\)/)).toBeInTheDocument();
-    expect(screen.getByText(/You’ve used 50 of 50 solves\. They renew on Nov 1, 2026\./)).toBeInTheDocument();
+    expect(await screen.findByText(/No study runs left this month \(402 · quota_exceeded\)/)).toBeInTheDocument();
+    expect(screen.getByText(/You’ve used 50 of 50 study runs\. They renew on Nov 1, 2026\./)).toBeInTheDocument();
   });
 });

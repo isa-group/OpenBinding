@@ -103,11 +103,7 @@ const HEADING: Record<string, RegExp> = {
   'admin-queues': /Queues/,
   'admin-moderation': /Moderation/,
   'admin-maintenance': /Maintenance/,
-  'admin-routing': /Engine routing/,
   'admin-sponsor': /Transfer sponsorship/,
-  'admin-pricing': /Pricing control room/,
-  'admin-pricing-draft': /New pricing draft/,
-  'admin-pricing-release': /Pricing 0\.1\.0/,
 };
 
 const VIEWPORTS = [
@@ -213,9 +209,9 @@ async function freezeProbeTimes(page: Page) {
 const sessionOf = (screen: GalleryScreen) => (screen.underApp || screen.sessionHeader ? 'admin' : 'none');
 
 test.describe('gallery registry', () => {
-  test('lists all 86 screens of the prototype', () => {
-    expect(screens).toHaveLength(86);
-    expect(new Set(screens.map((screen) => screen.id)).size).toBe(86);
+  test('lists all 82 screens of the prototype', () => {
+    expect(screens).toHaveLength(82);
+    expect(new Set(screens.map((screen) => screen.id)).size).toBe(82);
   });
 });
 

@@ -47,7 +47,6 @@ export const EXAMPLE = {
 const PARAMS_OF: Record<string, Record<string, string>> = {
   'lang-schemas': { kind: 'Instance' },
   'eng-detail': { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0' },
-  'admin-pricing-release': { version: '0.1.0' },
   'admin-sponsor': { org: 'isa-demo' },
   'eng-registration-detail': { name: 'edge-solver' },
 };

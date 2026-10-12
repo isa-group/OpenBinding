@@ -92,7 +92,7 @@ describe('Start a run', () => {
     client.getOwnUsage.mockResolvedValue(usageOf({
       plan: 'RESEARCH',
       capabilities: { maxTimeoutSeconds: 60, maxIterations: 1_000_000, maxInstanceComplexityLog10: 20 },
-      limits: { taskStarts: tracked('taskStarts', 50, 18), solverSeconds: tracked('solverSeconds', 30_000, 7_420), concurrentJobs: tracked('concurrentJobs', 3, 1) },
+      limits: { concurrentJobs: tracked('concurrentJobs', 3, 1) },
     }));
     client.getPricingCatalog.mockResolvedValue({});
     client.getEngines.mockResolvedValue(engines);
@@ -129,7 +129,7 @@ describe('Start a run', () => {
     expect(within(group_).getByRole('radio', { name: /^random-search/ })).toBeChecked();
     expect(within(group_).getByRole('radio', { name: /^random-search.*Can run this/ })).toBeEnabled();
     expect(within(group_).getByRole('radio', { name: /^edge-solver.*It cannot read a RoutingOverlay\..*Can’t run this/ })).toBeDisabled();
-    expect(within(group_).getByRole('radio', { name: /^AutoRouter/ })).toBeEnabled();
+    expect(within(group_).getAllByRole('radio')).toHaveLength(3);
     expect(screen.getByRole('link', { name: 'Compare engines' })).toHaveAttribute('href', '/engines');
     expect(screen.getByRole('button', { name: /Engine/ })).toHaveAttribute('aria-current', 'step');
   });
@@ -168,7 +168,7 @@ describe('Start a run', () => {
       expect(casesApi.instanceIr).toHaveBeenCalledWith('snap-2');
     });
 
-    it('says so when no engine accepts ranges, and still lets the AutoRouter look', async () => {
+    it('says so when no engine accepts ranges', async () => {
       casesApi.instanceIr.mockResolvedValue(ranged);
       casesApi.analyseSnapshot.mockResolvedValue(analysis({ compatibleModes: [refusedRanges({ engine: ENGINE, registration: REGISTRATION, mode: 'sampling' })] }));
       renderLaunch();
@@ -177,7 +177,6 @@ describe('Start a run', () => {
       const picker = await screen.findByRole('radiogroup', { name: 'Engine' });
       expect(within(picker).getByRole('radio', { name: /^random-search/ })).toBeDisabled();
       expect(screen.getByText(/No engine mode accepts ranges yet/)).toBeInTheDocument();
-      expect(within(picker).getByRole('radio', { name: /^AutoRouter/ })).toBeChecked();
     });
 
     it('turns off the catalog modes that do not declare interval values when the gateway could not analyse the package', async () => {
@@ -266,7 +265,7 @@ describe('Start a run', () => {
     expect(within(table).getByText('A positive number')).toBeInTheDocument();
   });
 
-  it('reviews the run with what it adds to the month, then sends it with a one-time key', async () => {
+  it('reviews the run with what it adds to the job slots, then sends it with a one-time key', async () => {
     renderLaunch();
     await toReview();
 
@@ -274,8 +273,6 @@ describe('Start a run', () => {
     expect(within(review).getByText('Flujo de checkout · revision 2')).toBeInTheDocument();
     expect(within(review).getByText('random-search 1.0.0 · mode sampling')).toBeInTheDocument();
     expect(within(review).getByText('Time budget 30 s · Iterations 100,000 iterations')).toBeInTheDocument();
-    expect(screen.getByText('18 used + up to 1 = 19 of 50')).toBeInTheDocument();
-    expect(screen.getByText('7,420 used + up to 30 = 7,450 of 30,000 s')).toBeInTheDocument();
     expect(screen.getByText('1 used + up to 1 = 2 of 3')).toBeInTheDocument();
     expect(screen.getByText('≈ 10^5.1 of up to 10^20 on your RESEARCH plan')).toBeInTheDocument();
     expect(screen.getByText('Sending twice by accident won’t start two runs: each send carries a one-time key.')).toBeInTheDocument();
@@ -299,7 +296,6 @@ describe('Start a run', () => {
     fireEvent.change(await screen.findByLabelText('Time budget'), { target: { value: '600' } });
     await next();
     expect(await screen.findByText('Time budget 60 s (reduced) · Iterations 100,000 iterations')).toBeInTheDocument();
-    expect(screen.getByText('7,420 used + up to 60 = 7,480 of 30,000 s')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
     expect(await screen.findByText(/Time budget was reduced to 60 s, what your plan allows; the job carries that note\./)).toBeInTheDocument();
@@ -307,29 +303,17 @@ describe('Start a run', () => {
     expect(jobsApi.launch).toHaveBeenCalledWith(expect.objectContaining({ options: { time_budget_ms: 600000, iterations: 100000 } }), expect.any(String));
   });
 
-  it('sends the AutoRouter policy instead of an exact engine', async () => {
+  it('only offers the engine modes the gateway or the catalog lists, and always sends an exact engine', async () => {
     renderLaunch();
     fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
-    fireEvent.click(await screen.findByRole('radio', { name: /^AutoRouter/ }));
+    const picker = await screen.findByRole('radiogroup', { name: 'Engine' });
+    expect(within(picker).getAllByRole('radio')).toHaveLength(3);
+    expect(within(picker).getByRole('radio', { name: /^random-search/ })).toBeChecked();
     await next();
-    expect(await screen.findByRole('group', { name: 'AutoRouter policy' })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Optimization profile'), { target: { value: 'cost_first' } });
-    fireEvent.click(screen.getByLabelText('Require an exact solver'));
     await next();
-    expect(await screen.findByText('AutoRouter · Cost first')).toBeInTheDocument();
-
     fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
     await screen.findByRole('heading', { name: 'Run accepted · queued' });
-    expect(jobsApi.launch).toHaveBeenCalledWith({
-      snapshot: 'snap-2', engine: 'auto',
-      options: {
-        routing: {
-          strategy: 'auto', profile: 'cost_first',
-          hardConstraints: { maxCredits: 40, minQuality: 0.85, maxFailureRisk: 0.3, requireExact: true },
-          adaptation: { allowFallback: true },
-        },
-      },
-    }, expect.any(String));
+    expect(jobsApi.launch).toHaveBeenCalledWith(expect.objectContaining({ engine: ENGINE }), expect.any(String));
   });
 
   it('sends sealed settings alone when the person uses saved settings', async () => {
@@ -390,7 +374,7 @@ describe('Start a run', () => {
     expect(alert).toHaveTextContent('Too big for your plan (402 · instance_complexity_too_large)');
     expect(within(alert).getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
     const picker = screen.getByRole('radiogroup', { name: 'Engine' });
-    expect(within(picker).getAllByRole('radio')).toHaveLength(3);
+    expect(within(picker).getAllByRole('radio')).toHaveLength(2);
     expect(within(picker).getByRole('radio', { name: /^random-search.*Checked when you send/ })).toBeEnabled();
   });
 
@@ -409,13 +393,13 @@ describe('Start a run', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Send run' }));
     }
 
-    it('402 out of solves: what was used, when it renews, and where to look', async () => {
-      jobsApi.launch.mockRejectedValue(new QuotaError('quota_exceeded', 'Solve quota exhausted.', { limit_id: 'taskStarts', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' }));
+    it('402 out of an allowance: what was used, when it renews, and where to look', async () => {
+      jobsApi.launch.mockRejectedValue(new QuotaError('quota_exceeded', 'Study runs exhausted.', { limit_id: 'studyRuns', limit: 50, used: 50, renews_at: '2026-11-01T00:00:00Z' }));
       await send();
 
       const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('Out of solves this month (402 · quota_exceeded)');
-      expect(alert).toHaveTextContent('You’ve used 50 of 50 solves. They renew on Nov 1, 2026. Nothing was started.');
+      expect(alert).toHaveTextContent('Out of study runs (402 · quota_exceeded)');
+      expect(alert).toHaveTextContent('You’ve used 50 of 50 study runs. They renew on Nov 1, 2026. Nothing was started.');
       expect(within(alert).getByRole('link', { name: 'See usage' })).toHaveAttribute('href', '/app/account/usage');
       expect(within(alert).getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
       expect(screen.getByRole('button', { name: 'Send run' })).toBeEnabled();

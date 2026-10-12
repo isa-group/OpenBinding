@@ -121,11 +121,10 @@ const researchUsage = () => ({
   contract_pending: false,
   features: { collaboration: true, solve: true },
   capabilities: {
-    taskStarts: 50, solverSeconds: 30_000, concurrentJobs: 3, organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
+    studyRuns: 100, concurrentJobs: 3, organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
   },
   limits: {
-    taskStarts: tracked('taskStarts', 50, 18, 'solve/month', RENEWS),
-    solverSeconds: tracked('solverSeconds', 30_000, 7_420, 'second/month', RENEWS),
+    studyRuns: tracked('studyRuns', 100, 18, 'run/month', RENEWS),
     concurrentJobs: tracked('concurrentJobs', 3, 1, 'job'),
     organizations: tracked('organizations', 5, 2, 'organization'),
     members: tracked('members', 15, 3, 'member'),
@@ -379,7 +378,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(activity.getByText('Running')).toBeVisible();
       await expect(activity.getByText('No feasible binding')).toBeVisible();
       await expect(activity.getByRole('link', { name: 'All jobs' })).toHaveAttribute('href', '/app/jobs');
-      await expect(main.getByRole('meter', { name: 'Solver time' })).toHaveAttribute('aria-valuenow', '7420');
+      await expect(main.getByRole('meter', { name: 'Study runs' })).toHaveAttribute('aria-valuenow', '18');
       await expect(main.getByText('Monthly limits renew Nov 1, 2026. Job slots free up as runs finish.')).toBeVisible();
       await expect(main.getByText('Your OpenBinding agreement changed')).toBeVisible();
       await capture(page, testInfo, `home-${name}-success`);
@@ -393,7 +392,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await page.reload();
       await expect(main.getByRole('region', { name: 'Recent activity' }).getByRole('alert')).toContainText('Recent jobs couldn’t be loaded (503). The other blocks are unaffected.');
       await expect(main.getByRole('list', { name: 'Organizations' }).getByRole('link')).toHaveCount(5);
-      await expect(main.getByRole('meter', { name: 'Solver time' })).toBeVisible();
+      await expect(main.getByRole('meter', { name: 'Study runs' })).toBeVisible();
       await capture(page, testInfo, `home-${name}-activity-503`);
       state.refuse.jobs = undefined;
       await main.getByRole('button', { name: 'Retry' }).click();
@@ -405,7 +404,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('region', { name: 'This month' }).getByRole('alert')).toContainText('Your plan limits can’t be loaded right now (503 · pricing_unavailable).');
       state.refuse.usage = undefined;
       await main.getByRole('region', { name: 'This month' }).getByRole('button', { name: 'Retry' }).click();
-      await expect(main.getByRole('meter', { name: 'Solver time' })).toBeVisible();
+      await expect(main.getByRole('meter', { name: 'Study runs' })).toBeVisible();
 
       const read = request(page, 'POST', '/v1/notifications/n1/read');
       await main.getByRole('button', { name: 'Mark as read' }).click();

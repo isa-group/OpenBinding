@@ -34,7 +34,7 @@ const tracked = (id: string, limit: number, used: number) => ({ limit_id: id, li
 const usage = {
   plan: 'RESEARCH', contract_pending: false, features: {}, capabilities: { maxTimeoutSeconds: 60 },
   limits: {
-    studies: tracked('studies', 25, 1), studyRuns: tracked('studyRuns', 100, 4), taskStarts: tracked('taskStarts', 50, 18), solverSeconds: tracked('solverSeconds', 30_000, 7_420),
+    studies: tracked('studies', 25, 1), studyRuns: tracked('studyRuns', 100, 4),
   },
 };
 
@@ -91,7 +91,7 @@ describe('A new study', () => {
     expect(within(needed).getByText('Choose at least one engine mode.')).toBeInTheDocument();
   });
 
-  it('counts the cells as the choices are made and shows what one run uses of the plan', async () => {
+  it('counts the cells as the choices are made and shows what one run uses of the study allowances', async () => {
     renderBuilder();
     await chooseMatrix();
 
@@ -100,8 +100,6 @@ describe('A new study', () => {
     expect(within(aside).getByText('Study definitions of the sponsor')).toBeInTheDocument();
     expect(within(aside).getByText('1 used + up to 1 = 2 of 25')).toBeInTheDocument();
     expect(within(aside).getByText('4 used + up to 1 = 5 of 100')).toBeInTheDocument();
-    expect(within(aside).getByText('18 used + up to 8 = 26 of 50')).toBeInTheDocument();
-    expect(within(aside).getByText('7,420 used + up to 240 = 7,660 of 30,000 s')).toBeInTheDocument();
     expect(within(aside).getByText(/Each run uses 1 of your study runs this month \(96 left\)/)).toBeInTheDocument();
     expect(within(aside).getByText(/your plan lets one solve run for up to 60 s/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(SEEDS), { target: { value: '1-5' } });

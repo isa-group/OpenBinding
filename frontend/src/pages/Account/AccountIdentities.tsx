@@ -72,11 +72,11 @@ function UnlinkDialog({ identity, researching, onClose, onUnlinked }: {
   const catalog = useResource('unlink-catalog', () => researching ? apiClient.getPricingCatalog().catch(() => null) : Promise.resolve(null));
   const view = catalog.data ? readCatalog(catalog.data) : null;
   const fallbackPlan = view?.plans.find((plan) => !plan.byAgreement && plan.id !== 'RESEARCH')?.id ?? null;
-  const solves = view?.groups.flatMap((group) => group.rows).find((row) => row.id === 'taskStarts');
+  const jobs = view?.groups.flatMap((group) => group.rows).find((row) => row.id === 'concurrentJobs');
   const cellText = (planId: string | null) => {
     const index = view?.plans.findIndex((plan) => plan.id === planId) ?? -1;
-    const cell = index >= 0 ? solves?.cells[index] : undefined;
-    return cell?.kind === 'value' ? `${cell.text} solves / month` : null;
+    const cell = index >= 0 ? jobs?.cells[index] : undefined;
+    return cell?.kind === 'value' ? `${cell.text} concurrent ${cell.text === '1' ? 'job' : 'jobs'}` : null;
   };
 
   const [typed, setTyped] = useState('');

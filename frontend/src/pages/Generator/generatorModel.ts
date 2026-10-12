@@ -1,6 +1,6 @@
 import { QuotaError } from '../../api/auth';
 import {
-  HttpError, type CalibrateEngineParams, type ConvertLegacyParams, type CorpusGeneratedResponse, type GenerateInstanceParams, type GeneratorFeature,
+  HttpError, type ConvertLegacyParams, type CorpusGeneratedResponse, type GenerateInstanceParams, type GeneratorFeature,
   type InstanceGeneratedResponse,
 } from '../../api/client';
 import type { WorkspaceFiles } from '../../utils/workspaceDraft';
@@ -9,7 +9,7 @@ import { fieldErrorsFrom } from '../Auth/authErrors';
 /** The settings of the generator lab as the person types them, and what the gateway is asked for. */
 
 export type Spread = 'uniform' | 'normal' | 'skewed';
-export type LabTool = 'instance' | 'corpus' | 'convert' | 'calibrate';
+export type LabTool = 'instance' | 'corpus' | 'convert';
 
 export interface LabSettings {
   tasks: string;
@@ -255,12 +255,11 @@ const marker = (status: number | undefined, code: string | undefined) => {
 };
 
 /** What the person was doing when a request was refused: it decides what a 401, a 403, a 404 or a 422 means. */
-export type LabAction = 'settings' | 'text' | 'runs' | 'keep';
+export type LabAction = 'settings' | 'text' | 'keep';
 
 const REJECTED: Record<Exclude<LabAction, 'keep'>, { subject: string; code: string; verdict: string }> = {
   settings: { subject: 'These settings can’t be generated', code: 'invalid generation config', verdict: 'the server rejected the combination' },
   text: { subject: 'That text can’t be converted', code: 'invalid legacy instance', verdict: 'the server could not read it as an old-format instance' },
-  runs: { subject: 'Those runs can’t be used to calibrate', code: 'invalid observations', verdict: 'the server rejected them' },
 };
 
 /** Words for each way the generator can refuse a request. `doing` completes “… so {doing}”. */
@@ -273,9 +272,6 @@ export function labRefusal(caught: unknown, doing: string, action: LabAction = '
     switch (caught.status) {
       case 401: return { kind: 'session', text: action === 'keep' ? `Saving to a project needs an account${where}.` : `Your session has ended${where}. Log in again to continue.` };
       case 403:
-        // Calibrating retunes the model every account shares, so the gateway asks for a platform administrator (and a key that may administer).
-        if (caught.code === 'platform_admin_required') return { kind: 'forbidden', text: `Only platform administrators can calibrate an engine${where}. The model is shared by everyone, so ${doing}.` };
-        if (caught.code === 'insufficient_api_key_permission') return { kind: 'forbidden', text: `This API key can’t calibrate an engine${where}: it needs the admin:accounts:write permission. ${doing[0].toUpperCase()}${doing.slice(1)}.` };
         return { kind: 'forbidden', text: action === 'keep' ? `You can generate, but you don’t have permission to add to that project${where}.` : `Your account can’t do this${where}, so ${doing}.` };
       case 404: return { kind: 'missing', text: action === 'keep' ? `That project no longer exists or you lost access${where}.` : `That wasn’t found${where}, so ${doing}.` };
       case 422: {
@@ -298,20 +294,4 @@ export function labRefusal(caught: unknown, doing: string, action: LabAction = '
   }
   if (caught instanceof TypeError) return { kind: 'unavailable', text: `OpenBinding couldn’t be reached, so ${doing}. Check your connection and try again.` };
   return { kind: 'other', text: caught instanceof Error ? caught.message : `That couldn’t be done, so ${doing}.` };
-}
-
-type Observations = NonNullable<CalibrateEngineParams['observations']>;
-
-/** Observations for the calibration, read from a JSON array. */
-export function readObservations(text: string): { observations: Observations } | { error: string } {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    return { error: 'The observations must be valid JSON: a list of runs.' };
-  }
-  if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === 'object' && item !== null && !Array.isArray(item))) {
-    return { error: 'The observations must be a list of runs, each with its workload features, latency, quality and success.' };
-  }
-  return { observations: parsed as Observations };
 }

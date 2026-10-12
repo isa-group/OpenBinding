@@ -106,7 +106,7 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
     setOutcome(null);
     try {
       await platformApi.retryStudyCell(org, slug, study.slug, run.id, cell.id);
-      setOutcome({ tone: 'success', text: `Cell ${cell.ordinal} queued again. It counts as a new solve.` });
+      setOutcome({ tone: 'success', text: `Cell ${cell.ordinal} queued again.` });
       reload();
     } catch (caught) {
       setOutcome({ tone: 'error', refusal: studyRefusal(caught, 'retry') });
@@ -125,7 +125,7 @@ function RunBody({ scope, runId }: { scope: StudyScopeValue; runId: string }) {
         await platformApi.retryStudyCell(org, slug, study.slug, run.id, cell.id);
         done += 1;
       }
-      setOutcome({ tone: 'success', text: `${plural(done, 'cell')} queued again. Each counts as a new solve.` });
+      setOutcome({ tone: 'success', text: `${plural(done, 'cell')} queued again.` });
     } catch (caught) {
       const refusal = studyRefusal(caught, 'retry');
       setOutcome({ tone: 'error', refusal: done > 0 ? { ...refusal, text: `${plural(done, 'cell')} queued again before this stopped. ${refusal.text}` } : refusal });

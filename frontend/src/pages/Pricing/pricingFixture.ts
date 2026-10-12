@@ -1,9 +1,10 @@
 import type { PricingCatalog } from '../../api/auth';
 
 /**
- * `GET /v1/pricing/catalog` as the gateway serves it for `space/pricing/openbinding.yml` (0.1.0): the document as
- * JSON, with `.inf` as `null`. For tests and for the browser tests that stand in for the API. A test compares it
- * with the YAML itself, so it cannot drift from the pricing without a failure.
+ * TEST FIXTURE, NOT A REAL PRICING. A minimal synthetic `GET /v1/pricing/catalog` answer, for the unit and browser tests
+ * that stand in for the API: the document as JSON, with `.inf` as `null`. Its plans carry functional limits only
+ * (concurrent jobs, API keys, ceilings per request, sponsored counts); the real pricings, versions, plans and contracts
+ * live in the SPACE and SPHERE consoles, and nothing here is read from or must match them.
  */
 
 const feature = (tag: string, description: string, defaultValue: boolean, expression?: string) => ({
@@ -23,16 +24,16 @@ const limit = (
 
 /** Per plan, in the order of `LIMIT_IDS`; `null` is `.inf`. */
 const LIMIT_IDS = [
-  'capacityUnits', 'taskStarts', 'solverSeconds', 'federatedTaskStarts', 'concurrentJobs', 'federatedEngines', 'apiKeys',
+  'concurrentJobs', 'federatedEngines', 'apiKeys',
   'maxTimeoutSeconds', 'maxIterations', 'maxPayloadBytes', 'maxInstanceComplexityLog10', 'jobHistoryDays', 'studyRuns',
   'organizations', 'members', 'projects', 'privateProjects', 'collections', 'studies', 'storageBytes',
 ] as const;
 
 const VALUES: Record<string, Array<number | null>> = {
-  BASIC: [5000, 10, 900, 5, 1, 1, 1, 60, 10000, 8388608, 9, 7, 3, 1, 2, 3, 1, 2, 1, 104857600],
-  ADVANCED: [100000, 25, 18000, 10, 2, 3, 10, 600, 500000, 67108864, 15, 90, 50, 2, 10, 25, 15, 25, 10, 1073741824],
-  RESEARCH: [1000000, 50, 30000, 100, 3, 5, 25, 900, 1000000, 134217728, 20, 180, 100, 5, 15, 50, 30, 50, 25, 5368709120],
-  PRO: [100000, null, 180000, 1000, 8, 20, null, 1800, 10000000, 536870912, null, 365, 1000, 10, 100, 500, 500, 500, 250, 21474836480],
+  BASIC: [1, 1, 1, 60, 10000, 8388608, 9, 7, 3, 1, 2, 3, 1, 2, 1, 104857600],
+  ADVANCED: [2, 3, 10, 600, 500000, 67108864, 15, 90, 50, 2, 10, 25, 15, 25, 10, 1073741824],
+  RESEARCH: [3, 5, 25, 900, 1000000, 134217728, 20, 180, 100, 5, 15, 50, 30, 50, 25, 5368709120],
+  PRO: [8, 20, null, 1800, 10000000, 536870912, null, 365, 1000, 10, 100, 500, 500, 500, 250, 21474836480],
 };
 
 const usageLimitsOf = (plan: string) => Object.fromEntries(LIMIT_IDS.map((id, index) => [id, { value: VALUES[plan][index] }]));
@@ -53,9 +54,9 @@ export const catalogFixture: PricingCatalog = {
   features: {
     authoring: feature('Authoring', 'Author and validate BIM v1 and qos-binding/v1 packages.', true),
     solve: feature('Solving', 'Execute local and evolutionary OpenBinding engines.', true,
-      "pricingContext['features']['solve'] && subscriptionContext['taskStarts'] < pricingContext['usageLimits']['taskStarts'] && subscriptionContext['concurrentJobs'] < pricingContext['usageLimits']['concurrentJobs']"),
+      "pricingContext['features']['solve'] && subscriptionContext['concurrentJobs'] < pricingContext['usageLimits']['concurrentJobs']"),
     federatedEngines: feature('Federation', 'Register exact federated engine revisions and execute them.', true,
-      "pricingContext['features']['federatedEngines'] && subscriptionContext['federatedTaskStarts'] < pricingContext['usageLimits']['federatedTaskStarts'] && subscriptionContext['concurrentJobs'] < pricingContext['usageLimits']['concurrentJobs']"),
+      "pricingContext['features']['federatedEngines'] && subscriptionContext['concurrentJobs'] < pricingContext['usageLimits']['concurrentJobs']"),
     apiAccess: feature('Collaboration', 'Use API keys with granular capabilities and boundaries.', true),
     collaboration: feature('Collaboration', 'Work in organizations, projects, collections and reports.', true),
     studies: feature('Analysis', 'Define and execute reproducible comparative binding studies.', true,
@@ -67,10 +68,6 @@ export const catalogFixture: PricingCatalog = {
     institutionalBranding: feature('Institutional', 'Compact Universidad de Sevilla identity in authenticated surfaces.', false),
   },
   usageLimits: {
-    capacityUnits: limit('Solving', 'Computational capacity units consumed across optimization solves.', 1000, 'capacity-unit/month', ['solve'], 'monthly'),
-    taskStarts: limit('Solving', 'Local solves started per actor and month.', 10, 'solve/month', ['solve'], 'monthly'),
-    solverSeconds: limit('Solving', 'Solver wall-clock seconds consumed per actor and month.', 900, 'second/month', ['solve'], 'monthly'),
-    federatedTaskStarts: limit('Federation', 'Federated solves started per actor and month.', 5, 'solve/month', ['federatedEngines'], 'monthly'),
     concurrentJobs: limit('Solving', 'Jobs running at the same time for one actor.', 1, 'job', ['solve', 'federatedEngines', 'studies'], 'tracked'),
     federatedEngines: limit('Federation', 'Federated engine revisions available to one actor.', 1, 'engine', ['federatedEngines'], 'tracked'),
     apiKeys: limit('Collaboration', 'Active API keys owned by one actor.', 1, 'key', ['apiAccess'], 'tracked'),
@@ -111,15 +108,10 @@ export const catalogFixture: PricingCatalog = {
     },
   },
   addOns: {
-    COMPUTE_PACK: {
-      description: 'Adds 100 local solves, 7200 seconds and 250 federated solves.', availableFor: ['ADVANCED', 'PRO'], price: 'Contact us',
-      unit: 'pack/month', subscriptionConstraints: { minQuantity: 1, maxQuantity: 10, quantityStep: 1 },
-      usageLimitsExtensions: { taskStarts: { value: 100 }, solverSeconds: { value: 7200 }, federatedTaskStarts: { value: 250 } },
-    },
     COLLABORATION_PACK: {
-      description: 'Adds 5 members, 10 projects and 5 private projects.', availableFor: ['ADVANCED', 'PRO'], price: 'Contact us',
+      description: 'Adds 5 members, 10 projects, 5 private projects and 5 API keys.', availableFor: ['ADVANCED', 'PRO'], price: 'Contact us',
       unit: 'pack/month', subscriptionConstraints: { minQuantity: 1, maxQuantity: 10, quantityStep: 1 },
-      usageLimitsExtensions: { members: { value: 5 }, projects: { value: 10 }, privateProjects: { value: 5 } },
+      usageLimitsExtensions: { members: { value: 5 }, projects: { value: 10 }, privateProjects: { value: 5 }, apiKeys: { value: 5 } },
     },
     STORAGE_PACK: {
       description: 'Adds 5 GB of artifact storage.', availableFor: ['ADVANCED', 'PRO'], price: 'Contact us',
@@ -127,9 +119,9 @@ export const catalogFixture: PricingCatalog = {
       usageLimitsExtensions: { storageBytes: { value: 5368709120 } },
     },
     FEDERATION_PACK: {
-      description: 'Adds 2 engines and 500 federated solves.', availableFor: ['PRO'], price: 'Contact us',
+      description: 'Adds 2 federated engines.', availableFor: ['PRO'], price: 'Contact us',
       unit: 'pack/month', subscriptionConstraints: { minQuantity: 1, maxQuantity: 10, quantityStep: 1 },
-      usageLimitsExtensions: { federatedEngines: { value: 2 }, federatedTaskStarts: { value: 500 } },
+      usageLimitsExtensions: { federatedEngines: { value: 2 } },
     },
     CONCURRENCY_PACK: {
       description: 'Adds one concurrent job.', availableFor: ['PRO'], price: 'Contact us',

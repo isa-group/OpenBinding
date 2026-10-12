@@ -88,7 +88,7 @@ function JobListBody({ organization, project, canLaunch }: { organization: Organ
     setOutcome(null);
     try {
       const made = await jobsApi.retry(job.id);
-      setOutcome({ tone: 'success', text: 'Retry queued. It counts as a new solve.', follow: `${root}/jobs/${made.id}` });
+      setOutcome({ tone: 'success', text: 'Retry queued.', follow: `${root}/jobs/${made.id}` });
       reload();
     } catch (caught) {
       setOutcome({ tone: 'error', refusal: refusalOf(caught, 'retry') });

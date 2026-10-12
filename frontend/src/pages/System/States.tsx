@@ -62,10 +62,10 @@ const ANATOMY = [
     title: 'Monthly quota used up (402)',
     format: 'Format used by the remaining routes',
     rows: [
-      ['Error code', 'Headline: “You’ve used this month’s solves”'],
+      ['Error code', 'Headline: “You’ve used this month’s study runs”'],
       ['Message', 'Body text'],
-      ['Limit 10 · used 10', 'Gauge: 10 of 10 solves'],
-      ['Unit solve/month', 'Gauge label'],
+      ['Limit 10 · used 10', 'Gauge: 10 of 10 study runs'],
+      ['Unit run/month', 'Gauge label'],
       ['Renews on a date', 'Renewal date under the gauge'],
     ],
   },
@@ -100,8 +100,8 @@ export function States() {
 
   const renewal = nextRenewal(now);
   const daysToRenew = Math.max(0, Math.ceil((renewal.getTime() - now.getTime()) / 86_400_000));
-  const solves: LimitUsage = {
-    limit_id: 'taskStarts', limit: 10, used: 10, remaining: 0, unit: 'solve/month', renews_at: renewal.toISOString(),
+  const studyRuns: LimitUsage = {
+    limit_id: 'studyRuns', limit: 10, used: 10, remaining: 0, unit: 'run/month', renews_at: renewal.toISOString(),
   };
 
   const tryAgain = () => {
@@ -176,11 +176,11 @@ export function States() {
           <>
             <ErrorState
               variant="402"
-              code="quota_exceeded · taskStarts"
-              title="You’ve used all your solves for this month"
-              details={<QuotaBar limit={solves} />}
+              code="quota_exceeded · studyRuns"
+              title="You’ve used all your study runs for this month"
+              details={<QuotaBar limit={studyRuns} />}
             >
-              Renews {formatDate(renewal.toISOString())} (in {daysToRenew} {daysToRenew === 1 ? 'day' : 'days'}). Reducing the time budget doesn’t help here: it’s the number of solves that ran out.
+              Renews {formatDate(renewal.toISOString())} (in {daysToRenew} {daysToRenew === 1 ? 'day' : 'days'}). Reducing the time budget doesn’t help here: it’s the number of study runs that ran out.
             </ErrorState>
             <ErrorState
               variant="402"

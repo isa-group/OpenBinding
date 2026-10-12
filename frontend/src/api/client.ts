@@ -26,7 +26,6 @@ import type {
   PricingCurrentView,
   RoleName,
   TokenPair,
-  UsageResyncResult,
   UsageView,
   UserProfile,
 } from './auth';
@@ -1170,17 +1169,6 @@ export class ApiClient {
     return this.request<PricingCurrentView>('/v1/pricing/current');
   }
 
-  /**
-   * The Pricing2Yaml document as raw YAML.
-   *
-   * @deprecated `GET /v1/pricing` is marked deprecated in the API contract. The plans page and the
-   * engine ceilings use `getPricingCatalog` and `getCurrentPricing`; this stays only for the
-   * administration screen that still reads the YAML.
-   */
-  async getPricingDocument(): Promise<string> {
-    return this.requestText('/v1/pricing');
-  }
-
   /** What the interface gates features with; the browser never sees SPACE. */
   async getPricingToken(): Promise<string> {
     const body = await this.request<{ pricing_token: string }>('/v1/users/me/pricing-token');
@@ -1253,12 +1241,6 @@ export class ApiClient {
   async adminRevokeApiKey(userId: string, keyId: string): Promise<void> {
     await this.request<void>(`/v1/admin/users/${userId}/api-keys/${keyId}`, {
       method: 'DELETE',
-    });
-  }
-
-  async adminResyncUsage(userId: string): Promise<UsageResyncResult> {
-    return this.request<UsageResyncResult>(`/v1/admin/users/${userId}/usage/resync`, {
-      method: 'POST',
     });
   }
 
@@ -1544,58 +1526,6 @@ export class ApiClient {
     const qs = query.toString();
     return this.request<AdminErrorListResponse>(`/v1/admin/errors${qs ? `?${qs}` : ''}`);
   }
-
-  // ==========================================
-  // Admin AutoRouter & MAPE-K Monitoring
-  // ==========================================
-
-  async adminGetEngineRoutingMetrics(): Promise<EngineRoutingMetricsResponse> {
-    return this.request<EngineRoutingMetricsResponse>('/v1/admin/engine-routing/metrics');
-  }
-
-  async adminListEngineRoutingObservations(params?: {
-    engine?: string;
-    limit?: number;
-    offset?: number;
-  }): Promise<EngineRoutingObservationsResponse> {
-    const query = new URLSearchParams();
-    if (params?.engine) query.set('engine', params.engine);
-    if (params?.limit !== undefined) query.set('limit', String(params.limit));
-    if (params?.offset !== undefined) query.set('offset', String(params.offset));
-    const qs = query.toString();
-    return this.request<EngineRoutingObservationsResponse>(`/v1/admin/engine-routing/observations${qs ? `?${qs}` : ''}`);
-  }
-
-  async adminRecalibrateEngineRouting(): Promise<EngineRoutingRecalibrateResponse> {
-    return this.request<EngineRoutingRecalibrateResponse>('/v1/admin/engine-routing/recalibrate', {
-      method: 'POST',
-    });
-  }
-
-  // ==========================================
-  // AutoRouter Job Submission
-  // ==========================================
-
-  async createAutoRouterBimJob(
-    snapshot: string,
-    routingOptions?: AutoRoutingOptions,
-    options: Record<string, unknown> = {},
-    idempotencyKey: string = randomUUID(),
-  ): Promise<{ id: string; status: string; irDigest: string }> {
-    const mergedOptions = {
-      ...options,
-      routing: routingOptions ?? { strategy: 'auto', profile: 'balanced' },
-    };
-    return this.request<{ id: string; status: string; irDigest: string }>('/v1/jobs', {
-      method: 'POST',
-      headers: { 'Idempotency-Key': idempotencyKey },
-      body: JSON.stringify({
-        snapshot,
-        engine: 'auto',
-        options: mergedOptions,
-      }),
-    });
-  }
 }
 
 // ==========================================
@@ -1713,175 +1643,6 @@ export interface ConvertLegacyParams {
   persist?: boolean;
   project_id?: string | null;
   case_name?: string | null;
-}
-
-export interface CalibrateEngineParams {
-  engine: string;
-  mode?: string;
-  observations?: Array<{
-    workload_features: Record<string, unknown>;
-    latency: number;
-    quality: number;
-    success: boolean;
-  }>;
-}
-
-export interface EngineCalibratedResponse {
-  engine: string;
-  mode: string;
-  sample_count: number;
-  latency_coefficients: Record<string, number>;
-  quality_coefficients: Record<string, number>;
-  failure_risk_coefficients: Record<string, number>;
-  r2_score: number;
-  status: string;
-}
-
-// ==========================================
-// Auto-Router & MAPE-K Types
-// ==========================================
-
-export interface AutoRoutingHardConstraints {
-  maxCredits?: number;
-  maxTimeBudgetMs?: number;
-  minQuality?: number;
-  requireExact?: boolean;
-  minConfidence?: number;
-  maxFailureRisk?: number;
-}
-
-export interface AutoRoutingSoftPreferences {
-  weights?: {
-    quality?: number;
-    latency?: number;
-    costCredits?: number;
-    reliability?: number;
-    confidence?: number;
-  };
-}
-
-export interface AutoRoutingOptions {
-  strategy?: 'auto' | string;
-  profile?: 'balanced' | 'quality_first' | 'latency_first' | 'cost_first';
-  hardConstraints?: AutoRoutingHardConstraints;
-  softPreferences?: AutoRoutingSoftPreferences;
-  adaptation?: {
-    allowFallback?: boolean;
-    fallbackTimeoutMs?: number;
-  };
-}
-
-export interface EngineRoutingUserProvenance {
-  selectedEngine: string;
-  selectedMode: string;
-  adaptationReason: string;
-  utilityScore?: number;
-  creditsCost?: number;
-  fallbackActivated?: boolean;
-}
-
-export interface EngineRoutingAdminProvenance {
-  adaptationLoopId?: string;
-  workloadFeatures?: {
-    S?: number;
-    D_constr?: number;
-    N_tasks?: number;
-    N_cap?: number;
-    OptMode?: string;
-    D_obj?: number;
-    T_budget?: number;
-    [key: string]: unknown;
-  };
-  engineHealthSnapshot?: Record<string, {
-    available?: boolean;
-    activeJobs?: number;
-    healthStatus?: 'HEALTHY' | 'DEGRADED' | string;
-    confidence?: number;
-    errorRate?: number;
-    avgLatency?: number;
-    [key: string]: unknown;
-  }>;
-  candidateEvaluations?: Array<{
-    engine: string;
-    predicted?: {
-      latency?: number;
-      quality?: number;
-      failureRisk?: number;
-      credits?: number;
-    };
-    admissible: boolean;
-    utility?: number;
-    rejectionReason?: string;
-  }>;
-  actualExecution?: {
-    actualLatency?: number;
-    actualQuality?: number;
-    actualCredits?: number;
-    residualLatency?: number;
-    residualQuality?: number;
-    residualCredits?: number;
-    [key: string]: unknown;
-  };
-  fallbackEngine?: string;
-}
-
-export interface EngineRoutingMetricSnapshot {
-  available: boolean;
-  activeJobs: number;
-  healthStatus: 'HEALTHY' | 'DEGRADED';
-  confidence: number;
-  consecutiveFailures?: number;
-  oneHourFailureRate?: number;
-  avgLatency?: number;
-  cusumSPlus?: number;
-  cusumSMinus?: number;
-  driftAlarm?: boolean;
-  [key: string]: unknown;
-}
-
-export interface EngineRoutingMetricsResponse {
-  summary: {
-    totalEngines: number;
-    healthyEngines: number;
-    degradedEngines: number;
-    activeJobs: number;
-  };
-  engines: Record<string, EngineRoutingMetricSnapshot>;
-}
-
-export interface AdaptationObservationItem {
-  id: string;
-  jobId: string | null;
-  adaptationLoopId: string;
-  engineSelected: string;
-  workloadFeatures: Record<string, unknown>;
-  candidateEvaluations: Array<{
-    engine: string;
-    predicted?: Record<string, unknown>;
-    admissible: boolean;
-    utility?: number;
-    rejectionReason?: string;
-  }>;
-  predictedMetrics: Record<string, unknown>;
-  actualMetrics?: Record<string, unknown> | null;
-  residuals?: Record<string, unknown> | null;
-  outcome: string;
-  engineHealthSnapshot?: Record<string, unknown> | null;
-  createdAt: string | null;
-}
-
-export interface EngineRoutingObservationsResponse {
-  total: number;
-  limit: number;
-  offset: number;
-  observations: AdaptationObservationItem[];
-}
-
-export interface EngineRoutingRecalibrateResponse {
-  status: string;
-  recalibratedAt: string;
-  observationsProcessed: number;
-  calibratedEngines: string[];
 }
 
 export const apiClient = new ApiClient();

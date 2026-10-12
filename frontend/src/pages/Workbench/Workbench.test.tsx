@@ -11,7 +11,7 @@ import {
 
 const platform = vi.hoisted(() => ({ project: vi.fn(), cases: vi.fn(), caseRevisions: vi.fn(), snapshotArchive: vi.fn(), publicProjects: vi.fn() }));
 const client = vi.hoisted(() => ({
-  getBimExamples: vi.fn(), getBimExamplePackage: vi.fn(), createBimJob: vi.fn(), createConfiguredBimJob: vi.fn(), createAutoRouterBimJob: vi.fn(),
+  getBimExamples: vi.fn(), getBimExamplePackage: vi.fn(), createBimJob: vi.fn(), createConfiguredBimJob: vi.fn(),
   getV1Job: vi.fn(), getOwnUsage: vi.fn(), getPricingCatalog: vi.fn(),
 }));
 const workbench = vi.hoisted(() => ({ validate: vi.fn(), snapshot: vi.fn(), ir: vi.fn(), saveRevision: vi.fn() }));
@@ -154,7 +154,7 @@ describe('Workbench', () => {
 
       const modes = screen.getByRole('combobox', { name: 'Compatible engine mode' });
       expect(within(modes).getAllByRole('option').map((option) => option.textContent)).toEqual([
-        'Validate to select…', 'AutoRouter (self-adaptive, MAPE-K)', 'random-search · seeded · random-search-deployment@1.0.0+builtin.a',
+        'Validate to select…', 'random-search · seeded · random-search-deployment@1.0.0+builtin.a',
       ]);
     });
 
@@ -605,32 +605,6 @@ describe('Workbench', () => {
       expect(within(alert).getByRole('link', { name: 'See jobs' })).toHaveAttribute('href', `${ROOT}/jobs`);
     });
 
-    it('sends the AutoRouter policy, and shows the decision it made', async () => {
-      client.createAutoRouterBimJob.mockResolvedValue({ id: 'job-1', status: 'queued', irDigest: 'sha256-ir' });
-      client.getV1Job.mockResolvedValue({
-        ...completedJob,
-        provenance: { engineRouting: { selectedEngine: 'random-search', selectedMode: 'seeded', utilityScore: 0.8123, creditsCost: 3, fallbackActivated: true, adaptationReason: 'The exact solver timed out.' } },
-      });
-      await validated();
-
-      fireEvent.change(screen.getByRole('combobox', { name: 'Compatible engine mode' }), { target: { value: 'auto' } });
-      expect(screen.getByText('AutoRouter policy')).toBeInTheDocument();
-      fireEvent.change(screen.getByLabelText('Optimization profile'), { target: { value: 'latency_first' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Solve' }));
-
-      const decision = await screen.findByRole('region', { name: 'AutoRouter decision' });
-      expect(decision).toHaveTextContent('random-search · seeded');
-      expect(decision).toHaveTextContent('Fallback activated');
-      expect(decision).toHaveTextContent('Utility 0.812');
-      expect(decision).toHaveTextContent('The exact solver timed out.');
-      expect(client.createAutoRouterBimJob).toHaveBeenCalledWith('snapshot-1', {
-        strategy: 'auto',
-        profile: 'latency_first',
-        hardConstraints: { maxCredits: 40, minQuality: 0.85, maxFailureRisk: 0.3, requireExact: false },
-        adaptation: { allowFallback: true },
-      });
-    });
-
     describe('with range features', () => {
       const edge = { namespace: 'lucia-vega', name: 'edge-solver', version: '0.3.1', digest: 'sha256-e' };
       const edgeRegistration = { namespace: 'lucia-vega', name: 'edge-solver-eu', version: '1', digest: 'sha256-r' };
@@ -682,18 +656,18 @@ describe('Workbench', () => {
         await validated();
         const modes = screen.getByRole('combobox', { name: 'Compatible engine mode' });
         // No range yet: the list is what it always was.
-        expect(within(modes).getAllByRole('option')).toHaveLength(3);
+        expect(within(modes).getAllByRole('option')).toHaveLength(2);
         expect(document.querySelector('.wb-range-note')).toBeNull();
 
         await makeRange();
 
         const options = within(screen.getByRole('combobox', { name: 'Compatible engine mode' })).getAllByRole('option');
         expect(options.map((option) => option.textContent)).toEqual([
-          'Validate to select…', 'AutoRouter (self-adaptive, MAPE-K)', 'random-search · seeded · random-search-deployment@1.0.0+builtin.a',
+          'Validate to select…', 'random-search · seeded · random-search-deployment@1.0.0+builtin.a',
           'edge-solver · placement · edge-solver-eu@1 — can’t run ranges',
         ]);
-        expect(options[3]).toBeDisabled();
-        expect(options[2]).toBeEnabled();
+        expect(options[2]).toBeDisabled();
+        expect(options[1]).toBeEnabled();
         const note = document.querySelector('.wb-range-note') as HTMLElement;
         expect(note).toHaveTextContent(`1 engine mode is off. ${REASON}.`);
         expect(within(note).getByRole('link', { name: 'Engines' })).toHaveAttribute('href', '/engines');

@@ -182,13 +182,6 @@ export interface AdminSubscriptionView {
   changed: boolean;
 }
 
-export interface UsageResyncResult {
-  plan: string;
-  slots_in_flight: number;
-  slots_recorded: number;
-  corrected_by: number;
-}
-
 export interface ExternalIdentity {
   id: string;
   provider: 'us-cas' | string;

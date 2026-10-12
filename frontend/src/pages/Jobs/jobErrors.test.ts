@@ -6,15 +6,20 @@ import { rangeFailureOf, refusalOf } from './jobErrors';
 const refused = (status: number, code: string, extra: Partial<HttpError> = {}) => Object.assign(new HttpError(status, 'refused'), { code }, extra);
 
 describe('refusals of a launch', () => {
-  it('402 out of solves says how many were used and when they renew', () => {
-    const refusal = refusalOf(new QuotaError('quota_exceeded', 'Solve quota exhausted.', { limit_id: 'taskStarts', limit: 10, used: 10, renews_at: '2026-11-01T00:00:00Z' }));
-    expect(refusal).toMatchObject({ kind: 'quota', limitId: 'taskStarts', title: 'Out of solves this month (402 · quota_exceeded)' });
-    expect(refusal.text).toBe('You’ve used 10 of 10 solves. They renew on Nov 1, 2026. Nothing was started.');
+  it('402 out of an allowance says how much was used and when it renews', () => {
+    const refusal = refusalOf(new QuotaError('quota_exceeded', 'Study runs exhausted.', { limit_id: 'studyRuns', limit: 10, used: 10, renews_at: '2026-11-01T00:00:00Z' }));
+    expect(refusal).toMatchObject({ kind: 'quota', limitId: 'studyRuns', title: 'Out of study runs (402 · quota_exceeded)' });
+    expect(refusal.text).toBe('You’ve used 10 of 10 study runs. They renew on Nov 1, 2026. Nothing was started.');
   });
 
   it('402 names any other allowance by its own words', () => {
-    const refusal = refusalOf(new QuotaError('quota_exceeded', 'No solver time.', { limit_id: 'solverSeconds', limit: 900, used: 900 }));
-    expect(refusal.title).toBe('Out of solver time (402 · quota_exceeded)');
+    const refusal = refusalOf(new QuotaError('quota_exceeded', 'No storage.', { limit_id: 'storageBytes', limit: 900, used: 900 }));
+    expect(refusal.title).toBe('Out of storage (402 · quota_exceeded)');
+  });
+
+  it('402 without a named allowance says so in general terms', () => {
+    const refusal = refusalOf(new QuotaError('quota_exceeded', 'No allowance.'));
+    expect(refusal.title).toBe('Out of allowance (402 · quota_exceeded)');
   });
 
   it('402 for a problem beyond the plan is a different refusal', () => {
@@ -107,10 +112,10 @@ describe('refusals of an action on a run', () => {
     expect(refusalOf(refused(409, 'terminal_job'), 'cancel')).toMatchObject({ kind: 'terminal', title: 'Already finished (409 · terminal_job)' });
   });
 
-  it('retrying a run that cannot be retried, or without solves left', () => {
+  it('retrying a run that cannot be retried, or without allowance left', () => {
     expect(refusalOf(refused(409, 'job_not_retryable'), 'retry').title).toBe('This run can’t be retried (409 · job_not_retryable)');
-    const quota = refusalOf(new QuotaError('quota_exceeded', 'Solve quota exhausted.', { limit_id: 'taskStarts', limit: 10, used: 10 }), 'retry');
-    expect(quota.title).toBe('Retry refused: Out of solves this month (402 · quota_exceeded)');
+    const quota = refusalOf(new QuotaError('quota_exceeded', 'Study runs exhausted.', { limit_id: 'studyRuns', limit: 10, used: 10 }), 'retry');
+    expect(quota.title).toBe('Retry refused: Out of study runs (402 · quota_exceeded)');
   });
 
   it('a run that is not yours reads as missing', () => {

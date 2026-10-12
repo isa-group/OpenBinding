@@ -4,7 +4,7 @@ import { HttpError } from '../../api/client';
 import type { Job } from '../../api/platform';
 import { caseOf, org, project, renderProjectScreen, revisionOf } from '../Project/testKit';
 import { saveBytes } from '../Project/download';
-import { INSTANCE, NEIGHBORHOOD, REPORT, detailOf, jobOf, provenanceOf } from '../../test/fixtures/jobs';
+import { INSTANCE, NEIGHBORHOOD, REPORT, detailOf, jobOf } from '../../test/fixtures/jobs';
 import { JobDetail } from './JobDetail';
 
 const jobsApi = vi.hoisted(() => ({ detail: vi.fn(), inProject: vi.fn(), mine: vi.fn(), instance: vi.fn(), cancel: vi.fn(), retry: vi.fn(), report: vi.fn(), ir: vi.fn() }));
@@ -222,10 +222,10 @@ describe('One run', () => {
 
     const alert = await screen.findByRole('alert');
     expect(within(alert).getByText('The run failed')).toBeInTheDocument();
-    expect(alert).toHaveTextContent('The deployment didn’t answer within the budget (engine unreachable). Retrying starts a new attempt and counts as a solve.');
+    expect(alert).toHaveTextContent('The deployment didn’t answer within the budget (engine unreachable). Retrying starts a new attempt.');
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 
-    expect(await screen.findByText('Retry queued as a new attempt. It counts as a new solve.')).toBeInTheDocument();
+    expect(await screen.findByText('Retry queued as a new attempt.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-5`);
   });
 
@@ -256,7 +256,7 @@ describe('One run', () => {
   });
 
   it.each([
-    [402, 'quota_exceeded', /Retry refused: Out of solves this month/],
+    [402, 'quota_exceeded', /Retry refused: Out of allowance/],
     [429, 'concurrency_limit_exceeded', /Retry refused: All your job slots are busy \(429/],
     [503, 'pricing_unavailable', /Limits can’t be checked right now \(503/],
   ])('words a refused retry (%i)', async (status, code, words) => {
@@ -290,48 +290,6 @@ describe('One run', () => {
     expect(await within(why).findByRole('link', { name: 'See the rules' })).toHaveAttribute('href', `${ROOT}/cases/flujo/revisions/2`);
     expect(within(why).getByRole('link', { name: 'Try faster providers' })).toHaveAttribute('href', `${ROOT}/cases/flujo/compose`);
     expect(screen.queryByRole('heading', { name: 'Best combination found' })).not.toBeInTheDocument();
-  });
-
-  describe('a run the AutoRouter placed', () => {
-    const routed = provenanceOf({
-      engineRouting: {
-        selectedEngine: 'evolutionary-heuristics', selectedMode: 'elitist-genetic', adaptationReason: 'Selected evolutionary-heuristics with utility score 0.884',
-        utilityScore: 0.884, creditsCost: 8, fallbackActivated: true,
-      },
-      engineRoutingAdmin: {
-        adaptationLoopId: 'loop-xyz-99',
-        workloadFeatures: { S: 12.3, N_tasks: 10 },
-        candidateEvaluations: [
-          { engine: 'evolutionary-heuristics', admissible: true, utility: 0.884 },
-          { engine: 'minizinc-csp', admissible: false, utility: 0.45, rejectionReason: 'Exceeded phase transition limit' },
-        ],
-      },
-    });
-
-    it('shows the engine it chose, why, what it cost, and the telemetry an administrator gets', async () => {
-      jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'completed', { provenance: routed }));
-      renderJob();
-
-      const card = (await screen.findByRole('heading', { name: 'AutoRouter decision' })).closest('section') as HTMLElement;
-      expect(within(card).getByText('evolutionary-heuristics · elitist-genetic')).toBeInTheDocument();
-      expect(within(card).getByText('Fallback activated')).toBeInTheDocument();
-      expect(within(card).getByText('Selected evolutionary-heuristics with utility score 0.884')).toBeInTheDocument();
-      expect(within(card).getByText(/Utility 0\.884/)).toBeInTheDocument();
-      expect(within(card).getByText(/Cost 8 CU/)).toBeInTheDocument();
-      expect(within(card).getByText('Routing diagnostics (administrators, own runs)')).toBeInTheDocument();
-      expect(within(card).getByText('loop-xyz-99')).toBeInTheDocument();
-      expect(within(card).getByText('Exceeded phase transition limit')).toBeInTheDocument();
-    });
-
-    it('shows no telemetry when the gateway did not send it', async () => {
-      const { engineRoutingAdmin: _omitted, ...plain } = routed;
-      void _omitted;
-      jobsApi.detail.mockResolvedValue(detailOf('job-done-3', 'completed', { provenance: plain }));
-      renderJob();
-
-      expect(await screen.findByRole('heading', { name: 'AutoRouter decision' })).toBeInTheDocument();
-      expect(screen.queryByText('Routing diagnostics (administrators, own runs)')).not.toBeInTheDocument();
-    });
   });
 
   it('opens another of the account’s runs from the same project', async () => {

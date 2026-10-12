@@ -1,11 +1,10 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { retrievePricingFromYaml } from 'pricing4ts';
-import source from '../../../../space/pricing/openbinding.yml?raw';
 import type { UserProfile } from '../../api/auth';
 import { HttpError, type EngineCatalogEntry, type EngineMode } from '../../api/client';
 import { AuthContext } from '../../contexts/auth';
+import { catalogFixture } from '../Pricing/pricingFixture';
 import { EngineDetail } from './EngineDetail';
 
 const api = vi.hoisted(() => ({
@@ -21,8 +20,8 @@ vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof impor
 vi.mock('../../api/platform', () => ({ platformApi: platform }));
 
 const DIGEST = `sha256-${'b2c3d4e5'.repeat(8)}`;
-// What GET /v1/pricing/catalog serves: the active document as JSON.
-const catalog = JSON.parse(JSON.stringify(retrievePricingFromYaml(source))) as Record<string, unknown>;
+// What GET /v1/pricing/catalog serves: the active document as JSON (a synthetic one, see pricingFixture).
+const catalog = JSON.parse(JSON.stringify(catalogFixture)) as Record<string, unknown>;
 
 const lucia: UserProfile = {
   id: 'u1', username: 'lucia', email: 'lucia@example.test', role: 'user', is_active: true, plan: 'RESEARCH', created_at: '2026-01-01T00:00:00Z',

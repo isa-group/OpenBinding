@@ -21,7 +21,7 @@ interface QuotaBarProps {
    * usage screen, with the unit beside its name and what is left spelled out.
    */
   variant?: 'plain' | 'card';
-  /** What stops when it is used up, for the card’s sentence: “New solves can’t start until it renews”. */
+  /** What stops when it is used up, for the card’s sentence: “New study runs can’t start until it renews”. */
   stops?: string;
 }
 

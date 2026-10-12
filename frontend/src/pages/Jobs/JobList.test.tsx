@@ -115,7 +115,7 @@ describe('Jobs of a project', () => {
     expect(within(table).getAllByRole('button', { name: 'Retry' })).toHaveLength(1);
     fireEvent.click(within(table).getByRole('button', { name: 'Retry' }));
 
-    expect(await screen.findByText('Retry queued. It counts as a new solve.')).toBeInTheDocument();
+    expect(await screen.findByText('Retry queued.')).toBeInTheDocument();
     expect(jobsApi.retry).toHaveBeenCalledWith('job-failed-4');
     expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-5`);
   });

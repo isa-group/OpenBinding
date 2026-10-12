@@ -9,7 +9,7 @@
 import { formatByteSize, formatNumber } from './format';
 
 export type LimitGroup = 'monthly' | 'capacity' | 'ceiling' | 'sponsored';
-export type LimitKind = 'count' | 'seconds' | 'bytes' | 'log10' | 'days' | 'capacity';
+export type LimitKind = 'count' | 'seconds' | 'bytes' | 'log10' | 'days';
 
 export interface LimitInfo {
   label: string;
@@ -20,11 +20,7 @@ export interface LimitInfo {
 }
 
 const KNOWN: Record<string, LimitInfo> = {
-  taskStarts: { label: 'Solves', short: 'solves', group: 'monthly', kind: 'count' },
-  solverSeconds: { label: 'Solver time', short: 'solver time', group: 'monthly', kind: 'seconds' },
-  federatedTaskStarts: { label: 'Federated solves', short: 'federated solves', group: 'monthly', kind: 'count' },
   studyRuns: { label: 'Study runs', short: 'study runs', group: 'monthly', kind: 'count' },
-  capacityUnits: { label: 'Capacity units', short: 'work', group: 'monthly', kind: 'capacity' },
   concurrentJobs: { label: 'Concurrent jobs', short: 'jobs', group: 'capacity', kind: 'count' },
   federatedEngines: { label: 'Federated engines', short: 'federated engines', group: 'capacity', kind: 'count' },
   apiKeys: { label: 'API keys', short: 'API keys', group: 'capacity', kind: 'count' },

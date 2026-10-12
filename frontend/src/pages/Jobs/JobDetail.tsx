@@ -13,7 +13,7 @@ import { saveBytes } from '../Project/download';
 import { canOpenSection } from '../Project/accessLevel';
 import { MembersOnlyGate, ProjectGate, ProjectSkeleton } from '../Project/parts';
 import { useRouteProject } from '../Project/useRouteProject';
-import { Provenance, Routing, Settings, Timeline } from './JobFacts';
+import { Provenance, Settings, Timeline } from './JobFacts';
 import { ResultSection, type Origin } from './JobResult';
 import { rangeFailureOf, refusalOf, type Refusal } from './jobErrors';
 import { findOrigin } from './jobsData';
@@ -122,7 +122,7 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
     setOutcome(null);
     try {
       const made = await jobsApi.retry(jobId);
-      setOutcome({ tone: 'success', text: 'Retry queued as a new attempt. It counts as a new solve.', follow: `${root}/jobs/${made.id}` });
+      setOutcome({ tone: 'success', text: 'Retry queued as a new attempt.', follow: `${root}/jobs/${made.id}` });
     } catch (caught) {
       setOutcome({ tone: 'error', refusal: refusalOf(caught, 'retry') });
     } finally {
@@ -191,7 +191,6 @@ function JobDetailBody({ organization, project, jobId }: { organization: Organiz
       )}
 
       <Timeline status={state} created={created} finished={finished} feed={live.feed} />
-      <Routing provenance={detail.provenance} />
       <Settings provenance={detail.provenance} />
       <ResultSection detail={detail} jobId={jobId} root={root} origin={origin.data ?? null} />
       <Provenance

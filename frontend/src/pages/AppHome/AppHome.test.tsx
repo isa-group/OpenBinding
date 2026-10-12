@@ -81,8 +81,8 @@ describe('Home', () => {
     expect(within(activity).getByRole('link', { name: 'All jobs' })).toHaveAttribute('href', '/app/jobs');
 
     const month = screen.getByRole('region', { name: 'This month' });
-    expect(await within(month).findByRole('meter', { name: 'Solver time' })).toHaveAttribute('aria-valuenow', '7420');
-    expect(within(month).getByRole('meter', { name: 'Solves started' })).toHaveAttribute('aria-valuemax', '50');
+    expect(await within(month).findByRole('meter', { name: 'Study runs' })).toHaveAttribute('aria-valuenow', '18');
+    expect(within(month).getByRole('meter', { name: 'Jobs running now' })).toHaveAttribute('aria-valuemax', '3');
     expect(within(month).getByText(/Monthly limits renew Nov 1, 2026/)).toBeInTheDocument();
 
     const notices = screen.getByRole('region', { name: 'Unread notifications' });
@@ -108,7 +108,7 @@ describe('Home', () => {
     expect(await within(activity).findByRole('alert')).toHaveTextContent('Recent jobs couldn’t be loaded (503). The other blocks are unaffected.');
     // The tree and the limits are on the page regardless.
     expect(await screen.findByRole('list', { name: 'Organizations' })).toBeInTheDocument();
-    expect(await screen.findByRole('meter', { name: 'Solver time' })).toBeInTheDocument();
+    expect(await screen.findByRole('meter', { name: 'Study runs' })).toBeInTheDocument();
 
     fireEvent.click(within(activity).getByRole('button', { name: 'Retry' }));
     expect(await within(activity).findByText('Running')).toBeInTheDocument();

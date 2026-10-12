@@ -126,7 +126,7 @@ const researchUsage = (ceiling: number | null = 20) => ({
   plan: 'RESEARCH',
   contract_pending: false,
   features: { collaboration: true, solve: true },
-  capabilities: { taskStarts: 50, concurrentJobs: 3, projects: 50, privateProjects: 30, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: ceiling },
+  capabilities: { concurrentJobs: 3, projects: 50, privateProjects: 30, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: ceiling },
   limits: {
     projects: { limit_id: 'projects', limit: 50, used: 3, remaining: 47, unit: 'project', renews_at: null },
     privateProjects: { limit_id: 'privateProjects', limit: 30, used: 2, remaining: 28, unit: 'project', renews_at: null },

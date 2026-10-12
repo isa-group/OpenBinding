@@ -72,7 +72,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { id: 'notifications:read', description: 'Read notifications' },
       { id: 'pricing:read', description: 'Read pricing' },
-      { id: 'pricing:admin', description: 'Run the pricing control room' },
+      { id: 'pricing:admin', description: 'Administer pricing' },
       { id: 'admin:accounts:read', description: 'Read all accounts' },
       { id: 'admin:accounts:write', description: 'Change accounts' },
     ],

@@ -10,9 +10,7 @@ import { useCountdown } from '../../components/ui/useCountdown';
 import { Choice } from '../Organization/parts';
 import type { Refusal } from './jobErrors';
 import type { ForecastBar } from './jobsModel';
-import {
-  PROFILE_LABELS, type AutoPolicy, type AutoProfile, type ModeChoice, type OptionPlan, type SettingsSource, type SourceChoice,
-} from './launchModel';
+import type { ModeChoice, OptionPlan, SettingsSource, SourceChoice } from './launchModel';
 
 export interface Prepared {
   choiceId: string;
@@ -59,10 +57,6 @@ export function EngineStep({ modes, value, onChange, analysisNote, compareHref, 
       <h2>Engine</h2>
       {analysisNote}
       <div role="radiogroup" aria-label="Engine" className="job-choices is-grid">
-        <Choice
-          name="job-engine" value="auto" checked={value === 'auto'} onChange={onChange}
-          label="AutoRouter" sub="Picks the engine and mode for this problem, within the policy you set next." trailing={<Chip tone="accent">Self-adaptive</Chip>}
-        />
         {modes.map((mode) => (
           <Choice
             key={mode.key} name="job-engine" value={mode.key} checked={value === mode.key} onChange={onChange} disabled={mode.compat === 'no'}
@@ -75,7 +69,7 @@ export function EngineStep({ modes, value, onChange, analysisNote, compareHref, 
           />
         ))}
       </div>
-      {hasPrepared && modes.length === 0 && <p className="org-muted">The gateway lists no engine mode for this problem. The AutoRouter can still look for one.</p>}
+      {hasPrepared && modes.length === 0 && <p className="org-muted">The gateway lists no engine mode for this problem.</p>}
       {ranges && modes.some((mode) => mode.rangeRefusal) && (
         <Notice tone="warning" title="This package has range features">
           {modes.every((mode) => mode.compat === 'no')
@@ -90,37 +84,6 @@ export function EngineStep({ modes, value, onChange, analysisNote, compareHref, 
 }
 
 // --- 3 · settings
-
-function PolicyForm({ policy, onChange }: { policy: AutoPolicy; onChange: (next: AutoPolicy) => void }) {
-  const id = useId();
-  return (
-    <fieldset className="job-policy">
-      <legend>AutoRouter policy</legend>
-      <label className="job-field" htmlFor={`${id}-profile`}>
-        <span>Optimization profile</span>
-        <select id={`${id}-profile`} aria-label="Optimization profile" value={policy.profile} onChange={(event) => onChange({ ...policy, profile: event.target.value as AutoProfile })}>
-          {(Object.keys(PROFILE_LABELS) as AutoProfile[]).map((profile) => <option key={profile} value={profile}>{PROFILE_LABELS[profile]}</option>)}
-        </select>
-      </label>
-      <label className="job-field" htmlFor={`${id}-credits`}>
-        <span>Most capacity units one run may use</span>
-        <input id={`${id}-credits`} type="number" min={1} max={100} value={policy.maxCredits} onChange={(event) => onChange({ ...policy, maxCredits: Number.parseInt(event.target.value, 10) || 40 })} />
-      </label>
-      <label className="job-field" htmlFor={`${id}-quality`}>
-        <span>Lowest quality: {policy.minQuality.toFixed(2)}</span>
-        <input id={`${id}-quality`} type="range" min={0} max={1} step={0.05} value={policy.minQuality} onChange={(event) => onChange({ ...policy, minQuality: Number.parseFloat(event.target.value) })} />
-      </label>
-      <label className="job-field" htmlFor={`${id}-risk`}>
-        <span>Highest failure risk: {policy.maxFailureRisk.toFixed(2)}</span>
-        <input id={`${id}-risk`} type="range" min={0} max={1} step={0.05} value={policy.maxFailureRisk} onChange={(event) => onChange({ ...policy, maxFailureRisk: Number.parseFloat(event.target.value) })} />
-      </label>
-      <div className="job-checks">
-        <label><input type="checkbox" checked={policy.requireExact} onChange={(event) => onChange({ ...policy, requireExact: event.target.checked })} /> Require an exact solver</label>
-        <label><input type="checkbox" checked={policy.allowFallback} onChange={(event) => onChange({ ...policy, allowFallback: event.target.checked })} /> Allow a fallback solver</label>
-      </div>
-    </fieldset>
-  );
-}
 
 const amount = (value: number | null, unit: string) => (value === null ? '—' : `${value.toLocaleString('en-US')} ${unit}`.trim());
 
@@ -167,10 +130,9 @@ function OptionsTable({ plans, values, onChange }: { plans: readonly OptionPlan[
   );
 }
 
-export function SettingsStep({ org, auto, source, onSource, plans, values, onValue, policy, onPolicy, configuration, onConfiguration, libraryHref, modeLabel }: {
-  org: string; auto: boolean; source: SettingsSource; onSource: (next: SettingsSource) => void;
+export function SettingsStep({ org, source, onSource, plans, values, onValue, configuration, onConfiguration, libraryHref, modeLabel }: {
+  org: string; source: SettingsSource; onSource: (next: SettingsSource) => void;
   plans: readonly OptionPlan[]; values: Record<string, string>; onValue: (name: string, value: string) => void;
-  policy: AutoPolicy; onPolicy: (next: AutoPolicy) => void;
   configuration: ArtifactVersion | null; onConfiguration: (version: ArtifactVersion) => void; libraryHref: string; modeLabel: string;
 }) {
   const name = useId();
@@ -188,9 +150,8 @@ export function SettingsStep({ org, auto, source, onSource, plans, values, onVal
       {source === 'inline' && (
         <>
           <p className="org-muted">Settings for {modeLabel}.</p>
-          {auto && <PolicyForm policy={policy} onChange={onPolicy} />}
           {plans.length > 0 && <OptionsTable plans={plans} values={values} onChange={onValue} />}
-          {!auto && plans.length === 0 && <p className="org-muted">This mode declares no numeric settings; it runs with the engine’s own defaults.</p>}
+          {plans.length === 0 && <p className="org-muted">This mode declares no numeric settings; it runs with the engine’s own defaults.</p>}
         </>
       )}
       {source === 'saved' && (
@@ -230,8 +191,4 @@ export function ForecastBars({ bars }: { bars: readonly ForecastBar[] }) {
 export function SlotCountdown({ seconds }: { seconds: number }) {
   const { left, done } = useCountdown(seconds);
   return <span className="job-refusal-line" role="timer">{done ? 'A slot should be free now. Send again.' : `A slot should free up in about ${left} s.`}</span>;
-}
-
-export function AutoNote() {
-  return <Notice tone="info">The AutoRouter picks the engine when the run starts; its choice and reason are shown on the run’s page.</Notice>;
 }

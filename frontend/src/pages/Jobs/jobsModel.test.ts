@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bindingRows, canRetryState, forecastBar, formatOption, formatTook, isActive, metricEntries, normalizeStatus, optionRows, outcomeOf, readAdminRouting,
-  readPins, readRouting, scoreText, secondsBetween, statusCounts, timelineOf, tookPercent,
+  bindingRows, canRetryState, forecastBar, formatOption, formatTook, isActive, metricEntries, normalizeStatus, optionRows, outcomeOf,
+  readPins, scoreText, secondsBetween, statusCounts, timelineOf, tookPercent,
 } from './jobsModel';
 
 describe('states', () => {
@@ -76,22 +76,6 @@ describe('provenance', () => {
     expect(readPins(undefined).engine).toBeNull();
   });
 
-  it('reads the AutoRouter decision and, apart, the administrator diagnostics', () => {
-    const provenance = {
-      engineRouting: { selectedEngine: 'evolutionary-heuristics', selectedMode: 'elitist-genetic', adaptationReason: 'Highest utility', utilityScore: 0.884, creditsCost: 8, fallbackActivated: true },
-      engineRoutingAdmin: {
-        adaptationLoopId: 'loop-1', workloadFeatures: { S: 12.3456 },
-        candidateEvaluations: [{ engine: 'minizinc-csp', admissible: false, utility: 0.45, rejectionReason: 'Exceeded phase transition limit' }],
-      },
-    };
-    expect(readRouting(provenance)).toEqual({ engine: 'evolutionary-heuristics', mode: 'elitist-genetic', reason: 'Highest utility', utility: 0.884, credits: 8, fallback: true });
-    expect(readAdminRouting(provenance)).toEqual({
-      loop: 'loop-1', workload: [['S', '12.346']],
-      candidates: [{ engine: 'minizinc-csp', admissible: false, utility: 0.45, rejection: 'Exceeded phase transition limit' }],
-    });
-    expect(readRouting({})).toBeNull();
-    expect(readAdminRouting({ engineRouting: {} })).toBeNull();
-  });
 });
 
 describe('timeline', () => {
@@ -126,11 +110,11 @@ describe('results', () => {
   });
 });
 
-describe('quota forecast', () => {
+describe('limits forecast', () => {
   it('adds this run to what is used and says when it goes over', () => {
-    expect(forecastBar('Solves this month', 18, 50, 1, '')).toMatchObject({ before: 36, over: false, text: '18 used + up to 1 = 19 of 50' });
-    expect(forecastBar('Solves this month', 10, 10, 1, '')).toMatchObject({ over: true, text: '10 used + up to 1 = 11 of 10 · over the limit' });
-    expect(forecastBar('Solver time', 610, 900, 60, ' s').text).toBe('610 used + up to 60 = 670 of 900 s');
+    expect(forecastBar('Jobs running at once', 1, 3, 1, '')).toMatchObject({ before: 33, over: false, text: '1 used + up to 1 = 2 of 3' });
+    expect(forecastBar('Jobs running at once', 3, 3, 1, '')).toMatchObject({ over: true, text: '3 used + up to 1 = 4 of 3 · over the limit' });
+    expect(forecastBar('Timeout', 610, 900, 60, ' s').text).toBe('610 used + up to 60 = 670 of 900 s');
   });
 
   it('says so when there is no limit or the usage cannot be read', () => {

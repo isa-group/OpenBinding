@@ -275,11 +275,6 @@
 .adm-features li.is-on { border-color: var(--tp-severity-success-border); background: var(--tp-severity-success-bg); color: var(--color-success); }
 .adm-features svg { width: 12px; height: 12px; }
 
-.adm-resync { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tp-spacing-sm); padding-top: var(--tp-spacing-sm); border-top: 1px solid var(--tp-hairline-soft); color: var(--tp-slate); font-size: 0.8125rem; }
-.adm-resync > span { flex: 1 1 14rem; }
-.adm-resync-result { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.adm-resync-result > div { padding: 8px 10px; border: 1px solid var(--tp-severity-success-border); border-radius: var(--tp-radius-md); background: var(--tp-severity-success-bg); }
-.adm-resync-result span { display: block; color: var(--tp-slate); font-size: 0.6875rem; }
 
 /* Audit */
 
@@ -623,7 +618,6 @@ tr.adm-expanded > td { background: var(--tp-surface); }
   .adm-page { gap: var(--tp-spacing-md); }
   .adm-jobs > li { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .adm-barrow { grid-template-columns: 110px 1fr 32px; }
-  .adm-resync-result { grid-template-columns: minmax(0, 1fr); }
   .adm-grid { grid-template-columns: minmax(0, 1fr); }
   .adm-search { min-width: 0; flex-basis: 100%; }
 

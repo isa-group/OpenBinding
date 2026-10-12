@@ -263,7 +263,7 @@ export function ResultSection({ detail, jobId, root, origin }: ResultSectionProp
     const why = (typeof result?.error === 'string' && result.error) || detail.error || 'The engine did not say why.';
     return (
       <Notice tone="error" title="The run failed">
-        {/[.!?]$/.test(why) ? why : `${why}.`} Retrying starts a new attempt and counts as a solve.
+        {/[.!?]$/.test(why) ? why : `${why}.`} Retrying starts a new attempt.
       </Notice>
     );
   }

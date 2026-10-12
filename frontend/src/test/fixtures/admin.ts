@@ -1,7 +1,7 @@
 import type {
   AdminAuditPage, AdminModerationOverview, AdminOverview, AdminQueueStatus, AdminSubscriptionView, AdminUserPage, AdminUserView, LimitUsage, UsageView,
 } from '../../api/auth';
-import type { Organization, PricingControlRoom } from '../../api/platform';
+import type { Organization } from '../../api/platform';
 import type { AdminErrorListResponse, AdminErrorOverview, ApiErrorEventItem } from '../../pages/Admin/types';
 
 /** Stand-ins for the answers of /v1/admin/*, for the tests of the administration screens. They name no real person. */
@@ -47,15 +47,14 @@ const limit = (limitId: string, max: number, used: number, unit: string | null =
   limit_id: limitId, limit: max, used, remaining: Math.max(0, max - used), unit, renews_at: '2026-11-01T00:00:00Z',
 });
 
-export function usageOf(plan: string, taskStarts = 18, concurrent = 1): UsageView {
+export function usageOf(plan: string, studyRuns = 1, concurrent = 1): UsageView {
   return {
     plan,
     contract_pending: false,
     features: { solve: true, advancedAnalytics: plan !== 'BASIC', reproducibilityArchive: false },
     capabilities: {},
     limits: {
-      taskStarts: limit('taskStarts', plan === 'BASIC' ? 10 : 50, taskStarts, 'solve/month'),
-      solverSeconds: limit('solverSeconds', plan === 'BASIC' ? 900 : 30000, plan === 'BASIC' ? 610 : 7420, 'second/month'),
+      studyRuns: limit('studyRuns', plan === 'BASIC' ? 10 : 50, studyRuns, 'run/month'),
       concurrentJobs: limit('concurrentJobs', plan === 'BASIC' ? 1 : 3, concurrent, 'job'),
       maxTimeoutSeconds: limit('maxTimeoutSeconds', plan === 'BASIC' ? 60 : 900, 0, 'second'),
       organizations: limit('organizations', plan === 'BASIC' ? 1 : 5, 0, 'organization'),
@@ -122,21 +121,6 @@ export const OVERVIEW: AdminOverview = {
   ],
 };
 
-/** SPHERE answers, SPACE does not; one private draft waits next to the LIVE release. */
-export const CONTROL_ROOM = {
-  identity: { organization: 'OpenBinding', slug: 'openbinding' },
-  sphere: { enabled: true, reachable: true },
-  space: { enabled: true, reachable: false },
-  live: '0.1.0',
-  releases: [
-    { version: '0.2.0', sphere_state: 'PRIVATE_DRAFT', is_live: false },
-    { version: '0.1.0', sphere_state: 'PUBLIC_RELEASE', is_live: true },
-  ],
-  remoteVersions: [],
-  spaceVersions: { active: [], archived: [] },
-  divergence: { onlyInSphere: [], onlyLocal: [] },
-} as unknown as PricingControlRoom;
-
 export const MODERATION: AdminModerationOverview = {
   engines: { published: 3, pending_review: 0 },
   dialects: { published: 2, pending_review: 1 },
@@ -184,7 +168,7 @@ const event = (n: number, statusCode: number, category: ApiErrorEventItem['categ
 
 export const ERROR_EVENTS: ApiErrorEventItem[] = [
   event(1, 402, 'pricing_quota', 'quota_exceeded', '/v1/jobs', SAM, '2026-10-09T07:40:00Z', {
-    quota: { limit_id: 'taskStarts', used: 10, limit: 10, unit: 'solve/month', renews_at: '2026-11-01T00:00:00Z' },
+    quota: { limit_id: 'studyRuns', used: 10, limit: 10, unit: 'run/month', renews_at: '2026-11-01T00:00:00Z' },
   }),
   event(2, 402, 'pricing_quota', 'quota_exceeded', '/v1/jobs', SAM, '2026-10-09T06:10:00Z'),
   event(3, 429, 'concurrency', 'concurrency_limit_exceeded', '/v1/jobs', SAM, '2026-10-08T18:20:00Z'),

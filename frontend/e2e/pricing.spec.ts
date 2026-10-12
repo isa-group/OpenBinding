@@ -107,9 +107,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       // Monthly limits are open: the rounded figure with the exact one underneath.
       const monthly = main.getByRole('table', { name: 'Monthly: Renew each month' });
-      await expect(monthly.getByRole('row', { name: /Solver time/ })).toContainText('15 min');
-      await expect(monthly.getByRole('row', { name: /Solver time/ })).toContainText('900 s');
-      await expect(monthly.getByRole('row', { name: /Capacity units/ })).not.toContainText('To confirm');
+      await expect(monthly.getByRole('row', { name: /Study runs/ })).toContainText('1,000');
+      await expect(monthly.getByRole('row', { name: /Study runs/ })).not.toContainText('To confirm');
       await capture(page, testInfo, `pricing-${name}-visitor`);
       if (isMobile) {
         // The plans stack instead of scrolling: the page is as wide as the device, the matrix has nothing to scroll, and no plan is cut off.
@@ -142,7 +141,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await main.getByRole('heading', { name: 'What has to have room before you start' }).scrollIntoViewIfNeeded();
       await expect(main.getByText('Start a federated solve')).toBeVisible();
-      await expect(main.getByText('Solves left this month').first()).toBeVisible();
+      await expect(main.getByText('Study runs left this month').first()).toBeVisible();
       await expect(main.getByText('BASIC and RESEARCH have no add-ons.')).toBeVisible();
       for (const outcome of ['Reduced', 'Wait', 'Rejected']) await expect(main.getByText(outcome, { exact: true })).toBeVisible();
 

@@ -3,10 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import type { AdminModerationOverview } from '../../api/auth';
 import { apiClient } from '../../api/client';
-import { platformApi } from '../../api/platform';
 import { Action } from '../../components/ui/Action';
 import { Notice } from '../../components/ui/Notice';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { config } from '../../config';
 import { formatDateTime } from '../../utils/format';
 import { useResource, type Resource } from '../../utils/useResource';
 import { AdminFrame, AdminOnly, Meter, Tag } from './AdminChrome';
@@ -89,14 +89,7 @@ function OverviewScreen() {
   const queues = useResource('admin-overview-queues', async () => ({ status: await apiClient.adminQueues(), at: Date.now() }));
   const moderation = useResource('admin-overview-moderation', () => apiClient.adminModeration());
   const errors = useResource('admin-overview-errors', () => apiClient.adminErrorOverview());
-  const pricing = useResource('admin-overview-pricing', async () => {
-    const [current, room] = await Promise.allSettled([apiClient.getCurrentPricing(), platformApi.pricingControlRoom()]);
-    if (current.status === 'rejected' && room.status === 'rejected') throw room.reason;
-    return {
-      live: (current.status === 'fulfilled' ? current.value.version : null) ?? (room.status === 'fulfilled' ? room.value.live : null),
-      room: room.status === 'fulfilled' ? room.value : null,
-    };
-  });
+  const pricing = useResource('admin-overview-pricing', async () => ({ live: (await apiClient.getCurrentPricing()).version }));
 
   const reloadAll = () => [overview, queues, moderation, errors, pricing].forEach((resource) => resource.reload());
   const refreshing = [overview, queues, moderation, errors, pricing].some((resource) => resource.status === 'loading' && resource.stale !== undefined);
@@ -122,14 +115,7 @@ function OverviewScreen() {
   const byStatus = Object.entries(errorOverview?.by_status_code_24h ?? {}).map(([code, total]) => [Number(code), total] as const).sort(([, a], [, b]) => b - a).slice(0, 4);
 
   const pricingView = pricing.data ?? pricing.stale;
-  const room = pricingView?.room ?? null;
   const live = pricingView?.live ?? null;
-  const drafts = room?.releases.filter((release) => release.sphere_state === 'PRIVATE_DRAFT').length ?? 0;
-  const health = (service: 'SPHERE' | 'SPACE', value: { enabled: boolean; reachable: boolean } | undefined) => {
-    if (!value) return null;
-    if (!value.enabled) return <Tag tone="plain">{service} not configured</Tag>;
-    return <Tag tone={value.reachable ? 'success' : 'error'}>{service} {value.reachable ? 'reachable' : 'unreachable'}</Tag>;
-  };
 
   const tools: Array<[string, string, string]> = [
     ['Accounts', 'Search accounts, activate or deactivate, change global role.', '/app/admin/users'],
@@ -139,10 +125,6 @@ function OverviewScreen() {
     ['Queues', 'Jobs by state and the oldest ones waiting.', '/app/admin/queues'],
     ['Moderation', 'Review engine publication requests, and approve dialects and resources.', '/app/admin/moderation'],
     ['Maintenance', 'Preview, then purge expired data or reconcile jobs and contracts.', '/app/admin/maintenance'],
-    ['Engine routing', 'Router health, observations and recalibration.', '/app/admin/engine-routing'],
-    ['Pricing control room', 'Drafts, releases, deployment, LIVE and contracts.', '/app/admin/pricing'],
-    ['New pricing draft', 'Template or fork, edit, validate, draft, publish.', '/app/admin/pricing/drafts/new'],
-    ['Pricing release', 'Preview a version and move it through its life.', live ? `/app/admin/pricing/${encodeURIComponent(live)}` : '/app/admin/pricing'],
   ];
 
   return (
@@ -206,16 +188,15 @@ function OverviewScreen() {
           {errorOverview && <span className="adm-muted">{count(errorOverview.total_errors_24h)} events in total</span>}
         </Block>
 
-        <Block title="Pricing" to="/app/admin/pricing" linkLabel="Control room" resource={pricing}>
+        <Block title="Pricing" resource={pricing}>
           <span className="adm-livever"><span className="adm-muted">LIVE</span><strong className="adm-big">{live ?? 'none'}</strong></span>
           <span className="adm-chip-row">
-            {health('SPHERE', room?.sphere)}
-            {health('SPACE', room?.space)}
-            {room && <Tag tone="plain">{drafts} private draft{drafts === 1 ? '' : 's'}</Tag>}
+            <a href={config.spaceFrontendUrl} target="_blank" rel="noopener noreferrer">Open SPACE console</a>
+            <a href={config.sphereUrl} target="_blank" rel="noopener noreferrer">Open SPHERE console</a>
           </span>
           <span className="adm-muted">
             {live ? (/^0\./.test(live) ? 'A 0.x release is a development copy. ' : '') : 'No release is live. '}
-            Health is checked by the server.
+            Pricings, versions, plans and contracts are administered in their own consoles.
           </span>
         </Block>
 

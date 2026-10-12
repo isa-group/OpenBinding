@@ -116,14 +116,11 @@ describe('Pricing', () => {
     await heading();
     const monthly = within(await screen.findByRole('table', { name: 'Monthly: Renew each month' }));
 
-    const solverTime = within(monthly.getByRole('row', { name: /Solver time/ }));
-    expect(solverTime.getByText('15 min')).toBeInTheDocument();
-    expect(solverTime.getByText('900 s')).toBeInTheDocument();
-    expect(solverTime.getByText('50 h')).toBeInTheDocument();
-    expect(within(monthly.getByRole('row', { name: /^Solves/ })).getByText('Unlimited')).toBeInTheDocument();
-    const capacityUnits = monthly.getByRole('row', { name: /Capacity units/ });
-    expect(within(capacityUnits).queryByText('To confirm')).not.toBeInTheDocument();
-    expect(within(capacityUnits).getByText('Applies to')).toBeInTheDocument();
+    const studyRuns = monthly.getByRole('row', { name: /Study runs/ });
+    expect(within(studyRuns).getByText('3')).toBeInTheDocument();
+    expect(within(studyRuns).getByText('1,000')).toBeInTheDocument();
+    expect(within(studyRuns).queryByText('To confirm')).not.toBeInTheDocument();
+    expect(within(studyRuns).getByText('Applies to')).toBeInTheDocument();
   });
 
   it('opens and closes the groups of rows', async () => {
@@ -135,6 +132,9 @@ describe('Pricing', () => {
 
     fireEvent.click(perRequest);
     const table = within(screen.getByRole('table', { name: 'Per request: Ceilings for each job' }));
+    const timeout = within(table.getByRole('row', { name: /Max time per job/ }));
+    expect(timeout.getByText('15 min')).toBeInTheDocument();
+    expect(timeout.getByText('900 s')).toBeInTheDocument();
     expect(table.getByText('8 MiB')).toBeInTheDocument();
     expect(table.getByText('8,388,608 bytes')).toBeInTheDocument();
     expect(table.getAllByText('Unlimited')).toHaveLength(1);
@@ -165,7 +165,6 @@ describe('Pricing', () => {
     expect(await screen.findByRole('heading', { name: 'What has to have room before you start' })).toBeInTheDocument();
     expect(screen.getByText(/Three features also check your limits/)).toBeInTheDocument();
     const solve = screen.getByText('Start a solve').closest('.pricing-gate') as HTMLElement;
-    expect(within(solve).getByText('Solves left this month')).toBeInTheDocument();
     expect(within(solve).getByText('A free job slot')).toBeInTheDocument();
     expect(within(screen.getByText('Start a study run').closest('.pricing-gate') as HTMLElement).getByText('Study runs left this month')).toBeInTheDocument();
   });
@@ -187,11 +186,11 @@ describe('Pricing', () => {
     renderPricing();
     await heading();
 
-    expect(await screen.findByText('COMPUTE_PACK')).toBeInTheDocument();
+    expect(await screen.findByText('COLLABORATION_PACK')).toBeInTheDocument();
     expect(screen.getByText(/BASIC and RESEARCH have no add-ons\./)).toBeInTheDocument();
-    expect(screen.getAllByText('Contact us').length).toBeGreaterThanOrEqual(6);
-    // Compute and collaboration packs are both 1–10 a month; storage goes to 20.
-    expect(screen.getAllByText('For ADVANCED, PRO · 1–10 packs · per month')).toHaveLength(2);
+    expect(screen.getAllByText('Contact us').length).toBeGreaterThanOrEqual(5);
+    // The collaboration pack is 1–10 a month; storage goes to 20.
+    expect(screen.getByText('For ADVANCED, PRO · 1–10 packs · per month')).toBeInTheDocument();
     expect(screen.getByText('For ADVANCED, PRO · 1–20 packs · per month')).toBeInTheDocument();
     expect(screen.getByText('For ADVANCED · 1 per account · per account')).toBeInTheDocument();
   });
@@ -257,7 +256,7 @@ describe('Pricing', () => {
     expect(screen.getByRole('link', { name: 'Link CAS identity' })).toHaveAttribute('href', '/app/account/identities');
     expect(screen.getByRole('link', { name: 'Manage identities' })).toHaveAttribute('href', '/app/account/identities');
     // A free plan has none of the add-ons, and each card says so.
-    expect(screen.getAllByText('Not available on your plan')).toHaveLength(6);
+    expect(screen.getAllByText('Not available on your plan')).toHaveLength(5);
   });
 
   it('offers no CAS link to an account that is on RESEARCH already', async () => {

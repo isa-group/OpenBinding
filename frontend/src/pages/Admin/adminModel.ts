@@ -18,8 +18,6 @@ export const ADMIN_SECTIONS = [
   { id: 'queues', label: 'Queues', to: '/app/admin/queues' },
   { id: 'moderation', label: 'Moderation', to: '/app/admin/moderation' },
   { id: 'maintenance', label: 'Maintenance', to: '/app/admin/maintenance' },
-  { id: 'routing', label: 'Engine routing', to: '/app/admin/engine-routing' },
-  { id: 'pricing', label: 'Pricing', to: '/app/admin/pricing' },
 ] as const;
 
 export type AdminSection = (typeof ADMIN_SECTIONS)[number]['id'];
@@ -198,7 +196,7 @@ const dictOf = (value: unknown): Dict => (isDict(value) ? value : {});
 const textOf = (value: unknown): string => (typeof value === 'string' ? value : '');
 const textsOf = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []);
 
-/** `expiredApiKeys` and `COMPUTE_PACK` as a sentence: “Expired api keys”, “Compute pack”. */
+/** `expiredApiKeys` and `STORAGE_PACK` as a sentence: “Expired api keys”, “Storage pack”. */
 export function humanize(id: string): string {
   const words = id.replace(/[_-]+/g, ' ').replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { apiClient, type ConvertLegacyParams, type EngineCalibratedResponse } from '../../api/client';
+import type { ConvertLegacyParams } from '../../api/client';
 import { generatorApi } from '../../api/generator';
 import { platformApi } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
@@ -13,9 +13,9 @@ import { Breadcrumb } from '../Organization/parts';
 import { workbenchDraftScope } from '../Workbench/workbenchModel';
 import { InstanceFields } from './InstanceFields';
 import { KeepIt, Preview, type KeepState } from './LabAside';
-import { CalibratePane, ConvertPane, type LegacyState } from './ToolPanes';
+import { ConvertPane, type LegacyState } from './ToolPanes';
 import {
-  DEFAULT_SETTINGS, checkSettings, instanceParams, labRefusal, readObservations, seedOf, workspaceFilesOf,
+  DEFAULT_SETTINGS, checkSettings, instanceParams, labRefusal, seedOf, workspaceFilesOf,
   type FieldErrors, type FieldKey, type LabSettings, type LabTool, type Output, type ProjectChoice,
 } from './generatorModel';
 import '../Project/Project.css';
@@ -25,17 +25,16 @@ const TOOLS = [
   { id: 'instance', label: 'One instance' },
   { id: 'corpus', label: 'Batch' },
   { id: 'convert', label: 'Convert old format' },
-  { id: 'calibrate', label: 'Calibrate engines' },
 ] as const;
 
 const MEMBER_ROLES = new Set(['MEMBER', 'ADMIN', 'OWNER']);
 
 /**
  * The generator lab (`gen-lab`, `/app/generator`): make synthetic problems for testing engines, one at a time or as a batch, turn an
- * old-format instance into a package, and (platform administrators only) refit the model that predicts how an engine behaves.
+ * old-format instance into a package.
  */
 export function GeneratorLab() {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const context = useOutletContext<PlatformOutletContext | null>();
   const navigate = useNavigate();
 
@@ -50,10 +49,6 @@ export function GeneratorLab() {
   const [project, setProject] = useState('');
   const [legacy, setLegacy] = useState<LegacyState>({ text: '', fileName: '', name: 'converted_legacy', repair: true, guarantee: true, tension: '0.7' });
   const [convertError, setConvertError] = useState<string | null>(null);
-  const [calibration, setCalibration] = useState({ engine: '', mode: 'default', observationsText: '', fileName: '' });
-  const [calibrating, setCalibrating] = useState(false);
-  const [calibrationError, setCalibrationError] = useState<string | null>(null);
-  const [calibrated, setCalibrated] = useState<EngineCalibratedResponse | null>(null);
 
   // The projects the person can add to: those of the organizations where they are at least a MEMBER.
   const organizations = (context?.organizations ?? []).filter((item) => item.effective_role && MEMBER_ROLES.has(item.effective_role));
@@ -67,7 +62,6 @@ export function GeneratorLab() {
       return lists.flat();
     },
   );
-  const engines = useResource<string[]>(`lab-engines:${isAdmin ? 'admin' : 'member'}`, async () => (isAdmin ? [...new Set((await apiClient.getEngines()).map((engine) => engine.name))] : []));
   const choices = projects.data ?? [];
   const chosen = choices.find((item) => item.id === project) ?? choices[0];
 
@@ -142,33 +136,6 @@ export function GeneratorLab() {
     }
   };
 
-  const calibrate = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!isAdmin || calibrating || !calibration.engine.trim()) return;
-    let observations: ReturnType<typeof readObservations> | null = null;
-    if (calibration.observationsText.trim()) {
-      observations = readObservations(calibration.observationsText);
-      if ('error' in observations) {
-        setCalibrationError(observations.error);
-        return;
-      }
-    }
-    setCalibrating(true);
-    setCalibrationError(null);
-    setCalibrated(null);
-    try {
-      setCalibrated(await generatorApi.calibrate({
-        engine: calibration.engine.trim(),
-        mode: calibration.mode.trim() || 'default',
-        ...(observations && 'observations' in observations ? { observations: observations.observations } : {}),
-      }));
-    } catch (caught: unknown) {
-      setCalibrationError(labRefusal(caught, 'nothing was calibrated', 'runs').text);
-    } finally {
-      setCalibrating(false);
-    }
-  };
-
   const save = async () => {
     if (!output || !chosen || saving) return;
     setSaving(true);
@@ -205,8 +172,6 @@ export function GeneratorLab() {
     }
   };
 
-  const showAside = tool !== 'calibrate';
-
   return (
     <div className="proj-frame gl">
       <div className="proj-band">
@@ -237,41 +202,24 @@ export function GeneratorLab() {
               {tool === 'convert' && (
                 <ConvertPane legacy={legacy} onChange={(patch) => { setLegacy((current) => ({ ...current, ...patch })); reset(); }} busy={generating} error={convertError} onSubmit={(event) => void convert(event)} />
               )}
-              {tool === 'calibrate' && (
-                <CalibratePane
-                  isAdmin={isAdmin}
-                  engines={engines.data ?? []}
-                  engine={calibration.engine}
-                  mode={calibration.mode}
-                  observationsText={calibration.observationsText}
-                  fileName={calibration.fileName}
-                  busy={calibrating}
-                  error={calibrationError}
-                  result={calibrated}
-                  onChange={(patch) => { setCalibration((current) => ({ ...current, ...patch })); setCalibrationError(null); }}
-                  onSubmit={(event) => void calibrate(event)}
-                />
-              )}
             </TabPanel>
           </div>
-          {showAside && (
-            <aside className="gl-aside" aria-label="Result">
-              <Preview generating={generating} output={output} />
-              <KeepIt
-                signedIn={Boolean(user)}
-                projects={choices}
-                projectsLoading={projects.status === 'loading'}
-                selected={chosen?.id ?? ''}
-                onSelect={setProject}
-                hasOutput={Boolean(output)}
-                hasFiles={Boolean(output) && output?.kind !== 'corpus'}
-                saving={saving}
-                keep={keep}
-                onSave={() => void save()}
-                onOpen={() => void openInWorkbench()}
-              />
-            </aside>
-          )}
+          <aside className="gl-aside" aria-label="Result">
+            <Preview generating={generating} output={output} />
+            <KeepIt
+              signedIn={Boolean(user)}
+              projects={choices}
+              projectsLoading={projects.status === 'loading'}
+              selected={chosen?.id ?? ''}
+              onSelect={setProject}
+              hasOutput={Boolean(output)}
+              hasFiles={Boolean(output) && output?.kind !== 'corpus'}
+              saving={saving}
+              keep={keep}
+              onSave={() => void save()}
+              onOpen={() => void openInWorkbench()}
+            />
+          </aside>
         </div>
       </div>
     </div>

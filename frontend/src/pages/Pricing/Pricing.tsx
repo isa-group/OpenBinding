@@ -189,7 +189,7 @@ function ContactDialog({ plan, onClose }: { plan: string; onClose: () => void })
       <p>{plan} is arranged as an institutional agreement. An administrator updates your contract; nothing is charged here.</p>
       <ul className="pricing-contact-list">
         <li>Who it’s for: your organization or group</li>
-        <li>Expected usage: solves, study runs, storage</li>
+        <li>Expected usage: concurrent jobs, study runs, storage</li>
         <li>Add-ons you’d need</li>
       </ul>
       <p className="pricing-contact-note">This page doesn’t send anything. Take these details to the people who run this OpenBinding deployment, or to your institution’s administrator.</p>

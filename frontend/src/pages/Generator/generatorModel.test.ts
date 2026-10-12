@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { QuotaError } from '../../api/auth';
 import { HttpError, type CorpusGeneratedResponse, type InstanceGeneratedResponse } from '../../api/client';
 import {
-  DEFAULT_SETTINGS, checkSettings, combinationsLog10, instanceParams, labRefusal, latencyHistogram, outputFacts, powerText, readObservations, seedOf,
+  DEFAULT_SETTINGS, checkSettings, combinationsLog10, instanceParams, labRefusal, latencyHistogram, outputFacts, powerText, seedOf,
   workspaceFilesOf, type LabSettings, type Output,
 } from './generatorModel';
 
@@ -149,21 +149,10 @@ describe('the words for a refusal', () => {
     expect(labRefusal(failure(403), 'nothing was saved', 'keep')).toEqual({ kind: 'forbidden', text: 'You can generate, but you don’t have permission to add to that project (403).' });
     expect(labRefusal(failure(404), 'nothing was saved', 'keep')).toEqual({ kind: 'missing', text: 'That project no longer exists or you lost access (404).' });
     expect(labRefusal(failure(401), 'nothing was generated').text).toBe('Your session has ended (401). Log in again to continue.');
-    expect(labRefusal(failure(403, 'forbidden'), 'nothing was calibrated', 'runs').text).toBe('Your account can’t do this (403 · forbidden), so nothing was calibrated.');
+    expect(labRefusal(failure(403, 'forbidden'), 'nothing was generated').text).toBe('Your account can’t do this (403 · forbidden), so nothing was generated.');
   });
 
-  it('says why the gateway refuses a calibration: a shared model needs a platform administrator, and a key that may administer', () => {
-    expect(labRefusal(failure(403, 'platform_admin_required'), 'nothing was calibrated', 'runs')).toEqual({
-      kind: 'forbidden',
-      text: 'Only platform administrators can calibrate an engine (403 · platform_admin_required). The model is shared by everyone, so nothing was calibrated.',
-    });
-    expect(labRefusal(failure(403, 'insufficient_api_key_permission'), 'nothing was calibrated', 'runs')).toEqual({
-      kind: 'forbidden',
-      text: 'This API key can’t calibrate an engine (403 · insufficient_api_key_permission): it needs the admin:accounts:write permission. Nothing was calibrated.',
-    });
-  });
-
-  it('reads a 422 as the settings, the text or the runs being rejected, and finds the field it names', () => {
+  it('reads a 422 as the settings or the text being rejected, and finds the field it names', () => {
     const problem = {
       code: 'validation_error',
       detail: 'Request validation failed: /tasks: Input should be greater than or equal to 2',
@@ -181,7 +170,6 @@ describe('the words for a refusal', () => {
       text: 'These settings can’t be generated (422 · invalid generation config): the server rejected the combination.',
     });
     expect(labRefusal(failure(422), 'x', 'text').text).toBe('That text can’t be converted (422 · invalid legacy instance): the server could not read it as an old-format instance.');
-    expect(labRefusal(failure(422), 'x', 'runs').text).toBe('Those runs can’t be used to calibrate (422 · invalid observations): the server rejected them.');
     expect(labRefusal(failure(422, 'bad_seed'), 'x').text).toBe('These settings can’t be generated (422 · bad_seed): the server rejected the combination.');
   });
 
@@ -194,21 +182,5 @@ describe('the words for a refusal', () => {
     expect(labRefusal(failure(409), 'nothing was generated').text).toBe('That couldn’t be done (409), so nothing was generated.');
     expect(labRefusal(new TypeError('Failed to fetch'), 'nothing was generated').kind).toBe('unavailable');
     expect(labRefusal(new Error('boom'), 'x')).toEqual({ kind: 'other', text: 'boom' });
-  });
-});
-
-describe('the observed runs of a calibration', () => {
-  it('reads a list of runs', () => {
-    expect(readObservations('[{"workload_features":{},"latency":1,"quality":1,"success":true}]')).toEqual({
-      observations: [{ workload_features: {}, latency: 1, quality: 1, success: true }],
-    });
-    expect(readObservations('[]')).toEqual({ observations: [] });
-  });
-
-  it('refuses text that is not JSON and JSON that is not a list of runs', () => {
-    expect(readObservations('not json')).toEqual({ error: 'The observations must be valid JSON: a list of runs.' });
-    expect(readObservations('{}')).toHaveProperty('error');
-    expect(readObservations('[1, 2]')).toHaveProperty('error');
-    expect(readObservations('[[]]')).toHaveProperty('error');
   });
 });

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { retrievePricingFromYaml } from 'pricing4ts';
-import source from '../../../../space/pricing/openbinding.yml?raw';
+import { LIMIT_ORDER } from '../../utils/limits';
 import { catalogFixture } from './pricingFixture';
 import { readCatalog, withInfiniteLimits } from './pricingModel';
 
@@ -8,27 +7,14 @@ const view = readCatalog(catalogFixture)!;
 const row = (id: string) => view.groups.flatMap((group) => group.rows).find((item) => item.id === id)!;
 
 describe('the catalog fixture', () => {
-  it('stands for the pricing document it is named after', () => {
-    const real = retrievePricingFromYaml(source) as unknown as {
-      plans: Record<string, { usageLimits: Record<string, { value?: unknown }> }>;
-      features: Record<string, unknown>;
-      addOns: Record<string, unknown>;
-    };
-    const fixture = catalogFixture as { plans: typeof real.plans; features: object; addOns: object };
+  it('is a synthetic pricing whose plans all carry the same functional limits', () => {
+    const fixture = catalogFixture as { plans: Record<string, { usageLimits: Record<string, unknown> }>; usageLimits: Record<string, unknown> };
+    const limitIds = Object.keys(fixture.usageLimits);
 
-    expect(Object.keys(fixture.plans)).toEqual(Object.keys(real.plans));
-    expect(Object.keys(fixture.features)).toEqual(Object.keys(real.features));
-    expect(Object.keys(fixture.addOns)).toEqual(Object.keys(real.addOns));
+    expect(Object.keys(fixture.plans)).toEqual(['BASIC', 'ADVANCED', 'RESEARCH', 'PRO']);
+    expect(limitIds.every((id) => LIMIT_ORDER.includes(id))).toBe(true);
     for (const [plan, definition] of Object.entries(fixture.plans)) {
-      for (const [id, { value }] of Object.entries(definition.usageLimits)) {
-        const actual = real.plans[plan].usageLimits[id]?.value;
-        // `.inf` has no JSON form: the gateway sends null. And pricing4ts reads anything above 100,000,000 as
-        // "unlimited" and clamps it there, so it is the lower of the two that has to agree.
-        const same = value === null
-          ? actual === null || actual === undefined || (typeof actual === 'number' && actual >= 100_000_000)
-          : actual === Math.min(Number(value), 100_000_000);
-        expect(same, `${plan}.${id}`).toBe(true);
-      }
+      expect(Object.keys(definition.usageLimits), plan).toEqual(limitIds);
     }
   });
 });
@@ -59,8 +45,9 @@ describe('readCatalog', () => {
     ]);
     expect(view.groups.find((group) => group.title === 'Analysis')?.note).toBe('Features');
     expect(view.groups.find((group) => group.title === 'Solving')?.note).toBe('Feature');
-    expect(view.groups.find((group) => group.title === 'Monthly')?.rows.map((item) => item.name)).toEqual([
-      'Capacity units', 'Solves', 'Solver time', 'Federated solves', 'Study runs',
+    expect(view.groups.find((group) => group.title === 'Monthly')?.rows.map((item) => item.name)).toEqual(['Study runs']);
+    expect(view.groups.find((group) => group.title === 'Capacity')?.rows.map((item) => item.name)).toEqual([
+      'Concurrent jobs', 'Federated engines', 'API keys',
     ]);
   });
 
@@ -73,13 +60,13 @@ describe('readCatalog', () => {
   });
 
   it('words the limits, keeping the exact value under the rounded one', () => {
-    expect(row('solverSeconds').cells).toEqual([
+    expect(row('maxTimeoutSeconds').cells).toEqual([
+      { kind: 'value', text: '1 min', exact: '60 s' },
+      { kind: 'value', text: '10 min', exact: '600 s' },
       { kind: 'value', text: '15 min', exact: '900 s' },
-      { kind: 'value', text: '5 h', exact: '18,000 s' },
-      { kind: 'value', text: '8.3 h', exact: '30,000 s' },
-      { kind: 'value', text: '50 h', exact: '180,000 s' },
+      { kind: 'value', text: '30 min', exact: '1,800 s' },
     ]);
-    expect(row('taskStarts').cells.map((cell) => (cell.kind === 'value' ? cell.text : cell.kind))).toEqual(['10', '25', '50', 'Unlimited']);
+    expect(row('apiKeys').cells.map((cell) => (cell.kind === 'value' ? cell.text : cell.kind))).toEqual(['1', '10', '25', 'Unlimited']);
     expect(row('maxInstanceComplexityLog10').cells.map((cell) => (cell.kind === 'value' ? cell.text : cell.kind))).toEqual(['10⁹', '10¹⁵', '10²⁰', 'Unlimited']);
     expect(row('storageBytes').cells[2]).toEqual({ kind: 'value', text: '5 GiB', exact: '5,368,709,120 bytes' });
   });
@@ -91,18 +78,18 @@ describe('readCatalog', () => {
 
   it('derives what must have room before something starts from the expressions of the document', () => {
     expect(view.gates).toEqual([
-      { starts: 'a solve', needs: ['Solves left this month', 'A free job slot'] },
-      { starts: 'a federated solve', needs: ['Federated solves left this month', 'A free job slot'] },
+      { starts: 'a solve', needs: ['A free job slot'] },
+      { starts: 'a federated solve', needs: ['A free job slot'] },
       { starts: 'a study run', needs: ['Study runs left this month'] },
     ]);
   });
 
   it('describes the add-ons: who can have them and in what quantity', () => {
     expect(view.addOns.map((addOn) => addOn.id)).toEqual([
-      'COMPUTE_PACK', 'COLLABORATION_PACK', 'STORAGE_PACK', 'FEDERATION_PACK', 'CONCURRENCY_PACK', 'REPRODUCIBILITY_ARCHIVE',
+      'COLLABORATION_PACK', 'STORAGE_PACK', 'FEDERATION_PACK', 'CONCURRENCY_PACK', 'REPRODUCIBILITY_ARCHIVE',
     ]);
     expect(view.addOns[0]).toMatchObject({ initial: 'C', plans: ['ADVANCED', 'PRO'], quantity: '1–10 packs', per: 'month' });
-    expect(view.addOns[5]).toMatchObject({ plans: ['ADVANCED'], quantity: '1 per account', per: 'account' });
+    expect(view.addOns[4]).toMatchObject({ plans: ['ADVANCED'], quantity: '1 per account', per: 'account' });
   });
 
   it('calls a pre-1.0 pricing a development copy, and reads the release facts', () => {
@@ -131,11 +118,11 @@ describe('readCatalog', () => {
 
 describe('helpers', () => {
   it('gives the renderer the number an unlimited allowance stands for', () => {
-    const pricing = withInfiniteLimits({ plans: { PRO: { usageLimits: { taskStarts: { value: null } } } }, custom: null }) as {
-      plans: { PRO: { usageLimits: { taskStarts: { value: number } } } };
+    const pricing = withInfiniteLimits({ plans: { PRO: { usageLimits: { apiKeys: { value: null } } } }, custom: null }) as {
+      plans: { PRO: { usageLimits: { apiKeys: { value: number } } } };
       custom: null;
     };
-    expect(pricing.plans.PRO.usageLimits.taskStarts.value).toBe(Number.POSITIVE_INFINITY);
+    expect(pricing.plans.PRO.usageLimits.apiKeys.value).toBe(Number.POSITIVE_INFINITY);
     expect(pricing.custom).toBeNull();
   });
 });

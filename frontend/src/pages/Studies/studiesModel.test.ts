@@ -4,7 +4,7 @@ import { CHECKOUT, REVISION_1, REVISION_2, cellsFixture, studyFixture, revisionF
 import {
   MAX_SEEDS, collectionMembers, defaultSelection, definitionGrid, definitionSize, describeParameters, emptyVariant, engineChoices, enginesOf, explainFailure,
   formatMeasure, formatSeconds, formulaOf, heatLevel, matrixView, measureValue, measuresOf, metricsOf, parametersKey, readSeeds, readVariant, revisionIndex,
-  revisionLabel, rivalsOf, seedsOf, solverEstimate, studyContentSize, breakdownText, slot,
+  revisionLabel, rivalsOf, seedsOf, studyContentSize, breakdownText, slot,
 } from './studiesModel';
 
 const cases: CaseContent[] = [{ item: CHECKOUT, revisions: [REVISION_1, REVISION_2, revisionFixture(3, { source_snapshot_id: null })] }];
@@ -71,22 +71,7 @@ describe('settings', () => {
   });
 });
 
-describe('the solver time a matrix may use', () => {
-  const engines = [
-    { key: 'a', ref: { namespace: 'n', name: 'a', version: '1', digest: 'd' }, mode: 'm', title: 'a 1', defaultSeconds: 30, federated: false },
-    { key: 'b', ref: { namespace: 'n', name: 'b', version: '1', digest: 'd' }, mode: 'm', title: 'b 1', defaultSeconds: null, federated: false },
-  ];
-
-  it('sums each cell’s budget, reduced to the plan’s ceiling', () => {
-    expect(solverEstimate({ cases: 2, seeds: 2, engines: [engines[0]], settings: [{}], ceiling: 20 })).toEqual({ seconds: 80, complete: true });
-    expect(solverEstimate({ cases: 1, seeds: 3, engines: [engines[0]], settings: [{ time_budget_ms: 5000 }, {}], ceiling: null })).toEqual({ seconds: 5 * 3 + 30 * 3, complete: true });
-  });
-
-  it('falls back to the ceiling for an engine with no default, and admits when it knows nothing', () => {
-    expect(solverEstimate({ cases: 1, seeds: 1, engines: [engines[1]], settings: [{}], ceiling: 60 })).toEqual({ seconds: 60, complete: true });
-    expect(solverEstimate({ cases: 1, seeds: 1, engines: [engines[1]], settings: [{}], ceiling: null })).toEqual({ seconds: 0, complete: false });
-  });
-
+describe('the engine choices of a study', () => {
   it('reads the budget of a mode from its options schema', () => {
     const choices = engineChoices([{
       id: 'e1', namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-x', ref: { namespace: 'bim.builtin', name: 'random-search', version: '1.0.0', digest: 'sha256-x' },

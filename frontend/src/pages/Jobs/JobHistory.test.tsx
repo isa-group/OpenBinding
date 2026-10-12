@@ -140,18 +140,18 @@ describe('My jobs', () => {
     const list = await screen.findByRole('list', { name: 'Your jobs' });
     await within(list).findByRole('link', { name: 'evolutionary on QoS Benchmarks' });
     fireEvent.click(within(within(list).getAllByRole('listitem')[2]).getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText('Retry queued. It counts as a new solve.')).toBeInTheDocument();
+    expect(await screen.findByText('Retry queued.')).toBeInTheDocument();
     expect(jobsApi.retry).toHaveBeenCalledWith('job-failed-3');
     expect(screen.getByRole('link', { name: 'Follow the new run' })).toHaveAttribute('href', `${ROOT}/jobs/job-new-9`);
   });
 
-  it('refuses a retry when the solves are used up and says so (402)', async () => {
-    jobsApi.retry.mockRejectedValue(new QuotaError('quota_exceeded', 'Solve quota exhausted.', { limit_id: 'taskStarts', limit: 10, used: 10, renews_at: '2026-11-01T00:00:00Z' }));
+  it('refuses a retry when an allowance is used up and says so (402)', async () => {
+    jobsApi.retry.mockRejectedValue(new QuotaError('quota_exceeded', 'Study runs exhausted.', { limit_id: 'studyRuns', limit: 10, used: 10, renews_at: '2026-11-01T00:00:00Z' }));
     renderHistory();
 
     const list = await screen.findByRole('list', { name: 'Your jobs' });
     fireEvent.click(within(within(list).getAllByRole('listitem')[2]).getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByText('Retry refused: Out of solves this month (402 · quota_exceeded)')).toBeInTheDocument();
+    expect(await screen.findByText('Retry refused: Out of study runs (402 · quota_exceeded)')).toBeInTheDocument();
     expect(screen.getByText(/They renew on Nov 1, 2026\./)).toBeInTheDocument();
   });
 

@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminOverview as Admin } from './AdminOverview';
 import { MARIA, queuesAt } from '../../test/fixtures/admin';
 import { renderAdmin } from './adminTestUtils';
+import { config } from '../../config';
 
-// The old administration console reviewed engine publications, maintained the platform and showed the router. Those live on their own
-// screens now (AdminModeration, AdminMaintenance, AdminAutoRouter); what the console name still leads to is the overview, which
+// The old administration console reviewed engine publications and maintained the platform. Those live on their own
+// screens now (AdminModeration, AdminMaintenance); what the console name still leads to is the overview, which
 // keeps a block that counts what waits and the way to each of them. The overview’s own blocks are tested in AdminOverview.test.tsx.
 
 const api = vi.hoisted(() => ({
@@ -19,19 +20,11 @@ const api = vi.hoisted(() => ({
   adminApproveEngineRegistration: vi.fn(),
   adminRejectEngineRegistration: vi.fn(),
   adminMaintenancePreview: vi.fn(),
-  adminGetEngineRoutingMetrics: vi.fn(),
 }));
-
-const platform = vi.hoisted(() => ({ pricingControlRoom: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({
   ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
   apiClient: api,
-}));
-
-vi.mock('../../api/platform', async () => ({
-  ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'),
-  platformApi: platform,
 }));
 
 configure({ asyncUtilTimeout: 5000 });
@@ -44,7 +37,6 @@ describe('the administration console, now the overview', { timeout: 30000 }, () 
     api.adminModeration.mockResolvedValue({ engines: {}, dialects: {}, registrations: { pending_review: 1 } });
     api.adminErrorOverview.mockResolvedValue({ total_errors_24h: 0, by_category_24h: {}, by_status_code_24h: {}, top_users_quota: [], top_solvers_failed: [], timeline: [] });
     api.getCurrentPricing.mockResolvedValue({ version: '0.1.0', digest: 'sha256-x', url: 'https://sphere.example.test/0.1.0' });
-    platform.pricingControlRoom.mockResolvedValue({ sphere: { enabled: true, reachable: true }, space: { enabled: true, reachable: true }, live: '0.1.0', releases: [] });
   });
 
   afterEach(() => {
@@ -64,11 +56,12 @@ describe('the administration console, now the overview', { timeout: 30000 }, () 
     expect(api.adminRejectEngineRegistration).not.toHaveBeenCalled();
   });
 
-  it('keeps the way to the pricing control room', async () => {
+  it('keeps the way to the native pricing consoles', async () => {
     renderAdmin(<Admin />);
     const pricing = await screen.findByRole('region', { name: 'Pricing' });
     expect(await within(pricing).findByText('0.1.0')).toBeInTheDocument();
-    expect(within(pricing).getByRole('link', { name: 'Control room' })).toHaveAttribute('href', '/app/admin/pricing');
+    expect(within(pricing).getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute('href', config.spaceFrontendUrl);
+    expect(within(pricing).getByRole('link', { name: 'Open SPHERE console' })).toHaveAttribute('href', config.sphereUrl);
   });
 
   it('shows a person who is not an administrator nothing', async () => {

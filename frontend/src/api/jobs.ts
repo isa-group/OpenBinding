@@ -62,10 +62,9 @@ export interface JobInstanceView {
   instance: Record<string, unknown>;
 }
 
-/** What `POST /v1/jobs` takes: sealed settings alone, the AutoRouter, or one exact engine mode with its options. */
+/** What `POST /v1/jobs` takes: sealed settings alone, or one exact engine mode with its options. */
 export type LaunchRequest =
   | { snapshot: string; configuration: ArtifactRef }
-  | { snapshot: string; engine: 'auto'; options: Record<string, unknown> }
   | { snapshot: string; engine: BimResourceRef; registration?: BimResourceRef; mode: string; options: Record<string, unknown> };
 
 /**
@@ -92,7 +91,7 @@ export const jobsApi = {
     }, undefined, true, true),
   /** 409 `terminal_job` when it had already finished. */
   cancel: (id: string) => apiClient.request<Job>(`/v1/jobs/${enc(id)}/cancel`, { method: 'POST' }, undefined, true, true),
-  /** Only failed or cancelled jobs; a new attempt that counts as a new solve (402, 429, 403 and 503 as for a launch). */
+  /** Only failed or cancelled jobs; a new attempt that starts a new run (402, 429, 403 and 503 as for a launch). */
   retry: (id: string) => apiClient.request<Job>(`/v1/jobs/${enc(id)}/retry`, { method: 'POST' }, undefined, true, true),
   report: (id: string) => apiClient.request<JobReport>(`/v1/jobs/${enc(id)}/report`, {}, undefined, true, true),
   ir: (id: string) => apiClient.request<Record<string, unknown>>(`/v1/jobs/${enc(id)}/ir`, {}, undefined, true, true),

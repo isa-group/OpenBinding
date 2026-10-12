@@ -11,7 +11,6 @@ const api = vi.hoisted(() => ({
   adminGetUserUsage: vi.fn(),
   adminUpdateSubscription: vi.fn(),
   adminChangePlan: vi.fn(),
-  adminResyncUsage: vi.fn(),
   adminRevokeApiKey: vi.fn(),
   getPricingCatalog: vi.fn(),
   getCurrentPricing: vi.fn(),
@@ -49,7 +48,6 @@ describe('admin-user-detail · one account', () => {
       ...subscriptionOf({ ...SAM, id, plan: value.plan }, value.add_ons), changed: true,
     }));
     api.adminChangePlan.mockResolvedValue({ ...SAM, plan: 'ADVANCED' });
-    api.adminResyncUsage.mockResolvedValue({ plan: 'BASIC', slots_in_flight: 1, slots_recorded: 2, corrected_by: -1 });
     api.adminRevokeApiKey.mockResolvedValue(undefined);
   });
 
@@ -66,7 +64,7 @@ describe('admin-user-detail · one account', () => {
     expect(screen.queryByText('Institutional identity verified')).not.toBeInTheDocument();
     expect(screen.getByText(/Pinned to pricing 0\.1\.0 · renews Nov 1, 2026/)).toBeInTheDocument();
     expect(await screen.findByText('10 of 10')).toBeInTheDocument();
-    expect(screen.getByText('Solves')).toBeInTheDocument();
+    expect(screen.getByText('Study runs')).toBeInTheDocument();
     const ceilings = screen.getByRole('group', { name: 'Ceilings for each request' });
     expect(within(ceilings).getByText('Max time per job')).toBeInTheDocument();
     expect(within(ceilings).getByText('1 min')).toBeInTheDocument();
@@ -108,9 +106,9 @@ describe('admin-user-detail · one account', () => {
     fireEvent.click(within(plans).getByRole('radio', { name: /^ADVANCED/ }));
     expect(screen.getByText('Add-ons for ADVANCED')).toBeInTheDocument();
     const table = screen.getByRole('table');
-    const solves = within(table).getByText('Solves').closest('tr')!;
-    expect(within(solves).getByText('10')).toBeInTheDocument();
-    expect(within(solves).getByText(/^25/)).toBeInTheDocument();
+    const projects = within(table).getByText('Projects').closest('tr')!;
+    expect(within(projects).getByText('3')).toBeInTheDocument();
+    expect(within(projects).getByText(/^25/)).toBeInTheDocument();
     expect(screen.getByText(/Limits from pricing 0\.1\.0 \(development copy\)/)).toBeInTheDocument();
   });
 
@@ -118,17 +116,17 @@ describe('admin-user-detail · one account', () => {
     open();
     await ready();
     fireEvent.click(within(screen.getByRole('radiogroup', { name: 'New plan' })).getByRole('radio', { name: /^ADVANCED/ }));
-    const more = screen.getByRole('button', { name: 'More compute pack' });
+    const more = screen.getByRole('button', { name: 'More collaboration pack' });
     fireEvent.click(more);
     fireEvent.click(more);
-    expect(screen.getByLabelText('Compute pack quantity')).toHaveTextContent('2');
-    const solves = within(screen.getByRole('table')).getByText('Solves').closest('tr')!;
-    expect(within(solves).getByText(/^225/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Fewer compute pack' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Fewer compute pack' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Fewer compute pack' }));
-    expect(screen.getByLabelText('Compute pack quantity')).toHaveTextContent('0');
-    expect(screen.getByRole('button', { name: 'Fewer compute pack' })).toBeDisabled();
+    expect(screen.getByLabelText('Collaboration pack quantity')).toHaveTextContent('2');
+    const projects = within(screen.getByRole('table')).getByText('Projects').closest('tr')!;
+    expect(within(projects).getByText(/^45/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Fewer collaboration pack' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Fewer collaboration pack' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Fewer collaboration pack' }));
+    expect(screen.getByLabelText('Collaboration pack quantity')).toHaveTextContent('0');
+    expect(screen.getByRole('button', { name: 'Fewer collaboration pack' })).toBeDisabled();
   });
 
   it('applies an agreement only after a confirmation, with the reason and detail, and says the account was notified', async () => {
@@ -138,7 +136,7 @@ describe('admin-user-detail · one account', () => {
     expect(screen.getByRole('button', { name: 'Change plan only, keep add-ons' })).toBeDisabled();
 
     fireEvent.click(within(screen.getByRole('radiogroup', { name: 'New plan' })).getByRole('radio', { name: /^ADVANCED/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'More compute pack' }));
+    fireEvent.click(screen.getByRole('button', { name: 'More collaboration pack' }));
     fireEvent.change(screen.getByLabelText(/^Reason/), { target: { value: 'new_feature' } });
     fireEvent.change(screen.getByLabelText(/^Detail/), { target: { value: 'Ticket 41' } });
     fireEvent.click(screen.getByRole('button', { name: 'Apply agreement' }));
@@ -150,7 +148,7 @@ describe('admin-user-detail · one account', () => {
 
     expect(await screen.findByText(/Agreement updated for sam\.okafor \(new feature\)/)).toBeInTheDocument();
     expect(api.adminUpdateSubscription).toHaveBeenCalledWith(SAM.id, {
-      plan: 'ADVANCED', add_ons: { COMPUTE_PACK: 1 }, reason: 'new_feature', detail: 'Ticket 41',
+      plan: 'ADVANCED', add_ons: { COLLABORATION_PACK: 1 }, reason: 'new_feature', detail: 'Ticket 41',
     });
     await waitFor(() => expect(api.adminGetSubscription).toHaveBeenCalledTimes(2));
   });
@@ -186,7 +184,7 @@ describe('admin-user-detail · one account', () => {
     expect(await screen.findByText('RESEARCH needs a verified CAS identity (409 · research_requires_us_cas)')).toBeInTheDocument();
     expect(screen.getByText(/hasn’t linked a Universidad de Sevilla CAS identity/)).toBeInTheDocument();
 
-    api.adminUpdateSubscription.mockRejectedValueOnce(refusal(422, 'invalid_subscription', 'COMPUTE_PACK is not available for BASIC'));
+    api.adminUpdateSubscription.mockRejectedValueOnce(refusal(422, 'invalid_subscription', 'COLLABORATION_PACK is not available for BASIC'));
     fireEvent.click(screen.getByRole('button', { name: 'Apply agreement' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Apply agreement' }));
     expect(await screen.findByText('That agreement isn’t valid (422 · invalid_subscription)')).toBeInTheDocument();
@@ -217,22 +215,13 @@ describe('admin-user-detail · one account', () => {
     open();
     await ready();
     expect(await screen.findByText('A service isn’t available right now (503 · pricing_unavailable)')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Resync concurrency' })).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup', { name: 'New plan' })).toBeInTheDocument();
   });
 
-  it('recounts concurrency after a confirmation and shows what was corrected', async () => {
+  it('offers no usage recount: concurrency is read, not corrected, from here', async () => {
     open();
     await ready();
-    fireEvent.click(screen.getByRole('button', { name: 'Resync concurrency' }));
-    const dialog = screen.getByRole('dialog', { name: 'Resync concurrency?' });
-    expect(api.adminResyncUsage).not.toHaveBeenCalled();
-    expect(within(dialog).getByText('The resync is recorded in the audit log with your name.')).toBeInTheDocument();
-    expect(within(dialog).queryByText(/doesn’t write/)).not.toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Resync' }));
-    expect(await screen.findByText('Corrected by')).toBeInTheDocument();
-    expect(screen.getByText('-1')).toBeInTheDocument();
-    expect(screen.getByText('Slots recorded')).toBeInTheDocument();
-    expect(api.adminResyncUsage).toHaveBeenCalledWith(SAM.id);
+    expect(screen.queryByRole('button', { name: /resync/i })).not.toBeInTheDocument();
   });
 
   it('revokes a key by its id after a confirmation, and says when the account has no such key', async () => {

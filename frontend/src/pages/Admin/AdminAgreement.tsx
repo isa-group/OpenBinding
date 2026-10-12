@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Check, Minus, Plus, RefreshCw } from 'lucide-react';
-import type { AdminSubscriptionView, ContractChangeReason, PricingCurrentView, UsageResyncResult } from '../../api/auth';
+import { Check, Minus, Plus } from 'lucide-react';
+import type { AdminSubscriptionView, ContractChangeReason, PricingCurrentView } from '../../api/auth';
 import { apiClient } from '../../api/client';
 import { Action } from '../../components/ui/Action';
 import { DataTable } from '../../components/ui/DataTable';
@@ -293,12 +293,7 @@ interface UsageProps {
 
 /** What an account has used, as its holder sees it. */
 export function UsageCard({ userId, catalog, version }: UsageProps) {
-  const [nonce, setNonce] = useState(0);
-  const [confirm, setConfirm] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [resync, setResync] = useState<UsageResyncResult | null>(null);
-  const [refusal, setRefusal] = useState<Failure | null>(null);
-  const usage = useResource(`admin-usage:${userId}:${version}:${nonce}`, () => apiClient.adminGetUserUsage(userId));
+  const usage = useResource(`admin-usage:${userId}:${version}`, () => apiClient.adminGetUserUsage(userId));
   const view = usage.data ?? usage.stale;
   const failure = usage.status === 'error' ? describeAdminFailure(usage.error, 'Usage couldn’t be read') : null;
 
@@ -309,20 +304,6 @@ export function UsageCard({ userId, catalog, version }: UsageProps) {
   const consumed = limits.filter((limit) => groupOf(limit.limit_id) !== 'sponsored' && !isCeiling(limit.limit_id, catalog?.limitDefinitions[limit.limit_id]) && (limit.limit === null || limit.limit > 0));
   const ceilings = limits.filter((limit) => isCeiling(limit.limit_id, catalog?.limitDefinitions[limit.limit_id]));
   const features = Object.entries(view?.features ?? {});
-
-  const recount = async () => {
-    setBusy(true);
-    setRefusal(null);
-    try {
-      setResync(await apiClient.adminResyncUsage(userId));
-      setNonce((value) => value + 1);
-    } catch (error: unknown) {
-      setRefusal(describeAdminFailure(error, 'Concurrency couldn’t be recounted'));
-    } finally {
-      setBusy(false);
-      setConfirm(false);
-    }
-  };
 
   return (
     <section className="adm-card" aria-labelledby="adm-usage-title">
@@ -392,25 +373,6 @@ export function UsageCard({ userId, catalog, version }: UsageProps) {
         </div>
       )}
 
-      <div className="adm-resync">
-        <span>If running-job slots look stuck, recount them against the jobs actually in flight. Concurrency is counted optimistically, so a crash between checking a slot and claiming it can leave one held.</span>
-        <Action variant="secondary" onClick={() => setConfirm(true)} busy={busy}><RefreshCw aria-hidden="true" />Resync concurrency</Action>
-      </div>
-      {refusal && <FailureNotice failure={refusal} />}
-      {resync && (
-        <div role="status" className="adm-resync-result">
-          <div><span>Slots recorded</span><strong>{resync.slots_recorded}</strong></div>
-          <div><span>Jobs in flight</span><strong>{resync.slots_in_flight}</strong></div>
-          <div><span>Corrected by</span><strong>{resync.corrected_by === 0 ? '0 · no drift' : resync.corrected_by}</strong></div>
-        </div>
-      )}
-
-      {confirm && (
-        <ConfirmDialog title="Resync concurrency?" confirmLabel="Resync" busy={busy} onConfirm={() => void recount()} onClose={() => setConfirm(false)}>
-          <p>The gateway counts the account’s queued and running jobs and corrects the slots SPACE has recorded for it. Nothing else changes.</p>
-          <p className="adm-muted">The resync is recorded in the audit log with your name.</p>
-        </ConfirmDialog>
-      )}
     </section>
   );
 }

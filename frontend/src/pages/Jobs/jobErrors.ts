@@ -92,12 +92,11 @@ export function refusalOf(caught: unknown, action: JobAction = 'launch'): Refusa
         text: `This problem has more combinations than your plan allows. Reduce candidates or ask about a larger plan. ${nothing}`,
       };
     }
-    const info = limitInfo(quota?.limit_id ?? 'taskStarts');
-    const noun = quota?.limit_id === 'taskStarts' || !quota ? 'solves' : info.short;
+    const noun = quota ? limitInfo(quota.limit_id).short : 'allowance';
     const spent = quota ? `You’ve used ${(quota.used ?? quota.limit).toLocaleString('en-US')} of ${quota.limit.toLocaleString('en-US')} ${noun}.` : `You’ve used all your ${noun}.`;
     return {
-      ...base, kind: 'quota', limitId: quota?.limit_id ?? 'taskStarts',
-      title: `${retry}${noun === 'solves' ? 'Out of solves this month' : `Out of ${noun}`}${at}`,
+      ...base, kind: 'quota', limitId: quota?.limit_id,
+      title: `${retry}Out of ${noun}${at}`,
       text: `${spent}${renewal(quota?.renews_at)} ${nothing}`,
     };
   }

@@ -34,7 +34,7 @@ describe('AdminFrame', () => {
     });
 
     it('centres the current section in the row', () => {
-      render(<MemoryRouter><AdminFrame section="pricing" trail={[{ label: 'Pricing' }]} title="Pricing control room">content</AdminFrame></MemoryRouter>);
+      render(<MemoryRouter><AdminFrame section="maintenance" trail={[{ label: 'Maintenance' }]} title="Maintenance">content</AdminFrame></MemoryRouter>);
 
       // 600 to the pill - (390 row - 90 pill) / 2
       expect(scrolled).toEqual([{ left: 450 }]);

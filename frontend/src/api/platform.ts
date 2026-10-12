@@ -293,34 +293,6 @@ export interface Analytics {
   binding_space?: BindingSpaceAnalytics | null;
 }
 
-export interface PricingRelease {
-  id: string;
-  version: string;
-  digest: string;
-  sphere_organization: 'OpenBinding';
-  sphere_organization_id: string;
-  sphere_slug: 'openbinding';
-  sphere_state: 'PRIVATE_DRAFT' | 'PUBLIC_RELEASE';
-  space_state: 'NOT_DEPLOYED' | 'ACTIVE' | 'DRAINING' | 'ARCHIVED';
-  is_live: boolean;
-  public_url: string | null;
-  changelog: string;
-  migration_manifest: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface PricingControlRoom {
-  identity: { organization: 'OpenBinding'; slug: 'openbinding' };
-  sphere: Record<string, unknown> & { enabled: boolean; reachable: boolean };
-  space: Record<string, unknown> & { enabled: boolean; reachable: boolean };
-  live: string | null;
-  releases: PricingRelease[];
-  remoteVersions: Array<{ version: string; private: boolean }>;
-  spaceVersions: { active: unknown[]; archived: unknown[] };
-  divergence: { onlyInSphere: string[]; onlyLocal: string[] };
-}
-
 export interface Job {
   id: string;
   engine_id: string;
@@ -707,48 +679,6 @@ export const platformApi = {
     project: { slug: string; name: string; description: string };
   }>>('/v1/explore/projects'),
   publicPublications: () => apiClient.request<PublicPublication[]>('/v1/explore/publications'),
-  pricingControlRoom: () => apiClient.request<PricingControlRoom>('/v1/admin/pricing/control-room'),
-  /** A 422 is a result here, not a failure: the screen reads the refused document's problems from its body. */
-  validatePricing: (yaml: string) => apiClient.request<{
-    valid: boolean; version: string | null; digest: string | null; plans: string[];
-    add_ons: string[]; errors: string[]; warnings: string[];
-  }>('/v1/admin/pricing/validate', { method: 'POST', body: JSON.stringify({ yaml }) }, undefined, true, false),
-  /** A 422 throws (a refused draft must not read as a saved one); 409 is a version that already exists. */
-  createPricingDraft: (yaml: string, changelog: string, migration_manifest: Record<string, unknown>) =>
-    apiClient.request<{ release: PricingRelease; message: string }>('/v1/admin/pricing/drafts', {
-      method: 'POST', body: JSON.stringify({ yaml, changelog, migration_manifest }),
-    }, undefined, true, true),
-  previewPricing: (version: string) =>
-    apiClient.requestText(`/v1/admin/pricing/versions/${encodeURIComponent(version)}/preview`),
-  syncPricing: () => apiClient.request<{ created: number }>('/v1/admin/pricing/sync', { method: 'POST' }, undefined, true, true),
-  forkPricing: (source: string, version: string, changelog: string) =>
-    apiClient.request<{ release: PricingRelease; message: string }>(
-      `/v1/admin/pricing/drafts/${encodeURIComponent(source)}/fork`,
-      { method: 'POST', body: JSON.stringify({ version, changelog }) }, undefined, true, true,
-    ),
-  /** 422 for a version or a changelog the gateway refuses; 409 when a prerequisite of the draft isn’t met. */
-  publishPricing: (
-    draft_version: string,
-    version: string,
-    changelog: string,
-    migration_manifest: Record<string, unknown>,
-  ) => apiClient.request<{ release: PricingRelease; message: string }>('/v1/admin/pricing/publish', {
-    method: 'POST', body: JSON.stringify({ draft_version, version, changelog, migration_manifest }),
-  }, undefined, true, true),
-  pricingAction: (version: string, action: 'deploy' | 'activate' | 'drain') =>
-    apiClient.request<{ release: PricingRelease; message: string }>(
-      `/v1/admin/pricing/versions/${encodeURIComponent(version)}/${action}`,
-      { method: 'POST' }, undefined, true, true,
-    ),
-  archivePricing: (version: string, fallback: Record<string, unknown> = {}) =>
-    apiClient.request<{ release: PricingRelease; message: string }>(
-      `/v1/admin/pricing/versions/${encodeURIComponent(version)}/archive`,
-      { method: 'POST', body: JSON.stringify({ fallback }) }, undefined, true, true,
-    ),
-  deletePricingDraft: (version: string) => apiClient.request<void>(
-    `/v1/admin/pricing/drafts/${encodeURIComponent(version)}`,
-    { method: 'DELETE', body: JSON.stringify({ confirmation: version }) }, undefined, true, true,
-  ),
   /** `POST /v1/verifier/inspect` with the request the contract defines (`digest`, `document`). A 422 throws; 401 ends the session. */
   verifierCheck: (payload: VerifierCheckRequest) =>
     apiClient.request<VerifierVerdict>('/v1/verifier/inspect', {

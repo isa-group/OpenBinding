@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '../../api/auth';
-import { HttpError, type CorpusGeneratedResponse, type EngineCalibratedResponse, type InstanceGeneratedResponse } from '../../api/client';
+import { HttpError, type CorpusGeneratedResponse, type InstanceGeneratedResponse } from '../../api/client';
 import type { Organization } from '../../api/platform';
 import type { PlatformOutletContext } from '../../components/PlatformShell/PlatformShell';
 import { AuthContext } from '../../contexts/auth';
@@ -10,13 +10,11 @@ import { digestOf } from '../Cases/fixtures';
 import { iker, lucia, org, project } from '../Project/testKit';
 import { GeneratorLab } from './GeneratorLab';
 
-const generator = vi.hoisted(() => ({ instance: vi.fn(), corpus: vi.fn(), convertLegacy: vi.fn(), calibrate: vi.fn() }));
+const generator = vi.hoisted(() => ({ instance: vi.fn(), corpus: vi.fn(), convertLegacy: vi.fn() }));
 const platform = vi.hoisted(() => ({ projects: vi.fn() }));
-const client = vi.hoisted(() => ({ getEngines: vi.fn() }));
 
 vi.mock('../../api/generator', () => ({ generatorApi: generator }));
 vi.mock('../../api/platform', async () => ({ ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'), platformApi: platform }));
-vi.mock('../../api/client', async () => ({ ...await vi.importActual<typeof import('../../api/client')>('../../api/client'), apiClient: client }));
 
 const isaDemo = org('isa-demo', { name: 'ISA Demo Group', effective_role: 'MEMBER' });
 const qosLab = org('qos-lab', { name: 'QoS Lab', effective_role: 'OWNER' });
@@ -66,10 +64,6 @@ const corpus = (count: number): CorpusGeneratedResponse => ({
   })),
 });
 
-const calibration: EngineCalibratedResponse = {
-  engine: 'random-search', mode: 'default', sample_count: 6, latency_coefficients: { S: 0.5 }, quality_coefficients: { S: -0.1 }, failure_risk_coefficients: {}, r2_score: 0.9123, status: 'calibrated',
-};
-
 const generate = () => fireEvent.click(screen.getByRole('button', { name: 'Generate instance' }));
 const preview = () => screen.getByRole('region', { name: 'Preview' });
 const keepIt = () => screen.getByRole('region', { name: 'Keep it' });
@@ -80,7 +74,6 @@ describe('Generator lab', () => {
     localStorage.clear();
     vi.resetAllMocks();
     platform.projects.mockImplementation(async (slug: string) => projectsOf[slug] ?? []);
-    client.getEngines.mockResolvedValue([{ name: 'random-search' }, { name: 'minizinc' }, { name: 'random-search' }]);
     generator.instance.mockResolvedValue(generated());
   });
 
@@ -91,7 +84,7 @@ describe('Generator lab', () => {
       expect(screen.getByRole('heading', { level: 1, name: 'Generator lab' })).toBeInTheDocument();
       expect(screen.getByText(/A research tool; results are labelled synthetic\./)).toBeInTheDocument();
       expect(within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByText('Generator lab')).toHaveAttribute('aria-current', 'page');
-      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['One instance', 'Batch', 'Convert old format', 'Calibrate engines']);
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['One instance', 'Batch', 'Convert old format']);
       expect(screen.getByLabelText('Tasks')).toHaveValue(6);
       expect(screen.getByLabelText('Candidates per task')).toHaveValue(5);
       expect(screen.getByLabelText('Random seed')).toHaveValue('42');
@@ -379,66 +372,10 @@ describe('Generator lab', () => {
     });
   });
 
-  describe('calibrating engines', () => {
-    it('is closed to everyone who is not a platform administrator, and says so', () => {
-      renderLab();
-      fireEvent.click(screen.getByRole('tab', { name: 'Calibrate engines' }));
+  it('offers no engine calibration, not even to a platform administrator', () => {
+    renderLab({ user: iker });
 
-      expect(screen.getByRole('note')).not.toHaveTextContent('To confirm');
-      expect(screen.getByRole('note')).not.toHaveTextContent('strict check');
-      expect(screen.getByRole('note')).toHaveTextContent('Calibrating changes the shared model that predicts how engines behave, for everyone.');
-      expect(screen.getByText('Only platform administrators can calibrate.')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Calibrate' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('region', { name: 'Preview' })).not.toBeInTheDocument();
-      expect(client.getEngines).not.toHaveBeenCalled();
-    });
-
-    it('lets a platform administrator calibrate an engine and shows the summary', async () => {
-      generator.calibrate.mockResolvedValue(calibration);
-      renderLab({ user: iker });
-      fireEvent.click(screen.getByRole('tab', { name: 'Calibrate engines' }));
-
-      const calibrate = screen.getByRole('button', { name: 'Calibrate' });
-      expect(calibrate).toBeDisabled();
-      await screen.findByRole('option', { name: 'minizinc' });
-      expect(within(screen.getByRole('combobox', { name: 'Engine' })).getAllByRole('option').map((option) => option.textContent)).toEqual(['Choose an engine…', 'random-search', 'minizinc']);
-      fireEvent.change(screen.getByRole('combobox', { name: 'Engine' }), { target: { value: 'random-search' } });
-      fireEvent.click(calibrate);
-
-      expect(await screen.findByText('random-search · default: fitted on 6 runs (R² 0.912, calibrated).')).toBeInTheDocument();
-      expect(generator.calibrate).toHaveBeenCalledWith({ engine: 'random-search', mode: 'default' });
-      expect(screen.getByRole('table', { name: 'Run time' })).toHaveTextContent('S0.5000');
-      expect(screen.getByRole('table', { name: 'Quality' })).toHaveTextContent('S-0.1000');
-      expect(screen.queryByRole('table', { name: 'Risk of failing' })).not.toBeInTheDocument();
-    });
-
-    it('sends the observed runs it was given and refuses text that is not a list of runs', async () => {
-      generator.calibrate.mockResolvedValue(calibration);
-      renderLab({ user: iker });
-      fireEvent.click(screen.getByRole('tab', { name: 'Calibrate engines' }));
-      await screen.findByRole('option', { name: 'minizinc' });
-      fireEvent.change(screen.getByRole('combobox', { name: 'Engine' }), { target: { value: 'minizinc' } });
-      fireEvent.change(screen.getByRole('textbox', { name: 'Mode' }), { target: { value: 'cp' } });
-
-      fireEvent.change(screen.getByLabelText('Or paste the runs as JSON'), { target: { value: '{"latency": 1}' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Calibrate' }));
-      expect(await screen.findByRole('alert')).toHaveTextContent('The observations must be a list of runs');
-      expect(generator.calibrate).not.toHaveBeenCalled();
-
-      const runs = [{ workload_features: { S: 1 }, latency: 12.5, quality: 0.9, success: true }];
-      fireEvent.change(screen.getByLabelText('Or paste the runs as JSON'), { target: { value: JSON.stringify(runs) } });
-      fireEvent.click(screen.getByRole('button', { name: 'Calibrate' }));
-      await waitFor(() => expect(generator.calibrate).toHaveBeenCalledWith({ engine: 'minizinc', mode: 'cp', observations: runs }));
-    });
-
-    it('says when the server rejects the runs (422)', async () => {
-      generator.calibrate.mockRejectedValue(refusal(422));
-      renderLab({ user: iker });
-      fireEvent.click(screen.getByRole('tab', { name: 'Calibrate engines' }));
-      await screen.findByRole('option', { name: 'minizinc' });
-      fireEvent.change(screen.getByRole('combobox', { name: 'Engine' }), { target: { value: 'minizinc' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Calibrate' }));
-      expect(await screen.findByRole('alert')).toHaveTextContent('Those runs can’t be used to calibrate (422 · invalid observations): the server rejected them.');
-    });
+    expect(screen.queryByRole('tab', { name: /calibrate/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Preview' })).toBeInTheDocument();
   });
 });

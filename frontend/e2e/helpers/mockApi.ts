@@ -3,7 +3,6 @@ import type { Page, Route } from '@playwright/test';
 import type { ArchiveQuery, ArchiveResponse, ArchiveRow } from '../../src/analysis/archive';
 import type { AdminUserView } from '../../src/api/auth';
 import type { Job } from '../../src/api/platform';
-import { DRAFT_RELEASE, DRAINING_RELEASE, LIVE_RELEASE, PRICING_ROOM, previewOf } from '../../src/pages/Admin/pricingFixtures';
 import { digestOf as caseDigest, irDocument, refOf, revisionDocument, sourceContents } from '../../src/pages/Cases/fixtures';
 import { LESSONS } from '../../src/pages/Examples/lessons';
 import { templateFor } from '../../src/pages/Library/contentModel';
@@ -17,7 +16,7 @@ import {
   COMMUNITY_DIALECT, EDGE_SOLVER, EDGE_SOLVER_OLD, OPENAPI_DOCUMENT, PAUSED_SOLVER, PLACEMENT_DIALECT, QOS_PROFILE, REGISTERED_RESOURCES,
   REPORT_FAILED, REPORT_PENDING, REPORT_VERIFIED, SHARED_SOLVER, SOLVER_IN_REVIEW, reportOf as registrationReport,
 } from '../../src/test/fixtures/engines';
-import { INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT as JOB_REPORT, SOLUTION, detailOf as jobDetailOf, jobOf, provenanceOf } from '../../src/test/fixtures/jobs';
+import { INSTANCE, NEIGHBORHOOD, REGISTRATION, REPORT as JOB_REPORT, SOLUTION, detailOf as jobDetailOf, jobOf } from '../../src/test/fixtures/jobs';
 import { DRAFT, EDITION, FROZEN, LEGACY, publicationOf } from '../../src/test/fixtures/reports';
 import {
   blobOf, caseItem, collectionOf, collectionRevisionOf, resourceItem, resourceOf, resourceRevisionOf,
@@ -128,15 +127,11 @@ const USAGE = {
   contract_pending: false,
   features: { authoring: true, solve: true, federatedEngines: true, apiAccess: true, collaboration: true, studies: true, advancedAnalytics: true, reproducibleExport: true, publishing: true, reproducibilityArchive: false, institutionalBranding: true },
   capabilities: {
-    capacityUnits: 1_000_000, taskStarts: 50, solverSeconds: 30_000, federatedTaskStarts: 100, concurrentJobs: 3, federatedEngines: 5, apiKeys: 25,
+    concurrentJobs: 3, federatedEngines: 5, apiKeys: 25,
     maxTimeoutSeconds: 900, maxIterations: 1_000_000, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20, jobHistoryDays: 180, studyRuns: 100,
     organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
   },
   limits: {
-    capacityUnits: tracked('capacityUnits', 1_000_000, 120_000, 'capacity-unit/month', RENEWS),
-    taskStarts: tracked('taskStarts', 50, 18, 'solve/month', RENEWS),
-    solverSeconds: tracked('solverSeconds', 30_000, 7_420, 'second/month', RENEWS),
-    federatedTaskStarts: tracked('federatedTaskStarts', 100, 3, 'solve/month', RENEWS),
     studyRuns: tracked('studyRuns', 100, 4, 'run/month', RENEWS),
     concurrentJobs: tracked('concurrentJobs', 3, 1, 'job'),
     federatedEngines: tracked('federatedEngines', 5, 3, 'engine'),
@@ -319,17 +314,6 @@ const summaryOf = (row: Job) => ({
 });
 
 const SOLUTION_EN = localize(SOLUTION);
-const routedProvenance = provenanceOf({
-  requestedOptions: {}, options: {}, warnings: [],
-  engineRouting: { selectedEngine: 'evolutionary-heuristics', selectedMode: 'elitist-genetic', adaptationReason: 'Selected evolutionary-heuristics with utility score 0.884', utilityScore: 0.884, creditsCost: 8, fallbackActivated: false },
-  engineRoutingAdmin: {
-    adaptationLoopId: 'loop-xyz-99', workloadFeatures: { S: 12.3, N_tasks: 10 },
-    candidateEvaluations: [
-      { engine: 'evolutionary-heuristics', admissible: true, utility: 0.884 },
-      { engine: 'minizinc-csp', admissible: false, utility: 0.45, rejectionReason: 'Exceeded phase transition limit' },
-    ],
-  },
-});
 function jobDetail(id: string): Record<string, unknown> | null {
   const completed = { termination: 'FEASIBLE', solutions: [SOLUTION_EN] };
   switch (id) {
@@ -339,7 +323,7 @@ function jobDetail(id: string): Record<string, unknown> | null {
     case JOB_ID(4): return { ...jobDetailOf(id, 'failed') };
     case JOB_ID(5): return { ...jobDetailOf(id, 'cancelled') };
     case JOB_ID(6): return { ...jobDetailOf(id, 'completed', { result: { termination: 'INFEASIBLE', solutions: [{ violations: [{ constraint: 'sla-latency', message: 'Total latency is 742 ms; at most 600 ms is allowed.' }] }] } }) };
-    case JOB_ID(7): return { ...jobDetailOf(id, 'completed', { provenance: routedProvenance }), result: completed };
+    case JOB_ID(7): return { ...jobDetailOf(id, 'completed'), result: completed };
     case JOB_ID(8): return { ...jobDetailOf(id, 'completed'), result: completed };
     default: return null;
   }
@@ -467,33 +451,9 @@ const ADMIN_OVERVIEW = {
   counts: { users: ACCOUNTS.length, apiKeys: 9, identities: 3, organizations: ORGANIZATIONS.length, projects: 4, cases: 2, studies: 2, studyRuns: 1, artifacts: 12 },
   contracts: { BASIC: 3, ADVANCED: 1, RESEARCH: 2 },
 };
-const CONTROL = { ...PRICING_ROOM, live: '0.1.0', releases: [DRAFT_RELEASE, LIVE_RELEASE, DRAINING_RELEASE] };
 const PENDING_REGISTRATION = { ...SOLVER_IN_REVIEW, namespace: 'sam.okafor' };
 const emailOfAccount = (id: string | null) => (id ? `${(accountOf(id)?.username ?? 'sam.okafor').replace('.', '-')}@example.org` : null);
 const ERRORS = ERROR_EVENTS.map((event) => ({ ...event, user_email: emailOfAccount(event.user_id), userEmail: emailOfAccount(event.user_id) }));
-
-const METRICS = {
-  summary: { totalEngines: 3, healthyEngines: 2, degradedEngines: 1, activeJobs: 4 },
-  engines: {
-    'random-search': { available: true, activeJobs: 2, healthStatus: 'HEALTHY', confidence: 0.95, oneHourFailureRate: 0.02, avgLatency: 2.15, cusumSPlus: 0.12, cusumSMinus: 0, driftAlarm: false },
-    minizinc: { available: true, activeJobs: 2, healthStatus: 'HEALTHY', confidence: 0.62, oneHourFailureRate: 0.05, avgLatency: 7.8, cusumSPlus: 1.85, cusumSMinus: 0, driftAlarm: true },
-    evolutionary: { available: false, activeJobs: 0, healthStatus: 'DEGRADED', confidence: 0.2, oneHourFailureRate: 0.6, avgLatency: 12, cusumSPlus: 3.5, cusumSMinus: 0, driftAlarm: true },
-  },
-};
-const observation = (n: number, engine: string, outcome: string, seconds: number) => ({
-  id: `obs-${n}`, jobId: JOB_ID(n), adaptationLoopId: `loop-${n}`, engineSelected: engine,
-  workloadFeatures: { S: 10 + n, D_constr: 1.5 + n / 10, N_tasks: 8 + n },
-  candidateEvaluations: [
-    { engine, predicted: { latency: seconds, quality: 0.94, failureRisk: 0.02 }, admissible: true, utility: 0.884 },
-    { engine: 'minizinc', predicted: { latency: 8.5, quality: 1, failureRisk: 0.45 }, admissible: false, utility: 0.65, rejectionReason: 'Failure risk exceeds phase transition threshold' },
-  ],
-  predictedMetrics: { latency: seconds }, actualMetrics: { actualLatency: seconds * 1.1 }, residuals: { latency: 0.1 * n - 0.2, quality: 0 }, outcome,
-  createdAt: `2026-10-0${n}T10:00:00Z`,
-});
-const OBSERVATIONS = [
-  observation(1, 'random-search', 'success', 58), observation(2, 'random-search', 'success', 61), observation(3, 'minizinc', 'success', 33),
-  observation(4, 'minizinc', 'failure', 120), observation(5, 'evolutionary', 'success', 90),
-];
 
 // -- The router
 
@@ -711,16 +671,13 @@ function engineRegistrationRoutes(request: Request): Reply {
 function adminRoutes(request: Request): Reply {
   const { parts, query } = request;
   const path = parts.slice(2).join('/');
-  const [head, id, rest] = parts.slice(2);
+  const [head, id] = parts.slice(2);
   switch (path) {
     case 'overview': return ok(ADMIN_OVERVIEW);
     case 'queues': return ok(queuesAt(Date.parse(NOW)));
     case 'moderation': return ok(MODERATION);
     case 'errors/overview': return ok(localize(ERROR_OVERVIEW));
-    case 'pricing/control-room': return ok(CONTROL);
     case 'maintenance/preview': return ok({ expiredArtifacts: 2, expiredApiKeys: 1, terminalJobs: 14, abandonedJobs: 1, terminalJobCutoff: '2025-10-09T00:00:00Z' });
-    case 'engine-routing/metrics': return ok(METRICS);
-    case 'engine-routing/observations': return ok({ total: OBSERVATIONS.length, limit: 15, offset: 0, observations: OBSERVATIONS });
     case 'errors': return ok({ items: ERRORS, total: ERRORS.length, limit: 50, offset: 0 });
     case 'audit': return ok({ ...AUDIT, total: AUDIT.events.length });
     case 'users': {
@@ -730,7 +687,6 @@ function adminRoutes(request: Request): Reply {
     }
     default: break;
   }
-  if (head === 'pricing' && id === 'versions' && rest) return { status: 200, type: 'text/plain', text: previewOf(rest) };
   if (head === 'users' && id) {
     const account = accountOf(id);
     if (!account) return notFound('No such account.');
@@ -764,7 +720,7 @@ function route(request: Request): Reply | null {
     case 'pricing':
       if (second === 'catalog') return ok(catalogFixture);
       if (second === 'current') return ok(CURRENT_FIXTURE);
-      return { status: 200, type: 'text/plain', text: previewOf('0.1.0') };
+      return null;
     case 'organizations': return organizationRoutes(request);
     case 'artifacts': return artifactRoutes(request);
     case 'engine-registrations': return engineRegistrationRoutes(request);

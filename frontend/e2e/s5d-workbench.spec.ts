@@ -133,18 +133,7 @@ const corpus = (count: number) => ({
   })),
 });
 
-const calibration = {
-  engine: 'random-search',
-  mode: 'default',
-  sample_count: 6,
-  latency_coefficients: { S: 0.5, D_constr: 0.12 },
-  quality_coefficients: { S: -0.1 },
-  failure_risk_coefficients: { S: 0.02 },
-  r2_score: 0.912,
-  status: 'calibrated',
-};
-
-type Overridable = 'validate' | 'snapshot' | 'saveRevision' | 'instance' | 'corpus' | 'convert' | 'calibrate';
+type Overridable = 'validate' | 'snapshot' | 'saveRevision' | 'instance' | 'corpus' | 'convert';
 
 interface State {
   /** A handler that replaces the default answer of one call. */
@@ -212,10 +201,6 @@ async function mockApi(page: Page, options: MockOptions = {}): Promise<State> {
   await page.route(`${API}/v1/generator/convert-legacy`, (route) => {
     state.sent.convert = bodyOf(route);
     return (state.refuse.convert ?? json(generated('converted_legacy')))(route);
-  });
-  await page.route(`${API}/v1/generator/calibrate-engine`, (route) => {
-    state.sent.calibrate = bodyOf(route);
-    return (state.refuse.calibrate ?? json(calibration))(route);
   });
 
   await page.route(new RegExp(`^${API}/v1/organizations(/.*)?(\\?.*)?$`), async (route) => {
@@ -592,7 +577,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
 
       await expect(main.getByRole('heading', { level: 1, name: 'Generator lab' })).toBeVisible();
       await expect(main.getByText(/A research tool; results are labelled synthetic\./)).toBeVisible();
-      await expect(main.getByRole('tab')).toHaveText(['One instance', 'Batch', 'Convert old format', 'Calibrate engines']);
+      await expect(main.getByRole('tab')).toHaveText(['One instance', 'Batch', 'Convert old format']);
       await expect(main.getByLabel('Tasks', { exact: true })).toHaveValue('6');
       await expect(main.getByLabel('Candidates per task')).toHaveValue('5');
       await expect(main.getByLabel('Random seed')).toHaveValue('42');
@@ -670,7 +655,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       expect(critical).toEqual([]);
     });
 
-    test('gen-lab /app/generator · a batch, a conversion and a calibration closed to members', async ({ page }, testInfo) => {
+    test('gen-lab /app/generator · a batch and a conversion', async ({ page }, testInfo) => {
       const critical = watchCriticalErrors(page);
       const state = await mockApi(page);
       await page.goto(LAB);
@@ -708,70 +693,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(preview.getByText('Engines it suits')).toBeVisible();
       expect(state.sent.convert).toMatchObject({ raw_text: 'TASK 1 CANDIDATES 5\nTASK 2 CANDIDATES 3', name: 'converted_legacy', repair_empty_branches: true });
       await capture(page, testInfo, `lab-${name}-converted`);
-
-      // Calibrating changes something shared by everyone: only platform administrators can.
-      await main.getByRole('tab', { name: 'Calibrate engines' }).click();
-      await expect(main.getByRole('note')).not.toContainText('To confirm');
-      await expect(main.getByText('Only platform administrators can calibrate.')).toBeVisible();
-      await expect(main.getByRole('button', { name: 'Calibrate', exact: true })).toHaveCount(0);
-      await expect(main.getByRole('region', { name: 'Preview' })).toHaveCount(0);
-      await capture(page, testInfo, `lab-${name}-calibrate-locked`);
-      expect(state.sent.calibrate).toBeUndefined();
-      expect(critical).toEqual([]);
-    });
-
-    test('gen-lab /app/generator · a platform administrator calibrates an engine', async ({ page }, testInfo) => {
-      const critical = watchCriticalErrors(page);
-      const state = await mockApi(page, { admin: true });
-      await page.goto(LAB);
-      const main = page.locator('#platform-main');
-
-      await main.getByRole('tab', { name: 'Calibrate engines' }).click();
-      await expect(main.getByRole('note')).toContainText('Calibrating changes the shared model that predicts how engines behave, for everyone.');
-      await expect(main.getByRole('note')).not.toContainText('strict check');
-      await expect(main.getByRole('option', { name: 'edge-solver' })).toHaveCount(1);
-      await expect(main.getByRole('button', { name: 'Calibrate', exact: true })).toBeDisabled();
-      await capture(page, testInfo, `lab-${name}-calibrate-admin`);
-
-      await main.getByRole('combobox', { name: 'Engine' }).selectOption('random-search');
-      await main.getByLabel('Or paste the runs as JSON').fill('{"latency": 1}');
-      await main.getByRole('button', { name: 'Calibrate', exact: true }).click();
-      await expect(main.getByRole('alert')).toContainText('The observations must be a list of runs');
-      expect(state.sent.calibrate).toBeUndefined();
-      await capture(page, testInfo, `lab-${name}-calibrate-invalid`);
-
-      const runs = [{ workload_features: { S: 6 }, latency: 12.5, quality: 0.9, success: true }];
-      await main.getByLabel('Or paste the runs as JSON').fill(JSON.stringify(runs));
-      await main.getByRole('button', { name: 'Calibrate', exact: true }).click();
-      await expect(main.getByText('random-search · default: fitted on 6 runs (R² 0.912, calibrated).')).toBeVisible();
-      await expect(main.getByRole('table', { name: 'Run time' })).toContainText('0.5000');
-      expect(state.sent.calibrate).toEqual({ engine: 'random-search', mode: 'default', observations: runs });
-      await capture(page, testInfo, `lab-${name}-calibrated`);
       expect(critical).toEqual([]);
     });
   });
 }
-
-test.describe('desktop · S5d generator lab, a calibration the gateway refuses', () => {
-  test.use({ viewport: viewports[0].viewport, isMobile: false, deviceScaleFactor: 1 });
-
-  test('gen-lab /app/generator · the gateway refuses to calibrate (403 platform_admin_required)', async ({ page }, testInfo) => {
-    const critical = watchCriticalErrors(page);
-    // The page offers the form (the account looks like an administrator) but the gateway has the last word.
-    const state = await mockApi(page, { admin: true });
-    await page.goto(LAB);
-    const main = page.locator('#platform-main');
-
-    await main.getByRole('tab', { name: 'Calibrate engines' }).click();
-    await main.getByRole('combobox', { name: 'Engine' }).selectOption('random-search');
-    const runs = [{ workload_features: { S: 6 }, latency: 12.5, quality: 0.9, success: true }];
-    await main.getByLabel('Or paste the runs as JSON').fill(JSON.stringify(runs));
-    state.refuse.calibrate = detail(403, 'platform_admin_required', 'Platform administrator required.');
-    await main.getByRole('button', { name: 'Calibrate', exact: true }).click();
-    await expect(main.getByRole('alert')).toContainText('Only platform administrators can calibrate an engine (403 · platform_admin_required). The model is shared by everyone, so nothing was calibrated.');
-    expect(state.sent.calibrate).toEqual({ engine: 'random-search', mode: 'default', observations: runs });
-    await expect(main.getByText('fitted on 6 runs')).toHaveCount(0);
-    await capture(page, testInfo, 'lab-desktop-calibrate-403');
-    expect(critical).toEqual([]);
-  });
-});

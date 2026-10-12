@@ -92,7 +92,7 @@ function RunsCard({ scope, runs }: { scope: StudyScopeValue; runs: Resource<Runs
         <p className="org-muted">
           {scope.access.publicRead
             ? 'No runs yet.'
-            : <>No runs yet. Running uses 1 study run from your month and up to {plural(definitionSize(study.definition).cells, 'solve')}.</>}
+            : <>No runs yet. Running uses 1 study run from your month and runs up to {plural(definitionSize(study.definition).cells, 'cell')}.</>}
         </p>
       )}
       {data && data.runs.length > 0 && (

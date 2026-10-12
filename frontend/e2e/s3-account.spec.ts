@@ -44,15 +44,11 @@ const researchUsage = () => ({
   contract_pending: false,
   features: { authoring: true, solve: true, federatedEngines: true, apiAccess: true, collaboration: true, studies: true, advancedAnalytics: true, reproducibleExport: true, publishing: true, reproducibilityArchive: false, institutionalBranding: true },
   capabilities: {
-    capacityUnits: 1_000_000, taskStarts: 50, solverSeconds: 30_000, federatedTaskStarts: 100, concurrentJobs: 3, federatedEngines: 5, apiKeys: 25,
+    concurrentJobs: 3, federatedEngines: 5, apiKeys: 25,
     maxTimeoutSeconds: 900, maxIterations: 1_000_000, maxPayloadBytes: 134_217_728, maxInstanceComplexityLog10: 20, jobHistoryDays: 180, studyRuns: 100,
     organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120,
   },
   limits: {
-    capacityUnits: tracked('capacityUnits', 1_000_000, 120_000, 'capacity-unit/month', RENEWS),
-    taskStarts: tracked('taskStarts', 50, 18, 'solve/month', RENEWS),
-    solverSeconds: tracked('solverSeconds', 30_000, 7_420, 'second/month', RENEWS),
-    federatedTaskStarts: tracked('federatedTaskStarts', 100, 3, 'solve/month', RENEWS),
     studyRuns: tracked('studyRuns', 100, 4, 'run/month', RENEWS),
     concurrentJobs: tracked('concurrentJobs', 3, 1, 'job'),
     federatedEngines: tracked('federatedEngines', 5, 1, 'engine'),
@@ -72,15 +68,13 @@ const researchUsage = () => ({
   },
 });
 
-/** BASIC with the monthly solves and study runs used up and the only API key in use. */
+/** BASIC with the monthly study runs used up and the only API key in use. */
 const spentUsage = () => ({
   plan: 'BASIC',
   contract_pending: false,
   features: { authoring: true, solve: true, advancedAnalytics: false, institutionalBranding: false },
-  capabilities: { capacityUnits: 5000, taskStarts: 10, solverSeconds: 900, studyRuns: 3, concurrentJobs: 1, apiKeys: 1, maxTimeoutSeconds: 60, maxPayloadBytes: 8_388_608, maxInstanceComplexityLog10: 9, jobHistoryDays: 7 },
+  capabilities: { studyRuns: 3, concurrentJobs: 1, apiKeys: 1, maxTimeoutSeconds: 60, maxPayloadBytes: 8_388_608, maxInstanceComplexityLog10: 9, jobHistoryDays: 7 },
   limits: {
-    taskStarts: tracked('taskStarts', 10, 10, 'solve/month', RENEWS),
-    solverSeconds: tracked('solverSeconds', 900, 610, 'second/month', RENEWS),
     studyRuns: tracked('studyRuns', 3, 3, 'run/month', RENEWS),
     concurrentJobs: tracked('concurrentJobs', 1, 1, 'job'),
     apiKeys: tracked('apiKeys', 1, 1, 'key'),
@@ -440,10 +434,9 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(plan.getByText(/Live pricing 0\.1\.0 · Monthly allowances renew Nov 1, 2026/)).toBeVisible();
       await expect(plan.getByRole('link', { name: 'See plans' })).toHaveAttribute('href', '/pricing');
 
-      await expect(main.getByRole('meter', { name: 'Solves', exact: true })).toHaveAttribute('aria-valuenow', '18');
-      await expect(main.getByRole('meter', { name: 'Solves', exact: true })).toHaveAttribute('aria-valuemax', '50');
+      await expect(main.getByRole('meter', { name: 'Study runs', exact: true })).toHaveAttribute('aria-valuenow', '4');
+      await expect(main.getByRole('meter', { name: 'Study runs', exact: true })).toHaveAttribute('aria-valuemax', '100');
       await expect(main.getByText(/Renews Nov 1, 2026 \(in \d+ days\)\./)).toBeVisible();
-      await expect(main.getByRole('meter', { name: 'Solver time' })).toHaveAttribute('aria-valuenow', '7420');
       const capacity = main.getByRole('heading', { name: 'Capacity in use' }).locator('xpath=ancestor::section[1]');
       await expect(capacity.getByText('2 / 25')).toBeVisible();
       await expect(capacity.getByRole('link', { name: 'Manage keys' })).toHaveAttribute('href', '/app/account/keys');
@@ -484,8 +477,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await expect(main.getByRole('heading', { name: 'This month' })).toHaveCount(0);
       state.usage = json(spentUsage());
       await refresh();
-      await expect(main.getByText('Used up. New solves can’t start until it renews; a request now gets a 402.')).toBeVisible();
-      await expect(main.getByText('0 left', { exact: true })).toHaveCount(2);
+      await expect(main.getByText('Used up. New study runs can’t start until it renews; a request now gets a 402.')).toBeVisible();
+      await expect(main.getByText('0 left', { exact: true })).toHaveCount(1);
       await capture(page, testInfo, `usage-${name}-spent`);
 
       state.usage = json({ ...spentUsage(), capabilities: {}, limits: {} });
@@ -737,7 +730,7 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       await capture(page, testInfo, `identities-${name}-linked`);
       if (isMobile) {
         await main.getByRole('button', { name: 'Unlink' }).click();
-        await expect(page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' }).getByLabel('Plan change')).toContainText('50 solves / month');
+        await expect(page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' }).getByLabel('Plan change')).toContainText('3 concurrent jobs');
         await capture(page, testInfo, `identities-${name}-unlink-dialog`);
         expect(critical).toEqual([]);
         return;
@@ -746,8 +739,8 @@ for (const { name, viewport, isMobile, deviceScaleFactor } of viewports) {
       // Leaving RESEARCH is typed: the dialog says what changes and refuses anything but the exact phrase.
       await main.getByRole('button', { name: 'Unlink' }).click();
       const dialog = page.getByRole('dialog', { name: 'Unlink your Universidad de Sevilla identity?' });
-      await expect(dialog.getByLabel('Plan change')).toContainText('50 solves / month');
-      await expect(dialog.getByLabel('Plan change')).toContainText('10 solves / month');
+      await expect(dialog.getByLabel('Plan change')).toContainText('3 concurrent jobs');
+      await expect(dialog.getByLabel('Plan change')).toContainText('1 concurrent job');
       const unlink = dialog.getByRole('button', { name: 'Unlink' });
       await expect(unlink).toBeDisabled();
       await dialog.getByLabel('Type DOWNGRADE RESEARCH to confirm').fill('downgrade research');

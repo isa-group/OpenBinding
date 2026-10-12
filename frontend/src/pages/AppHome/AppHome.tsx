@@ -130,8 +130,7 @@ function QuotaBlock() {
   const data = usage.data;
   const rows = data ? usageRows(data) : [];
   const picks: Array<{ id: string; label: string; format: (value: number) => string }> = [
-    { id: 'solverSeconds', label: 'Solver time', format: (value) => `${formatCount(value)} s` },
-    { id: 'taskStarts', label: 'Solves started', format: formatCount },
+    { id: 'studyRuns', label: 'Study runs', format: formatCount },
     { id: 'concurrentJobs', label: 'Jobs running now', format: formatCount },
   ];
   const renewal = nextRenewal(rows);

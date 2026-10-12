@@ -115,7 +115,7 @@ function HistoryBody() {
         const made = await jobsApi.retry(job.id);
         const project = data?.projectOf.get(job.id);
         const base = project ? `/app/${project.org}/${project.slug}` : fallback;
-        setNotice({ tone: 'success', text: 'Retry queued. It counts as a new solve.', follow: base ? `${base}/jobs/${made.id}` : undefined });
+        setNotice({ tone: 'success', text: 'Retry queued.', follow: base ? `${base}/jobs/${made.id}` : undefined });
       }
       history.reload();
     } catch (caught) {

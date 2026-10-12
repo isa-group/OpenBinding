@@ -175,8 +175,8 @@ describe('Home', () => {
       renderHome();
 
       for (const name of ['Basic', 'Research', 'Advanced', 'Pro']) expect(screen.getByText(name, { selector: '.home-kicker' })).toBeInTheDocument();
-      expect(screen.getByText('10 solves / month')).toBeInTheDocument();
-      expect(screen.getByText('Unlimited solves')).toBeInTheDocument();
+      expect(screen.getByText('1 concurrent job')).toBeInTheDocument();
+      expect(screen.getByText('Unlimited API keys')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Compare plans' })).toHaveAttribute('href', '/pricing');
       expect(screen.getByText(/Headline limits from pricing 0\.1\.0/)).toBeInTheDocument();
     });

@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { Compass } from 'lucide-react';
 import { BindingAnalysis } from '../../components/BindingAnalysis/BindingAnalysis';
 import { ArtifactVersionPicker } from '../../components/Artifacts/ArtifactVersionPicker';
 import { Action } from '../../components/ui/Action';
@@ -8,7 +7,7 @@ import { Notice } from '../../components/ui/Notice';
 import { executionKey, isRecord, type BindingDecision, type BindingSolution } from './bimDocuments';
 import { RANGE_REFUSAL } from '../../utils/featureRange';
 import { refusesRanges } from './workbenchModel';
-import type { AutoProfile, Workbench } from './useWorkbench';
+import type { Workbench } from './useWorkbench';
 
 function DecisionView({ decision }: { decision: BindingDecision | undefined }) {
   if (decision?.kind === 'binding' && decision.binding && typeof decision.binding === 'object') {
@@ -58,11 +57,9 @@ function Solution({ solution, index }: { solution: BindingSolution; index: numbe
   );
 }
 
-/** Solve the package with an engine: which mode, how the AutoRouter may decide, and the evaluated answer. */
+/** Solve the package with an engine: which mode, and the evaluated answer. */
 export function RunPanel({ wb, orgSlug, jobsHref }: { wb: Workbench; orgSlug: string; jobsHref: string }) {
   const working = wb.runState === 'queued' || wb.runState === 'running';
-  const auto = wb.selectedMode === 'auto';
-  const routing = wb.routingProvenance;
   // A package with ranges can only go to a mode that declares interval values: the others stay in the list, off, with the reason.
   const refused = wb.hasRanges ? wb.allModes.filter(refusesRanges) : [];
   const catalog = wb.resources.find((resource) => resource.kind === 'CandidateCatalog' && resource.path);
@@ -100,10 +97,9 @@ export function RunPanel({ wb, orgSlug, jobsHref }: { wb: Workbench; orgSlug: st
             aria-label="Compatible engine mode"
             value={wb.selectedMode}
             onChange={(event) => wb.setSelectedMode(event.target.value)}
-            disabled={(!wb.compatibleModes.length && !refused.length && !auto) || Boolean(wb.executionConfiguration)}
+            disabled={(!wb.compatibleModes.length && !refused.length) || Boolean(wb.executionConfiguration)}
           >
             <option value="">Validate to select…</option>
-            <option value="auto">AutoRouter (self-adaptive, MAPE-K)</option>
             {wb.compatibleModes.map((item) => {
               const value = executionKey(item);
               return <option key={value} value={value}>{item.engine.name} · {item.mode} · {item.registration.name}@{item.registration.version}</option>;
@@ -123,39 +119,6 @@ export function RunPanel({ wb, orgSlug, jobsHref }: { wb: Workbench; orgSlug: st
         </p>
       )}
 
-      {auto && (
-        <fieldset className="wb-fieldset wb-auto">
-          <legend><Compass aria-hidden="true" />AutoRouter policy</legend>
-          <div className="wb-auto-grid">
-            <label className="wb-field">
-              <span>Optimization profile</span>
-              <select value={wb.autoProfile} onChange={(event) => wb.setAutoProfile(event.target.value as AutoProfile)}>
-                <option value="balanced">Balanced</option>
-                <option value="quality_first">Quality first</option>
-                <option value="latency_first">Latency first</option>
-                <option value="cost_first">Cost first</option>
-              </select>
-            </label>
-            <label className="wb-field">
-              <span>Max credits: {wb.autoMaxCredits} CU</span>
-              <input type="number" min={1} max={100} value={wb.autoMaxCredits} onChange={(event) => wb.setAutoMaxCredits(parseInt(event.target.value, 10) || 40)} />
-            </label>
-            <label className="wb-field">
-              <span>Min quality: {wb.autoMinQuality.toFixed(2)}</span>
-              <input type="range" min={0} max={1} step={0.05} value={wb.autoMinQuality} onChange={(event) => wb.setAutoMinQuality(parseFloat(event.target.value))} />
-            </label>
-            <label className="wb-field">
-              <span>Max failure risk: {wb.autoMaxFailureRisk.toFixed(2)}</span>
-              <input type="range" min={0} max={1} step={0.05} value={wb.autoMaxFailureRisk} onChange={(event) => wb.setAutoMaxFailureRisk(parseFloat(event.target.value))} />
-            </label>
-            <div className="wb-checks">
-              <label><input type="checkbox" checked={wb.autoRequireExact} onChange={(event) => wb.setAutoRequireExact(event.target.checked)} /> Require an exact solver</label>
-              <label><input type="checkbox" checked={wb.autoAllowFallback} onChange={(event) => wb.setAutoAllowFallback(event.target.checked)} /> Allow a fallback solver</label>
-            </div>
-          </div>
-        </fieldset>
-      )}
-
       {working && (
         <div className="wb-compiling" role="status">
           <span className="wb-compiling-title"><span className="wb-spinner" aria-hidden="true" />{wb.runState === 'queued' ? 'Queued: the engine has not started yet…' : 'Running: the engine is searching…'}</span>
@@ -172,19 +135,6 @@ export function RunPanel({ wb, orgSlug, jobsHref }: { wb: Workbench; orgSlug: st
             </span>
           )}
         </Notice>
-      )}
-
-      {routing && (
-        <section className="wb-routing" aria-label="AutoRouter decision">
-          <div className="wb-routing-head">
-            <Compass aria-hidden="true" />
-            <strong>AutoRouter decision</strong>
-            <Chip tone="accent">{routing.selectedEngine} · {routing.selectedMode}</Chip>
-            {routing.fallbackActivated && <Chip tone="warning">Fallback activated</Chip>}
-            <span className="wb-muted">Utility {routing.utilityScore != null ? routing.utilityScore.toFixed(3) : 'n/a'} · Credits {routing.creditsCost ?? 1} CU</span>
-          </div>
-          <p className="wb-muted">{routing.adaptationReason}</p>
-        </section>
       )}
 
       {wb.result && (

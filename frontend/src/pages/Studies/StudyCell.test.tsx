@@ -100,15 +100,15 @@ describe('One cell of a run', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Cell 1' })).toBeInTheDocument();
     expect(screen.getByText('Failed: The engine deployment didn’t answer in time.')).toBeInTheDocument();
-    expect(screen.getByText(/Code engine_unreachable · timeout\. Retrying usually helps; it counts as a new solve\./)).toBeInTheDocument();
+    expect(screen.getByText(/Code engine_unreachable · timeout\. Retrying usually helps\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry this cell' }));
 
-    expect(await screen.findByText('Cell queued again. It counts as a new solve.')).toBeInTheDocument();
+    expect(await screen.findByText('Cell queued again.')).toBeInTheDocument();
     expect(platform.retryStudyCell).toHaveBeenCalledWith('isa-demo', 'qos-benchmarks', 'engines-vs-seeds', RUN_ID, cells[1].id);
   });
 
   it.each([
-    ['402', new QuotaError('quota_exceeded', 'full', { limit_id: 'taskStarts', limit: 50, used: 50 }), /Out of solves \(402 · quota_exceeded\)/],
+    ['402', new QuotaError('quota_exceeded', 'full', { limit_id: 'studyRuns', limit: 50, used: 50 }), /No study runs left this month \(402 · quota_exceeded\)/],
     ['429', refusal(429, 'concurrency_limit_exceeded', 'busy'), /All your job slots are busy \(429 · concurrency_limit_exceeded\)/],
     ['409', refusal(409, 'sealed_evidence'), /A sealed report cites this run \(409 · sealed_evidence\)/],
   ])('says why a retry was refused: %s', async (_name, failure, expected) => {

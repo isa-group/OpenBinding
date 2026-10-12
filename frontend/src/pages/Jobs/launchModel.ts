@@ -84,7 +84,7 @@ export interface ModeChoice {
   mode: string;
   compat: 'yes' | 'no' | 'unknown';
   reason: string | null;
-  /** A deployment of the account's own, which counts as a federated solve. */
+  /** A deployment of the account's own. */
   federated: boolean;
   /** The package has ranges and this mode takes single values only (or the gateway refused it for that). */
   rangeRefusal?: boolean;
@@ -258,45 +258,22 @@ export function requestOptions(plans: readonly OptionPlan[]): Record<string, unk
   return options;
 }
 
-// --- the AutoRouter
-
-export type AutoProfile = 'balanced' | 'quality_first' | 'latency_first' | 'cost_first';
-
-export interface AutoPolicy {
-  profile: AutoProfile;
-  maxCredits: number;
-  minQuality: number;
-  maxFailureRisk: number;
-  requireExact: boolean;
-  allowFallback: boolean;
-}
-
-export const DEFAULT_POLICY: AutoPolicy = { profile: 'balanced', maxCredits: 40, minQuality: 0.85, maxFailureRisk: 0.3, requireExact: false, allowFallback: true };
-
-export const PROFILE_LABELS: Record<AutoProfile, string> = {
-  balanced: 'Balanced', quality_first: 'Quality first', latency_first: 'Latency first', cost_first: 'Cost first',
-};
-
-// --- the quota forecast
+// --- the limits forecast
 
 interface ForecastInput {
   usage: UsageView | null;
   ceilings: PlanCeilings;
-  /** Seconds of solver time this run may take at most. */
-  seconds: number;
   /** The size of the problem, as the exact number of bindings. */
   bindingSpace: string | null;
   plan: string | undefined;
 }
 
-/** What this run adds to the month: one solve, its solver time, one job slot, and how big the problem is for the plan. */
-export function forecastOf({ usage, ceilings, seconds, bindingSpace, plan }: ForecastInput): ForecastBar[] {
+/** What this run adds to the technical limits: one job slot, and how big the problem is for the plan. */
+export function forecastOf({ usage, ceilings, bindingSpace, plan }: ForecastInput): ForecastBar[] {
   const read = (id: string): { used: number | null; limit: number | null } => {
     const entry = usage?.limits?.[id];
     return entry ? { used: entry.used, limit: entry.limit } : { used: usage ? 0 : null, limit: null };
   };
-  const solves = read('taskStarts');
-  const time = read('solverSeconds');
   const slots = read('concurrentJobs');
   const size = bindingSpace ? parseBindingSpace(bindingSpace).log10 : null;
   const reference = ceilings.complexity ?? Math.max(30, Math.ceil((size ?? 0) * 1.2));
@@ -310,8 +287,6 @@ export function forecastOf({ usage, ceilings, seconds, bindingSpace, plan }: For
       : `≈ 10^${Math.round(size * 10) / 10} of up to ${ceilings.complexity !== null ? `10^${ceilings.complexity}` : 'no ceiling'}${plan ? ` on your ${plan} plan` : ''}`,
   };
   return [
-    forecastBar('Solves this month', solves.used, solves.limit, 1, ''),
-    forecastBar('Solver time this month', time.used, time.limit, seconds, ' s'),
     forecastBar('Jobs running at once', slots.used, slots.limit, 1, ''),
     sizeBar,
   ];
@@ -325,8 +300,6 @@ export interface RequestInput {
   snapshot: string;
   settings: SettingsSource;
   configuration: ArtifactRef | null;
-  auto: boolean;
-  policy: AutoPolicy;
   mode: ModeChoice | null;
   options: Record<string, unknown>;
 }
@@ -335,26 +308,6 @@ export interface RequestInput {
 export function buildRequest(input: RequestInput): LaunchRequest | null {
   if (!input.snapshot) return null;
   if (input.settings === 'saved') return input.configuration ? { snapshot: input.snapshot, configuration: input.configuration } : null;
-  if (input.auto) {
-    return {
-      snapshot: input.snapshot,
-      engine: 'auto',
-      options: {
-        ...input.options,
-        routing: {
-          strategy: 'auto',
-          profile: input.policy.profile,
-          hardConstraints: {
-            maxCredits: input.policy.maxCredits,
-            minQuality: input.policy.minQuality,
-            maxFailureRisk: input.policy.maxFailureRisk,
-            requireExact: input.policy.requireExact,
-          },
-          adaptation: { allowFallback: input.policy.allowFallback },
-        },
-      },
-    };
-  }
   if (!input.mode || input.mode.compat === 'no') return null;
   // Without a named deployment the gateway finds the built-in one installed with the engine from the engine reference alone.
   return {

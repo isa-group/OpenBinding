@@ -82,7 +82,7 @@ describe('One study', () => {
     platform.studyRuns.mockResolvedValue([]);
     renderDetail();
 
-    expect(await screen.findByText('No runs yet. Running uses 1 study run from your month and up to 8 solves.')).toBeInTheDocument();
+    expect(await screen.findByText('No runs yet. Running uses 1 study run from your month and runs up to 8 cells.')).toBeInTheDocument();
   });
 
   it('runs the study with the version it uses and offers to follow the new run', async () => {

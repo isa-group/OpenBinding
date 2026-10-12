@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { retrievePricingFromYaml } from 'pricing4ts';
-import source from '../../../../space/pricing/openbinding.yml?raw';
 import { optionFacts } from '../Engines/enginesModel';
+import { catalogFixture } from '../Pricing/pricingFixture';
 import { optionKind, planCeilings, previewOption } from './planCeilings';
 import type { EngineMode } from '../../api/client';
 
-const ceilings = planCeilings(retrievePricingFromYaml(source));
+const ceilings = planCeilings(catalogFixture);
 const plan = (name: string) => ceilings.plans.find((item) => item.plan === name) ?? null;
 
 function mode(properties: Record<string, Record<string, unknown>>, required: string[] = []): EngineMode {
@@ -60,7 +59,7 @@ describe('plan ceilings read from the pricing document', () => {
   });
 
   it('reads the catalog the gateway serves: JSON, with an unlimited allowance as null', () => {
-    const catalog = JSON.parse(JSON.stringify(retrievePricingFromYaml(source))) as Record<string, unknown>;
+    const catalog = JSON.parse(JSON.stringify(catalogFixture)) as Record<string, unknown>;
     expect(planCeilings(catalog).plans).toEqual(ceilings.plans);
 
     const unlimited = JSON.parse(JSON.stringify(catalog)) as { plans: Record<string, { usageLimits: Record<string, { value: number | null }> }> };

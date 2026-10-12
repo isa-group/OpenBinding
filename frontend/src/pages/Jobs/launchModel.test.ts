@@ -4,7 +4,7 @@ import type { EngineCatalogEntry, EngineMode } from '../../api/client';
 import type { CaseRevision } from '../../api/platform';
 import { RANGE_REFUSAL } from '../../utils/featureRange';
 import {
-  DEFAULT_POLICY, acceptsIntervals, buildRequest, ceilingOf, forecastOf, initialChoice, modeChoices, modeOfCatalog, optionInputs, parseAmount, parseEngineParam, planCeilingsOf,
+  acceptsIntervals, buildRequest, ceilingOf, forecastOf, initialChoice, modeChoices, modeOfCatalog, optionInputs, parseAmount, parseEngineParam, planCeilingsOf,
   planOptions, requestOptions, sourceChoices,
 } from './launchModel';
 
@@ -118,7 +118,7 @@ describe('engines', () => {
 
     it('does not offer a mode it turned down to be sent', () => {
       const [off] = modeChoices(null, catalog, true);
-      expect(buildRequest({ snapshot: 'snap-1', settings: 'inline', configuration: null, auto: false, policy: DEFAULT_POLICY, mode: off, options: {} })).toBeNull();
+      expect(buildRequest({ snapshot: 'snap-1', settings: 'inline', configuration: null, mode: off, options: {} })).toBeNull();
     });
   });
 
@@ -172,7 +172,7 @@ describe('settings against the plan', () => {
 
 describe('the request', () => {
   const [yes] = modeChoices([{ engine: ENGINE, registration: REGISTRATION, mode: 'sampling', compatible: true }], catalog);
-  const base = { snapshot: 'snap-2', settings: 'inline' as const, configuration: null, auto: false, policy: DEFAULT_POLICY, mode: yes, options: { iterations: 100 } };
+  const base = { snapshot: 'snap-2', settings: 'inline' as const, configuration: null, mode: yes, options: { iterations: 100 } };
 
   it('names the exact engine, deployment and mode', () => {
     expect(buildRequest(base)).toEqual({ snapshot: 'snap-2', engine: ENGINE, registration: REGISTRATION, mode: 'sampling', options: { iterations: 100 } });
@@ -181,20 +181,6 @@ describe('the request', () => {
   it('leaves the deployment out when the catalog did not name one', () => {
     const [unchecked] = modeChoices(null, catalog);
     expect(buildRequest({ ...base, mode: unchecked })).toEqual({ snapshot: 'snap-2', engine: ENGINE, mode: 'sampling', options: { iterations: 100 } });
-  });
-
-  it('sends the AutoRouter policy under routing', () => {
-    expect(buildRequest({ ...base, auto: true, mode: null, policy: { ...DEFAULT_POLICY, profile: 'cost_first', requireExact: true } })).toEqual({
-      snapshot: 'snap-2', engine: 'auto',
-      options: {
-        iterations: 100,
-        routing: {
-          strategy: 'auto', profile: 'cost_first',
-          hardConstraints: { maxCredits: 40, minQuality: 0.85, maxFailureRisk: 0.3, requireExact: true },
-          adaptation: { allowFallback: true },
-        },
-      },
-    });
   });
 
   it('sends sealed settings alone: they carry their own engine, mode and options', () => {
@@ -211,22 +197,20 @@ describe('the request', () => {
 });
 
 describe('forecast', () => {
-  it('adds this run to the month and measures the problem against the plan', () => {
+  it('adds this run to the job slots and measures the problem against the plan', () => {
     const bars = forecastOf({
-      usage: usage({ plan: 'RESEARCH', limits: { taskStarts: { limit_id: 'taskStarts', limit: 50, used: 18, remaining: 32 }, solverSeconds: { limit_id: 'solverSeconds', limit: 30_000, used: 7_420, remaining: 22_580 }, concurrentJobs: { limit_id: 'concurrentJobs', limit: 3, used: 1, remaining: 2 } } }),
-      ceilings: { seconds: 900, iterations: null, complexity: 20 }, seconds: 600, bindingSpace: '1000', plan: 'RESEARCH',
+      usage: usage({ plan: 'RESEARCH', limits: { concurrentJobs: { limit_id: 'concurrentJobs', limit: 3, used: 1, remaining: 2 } } }),
+      ceilings: { seconds: 900, iterations: null, complexity: 20 }, bindingSpace: '1000', plan: 'RESEARCH',
     });
     expect(bars.map((bar) => bar.text)).toEqual([
-      '18 used + up to 1 = 19 of 50',
-      '7,420 used + up to 600 = 8,020 of 30,000 s',
       '1 used + up to 1 = 2 of 3',
       '≈ 10^3 of up to 10^20 on your RESEARCH plan',
     ]);
   });
 
   it('does not invent usage that could not be read', () => {
-    const bars = forecastOf({ usage: null, ceilings: { seconds: null, iterations: null, complexity: null }, seconds: 0, bindingSpace: null, plan: undefined });
+    const bars = forecastOf({ usage: null, ceilings: { seconds: null, iterations: null, complexity: null }, bindingSpace: null, plan: undefined });
     expect(bars[0].text).toBe('No limit on your plan');
-    expect(bars[3].text).toBe('The size of this problem isn’t known yet');
+    expect(bars[1].text).toBe('The size of this problem isn’t known yet');
   });
 });

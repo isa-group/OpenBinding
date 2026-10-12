@@ -344,14 +344,6 @@
 .wb-fieldset fieldset legend { margin-bottom: 4px; padding: 0; color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }
 .wb-fieldset fieldset label { display: flex; min-width: 0; flex-direction: column; gap: 6px; color: var(--tp-steel); font-size: 0.75rem; font-weight: 500; }
 .wb-fieldset fieldset p[role='alert'] { margin: 0; color: var(--color-error); font-size: 0.75rem; overflow-wrap: anywhere; }
-.wb-auto-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: var(--tp-spacing-sm); }
-.wb-checks { display: flex; flex-direction: column; justify-content: center; gap: 6px; font-size: 0.8125rem; }
-.wb-checks label { display: flex; align-items: center; gap: 8px; }
-
-.wb-routing { display: flex; flex-direction: column; gap: 6px; padding: var(--tp-spacing-sm) var(--tp-spacing-md); border: 1px solid var(--tp-severity-info-border); border-left-width: 4px; border-radius: var(--tp-radius-lg); background: var(--tp-severity-info-bg); }
-.wb-routing p { margin: 0; }
-.wb-routing-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.wb-routing-head svg { width: 18px; height: 18px; color: var(--tp-primary); }
 
 /* The summary of the binding analysis belongs to another component; here it takes this page's card look */
 .wb .binding-analysis { margin-block: 0; padding: var(--tp-spacing-sm) var(--tp-spacing-md); border: 1px solid var(--tp-beige-deep); border-radius: var(--tp-radius-lg); background: var(--tp-surface-cream); }

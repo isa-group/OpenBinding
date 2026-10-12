@@ -1,8 +1,8 @@
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminOverview as OverviewAnswer } from '../../api/auth';
-import type { PricingControlRoom } from '../../api/platform';
 import { AdminOverview } from './AdminOverview';
+import { config } from '../../config';
 import { ALEX, ERROR_OVERVIEW, MARIA, MODERATION, queuesAt } from '../../test/fixtures/admin';
 import { refusal, renderAdmin } from './adminTestUtils';
 
@@ -14,20 +14,11 @@ const api = vi.hoisted(() => ({
   getCurrentPricing: vi.fn(),
   adminListEngineRegistrations: vi.fn(),
   adminMaintenancePreview: vi.fn(),
-  adminGetEngineRoutingMetrics: vi.fn(),
-  adminListEngineRoutingObservations: vi.fn(),
 }));
-
-const platform = vi.hoisted(() => ({ pricingControlRoom: vi.fn() }));
 
 vi.mock('../../api/client', async () => ({
   ...await vi.importActual<typeof import('../../api/client')>('../../api/client'),
   apiClient: api,
-}));
-
-vi.mock('../../api/platform', async () => ({
-  ...await vi.importActual<typeof import('../../api/platform')>('../../api/platform'),
-  platformApi: platform,
 }));
 
 configure({ asyncUtilTimeout: 5000 });
@@ -41,20 +32,6 @@ const OVERVIEW: OverviewAnswer = {
   ],
 };
 
-const ROOM = {
-  identity: { organization: 'OpenBinding', slug: 'openbinding' },
-  sphere: { enabled: true, reachable: true },
-  space: { enabled: true, reachable: false },
-  live: '0.1.0',
-  releases: [
-    { version: '0.2.0', sphere_state: 'PRIVATE_DRAFT' },
-    { version: '0.1.0', sphere_state: 'PUBLIC_RELEASE' },
-  ],
-  remoteVersions: [],
-  spaceVersions: { active: [], archived: [] },
-  divergence: { onlyInSphere: [], onlyLocal: [] },
-} as unknown as PricingControlRoom;
-
 const block = (name: string) => screen.getByRole('region', { name });
 
 describe('admin-overview · how the platform is doing', () => {
@@ -65,11 +42,8 @@ describe('admin-overview · how the platform is doing', () => {
     api.adminModeration.mockResolvedValue(MODERATION);
     api.adminErrorOverview.mockResolvedValue(ERROR_OVERVIEW);
     api.getCurrentPricing.mockResolvedValue({ version: '0.1.0', digest: 'sha256-x', url: 'https://sphere.example.test/0.1.0' });
-    platform.pricingControlRoom.mockResolvedValue(ROOM);
     api.adminListEngineRegistrations.mockResolvedValue([]);
     api.adminMaintenancePreview.mockResolvedValue({ expiredArtifacts: 0, expiredApiKeys: 0, terminalJobs: 0, abandonedJobs: 0, terminalJobCutoff: '2026-01-01T00:00:00Z' });
-    api.adminGetEngineRoutingMetrics.mockResolvedValue({ summary: {}, engines: {} });
-    api.adminListEngineRoutingObservations.mockResolvedValue({ total: 0, limit: 15, offset: 0, observations: [] });
   });
 
   afterEach(() => {
@@ -116,21 +90,21 @@ describe('admin-overview · how the platform is doing', () => {
     expect(within(errors).getByRole('link', { name: 'Diagnose errors' })).toHaveAttribute('href', '/app/admin/errors');
   });
 
-  it('shows the LIVE pricing, whether SPHERE and SPACE answer, and the private drafts', async () => {
+  it('shows the LIVE pricing and links to the native SPACE and SPHERE consoles', async () => {
     renderAdmin(<AdminOverview />);
     const pricing = block('Pricing');
     expect(await within(pricing).findByText('0.1.0')).toBeInTheDocument();
-    expect(within(pricing).getByText('SPHERE reachable')).toBeInTheDocument();
-    expect(within(pricing).getByText('SPACE unreachable')).toBeInTheDocument();
-    expect(within(pricing).getByText('1 private draft')).toBeInTheDocument();
     expect(within(pricing).getByText(/A 0\.x release is a development copy/)).toBeInTheDocument();
-    expect(within(pricing).getByRole('link', { name: 'Control room' })).toHaveAttribute('href', '/app/admin/pricing');
+    expect(within(pricing).getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute('href', config.spaceFrontendUrl);
+    expect(within(pricing).getByRole('link', { name: 'Open SPHERE console' })).toHaveAttribute('href', config.sphereUrl);
+    expect(within(pricing).getByRole('link', { name: 'Open SPACE console' })).toHaveAttribute('target', '_blank');
   });
 
-  it('falls back to the control room’s LIVE version when the public one is not served', async () => {
+  it('lets the pricing block fail on its own when the public pricing is not served', async () => {
     api.getCurrentPricing.mockRejectedValue(refusal(404, 'not_found'));
     renderAdmin(<AdminOverview />);
-    expect(await within(block('Pricing')).findByText('0.1.0')).toBeInTheDocument();
+    expect(await within(block('Pricing')).findByText('This block couldn’t load')).toBeInTheDocument();
+    expect(await within(block('Accounts')).findByText('7')).toBeInTheDocument();
   });
 
   it('lists the most recent changes of the audit log', async () => {
@@ -158,10 +132,6 @@ describe('admin-overview · how the platform is doing', () => {
     expect(within(tools).getByRole('link', { name: /^Queues/ })).toHaveAttribute('href', '/app/admin/queues');
     expect(within(tools).getByRole('link', { name: /^Moderation/ })).toHaveAttribute('href', '/app/admin/moderation');
     expect(within(tools).getByRole('link', { name: /^Maintenance/ })).toHaveAttribute('href', '/app/admin/maintenance');
-    expect(within(tools).getByRole('link', { name: /^Engine routing/ })).toHaveAttribute('href', '/app/admin/engine-routing');
-    expect(within(tools).getByRole('link', { name: /^Pricing control room/ })).toHaveAttribute('href', '/app/admin/pricing');
-    expect(within(tools).getByRole('link', { name: /^New pricing draft/ })).toHaveAttribute('href', '/app/admin/pricing/drafts/new');
-    await waitFor(() => expect(within(tools).getByRole('link', { name: /^Pricing release/ })).toHaveAttribute('href', '/app/admin/pricing/0.1.0'));
     const sponsorship = within(tools).getByRole('button', { name: 'Open' });
     expect(sponsorship).toBeDisabled();
     fireEvent.change(within(tools).getByLabelText('Organization slug or id'), { target: { value: 'isa-demo' } });
@@ -195,19 +165,16 @@ describe('admin-overview · how the platform is doing', () => {
     await waitFor(() => expect(api.adminQueues).toHaveBeenCalledTimes(2));
   });
 
-  it('no longer carries the publication review, maintenance or the router: each has its own screen', async () => {
+  it('no longer carries the publication review or maintenance: each has its own screen', async () => {
     renderAdmin(<AdminOverview />);
     await within(block('Moderation')).findByText('Engine publication requests');
     expect(screen.queryByRole('heading', { name: 'Engine publication requests' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Maintenance' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reconcile abandoned jobs' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Show AutoRouter' })).not.toBeInTheDocument();
     expect(screen.queryByText('Still here until their own screens arrive')).not.toBeInTheDocument();
     expect(within(block('Moderation')).getByRole('link', { name: 'Open' })).toHaveAttribute('href', '/app/admin/moderation');
     expect(api.adminListEngineRegistrations).not.toHaveBeenCalled();
     expect(api.adminMaintenancePreview).not.toHaveBeenCalled();
-    expect(api.adminGetEngineRoutingMetrics).not.toHaveBeenCalled();
-    expect(api.adminListEngineRoutingObservations).not.toHaveBeenCalled();
   });
 
   it('shows a person who is not an administrator nothing, and asks the gateway nothing', async () => {
@@ -217,6 +184,6 @@ describe('admin-overview · how the platform is doing', () => {
     expect(api.adminOverview).not.toHaveBeenCalled();
     expect(api.adminQueues).not.toHaveBeenCalled();
     expect(api.adminListEngineRegistrations).not.toHaveBeenCalled();
-    expect(platform.pricingControlRoom).not.toHaveBeenCalled();
+    expect(api.getCurrentPricing).not.toHaveBeenCalled();
   });
 });

@@ -43,13 +43,12 @@ export function researchUsage(): UsageView {
     plan: 'RESEARCH',
     contract_pending: false,
     features: {},
-    capabilities: { organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120, solverSeconds: 30_000, taskStarts: 50, concurrentJobs: 3 },
+    capabilities: { organizations: 5, members: 15, projects: 50, privateProjects: 30, collections: 50, studies: 25, storageBytes: 5_368_709_120, studyRuns: 100, concurrentJobs: 3 },
     limits: {
       organizations: tracked('organizations', 5, 2),
       members: tracked('members', 15, 3),
       projects: tracked('projects', 50, 3),
-      solverSeconds: { ...tracked('solverSeconds', 30_000, 7_420), renews_at: '2026-11-01T00:00:00Z' },
-      taskStarts: { ...tracked('taskStarts', 50, 18), renews_at: '2026-11-01T00:00:00Z' },
+      studyRuns: { ...tracked('studyRuns', 100, 18), renews_at: '2026-11-01T00:00:00Z' },
       concurrentJobs: tracked('concurrentJobs', 3, 1),
     },
   };
