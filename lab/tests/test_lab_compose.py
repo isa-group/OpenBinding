@@ -30,7 +30,7 @@ FORBIDDEN_SERVICE_KEYS = {
     "env_file", "secrets", "configs", "volumes_from", "deploy",
 }
 ALLOWED_BUILD_KEYS = {"context", "dockerfile", "args", "target"}
-ALLOWED_MOUNT_KEYS = {"type", "source", "target"}
+ALLOWED_MOUNT_KEYS = {"type", "source", "target", "tmpfs"}
 MAX_SERVICES = 15
 MAX_MIB = 4096
 TARGET_MIB = 3481  # 3.4 GiB
@@ -517,8 +517,11 @@ def test_web_runs_unprivileged_with_writable_runtime_directories(services):
     # The stock docker-entrypoint.sh would write /etc/nginx/conf.d/default.conf, which is a
     # read-only bind mount, and exit 1.
     assert web["entrypoint"] == ["nginx", "-g", "daemon off;"]
-    tmpfs = {m["target"] for m in web["volumes"] if m["type"] == "tmpfs"}
-    assert {"/run", "/var/cache/nginx"} <= tmpfs
+    tmpfs = {m["target"]: m for m in web["volumes"] if m["type"] == "tmpfs"}
+    assert {"/run", "/var/cache/nginx"} <= set(tmpfs)
+    # nginx runs as uid 101; 1023 == 0o1777 (JSON has no octal) so it can write its pid/cache.
+    for target in ("/run", "/var/cache/nginx"):
+        assert tmpfs[target]["tmpfs"] == {"mode": 1023}, target
     assert int(PUBLISHED["target"]) > 1023
 
 

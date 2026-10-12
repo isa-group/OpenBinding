@@ -312,11 +312,17 @@
         },
         {
           "type": "tmpfs",
-          "target": "/run"
+          "target": "/run",
+          "tmpfs": {
+            "mode": 1023
+          }
         },
         {
           "type": "tmpfs",
-          "target": "/var/cache/nginx"
+          "target": "/var/cache/nginx",
+          "tmpfs": {
+            "mode": 1023
+          }
         }
       ],
       "depends_on": {
