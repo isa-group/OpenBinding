@@ -88,12 +88,13 @@ files—and are selected by generic IR feature/capability compatibility.
 ```
 
 For the complete collaborative stack, copy `.env.example`, set a signing
-secret, and start the development profile. The optional `space` profile builds
-the pinned SPACE 1.5 checkout prepared by `./space/prepare.sh`:
+secret, and start the development profile. SPACE (`https://space.score.us.es`)
+and SPHERE are remote services configured through `SPACE_URL`/`SPACE_API_KEY`
+(MANAGEMENT scope) and `SPHERE_*` in `.env`; no copy of them is deployed
+locally and they are administered in their native UIs:
 
 ```bash
 docker compose --profile dev up -d --build
-./up.sh --with-space
 ```
 
 The web application is available at `http://localhost`; the gateway publishes
@@ -113,12 +114,12 @@ database`, recreate only the local PostgreSQL volume and start the stack again:
 docker compose stop postgres
 docker compose rm -f postgres
 docker volume rm openbinding_pgdata
-./up.sh --with-space
+./up.sh
 ```
 
 The volume name follows the Compose project name; use
 `docker volume ls --format '{{.Name}}'` if `COMPOSE_PROJECT_NAME` is set. This
-procedure leaves SPACE, Redis, artifacts and other development volumes intact.
+procedure leaves Redis, artifacts and other development volumes intact.
 
 ### Seeding development data
 
@@ -158,8 +159,8 @@ The React workbench is a single transactional `InstanceWorkspace` over the
 same package and compiler contracts used by API clients. Its surrounding
 platform shell adds the organization/project context, onboarding for new
 accounts, cases, resources, collections, studies, public Explore surfaces,
-authenticated Engine management (`/app/engines`) with owner telemetry, and
-the SPHERE/SPACE pricing control room.
+authenticated Engine management (`/app/engines`) with owner telemetry. Pricing
+is managed in the remote SPHERE and SPACE UIs, not in OpenBinding.
 
 ### Scientific Provenance, Deep Inspection & Replication
 
@@ -179,8 +180,8 @@ OpenBinding guarantees strict cryptographic immutability and provenance:
 - `frontend`: the BIM Instance Workspace.
 - `deploy`: plain Kustomize manifests, network policies and backup/restore
   runbooks; no Helm dependency.
-- `space`: the exact SPACE 1.5 pin, bootstrap tooling and the reviewable first
-  OpenBinding pricing release (`0.1.0`).
+- `space`: only the pricing fixture (`space/pricing/openbinding.yml`); SPACE
+  itself is remote.
 - `engines`: MiniZinc, random-search, many-heuristic, evolutionary modes,
   `bim-generator`, and the federated `multi-heuristic` example.
 - `examples` and `experimentation`: BIM v1 packages and reproducible generators.

@@ -16,15 +16,13 @@ docker build -f frontend/Dockerfile -t registry.example/openbinding/frontend:0.1
 
 Build each engine from the same contexts used in `docker-compose.yml`, publish
 all images, and replace every `openbinding/*:latest` reference (prefer immutable
-digests in production). If using the optional SPACE overlay, build its API at
-tag `1.5.0` from `SPACE_SOURCE_DIR` and publish it as
-`openbinding/space-api:1.5.0` or change that reference.
+digests in production).
 
 Copy `base/secret.example.yaml` outside Git, generate independent random
 values, and apply it. Set the deployment URLs in `base/config.yaml`; replace the
 Ingress host and TLS secret. `SPHERE_ORGANIZATION_ID` must identify the single
-SPHERE organization named `OpenBinding`. Never reuse the normal SPACE key as
-`SPACE_DESTRUCTIVE_API_KEY`.
+SPHERE organization named `OpenBinding`. `SPACE_API_KEY` needs the MANAGEMENT
+scope and is created in the remote SPACE console.
 
 Validate and inspect before applying:
 
@@ -38,17 +36,10 @@ kubectl -n openbinding rollout status deployment/worker
 kubectl -n openbinding rollout status deployment/frontend
 ```
 
-Use `deploy/kubernetes/overlays/with-space` instead of the base command to run
-SPACE 1.5 in-cluster. The default uses an external SPACE endpoint and keeps
-`SPACE_ENABLED=false` until configured. SPHERE always remains external and is
-called server-to-server with `x-api-key`.
-
-The Compose `space` profile requires non-empty `SPACE_ADMIN_PASSWORD`,
-`SPACE_JWT_SECRET` and `SPACE_JWT_SALT` when the container starts. It uses the
-Mongo root credential directly because SPACE's upstream `init-mongo.sh` still
-hard-codes its sample root password; mounting that script with a different
-password leaves a fresh instance unusable. Use URL-safe random values for the
-Mongo password because it is embedded in `MONGO_URI`.
+SPACE (`https://space.score.us.es`) and SPHERE are remote services; nothing of
+them is deployed in the cluster. `SPACE_ENABLED=false` until configured. Both
+are called server-to-server with their API key and are administered in their
+native UIs.
 
 ## Operational model
 
