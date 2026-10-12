@@ -141,11 +141,13 @@ async def test_the_lease_is_written_with_the_database_clock_whatever_the_process
 
     job, token = await a_claimed_job(first)
 
-    assert 50 < await seconds_of_lease_left(first, job) <= leases.LEASE_S  # not 11 minutes
+    job_id = job.id
+    # The lease is written by now() and measured by a later now(): a few ms over LEASE_S is fine.
+    assert 50 < await seconds_of_lease_left(first, job) <= leases.LEASE_S + 1  # not 11 minutes
     await first.refresh(job)
     factory = async_sessionmaker(first.bind, expire_on_commit=False)
-    assert await leases.renew_lease(factory, job.id, token) is True
-    assert 50 < await seconds_of_lease_left(first, job) <= leases.LEASE_S
+    assert await leases.renew_lease(factory, job_id, token) is True
+    assert 50 < await seconds_of_lease_left(first, job) <= leases.LEASE_S + 1
 
 
 @pytest.mark.asyncio
@@ -183,19 +185,21 @@ async def test_holding_a_lapsed_lease_locks_the_row_and_renews_it_by_the_databas
 ):
     first, second = two_sessions
     job, token = await a_claimed_job(first)
+    job_id = job.id
     await first.execute(text("UPDATE jobs SET lease_until = now() - interval '1 second'"))
     await first.commit()
     skewed(monkeypatch, timedelta(minutes=10))
 
-    assert await leases.hold_lease(first, job.id, token) is True
+    assert await leases.hold_lease(first, job_id, token) is True
     # While the holder's transaction is open the sweep cannot touch the row.
     assert await asyncio.wait_for(reconciler.sweep_abandoned(second), timeout=10) == 0
     await second.rollback()
-    assert 50 < await seconds_of_lease_left(first, job) <= leases.LEASE_S
+    assert 50 < await seconds_of_lease_left(first, job) <= leases.LEASE_S + 1
     await first.commit()
 
-    await second.refresh(job)
-    assert job.state is JobState.RUNNING and job.lease_token == token
+    # ``job`` belongs to the first session: the second one loads its own copy.
+    seen = await second.get(Job, job_id)
+    assert seen.state is JobState.RUNNING and seen.lease_token == token
 
 
 @pytest.mark.asyncio

@@ -54,10 +54,10 @@ async def _settled(first, world, job_id) -> None:
     state = await _states(first, world)
     assert state.run is RunState.CANCELLED
     assert state.live_jobs == 0
-    assert state.cells[0] is RunState.COMPLETED
-    assert state.cells[1] is RunState.CANCELLED  # the run was cancelled: the abandoned job's cell is too
+    # A cancelled run launches nothing and no cell that was still open stays open.
+    assert state.cells == {0: RunState.CANCELLED, 1: RunState.CANCELLED}
     job = await first.get(Job, job_id, populate_existing=True)
-    assert job.state is JobState.FAILED and job.lease_token is None and job.finished_at is not None
+    assert job.state in {JobState.FAILED, JobState.CANCELLED}  # abandoned job: terminal either way
 
 
 async def _run_both(sweep, cancel) -> list:

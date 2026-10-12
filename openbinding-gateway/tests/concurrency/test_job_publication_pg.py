@@ -67,14 +67,16 @@ async def test_two_replicas_claim_disjoint_batches(two_sessions):
 async def test_a_batch_that_overlaps_a_locked_row_skips_it_and_gets_the_rest(two_sessions):
     first, second = two_sessions
     jobs = await queued_jobs(first, 3)
-    await first.execute(select(Job.id).where(Job.id == jobs[0].id).with_for_update())
+    # Plain ids: a rollback expires the ORM objects and reading them would need I/O.
+    locked_id, *other_ids = (job.id for job in jobs)
+    await first.execute(select(Job.id).where(Job.id == locked_id).with_for_update())
 
     claimed = await asyncio.wait_for(publisher.claim_due(second, limit=10), timeout=10)
     await second.commit()
 
-    assert set(claimed) == {job.id for job in jobs[1:]}
+    assert set(claimed) == set(other_ids)
     await first.rollback()
-    assert await publisher.claim_due(second) == [jobs[0].id]
+    assert await publisher.claim_due(second) == [locked_id]
 
 
 @pytest.mark.asyncio

@@ -155,6 +155,7 @@ async def test_two_retries_of_one_cell_create_one_job_and_the_second_gets_it(two
     world = await _world(first)
     # Cell 0 failed: its job is the one a retry replaces.
     failed = await first.get(Job, world.finished_id)
+    failed_id = failed.id
     failed.state = JobState.FAILED
     (await first.get(StudyCell, world.first_cell_id)).state = RunState.FAILED
     (await first.get(StudyRun, world.run_id)).state = RunState.PARTIAL
@@ -187,7 +188,7 @@ async def test_two_retries_of_one_cell_create_one_job_and_the_second_gets_it(two
     assert answers[0]["jobId"] == answers[1]["jobId"]
     assert launched == [world.first_cell_id]
     assert await _jobs_of_cell(first, world.first_cell_id) == 1
-    replacements = await first.scalar(select(func.count()).select_from(Job).where(Job.retry_of_id == failed.id))
+    replacements = await first.scalar(select(func.count()).select_from(Job).where(Job.retry_of_id == failed_id))
     assert replacements == 1
     audited = await first.scalar(
         select(func.count()).select_from(AuditEvent).where(AuditEvent.action == "study.cell.retried")
