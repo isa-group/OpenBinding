@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import importlib.util
 import io
 import itertools
@@ -88,6 +89,21 @@ def comparable(value: Any) -> Any:
         return {key: comparable(child) for key, child in value.items() if key != "toolchain"}
     if isinstance(value, list):
         return [comparable(child) for child in value]
+    return value
+
+
+def stable(value: Any) -> Any:
+    """Round every float to 12 significant digits (``float(format(x, '.12g'))``, shortest ``repr``).
+
+    Evaluations are digested and summarized after this, so the last bits of a float, which depend on
+    the libm/platform build and on summation order, cannot change a golden.
+    """
+    if isinstance(value, float):
+        return float(format(value, ".12g"))
+    if isinstance(value, dict):
+        return {key: stable(child) for key, child in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [stable(child) for child in value]
     return value
 
 
@@ -212,7 +228,7 @@ def evaluate_binding(problem: BindingProblem, binding: dict[str, Any]) -> dict[s
     """The canonical evaluation of one binding, or the exception it ends in."""
     try:
         normalized = problem.validate_binding(binding)
-        return problem.evaluate(normalized)
+        return stable(problem.evaluate(normalized))
     except Exception as exc:  # a binding the evaluator rejects is part of the baseline
         return {"error": f"{type(exc).__name__}: {exc}"}
 
@@ -638,8 +654,8 @@ def build_vectors() -> dict[str, Any]:
             validation = {"valid": False, "error": str(exc)}
         vectors.append({
             "id": case["id"],
-            "input": {"result": result, "allowedTerminations": allowed},
-            "reevaluate": reevaluate_result(*arguments),
+            "input": {"result": stable(result), "allowedTerminations": allowed},
+            "reevaluate": stable(reevaluate_result(*arguments)),
             "validate": validation,
         })
     return {"schema": "bim-baseline/vectors/1", "problem": DEMO.relative_to(ROOT).as_posix(), "vectors": vectors}
@@ -706,7 +722,7 @@ def main(argv: list[str] | None = None) -> int:
     for name in GOLDEN_FILES:
         data = dump(documents[name])
         (args.output / name).write_bytes(data)
-        print(f"{name}: {len(data)} bytes")
+        print(f"{name}: {len(data)} bytes sha256={hashlib.sha256(data).hexdigest()}")
     print(f"BIM baseline: {len(directories)} packages")
     return 0
 

@@ -7,7 +7,8 @@ and partial unique indexes, which SQLite does not exercise. Without
 **Status: these tests have not been executed by the author of this harness.**
 The authoring environment had no Docker and no PostgreSQL. Expect the first
 real run to surface failures (see "Expected failures"). Only the checks in
-`test_pg_harness.py` (URL guard, shape of `compose.pgtest.json`) have run.
+`test_pg_harness.py` (URL guard, shape of `compose.pgtest.json`) have run. The
+file has not been accepted by lab_compose after the last change either.
 
 ## Running
 
@@ -15,20 +16,46 @@ real run to surface failures (see "Expected failures"). Only the checks in
 
 Submit `compose.pgtest.json` (repository root) as the Compose file. It starts:
 
-- `postgres`: `postgres:16-alpine`, data in tmpfs, database `test_openbinding`,
-  synthetic user/password valid only for this ephemeral database, healthcheck
-  `pg_isready`, `mem_limit` 384m.
+- `postgres`: `postgres:16-alpine`, data in a `tmpfs` volume, database
+  `test_openbinding`, synthetic user/password valid only for this ephemeral
+  database, healthcheck `pg_isready`, `mem_limit` 384m.
 - `runner`: built from `openbinding-gateway/Dockerfile` with the same context as
   `gateway-dev` (the Dockerfile has no stages, so no `target`). It waits for
   `postgres` to be healthy, runs `alembic upgrade head`, then
   `pytest -p no:cacheprovider -rA tests/concurrency`; the container exit code is
   pytest's. `mem_limit` 768m.
 
-No ports are published; both services share one `internal` network. Limits sum
-to 1152 MiB. The image does not contain the tests, so (like `gateway-dev`) the
-runner bind-mounts the source read-only: `./openbinding-gateway` on `/app` plus
-`schemas`, `examples`, `docs`, `engines`, `pricings`, `space`. If lab_compose
-rejects bind mounts, the tests need to be baked into an image instead.
+Format rules of lab_compose that the file follows (checked by
+`test_pg_harness.py`, without Docker):
+
+- No top-level `networks` or `volumes` (they would only admit `labels`), no
+  `networks` on services: both services use the Compose-managed default network
+  of the project. No ports are published, no `network_mode`.
+- Every `volumes` entry is a structured object `{type, source, target}` (no
+  `a:b:ro` strings, no service-level `tmpfs` key). Bind sources are literal
+  relative paths inside the repository, without `${`; lab_compose mounts them
+  read-only.
+- None of `container_name`, `env_file`, `secrets`, `configs`, `cap_add`,
+  `privileged`, `deploy`, `extends`. `mem_limit` is an integer with `m` or `g`;
+  the limits sum to 1152 MiB (lab ceiling: 4 GiB, harness test: 1.5 GiB).
+
+Mounts: the runner image already contains `src`, `alembic`, `alembic.ini`,
+`schemas`, `examples` and `space/pricing/openbinding.yml` (see the Dockerfile),
+but not the tests, so the only mount is `./openbinding-gateway/tests` on
+`/app/tests` (bind, read-only). The earlier mounts of the whole source tree
+and of `docs`, `engines`, `pricings` and `space` are gone: nothing in
+`tests/concurrency` reads `docs`, `engines` or `pricings`, and binds are always
+read-only, so nested mounts below a mounted `/app` could not create their mount
+points. If lab_compose rejects the bind, the tests need to be baked into an
+image instead. The postgres data directory is a `tmpfs` volume without an
+explicit size (the structured form carries none); it is bounded by the 384m
+container limit.
+
+`space/` dependency: `tests/concurrency/test_job_leases_pg.py` reads the pricing
+catalogue through `tests/_pricing.py`, which finds `/app/space/pricing/openbinding.yml`
+inside the image (copied by `Dockerfile` line `COPY space/pricing/openbinding.yml`).
+When `space/` is removed, that `COPY` and `_pricing.py`/`pricing_catalog.py`
+candidate paths must be updated, or the image build and this test fail.
 
 ### Local
 
@@ -80,7 +107,8 @@ schema.
 
 ## Expected failures on first run
 
-- `lab_compose` rejecting the bind mounts (see above).
+- `lab_compose` rejecting the bind mount of the tests (see above), or the
+  structured `tmpfs` volume without a `source`.
 - Seed data hitting a NOT NULL or trigger the tests never met on SQLite. Already
   fixed from reading the models: `Blob.created_by_id`, and setting
   `source_snapshot_id` / `engine_ref` at INSERT (migration triggers forbid
