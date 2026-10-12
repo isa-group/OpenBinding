@@ -13,8 +13,6 @@ from openbinding_gateway import space_client, study_jobs
 from openbinding_gateway.access import metering
 from openbinding_gateway.db.models import Job, User
 from openbinding_gateway.domain import idempotency
-from openbinding_gateway.engine_routing import get_adaptation_manager
-from openbinding_gateway.engine_routing.adaptation_manager import RoutingPlanResult
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.v1.canonical import digest
 from openbinding_gateway.v1.package import load_package
@@ -102,40 +100,6 @@ async def test_same_key_with_a_different_body_conflicts(api_client, db_session, 
     assert first.status_code == 202, first.text
     assert changed.status_code == 409, changed.text
     assert changed.json()["title"] == "idempotency_conflict"
-    assert await _job_count(db_session) == 1
-
-
-async def test_auto_routing_is_not_part_of_the_fingerprint(api_client, db_session, account, monkeypatch):
-    headers, snapshot = account
-    plans = [
-        ("random-search", "seeded"),
-        ("evolutionary-heuristics", "elitist-genetic"),
-    ]
-    calls = []
-
-    async def plan_routing(*args, **kwargs):
-        engine, mode = plans[len(calls)]
-        calls.append(engine)
-        return RoutingPlanResult(
-            selected_engine=engine,
-            selected_mode=mode,
-            credits_cost=1,
-            adaptation_loop_id="adp-test",
-            provenance_user={"selectedEngine": engine},
-            provenance_admin={},
-            fallback_engine=None,
-        )
-
-    monkeypatch.setattr(get_adaptation_manager(), "plan_routing", plan_routing)
-    body = {"snapshot": snapshot, "engine": "auto", "optimization": OPTIMIZATION}
-    first = await _post(api_client, headers, body)
-    second = await _post(api_client, headers, body)
-
-    assert first.status_code == 202, first.text
-    assert second.status_code == 202, second.text
-    assert second.json()["id"] == first.json()["id"]
-    assert second.json()["idempotent"] is True
-    assert calls == ["random-search"]
     assert await _job_count(db_session) == 1
 
 
@@ -227,12 +191,14 @@ async def test_a_legacy_row_is_compared_with_the_legacy_algorithm(api_client, db
     assert await _job_count(db_session) == 1
 
 
-async def test_internal_engines_cannot_be_selected_directly(api_client, account):
+@pytest.mark.parametrize("engine", ["auto", "no-such-engine"])
+async def test_engines_that_are_not_installed_are_refused_without_a_job(api_client, db_session, account, engine):
     headers, snapshot = account
-    response = await _post(api_client, headers, _body(snapshot, engine="meta-router-csp"))
+    response = await _post(api_client, headers, _body(snapshot, engine=engine))
 
     assert response.status_code == 422, response.text
-    assert response.json()["title"] == "internal_engine"
+    assert response.json()["title"] == "immutable_engine_required"
+    assert await _job_count(db_session) == 0
 
 
 def _hide_from_first_lookups(monkeypatch, hidden):

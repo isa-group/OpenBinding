@@ -496,12 +496,9 @@ class JobView(BaseModel):
 def job_view(job: Any, viewer: Any, *, include_results: bool = True) -> JobView:
     """A ``JobView`` of an ORM job as ``viewer`` may see it.
 
-    Provenance is copied, never edited in place, and loses the administrative
-    routing record unless the viewer is a platform administrator.
+    Provenance is copied, never edited in place.
     """
     provenance = dict(job.provenance) if include_results and job.provenance is not None else None
-    if provenance is not None and getattr(viewer, "is_admin", False) is not True:
-        provenance.pop("engineRoutingAdmin", None)
     return JobView(
         id=job.id, engine_id=job.engine_id, status=job.state.value,
         cancellation_requested=job.cancellation_requested,

@@ -80,8 +80,7 @@ async def test_generate_instance_endpoint_success(api_client):
     assert data["name"] == "api_test_inst"
     assert "package_digest" in data
     assert "compilation_digest" in data
-    assert "workload_features" in data
-    assert data["workload_features"]["N_tasks"] > 0
+    assert "workload_features" not in data
 
     # Check 6 BIM v1 files
     files = data["files"]
@@ -194,7 +193,7 @@ async def test_generate_corpus_endpoint(api_client, use_legacy_engine):
     assert len(data["instances"]) == 3
     for inst in data["instances"]:
         assert "package_digest" in inst
-        assert "workload_features" in inst
+        assert "workload_features" not in inst
         assert inst["actual_constraint_count"] == 1
 
 
@@ -350,11 +349,11 @@ async def test_target_engine_rejects_unsupported_objective_and_aggregation(api_c
     assert product.status_code == 422
     assert "selection.product" in product.text
 
-    workflow = await api_client.post("/v1/generator/instances", json={
-        "features": [FEATURES[0]], "target_engines": ["meta-router-csp"], "constraints": 0,
+    unknown = await api_client.post("/v1/generator/instances", json={
+        "features": [FEATURES[0]], "target_engines": ["auto"], "constraints": 0,
     })
-    assert workflow.status_code == 422
-    assert "workflow" in workflow.text
+    assert unknown.status_code == 422
+    assert "manifest_not_found" in unknown.text
 
 
 @pytest.mark.asyncio
@@ -415,56 +414,36 @@ END
     data = resp.json()
     assert data["name"] == "converted_from_api"
     assert "package_digest" in data
-    assert "workload_features" in data
+    assert "workload_features" not in data
     assert "application.json" in data["files"]
 
 
-@pytest.mark.asyncio
-async def test_calibrate_engine_endpoint(api_client, db_session, registration):
-    # Calibration refits a model shared by every account: platform administrators only.
-    from sqlalchemy import select
+def test_generator_endpoints_stay_open_to_any_caller():
+    """Generation is a pure function of the request: no route requires an account or a role.
 
-    from openbinding_gateway.db.models import User, UserRole
+    The exact set of paths also pins that the generator offers nothing beyond generation and conversion.
+    """
+    from openbinding_gateway.access.dependencies import get_current_user, get_optional_user, require_platform_admin
+    from openbinding_gateway.main import app
 
-    details = registration()
-    created = await api_client.post("/v1/auth/register", json=details)
-    assert created.status_code == 201, created.text
-    administrator = (
-        await db_session.execute(select(User).where(User.username == details["username"]))
-    ).scalars().one()
-    administrator.role = UserRole.ADMIN
-    await db_session.flush()
-    login = await api_client.post(
-        "/v1/auth/login",
-        json={"username_or_email": details["username"], "password": details["password"]},
-    )
-    admin_headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
-    observations = [
-        {
-            "workload_features": {"S": 10.0, "D_constr": 1, "N_tasks": 10, "N_cap": 5, "D_obj": 1, "T_budget": 60},
-            "latency": 1.2,
-            "quality": 0.95,
-            "success": True,
-        },
-        {
-            "workload_features": {"S": 20.0, "D_constr": 1, "N_tasks": 20, "N_cap": 5, "D_obj": 1, "T_budget": 60},
-            "latency": 3.4,
-            "quality": 0.91,
-            "success": True,
-        },
-    ]
-    payload = {
-        "engine": "evolutionary-heuristics",
-        "mode": "single-term",
-        "observations": observations,
+    def calls(dependant):
+        found = {dependant.call}
+        for dependency in dependant.dependencies:
+            found |= calls(dependency)
+        return found
+
+    guards = {}
+    for included in app.routes:
+        original_router = getattr(included, "original_router", None)
+        for route in original_router.routes if original_router is not None else [included]:
+            path = getattr(route, "path", "")
+            if path.startswith("/v1/generator/"):
+                guards[path] = calls(route.dependant)
+    assert set(guards) == {
+        "/v1/generator/instances",
+        "/v1/generator/corpus",
+        "/v1/generator/convert-legacy",
     }
-    resp = await api_client.post(
-        "/v1/generator/calibrate-engine", json=payload, headers=admin_headers
-    )
-    assert resp.status_code == 200, resp.text
-    data = resp.json()
-    assert data["engine"] == "evolutionary-heuristics"
-    assert data["mode"] == "single-term"
-    assert data["sample_count"] == 2
-    assert data["status"] == "calibrated"
-    assert "latency_coefficients" in data
+    for found in guards.values():
+        assert get_optional_user in found
+        assert require_platform_admin not in found and get_current_user not in found

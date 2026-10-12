@@ -168,14 +168,11 @@ def manifest(
     namespace: str | None = None,
     version: str | None = None,
     manifest_digest: str | None = None,
-    allow_internal: bool = False,
 ) -> dict[str, Any]:
     candidates = []
     path = MANIFEST_DIR / f"{name}.json"
     try:
         builtin = json.loads(path.read_text(encoding="utf-8"))
-        if not allow_internal and builtin.get("metadata", {}).get("internal", False):
-            raise HTTPException(status_code=404, detail=f"Unknown v1 engine: {name}")
         builtin_namespace = builtin.get("metadata", {}).get("namespace")
         builtin_version = builtin.get("metadata", {}).get("version")
         if (
@@ -846,8 +843,6 @@ async def available_engine_documents(
     documents: list[tuple[dict[str, Any], str | None]] = []
     for path in sorted(MANIFEST_DIR.glob("*.json")):
         doc = json.loads(path.read_text(encoding="utf-8"))
-        if doc.get("metadata", {}).get("internal", False):
-            continue
         documents.append((doc, "bim.builtin"))
     if session is not None:
         query = select(EngineRevision)
@@ -865,11 +860,7 @@ async def available_engine_documents(
                 query.order_by(EngineRevision.name, EngineRevision.created_at.desc())
             )
         ).scalars().all()
-        documents.extend(
-            (revision.document, revision.namespace)
-            for revision in revisions
-            if not revision.document.get("metadata", {}).get("internal", False)
-        )
+        documents.extend((revision.document, revision.namespace) for revision in revisions)
     unique: dict[tuple[str, str, str, str], tuple[dict[str, Any], str | None]] = {}
     for document, namespace in documents:
         reference = engine_ref(document, namespace)

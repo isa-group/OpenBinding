@@ -1,13 +1,9 @@
-"""API routes for BIM v1 QACO problem generation, corpus synthesis, legacy conversion and calibration.
+"""API routes for BIM v1 QACO problem generation, corpus synthesis and legacy conversion.
 
-Who may call what:
-
-* ``POST /instances``, ``/corpus`` and ``/convert-legacy`` are pure functions of
-  their request and touch no shared state, so any caller, even anonymous, may
-  use them. Persisting (``persist=true``) needs an account, and attaching the
-  result to a project needs MEMBER access to that project.
-* ``POST /calibrate-engine`` refits a surrogate model that every account's
-  engine routing reads, so only a platform administrator may call it.
+Who may call what: ``POST /instances``, ``/corpus`` and ``/convert-legacy`` are
+pure functions of their request and touch no shared state, so any caller, even
+anonymous, may use them. Persisting (``persist=true``) needs an account, and
+attaching the result to a project needs MEMBER access to that project.
 """
 
 from __future__ import annotations
@@ -20,12 +16,10 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import (
     get_optional_user,
-    require_platform_admin,
     session_dependency,
 )
 from ..collaboration import require_role
@@ -35,21 +29,12 @@ from ..db.models import (
     Collection,
     CollectionItem,
     CollectionRevision,
-    EngineProfileSurrogate,
     Organization,
     OrganizationRole,
     Project,
     Study,
     User,
-    utcnow,
 )
-from ..engine_routing.calibration import (
-    CalibrationObservation,
-    fit_surrogate_model,
-)
-from ..engine_routing.features import extract_features
-from ..engine_routing.profiler import get_engine_profiler
-from ..engine_routing.confidence import get_confidence_estimator
 from ..generator.compatibility import (
     IncompatibleTargetEnginesError,
 )
@@ -57,7 +42,7 @@ from ..generator.config import FeatureDefinition, GenerationDistributions, Stric
 from ..generator.legacy_parser import parse_legacy_file
 from ..generator.postprocessor import BIMPostprocessor
 from ..generator.synthesizer import generate_instance_package
-from ..models.errors import ErrorResponse, api_error
+from ..models.errors import api_error
 from ..v1.compiler import compile_instance
 from ..v1.package import InstancePackage
 from ..services.snapshots import persist_snapshot
@@ -163,7 +148,6 @@ class InstanceGeneratedResponse(BaseModel):
     snapshot_id: Optional[str] = None
     case_id: Optional[str] = None
     target_engines: list[str]
-    workload_features: dict[str, Any]
     files: dict[str, Any]
     file_bytes_base64: dict[str, str] | None = None
     actual_constraint_count: int | None = None
@@ -214,23 +198,6 @@ class ConvertLegacyRequest(BaseModel):
     persist: bool = Field(default=False, description="Whether to persist as InstanceSnapshot.")
     project_id: Optional[uuid.UUID] = Field(default=None, description="Project ID to create a BindingCase.")
     case_name: Optional[str] = Field(default=None, description="BindingCase name.")
-
-
-class CalibrateEngineRequest(BaseModel):
-    engine: str = Field(..., description="Target engine name.")
-    mode: str = Field(default="default", description="Engine mode.")
-    observations: list[dict[str, Any]] = Field(default_factory=list, description="Historical execution observations.")
-
-
-class EngineCalibratedResponse(BaseModel):
-    engine: str
-    mode: str
-    sample_count: int
-    latency_coefficients: dict[str, float]
-    quality_coefficients: dict[str, float]
-    failure_risk_coefficients: dict[str, float]
-    r2_score: float
-    status: str = "calibrated"
 
 
 async def _verify_project_member(session: AsyncSession, project_id: uuid.UUID, caller: User) -> Project:
@@ -286,7 +253,6 @@ async def generate_instance(
     except (ValueError, OverflowError) as exc:
         raise api_error(status_code=422, code="invalid_generation_config",
                         message=f"features/distributions: {exc}; adjust bounds or aggregation") from exc
-    features = extract_features(compiled)
 
     snapshot_id: Optional[str] = None
     case_id: Optional[str] = None
@@ -332,7 +298,6 @@ async def generate_instance(
         snapshot_id=snapshot_id,
         case_id=case_id,
         target_engines=request.target_engines,
-        workload_features=features.to_dict(),
         files=files_json,
         file_bytes_base64={name: base64.b64encode(content).decode("ascii") for name, content in sorted(package.files.items())} if request.include_file_bytes else None,
         actual_constraint_count=len(package.json("constraints.json")["spec"]["constraints"]),
@@ -392,7 +357,6 @@ async def generate_corpus(
         except (ValueError, OverflowError) as exc:
             raise api_error(status_code=422, code="invalid_generation_config",
                             message=f"base_config.features/distributions: {exc}; adjust bounds or aggregation") from exc
-        features = extract_features(compiled)
         packages.append(pkg)
 
         snap_id: Optional[str] = None
@@ -406,7 +370,6 @@ async def generate_corpus(
             "package_digest": pkg.package_digest,
             "compilation_digest": compiled.digest,
             "snapshot_id": snap_id,
-            "workload_features": features.to_dict(),
             "actual_constraint_count": len(pkg.json("constraints.json")["spec"]["constraints"]),
         })
 
@@ -499,7 +462,6 @@ async def convert_legacy(
     )
     package = postprocessor.process(problem)
     compiled = compile_instance(package)
-    features = extract_features(compiled)
 
     snapshot_id: Optional[str] = None
     case_id: Optional[str] = None
@@ -547,96 +509,5 @@ async def convert_legacy(
         snapshot_id=snapshot_id,
         case_id=case_id,
         target_engines=[],
-        workload_features=features.to_dict(),
         files=files_json,
-    )
-
-
-@router.post(
-    "/calibrate-engine",
-    response_model=EngineCalibratedResponse,
-    responses={
-        403: {
-            "model": ErrorResponse,
-            "description": (
-                "The caller is not a platform administrator (code `platform_admin_required`), "
-                "or the API key lacks the `admin:accounts:write` permission "
-                "(code `insufficient_api_key_permission`)."
-            ),
-        }
-    },
-)
-async def calibrate_engine(
-    request: CalibrateEngineRequest,
-    session: AsyncSession = Depends(session_dependency),
-    caller: User = Depends(require_platform_admin),
-) -> Any:
-    """Calibrate surrogate performance models for a federated or black-box engine."""
-    observations = [
-        CalibrationObservation(
-            workload_features=obs.get("workload_features", {}),
-            latency=float(obs.get("latency", 1.0)),
-            quality=float(obs.get("quality", 0.85)),
-            success=bool(obs.get("success", True)),
-        )
-        for obs in request.observations
-    ]
-
-    surrogate = fit_surrogate_model(request.engine, request.mode, observations)
-
-    # Register in in-memory profiler
-    profiler = get_engine_profiler()
-    profiler.register_surrogate(surrogate)
-
-    # Register observation density in confidence estimator
-    conf_estimator = get_confidence_estimator()
-    for obs in observations:
-        wf = obs.workload_features
-        from ..engine_routing.features import WorkloadFeatures
-        w_feat = WorkloadFeatures(
-            S=float(wf.get("S", 0.0)),
-            D_constr=float(wf.get("D_constr", 0.0)),
-            N_tasks=int(wf.get("N_tasks", 1)),
-            N_cap=int(wf.get("N_cap", 1)),
-            opt_mode=str(wf.get("OptMode", "weighted")),
-            D_obj=int(wf.get("D_obj", 1)),
-            T_budget=float(wf.get("T_budget", 30.0)),
-        )
-        conf_estimator.record_observation(request.engine, w_feat)
-
-    # Persist or update surrogate record in DB if session is available
-    query = select(EngineProfileSurrogate).where(
-        EngineProfileSurrogate.engine == request.engine,
-        EngineProfileSurrogate.mode == request.mode,
-    )
-    existing = (await session.execute(query)).scalars().first()
-    if existing is not None:
-        existing.latency_coefficients = surrogate.latency_coefficients
-        existing.quality_coefficients = surrogate.quality_coefficients
-        existing.failure_risk_coefficients = surrogate.failure_risk_coefficients
-        existing.sample_count = surrogate.sample_count
-        existing.r2_score = surrogate.r2_score
-        existing.last_calibrated_at = utcnow()
-    else:
-        new_row = EngineProfileSurrogate(
-            engine=request.engine,
-            mode=request.mode,
-            latency_coefficients=surrogate.latency_coefficients,
-            quality_coefficients=surrogate.quality_coefficients,
-            failure_risk_coefficients=surrogate.failure_risk_coefficients,
-            sample_count=surrogate.sample_count,
-            r2_score=surrogate.r2_score,
-            metadata_info={"calibrated_by": caller.email},
-        )
-        session.add(new_row)
-    await session.flush()
-
-    return EngineCalibratedResponse(
-        engine=surrogate.engine,
-        mode=surrogate.mode,
-        sample_count=surrogate.sample_count,
-        latency_coefficients=surrogate.latency_coefficients,
-        quality_coefficients=surrogate.quality_coefficients,
-        failure_risk_coefficients=surrogate.failure_risk_coefficients,
-        r2_score=surrogate.r2_score,
     )

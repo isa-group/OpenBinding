@@ -13,12 +13,6 @@
     "pareto-sampling"
    ]
   },
-  "meta-router-csp": {
-   "manifestDigest": "sha256-59c351ca4eca33e2eb8213c2b41afa4e61ffb9996c8cc9e0620b63168e1fbbb5",
-   "modes": [
-    "meta-routing"
-   ]
-  },
   "minizinc-csp": {
    "manifestDigest": "sha256-d17e2be6cefac0d435e30af365e0b3c8d6650433d36fad19b5e0383a6f7c799b",
    "modes": [
@@ -53,17 +47,6 @@
      ],
      "compatible": false,
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
-      "unsupported_capability_value:aggregations:repeat.scale",
-      "unsupported_capability_value:featureScopes:invocation"
-     ],
-     "compatible": false,
-     "digest": "sha256-586e38b6552d6f122858445928a11cda698497cbca606ff0de8fcc125d5b50de"
     }
    },
    "minizinc-csp": {
@@ -103,22 +86,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.min,exclusive.weightedSum,parallel.max,parallel.min,sequence.min,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "unsupported_capability:placement:placement",
-      "unsupported_capability:irExtensions:qos-binding-placement/v1",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-b3ed368388daa4740075db3e532a98d8f5b46606802eb47ee5428956d0e2856b"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -156,18 +123,6 @@
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-2160255b09112981796ad1328e9bcb86440c4d5ad031ffe5c7db31045a12c28a"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -203,18 +158,6 @@
      ],
      "compatible": false,
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,sequence.product",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-ed81b2bc034a76882698d44377a19060072e86f09611ee0b7fc9ba6ab7b42603"
     }
    },
    "minizinc-csp": {
@@ -256,18 +199,6 @@
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-2160255b09112981796ad1328e9bcb86440c4d5ad031ffe5c7db31045a12c28a"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -305,18 +236,6 @@
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel",
-      "unsupported_capability_value:aggregations:parallel.max",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-1322c22dc78084b0d79dee674b177448bdfc4d7b68c9239d8c786a16ddad7abd"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -352,18 +271,6 @@
      ],
      "compatible": false,
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,sequence.product",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-ed81b2bc034a76882698d44377a19060072e86f09611ee0b7fc9ba6ab7b42603"
     }
    },
    "minizinc-csp": {
@@ -405,16 +312,6 @@
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:expressions:compare,path.features"
-     ],
-     "compatible": false,
-     "digest": "sha256-4019d2b8fccdb5abc83cf97d599ad1b35ab7af59878ec879f7c17fa689ad1ad0"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -450,15 +347,6 @@
      ],
      "compatible": false,
      "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:featureScopes:invocation"
-     ],
-     "compatible": false,
-     "digest": "sha256-19fa2d3fb85cd97b37da299676fed3544c2be506d764dcc7f9aacdb9335e83a1"
     }
    },
    "minizinc-csp": {
@@ -498,15 +386,6 @@
      "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:featureScopes:invocation"
-     ],
-     "compatible": false,
-     "digest": "sha256-19fa2d3fb85cd97b37da299676fed3544c2be506d764dcc7f9aacdb9335e83a1"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -542,17 +421,6 @@
      ],
      "compatible": false,
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:repeat.expectedCount",
-      "unsupported_capability_value:aggregations:repeat.scale",
-      "unsupported_capability_value:featureScopes:invocation"
-     ],
-     "compatible": false,
-     "digest": "sha256-586e38b6552d6f122858445928a11cda698497cbca606ff0de8fcc125d5b50de"
     }
    },
    "minizinc-csp": {
@@ -594,17 +462,6 @@
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound",
-      "unsupported_capability_value:expressions:compare,path.features"
-     ],
-     "compatible": false,
-     "digest": "sha256-3262e4d9016e8b08f5dc766c20a5d79b6b763435bda97fb0ab0f8783bfe5b3fa"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -644,20 +501,6 @@
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-f60ae57d34a24c2cca6f8c48397ead8dc59dd8b930160f7f8fc2796fd5e4b29d"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -695,19 +538,6 @@
      "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:expressions:compare,path.features",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-4696e68b438a732578e58e4219c071ea0ca46e7c5240e1d3e14cbf2e0767fc14"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -743,18 +573,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,parallel.max,parallel.product,parallel.sum,repeat.power,repeat.scale,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-d0f12d48a71fa4da556467dd8936754eb24f25b68d81369bc5ae8c1fc742b2c1"
     }
    },
    "minizinc-csp": {
@@ -797,18 +615,6 @@
      "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-38a00fde333dd6c6a7c0ead9b877e6b2646e658f58ea6148c9325aedefe35853"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -842,18 +648,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-cec2d43aa0b157dc7d42ade8ba854717785fde0a205fd2eb9edf4699b2b00b55"
     }
    },
    "minizinc-csp": {
@@ -891,18 +685,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-6763bc2c00ea1f50efe68a8e6c65ed227e5bdd85a7a95850ee01159ae64a43bb"
     }
    },
    "minizinc-csp": {
@@ -944,20 +726,6 @@
      "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-25d300d1dfdf1f103e6da744d033ad0e274ebc5aeb66c7f47dc85f0a5302c1c5"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -993,22 +761,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,repeat.count,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,parallel.max,repeat.scale,selection.min,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "unsupported_capability:placement:placement",
-      "unsupported_capability:irExtensions:qos-binding-placement/v1",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-e8e68ad3a35c8b6fb4d6e2b9ca044cca73d7e2ad5345060ebdb41cbcfedd5a2c"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -1042,22 +794,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,repeat.count,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,parallel.max,repeat.scale,selection.min,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "unsupported_capability:placement:placement",
-      "unsupported_capability:irExtensions:qos-binding-placement/v1",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-e8e68ad3a35c8b6fb4d6e2b9ca044cca73d7e2ad5345060ebdb41cbcfedd5a2c"
     }
    },
    "minizinc-csp": {
@@ -1097,18 +833,6 @@
      "digest": "sha256-172e8266e38d0bf2fc2ed95db513930a88ce386234699a4941e9a18cb3e3f564"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-38a00fde333dd6c6a7c0ead9b877e6b2646e658f58ea6148c9325aedefe35853"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -1142,20 +866,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound",
-      "unsupported_capability_value:expressions:compare,path.features",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-81f60fc03de2b4380901e6cec6cdb924803a5d0598b10b7b4812aaf22e9767b2"
     }
    },
    "minizinc-csp": {
@@ -1195,20 +905,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound",
-      "unsupported_capability_value:expressions:compare,path.features",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-81f60fc03de2b4380901e6cec6cdb924803a5d0598b10b7b4812aaf22e9767b2"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -1246,18 +942,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,parallel.max,parallel.min,parallel.product,parallel.sum,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-2e73936a787c8dc31b7ebb815f85a60836b31012e1eca4f301d054e8c1847c17"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -1293,18 +977,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.min,parallel.product,parallel.sum,repeat.identity,repeat.power,repeat.scale,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-ba52b8f98e0dca716e069c67db75e54c67994c580df037d468ffae4bce8c1f69"
     }
    },
    "minizinc-csp": {
@@ -1345,18 +1017,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.min,parallel.product,parallel.sum,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-af26410802a81fbac91abd0ad5c009df358aa1b6e1aea9d89126ff26d985abd6"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -1394,18 +1054,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-a86e1b623a3220225a04817af372a0048aed7bbb609db6299963f91f4c67e54b"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -1441,20 +1089,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,repeat.identity,repeat.power,repeat.scale,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:and,compare,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-6b6e6210db850878b7ca1bec026aecb347183df144f3fd9bf175b26f86b6bcc3"
     }
    },
    "minizinc-csp": {
@@ -1496,20 +1130,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.max,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound",
-      "unsupported_capability_value:expressions:compare,path.features",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-c8c8ea322ee8bb6a8a033d99b58bda35d6b281b3f3ee9915dfb1392ab5373dde"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -1548,22 +1168,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.min,exclusive.weightedSum,parallel.max,parallel.min,sequence.min,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "unsupported_capability:placement:placement",
-      "unsupported_capability:irExtensions:qos-binding-placement/v1",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-b3ed368388daa4740075db3e532a98d8f5b46606802eb47ee5428956d0e2856b"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -1597,22 +1201,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,sequence",
-      "unsupported_capability_value:aggregations:exclusive.min,exclusive.weightedSum,sequence.min,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "unsupported_capability:placement:placement",
-      "unsupported_capability:irExtensions:qos-binding-placement/v1",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-ad31962e4d9c6e4c76cb7d3fbe7f04043062248931ca1d318081ac2193994700"
     }
    },
    "minizinc-csp": {
@@ -1650,22 +1238,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.min,exclusive.weightedSum,parallel.max,parallel.min,sequence.min,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "unsupported_capability:placement:placement",
-      "unsupported_capability:irExtensions:qos-binding-placement/v1",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-b3ed368388daa4740075db3e532a98d8f5b46606802eb47ee5428956d0e2856b"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [],
@@ -1699,22 +1271,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.min,exclusive.weightedSum,parallel.max,parallel.min,sequence.min,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "unsupported_capability:placement:placement",
-      "unsupported_capability:irExtensions:qos-binding-placement/v1",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-b3ed368388daa4740075db3e532a98d8f5b46606802eb47ee5428956d0e2856b"
     }
    },
    "minizinc-csp": {
@@ -1752,21 +1308,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,parallel.max,parallel.min,parallel.product,parallel.sum,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-4aec07c9aeea153829d75272d6071c2698c6c3f5d88731977bb08db57dd324e2"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -1802,21 +1343,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,parallel.max,parallel.min,parallel.product,parallel.sum,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-bef708f51e31da290fbb8d533c97d8cc8d2bb14aeba3e726d0551724610dbc30"
     }
    },
    "minizinc-csp": {
@@ -1859,21 +1385,6 @@
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,parallel.max,parallel.product,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-0d3b2db63f307785b3faebfeb2b247209cc047eb12466dc99af492dca192b554"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -1911,21 +1422,6 @@
      ],
      "compatible": false,
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,parallel.max,parallel.product,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-5cf95ea798693b4ed594e293cc58cf017b5add439dd7eae9b660dd6e32c8befc"
     }
    },
    "minizinc-csp": {
@@ -1966,21 +1462,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,parallel.max,parallel.min,parallel.product,parallel.sum,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-4aec07c9aeea153829d75272d6071c2698c6c3f5d88731977bb08db57dd324e2"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -2016,21 +1497,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,parallel.max,parallel.min,parallel.product,parallel.sum,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-bef708f51e31da290fbb8d533c97d8cc8d2bb14aeba3e726d0551724610dbc30"
     }
    },
    "minizinc-csp": {
@@ -2071,21 +1537,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,parallel.max,parallel.product,parallel.sum,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-63299a148422646ae30985c1cab4584e3fef956970f0bfd0781652fc43de85eb"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -2121,21 +1572,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,parallel,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,parallel.max,parallel.product,parallel.sum,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-93c09769a9f0f869828f02a9b67f6cd78b00ea375a5c7e384f3530e1a7385060"
     }
    },
    "minizinc-csp": {
@@ -2176,20 +1612,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.min,parallel.product,parallel.sum,repeat.identity,repeat.power,repeat.scale,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-b3886b29eff90e4273a868815a59a89fb44ab42be5f092b3cb1fa029608b9901"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -2226,20 +1648,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.min,parallel.product,parallel.sum,repeat.identity,repeat.power,repeat.scale,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-f9633ca52add02eaa66b7718e3ed2212b7f39bdc01330085bcfe7ecee74dbe0f"
     }
    },
    "minizinc-csp": {
@@ -2283,20 +1691,6 @@
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.product,repeat.power,repeat.scale,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-5b6a7d52310e6007266d9a97e2aa3838dce2ce91a7bde5794acb3be32869a8ac"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -2335,20 +1729,6 @@
      ],
      "compatible": false,
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.product,repeat.power,repeat.scale,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-f00f3cf91d40919f314fe0e457602ab666d6d7f71cd22b6e2654d2fc2f82cedd"
     }
    },
    "minizinc-csp": {
@@ -2390,20 +1770,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.min,parallel.product,parallel.sum,repeat.identity,repeat.power,repeat.scale,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-b3886b29eff90e4273a868815a59a89fb44ab42be5f092b3cb1fa029608b9901"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -2440,20 +1806,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.min,parallel.product,parallel.sum,repeat.identity,repeat.power,repeat.scale,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-f9633ca52add02eaa66b7718e3ed2212b7f39bdc01330085bcfe7ecee74dbe0f"
     }
    },
    "minizinc-csp": {
@@ -2495,20 +1847,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.product,parallel.sum,repeat.power,repeat.scale,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-0e02f5b4d5c2f81f314658c859781f14d31ba312d1f3c4b5c1bd8edab44e4c23"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -2545,20 +1883,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.product,parallel.sum,repeat.power,repeat.scale,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-2c3eeaa7fc41a9f863d8f71e79db31afb791fea89e41b84660a761494573e966"
     }
    },
    "minizinc-csp": {
@@ -2600,21 +1924,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.min,parallel.product,parallel.sum,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-7114173b4e63c1fd5759ae417b1ede7b14f8e1146dcfdb8cb6f1d77cd8c799cd"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -2650,21 +1959,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.min,parallel.product,parallel.sum,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-56da9e8fae7c1accb6c714aefa3c11144600a7036727e7015e5863021d8edd0b"
     }
    },
    "minizinc-csp": {
@@ -2707,21 +2001,6 @@
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.product,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-ca8ee3214b0142f0053c4d3269bf21f43fe5cf81e17b5a835c2a99fcfa809144"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -2759,21 +2038,6 @@
      ],
      "compatible": false,
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.product,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-347c8b2583fb245edce73a6a8ff825a7c0ee44b3d7c85bc2f9f6c5f9b89bb9b8"
     }
    },
    "minizinc-csp": {
@@ -2814,21 +2078,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.min,parallel.product,parallel.sum,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-7114173b4e63c1fd5759ae417b1ede7b14f8e1146dcfdb8cb6f1d77cd8c799cd"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -2864,21 +2113,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.min,parallel.product,parallel.sum,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-56da9e8fae7c1accb6c714aefa3c11144600a7036727e7015e5863021d8edd0b"
     }
    },
    "minizinc-csp": {
@@ -2919,21 +2153,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.product,parallel.sum,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-482bafe6da737ea8462bd9e0c0c60fabcc3d006826d0de930f88f69511f2034c"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -2969,21 +2188,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:parallel,sequence",
-      "unsupported_capability_value:aggregations:parallel.max,parallel.product,parallel.sum,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-5b02c2c8a44cc37af9e82bb8807cc7cd7f4cf5086ad981c36568c2def2dd5dc1"
     }
    },
    "minizinc-csp": {
@@ -3024,21 +2228,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-051d878fc02bcbbdba900aa4d8f5eef7fb712f57d81a2688a1b3832a4145d204"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -3074,21 +2263,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-d385b59c1a67e90cfeea121f86069ae0ab2cd0a3731bb80173ce3016d6f13d6d"
     }
    },
    "minizinc-csp": {
@@ -3131,21 +2305,6 @@
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-dee6b234021ce7221482ba0713d264bed1c0f226aeda6a90213fb710a117ad70"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -3183,21 +2342,6 @@
      ],
      "compatible": false,
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-be258c7a451f202a16c3eb1b05a36ca55f0751370bd51f98877217cf4d9d0c54"
     }
    },
    "minizinc-csp": {
@@ -3238,21 +2382,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-051d878fc02bcbbdba900aa4d8f5eef7fb712f57d81a2688a1b3832a4145d204"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -3288,21 +2417,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-d385b59c1a67e90cfeea121f86069ae0ab2cd0a3731bb80173ce3016d6f13d6d"
     }
    },
    "minizinc-csp": {
@@ -3343,21 +2457,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-dee6b234021ce7221482ba0713d264bed1c0f226aeda6a90213fb710a117ad70"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -3393,21 +2492,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-be258c7a451f202a16c3eb1b05a36ca55f0751370bd51f98877217cf4d9d0c54"
     }
    },
    "minizinc-csp": {
@@ -3448,20 +2532,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,repeat.identity,repeat.power,repeat.scale,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:and,compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-75a5e36a2c1c5ccd60518eea863d3ef328e32a438b62cad321440e1f187c7707"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -3499,20 +2569,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,repeat.identity,repeat.power,repeat.scale,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:and,compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-1bc5faa981314ea0e45937df160f7b5184c45ee3529e6ea165246969ca4aaed3"
     }
    },
    "minizinc-csp": {
@@ -3557,20 +2613,6 @@
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,repeat.power,repeat.scale,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:and,compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-8eb8568eb70232fd608c095a26ff3550f59e837588c37bd14449b8f1f7b53f05"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -3610,20 +2652,6 @@
      ],
      "compatible": false,
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,repeat.power,repeat.scale,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:and,compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-e91ded09384b09296d7b39ee84617bb357e10107d44abe5f1bfb4762591cac67"
     }
    },
    "minizinc-csp": {
@@ -3666,20 +2694,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,repeat.identity,repeat.power,repeat.scale,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:and,compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-75a5e36a2c1c5ccd60518eea863d3ef328e32a438b62cad321440e1f187c7707"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -3717,20 +2731,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,repeat.identity,repeat.power,repeat.scale,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:and,compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-1bc5faa981314ea0e45937df160f7b5184c45ee3529e6ea165246969ca4aaed3"
     }
    },
    "minizinc-csp": {
@@ -3773,20 +2773,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,repeat.power,repeat.scale,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:and,compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-8eb8568eb70232fd608c095a26ff3550f59e837588c37bd14449b8f1f7b53f05"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -3824,20 +2810,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:exclusive.probabilistic,repeat.expectedCount,sequence",
-      "unsupported_capability_value:aggregations:exclusive.weightedSum,repeat.power,repeat.scale,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:and,compare,path.features,path.tasks",
-      "engine_limit:maxTasks"
-     ],
-     "compatible": false,
-     "digest": "sha256-e91ded09384b09296d7b39ee84617bb357e10107d44abe5f1bfb4762591cac67"
     }
    },
    "minizinc-csp": {
@@ -3880,21 +2852,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.max,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-d49c19653af618baba7675e7e084329e3cd579764b87eb95e99cf8b10a60fce2"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -3930,21 +2887,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.max,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-888f6cf49b87f7313bfb743533c771f8b94056996602f8a30d6b9e8add4d85e0"
     }
    },
    "minizinc-csp": {
@@ -3987,21 +2929,6 @@
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.max,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-a9830744d077eed6b4c56617da8fcadd63df0c2ff3a92c471f8b6326ab84d1ad"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -4039,21 +2966,6 @@
      ],
      "compatible": false,
      "digest": "sha256-b5a05d75249493db4274098abe009626a6eabed986a8d9c2c9777503145459e3"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.max,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-1c5b529888763acb6e068e5068ccb3522fcf4175caf6a197df9bd276963761fe"
     }
    },
    "minizinc-csp": {
@@ -4094,21 +3006,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.max,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-d49c19653af618baba7675e7e084329e3cd579764b87eb95e99cf8b10a60fce2"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -4144,21 +3041,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.max,sequence.min,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-888f6cf49b87f7313bfb743533c771f8b94056996602f8a30d6b9e8add4d85e0"
     }
    },
    "minizinc-csp": {
@@ -4199,21 +3081,6 @@
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
    },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.max,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:hard.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-a9830744d077eed6b4c56617da8fcadd63df0c2ff3a92c471f8b6326ab84d1ad"
-    }
-   },
    "minizinc-csp": {
     "exact-weighted": {
      "codes": [
@@ -4249,21 +3116,6 @@
      "codes": [],
      "compatible": true,
      "digest": "sha256-4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-    }
-   },
-   "meta-router-csp": {
-    "meta-routing": {
-     "codes": [
-      "unsupported_capability_value:workflowNodes:sequence",
-      "unsupported_capability_value:aggregations:sequence.max,sequence.product,sequence.sum",
-      "unsupported_capability_value:featureScopes:invocation",
-      "unsupported_capability_value:constraints:soft.aggregate-bound,soft.expression",
-      "unsupported_capability_value:expressions:compare,path.features,path.tasks",
-      "engine_limit:maxTasks",
-      "engine_limit:maxCandidates"
-     ],
-     "compatible": false,
-     "digest": "sha256-1c5b529888763acb6e068e5068ccb3522fcf4175caf6a197df9bd276963761fe"
     }
    },
    "minizinc-csp": {

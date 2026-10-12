@@ -6,7 +6,6 @@
  "manifests": {
   "evolutionary-heuristics": "sha256-049546e1a5a680457bd3591da15498174c328c466203ba78ef8d891ab6196530",
   "many-heuristic": "sha256-2e31adb73e054c7b210086b8bdbb6ec566efa146fecd8d2df67992f6dd69b75e",
-  "meta-router-csp": "sha256-59c351ca4eca33e2eb8213c2b41afa4e61ffb9996c8cc9e0620b63168e1fbbb5",
   "minizinc-csp": "sha256-d17e2be6cefac0d435e30af365e0b3c8d6650433d36fad19b5e0383a6f7c799b",
   "random-search": "sha256-c7c395fecbab64c75391eb1c38a2074c9cd669c0192ac472965772e30ef70409"
  },

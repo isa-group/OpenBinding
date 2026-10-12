@@ -822,7 +822,7 @@ def test_profile_vocabulary_declares_scalar_and_interval_feature_values() -> Non
 
 def test_every_engine_mode_declares_only_scalar_feature_values() -> None:
     modes = _engine_modes()
-    assert len(modes) == 7
+    assert len(modes) == 6
     for name, mode in modes:
         assert mode["capabilities"]["featureValues"] == {"selector": "only", "values": ["scalar"]}, name
 

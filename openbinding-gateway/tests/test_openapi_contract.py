@@ -209,10 +209,6 @@ def test_authentication_and_role_requirements_are_explicit(document):
         ("/v1/admin/organizations/{organization_id}/sponsor", "post"),
         ("/v1/admin/errors/overview", "get"),
         ("/v1/admin/errors", "get"),
-        ("/v1/admin/engine-routing/metrics", "get"),
-        ("/v1/admin/engine-routing/observations", "get"),
-        ("/v1/admin/engine-routing/recalibrate", "post"),
-        ("/v1/generator/calibrate-engine", "post"),
         ("/v1/engine-registrations/{name}/approve", "post"),
         ("/v1/engine-registrations/{name}/reject", "post"),
     }

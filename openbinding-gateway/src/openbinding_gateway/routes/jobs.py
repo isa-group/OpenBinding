@@ -90,17 +90,11 @@ async def retry_job(
         and bool(registration)
         and registration.get("namespace") != "bim.builtin"
     )
-    # Priced as create_job priced the original: routed jobs by their credits, the engine by name.
-    routing = provenance.get("engineRouting")
-    credits_cost = routing.get("creditsCost") if isinstance(routing, dict) else None
-    capacity_units = credits_cost if isinstance(credits_cost, int) and not isinstance(credits_cost, bool) else None
     try:
         verdict, reservation = await metering.reserve(
             space_client.get_gate(),
             user.id,
             federated=federated,
-            capacity_units=capacity_units,
-            engine_name=original.engine_id,
             session=session,
         )
     except space_client.PricingUnavailable as exc:

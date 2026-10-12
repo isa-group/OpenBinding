@@ -1,4 +1,4 @@
-"""``engineRoutingAdmin`` provenance is shown to platform administrators only."""
+"""Job provenance is the same record for every reader: no view adds administrator-only fields."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from _b1_helpers import gate, make_account, make_org, put_member  # noqa: F401
 from openbinding_gateway.db.models import Job, JobState
 from openbinding_gateway.models.platform import job_view
 
-ROUTING = {"fallbackEngine": "random-search", "reason": "internal"}
+PROVENANCE = {"irDigest": "sha256-x"}
 
 
 def _job(owner_id, organization_id=None, project_id=None) -> Job:
@@ -16,11 +16,11 @@ def _job(owner_id, organization_id=None, project_id=None) -> Job:
         owner_id=owner_id, engine_id="random-search", engine_job_id=str(uuid.uuid4()),
         service_url="http://engine", state=JobState.COMPLETED,
         organization_id=organization_id, project_id=project_id,
-        provenance={"irDigest": "sha256-x", "engineRoutingAdmin": dict(ROUTING)},
+        provenance=dict(PROVENANCE),
     )
 
 
-async def test_project_jobs_hide_routing_from_a_viewer_and_show_it_to_a_platform_admin(
+async def test_project_jobs_show_a_viewer_and_a_platform_admin_the_same_provenance(
     api_client, registration, db_session, gate  # noqa: F811
 ):
     owner, owner_h = await make_account(api_client, registration, db_session, gate)
@@ -43,17 +43,17 @@ async def test_project_jobs_hide_routing_from_a_viewer_and_show_it_to_a_platform
 
     seen = await api_client.get(url, headers=viewer_h)
     assert seen.status_code == 200, seen.text
-    assert seen.json()[0]["provenance"] == {"irDigest": "sha256-x"}
+    assert seen.json()[0]["provenance"] == PROVENANCE
 
     privileged = await api_client.get(url, headers=admin_h)
     assert privileged.status_code == 200, privileged.text
-    assert privileged.json()[0]["provenance"]["engineRoutingAdmin"] == ROUTING
+    assert privileged.json()[0]["provenance"] == PROVENANCE
 
     # The stored row is never edited to build a view.
-    assert job.provenance["engineRoutingAdmin"] == ROUTING
+    assert job.provenance == PROVENANCE
 
 
-async def test_get_v1_job_hides_routing_from_its_owner_and_is_not_readable_by_an_admin_who_is_not(
+async def test_get_v1_job_is_readable_by_its_owner_only_and_adds_nothing_for_an_admin(
     api_client, registration, db_session, gate  # noqa: F811
 ):
     owner, owner_h = await make_account(api_client, registration, db_session, gate)
@@ -65,18 +65,18 @@ async def test_get_v1_job_hides_routing_from_its_owner_and_is_not_readable_by_an
 
     mine = await api_client.get(f"/v1/jobs/{job.id}", headers=owner_h)
     assert mine.status_code == 200, mine.text
-    assert mine.json()["provenance"] == {"irDigest": "sha256-x"}
+    assert mine.json()["provenance"] == PROVENANCE
 
-    # Real behaviour: jobs are readable by their owner only, and a platform
-    # administrator who does not own the job gets 404, not its provenance.
+    # Jobs are readable by their owner only: a platform administrator who does
+    # not own the job gets 404, not its provenance.
     foreign = await api_client.get(f"/v1/jobs/{job.id}", headers=admin_h)
     assert foreign.status_code == 404
-    assert "engineRoutingAdmin" not in foreign.text
+    assert PROVENANCE["irDigest"] not in foreign.text
 
-    # An administrator reading a job of their own does see the routing record.
+    # An administrator reading a job of their own sees the same record as any owner.
     own = await api_client.get(f"/v1/jobs/{admin_job.id}", headers=admin_h)
     assert own.status_code == 200, own.text
-    assert own.json()["provenance"]["engineRoutingAdmin"] == ROUTING
+    assert own.json()["provenance"] == PROVENANCE
 
 
 async def test_job_view_without_results_and_the_jobs_list_for_the_owner(
@@ -91,4 +91,4 @@ async def test_job_view_without_results_and_the_jobs_list_for_the_owner(
 
     listed = await api_client.get("/v1/jobs", headers=owner_h)
     assert listed.status_code == 200, listed.text
-    assert listed.json()[0]["provenance"] == {"irDigest": "sha256-x"}
+    assert listed.json()[0]["provenance"] == PROVENANCE

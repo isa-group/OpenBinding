@@ -2735,24 +2735,7 @@ async def _create_job_core(
                 legacy_existing = existing
     job_id = str(uuid.uuid4())
     engine_selector = payload.get("engine", "random-search") if isinstance(payload, dict) else "random-search"
-    routing_plan = None
-    if engine_selector == "auto":
-        from ..engine_routing import get_adaptation_manager
-
-        meta_router_url = get_settings().engine_urls.get("meta-router-csp")
-        routing_plan = await get_adaptation_manager().plan_routing(
-            problem=problem,
-            options=payload.get("options") if isinstance(payload, dict) else {},
-            service_url=meta_router_url,
-        )
-        engine = routing_plan.selected_engine
-        engine_namespace = engine_version = requested_engine_digest = None
-        requested_mode = (
-            payload.get("mode")
-            if (isinstance(payload, dict) and payload.get("mode"))
-            else routing_plan.selected_mode
-        )
-    elif isinstance(engine_selector, dict):
+    if isinstance(engine_selector, dict):
         engine = engine_selector.get("name")
         engine_namespace = engine_selector.get("namespace")
         engine_version = engine_selector.get("version")
@@ -2779,15 +2762,12 @@ async def _create_job_core(
             "immutable_engine_required",
             "non-built-in engines must be selected by namespace, name, version and digest",
         )
-    if routing_plan is None and _is_internal_engine(engine):
-        return _problem(422, "internal_engine", "internal engines cannot be selected directly; use engine \"auto\"")
-    raw_engine_options = payload.get("options", {}) if isinstance(payload, dict) else {}
-    filtered_engine_options = {k: v for k, v in raw_engine_options.items() if k != "routing"} if isinstance(raw_engine_options, dict) else raw_engine_options
+    engine_options = payload.get("options", {}) if isinstance(payload, dict) else {}
     try:
         manifest, selected_mode, effective_options = await _engine_mode(
             engine,
             requested_mode,
-            filtered_engine_options,
+            engine_options,
             session,
             caller=caller,
             namespace=engine_namespace,
@@ -2903,7 +2883,7 @@ async def _create_job_core(
     if legacy_existing is not None:
         legacy_fingerprint = digest({
             "configuration": configuration_ref,
-            "requestedOptions": raw_engine_options,
+            "requestedOptions": engine_options,
             "packageDigest": package_hash,
             "fileDigests": portable.resource_digests,
             "resourceDigests": _source_resource_digests(problem),
@@ -2948,10 +2928,7 @@ async def _create_job_core(
         "warnings": option_warnings,
         "terminationGuarantees": mode_contract["terminationGuarantees"],
     }
-    if routing_plan is not None:
-        provenance["engineRouting"] = routing_plan.provenance_user
-        provenance["engineRoutingAdmin"] = routing_plan.provenance_admin
-    provenance['requestedOptions'] = raw_engine_options
+    provenance['requestedOptions'] = engine_options
     if configuration_ref:
         provenance['configuration'] = configuration_ref
     reservation = None
@@ -2973,8 +2950,6 @@ async def _create_job_core(
                     isinstance(registration, dict)
                     and _is_installed_builtin_registration(registration)
                 ),
-                capacity_units=routing_plan.credits_cost if routing_plan else None,
-                engine_name=engine,
                 session=session,
             )
         except space_client.PricingUnavailable as exc:
@@ -3091,10 +3066,7 @@ async def get_v1_job(
         job = await _owned_job(job_id, caller, session)
         if job is None:
             return _problem(404, "not_found", "Job not found")
-        prov = dict(job.provenance or {})
-        if caller is None or getattr(caller, "role", None) != UserRole.ADMIN:
-            prov.pop("engineRoutingAdmin", None)
-        result = {"id": job_id, "status": job.state.value, "provenance": prov}
+        result = {"id": job_id, "status": job.state.value, "provenance": dict(job.provenance or {})}
         if job.result is not None:
             result["result"] = job.result
             if isinstance(job.result, dict) and "error" in job.result:
@@ -3103,10 +3075,7 @@ async def get_v1_job(
     job = _JOBS.get(job_id)
     if not job:
         return _problem(404, "not_found", "Job not found")
-    prov = dict(job.get("provenance") or {})
-    if caller is None or getattr(caller, "role", None) != UserRole.ADMIN:
-        prov.pop("engineRoutingAdmin", None)
-    result = {"id": job_id, "status": job["status"], "provenance": prov}
+    result = {"id": job_id, "status": job["status"], "provenance": dict(job.get("provenance") or {})}
     if "result" in job:
         result["result"] = job["result"]
         if isinstance(job["result"], dict) and "error" in job["result"]:
@@ -3301,11 +3270,3 @@ async def _raced_idempotent_outcome(
     if existing is None:
         return None
     return _idempotent_outcome(existing, fingerprint)
-
-
-def _is_internal_engine(name: str) -> bool:
-    try:
-        manifest = json.loads((_MANIFEST_DIR / f"{name}.json").read_text())
-    except (OSError, ValueError):
-        return False
-    return bool(manifest.get("metadata", {}).get("internal", False))

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import time
 import uuid
@@ -26,8 +25,6 @@ from ..v1.canonical import digest
 from ..v1.compiler import BindingProblem
 from ..v1.remote import RemoteEngineError, RemoteRegistration, solve_remote
 from .engines import (
-    MANIFEST_DIR,
-    builtin_engine_registration,
     installed_builtin_registration,
     persisted_engine_contract,
     persisted_mode_contract,
@@ -192,40 +189,6 @@ async def fail_persisted_job(
         await record_job_failure(session, job, message)
     except Exception:
         pass
-
-    # Record MAPE-K failure observation if this was an auto-routed job
-    prov = job.provenance or {}
-    routing_admin = prov.get("engineRoutingAdmin")
-    if isinstance(routing_admin, dict) and "adaptationLoopId" in routing_admin:
-        try:
-            from ..engine_routing import get_adaptation_manager
-
-            adaptation_loop_id = routing_admin["adaptationLoopId"]
-            features_dict = routing_admin.get("workloadFeatures", {})
-            predicted = routing_admin.get("candidateEvaluations", [])
-            pred_for_selected = next(
-                (c.get("predicted", {}) for c in predicted if c.get("engine") == job.engine_id),
-                {},
-            )
-            actual_latency = max(0.0, time.monotonic() - started)
-            actual_credits = int(prov.get("engineRouting", {}).get("creditsCost", 1))
-
-            await get_adaptation_manager().observe_execution(
-                adaptation_loop_id=adaptation_loop_id,
-                engine=job.engine_id,
-                features_dict=features_dict,
-                predicted_metrics=pred_for_selected,
-                actual_latency=actual_latency,
-                actual_quality=0.0,
-                actual_credits=actual_credits,
-                outcome="failed",
-                candidate_evaluations=predicted,
-                engine_health_snapshot=routing_admin.get("engineHealthSnapshot"),
-                job_id=job.id,
-                session=session,
-            )
-        except Exception as obs_exc:
-            logger.warning("Failed to record adaptation observation for failed job %s: %s", job.id, obs_exc)
 
     await session.flush()
 
@@ -419,49 +382,8 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
                 timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
             )
         except RemoteEngineError as exc:
-            fallback_engine = provenance.get("engineRoutingAdmin", {}).get("fallbackEngine")
-            if fallback_engine and fallback_engine != job.engine_id:
-                logger.info(
-                    "Primary engine %s failed (%s); activating planned fallback to %s",
-                    job.engine_id,
-                    exc,
-                    fallback_engine,
-                )
-                try:
-                    fallback_path = MANIFEST_DIR / f"{fallback_engine}.json"
-                    fallback_endpoint = get_settings().engine_urls.get(fallback_engine)
-                    if fallback_path.is_file() and fallback_endpoint:
-                        fallback_manifest = json.loads(fallback_path.read_text(encoding="utf-8"))
-                        fallback_reg = builtin_engine_registration(fallback_manifest, fallback_endpoint)
-                        fallback_transport = registration_transport(fallback_reg)
-                        remote_result = await solve_remote(
-                            fallback_transport,
-                            problem.document,
-                            job.options,
-                            request.get("optimization", provenance.get("optimization", {})),
-                            timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
-                        )
-                        job.engine_id = fallback_engine
-                        provenance["fallbackActivated"] = True
-                        provenance["fallbackEngine"] = fallback_engine
-                        if "engineRouting" in provenance and isinstance(provenance["engineRouting"], dict):
-                            provenance["engineRouting"]["selectedEngine"] = fallback_engine
-                            provenance["engineRouting"]["fallbackActivated"] = True
-                    else:
-                        await fail_persisted_job(job, session, str(exc), started)
-                        return
-                except Exception as fb_exc:
-                    logger.warning("Fallback engine %s failed as well: %s", fallback_engine, fb_exc)
-                    await fail_persisted_job(
-                        job,
-                        session,
-                        f"Primary engine ({exc}) and fallback ({fb_exc}) both failed",
-                        started,
-                    )
-                    return
-            else:
-                await fail_persisted_job(job, session, str(exc), started)
-                return
+            await fail_persisted_job(job, session, str(exc), started)
+            return
         # Lock first, read second: the refresh then sees the row as it will stay
         # until this transaction ends.
         if not await metering.hold_lease(session, job.id, metering.held_token(session, job.id)):
@@ -500,50 +422,6 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
         job.lease_token = None
         job.lease_until = None
         job.finished_at = utcnow()
-        routing_admin = provenance.get("engineRoutingAdmin")
-        if isinstance(routing_admin, dict) and "adaptationLoopId" in routing_admin:
-            try:
-                from ..engine_routing import get_adaptation_manager
-
-                adaptation_loop_id = routing_admin["adaptationLoopId"]
-                features_dict = routing_admin.get("workloadFeatures", {})
-                predicted = routing_admin.get("candidateEvaluations", [])
-                pred_for_selected = next(
-                    (c.get("predicted", {}) for c in predicted if c.get("engine") == job.engine_id),
-                    {},
-                )
-                actual_latency = max(0.0, time.monotonic() - started)
-                solutions = reevaluated.get("solutions") or []
-                if not solutions or reevaluated.get("termination") not in ("OPTIMAL", "FEASIBLE"):
-                    actual_quality = 0.0
-                else:
-                    raw_score = solutions[0].get("objectives", {}).get("score")
-                    try:
-                        score_float = float(raw_score) if raw_score is not None else 1.0
-                        if 0.0 <= score_float <= 1.0:
-                            actual_quality = score_float
-                        else:
-                            actual_quality = 1.0 if score_float <= 0 else max(0.0, min(1.0, 1.0 / (1.0 + score_float)))
-                    except (ValueError, TypeError):
-                        actual_quality = 0.5
-                actual_credits = int(provenance.get("engineRouting", {}).get("creditsCost", 1))
-
-                await get_adaptation_manager().observe_execution(
-                    adaptation_loop_id=adaptation_loop_id,
-                    engine=job.engine_id,
-                    features_dict=features_dict,
-                    predicted_metrics=pred_for_selected,
-                    actual_latency=actual_latency,
-                    actual_quality=actual_quality,
-                    actual_credits=actual_credits,
-                    outcome=job.termination or "completed",
-                    candidate_evaluations=predicted,
-                    engine_health_snapshot=routing_admin.get("engineHealthSnapshot"),
-                    job_id=job.id,
-                    session=session,
-                )
-            except Exception as exc:
-                logger.warning("Failed to record adaptation observation for job %s: %s", job.id, exc)
         await _settle_and_commit(
             session, job.id, solver_seconds=time.monotonic() - started, outcome="completed"
         )

@@ -141,7 +141,7 @@ def test_sampled_packages_keep_their_engine_mode_compatibility(tool, sample):
     expected = golden("compat.json")
 
     assert compat["engines"] == expected["engines"]
-    assert len(expected["engines"]) == 5
+    assert len(expected["engines"]) == 4
     mismatches = [path for path in paths if compat["packages"].get(path) != expected["packages"].get(path)]
     assert mismatches == []
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import uuid
 
 import pytest
@@ -282,14 +283,14 @@ async def test_retry_does_not_release_a_job_that_was_already_committed(
     assert all(amount > 0 for amount in gate.adjustments[0].values())
 
 
-async def test_retry_reserves_with_the_credits_and_engine_of_the_original(
+async def test_retry_reserves_with_the_default_cost_whatever_the_original_engine(
     api_client, db_session, registration, gate, monkeypatch
 ) -> None:
     user_id, headers = await _account(api_client, registration)
     routed = Job(
         owner_id=user_id, engine_id="evolutionary-heuristics", engine_job_id="routed", service_url="http://engine",
         state=JobState.FAILED, original_request={}, options={}, metered=True, concurrency_released=True,
-        provenance={"engineRouting": {"creditsCost": 3}},
+        provenance={},
     )
     plain = Job(
         owner_id=user_id, engine_id="random-search", engine_job_id="plain", service_url="http://engine",
@@ -313,10 +314,7 @@ async def test_retry_reserves_with_the_credits_and_engine_of_the_original(
     assert (await api_client.post(f"/v1/jobs/{routed.id}/retry", headers=headers)).status_code == 202
     assert (await api_client.post(f"/v1/jobs/{plain.id}/retry", headers=headers)).status_code == 202
 
-    assert [(item["capacity_units"], item["engine_name"]) for item in reserved] == [
-        (3, "evolutionary-heuristics"),
-        (None, "random-search"),
-    ]
+    assert [set(item) for item in reserved] == [{"federated", "session"}, {"federated", "session"}]
 
 
 async def _attach_job(db_session, cell, user, organization, project, state=JobState.QUEUED) -> Job:
@@ -439,3 +437,84 @@ async def test_run_study_leaves_cells_queued_on_the_codes_the_gate_really_emits(
     _, run_id = await _queued_run(api_client, registration, monkeypatch, [1, 2], code=code)
 
     assert {cell.state for cell in await _cells(db_session, run_id)} == {RunState.QUEUED}
+
+
+@pytest.fixture
+def env_probe(monkeypatch):
+    """A variable the environment file may define; it is absent before and after the test."""
+    monkeypatch.delenv("OPENBINDING_ENV_FILE", raising=False)
+    monkeypatch.setenv("OB_ENV_PROBE", "unset")
+    monkeypatch.delenv("OB_ENV_PROBE")
+    return "OB_ENV_PROBE"
+
+
+def test_environment_file_is_not_searched_in_parent_directories(tmp_path, monkeypatch, env_probe) -> None:
+    from openbinding_gateway import main
+
+    (tmp_path / ".env").write_text(f"{env_probe}=from-parent\n")
+    child = tmp_path / "child"
+    child.mkdir()
+    monkeypatch.chdir(child)
+
+    main.load_environment_file()
+
+    assert env_probe not in os.environ
+
+
+def test_a_directory_without_an_environment_file_is_fine(tmp_path, monkeypatch, env_probe) -> None:
+    from openbinding_gateway import main
+
+    monkeypatch.chdir(tmp_path)
+
+    main.load_environment_file()
+
+    assert env_probe not in os.environ
+
+
+def test_the_working_directory_and_an_explicit_environment_file_are_read(tmp_path, monkeypatch, env_probe) -> None:
+    from openbinding_gateway import main
+
+    (tmp_path / ".env").write_text(f"{env_probe}=from-cwd\n")
+    monkeypatch.chdir(tmp_path)
+    main.load_environment_file()
+    assert os.environ[env_probe] == "from-cwd"
+
+    monkeypatch.delenv(env_probe)
+    explicit = tmp_path / "explicit.env"
+    explicit.write_text(f"{env_probe}=from-explicit\n")
+    monkeypatch.setenv("OPENBINDING_ENV_FILE", str(explicit))
+    main.load_environment_file()
+    assert os.environ[env_probe] == "from-explicit"
+
+
+def test_an_environment_file_that_cannot_be_opened_is_skipped(tmp_path, monkeypatch, env_probe) -> None:
+    from openbinding_gateway import main
+
+    (tmp_path / ".env").write_text(f"{env_probe}=unreadable\n")
+    monkeypatch.chdir(tmp_path)
+
+    def refuse(*args, **kwargs):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(main, "load_dotenv", refuse)
+
+    main.load_environment_file()
+
+    assert env_probe not in os.environ
+
+
+def test_an_environment_file_that_cannot_be_inspected_is_skipped(tmp_path, monkeypatch, env_probe) -> None:
+    from pathlib import Path
+
+    from openbinding_gateway import main
+
+    monkeypatch.chdir(tmp_path)
+
+    def refuse(self):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(Path, "is_file", refuse)
+
+    main.load_environment_file()
+
+    assert env_probe not in os.environ

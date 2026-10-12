@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
@@ -75,7 +76,23 @@ from .security.apikeys import (
 from .telemetry import ErrorTelemetryMiddleware
 from .v1.compiler import CompileError
 
-load_dotenv()
+
+
+def load_environment_file() -> None:
+    """Load ``OPENBINDING_ENV_FILE`` or ``./.env`` without searching parent directories.
+
+    An unreadable file is skipped: the process environment stays authoritative.
+    """
+    explicit = os.environ.get("OPENBINDING_ENV_FILE")
+    path = Path(explicit) if explicit else Path.cwd() / ".env"
+    try:
+        if path.is_file():
+            load_dotenv(path)
+    except OSError:
+        logging.getLogger(__name__).warning("environment file %s is not readable; skipped", path)
+
+
+load_environment_file()
 
 _startup_settings = get_settings()
 configure_logging(
@@ -1024,7 +1041,6 @@ def openapi_with_security_contract() -> dict:
             )
             admin_only = (
                 path.startswith("/v1/admin/")
-                or path == "/v1/generator/calibrate-engine"
                 or path.endswith("/approve")
                 or path.endswith("/reject")
             )

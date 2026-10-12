@@ -59,31 +59,6 @@ def clean_mock_env(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def reset_routing_state():
-    try:
-        from openbinding_gateway.engine_routing import (
-            get_discrepancy_analyzer,
-            get_health_monitor,
-        )
-
-        get_health_monitor().reset()
-        get_discrepancy_analyzer().reset()
-    except ImportError:
-        pass
-    yield
-    try:
-        from openbinding_gateway.engine_routing import (
-            get_discrepancy_analyzer,
-            get_health_monitor,
-        )
-
-        get_health_monitor().reset()
-        get_discrepancy_analyzer().reset()
-    except ImportError:
-        pass
-
-
-@pytest.fixture(autouse=True)
 def pricing_catalog_gate():
     """Every test gets an explicit catalog-backed SPACE substitute."""
     from _pricing import fake_pricing_gate

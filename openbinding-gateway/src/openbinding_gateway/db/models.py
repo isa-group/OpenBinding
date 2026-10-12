@@ -513,56 +513,6 @@ class JobProvenance(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now())
 
 
-class AdaptationObservation(Base):
-    """Knowledge base record for the MAPE-K autonomic loop.
-
-    Stores problem instance features, candidate evaluations, predicted metrics,
-    actual execution telemetry, residuals, and outcome.
-    """
-
-    __tablename__ = "v1_adaptation_observations"
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    job_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True
-    )
-    adaptation_loop_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    engine_selected: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    workload_features: Mapped[dict] = mapped_column(JSON, nullable=False)
-    candidate_evaluations: Mapped[list] = mapped_column(JSON, nullable=False)
-    predicted_metrics: Mapped[dict] = mapped_column(JSON, nullable=False)
-    actual_metrics: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    residuals: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    outcome: Mapped[str] = mapped_column(String(32), nullable=False, default="completed")
-    engine_health_snapshot: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-
-
-class EngineProfileSurrogate(Base):
-    """Calibrated surrogate regression coefficients for federated / black-box engines."""
-
-    __tablename__ = "v1_engine_profile_surrogates"
-    __table_args__ = (
-        UniqueConstraint("engine", "mode", name="uq_v1_engine_surrogate_engine_mode"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    engine: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    mode: Mapped[str] = mapped_column(String(64), nullable=False, default="default")
-    latency_coefficients: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    quality_coefficients: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    failure_risk_coefficients: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    sample_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    r2_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    last_calibrated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=utcnow, server_default=func.now()
-    )
-    metadata_info: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-
-
-
 # Re-exporting these keeps one stable import location for persistence models,
 # while the platform domain remains readable in its own module.
 from .platform_models import (  # noqa: E402,F401

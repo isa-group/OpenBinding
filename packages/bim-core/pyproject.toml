@@ -75,7 +75,6 @@ bypass-selection = true
 "../../schemas/bim/v1/routing-overlay.schema.json" = "schemas/bim/v1/routing-overlay.schema.json"
 "../../schemas/bim/v1/manifests/evolutionary-heuristics.json" = "schemas/bim/v1/manifests/evolutionary-heuristics.json"
 "../../schemas/bim/v1/manifests/many-heuristic.json" = "schemas/bim/v1/manifests/many-heuristic.json"
-"../../schemas/bim/v1/manifests/meta-router-csp.json" = "schemas/bim/v1/manifests/meta-router-csp.json"
 "../../schemas/bim/v1/manifests/minizinc-csp.json" = "schemas/bim/v1/manifests/minizinc-csp.json"
 "../../schemas/bim/v1/manifests/random-search.json" = "schemas/bim/v1/manifests/random-search.json"
 "../../schemas/engine-contract.openapi.yaml" = "schemas/engine-contract.openapi.yaml"

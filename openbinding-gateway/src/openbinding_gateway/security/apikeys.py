@@ -459,9 +459,6 @@ def required_permissions(path: str, method: str) -> frozenset[str]:
         return frozenset({ApiKeyPermission.ENGINES_REGISTER.value})
     if path == "/v1/validate":
         return frozenset({ApiKeyPermission.INSTANCES_VALIDATE.value})
-    if path == "/v1/generator/calibrate-engine":
-        # Refits a model shared by every account, like /v1/admin/engine-routing/recalibrate.
-        return frozenset({ApiKeyPermission.ADMIN_ACCOUNTS_WRITE.value})
     if path.startswith("/v1/instances") or path.startswith("/v1/generator"):
         return frozenset(
             {ApiKeyPermission.INSTANCES_READ.value}
