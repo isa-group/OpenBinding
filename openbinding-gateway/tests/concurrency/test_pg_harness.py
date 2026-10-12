@@ -108,8 +108,14 @@ def test_defined_and_valid_variable_passes(monkeypatch):
     assert _outcome(monkeypatch, "postgresql+asyncpg://u:p@h/test_x") == "ok"
 
 
-def test_compose_has_postgres_and_runner(compose):
-    assert set(compose["services"]) == {"postgres", "runner"}
+def test_compose_has_postgres_and_seed(compose):
+    assert set(compose["services"]) == {"postgres", "seed"}
+
+
+def test_only_the_seed_service_is_behind_a_profile(compose):
+    # ``up`` must start the healthy postgres and nothing else; the tests run as ``run --rm seed``.
+    assert compose["services"]["seed"]["profiles"] == ["seed"]
+    assert "profiles" not in compose["services"]["postgres"]
 
 
 def test_compose_publishes_no_ports(compose):
@@ -166,10 +172,10 @@ def test_compose_does_not_bind_the_space_directory(compose):
             assert "space" not in mount.get("source", "").split("/"), mount
 
 
-def test_postgres_has_healthcheck_and_runner_waits_for_it(compose):
+def test_postgres_has_healthcheck_and_seed_waits_for_it(compose):
     healthcheck = compose["services"]["postgres"]["healthcheck"]
     assert "pg_isready" in " ".join(healthcheck["test"])
-    depends = compose["services"]["runner"]["depends_on"]
+    depends = compose["services"]["seed"]["depends_on"]
     assert depends["postgres"]["condition"] == "service_healthy"
 
 
@@ -178,8 +184,8 @@ def test_postgres_data_is_ephemeral(compose):
     assert {"type": "tmpfs", "target": "/var/lib/postgresql/data"} in volumes
 
 
-def test_runner_targets_a_test_database_matching_postgres(compose):
-    env = compose["services"]["runner"]["environment"]
+def test_seed_targets_a_test_database_matching_postgres(compose):
+    env = compose["services"]["seed"]["environment"]
     url = env["TEST_DATABASE_URL"]
     check_test_database_url(url)
     postgres = compose["services"]["postgres"]["environment"]
@@ -188,12 +194,12 @@ def test_runner_targets_a_test_database_matching_postgres(compose):
     assert env["DATABASE_URL"] == url
 
 
-def test_runner_uses_the_gateway_dockerfile(compose):
+def test_seed_uses_the_gateway_dockerfile(compose):
     import yaml
 
     if not (REPO_ROOT / "docker-compose.yml").is_file():
         pytest.skip("docker-compose.yml not found")
-    build = compose["services"]["runner"]["build"]
+    build = compose["services"]["seed"]["build"]
     dev = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     dev_build = dev["services"]["gateway-dev"]["build"]
     assert (build["context"], build["dockerfile"], build.get("target")) == (
@@ -203,8 +209,8 @@ def test_runner_uses_the_gateway_dockerfile(compose):
     )
 
 
-def test_runner_migrates_then_runs_pytest_and_keeps_its_exit_code(compose):
-    command = compose["services"]["runner"]["command"]
+def test_seed_migrates_then_runs_pytest_and_keeps_its_exit_code(compose):
+    command = compose["services"]["seed"]["command"]
     script = command[-1]
     assert script.index("alembic upgrade head") < script.index("pytest")
     assert "exec pytest -p no:cacheprovider -rA tests/concurrency" in script

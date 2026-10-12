@@ -31,7 +31,8 @@
         "start_period": "5s"
       }
     },
-    "runner": {
+    "seed": {
+      "profiles": ["seed"],
       "build": {
         "context": ".",
         "dockerfile": "openbinding-gateway/Dockerfile"

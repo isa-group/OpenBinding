@@ -14,16 +14,21 @@ file has not been accepted by lab_compose after the last change either.
 
 ### lab_compose
 
-Submit `compose.pgtest.json` (repository root) as the Compose file. It starts:
+Submit `compose.pgtest.json` (repository root) as the Compose file. The
+supervisor's `up` starts only `postgres`; the tests run as the `seed` service
+(`docker compose run --rm --no-deps seed`), the same pattern as
+`compose.lab.json`:
 
 - `postgres`: `postgres:16-alpine`, data in a `tmpfs` volume, database
   `test_openbinding`, synthetic user/password valid only for this ephemeral
-  database, healthcheck `pg_isready`, `mem_limit` 384m.
-- `runner`: built from `openbinding-gateway/Dockerfile` with the same context as
-  `gateway-dev` (the Dockerfile has no stages, so no `target`). It waits for
-  `postgres` to be healthy, runs `alembic upgrade head`, then
-  `pytest -p no:cacheprovider -rA tests/concurrency`; the container exit code is
-  pytest's. `mem_limit` 768m.
+  database, healthcheck `pg_isready`, `mem_limit` 384m. No profile, so `up`
+  starts it and `--wait` returns once it is healthy.
+- `seed` (`profiles: ["seed"]`, so `up` does not start it): built from
+  `openbinding-gateway/Dockerfile` with the same context as `gateway-dev` (the
+  Dockerfile has no stages, so no `target`). It runs `alembic upgrade head`,
+  then `pytest -p no:cacheprovider -rA tests/concurrency`; the container exit
+  code is pytest's. `mem_limit` 768m. It keeps `depends_on: postgres:
+  service_healthy` for a plain `run`; with `--no-deps` the wait is done by `up`.
 
 Format rules of lab_compose that the file follows (checked by
 `test_pg_harness.py`, without Docker):
@@ -42,7 +47,8 @@ Format rules of lab_compose that the file follows (checked by
 Mounts: the runner image already contains `src`, `alembic`, `alembic.ini`,
 `schemas`, `examples` and `space/pricing/openbinding.yml` (see the Dockerfile),
 but not the tests, so the only mount is `./openbinding-gateway/tests` on
-`/app/tests` (bind, read-only). The earlier mounts of the whole source tree
+`/app/tests` (bind, read-only); the image is enough otherwise (no further mount
+or image change is needed on paper; nothing has been run). The earlier mounts of the whole source tree
 and of `docs`, `engines`, `pricings` and `space` are gone: nothing in
 `tests/concurrency` reads `docs`, `engines` or `pricings`, and binds are always
 read-only, so nested mounts below a mounted `/app` could not create their mount
@@ -63,8 +69,10 @@ candidate paths must be updated, or the image build and this test fail.
 sh tools/test_pg.sh
 ```
 
-Needs Docker with the compose plugin. It runs `compose.pgtest.json` with
-`--exit-code-from runner` and removes containers and volumes afterwards.
+Needs Docker with the compose plugin. It is the supervisor's flow:
+`docker compose -f compose.pgtest.json up --detach --wait postgres`, then
+`run --rm --no-deps seed` (the script's exit code is pytest's), then `down
+--volumes` (the data is in a tmpfs; no named volume exists).
 
 Against your own server instead:
 
