@@ -71,6 +71,7 @@ from .security.apikeys import (
     ENGINE_LIMITED_PERMISSIONS,
     required_permissions,
 )
+from .security.bodylimit import BodyLimitMiddleware
 from .telemetry import ErrorTelemetryMiddleware
 from .v1.compiler import CompileError
 
@@ -101,6 +102,7 @@ configure_logging(
         _startup_settings.sphere_api_key or "",
         _startup_settings.bootstrap_admin_password or "",
         _startup_settings.federation_secret_key or "",
+        *(_startup_settings.secrets_fernet_keys or "").split(","),
     ),
 )
 
@@ -276,6 +278,9 @@ async def http_error(request: Request, exc: HTTPException):
     return await http_exception_handler(request, exc)
 
 settings = get_settings()
+# Added first, so it is the innermost: a 413 still leaves through the CORS and
+# telemetry layers, and nothing inside it reads a body it has not counted.
+app.add_middleware(BodyLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,

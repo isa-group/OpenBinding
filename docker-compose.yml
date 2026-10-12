@@ -48,7 +48,12 @@ services:
       - PYTHONPATH=/app/src
       - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_PROD:-https://openbinding.score.us.es,https://openbinding.us.es}
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
-      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET before starting the prod profile}
+      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET (at least 32 random characters) before starting the prod profile}
+      # Networks whose X-Forwarded-For is believed (uvicorn --proxy-headers).
+      # The default trusts nobody: set it to the network of the reverse proxy
+      # in front of the gateway (the nginx service's compose network), or every
+      # client is counted as the proxy by the login throttling.
+      - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1}
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
       # Production refuses to start with SPACE_ENABLED=false (APP_ENV=prod).
@@ -70,6 +75,10 @@ services:
       - CAS_ENVIRONMENT=${CAS_ENVIRONMENT:-production}
       - CAS_STORE_BACKEND=redis
       - FRONTEND_URL=${FRONTEND_URL:-https://openbinding.score.us.es}
+      # Comma-separated Fernet keys for stored engine credentials: the first
+      # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
+      # single key, still read after them.
+      - SECRETS_FERNET_KEYS=${SECRETS_FERNET_KEYS:-}
       - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
       - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-true}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
@@ -125,8 +134,11 @@ services:
       - PYTHONPATH=/app/src
       - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS_DEV:-http://localhost,http://localhost:80,http://localhost:5173,http://127.0.0.1,http://127.0.0.1:80,http://127.0.0.1:5173}
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-openbinding}:${POSTGRES_PASSWORD:-openbinding}@postgres:5432/${POSTGRES_DB:-openbinding}
-      # Development only. Production refuses to start without a real one.
-      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:-development-secret-do-not-use-in-production}
+      # No default: a well-known signing key is worse than none. ./up.sh writes
+      # a random one into .env when it is missing; otherwise set it (>= 32 chars).
+      - GATEWAY_JWT_SECRET=${GATEWAY_JWT_SECRET:?set GATEWAY_JWT_SECRET (at least 32 random characters), or start the stack with ./up.sh which generates one}
+      # See the prod service: X-Forwarded-For is believed only from these networks.
+      - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1}
       - BOOTSTRAP_ADMIN_USERNAME=${BOOTSTRAP_ADMIN_USERNAME:-}
       - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
       - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
@@ -149,6 +161,10 @@ services:
       - CAS_ENVIRONMENT=${CAS_ENVIRONMENT:-preproduction}
       - CAS_STORE_BACKEND=redis
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      # Comma-separated Fernet keys for stored engine credentials: the first
+      # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
+      # single key, still read after them.
+      - SECRETS_FERNET_KEYS=${SECRETS_FERNET_KEYS:-}
       - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
       - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-false}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
@@ -198,6 +214,10 @@ services:
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
       - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
       - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
+      # Comma-separated Fernet keys for stored engine credentials: the first
+      # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
+      # single key, still read after them.
+      - SECRETS_FERNET_KEYS=${SECRETS_FERNET_KEYS:-}
       - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
       - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-true}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000
@@ -252,6 +272,10 @@ services:
       - SPACE_TIMEOUT_MS=${SPACE_TIMEOUT_MS:-5000}
       - SPACE_PRICING_VERSION=${SPACE_PRICING_VERSION:-0.1.0}
       - SPACE_DEFAULT_PLAN=${SPACE_DEFAULT_PLAN:-}
+      # Comma-separated Fernet keys for stored engine credentials: the first
+      # encrypts, all decrypt (rotation). FEDERATION_SECRET_KEY is the legacy
+      # single key, still read after them.
+      - SECRETS_FERNET_KEYS=${SECRETS_FERNET_KEYS:-}
       - FEDERATION_SECRET_KEY=${FEDERATION_SECRET_KEY:-}
       - FEDERATION_REQUIRE_HTTPS=${FEDERATION_REQUIRE_HTTPS:-false}
       - ENGINE_MINIZINC_URL=http://engine-minizinc:3000

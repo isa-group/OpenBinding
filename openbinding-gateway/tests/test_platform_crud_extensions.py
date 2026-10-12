@@ -411,7 +411,13 @@ async def test_project_jobs_snapshots_and_engine_revisions(api_client, registrat
         z.writestr("model.bim", "apiVersion: bim/v1\nkind: BindingProblem\n")
     archive_bytes = buf.getvalue()
 
+    # A snapshot always has an owner; this one belongs to somebody else first.
+    other_headers = await _auth_headers(api_client, registration, platform_gate, username=f"user-{uuid.uuid4().hex[:6]}")
+    other_identity = await api_client.get("/v1/users/me", headers=other_headers)
+    assert other_identity.status_code == 200
+
     snap = InstanceSnapshot(
+        owner_id=uuid.UUID(other_identity.json()["id"]),
         name="test-snapshot",
         instance_digest="sha256-" + "1" * 64,
         package_digest="sha256-" + "2" * 64,

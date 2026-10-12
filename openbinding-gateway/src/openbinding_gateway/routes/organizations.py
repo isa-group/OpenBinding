@@ -58,6 +58,7 @@ from ..db.models import (
     utcnow,
 )
 from ..models.errors import ErrorResponse, api_error
+from ..security.redaction import must_redact_jobs
 from ..models.platform import (
     BindingCaseCreate,
     BindingCaseUpdate,
@@ -1463,7 +1464,12 @@ async def list_project_jobs(
 ) -> list[JobView]:
     organization = await _required_org(session, org)
     found_project = await require_project(session, organization, project, user, OrganizationRole.VIEWER)
+    # A VIEWER follows the project's work (state, engine, times, result,
+    # digests) but not its inputs: options and the request are redacted for
+    # anyone below MEMBER and for API keys that cannot write projects.
+    # (Non-members never get here: /jobs is not public_read.)
+    redact = await must_redact_jobs(session, organization.id, user)
     rows = await job_repository.list_for_project(
         session, found_project.id, job_id=job_id, include_results=include_results
     )
-    return [job_view(job, user, include_results=include_results) for job in rows]
+    return [job_view(job, user, include_results=include_results, redact=redact) for job in rows]

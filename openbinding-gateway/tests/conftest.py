@@ -62,6 +62,21 @@ def clean_mock_env(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def isolated_auth_rate_limiter():
+    """Authentication throttling counted in this test's own memory.
+
+    The default limiter talks to Redis, which the unit suite never has, and a
+    counter shared between tests would make a test depend on how many logins
+    ran before it. ``tests/test_security_hardening.py`` installs its own.
+    """
+    from openbinding_gateway.core.ratelimit import AuthRateLimiter, set_auth_limiter
+
+    set_auth_limiter(AuthRateLimiter(primary=None))
+    yield
+    set_auth_limiter(None)
+
+
+@pytest.fixture(autouse=True)
 def pricing_catalog_gate():
     """Every test gets a SPACE substitute built from the synthetic pricing fixture."""
     from _pricing import fake_pricing_gate

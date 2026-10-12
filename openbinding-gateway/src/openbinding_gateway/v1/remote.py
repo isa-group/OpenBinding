@@ -12,6 +12,7 @@ import base64
 import ipaddress
 import json
 import socket
+from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import SplitResult, urljoin, urlparse, urlsplit, urlunsplit
 
@@ -82,6 +83,30 @@ def validate_endpoint(endpoint: str, *, allow_internal_http: bool = False) -> tu
             raise RemoteEngineError(f"engine endpoint cannot be resolved: {host}") from None
         return tuple(sorted(_permitted_address(value, internal=internal) for value in resolved))
     return (_permitted_address(address.compressed, internal=internal),)
+
+
+async def avalidate_endpoint(
+    endpoint: str,
+    *,
+    allow_internal_http: bool = False,
+    validate: Callable[..., tuple[str, ...]] | None = None,
+) -> tuple[str, ...]:
+    """``validate_endpoint`` without blocking the event loop.
+
+    The DNS lookup inside ``validate_endpoint`` is a blocking ``getaddrinfo``;
+    run on the loop it would stall everything that shares it - heartbeats and
+    lease renewals included - for as long as a resolver takes to answer or time
+    out. The whole policy check therefore runs in the default executor, which
+    is where ``loop.getaddrinfo`` itself would run the lookup, and the
+    resolved answer is still pinned by the caller. Looked up through the module
+    on every call so that a test (or a deployment shim) replacing
+    ``validate_endpoint`` keeps replacing it. A caller that imports the
+    validator under its own module name may pass it as ``validate`` for the
+    same reason.
+    """
+    return await asyncio.to_thread(
+        validate or validate_endpoint, endpoint, allow_internal_http=allow_internal_http
+    )
 
 
 def _pinned_url(url: str, address: str) -> str:
@@ -307,7 +332,9 @@ async def fetch_remote_document(
 ) -> dict:
     """Fetch a bounded JSON deployment document over the pinned origin."""
 
-    addresses = validate_endpoint(registration.endpoint, allow_internal_http=registration.allow_internal_http)
+    addresses = await avalidate_endpoint(
+        registration.endpoint, allow_internal_http=registration.allow_internal_http
+    )
     url = _path(registration.endpoint, path, path)
     headers = _headers(registration)
     headers["accept"] = "application/json"
@@ -350,7 +377,9 @@ async def solve_remote(
     timeout_s: float = 30.0,
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> dict:
-    addresses = validate_endpoint(registration.endpoint, allow_internal_http=registration.allow_internal_http)
+    addresses = await avalidate_endpoint(
+        registration.endpoint, allow_internal_http=registration.allow_internal_http
+    )
     mappings = registration.mappings or {}
     request_url = _path(registration.endpoint, mappings.get("request"), "/internal/v1/binding-problems")
     poll_template = mappings.get("job", "/internal/v1/jobs/{id}")

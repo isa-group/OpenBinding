@@ -172,6 +172,63 @@ async def test_remote_transport_pins_validated_address_against_dns_rebinding(mon
 
 
 @pytest.mark.asyncio
+async def test_a_slow_dns_lookup_does_not_stall_the_event_loop(monkeypatch) -> None:
+    import asyncio
+    import threading
+    import time
+
+    loop_thread = threading.get_ident()
+    lookups: list[int] = []
+
+    def slow_resolve(host: str, port: int, **kwargs):
+        lookups.append(threading.get_ident())
+        time.sleep(0.3)  # a resolver that takes its time
+        return [(2, 1, 6, "", ("93.184.216.34", port))]
+
+    monkeypatch.setattr(remote.socket, "getaddrinfo", slow_resolve)
+    ticks = 0
+
+    async def heartbeat() -> None:
+        nonlocal ticks
+        while True:
+            await asyncio.sleep(0.01)
+            ticks += 1
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_result())
+
+    beating = asyncio.create_task(heartbeat())
+    try:
+        await remote.solve_remote(
+            remote.RemoteRegistration("https://solver.example", {}),
+            {"apiVersion": "bim/v1", "kind": "BindingProblem"},
+            {},
+            OPTIMIZATION,
+            transport=httpx.MockTransport(handler),
+        )
+    finally:
+        beating.cancel()
+
+    assert lookups and lookups[0] != loop_thread  # resolved off the loop's thread
+    assert ticks >= 10  # the loop kept running while the lookup was in flight
+
+
+@pytest.mark.asyncio
+async def test_the_private_range_rejection_survives_the_off_loop_resolution(monkeypatch) -> None:
+    monkeypatch.setattr(
+        remote.socket, "getaddrinfo", lambda *a, **k: [(2, 1, 6, "", ("10.1.2.3", 443))]
+    )
+    with pytest.raises(remote.RemoteEngineError, match="permitted network class"):
+        await remote.solve_remote(
+            remote.RemoteRegistration("https://solver.example", {}),
+            {},
+            {},
+            OPTIMIZATION,
+            transport=httpx.MockTransport(lambda request: httpx.Response(500)),
+        )
+
+
+@pytest.mark.asyncio
 async def test_remote_response_size_is_bounded_even_without_content_length(monkeypatch) -> None:
     monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
     monkeypatch.setattr(remote, "MAX_REMOTE_RESPONSE", 32)

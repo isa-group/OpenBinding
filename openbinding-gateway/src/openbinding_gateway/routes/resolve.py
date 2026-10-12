@@ -10,7 +10,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.responses import FileResponse, JSONResponse
-from sqlalchemy import or_, select
+from sqlalchemy import false, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_optional_user, session_dependency
@@ -114,9 +114,9 @@ async def _snapshot_web_url(
 
     The project is found through a case revision sealed from the snapshot, among
     the organizations the caller belongs to. The screen only loads snapshots the
-    caller owns (or ownerless ones), so nothing else gets a link.
+    caller owns, so nothing else gets a link.
     """
-    if user is None or (snapshot.owner_id is not None and snapshot.owner_id != user.id):
+    if user is None or snapshot.owner_id != user.id:
         return None
     row = (
         await session.execute(
@@ -736,11 +736,11 @@ async def resolve_element(
         query = select(InstanceSnapshot, User).outerjoin(User, User.id == InstanceSnapshot.owner_id).where(
             or_(InstanceSnapshot.instance_digest == norm_digest, InstanceSnapshot.package_digest == norm_digest)
         )
+        # A snapshot is private to its owner (and to administrators).
         if user is None:
-            # Snapshots without an owner or public
-            query = query.where(InstanceSnapshot.owner_id.is_(None))
+            query = query.where(false())
         elif not user.is_admin:
-            query = query.where(or_(InstanceSnapshot.owner_id.is_(None), InstanceSnapshot.owner_id == user.id))
+            query = query.where(InstanceSnapshot.owner_id == user.id)
 
         rows = (await session.execute(query.order_by(InstanceSnapshot.created_at.desc()))).all()
         if not rows:
@@ -792,9 +792,9 @@ async def resolve_element(
             .where(BindingIRSnapshot.ir_digest == norm_digest)
         )
         if user is None:
-            query = query.where(InstanceSnapshot.owner_id.is_(None))
+            query = query.where(false())
         elif not user.is_admin:
-            query = query.where(or_(InstanceSnapshot.owner_id.is_(None), InstanceSnapshot.owner_id == user.id))
+            query = query.where(InstanceSnapshot.owner_id == user.id)
 
         rows = (await session.execute(query.order_by(BindingIRSnapshot.created_at.desc()))).all()
         if not rows:
@@ -1078,35 +1078,31 @@ async def resolve_element_content(
     if kind_slug == "instance-snapshot":
         query = select(InstanceSnapshot).where(or_(InstanceSnapshot.instance_digest == norm_digest, InstanceSnapshot.package_digest == norm_digest))
         if user is None:
-            query = query.where(InstanceSnapshot.owner_id.is_(None))
+            query = query.where(false())
         elif not user.is_admin:
-            query = query.where(or_(InstanceSnapshot.owner_id.is_(None), InstanceSnapshot.owner_id == user.id))
+            query = query.where(InstanceSnapshot.owner_id == user.id)
         snap = (await session.execute(query)).scalars().first()
         if snap is None:
             raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Element not found.")
-        is_pub = snap.owner_id is None
-        cache_hdr = "public, max-age=31536000, immutable" if is_pub else "private, no-cache"
         return JSONResponse(
             snap.root_document,
-            headers={"ETag": f'"{norm_digest}"', "Cache-Control": cache_hdr, "Content-Security-Policy": "default-src 'none'; sandbox"},
+            headers={"ETag": f'"{norm_digest}"', "Cache-Control": "private, no-cache", "Content-Security-Policy": "default-src 'none'; sandbox"},
         )
 
     # 10. binding-ir
     if kind_slug == "binding-ir":
         query = select(BindingIRSnapshot, InstanceSnapshot).join(InstanceSnapshot, InstanceSnapshot.id == BindingIRSnapshot.snapshot_id).where(BindingIRSnapshot.ir_digest == norm_digest)
         if user is None:
-            query = query.where(InstanceSnapshot.owner_id.is_(None))
+            query = query.where(false())
         elif not user.is_admin:
-            query = query.where(or_(InstanceSnapshot.owner_id.is_(None), InstanceSnapshot.owner_id == user.id))
+            query = query.where(InstanceSnapshot.owner_id == user.id)
         row = (await session.execute(query)).first()
         if row is None:
             raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Element not found.")
-        ir_snap, snap = row
-        is_pub = snap.owner_id is None
-        cache_hdr = "public, max-age=31536000, immutable" if is_pub else "private, no-cache"
+        ir_snap, _snap = row
         return JSONResponse(
             ir_snap.document,
-            headers={"ETag": f'"{norm_digest}"', "Cache-Control": cache_hdr, "Content-Security-Policy": "default-src 'none'; sandbox"},
+            headers={"ETag": f'"{norm_digest}"', "Cache-Control": "private, no-cache", "Content-Security-Policy": "default-src 'none'; sandbox"},
         )
 
     raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Element not found.")

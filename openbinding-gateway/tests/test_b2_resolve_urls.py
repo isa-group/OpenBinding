@@ -333,13 +333,19 @@ async def test_snapshots_link_to_their_project_screen_only_when_a_project_holds_
 async def test_an_anonymous_caller_never_gets_a_snapshot_link(api_client, registration, platform_gate, db_session):
     from openbinding_gateway.db.models import InstanceSnapshot
 
+    owner, owner_headers = await account(api_client, registration, platform_gate)
     snapshot = InstanceSnapshot(
-        owner_id=None, name="public-snapshot", instance_digest="sha256-" + "1" * 64,
+        owner_id=uuid.UUID(str(owner["id"])), name="private-snapshot", instance_digest="sha256-" + "1" * 64,
         package_digest="sha256-" + "2" * 64, root_document={"kind": "Instance"}, source_archive=b"zip",
     )
     db_session.add(snapshot)
     await db_session.flush()
+    path = f"/v1/resolve/instance-snapshot/{snapshot.instance_digest}"
 
-    locations = await resolved_locations(api_client, "instance-snapshot", snapshot.instance_digest)
+    # A snapshot always has an owner and is private to it: nothing is resolved anonymously.
+    assert (await api_client.get(path)).status_code == 404
+    assert (await api_client.get(f"{path}/content")).status_code == 404
 
+    # The owner resolves it; without a sealed case revision there is no project screen to link.
+    locations = await resolved_locations(api_client, "instance-snapshot", snapshot.instance_digest, owner_headers)
     assert locations[0]["web_url"] is None

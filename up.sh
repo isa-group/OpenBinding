@@ -43,7 +43,13 @@ else
   note ".env already exists; preserving its values."
 fi
 ensure_secret POSTGRES_PASSWORD
+# A random signing secret when .env has none (or an empty one); a value that is
+# already there is never replaced. There is no built-in default: compose refuses
+# to start without one and the gateway refuses one shorter than 32 characters.
 ensure_secret GATEWAY_JWT_SECRET
+jwt_secret="$(sed -n 's/^GATEWAY_JWT_SECRET=//p' .env | tail -1)"
+[ "${#jwt_secret}" -ge 32 ] \
+  || die "GATEWAY_JWT_SECRET in .env is shorter than 32 characters; replace it (for example with: openssl rand -hex 32)."
 
 say "OpenBinding"
 docker compose --profile "$profile" up -d --build

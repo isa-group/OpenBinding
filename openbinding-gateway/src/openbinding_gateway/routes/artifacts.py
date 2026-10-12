@@ -52,6 +52,13 @@ from ..db.models import (
 )
 from ..models.errors import ErrorResponse, api_error
 from ..models.platform import BlobView
+from ..security.redaction import (
+    must_redact_jobs,
+    redact_options,
+    redact_original_request,
+    redact_provenance,
+    redact_result,
+)
 from ..v1.canonical import CanonicalizationError, digest, digest_bytes
 from ..v1.package import PackageError, strict_json_loads
 
@@ -626,11 +633,19 @@ async def export_project_package(
             snapshots[str(snapshot.id)] = dict(archive=base64.b64encode(snapshot.source_archive).decode(),
                 packageDigest=snapshot.package_digest, compilationDigest=snapshot.compilation_digest,
                 irDigest=ir.ir_digest, ir=ir.document)
+    # Below MEMBER (and for read-only API keys) a job is exported as the job
+    # list shows it: no options, no credentials, no private endpoints.
+    redact = await must_redact_jobs(session, organization.id, user)
+
     def portable_job(job):
+        request, options, result, provenance = job.original_request, job.options, job.result, job.provenance
+        if redact:
+            request, options = redact_original_request(request), redact_options(options)
+            result, provenance = redact_result(result), redact_provenance(provenance)
         return dict(id=str(job.id), engineId=job.engine_id, state=job.state.value,
             configurationRef=definition_refs.get(job.configuration_version_id),
-            request=job.original_request, options=job.options, result=job.result,
-            termination=job.termination, provenance=job.provenance,
+            request=request, options=options, result=result,
+            termination=job.termination, provenance=provenance,
             createdAt=timestamp(job.created_at), finishedAt=timestamp(job.finished_at))
 
     library = []

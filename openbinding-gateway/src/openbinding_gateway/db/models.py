@@ -326,7 +326,7 @@ class InstanceSnapshot(Base):
     __table_args__ = (UniqueConstraint("owner_id", "package_digest", "compilation_digest", name="uq_v1_snapshot_owner_package"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    owner_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     instance_digest: Mapped[str] = mapped_column(String(80), index=True, nullable=False)
     package_digest: Mapped[str] = mapped_column(String(80), index=True, nullable=False)

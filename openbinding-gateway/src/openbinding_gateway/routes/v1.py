@@ -75,7 +75,14 @@ from ..v1.package import (
     resource_digest,
     strict_json_loads,
 )
-from ..v1.remote import RemoteEngineError, RemoteRegistration, fetch_remote_document, solve_remote, validate_endpoint
+from ..v1.remote import (
+    RemoteEngineError,
+    RemoteRegistration,
+    avalidate_endpoint,
+    fetch_remote_document,
+    solve_remote,
+    validate_endpoint,
+)
 from ..services.engines import (
     BUILTIN_ENGINE_MAPPINGS,
     BUILTIN_REGISTRATIONS,
@@ -1696,7 +1703,9 @@ async def register_engine(
         return _problem(422, "invalid_registration", "registration endpoint must be a URI")
     allow_internal_http = not get_settings().federation_require_https
     try:
-        validate_endpoint(endpoint, allow_internal_http=allow_internal_http)
+        await avalidate_endpoint(
+            endpoint, allow_internal_http=allow_internal_http, validate=validate_endpoint
+        )
     except RemoteEngineError as exc:
         return _problem(422, "invalid_registration", str(exc))
     secret_paths = _embedded_secret_paths(document)

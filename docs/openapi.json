@@ -15688,6 +15688,16 @@
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many attempts from this address; see the `Retry-After` header."
+          },
           "503": {
             "content": {
               "application/json": {
@@ -15871,6 +15881,16 @@
             },
             "description": "The request does not satisfy the contract; `diagnostics` says where."
           },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many attempts from this address; see the `Retry-After` header."
+          },
           "503": {
             "content": {
               "application/json": {
@@ -15931,6 +15951,16 @@
               }
             },
             "description": "The password is not acceptable."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too many attempts from this address; see the `Retry-After` header."
           },
           "503": {
             "content": {

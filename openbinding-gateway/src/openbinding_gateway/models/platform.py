@@ -10,6 +10,12 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
+from ..security.redaction import (
+    redact_options,
+    redact_original_request,
+    redact_provenance,
+    redact_result,
+)
 from .artifacts import ArtifactUse
 
 SLUG = r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$"
@@ -493,20 +499,35 @@ class JobView(BaseModel):
     provenance: Optional[dict[str, Any]] = None
 
 
-def job_view(job: Any, viewer: Any, *, include_results: bool = True) -> JobView:
+def job_view(
+    job: Any, viewer: Any, *, include_results: bool = True, redact: bool = False
+) -> JobView:
     """A ``JobView`` of an ORM job as ``viewer`` may see it.
 
-    Provenance is copied, never edited in place.
+    Provenance is copied, never edited in place. ``redact`` is for readers who
+    may follow a project's work but not its inputs (a VIEWER): options are cut
+    to the non-sensitive allow-list, ``original_request`` to the problem
+    document and pinned choices, and the options echoed in the provenance and
+    the result likewise (``security/redaction.py``). The stored row is never
+    touched.
     """
     provenance = dict(job.provenance) if include_results and job.provenance is not None else None
+    result = job.result if include_results else None
+    original_request = job.original_request if include_results else None
+    options = job.options
+    if redact:
+        provenance = redact_provenance(provenance)
+        result = redact_result(result)
+        original_request = redact_original_request(original_request)
+        options = redact_options(options)
     return JobView(
         id=job.id, engine_id=job.engine_id, status=job.state.value,
         cancellation_requested=job.cancellation_requested,
         retry_of_id=job.retry_of_id, organization_id=job.organization_id,
         project_id=job.project_id, created_at=job.created_at, finished_at=job.finished_at,
-        result=job.result if include_results else None, termination=job.termination,
-        options=job.options,
-        original_request=job.original_request if include_results else None,
+        result=result, termination=job.termination,
+        options=options,
+        original_request=original_request,
         provenance=provenance,
     )
 

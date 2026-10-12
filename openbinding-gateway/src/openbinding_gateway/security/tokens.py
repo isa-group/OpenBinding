@@ -20,6 +20,8 @@ from typing import Literal, Optional
 
 import jwt
 
+from ..core.settings import get_settings
+
 ALGORITHM = "HS256"
 TokenKind = Literal["access", "refresh"]
 
@@ -40,18 +42,62 @@ class RefreshClaims:
     jti: uuid.UUID
 
 
-def _encode(secret: str, payload: dict, ttl_seconds: int) -> str:
+def _identity(issuer: Optional[str], audience: Optional[str]) -> tuple[str, str]:
+    """``iss`` and ``aud`` to write or require: explicit values, else the settings'.
+
+    Resolved here, rather than by every caller, so that issuing a token and
+    reading one can never be configured differently.
+    """
+    if issuer is not None and audience is not None:
+        return issuer, audience
+    settings = get_settings()
+    return (
+        issuer if issuer is not None else settings.gateway_jwt_issuer,
+        audience if audience is not None else settings.gateway_jwt_audience,
+    )
+
+
+def _encode(
+    secret: str,
+    payload: dict,
+    ttl_seconds: int,
+    *,
+    issuer: Optional[str],
+    audience: Optional[str],
+) -> str:
     now = datetime.now(timezone.utc)
+    issuer, audience = _identity(issuer, audience)
     return jwt.encode(
-        {**payload, "iat": now, "exp": now + timedelta(seconds=ttl_seconds)},
+        {
+            **payload,
+            "iss": issuer,
+            "aud": audience,
+            "iat": now,
+            "exp": now + timedelta(seconds=ttl_seconds),
+        },
         secret,
         algorithm=ALGORITHM,
     )
 
 
-def _decode(secret: str, token: str, expected_kind: TokenKind) -> dict:
+def _decode(
+    secret: str,
+    token: str,
+    expected_kind: TokenKind,
+    *,
+    issuer: Optional[str],
+    audience: Optional[str],
+) -> dict:
+    issuer, audience = _identity(issuer, audience)
     try:
-        claims = jwt.decode(token, secret, algorithms=[ALGORITHM])
+        claims = jwt.decode(
+            token,
+            secret,
+            algorithms=[ALGORITHM],
+            issuer=issuer,
+            audience=audience,
+            options={"require": ["exp", "iat", "iss", "aud", "sub"]},
+        )
     except jwt.ExpiredSignatureError as error:
         raise TokenError("Token has expired.") from error
     except jwt.InvalidTokenError as error:
@@ -62,26 +108,64 @@ def _decode(secret: str, token: str, expected_kind: TokenKind) -> dict:
     return claims
 
 
-def issue_access_token(secret: str, *, user_id: uuid.UUID, role: str, ttl_seconds: int) -> str:
-    return _encode(secret, {"sub": str(user_id), "role": role, "kind": "access"}, ttl_seconds)
+def issue_access_token(
+    secret: str,
+    *,
+    user_id: uuid.UUID,
+    role: str,
+    ttl_seconds: int,
+    issuer: Optional[str] = None,
+    audience: Optional[str] = None,
+) -> str:
+    return _encode(
+        secret,
+        {"sub": str(user_id), "role": role, "kind": "access"},
+        ttl_seconds,
+        issuer=issuer,
+        audience=audience,
+    )
 
 
 def issue_refresh_token(
-    secret: str, *, user_id: uuid.UUID, jti: uuid.UUID, ttl_seconds: int
+    secret: str,
+    *,
+    user_id: uuid.UUID,
+    jti: uuid.UUID,
+    ttl_seconds: int,
+    issuer: Optional[str] = None,
+    audience: Optional[str] = None,
 ) -> str:
-    return _encode(secret, {"sub": str(user_id), "jti": str(jti), "kind": "refresh"}, ttl_seconds)
+    return _encode(
+        secret,
+        {"sub": str(user_id), "jti": str(jti), "kind": "refresh"},
+        ttl_seconds,
+        issuer=issuer,
+        audience=audience,
+    )
 
 
-def read_access_token(secret: str, token: str) -> AccessClaims:
-    claims = _decode(secret, token, "access")
+def read_access_token(
+    secret: str,
+    token: str,
+    *,
+    issuer: Optional[str] = None,
+    audience: Optional[str] = None,
+) -> AccessClaims:
+    claims = _decode(secret, token, "access", issuer=issuer, audience=audience)
     try:
         return AccessClaims(user_id=uuid.UUID(claims["sub"]), role=str(claims.get("role", "user")))
     except (KeyError, ValueError) as error:
         raise TokenError("Token is missing a usable subject.") from error
 
 
-def read_refresh_token(secret: str, token: str) -> RefreshClaims:
-    claims = _decode(secret, token, "refresh")
+def read_refresh_token(
+    secret: str,
+    token: str,
+    *,
+    issuer: Optional[str] = None,
+    audience: Optional[str] = None,
+) -> RefreshClaims:
+    claims = _decode(secret, token, "refresh", issuer=issuer, audience=audience)
     try:
         return RefreshClaims(user_id=uuid.UUID(claims["sub"]), jti=uuid.UUID(claims["jti"]))
     except (KeyError, ValueError) as error:

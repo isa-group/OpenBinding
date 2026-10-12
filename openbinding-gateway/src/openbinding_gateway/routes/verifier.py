@@ -183,7 +183,7 @@ async def _search_matching_entities(
         )
 
     # 2. InstanceSnapshot
-    # Visible to its owner, when it has none (shared), or through a case
+    # Visible to its owner or through a case
     # revision of a project the caller can see.
     snapshot_in_visible_case = (
         select(BindingCaseRevision.id)
@@ -198,7 +198,6 @@ async def _search_matching_entities(
                 (InstanceSnapshot.instance_digest == digest_val)
                 | (InstanceSnapshot.package_digest == digest_val),
                 or_(
-                    InstanceSnapshot.owner_id.is_(None),
                     InstanceSnapshot.owner_id == user.id,
                     snapshot_in_visible_case,
                 ),

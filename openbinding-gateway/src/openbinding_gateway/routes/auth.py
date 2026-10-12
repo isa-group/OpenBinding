@@ -17,11 +17,12 @@ import hashlib
 import secrets
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..access.dependencies import get_user_by_identifier, session_dependency
+from ..core.ratelimit import enforce_auth_rate_limit
 from ..core.settings import Settings, get_settings
 from ..db.models import ApiKey, Notification, PasswordResetToken, RefreshToken, User, UserRole, utcnow
 from ..mailer import send_mail
@@ -37,6 +38,7 @@ from ..models.accounts import (
 )
 from ..models.errors import (
     CONFLICT_RESPONSE,
+    ErrorResponse,
     UNAUTHORIZED_RESPONSE,
     UNAVAILABLE_RESPONSE,
     api_error,
@@ -53,6 +55,11 @@ from ..space_client import PricingUnavailable
 
 router = APIRouter(prefix="/v1/auth", tags=["Authentication"])
 
+TOO_MANY_ATTEMPTS_RESPONSE = {
+    "model": ErrorResponse,
+    "description": "Too many attempts from this address; see the `Retry-After` header.",
+}
+
 
 def _signing_secret(settings: Settings) -> str:
     secret = settings.gateway_jwt_secret
@@ -63,6 +70,15 @@ def _signing_secret(settings: Settings) -> str:
             "This gateway has no signing secret configured.",
         )
     return secret
+
+
+def _read_refresh(settings: Settings, token: str):
+    return read_refresh_token(
+        _signing_secret(settings),
+        token,
+        issuer=settings.gateway_jwt_issuer,
+        audience=settings.gateway_jwt_audience,
+    )
 
 
 def _profile(user: User) -> UserProfile:
@@ -98,9 +114,16 @@ async def _issue_session(
             user_id=user.id,
             role=user.role.value,
             ttl_seconds=settings.access_token_ttl_s,
+            issuer=settings.gateway_jwt_issuer,
+            audience=settings.gateway_jwt_audience,
         ),
         refresh_token=issue_refresh_token(
-            secret, user_id=user.id, jti=jti, ttl_seconds=settings.refresh_token_ttl_s
+            secret,
+            user_id=user.id,
+            jti=jti,
+            ttl_seconds=settings.refresh_token_ttl_s,
+            issuer=settings.gateway_jwt_issuer,
+            audience=settings.gateway_jwt_audience,
         ),
         expires_in=settings.access_token_ttl_s,
     )
@@ -113,13 +136,15 @@ async def _issue_session(
     operation_id="register",
     summary="Create an account",
     responses={409: CONFLICT_RESPONSE, 422: {"description": "The password is not acceptable."},
-               503: UNAVAILABLE_RESPONSE},
+               429: TOO_MANY_ATTEMPTS_RESPONSE, 503: UNAVAILABLE_RESPONSE},
 )
 async def register(
     request: RegisterRequest,
+    http_request: Request,
     session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> UserProfile:
+    await enforce_auth_rate_limit(http_request, "register", request.email, settings)
     complaint = password_complaint(request.password)
     if complaint:
         raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "weak_password", complaint)
@@ -181,13 +206,16 @@ async def register(
     response_model=TokenPair,
     operation_id="login",
     summary="Start a session",
-    responses={401: UNAUTHORIZED_RESPONSE, 503: UNAVAILABLE_RESPONSE},
+    responses={401: UNAUTHORIZED_RESPONSE, 429: TOO_MANY_ATTEMPTS_RESPONSE, 503: UNAVAILABLE_RESPONSE},
 )
 async def login(
     request: LoginRequest,
+    http_request: Request,
     session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> TokenPair:
+    # Before the password hash, which is the expensive part an attacker wants us to repeat.
+    await enforce_auth_rate_limit(http_request, "login", request.username_or_email, settings)
     user = await get_user_by_identifier(session, request.username_or_email)
 
     # Verify even when there is no such user, so that a wrong username and a
@@ -210,15 +238,18 @@ async def login(
     response_model=TokenPair,
     operation_id="refreshSession",
     summary="Exchange a refresh token for a new pair",
-    responses={401: UNAUTHORIZED_RESPONSE, 503: UNAVAILABLE_RESPONSE},
+    responses={401: UNAUTHORIZED_RESPONSE, 429: TOO_MANY_ATTEMPTS_RESPONSE, 503: UNAVAILABLE_RESPONSE},
 )
 async def refresh(
     request: RefreshRequest,
+    http_request: Request,
     session: AsyncSession = Depends(session_dependency, scope="function"),
     settings: Settings = Depends(get_settings),
 ) -> TokenPair:
+    # By client address only: the token is not trusted enough to name a bucket.
+    await enforce_auth_rate_limit(http_request, "refresh", None, settings)
     try:
-        claims = read_refresh_token(_signing_secret(settings), request.refresh_token)
+        claims = _read_refresh(settings, request.refresh_token)
     except TokenError as error:
         raise api_error(status.HTTP_401_UNAUTHORIZED, "invalid_token", str(error)) from error
 
@@ -289,7 +320,7 @@ async def logout(
     real, and the caller's intent is satisfied either way.
     """
     try:
-        claims = read_refresh_token(_signing_secret(settings), request.refresh_token)
+        claims = _read_refresh(settings, request.refresh_token)
     except TokenError:
         return None
 

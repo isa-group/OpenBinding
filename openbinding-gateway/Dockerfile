@@ -43,6 +43,13 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 # Expose port
 EXPOSE 8000
 
+# Client addresses come from X-Forwarded-For only when the immediate peer is one
+# of FORWARDED_ALLOW_IPS (comma-separated addresses or CIDR networks). The
+# default trusts nobody but the container itself, so a client cannot choose the
+# address the authentication throttling counts; behind a reverse proxy set it to
+# that proxy's network (see docker-compose.yml).
+ENV FORWARDED_ALLOW_IPS=127.0.0.1
+
 # Run the application
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["uvicorn", "openbinding_gateway.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec uvicorn openbinding_gateway.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips \"${FORWARDED_ALLOW_IPS:-127.0.0.1}\""]

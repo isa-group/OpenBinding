@@ -49,6 +49,13 @@ CORS_EXPOSED_HEADERS = (
 )
 
 
+#: Shortest accepted ``GATEWAY_JWT_SECRET`` outside ``APP_ENV=test``.
+MIN_JWT_SECRET_LENGTH = 32
+
+#: Default ``iss`` and ``aud`` of the gateway's session tokens.
+DEFAULT_JWT_ISSUER = "openbinding-gateway"
+
+
 class Settings(BaseSettings):
     """The gateway's configuration, read from the environment once."""
 
@@ -105,10 +112,43 @@ class Settings(BaseSettings):
     # -- Authentication --------------------------------------------------
     #: Signing key for the gateway's own session tokens. Must be set before
     #: authentication is switched on; there is deliberately no default, so a
-    #: deployment cannot accidentally ship a well-known secret.
+    #: deployment cannot accidentally ship a well-known secret. Outside
+    #: ``APP_ENV=test`` a value shorter than ``MIN_JWT_SECRET_LENGTH`` is refused
+    #: at startup, and ``APP_ENV=prod`` refuses to start without one.
     gateway_jwt_secret: Optional[str] = None
     access_token_ttl_s: int = 15 * 60
     refresh_token_ttl_s: int = 30 * 24 * 60 * 60
+    #: ``iss`` and ``aud`` of the session tokens (``GATEWAY_JWT_ISSUER`` /
+    #: ``GATEWAY_JWT_AUDIENCE``). Both are written when a token is issued and
+    #: verified when it is read.
+    gateway_jwt_issuer: str = Field(default=DEFAULT_JWT_ISSUER, min_length=1)
+    gateway_jwt_audience: str = Field(default=DEFAULT_JWT_ISSUER, min_length=1)
+
+    # -- Request bodies --------------------------------------------------
+    #: Hard ceiling for any request body, checked by the ASGI body-limit
+    #: middleware before the body is buffered (``Content-Length``) and while it
+    #: streams (chunked bodies). It is the ceiling of the artifact and package
+    #: upload routes, which keep their own, tighter, per-plan checks behind it;
+    #: it equals nginx's ``client_max_body_size``.
+    max_request_body_bytes: int = Field(default=512 * 1024 * 1024, ge=1)
+    #: Ceiling for every other route (JSON documents, registrations, options).
+    #: Never above ``max_request_body_bytes``.
+    max_json_body_bytes: int = Field(default=16 * 1024 * 1024, ge=1)
+
+    # -- Throttling of authentication ------------------------------------
+    #: Fixed-window limits for login, registration and refresh
+    #: (``core/ratelimit.py``). ``0`` switches a limit off. A key is the client
+    #: address plus the identifier being attacked; the address alone has a
+    #: ``AUTH_RATE_LIMIT_IP_MULTIPLIER`` times larger budget so that one source
+    #: cannot spray many identifiers.
+    auth_rate_limit_window_s: int = Field(default=300, ge=1)
+    auth_rate_limit_login_attempts: int = Field(default=10, ge=0)
+    auth_rate_limit_register_attempts: int = Field(default=5, ge=0)
+    auth_rate_limit_refresh_attempts: int = Field(default=30, ge=0)
+    auth_rate_limit_ip_multiplier: int = Field(default=10, ge=1)
+    #: Seconds the Redis backend is left alone after it failed, so that an
+    #: outage costs one timeout per period rather than one per login.
+    auth_rate_limit_redis_retry_s: float = Field(default=15.0, gt=0)
 
     # -- The first administrator -----------------------------------------
     #: Registration is open and produces ordinary users, so a fresh deployment
@@ -193,9 +233,14 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # -- Federated engines -----------------------------------------------
-    #: Fernet key protecting the credentials users register alongside their
-    #: own solvers. Without it, federated engines that need authentication
-    #: cannot be stored at all.
+    #: Comma-separated Fernet keys protecting the credentials users register
+    #: alongside their own solvers (``SECRETS_FERNET_KEYS``). The first key
+    #: encrypts; every key decrypts, which is how a key is rotated: put the new
+    #: one first, keep the old one until nothing is encrypted with it.
+    secrets_fernet_keys: Optional[str] = None
+    #: The single key of earlier deployments. Still read, after the keys above
+    #: (it encrypts only when ``SECRETS_FERNET_KEYS`` is unset). Without either,
+    #: federated engines that need authentication cannot be stored at all.
     federation_secret_key: Optional[str] = None
     #: Whether a federated engine must be reached over TLS. The instance and
     #: the credential both travel to it, so a deployment serving real users
@@ -227,6 +272,39 @@ class Settings(BaseSettings):
                 "CORS_ALLOW_ORIGINS contains '*' while APP_ENV=prod: a wildcard is not "
                 "allowed in production; list the exact frontend origins instead."
             )
+        return self
+
+    @model_validator(mode="after")
+    def strong_signing_secret(self) -> "Settings":
+        """Refuse a weak or missing signing secret outside the test suite.
+
+        HS256 is only as strong as its key. The suite (``APP_ENV=test``) signs
+        with a throwaway; anywhere else a short value is a startup error, and
+        production additionally refuses to start with no secret at all. In
+        development an unset secret still means "authentication unavailable"
+        (503), as it always did.
+        """
+        if self.app_env == "test":
+            return self
+        secret = self.gateway_jwt_secret
+        if not secret:
+            if self.app_env == "prod":
+                raise ValueError(
+                    "GATEWAY_JWT_SECRET is not set while APP_ENV=prod: set a random secret of at "
+                    f"least {MIN_JWT_SECRET_LENGTH} characters (for example `openssl rand -hex 32`)."
+                )
+            return self
+        if len(secret) < MIN_JWT_SECRET_LENGTH:
+            raise ValueError(
+                f"GATEWAY_JWT_SECRET is shorter than {MIN_JWT_SECRET_LENGTH} characters: use a random "
+                "secret (for example `openssl rand -hex 32`)."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def json_limit_within_request_limit(self) -> "Settings":
+        if self.max_json_body_bytes > self.max_request_body_bytes:
+            raise ValueError("MAX_JSON_BODY_BYTES cannot exceed MAX_REQUEST_BODY_BYTES.")
         return self
 
     @model_validator(mode="after")

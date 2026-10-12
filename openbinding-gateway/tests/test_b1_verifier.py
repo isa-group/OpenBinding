@@ -230,7 +230,7 @@ async def test_engines_are_visible_when_published_or_owned(api_client, db_sessio
     unregistered_like(outsider_private, digests["private"], reference, reference.json()["digest"])
 
 
-async def test_snapshots_are_visible_to_their_owner_shared_or_through_a_visible_case(api_client, db_session, ctx):
+async def test_snapshots_are_visible_to_their_owner_or_through_a_visible_case(api_client, db_session, ctx):
     from _b1_helpers import add_case_revision
 
     def snapshot(owner_id, package_digest):
@@ -241,9 +241,8 @@ async def test_snapshots_are_visible_to_their_owner_shared_or_through_a_visible_
         db_session.add(row)
         return row
 
-    owned, shared, in_case = random_digest(), random_digest(), random_digest()
+    owned, in_case = random_digest(), random_digest()
     snapshot(ctx.user_id, owned)
-    snapshot(None, shared)
     attached = snapshot(ctx.user_id, in_case)
     await db_session.flush()
     await add_case_revision(db_session, ctx, digest=random_digest(), snapshot_id=attached.id)
@@ -254,7 +253,6 @@ async def test_snapshots_are_visible_to_their_owner_shared_or_through_a_visible_
 
     assert await kinds("owner", owned) == ["snapshot"]
     assert await kinds("viewer", owned) == []  # another member's private snapshot
-    assert await kinds("outsider", shared) == ["snapshot"]
     assert await kinds("viewer", in_case) == ["snapshot"]  # via a case of a project the viewer can open
     assert await kinds("outsider", in_case) == []
     unregistered_like(await inspect(api_client, ctx, "outsider", owned), owned, reference, reference.json()["digest"])
