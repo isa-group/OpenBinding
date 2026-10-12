@@ -1,0 +1,10 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {"name": "hard"},
+  "spec": {
+    "constraints": {
+      "limit": {"assert": "features.latency <= 100", "enforcement": "hard"}
+    }
+  }
+}

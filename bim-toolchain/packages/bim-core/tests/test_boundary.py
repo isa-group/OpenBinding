@@ -161,7 +161,8 @@ def test_pyproject_declares_a_plain_package_without_an_invented_license() -> Non
     assert {item.split(">")[0].split("<")[0].split("=")[0].strip() for item in project["dependencies"]} == {
         "jsonschema", "lxml", "pyyaml",
     }
-    assert "license" not in project and "license-files" not in project
+    assert "license" not in project
+    assert project["license-files"] == ["NOTICE.md"]
     assert not any(item.startswith("License ::") for item in project.get("classifiers", []))
     assert (PACKAGE / project["readme"]).is_file()
     assert (PACKAGE / "src" / "bim_core" / "py.typed").is_file()

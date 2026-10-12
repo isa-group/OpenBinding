@@ -1,0 +1,108 @@
+# Release of the future repository (javiercavlop/bim-toolchain). It is not run yet: the remote does not exist.
+#
+# On a tag vMAJOR.MINOR.PATCH it builds the wheels and sdists, verifies them in a clean virtual environment,
+# generates toolchain.json and attaches everything to a DRAFT GitHub release for a person to review and publish.
+# It does NOT publish to PyPI or to any index (the distributions carry "Private :: Do Not Upload"), and it uses
+# no secret: the only credential is the job-scoped GITHUB_TOKEN that GitHub provides, with the permissions below.
+#
+# SECURITY TODO: actions are pinned by major version because the commit SHAs could not be looked up (no network
+# when this file was written). Before the first real run, pin each `uses:` to the full commit SHA of the release
+# that the major version points to (keep the version in a trailing comment).
+
+name: release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  DEPS: >-
+    "jsonschema>=4.21,<5" "lxml>=5.2,<7" "pyyaml>=6,<7"
+    "fastapi>=0.110,<1.0" "pydantic>=2,<3" "uvicorn>=0.27,<1.0"
+    "httpx>=0.27,<1.0" "pytest>=8,<9"
+  SRC: packages/bim-core/src:packages/bim-service/src:packages/bim-client/src
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # `v*.*.*` also matches odd tags (v1.2.3-rc1); only a plain MAJOR.MINOR.PATCH tag can be a release.
+      - name: The tag is the version of every package
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "${version}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::${GITHUB_REF_NAME} is not vMAJOR.MINOR.PATCH"; exit 1; }
+          for package in bim_core bim_service bim_client; do
+            found="$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' "packages/${package//_/-}/src/${package}/_version.py")"
+            echo "${package}: ${found}"
+            test "${found}" = "${version}" || { echo "::error::${package} is ${found}, the tag is ${GITHUB_REF_NAME}"; exit 1; }
+          done
+          for package in bim-core bim-service bim-client; do
+            grep -q "^version = \"${version}\"$" "packages/${package}/pyproject.toml" \
+              || { echo "::error::${package}/pyproject.toml is not ${version}"; exit 1; }
+          done
+          grep -q "^## \[${version}\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no section for ${version}"; exit 1; }
+
+      - run: python -m pip install ${{ env.DEPS }}
+      - name: Tests
+        run: python -m pytest -p no:cacheprovider --rootdir=. packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests -rs
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+
+      - name: Build wheel and sdist of each package
+        run: |
+          rm -rf dist
+          for package in bim-core bim-service bim-client; do
+            (cd "packages/${package}" && uv build --out-dir ../../dist)
+          done
+
+      - name: Install the wheels in a clean virtual environment and smoke-test them (isolated)
+        run: |
+          python -m venv .verify-venv
+          .verify-venv/bin/python -m pip install dist/*.whl
+          env -i .verify-venv/bin/python -I tools/smoke_installed.py packages/bim-core/tests/fixtures/example-package
+
+      - name: Packaging tests (they open the built archives and the clean venv)
+        run: python -m pytest -p no:cacheprovider --rootdir=. tools -rs
+        env:
+          PYTHONPATH: ${{ env.SRC }}
+
+      - name: toolchain.json of the installed wheels, and checksums
+        run: |
+          env -i .verify-venv/bin/python -I tools/toolchain_json.py --output dist/toolchain.json
+          (cd dist && sha256sum *.whl *.tar.gz toolchain.json > SHA256SUMS && cat SHA256SUMS)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.ref_name }}
+          path: dist/
+          if-no-files-found: error
+
+  draft-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only to create the draft release and attach the files
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-${{ github.ref_name }}
+          path: dist
+      - name: Create a draft release with the artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --draft --verify-tag \
+            --title "${GITHUB_REF_NAME}" \
+            --notes "Wheels, sdists, toolchain.json and SHA256SUMS. Draft: review CHANGELOG.md and the digests, then publish by hand. Not published to any package index." \
+            dist/*

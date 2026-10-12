@@ -1,0 +1,13 @@
+# bim-toolchain: a uv workspace of three distributions. This file declares no project of its own
+# (nothing is built or published from the root); it only ties the members together for local development.
+#
+# License: no license has been chosen for the code. The holder's decision is pending; see NOTICE.md.
+
+[tool.uv.workspace]
+members = ["packages/bim-core", "packages/bim-service", "packages/bim-client"]
+
+# In the workspace the dependencies between members resolve to the members themselves. This is development
+# metadata only: the built wheels and sdists carry plain version ranges (bim-core>=0.1,<0.2), never a path.
+[tool.uv.sources]
+bim-core = { workspace = true }
+bim-service = { workspace = true }

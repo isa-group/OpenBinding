@@ -1,0 +1,12 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "Optimization",
+  "metadata": {"name": "opt"},
+  "spec": {
+    "criteria": [
+      {"id": "latency", "feature": {"resource": "app", "id": "latency"}, "normalize": {"min": 0, "max": 100, "clamp": false}},
+      {"id": "cost", "feature": {"resource": "app", "id": "cost"}, "normalize": {"min": 0, "max": 20, "clamp": false}}
+    ],
+    "penalties": [{"constraint": {"resource": "soft", "id": "limit"}, "weight": 1}]
+  }
+}

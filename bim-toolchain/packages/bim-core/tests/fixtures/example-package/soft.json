@@ -1,0 +1,10 @@
+{
+  "apiVersion": "qos-binding/v1",
+  "kind": "ConstraintSet",
+  "metadata": {"name": "soft"},
+  "spec": {
+    "constraints": {
+      "limit": {"assert": "has(tasks.t1.provider)", "enforcement": "soft", "penalty": 2}
+    }
+  }
+}

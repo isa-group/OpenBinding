@@ -1,7 +1,9 @@
 # bim-core: the BIM v1 language implementation as a normal src-layout package.
 #
 # License: no license has been chosen for the code. The holder's decision is
-# pending; see ../../NOTICE.md. The metadata therefore declares none.
+# pending; see ../../NOTICE.md. The metadata therefore declares no `license`;
+# `license-files` ships NOTICE.md (a byte copy of the root one, kept equal by a
+# test because hatchling cannot read files outside the project directory).
 
 [project]
 name = "bim-core"
@@ -9,6 +11,18 @@ version = "0.1.0"
 description = "BIM v1 service-composition and binding language: package loader, canonical JSON, expressions and Instance compiler"
 readme = "README.md"
 requires-python = ">=3.11"
+license-files = ["NOTICE.md"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+    # Keeps the distribution from being uploaded to PyPI by mistake while it is private.
+    "Private :: Do Not Upload",
+]
 dependencies = [
     "jsonschema>=4.21,<5",
     "lxml>=5.2,<7",
@@ -17,14 +31,20 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 # Everything under src/bim_core ships, including resources/ (JSON Schemas,
 # the engine contract and the vendored OMG BPMN 2.0.2 XSDs), which are read
-# through importlib.resources.
+# through importlib.resources, and py.typed.
 [tool.hatch.build.targets.wheel]
 packages = ["src/bim_core"]
+
+# The sdist carries the sources, the resources, the readme and the notice. The
+# tests are not shipped: they read goldens and fixtures that live at the root of
+# the repository, outside this directory.
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/README.md", "/NOTICE.md", "/pyproject.toml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -310,9 +310,74 @@ directories; FastAPI 0.141.1, Starlette 1.3.1, pydantic 2.13.4, httpx 0.28.1):
 - **A token file that changes while the service runs** is not re-read by the service (only by `HttpBim`).
 - **OpenBinding does not use any of this yet.** No file outside `bim-toolchain/` changed.
 
-### Missing
+### Missing (as of step 4; packaging, CI and release are done in step 5 below)
 
 - An OpenBinding adapter for `BimPort` (configuration choosing `InProcessBim` or `HttpBim`, mapping `BimError` and
   `BimServiceError` to its HTTP errors) and a replay of `contracts/consumers/openbinding/` from OpenBinding's side.
 - Building the image; a `uv.lock` per package; publishing wheels; the remote repository; the license decision.
 - A decision on the eligibility order (above).
+
+## Packaging, clean-environment verification, CI and release (step 5)
+
+Until this step no wheel had been built and nothing had been installed outside the gateway environment. No file under
+any `src/` directory changed (so `compilerDigest` is the one of step 4 and the digest definition was not touched).
+
+### What changed
+
+| Where | What |
+| --- | --- |
+| `packages/*/pyproject.toml` | `license-files = ["NOTICE.md"]` (no `license` field), neutral classifiers plus `Private :: Do Not Upload`, `hatchling>=1.27`, an explicit sdist (`/src`, readme, notice, pyproject), `[tool.uv.sources] … workspace = true` in the two dependents |
+| `packages/*/NOTICE.md` | byte copies of the root `NOTICE.md` (hatchling reads only below the project directory); a test keeps them equal |
+| `packages/bim-{service,client}/src/*/py.typed` | new (only `bim_core` had one) |
+| `pyproject.toml`, `.gitignore` | uv workspace at the root (no project); `dist/`, `.venv/`, `.verify-venv/`, `__pycache__/` ignored |
+| `packages/bim-service/Dockerfile`, `.dockerignore` | the Dockerfile copies `NOTICE.md` of the two packages it installs; `.dockerignore` excludes `.github`, `dist` and the venvs. Still not built |
+| `packages/bim-core/tests/fixtures/example-package/` | the demo package as files, plus `binding.json` |
+| `tools/toolchain_json.py`, `tools/smoke_installed.py` | the release descriptor and the `python -I` smoke test |
+| `tools/test_packaging_metadata.py`, `test_built_artifacts.py`, `test_toolchain_json.py`, `test_workflows.py`, `packaging_support.py` | 62 new tests |
+| `packages/bim-core/tests/test_boundary.py` | one assertion: `license-files == ["NOTICE.md"]` instead of "no license-files"; `license` is still absent |
+| `.github/workflows/ci.yml`, `release.yml` | lint, tests (3.11/3.12 × 3 packages), golden/corpus (warns when the corpus is absent), OpenAPI and consumer-contract checks, build, clean install + isolated smoke; the release builds, verifies, writes `toolchain.json` and `SHA256SUMS` and creates a *draft* release; no PyPI, no secrets, `contents: read` (write only in the draft job); actions by major version (security TODO) |
+| `docs/PACKAGING.md`, `docs/RELEASING.md`, `CHANGELOG.md`, `README.md` | new / updated |
+
+### Results (actual runs, Python 3.11, registered checks)
+
+- `uv build` of the three packages: **3 wheels and 3 sdists** built (`bim_core` 122 520 B wheel / 104 296 B sdist,
+  `bim_service` 25 611 / 20 696, `bim_client` 17 794 / 13 353). Built twice; same sizes both times. `uv build` builds the
+  wheel from the sdist.
+- Clean venv (`python3 -m venv`, `pip install dist/*.whl`, no gateway environment): installed without error; the
+  dependencies came from an index (network available). `python -I` imports the three packages and lists the resources.
+- `tools/smoke_installed.py` under `python -I` with an empty environment (run by `test_built_artifacts.py`): imports,
+  `importlib.resources` listing (12 schemas, engine contract, 5 XSD + README, three `py.typed`), compile, evaluate,
+  re-evaluate, validate, service via `TestClient` (`/healthz`, `/capabilities`, `/validate-result`, `/compile`) and
+  `InProcessBim.compile`: passed.
+- `compilerDigest`: wheel in the clean venv = source tree (`PYTHONPATH`) =
+  `sha256-18a20c7d12fbba1c6b82dde90e6db40ed877959bb82d9a80083da8114c105172`. The package unpacked from the sdist and a
+  wheel rebuilt from it give the same value (asserted by tests); so do the service and `InProcessBim` in the venv.
+  `toolchain_identity()` (including the Profile and Dialect versions) is identical between wheel and tree.
+  **No change to the digest definition was needed.**
+- `pytest packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests tools`: **1279 passed, 1 xfailed
+  (strict, ported as is), 0 failed, 0 skipped** in about 48 s (step 4: 1217 passed). 62 new tests: 22 on the built
+  archives and the clean venv, 26 on the metadata and the example package, 8 on `toolchain.json`, 6 on the workflows. (The tests that need
+  `dist/` and `.venv` skip when they are absent; the registered checks build first.)
+- `ruff check ../bim-toolchain`: clean. `git diff --check`: clean.
+
+### Decisions and deviations
+
+- **`LICENSE` is not shipped in the wheels.** The task asked for `license-files` pointing at `NOTICE.md`/`LICENSE`;
+  only `NOTICE.md` is listed, because a `License-File` entry for the CC BY 4.0 text would read as the code's licence,
+  which `NOTICE.md` says is undecided. `THIRD_PARTY_NOTICES.md` is OpenBinding's platform credits and is not shipped
+  either. The owner decides with the licence (`RELEASING.md`).
+- **Tests are not in the sdists** (they need root-level goldens and fixtures). The "package rebuilt from the sdist"
+  is therefore checked by digest and by rebuilding the wheel, not by running the suite from the sdist.
+- **hatchling adds `.gitignore` to every sdist**; the test expects it.
+- **`example-package/binding.json` sits next to the package files** because a package directory cannot hold undeclared
+  entries and this worker could not delete a file it had first placed elsewhere: `fixtures/example-binding.json` is an
+  identical, unused leftover and can be deleted. The smoke script and the tests leave `binding.json` out of the package.
+- **Check ordering.** `uv run --locked` without `--extra test` (registered check 4) re-syncs the gateway environment and
+  removes `pytest`; run check 0 again before check 1. Order used: 2, 3, 4, 0, 1, 5.
+- **Not verified:** the workflows on GitHub, the Docker image, `uv sync` in the workspace, Python 3.12, an offline
+  install. See `PACKAGING.md`.
+
+### Missing
+
+- The licence decision and holder; the remote repository; pinning actions by SHA; a first tag and release.
+- Everything listed under *Missing* of the previous steps.

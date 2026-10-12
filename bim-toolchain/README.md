@@ -20,19 +20,23 @@ For now the code was copied, not moved; see [`docs/EXTRACTION_LOG.md`](docs/EXTR
 
 ```
 bim-toolchain/
+  pyproject.toml                    uv workspace of the three packages (builds nothing)
+  .gitignore                        dist/, .venv/, .verify-venv/, __pycache__
+  .github/workflows/                ci.yml, release.yml (for the future repository; never run yet)
+  CHANGELOG.md                      SemVer; says what changed in the digests
   LICENSE, THIRD_PARTY_NOTICES.md   copied unchanged from OpenBinding
   NOTICE.md                         license pending; OMG BPMN notices; no datasets
   packages/bim-core/
-    pyproject.toml, README.md
-    src/bim_core/                   the package (src layout)
+    pyproject.toml, README.md, NOTICE.md (copy of the root one, shipped as license-files)
+    src/bim_core/                   the package (src layout, py.typed)
       resources/                    JSON Schemas, engine contract, vendored OMG BPMN 2.0.2 XSDs
-    tests/                          tests/fixtures/manifests: Engine manifests used as test inputs
+    tests/                          tests/fixtures/manifests: Engine manifests; fixtures/example-package: a small BIM package
   packages/bim-service/
-    pyproject.toml, README.md, Dockerfile
+    pyproject.toml, README.md, NOTICE.md, Dockerfile
     src/bim_service/                FastAPI application, middleware, limits, authentication, operations
     tests/
   packages/bim-client/
-    pyproject.toml, README.md
+    pyproject.toml, README.md, NOTICE.md
     src/bim_client/                 BimPort, InProcessBim, HttpBim, errors, types
     tests/                          includes the equivalence battery
   contracts/
@@ -44,8 +48,23 @@ bim-toolchain/
   tools/baseline_core.py            recomputes the baseline with bim_core only
   tools/dump_service_openapi.py     writes / checks contracts/openapi/bim-service.v1.json
   tools/consumer_fixtures.py        the demo package and the scripts behind contracts/consumers/
-  docs/                             CONTRACT.md, DIGESTS.md, SERVICE.md, CLIENT.md, EXTRACTION_LOG.md
+  tools/toolchain_json.py           writes / checks toolchain.json (versions, digests, runtime versions)
+  tools/smoke_installed.py          smoke test of installed wheels, run with python -I in a clean venv
+  tools/test_*.py, packaging_support.py   packaging tests: metadata, built wheels/sdists, toolchain.json, workflows
+  docs/                             CONTRACT.md, DIGESTS.md, SERVICE.md, CLIENT.md, PACKAGING.md, RELEASING.md, EXTRACTION_LOG.md
 ```
+
+## Building and installing
+
+```sh
+for p in bim-core bim-service bim-client; do (cd packages/$p && uv build --out-dir ../../dist); done   # wheel + sdist
+python3 -m venv .verify-venv && .verify-venv/bin/pip install dist/*.whl
+.verify-venv/bin/python -I tools/smoke_installed.py packages/bim-core/tests/fixtures/example-package
+```
+
+See [`docs/PACKAGING.md`](docs/PACKAGING.md) (what each wheel contains, how the digest is compared between the wheel,
+the source tree and the sdist, how consumers depend on a release) and [`docs/RELEASING.md`](docs/RELEASING.md)
+(SemVer and digest rules, checklist, rollback, extracting this directory into its own repository, what to decide first).
 
 ## Running the tests
 
@@ -55,8 +74,11 @@ are not installed, they are put on the path, and the three suites run in one ses
 ```sh
 cd bim-toolchain
 PYTHONPATH=packages/bim-core/src:packages/bim-service/src:packages/bim-client/src \
-  python -m pytest --rootdir=. packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests
+  python -m pytest --rootdir=. packages/bim-core/tests packages/bim-service/tests packages/bim-client/tests tools
 ```
+
+The tests in `tools/` that open the built archives or use the clean venv skip when `dist/` or `.verify-venv` do not
+exist: build first (below).
 
 The corpus of BIM packages is not part of this directory. Tests that need it look under `BIM_CORPUS_ROOT`
 (default: the directory that contains `bim-toolchain/`) and skip with a warning when it is missing. By default the
