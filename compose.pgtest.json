@@ -37,12 +37,26 @@
         "start_period": "5s"
       }
     },
-    "seed": {
-      "profiles": ["seed"],
+    "image-builder": {
       "build": {
         "context": ".",
         "dockerfile": "openbinding-gateway/Dockerfile"
       },
+      "image": "openbinding-pgtest-gateway:latest",
+      "user": "65534:65534",
+      "entrypoint": [],
+      "command": ["sh", "-c", "sleep 3600"],
+      "mem_limit": "64m",
+      "healthcheck": {
+        "test": ["CMD-SHELL", "true"],
+        "interval": "5s",
+        "timeout": "3s",
+        "retries": 3
+      }
+    },
+    "seed": {
+      "profiles": ["seed"],
+      "image": "openbinding-pgtest-gateway:latest",
       "entrypoint": [],
       "working_dir": "/app",
       "command": [

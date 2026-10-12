@@ -108,14 +108,33 @@ def test_defined_and_valid_variable_passes(monkeypatch):
     assert _outcome(monkeypatch, "postgresql+asyncpg://u:p@h/test_x") == "ok"
 
 
-def test_compose_has_postgres_and_seed(compose):
-    assert set(compose["services"]) == {"postgres", "seed"}
+def test_compose_has_postgres_image_builder_and_seed(compose):
+    assert set(compose["services"]) == {"postgres", "image-builder", "seed"}
 
 
 def test_only_the_seed_service_is_behind_a_profile(compose):
-    # ``up`` must start the healthy postgres and nothing else; the tests run as ``run --rm seed``.
+    # ``up`` starts the healthy postgres and the image builder; the tests run as ``run --rm seed``.
     assert compose["services"]["seed"]["profiles"] == ["seed"]
     assert "profiles" not in compose["services"]["postgres"]
+    assert "profiles" not in compose["services"]["image-builder"]
+
+
+def test_seed_shares_the_image_that_up_always_rebuilds(compose):
+    # ``up --build`` rebuilds only services without a profile; ``run --no-deps seed`` reuses an
+    # existing image, so a seed with its own build would run stale code.  The seed therefore has no
+    # build and uses the image tagged by the always-rebuilt image-builder.
+    builder, seed = compose["services"]["image-builder"], compose["services"]["seed"]
+    assert "build" in builder and "build" not in seed
+    assert builder["image"] == seed["image"] == "openbinding-pgtest-gateway:latest"
+
+
+def test_image_builder_is_inert(compose):
+    builder = compose["services"]["image-builder"]
+    assert "ports" not in builder and "volumes" not in builder and "depends_on" not in builder
+    assert builder["mem_limit"] == "64m"
+    assert builder["entrypoint"] == []
+    assert builder["healthcheck"]["test"] == ["CMD-SHELL", "true"]
+    assert builder["command"][0] in {"sh", "python"} and "sleep" in " ".join(builder["command"])
 
 
 def test_compose_publishes_no_ports(compose):
@@ -216,7 +235,7 @@ def test_seed_uses_the_gateway_dockerfile(compose):
 
     if not (REPO_ROOT / "docker-compose.yml").is_file():
         pytest.skip("docker-compose.yml not found")
-    build = compose["services"]["seed"]["build"]
+    build = compose["services"]["image-builder"]["build"]
     dev = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     dev_build = dev["services"]["gateway-dev"]["build"]
     assert (build["context"], build["dockerfile"], build.get("target")) == (

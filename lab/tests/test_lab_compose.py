@@ -296,6 +296,17 @@ def test_builds_use_only_allowed_keys_and_literal_paths_inside_the_repo(services
             assert "${" not in str(value), (name, key)
 
 
+def test_gateway_worker_and_seed_share_one_always_rebuilt_image(services):
+    # ``up --build`` rebuilds only profile-less services; ``run --no-deps seed`` reuses an existing
+    # image.  So only the gateway builds, and worker and seed use the image it tags.
+    image = "openbinding-lab-gateway:latest"
+    assert "build" in services["gateway"]
+    for name in ("gateway", "worker", "seed"):
+        assert services[name]["image"] == image, name
+    assert "build" not in services["worker"] and "build" not in services["seed"]
+    assert services["worker"]["depends_on"]["gateway"]["condition"] == "service_healthy"
+
+
 def test_frontend_is_built_for_the_api_prefix(services):
     build = services["web"]["build"]
     assert build["context"] == "frontend" and build["target"] == "prod"

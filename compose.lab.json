@@ -162,6 +162,7 @@
         "context": ".",
         "dockerfile": "openbinding-gateway/Dockerfile"
       },
+      "image": "openbinding-lab-gateway:latest",
       "command": [
         "sh",
         "-c",
@@ -232,10 +233,7 @@
       }
     },
     "worker": {
-      "build": {
-        "context": ".",
-        "dockerfile": "openbinding-gateway/Dockerfile"
-      },
+      "image": "openbinding-lab-gateway:latest",
       "entrypoint": [],
       "command": [
         "dramatiq", "openbinding_gateway.worker",
@@ -335,10 +333,7 @@
     },
     "seed": {
       "profiles": ["seed"],
-      "build": {
-        "context": ".",
-        "dockerfile": "openbinding-gateway/Dockerfile"
-      },
+      "image": "openbinding-lab-gateway:latest",
       "command": ["sh", "-c", "python tools/${DEMO_SEED_TOOL} ${DEMO_SEED_ARGS}"],
       "environment": {
         "APP_ENV": "dev",

@@ -21,10 +21,10 @@ user/permission settings and the whole startup order are untested. Read
 | `engine-evolutionary-heuristics` | `engines/evolutionary-heuristics/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
 | `engine-minizinc` | `engines/minizinc-csp/Dockerfile` | 192 MiB | Node, `--max-old-space-size=96` |
 | `bim-service` | `bim-toolchain`, `packages/bim-service/Dockerfile` | 256 MiB | port 8080, `/healthz`, tokens file in a tmpfs |
-| `gateway` | `openbinding-gateway/Dockerfile` | 640 MiB | `alembic upgrade head` through the image entrypoint, then uvicorn with `--proxy-headers` |
-| `worker` | same image | 448 MiB | dramatiq, one process, 2 threads, queues `default` and `analysis` |
+| `gateway` | `openbinding-gateway/Dockerfile`, tagged `openbinding-lab-gateway:latest` (the only build of this image) | 640 MiB | `alembic upgrade head` through the image entrypoint, then uvicorn with `--proxy-headers` |
+| `worker` | `image: openbinding-lab-gateway:latest`, no build | 448 MiB | dramatiq, one process, 2 threads, queues `default` and `analysis` |
 | `web` | `frontend/Dockerfile`, target `prod` | 96 MiB | nginx: production build of the frontend, `/api/` to the gateway without the prefix; **the only published port** |
-| `seed` | same image as `gateway` | 384 MiB | `profiles: ["seed"]`; not started by `up` |
+| `seed` | `image: openbinding-lab-gateway:latest`, no build | 384 MiB | `profiles: ["seed"]`; not started by `up` |
 
 **Memory sum of all `mem_limit`: 3456 MiB** (3.375 GiB; lab ceiling 4096 MiB,
 target 3481 MiB = 3.4 GiB). It includes `seed`, which only runs on demand, so
@@ -213,8 +213,13 @@ Everything here is a hypothesis until it is observed.
   else to stay under 3481 MiB (the current total leaves 25 MiB).
 - A single worker serves both queues with two threads; analysis jobs and solve
   jobs can delay each other.
-- `gateway`, `worker` and `seed` each build the same image (same context and
-  Dockerfile); the second and third build should be cache hits.
+- `gateway`, `worker` and `seed` share one image, `openbinding-lab-gateway:latest`,
+  built only by `gateway`. Reason: `up --build` rebuilds only services without a
+  profile, and `run --rm --no-deps seed` reuses an existing image without
+  rebuilding it, so a `seed` with its own `build` ran code from an earlier build
+  (missing new modules and migrations). With the shared tag, every `up` refreshes
+  the image the seed runs; `worker` keeps `depends_on: gateway` healthy so the
+  image exists before it starts.
 - `Dockerfile` of the gateway installs `uv` from `ghcr.io/astral-sh/uv:latest`
   and installs packages without the lock file, so the image is not
   reproducible.

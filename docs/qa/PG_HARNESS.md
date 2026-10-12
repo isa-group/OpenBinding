@@ -15,7 +15,7 @@ file has not been accepted by lab_compose after the last change either.
 ### lab_compose
 
 Submit `compose.pgtest.json` (repository root) as the Compose file. The
-supervisor's `up` starts only `postgres`; the tests run as the `seed` service
+supervisor's `up` starts `postgres` and `image-builder`; the tests run as the `seed` service
 (`docker compose run --rm --no-deps seed`), the same pattern as
 `compose.lab.json`:
 
@@ -27,9 +27,17 @@ supervisor's `up` starts only `postgres`; the tests run as the `seed` service
   `test_openbinding`, synthetic user/password valid only for this ephemeral
   database, healthcheck `pg_isready`, `mem_limit` 384m. No profile, so `up`
   starts it and `--wait` returns once it is healthy.
-- `seed` (`profiles: ["seed"]`, so `up` does not start it): built from
+- `image-builder` (no profile, so `up` builds and starts it): builds
   `openbinding-gateway/Dockerfile` with the same context as `gateway-dev` (the
-  Dockerfile has no stages, so no `target`). It runs `alembic upgrade head`,
+  Dockerfile has no stages, so no `target`) and tags it
+  `openbinding-pgtest-gateway:latest`. It does nothing: `entrypoint: []`,
+  `user: "65534:65534"`, `sleep 3600`, healthcheck `true`, no ports or mounts,
+  `mem_limit` 64m, nothing that needs capabilities. It exists because `up --build`
+  rebuilds only services without a profile, while `run --no-deps seed` reuses an
+  existing image: a `seed` with its own `build` ran stale code (missing new
+  modules and migrations). Sharing the image makes every `up` refresh it.
+- `seed` (`profiles: ["seed"]`, so `up` does not start it): `image:
+  openbinding-pgtest-gateway:latest`, no `build`. It runs `alembic upgrade head`,
   then `pytest -p no:cacheprovider -rA tests/concurrency`; the container exit
   code is pytest's. `mem_limit` 768m. It keeps `depends_on: postgres:
   service_healthy` for a plain `run`; with `--no-deps` the wait is done by `up`.
@@ -38,7 +46,7 @@ Format rules of lab_compose that the file follows (checked by
 `test_pg_harness.py`, without Docker):
 
 - No top-level `networks` or `volumes` (they would only admit `labels`), no
-  `networks` on services: both services use the Compose-managed default network
+  `networks` on services: all services use the Compose-managed default network
   of the project. No ports are published, no `network_mode`.
 - Service names (and volume/network names, if any) match
   `^[a-z][a-z0-9-]{0,62}$`: no underscores.
@@ -50,7 +58,7 @@ Format rules of lab_compose that the file follows (checked by
   read-only.
 - None of `container_name`, `env_file`, `secrets`, `configs`, `cap_add`,
   `privileged`, `deploy`, `extends`. `mem_limit` is an integer with `m` or `g`;
-  the limits sum to 1152 MiB (lab ceiling: 4 GiB, harness test: 1.5 GiB).
+  the limits sum to 1216 MiB (lab ceiling: 4 GiB, harness test: 1.5 GiB).
 
 Mounts: the runner image already contains `src`, `alembic`, `alembic.ini`,
 `schemas`, `examples` and `space/pricing/openbinding.yml` (see the Dockerfile),
