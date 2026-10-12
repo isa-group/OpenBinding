@@ -1,0 +1,37 @@
+# bim-core: the BIM v1 language implementation as a normal src-layout package.
+#
+# License: no license has been chosen for the code. The holder's decision is
+# pending; see ../../NOTICE.md. The metadata therefore declares none.
+
+[project]
+name = "bim-core"
+version = "0.1.0"
+description = "BIM v1 service-composition and binding language: package loader, canonical JSON, expressions and Instance compiler"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "jsonschema>=4.21,<5",
+    "lxml>=5.2,<7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Everything under src/bim_core ships, including resources/ (JSON Schemas,
+# the engine contract and the vendored OMG BPMN 2.0.2 XSDs), which are read
+# through importlib.resources.
+[tool.hatch.build.targets.wheel]
+packages = ["src/bim_core"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 110
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "B"]
+ignore = ["E501"]

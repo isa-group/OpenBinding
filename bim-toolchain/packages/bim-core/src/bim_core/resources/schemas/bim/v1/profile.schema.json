@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bim.dev/schema/bim/v1/profile.schema.json",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {"const": "bim/v1"},
+    "kind": {"const": "Profile"},
+    "metadata": {"$ref": "#/$defs/metadata"},
+    "spec": {
+      "type": "object",
+      "required": ["deterministic", "roles", "output", "capabilityVocabulary", "limitVocabulary", "adapter"],
+      "properties": {
+        "deterministic": {"type": "boolean"},
+        "roles": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"$ref": "#/$defs/name"},
+          "additionalProperties": {"$ref": "#/$defs/role"}
+        },
+        "output": {"$ref": "#/$defs/output"},
+        "capabilityVocabulary": {"$ref": "#/$defs/capabilityVocabulary"},
+        "limitVocabulary": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/name"}
+        },
+        "adapter": {"$ref": "#/$defs/adapter"},
+        "extensions": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "versionedId": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}/v[1-9][0-9]*$"},
+    "apiVersion": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$"},
+    "kind": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+    "digest": {"type": "string", "pattern": "^sha256-[0-9a-f]{64}$"},
+    "metadata": {
+      "type": "object",
+      "required": ["namespace", "name", "version"],
+      "properties": {
+        "namespace": {"type": "string", "minLength": 1},
+        "name": {"$ref": "#/$defs/name"},
+        "version": {"$ref": "#/$defs/semver"},
+        "description": {"type": "string"},
+        "labels": {"type": "object", "additionalProperties": {"type": "string"}},
+        "annotations": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": false
+    },
+    "resourceType": {
+      "type": "object",
+      "required": ["apiVersion", "kind", "minimum"],
+      "properties": {
+        "apiVersion": {"$ref": "#/$defs/apiVersion"},
+        "kind": {"$ref": "#/$defs/kind"},
+        "minimum": {"type": "integer", "minimum": 0},
+        "maximum": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^([1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "role": {
+      "type": "object",
+      "required": ["resourceTypes", "extensionTypes"],
+      "properties": {
+        "resourceTypes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/resourceType"}
+        },
+        "extensionTypes": {"enum": ["none", "installed"]}
+      },
+      "additionalProperties": false
+    },
+    "output": {
+      "type": "object",
+      "required": ["apiVersion", "kind", "schemaDigest", "engineProtocol"],
+      "properties": {
+        "apiVersion": {"$ref": "#/$defs/apiVersion"},
+        "kind": {"$ref": "#/$defs/kind"},
+        "schemaDigest": {"$ref": "#/$defs/digest"},
+        "engineProtocol": {"$ref": "#/$defs/versionedId"}
+      },
+      "additionalProperties": false
+    },
+    "dimension": {
+      "type": "object",
+      "required": ["values", "openValues"],
+      "properties": {
+        "values": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "openValues": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "capabilityVocabulary": {
+      "type": "object",
+      "required": ["dimensions"],
+      "properties": {
+        "dimensions": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"$ref": "#/$defs/name"},
+          "additionalProperties": {"$ref": "#/$defs/dimension"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "adapter": {
+      "type": "object",
+      "required": ["id", "version", "binaryDigest"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "binaryDigest": {"$ref": "#/$defs/digest"}
+      },
+      "additionalProperties": false
+    }
+  }
+}
