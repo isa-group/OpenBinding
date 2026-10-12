@@ -5,9 +5,10 @@ from __future__ import annotations
 import logging
 import uuid
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..db.models import Job, JobState, utcnow
+from ..db.models import Job, JobState, StudyCell, utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,24 @@ async def sync_study_cell(session: AsyncSession, job_id: uuid.UUID) -> None:
             await sync_study_job(str(job_id), session)
     except Exception:
         logger.warning("Could not sync the study cell of job %s", job_id, exc_info=True)
+
+
+async def lock_study_run(session: AsyncSession, job_id: uuid.UUID, owner_id: uuid.UUID) -> None:
+    """Row-lock the study run behind a job of ``owner_id``, if there is one.
+
+    Call it before locking the job: cancelling a study's job synchronises its
+    cell, which locks the run, and cancelling the whole run locks the run before
+    its jobs. Taking the locks in the same order keeps the two from deadlocking.
+    """
+    from ..study_jobs import lock_run
+
+    run_id = await session.scalar(
+        select(StudyCell.study_run_id)
+        .join(Job, Job.study_cell_id == StudyCell.id)
+        .where(Job.id == job_id, Job.owner_id == owner_id)
+    )
+    if run_id is not None:
+        await lock_run(session, run_id)
 
 
 async def request_cancellation(session: AsyncSession, job: Job, *, sync_cell: bool = True) -> bool:

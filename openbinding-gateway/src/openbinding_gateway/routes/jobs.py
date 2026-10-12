@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .. import space_client
 from ..access.dependencies import get_current_user, session_dependency
 from ..db import base as db_base
-from ..db.models import Job, JobProvenance, JobState, User
+from ..db.models import AuditEvent, Job, JobProvenance, JobState, User
 from ..domain import entitlements
 from ..job_dispatch import dispatch_persisted_job
 from ..jobs import lifecycle
@@ -28,6 +28,14 @@ router = APIRouter(prefix="/v1/jobs", tags=["Jobs"])
 
 def _view(job: Job, viewer: User) -> JobView:
     return job_view(job, viewer)
+
+
+def _audit(session: AsyncSession, user: User, action: str, target: Job, **detail: str) -> None:
+    """One audit event of the job's organization (none for a job outside any), as the other routes do."""
+    session.add(AuditEvent(
+        organization_id=target.organization_id, actor_id=user.id, action=action,
+        target_type=target.__class__.__name__, target_id=target.id, detail=detail,
+    ))
 
 
 async def _owned(
@@ -60,10 +68,18 @@ async def cancel_job(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> JobView:
+    # A study's job is cancelled under the lock of its run, taken before the job's.
+    await lifecycle.lock_study_run(session, job_id, user.id)
     job = await _owned(session, job_id, user.id, lock=True)
     if job.state in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
         raise api_error(status.HTTP_409_CONFLICT, "terminal_job", "The job is already terminal.")
-    await lifecycle.request_cancellation(session, job)
+    previous = job.state
+    cancelled = await lifecycle.request_cancellation(session, job)
+    _audit(
+        session, user, "job.cancelled", job,
+        jobId=str(job.id), ownerId=str(job.owner_id), previousState=previous.value,
+        result="cancelled" if cancelled else "cancellation_requested",
+    )
     await session.flush()
     return _view(job, user)
 
@@ -116,6 +132,11 @@ async def retry_job(
     await session.flush()
     replacement.engine_job_id = str(replacement.id)
     session.add(JobProvenance(job_id=replacement.id, document=provenance, digest=digest(provenance)))
+    _audit(
+        session, user, "job.retried", replacement,
+        jobId=str(original.id), ownerId=str(original.owner_id), replacementJobId=str(replacement.id),
+        result="retried",
+    )
     await session.commit()
     # The job exists from here on. If dispatch fails, the redelivery sweep queues it again.
     await dispatch_persisted_job(str(replacement.id), None if db_base.is_configured() else session)

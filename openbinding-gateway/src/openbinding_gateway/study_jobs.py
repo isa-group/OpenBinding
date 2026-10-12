@@ -25,6 +25,7 @@ from .db.models import (
     User,
     utcnow,
 )
+from .jobs import lifecycle
 from .jobs.leases import aware
 from .services.engines import engine_mode, manifest_async
 from .services.snapshots import persist_snapshot, snapshot_problem
@@ -400,15 +401,106 @@ def fail_cell(cell: StudyCell, error: StudyLaunchError) -> None:
     }
 
 
+async def lock_run(session: AsyncSession, run_id: uuid.UUID) -> StudyRun | None:
+    """Row-lock a study run and reload it as the lock saw it.
+
+    Everything that moves a run or launches one of its cells takes this lock
+    first, then the locks of the cells (``lock_cells``), then those of the jobs,
+    so that two of them cannot wait for each other. The lock is held until the
+    transaction ends. SQLite ignores it.
+    """
+
+    return (
+        await session.execute(
+            select(StudyRun)
+            .where(StudyRun.id == run_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalars().first()
+
+
+async def lock_cells(session: AsyncSession, run_id: uuid.UUID) -> list[StudyCell]:
+    """Row-lock every cell of a run, in ordinal order, reloaded as the lock saw them."""
+
+    return list(
+        (
+            await session.execute(
+                select(StudyCell)
+                .where(StudyCell.study_run_id == run_id)
+                .order_by(StudyCell.ordinal)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalars().all()
+    )
+
+
+class StudyRunTerminal(RuntimeError):
+    """The run is already completed or cancelled."""
+
+
+async def cancel_run(session: AsyncSession, run_id: uuid.UUID) -> tuple[StudyRun, list[StudyCell]]:
+    """Cancel a run, its cells and the jobs behind them. Nothing is committed.
+
+    The run is locked first, then its cells, then their jobs: the order every
+    writer of a run follows. A ``_sync`` launching the next cell holds the run
+    lock until it commits, so either it finishes first and the cell it launched
+    is cancelled here, or it waits for this transaction and finds the run
+    cancelled, and launches nothing. Raises ``LookupError`` for a run that does
+    not exist and ``StudyRunTerminal`` for one that is completed or cancelled.
+    """
+
+    run = await lock_run(session, run_id)
+    if run is None:
+        raise LookupError(f"Study run {run_id} not found.")
+    if run.state in {RunState.COMPLETED, RunState.CANCELLED}:
+        raise StudyRunTerminal(str(run_id))
+    run.state = RunState.CANCELLED
+    run.finished_at = utcnow()
+    cells = await lock_cells(session, run.id)
+    for cell in cells:
+        # Locked like cancel_job: a worker finishing the job must not be overwritten.
+        # A finished job never changes again, so only a live one is worth a lock.
+        job = None
+        if cell.job_id and await session.scalar(
+            select(Job.state).where(Job.id == cell.job_id)
+        ) not in lifecycle.TERMINAL_STATES:
+            job = (
+                await session.execute(
+                    select(Job)
+                    .where(Job.id == cell.job_id)
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalars().first()
+        if job is not None and job.state not in lifecycle.TERMINAL_STATES:
+            # A running job is left to its worker, which sees the request and stops at its lease.
+            await lifecycle.request_cancellation(session, job, sync_cell=False)
+        if cell.state in {RunState.QUEUED, RunState.RUNNING}:
+            cell.state = RunState.CANCELLED
+    await session.flush()
+    return run, cells
+
+
 async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
     job = await session.get(Job, job_id)
     if job is None:
         return
-    cell = (
-        await session.execute(select(StudyCell).where(StudyCell.job_id == job.id))
-    ).scalars().first()
-    if cell is None:
+    run_id = await session.scalar(select(StudyCell.study_run_id).where(StudyCell.job_id == job.id))
+    if run_id is None:
         return
+    # The run first, then its cells: a cancellation or a retry holds the same
+    # locks in the same order, so once we have them the run's state and the
+    # cells' links are the committed ones. A cancelled run launches nothing, and
+    # the aggregate below cannot overwrite a concurrent writer.
+    run = await lock_run(session, run_id)
+    if run is None:
+        return
+    cells = await lock_cells(session, run.id)
+    cell = next((value for value in cells if value.job_id == job.id), None)
+    if cell is None:
+        return  # the cell was retried meanwhile and no longer points at this job
     state_map = {
         JobState.QUEUED: RunState.QUEUED,
         JobState.RUNNING: RunState.RUNNING,
@@ -419,50 +511,31 @@ async def _sync(session: AsyncSession, job_id: uuid.UUID) -> None:
     cell.state = state_map[job.state]
     if job.state in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
         cell.metrics = metrics_from_job(job, cell)
-        run_obj = await session.get(StudyRun, cell.study_run_id)
-        if run_obj and run_obj.state is not RunState.CANCELLED:
-            user = await session.get(User, run_obj.created_by_id)
+        if run.state is not RunState.CANCELLED:
+            user = await session.get(User, run.created_by_id)
             org = await session.get(Organization, job.organization_id)
             # A cell that can never launch is failed and the next one is tried,
-            # so it cannot hold up the cells behind it.
-            while user and org and job.project_id:
-                queued_cell = (
-                    await session.execute(
-                        select(StudyCell)
-                        .where(
-                            StudyCell.study_run_id == run_obj.id,
-                            StudyCell.job_id.is_(None),
-                            StudyCell.state == RunState.QUEUED,
-                        )
-                        .order_by(StudyCell.ordinal)
-                        .limit(1)
-                        .with_for_update(skip_locked=True)
-                        .execution_options(populate_existing=True)
-                    )
-                ).scalars().first()
-                # populate_existing reloads the row as the lock saw it, so a launch
-                # committed by another worker meanwhile shows up in job_id here
-                # (SQLite ignores the lock).
-                if queued_cell is None or queued_cell.job_id is not None:
+            # so it cannot hold up the cells behind it. The cells were locked
+            # and reloaded above, so a launch committed by another worker
+            # meanwhile shows up in job_id here.
+            if user and org and job.project_id:
+                for queued_cell in cells:
+                    if queued_cell.job_id is not None or queued_cell.state is not RunState.QUEUED:
+                        continue
+                    try:
+                        # The launch commits nothing: the caller commits, then dispatches.
+                        await launch_study_cell(session, queued_cell, user, org, job.project_id)
+                    except StudyLaunchError as exc:
+                        if exc.code in RETRYABLE_LAUNCH_CODES:
+                            break  # stays queued; a later transition launches it
+                        fail_cell(queued_cell, exc)
+                        await session.flush()
+                        continue
                     break
-                try:
-                    # The launch commits nothing: the caller commits, then dispatches.
-                    await launch_study_cell(session, queued_cell, user, org, job.project_id)
-                except StudyLaunchError as exc:
-                    if exc.code in RETRYABLE_LAUNCH_CODES:
-                        break  # stays queued; a later transition launches it
-                    fail_cell(queued_cell, exc)
-                    await session.flush()
-                    continue
-                break
 
-    run = await session.get(StudyRun, cell.study_run_id)
-    if run is None or run.state is RunState.CANCELLED:
+    if run.state is RunState.CANCELLED:
         await session.flush()
         return
-    cells = (
-        await session.execute(select(StudyCell).where(StudyCell.study_run_id == run.id))
-    ).scalars().all()
     terminal = {RunState.COMPLETED, RunState.FAILED, RunState.CANCELLED}
     if all(value.state in terminal for value in cells):
         run.state = (

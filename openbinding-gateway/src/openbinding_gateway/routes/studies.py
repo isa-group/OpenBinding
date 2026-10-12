@@ -45,7 +45,6 @@ from ..db.models import (
     utcnow,
 )
 from ..domain import entitlements
-from ..jobs import lifecycle
 from ..models.errors import ErrorResponse, api_error
 from ..models.platform import (
     AnalyticsView,
@@ -72,10 +71,13 @@ from ..security.apikeys import allows_engine
 from ..study_jobs import (
     RETRYABLE_LAUNCH_CODES,
     StudyLaunchError,
+    StudyRunTerminal,
+    cancel_run,
     cell_job_mismatches,
     commit_launched,
     fail_cell,
     launch_study_cell,
+    lock_run,
     metrics_from_job,
 )
 from ..studies import aggregate_metrics, expand_study
@@ -802,28 +804,12 @@ async def cancel_study_run(
     found_study = await _study(session, found_project.id, study, user, check_engines=False)
     run = await _run(session, found_study.id, run_id, user)
     await _require_mutable_evidence(session, run)
-    if run.state in {RunState.COMPLETED, RunState.CANCELLED}:
-        raise api_error(status.HTTP_409_CONFLICT, "terminal_run", "The study run is already terminal.")
-    run.state = RunState.CANCELLED
-    run.finished_at = utcnow()
-    cells = (await session.execute(select(StudyCell).where(StudyCell.study_run_id == run.id))).scalars().all()
-    for cell in cells:
-        # Locked like cancel_job: a worker finishing the job must not be overwritten.
-        job = None
-        if cell.job_id:
-            job = (
-                await session.execute(
-                    select(Job)
-                    .where(Job.id == cell.job_id)
-                    .with_for_update()
-                    .execution_options(populate_existing=True)
-                )
-            ).scalars().first()
-        if job is not None and job.state not in {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}:
-            # A running job is left to its worker, which sees the request and stops at its lease.
-            await lifecycle.request_cancellation(session, job, sync_cell=False)
-        if cell.state in {RunState.QUEUED, RunState.RUNNING}:
-            cell.state = RunState.CANCELLED
+    try:
+        run, cells = await cancel_run(session, run.id)
+    except LookupError as exc:
+        raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Study run not found.") from exc
+    except StudyRunTerminal as exc:
+        raise api_error(status.HTTP_409_CONFLICT, "terminal_run", "The study run is already terminal.") from exc
     _audit(session, user, "study.run.cancelled", run, organization.id)
     return StudyRunView(
         id=run.id, definition_version_id=run.definition_version_id, study_id=run.study_id, run_number=run.run_number, state=run.state.value,
@@ -859,7 +845,16 @@ async def attach_cell_result(
     found_study = await _study(session, found_project.id, study, user, check_engines=False)
     run = await _run(session, found_study.id, run_id, user)
     await _require_mutable_evidence(session, run)
-    cell = (await session.execute(select(StudyCell).where(StudyCell.id == cell_id, StudyCell.study_run_id == run.id))).scalars().first()
+    # It rewrites the run's aggregate like _sync does, so it takes the same locks.
+    run = await lock_run(session, run.id) or run
+    cell = (
+        await session.execute(
+            select(StudyCell)
+            .where(StudyCell.id == cell_id, StudyCell.study_run_id == run.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalars().first()
     job = await session.get(Job, payload.job_id)
     if cell is None or job is None or job.owner_id != user.id:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Cell or job not found.")
@@ -904,10 +899,29 @@ async def retry_study_cell(
     found_study = await _study(session, found_project.id, study, user, check_engines=False)
     run = await _run(session, found_study.id, run_id, user)
     await _require_mutable_evidence(session, run)
-    cell = (await session.execute(select(StudyCell).where(StudyCell.id == cell_id, StudyCell.study_run_id == run.id))).scalars().first()
+    # Run first, then the cell, as cancel and _sync do. A second retry of the same
+    # cell waits here and then finds the replacement the first one launched: it is
+    # answered with that job and ``idempotent: true`` (200), not refused with a 409.
+    run = await lock_run(session, run.id)
+    cell = (
+        await session.execute(
+            select(StudyCell)
+            .where(StudyCell.id == cell_id, StudyCell.study_run_id == run.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalars().first() if run is not None else None
     if cell is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Study cell not found.")
-    current_job = await session.get(Job, cell.job_id) if cell.job_id else None
+    current_job = (
+        (
+            await session.execute(
+                select(Job).where(Job.id == cell.job_id).execution_options(populate_existing=True)
+            )
+        ).scalars().first()
+        if cell.job_id
+        else None
+    )
     if (
         current_job is not None
         and current_job.retry_of_id is not None
