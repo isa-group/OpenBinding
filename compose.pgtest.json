@@ -62,9 +62,10 @@
       "command": [
         "sh",
         "-ec",
-        "alembic upgrade head && exec pytest -p no:cacheprovider -rA tests/concurrency"
+        "alembic upgrade head && exec pytest -p no:cacheprovider $$DEMO_PYTEST_ARGS"
       ],
       "environment": {
+        "DEMO_PYTEST_ARGS": "${DEMO_PYTEST_ARGS}",
         "TEST_DATABASE_URL": "postgresql+asyncpg://pgtest:pgtest-ephemeral-not-a-secret@postgres:5432/test_openbinding",
         "DATABASE_URL": "postgresql+asyncpg://pgtest:pgtest-ephemeral-not-a-secret@postgres:5432/test_openbinding",
         "APP_ENV": "dev",

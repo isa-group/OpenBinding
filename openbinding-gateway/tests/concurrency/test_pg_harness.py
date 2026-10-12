@@ -249,8 +249,11 @@ def test_seed_migrates_then_runs_pytest_and_keeps_its_exit_code(compose):
     command = compose["services"]["seed"]["command"]
     script = command[-1]
     assert script.index("alembic upgrade head") < script.index("pytest")
-    assert "exec pytest -p no:cacheprovider -rA tests/concurrency" in script
+    assert "exec pytest -p no:cacheprovider $$DEMO_PYTEST_ARGS" in script
+    assert script.endswith("$$DEMO_PYTEST_ARGS")  # unquoted: the container shell splits the words
     assert "|| true" not in script
+    # Compose passes the supervisor's value into the container; the shell, not Compose, expands it.
+    assert compose["services"]["seed"]["environment"]["DEMO_PYTEST_ARGS"] == "${DEMO_PYTEST_ARGS}"
 
 
 def test_memory_limits_are_set_and_within_budget(compose):

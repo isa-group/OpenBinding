@@ -38,8 +38,12 @@ supervisor's `up` starts `postgres` and `image-builder`; the tests run as the `s
   modules and migrations). Sharing the image makes every `up` refresh it.
 - `seed` (`profiles: ["seed"]`, so `up` does not start it): `image:
   openbinding-pgtest-gateway:latest`, no `build`. It runs `alembic upgrade head`,
-  then `pytest -p no:cacheprovider -rA tests/concurrency`; the container exit
-  code is pytest's. `mem_limit` 768m. It keeps `depends_on: postgres:
+  then `pytest -p no:cacheprovider $DEMO_PYTEST_ARGS`; the container exit
+  code is pytest's. The arguments come from the `DEMO_PYTEST_ARGS` variable,
+  declared in the service `environment` as `"${DEMO_PYTEST_ARGS}"` (Compose
+  fills it from the supervisor) and written `$$DEMO_PYTEST_ARGS` in the command
+  so the container shell expands and word-splits it, not Compose. The variable
+  must be set. Recommended default: `-rfE --tb=short tests/concurrency`. `mem_limit` 768m. It keeps `depends_on: postgres:
   service_healthy` for a plain `run`; with `--no-deps` the wait is done by `up`.
 
 Format rules of lab_compose that the file follows (checked by
@@ -86,7 +90,8 @@ sh tools/test_pg.sh
 
 Needs Docker with the compose plugin. It is the supervisor's flow:
 `docker compose -f compose.pgtest.json up --detach --wait postgres`, then
-`run --rm --no-deps seed` (the script's exit code is pytest's), then `down
+`run --rm --no-deps seed` (the script's exit code is pytest's; set
+`DEMO_PYTEST_ARGS`, e.g. `-rfE --tb=short tests/concurrency`), then `down
 --volumes` (the data is in a tmpfs; no named volume exists).
 
 Against your own server instead:
@@ -94,7 +99,7 @@ Against your own server instead:
 ```sh
 cd openbinding-gateway
 TEST_DATABASE_URL=postgresql+asyncpg://USER:PASS@HOST/test_something \
-  pytest -p no:cacheprovider -rA tests/concurrency
+  pytest -p no:cacheprovider -rfE --tb=short tests/concurrency
 ```
 
 ## Safety guard
