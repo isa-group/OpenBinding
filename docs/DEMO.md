@@ -56,8 +56,10 @@ secrets**; use your own.
 
 Private, supplied by the supervisor and only referenced as `${NAME}` (the file
 holds no value and no default): `SPACE_URL`, `SPACE_API_KEY`, `SPHERE_URL`,
-`SPHERE_API_KEY`, `SPHERE_ORGANIZATION_ID`. `SPACE_ORGANIZATION_ID` also exists
-but nothing in `core/settings.py` reads it, so it is not passed. The retired
+`SPHERE_API_KEY`, `SPHERE_ORGANIZATION_ID`, `SPACE_ORGANIZATION_ID`. The last
+one is passed only to `seed`: `core/settings.py` does not read it, but
+`tools/remote_probe.py` exits with "SPACE_ORGANIZATION_ID is not set" without
+it. The retired
 destructive SPACE key is not used anywhere, and no `VITE_*` variable carries a
 key (the frontend is built with `VITE_API_BASE_URL=/api` only).
 
@@ -164,7 +166,12 @@ Everything here is a hypothesis until it is observed.
    `-` (`^[a-z][a-z0-9-]{0,62}$`); `test_lab_compose.py` enforces it for both
    compose files.
 2. **nginx as uid 101.** `web` is non-root, listens on 8080 and writes only to
-   tmpfs mounts (`/run`, `/var/cache/nginx`). Look at `logs web` for
+   tmpfs mounts (`/run`, `/var/cache/nginx`). Its `entrypoint` is
+   `nginx -g "daemon off;"`, which skips the image's `/docker-entrypoint.sh`:
+   that script and `/docker-entrypoint.d/*` (`10-listen-on-ipv6-by-default.sh`,
+   `20-envsubst-on-templates.sh`) try to write `/etc/nginx/conf.d/default.conf`,
+   which is the read-only bind mount of `lab/nginx`, so the first real start
+   exited with code 1. `lab/nginx/default.conf` is complete by itself. Look at `logs web` for
    `Permission denied`, `setgid`/`setuid`, or `open() "/run/nginx.pid" failed`.
    `curl http://127.0.0.1:18100/healthz` on the lab host must answer `ok`, and
    `/api/health/ready` must answer through the proxy.

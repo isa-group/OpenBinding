@@ -298,6 +298,7 @@
         }
       },
       "user": "101:101",
+      "entrypoint": ["nginx", "-g", "daemon off;"],
       "ports": [
         {
           "target": 8080,
@@ -356,6 +357,7 @@
         "SPACE_ENABLED": "true",
         "SPACE_URL": "${SPACE_URL}",
         "SPACE_API_KEY": "${SPACE_API_KEY}",
+        "SPACE_ORGANIZATION_ID": "${SPACE_ORGANIZATION_ID}",
         "SPACE_PRICING_VERSION": "${DEMO_SPACE_PRICING_VERSION}",
         "SPACE_DEFAULT_PLAN": "${DEMO_SPACE_DEFAULT_PLAN}",
         "SPHERE_ENABLED": "true",

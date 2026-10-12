@@ -67,6 +67,8 @@ SEED_OMITS = {
     "BIM_SERVICE_URL": "same",
     "BIM_SERVICE_TOKEN_FILE": "same",
 }
+# Variables only the seed gets (tools/remote_probe.py exits without it).
+SEED_EXTRAS = {"SPACE_ORGANIZATION_ID"}
 
 
 @pytest.fixture(scope="module")
@@ -380,9 +382,16 @@ def test_seed_environment_is_the_gateways_minus_the_documented_omissions(service
     gateway, seed = _env(services["gateway"]), _env(services["seed"])
     missing = set(gateway) - set(seed) - set(SEED_OMITS)
     assert not missing, f"the seed lacks gateway variables: {sorted(missing)}"
-    assert set(seed) <= set(gateway)
-    for key in set(seed):
+    assert set(seed) - set(gateway) == SEED_EXTRAS
+    for key in set(seed) - SEED_EXTRAS:
         assert seed[key] == gateway[key], key
+
+
+def test_space_organization_id_is_only_in_the_seed_as_a_bare_reference(services):
+    # tools/remote_probe.py requires it; nothing else reads it.
+    holders = [name for name, s in services.items() if "SPACE_ORGANIZATION_ID" in _env(s)]
+    assert holders == ["seed"]
+    assert _env(services["seed"])["SPACE_ORGANIZATION_ID"] == "${SPACE_ORGANIZATION_ID}"
 
 
 def test_worker_has_the_variables_it_needs(services):
@@ -494,6 +503,9 @@ def test_nginx_listens_on_the_published_target_and_strips_the_api_prefix(service
 def test_web_runs_unprivileged_with_writable_runtime_directories(services):
     web = services["web"]
     assert web["user"] == "101:101"
+    # The stock docker-entrypoint.sh would write /etc/nginx/conf.d/default.conf, which is a
+    # read-only bind mount, and exit 1.
+    assert web["entrypoint"] == ["nginx", "-g", "daemon off;"]
     tmpfs = {m["target"] for m in web["volumes"] if m["type"] == "tmpfs"}
     assert {"/run", "/var/cache/nginx"} <= tmpfs
     assert int(PUBLISHED["target"]) > 1023
