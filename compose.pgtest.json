@@ -1,0 +1,74 @@
+{
+  "name": "openbinding-pgtest",
+  "services": {
+    "postgres": {
+      "image": "postgres:16-alpine",
+      "environment": {
+        "POSTGRES_DB": "test_openbinding",
+        "POSTGRES_USER": "pgtest",
+        "POSTGRES_PASSWORD": "pgtest-ephemeral-not-a-secret"
+      },
+      "command": [
+        "postgres",
+        "-c", "shared_buffers=64MB",
+        "-c", "max_connections=50",
+        "-c", "fsync=off",
+        "-c", "synchronous_commit=off",
+        "-c", "full_page_writes=off"
+      ],
+      "tmpfs": ["/var/lib/postgresql/data:rw,size=160m"],
+      "mem_limit": "384m",
+      "healthcheck": {
+        "test": ["CMD-SHELL", "pg_isready -U pgtest -d test_openbinding"],
+        "interval": "3s",
+        "timeout": "3s",
+        "retries": 20,
+        "start_period": "5s"
+      },
+      "networks": ["pgtest"]
+    },
+    "runner": {
+      "build": {
+        "context": ".",
+        "dockerfile": "openbinding-gateway/Dockerfile"
+      },
+      "entrypoint": [],
+      "working_dir": "/app",
+      "command": [
+        "sh",
+        "-ec",
+        "alembic upgrade head && exec pytest -p no:cacheprovider -rA tests/concurrency"
+      ],
+      "environment": {
+        "TEST_DATABASE_URL": "postgresql+asyncpg://pgtest:pgtest-ephemeral-not-a-secret@postgres:5432/test_openbinding",
+        "DATABASE_URL": "postgresql+asyncpg://pgtest:pgtest-ephemeral-not-a-secret@postgres:5432/test_openbinding",
+        "APP_ENV": "dev",
+        "OPENBINDING_REPO_ROOT": "/app",
+        "SCHEMAS_DIR": "/app/schemas",
+        "PYTHONPATH": "/app/src",
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "volumes": [
+        "./openbinding-gateway:/app:ro",
+        "./schemas:/app/schemas:ro",
+        "./examples:/app/examples:ro",
+        "./docs:/app/docs:ro",
+        "./engines:/app/engines:ro",
+        "./pricings:/app/pricings:ro",
+        "./space:/app/space:ro"
+      ],
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy"
+        }
+      },
+      "mem_limit": "768m",
+      "networks": ["pgtest"]
+    }
+  },
+  "networks": {
+    "pgtest": {
+      "internal": true
+    }
+  }
+}

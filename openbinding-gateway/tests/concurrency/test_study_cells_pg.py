@@ -36,8 +36,13 @@ from openbinding_gateway.v1.package import load_package
 EXAMPLE = REPO_ROOT / "examples/demo/01_simple_seq"
 
 
-async def _seed(session):
-    """A run of two cells: the first has a finished job, the second waits to be launched."""
+async def _seed(session, prepare=None):
+    """A run of two cells: the first has a finished job, the second waits to be launched.
+
+    ``prepare(session, user)`` may return ``(source_snapshot_id, engine_ref)``. They are
+    written at INSERT time because PostgreSQL's triggers reject updating either
+    column of a binding case revision or a study cell afterwards.
+    """
     suffix = uuid.uuid4().hex[:8]
     user = User(username=f"u{suffix}", email=f"u{suffix}@example.com", password_hash="x", plan_cache="free")
     session.add(user)
@@ -51,7 +56,7 @@ async def _seed(session):
     case = BindingCase(project_id=project.id, slug="c", name="C", created_by_id=user.id)
     blob = Blob(
         organization_id=organization.id, project_id=project.id, digest="sha256-" + "0" * 64,
-        media_type="application/json", size_bytes=2, storage_uri="memory://blob",
+        media_type="application/json", size_bytes=2, storage_uri="memory://blob", created_by_id=user.id,
     )
     artifact = Artifact(
         organization_id=organization.id, namespace="ns", name="study", display_name="Study", kind="Study",
@@ -64,8 +69,12 @@ async def _seed(session):
         content_digest="sha256-" + "1" * 64, version_digest="sha256-" + "2" * 64,
         manifest={"kind": "Study"}, created_by_id=user.id,
     )
+    source_snapshot_id, engine_ref = None, None
+    if prepare is not None:
+        source_snapshot_id, engine_ref = await prepare(session, user)
     revision = BindingCaseRevision(
         binding_case_id=case.id, revision=1, digest="sha256-" + "3" * 64, document={}, created_by_id=user.id,
+        source_snapshot_id=source_snapshot_id,
     )
     session.add_all([version, revision])
     await session.flush()
@@ -80,7 +89,9 @@ async def _seed(session):
     )
     session.add(run)
     await session.flush()
-    engine = {"namespace": "bim.builtin", "name": "random-search", "version": "1.0.0", "digest": "sha256-" + "5" * 64}
+    engine = engine_ref or {
+        "namespace": "bim.builtin", "name": "random-search", "version": "1.0.0", "digest": "sha256-" + "5" * 64,
+    }
     cells = [
         StudyCell(
             study_run_id=run.id, ordinal=ordinal, binding_case_revision_id=revision.id, engine_ref=engine,
@@ -144,20 +155,20 @@ async def test_two_sessions_launching_one_cell_create_one_job_and_one_reservatio
     mid-launch commit left open. The other one must end up with that same job.
     """
     first, second = two_sessions
-    _, waiting_id = await _seed(first)
+
+    async def prepare(session, owner):
+        package = load_package(EXAMPLE)
+        problem = await routes._compile_resolved(package, session, owner)
+        snapshot_id = await routes._persist_snapshot(package, problem, owner, session)
+        await session.flush()
+        return uuid.UUID(snapshot_id), {
+            **routes._engine_ref(routes._manifest("random-search"), "bim.builtin"),
+            "mode": "seeded",
+            "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
+        }
+
+    _, waiting_id = await _seed(first, prepare)
     user = (await first.execute(select(User))).scalars().one()
-    package = load_package(EXAMPLE)
-    problem = await routes._compile_resolved(package, first, user)
-    snapshot_id = await routes._persist_snapshot(package, problem, user, first)
-    cell = await first.get(StudyCell, waiting_id)
-    revision = await first.get(BindingCaseRevision, cell.binding_case_revision_id)
-    revision.source_snapshot_id = uuid.UUID(snapshot_id)
-    cell.engine_ref = {
-        **routes._engine_ref(routes._manifest("random-search"), "bim.builtin"),
-        "mode": "seeded",
-        "optimization": {"type": "SINGLE", "scalarization": "weighted-sum"},
-    }
-    await first.commit()
     user_id = user.id
     organization = (await first.execute(select(Organization))).scalars().one()
     organization_id = organization.id

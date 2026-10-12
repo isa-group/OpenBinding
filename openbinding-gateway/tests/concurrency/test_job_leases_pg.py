@@ -1,7 +1,7 @@
 """Two workers racing for one queued job, and two sweeps racing for one abandoned one.
 
 Both need row locks, which SQLite ignores, so the ``two_sessions`` fixture skips
-them anywhere but PostgreSQL.
+them unless ``TEST_DATABASE_URL`` names a PostgreSQL test database.
 """
 
 from __future__ import annotations
