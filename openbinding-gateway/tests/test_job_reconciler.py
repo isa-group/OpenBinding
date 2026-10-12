@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from _pricing import pricing_catalog
 from openbinding_gateway import analysis_jobs, job_dispatch, space_client, sponsor_proposals, study_jobs, telemetry
 from openbinding_gateway.access import contracts
+from openbinding_gateway.core.settings import get_settings
 from openbinding_gateway.db import base as db_base
 from openbinding_gateway.db.models import (
     Job,
@@ -68,7 +69,10 @@ async def owner(db_session) -> User:
     return user
 
 
-async def a_job(session, owner, *, state=JobState.RUNNING, age_s=OVERDUE_S, budget_s=60.0, **extra) -> Job:
+async def a_job(session, owner, *, state=JobState.RUNNING, age_s=None, budget_s=60.0, **extra) -> Job:
+    if age_s is None:
+        # A queued job is judged by the queue timeout, a running one by its budget.
+        age_s = get_settings().queue_timeout_s + 1 if state is JobState.QUEUED else OVERDUE_S
     job = Job(
         owner_id=owner.id if owner else None,
         engine_id="random-search",
@@ -198,7 +202,86 @@ async def test_a_job_whose_lease_was_renewed_since_it_was_read_is_not_failed(db_
         Job.__table__.update().where(Job.id == job.id).values(lease_until=utcnow() + timedelta(seconds=60))
     )
 
-    assert await reconciler._fail_abandoned(db_session, stale_read, utcnow()) is False
+    assert await reconciler._fail_abandoned(db_session, stale_read) is False
+
+    await db_session.refresh(job)
+    assert job.state is JobState.RUNNING
+
+
+# -- The queue limit --------------------------------------------------------
+
+
+async def test_a_queued_job_is_failed_with_queue_timeout_after_the_limit(db_session, owner):
+    job = await a_job(db_session, owner, state=JobState.QUEUED)
+
+    assert await reconciler.sweep_abandoned(db_session) == 1
+
+    await db_session.refresh(job)
+    assert job.state is JobState.FAILED
+    assert job.result["code"] == "queue_timeout" and "queue_timeout" in job.result["error"]
+    assert job.termination == "UNKNOWN" and job.finished_at is not None
+    assert job.lease_token is None and job.lease_until is None
+
+
+async def test_the_queue_limit_does_not_depend_on_the_budget_of_the_job(db_session, owner):
+    # A 60 s budget and ten minutes in the queue: it has not started, so its budget is not running out.
+    short = await a_job(db_session, owner, state=JobState.QUEUED, budget_s=60.0, age_s=600.0)
+    long = await a_job(
+        db_session, owner, state=JobState.QUEUED, budget_s=3000.0, age_s=get_settings().queue_timeout_s + 1
+    )
+
+    assert await reconciler.sweep_abandoned(db_session) == 1
+
+    await db_session.refresh(short)
+    await db_session.refresh(long)
+    assert short.state is JobState.QUEUED
+    assert long.state is JobState.FAILED and long.result["code"] == "queue_timeout"
+
+
+async def test_the_queue_limit_is_the_setting(db_session, owner, monkeypatch):
+    monkeypatch.setattr(get_settings(), "queue_timeout_s", 120.0)
+    waiting = await a_job(db_session, owner, state=JobState.QUEUED, age_s=100.0)
+    expired = await a_job(db_session, owner, state=JobState.QUEUED, age_s=121.0)
+
+    assert await reconciler.sweep_abandoned(db_session) == 1
+
+    await db_session.refresh(waiting)
+    await db_session.refresh(expired)
+    assert waiting.state is JobState.QUEUED and expired.state is JobState.FAILED
+
+
+def test_the_queue_limit_cannot_be_set_below_a_minute():
+    from pydantic import ValidationError
+
+    from openbinding_gateway.core.settings import Settings
+
+    assert Settings().queue_timeout_s == 1800.0
+    assert Settings(queue_timeout_s=60).queue_timeout_s == 60.0
+    with pytest.raises(ValidationError):
+        Settings(queue_timeout_s=59)
+
+
+async def test_a_requeued_job_waits_from_its_requeue_and_not_from_its_creation(db_session, owner):
+    lapsed = utcnow() - timedelta(seconds=10)
+    job = await a_job(
+        db_session, owner, state=JobState.QUEUED, age_s=10_000, claimed_at=lapsed - timedelta(seconds=90),
+        lease_until=lapsed,
+    )
+
+    assert await reconciler.sweep_abandoned(db_session) == 0
+
+    await db_session.refresh(job)
+    assert job.state is JobState.QUEUED
+
+
+async def test_a_job_claimed_since_it_was_read_is_not_failed_by_the_queue_limit(db_session, owner):
+    job = await a_job(db_session, owner, state=JobState.QUEUED)
+    stale_read = await db_session.get(Job, job.id, populate_existing=True)
+    await db_session.execute(
+        Job.__table__.update().where(Job.id == job.id).values(state=JobState.RUNNING, lease_token="token")
+    )
+
+    assert await reconciler._fail_queue_timeout(db_session, stale_read, 1800.0) is False
 
     await db_session.refresh(job)
     assert job.state is JobState.RUNNING
@@ -247,6 +330,15 @@ async def cell_state(session, cell_id) -> RunState:
 
 async def test_a_job_failed_by_the_sweep_fails_its_study_cell(sqlite_only, db_session, owner):
     job = await a_job(db_session, owner)
+    cell_id = await a_cell(db_session, owner, job.id)
+
+    assert await reconciler.sweep_abandoned(db_session) == 1
+
+    assert await cell_state(db_session, cell_id) is RunState.FAILED
+
+
+async def test_a_queued_job_failed_by_the_queue_limit_fails_its_study_cell(sqlite_only, db_session, owner):
+    job = await a_job(db_session, owner, state=JobState.QUEUED)
     cell_id = await a_cell(db_session, owner, job.id)
 
     assert await reconciler.sweep_abandoned(db_session) == 1
@@ -358,6 +450,55 @@ async def test_the_reconciler_resyncs_study_cells_after_its_sweep(
         await reconciler.run_reconciler(interval_s=0)
 
     assert await cell_state(db_session, cell_id) is RunState.COMPLETED
+
+
+async def test_a_replica_that_does_not_get_the_cycle_lock_skips_the_whole_cycle(
+    one_pass, db_session, owner, monkeypatch
+):
+    job = await a_job(db_session, owner, state=JobState.QUEUED)
+
+    async def not_me(_session):
+        return False
+
+    monkeypatch.setattr(reconciler, "acquire_cycle_lock", not_me)
+
+    with pytest.raises(asyncio.CancelledError):
+        await reconciler.run_reconciler(interval_s=0)
+
+    await db_session.refresh(job)
+    assert job.state is JobState.QUEUED
+    assert one_pass.redelivered == 0
+
+
+async def test_without_postgresql_there_is_no_cycle_lock_to_take(db_session):
+    assert await reconciler.acquire_cycle_lock(db_session) is True
+
+
+async def test_on_postgresql_the_cycle_lock_is_a_transaction_advisory_lock_on_a_fixed_key():
+    from sqlalchemy.dialects import postgresql
+
+    seen: list[tuple[str, dict]] = []
+
+    class Session:
+        sync_session = SimpleNamespace(
+            get_bind=lambda: SimpleNamespace(dialect=SimpleNamespace(name="postgresql"))
+        )
+
+        def __init__(self, answer: bool) -> None:
+            self.answer = answer
+
+        async def scalar(self, statement):
+            compiled = statement.compile(dialect=postgresql.dialect())
+            seen.append((str(compiled), compiled.params))
+            return self.answer
+
+    assert await reconciler.acquire_cycle_lock(Session(True)) is True
+    assert await reconciler.acquire_cycle_lock(Session(False)) is False
+
+    for sql, params in seen:
+        assert "pg_try_advisory_xact_lock" in sql
+        assert list(params.values()) == [reconciler.RECONCILER_LOCK_KEY]
+    assert reconciler.RECONCILER_LOCK_KEY < 2**63  # a PostgreSQL bigint
 
 
 def test_contract_renewal_and_version_archiving_are_spaces_not_the_reconcilers():

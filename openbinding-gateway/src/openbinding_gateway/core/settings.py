@@ -89,6 +89,11 @@ class Settings(BaseSettings):
     #: that protects the engines, independent of the plan
     #: (``MAX_CONCURRENT_JOBS_PER_USER``).
     max_concurrent_jobs_per_user: int = Field(default=8, ge=1)
+    #: How long a job may wait in the queue without a worker claiming it before
+    #: the reconciler fails it with ``queue_timeout``. Counts from the moment the
+    #: job was queued, whatever budget it was given to run
+    #: (``QUEUE_TIMEOUT_S``).
+    queue_timeout_s: float = Field(default=1800.0, ge=60.0)
 
     # -- v1 schemas ------------------------------------------------------
     #: Directory holding the BIM v1 schemas and manifests.

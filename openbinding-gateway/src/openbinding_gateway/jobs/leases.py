@@ -11,14 +11,16 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from collections.abc import Awaitable, Callable
+from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import select, update
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..db import base as db_base
-from ..db.models import Job, JobState, utcnow
+from ..db.models import Job, JobState
+from . import clock
 
 logger = logging.getLogger(__name__)
 
@@ -52,14 +54,14 @@ async def claim_job(session: AsyncSession, job_id: uuid.UUID) -> Optional[str]:
     one finds it still queued. Nothing is returned for the other.
     """
     token = str(uuid.uuid4())
-    now = utcnow()
+    now = clock.now(session)
     claimed = await session.execute(
         update(Job)
         .where(Job.id == job_id, Job.state == JobState.QUEUED)
         .values(
             state=JobState.RUNNING,
             lease_token=token,
-            lease_until=now + timedelta(seconds=LEASE_S),
+            lease_until=clock.after(session, LEASE_S, since=now),
             claimed_at=now,
             attempt=Job.attempt + 1,
         )
@@ -79,14 +81,22 @@ async def hold_lease(session: AsyncSession, job_id: uuid.UUID, token: Optional[s
     """Whether this worker still owns the job, locking the row if it does.
 
     The lock is what makes the answer last: the reconciler cannot take the job
-    back between this check and the commit that writes the outcome.
+    back between this check and the commit that writes the outcome. The token is
+    what decides ownership, not the deadline: a lease that lapsed without the
+    reconciler having acted is still this worker's, and the same statement that
+    takes the row lock pushes the deadline forward (by the database clock) so
+    the outcome can be written without racing the sweep. Once the reconciler has
+    put the job back the token is gone and the answer is no; that is how the
+    result of a superseded holder gets discarded.
     """
     if token is None:
         return False
     held = await session.execute(
-        select(Job.id)
+        update(Job)
         .where(Job.id == job_id, Job.state == JobState.RUNNING, Job.lease_token == token)
-        .with_for_update()
+        .values(lease_until=clock.after(session, LEASE_S))
+        .returning(Job.id)
+        .execution_options(synchronize_session=False)
     )
     return held.first() is not None
 
@@ -97,7 +107,7 @@ async def renew_lease(factory: async_sessionmaker, job_id: uuid.UUID, token: str
         renewed = await session.execute(
             update(Job)
             .where(Job.id == job_id, Job.state == JobState.RUNNING, Job.lease_token == token)
-            .values(lease_until=utcnow() + timedelta(seconds=LEASE_S))
+            .values(lease_until=clock.after(session, LEASE_S))
             .returning(Job.id)
             .execution_options(synchronize_session=False)
         )
@@ -106,19 +116,32 @@ async def renew_lease(factory: async_sessionmaker, job_id: uuid.UUID, token: str
         return held
 
 
-async def _heartbeat(
-    factory: async_sessionmaker, job_id: uuid.UUID, token: str, interval_s: float
-) -> None:
+async def beat(renew: Callable[[], Awaitable[bool]], interval_s: float, label: str) -> None:
+    """Call ``renew`` every ``interval_s`` until it says the lease was lost."""
     while True:
         await asyncio.sleep(interval_s)
         try:
-            if not await renew_lease(factory, job_id, token):
-                return  # The job was taken back; there is nothing left to keep alive.
+            if not await renew():
+                return  # The work was taken back; there is nothing left to keep alive.
         except asyncio.CancelledError:
             raise
         except Exception:
             # One missed beat is survivable, the lease allows for three.
-            logger.warning("Could not renew the lease on job %s", job_id, exc_info=True)
+            logger.warning("Could not renew the lease on %s", label, exc_info=True)
+
+
+def start_beat(
+    renew: Callable[[], Awaitable[bool]], interval_s: float | None = None, label: str = "a task"
+) -> asyncio.Task:
+    """Renew an arbitrary lease in the background; stop it with ``stop_heartbeat``."""
+    return asyncio.create_task(beat(renew, HEARTBEAT_S if interval_s is None else interval_s, label))
+
+
+async def _heartbeat(
+    factory: async_sessionmaker, job_id: uuid.UUID, token: str, interval_s: float
+) -> None:
+    # ``renew_lease`` is looked up on every beat, not captured, so it can be replaced.
+    await beat(lambda: renew_lease(factory, job_id, token), interval_s, f"job {job_id}")
 
 
 def start_heartbeat(

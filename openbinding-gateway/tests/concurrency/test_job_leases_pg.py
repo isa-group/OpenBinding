@@ -11,11 +11,12 @@ import uuid
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select, text
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from _pricing import pricing_catalog
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
-from openbinding_gateway.jobs import leases, limits, reconciler
+from openbinding_gateway.jobs import clock, leases, limits, reconciler
 
 
 async def an_abandoned_job(session) -> Job:
@@ -101,6 +102,113 @@ async def test_a_sweep_skips_a_job_another_transaction_holds_and_gets_it_later(t
     await second.commit()
     await first.refresh(job)
     assert job.state is JobState.FAILED
+
+
+async def a_claimed_job(session) -> tuple[Job, str]:
+    job = Job(
+        engine_id="random-search",
+        engine_job_id="engine-1",
+        service_url="http://engine",
+        state=JobState.QUEUED,
+        requested_budget_s=600.0,
+    )
+    session.add(job)
+    await session.commit()
+    token = await leases.claim_job(session, job.id)
+    await session.commit()
+    return job, token
+
+
+def skewed(monkeypatch, delta: timedelta) -> None:
+    """Make this process's clock disagree with the database's by ``delta``."""
+    real = clock.utcnow
+    monkeypatch.setattr(clock, "utcnow", lambda: real() + delta)
+
+
+async def seconds_of_lease_left(session, job: Job) -> float:
+    left = await session.scalar(
+        select(func.extract("epoch", Job.lease_until - func.now())).where(Job.id == job.id)
+    )
+    return float(left)
+
+
+@pytest.mark.asyncio
+async def test_the_lease_is_written_with_the_database_clock_whatever_the_process_clock_says(
+    two_sessions, monkeypatch
+):
+    first, _second = two_sessions
+    skewed(monkeypatch, timedelta(minutes=10))
+
+    job, token = await a_claimed_job(first)
+
+    assert 50 < await seconds_of_lease_left(first, job) <= leases.LEASE_S  # not 11 minutes
+    await first.refresh(job)
+    factory = async_sessionmaker(first.bind, expire_on_commit=False)
+    assert await leases.renew_lease(factory, job.id, token) is True
+    assert 50 < await seconds_of_lease_left(first, job) <= leases.LEASE_S
+
+
+@pytest.mark.asyncio
+async def test_a_process_clock_ten_minutes_ahead_does_not_requeue_a_live_lease(two_sessions, monkeypatch):
+    first, second = two_sessions
+    job, token = await a_claimed_job(first)
+    skewed(monkeypatch, timedelta(minutes=10))
+
+    assert await reconciler.sweep_abandoned(second) == 0
+    await second.commit()
+
+    await first.refresh(job)
+    assert job.state is JobState.RUNNING and job.lease_token == token and job.attempt == 1
+
+
+@pytest.mark.asyncio
+async def test_a_process_clock_ten_minutes_behind_does_not_keep_a_lapsed_lease_alive(two_sessions, monkeypatch):
+    first, second = two_sessions
+    job, token = await a_claimed_job(first)
+    await first.execute(text("UPDATE jobs SET lease_until = now() - interval '1 second'"))
+    await first.commit()
+    skewed(monkeypatch, -timedelta(minutes=10))
+
+    assert await reconciler.sweep_abandoned(second) == 0  # requeued, not failed
+    await second.commit()
+
+    await first.refresh(job)
+    assert job.state is JobState.QUEUED and job.lease_token is None
+    assert job.next_publish_at is not None and job.publish_attempts == 0
+
+
+@pytest.mark.asyncio
+async def test_holding_a_lapsed_lease_locks_the_row_and_renews_it_by_the_database_clock(
+    two_sessions, monkeypatch
+):
+    first, second = two_sessions
+    job, token = await a_claimed_job(first)
+    await first.execute(text("UPDATE jobs SET lease_until = now() - interval '1 second'"))
+    await first.commit()
+    skewed(monkeypatch, timedelta(minutes=10))
+
+    assert await leases.hold_lease(first, job.id, token) is True
+    # While the holder's transaction is open the sweep cannot touch the row.
+    assert await asyncio.wait_for(reconciler.sweep_abandoned(second), timeout=10) == 0
+    await second.rollback()
+    assert 50 < await seconds_of_lease_left(first, job) <= leases.LEASE_S
+    await first.commit()
+
+    await second.refresh(job)
+    assert job.state is JobState.RUNNING and job.lease_token == token
+
+
+@pytest.mark.asyncio
+async def test_the_holder_of_a_lease_taken_back_in_the_meantime_is_refused(two_sessions):
+    first, second = two_sessions
+    job, token = await a_claimed_job(first)
+    await first.execute(text("UPDATE jobs SET lease_until = now() - interval '1 second'"))
+    await first.commit()
+
+    assert await reconciler.sweep_abandoned(second) == 0
+    await second.commit()
+
+    assert await leases.hold_lease(first, job.id, token) is False
 
 
 @pytest.mark.asyncio

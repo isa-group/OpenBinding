@@ -7,7 +7,7 @@ import time
 import uuid
 from typing import Any, Mapping
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.settings import get_settings
@@ -22,7 +22,7 @@ from ..db.models import (
 from ..jobs import leases
 from ..v1.canonical import digest
 from ..v1.compiler import BindingProblem
-from ..v1.remote import RemoteEngineError, RemoteRegistration, solve_remote
+from ..v1.remote import RemoteEngineError, RemoteRegistration, cancel_remote, solve_remote
 from .engines import (
     installed_builtin_registration,
     persisted_engine_contract,
@@ -164,6 +164,53 @@ async def fail_persisted_job(
         pass
 
     await session.flush()
+
+
+#: How long the best-effort cancellation of a remote job may take.
+REMOTE_CANCEL_TIMEOUT_S = 3.0
+
+#: Width of ``jobs.engine_job_id``.
+ENGINE_JOB_ID_MAX = 128
+
+
+async def record_engine_job_id(session: AsyncSession, job_id: uuid.UUID, engine_job_id: str) -> None:
+    """Make the engine's id for this job durable before waiting for the result.
+
+    A crash after this commit leaves the id on the row, so whoever recovers the
+    job (or an operator) knows which remote job to look for or cancel. It is
+    best effort: a failure here is logged and the attempt goes on, because
+    failing a solve the engine has already accepted would not stop it.
+    """
+    if len(engine_job_id) > ENGINE_JOB_ID_MAX:
+        logger.warning("The engine id for job %s is too long to store; not recording it", job_id)
+        return
+    try:
+        if not await leases.hold_lease(session, job_id, leases.held_token(session, job_id)):
+            await session.rollback()
+            return  # The lease is gone; the check after the solve discards the answer.
+        await session.execute(
+            update(Job)
+            .where(Job.id == job_id)
+            .values(engine_job_id=engine_job_id)
+            .execution_options(synchronize_session=False)
+        )
+        await session.commit()
+    except Exception:
+        logger.warning("Could not record the engine id for job %s", job_id, exc_info=True)
+        try:
+            await session.rollback()
+        except Exception:
+            logger.warning("Could not roll back after recording the engine id of job %s", job_id, exc_info=True)
+
+
+async def cancel_engine_job(transport: RemoteRegistration, engine_job_id: str | None) -> None:
+    """Best-effort cancellation of a remote job whose result the gateway no longer wants."""
+    if engine_job_id is None:
+        return
+    try:
+        await cancel_remote(transport, engine_job_id, timeout_s=REMOTE_CANCEL_TIMEOUT_S)
+    except Exception:
+        logger.warning("Could not cancel engine job %s", engine_job_id, exc_info=True)
 
 
 async def finish_persisted_job(job_id: str, session: AsyncSession) -> None:
@@ -344,7 +391,14 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
         # No transaction stays open (idle, holding the row lock) while the
         # engine works. The lease token lives in session.info, which a commit
         # leaves alone, and is checked again once the answer is back.
+        attempt = job.attempt
         await session.commit()
+        engine = {"job_id": None}
+
+        async def remember_engine_job(engine_job_id: str) -> None:
+            engine["job_id"] = engine_job_id
+            await record_engine_job_id(session, parsed, engine_job_id)
+
         try:
             remote_result = await solve_remote(
                 transport,
@@ -352,8 +406,13 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
                 job.options,
                 request.get("optimization", provenance.get("optimization", {})),
                 timeout_s=float(request.get("timeout", get_settings().engine_solve_timeout_s)),
+                job_id=str(parsed),
+                attempt=attempt,
+                on_remote_id=remember_engine_job,
             )
         except RemoteEngineError as exc:
+            # The gateway gives up on this attempt; the engine may still be working.
+            await cancel_engine_job(transport, engine["job_id"])
             await fail_persisted_job(job, session, str(exc), started)
             return
         # Lock first, read second: the refresh then sees the row as it will stay
@@ -363,6 +422,7 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             # (or failed). The answer arrived too late to be the job's answer.
             logger.warning("Lost the lease on job %s; discarding its result", job.id)
             await session.rollback()
+            await cancel_engine_job(transport, engine["job_id"])
             return
         await session.refresh(job)
         if job.cancellation_requested:
@@ -371,6 +431,10 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             job.lease_until = None
             job.finished_at = utcnow()
             await session.flush()
+            # Durable first: the cancel call is a network round trip and must
+            # not run inside the transaction that holds the row lock.
+            await session.commit()
+            await cancel_engine_job(transport, engine["job_id"])
             return
         reevaluated = reevaluate_result(
             problem,

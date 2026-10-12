@@ -267,3 +267,187 @@ def test_remote_result_must_satisfy_the_complete_binding_result_contract() -> No
             }
         )
     assert remote._validate_result(_result())["termination"] == "FEASIBLE"
+
+
+# -- Idempotency hints, the remote id and cancellation -----------------------
+
+
+@pytest.mark.asyncio
+async def test_the_gateway_job_and_attempt_travel_as_documented_hints(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    seen: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=_result())
+
+    await remote.solve_remote(
+        remote.RemoteRegistration("https://engine.example", {}),
+        {},
+        {},
+        OPTIMIZATION,
+        transport=httpx.MockTransport(handler),
+        job_id="3f6a0c8e-0000-4000-8000-000000000001",
+        attempt=2,
+    )
+
+    assert seen[0].headers["X-Openbinding-Job-Id"] == "3f6a0c8e-0000-4000-8000-000000000001"
+    assert seen[0].headers["X-Openbinding-Attempt"] == "2"
+    assert remote.JOB_ID_HEADER == "X-Openbinding-Job-Id" and remote.ATTEMPT_HEADER == "X-Openbinding-Attempt"
+
+
+@pytest.mark.asyncio
+async def test_without_a_job_the_hints_are_not_sent(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    seen: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=_result())
+
+    await remote.solve_remote(
+        remote.RemoteRegistration("https://engine.example", {}),
+        {},
+        {},
+        OPTIMIZATION,
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert "x-openbinding-job-id" not in seen[0].headers and "x-openbinding-attempt" not in seen[0].headers
+
+
+@pytest.mark.asyncio
+async def test_the_remote_id_is_handed_over_before_the_first_poll(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    events: list[str] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "POST":
+            events.append("accepted")
+            return httpx.Response(202, json={"id": "job-1", "status": "queued"})
+        events.append("poll")
+        return httpx.Response(
+            200, json={"id": "job-1", "status": "completed", "created_at": 1, "result": _result("OPTIMAL")}
+        )
+
+    async def on_remote_id(engine_job_id: str) -> None:
+        events.append(f"recorded {engine_job_id}")
+
+    result = await remote.solve_remote(
+        remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}),
+        {},
+        {},
+        OPTIMIZATION,
+        transport=httpx.MockTransport(handler),
+        on_remote_id=on_remote_id,
+    )
+
+    assert result["termination"] == "OPTIMAL"
+    assert events == ["accepted", "recorded job-1", "poll"]
+
+
+@pytest.mark.asyncio
+async def test_a_synchronous_answer_has_no_remote_id_to_hand_over(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    handed: list[str] = []
+
+    async def on_remote_id(engine_job_id: str) -> None:
+        handed.append(engine_job_id)
+
+    await remote.solve_remote(
+        remote.RemoteRegistration("https://engine.example", {}),
+        {},
+        {},
+        OPTIMIZATION,
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json=_result())),
+        on_remote_id=on_remote_id,
+    )
+
+    assert handed == []
+
+
+@pytest.mark.asyncio
+async def test_an_invalid_receipt_is_not_handed_over(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    handed: list[str] = []
+
+    async def on_remote_id(engine_job_id: str) -> None:
+        handed.append(engine_job_id)
+
+    with pytest.raises(remote.RemoteEngineError, match="EngineJobAccepted"):
+        await remote.solve_remote(
+            remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}),
+            {},
+            {},
+            OPTIMIZATION,
+            transport=httpx.MockTransport(lambda request: httpx.Response(202, json={"id": "job-1"})),
+            on_remote_id=on_remote_id,
+        )
+
+    assert handed == []
+
+
+@pytest.mark.asyncio
+async def test_cancelling_a_remote_job_deletes_the_engine_job_resource(monkeypatch) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+    seen: list[httpx.Request] = []
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(204)
+
+    cancelled = await remote.cancel_remote(
+        remote.RemoteRegistration("https://engine.example", {"job": "/jobs/{id}"}, "bearer", "secret"),
+        "job/../1",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert cancelled is True
+    assert seen[0].method == "DELETE"
+    assert seen[0].url.raw_path == b"/jobs/job%2F..%2F1"  # the id cannot change the path
+    assert seen[0].headers["authorization"] == "Bearer secret"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [404, 405, 500])
+async def test_an_engine_that_does_not_cancel_is_not_an_error(monkeypatch, status) -> None:
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+
+    cancelled = await remote.cancel_remote(
+        remote.RemoteRegistration("https://engine.example", {}),
+        "job-1",
+        transport=httpx.MockTransport(lambda request: httpx.Response(status)),
+    )
+
+    assert cancelled is False
+
+
+@pytest.mark.asyncio
+async def test_cancellation_swallows_every_failure_and_stays_short(monkeypatch) -> None:
+    import asyncio
+    import time
+
+    monkeypatch.setattr(remote, "validate_endpoint", lambda endpoint, **kwargs: None)
+
+    async def unreachable(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused", request=request)
+
+    async def stuck(request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(30)
+        return httpx.Response(204)
+
+    registration = remote.RemoteRegistration("https://engine.example", {})
+    assert await remote.cancel_remote(registration, "job-1", transport=httpx.MockTransport(unreachable)) is False
+
+    started = time.monotonic()
+    assert (
+        await remote.cancel_remote(registration, "job-1", timeout_s=0.1, transport=httpx.MockTransport(stuck))
+        is False
+    )
+    assert time.monotonic() - started < 5
+
+    def refused(endpoint, **kwargs):
+        raise remote.RemoteEngineError("engine endpoint targets an address outside its permitted network class")
+
+    monkeypatch.setattr(remote, "validate_endpoint", refused)
+    assert await remote.cancel_remote(registration, "job-1", transport=httpx.MockTransport(unreachable)) is False

@@ -242,6 +242,11 @@ class Job(Base):
     #: judged from here.
     claimed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    #: The QUEUED row is the outbox: how many times the publisher has handed this
+    #: job to the broker from the sweep, and when it may do so again (backoff).
+    #: ``next_publish_at`` is NULL until the first sweep republication.
+    publish_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    next_publish_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     retry_of_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -281,6 +286,9 @@ class AnalysisTask(Base):
     cancellation_requested: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     lease_token: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     lease_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: How many times a worker claimed the task; a lost worker gets it put back
+    #: until ``analysis_jobs.MAX_ATTEMPTS`` claims, then it is failed.
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now(), nullable=False)

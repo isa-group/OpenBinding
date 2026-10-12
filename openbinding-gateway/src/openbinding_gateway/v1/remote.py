@@ -12,9 +12,9 @@ import base64
 import ipaddress
 import json
 import socket
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from urllib.parse import SplitResult, urljoin, urlparse, urlsplit, urlunsplit
+from urllib.parse import SplitResult, quote, urljoin, urlparse, urlsplit, urlunsplit
 
 import httpx
 
@@ -368,6 +368,14 @@ async def fetch_remote_document(
     return document
 
 
+#: Hints sent with every request to an engine so that it can recognise a repeated
+#: submission of the same gateway job (a redelivered message, a second attempt).
+#: They are documented hints, not part of ``bim-engine/v1``: an engine may ignore
+#: them, and one that does cannot be protected from running the work twice.
+JOB_ID_HEADER = "X-Openbinding-Job-Id"
+ATTEMPT_HEADER = "X-Openbinding-Attempt"
+
+
 async def solve_remote(
     registration: RemoteRegistration,
     problem: dict,
@@ -376,7 +384,17 @@ async def solve_remote(
     *,
     timeout_s: float = 30.0,
     transport: httpx.AsyncBaseTransport | None = None,
+    job_id: str | None = None,
+    attempt: int | None = None,
+    on_remote_id: Callable[[str], Awaitable[None]] | None = None,
 ) -> dict:
+    """Submit a BindingProblem and wait for its result.
+
+    ``job_id`` and ``attempt`` travel as ``X-Openbinding-Job-Id`` and
+    ``X-Openbinding-Attempt``. ``on_remote_id`` is awaited with the engine's own
+    job id as soon as the engine has accepted the work and before the first poll,
+    so the caller can make that id durable before it waits.
+    """
     addresses = await avalidate_endpoint(
         registration.endpoint, allow_internal_http=registration.allow_internal_http
     )
@@ -391,6 +409,10 @@ async def solve_remote(
     except ValueError as exc:
         raise RemoteEngineError(f"BindingProblem request is not valid JSON: {exc}") from exc
     headers = _headers(registration)
+    if job_id is not None:
+        headers[JOB_ID_HEADER] = job_id
+    if attempt is not None:
+        headers[ATTEMPT_HEADER] = str(attempt)
     timeout = httpx.Timeout(timeout_s, connect=min(timeout_s, 5.0))
     # The policy-checked address is frozen for the complete request/poll cycle;
     # httpx therefore never performs a second, attacker-controlled DNS lookup.
@@ -421,10 +443,14 @@ async def solve_remote(
             receipt = await _bounded_json(response)
         finally:
             await response.aclose()
-        job_id = _validate_job_receipt(receipt)
+        engine_job_id = _validate_job_receipt(receipt)
+        if on_remote_id is not None:
+            await on_remote_id(engine_job_id)
         deadline = asyncio.get_running_loop().time() + timeout_s
         while asyncio.get_running_loop().time() < deadline:
-            poll_url = _path(registration.endpoint, str(poll_template).replace("{id}", job_id), "/internal/v1/jobs/{id}")
+            poll_url = _path(
+                registration.endpoint, str(poll_template).replace("{id}", engine_job_id), "/internal/v1/jobs/{id}"
+            )
             if pinned_address:
                 poll_url = _pinned_url(poll_url, pinned_address)
             try:
@@ -444,9 +470,58 @@ async def solve_remote(
                 payload = await _bounded_json(polled)
             finally:
                 await polled.aclose()
-            result = _validate_job(payload, job_id)
+            result = _validate_job(payload, engine_job_id)
             if result is None:
                 await asyncio.sleep(0.05)
                 continue
             return result
         raise RemoteEngineError("remote engine timed out")
+
+
+async def cancel_remote(
+    registration: RemoteRegistration,
+    engine_job_id: str,
+    *,
+    timeout_s: float = 3.0,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> bool:
+    """Ask an engine to stop one of its jobs. Best effort: it never raises.
+
+    ``bim-engine/v1`` has no cancellation operation, so this is a ``DELETE`` on
+    the engine's job resource (the ``job`` mapping), which an engine may honour
+    or answer with 404/405. The result is whether the engine acknowledged it;
+    every failure, a timeout included, is swallowed because the caller has
+    already decided what happens to the gateway's job.
+    """
+
+    async def attempt() -> bool:
+        addresses = await avalidate_endpoint(
+            registration.endpoint, allow_internal_http=registration.allow_internal_http
+        )
+        poll_template = (registration.mappings or {}).get("job", "/internal/v1/jobs/{id}")
+        url = _path(
+            registration.endpoint,
+            str(poll_template).replace("{id}", quote(engine_job_id, safe="")),
+            "/internal/v1/jobs/{id}",
+        )
+        headers = _headers(registration)
+        pinned_address = addresses[0] if addresses else None
+        original = urlsplit(registration.endpoint)
+        if pinned_address:
+            url = _pinned_url(url, pinned_address)
+            headers["host"] = _host_header(original)
+        timeout = httpx.Timeout(timeout_s, connect=min(timeout_s, 2.0))
+        async with httpx.AsyncClient(
+            timeout=timeout, follow_redirects=False, transport=transport, trust_env=False
+        ) as client:
+            request = client.build_request("DELETE", url, headers=headers)
+            if pinned_address and original.hostname:
+                request.extensions["sni_hostname"] = original.hostname
+            response = await client.send(request, stream=True)
+            await response.aclose()
+            return response.status_code in (200, 202, 204)
+
+    try:
+        return await asyncio.wait_for(attempt(), timeout=timeout_s + 2.0)
+    except Exception:  # noqa: BLE001 - best effort by contract
+        return False

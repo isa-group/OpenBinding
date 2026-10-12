@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 from typing import Optional
 
 import dramatiq
@@ -11,13 +10,13 @@ from dramatiq.asyncio import get_event_loop_thread
 from dramatiq.brokers.redis import RedisBroker
 from dramatiq.middleware import AsyncIO, Middleware
 from dramatiq.middleware.middleware import MiddlewareError
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from . import space_client
 from .core.settings import get_settings
 from .db import base as db_base
-from .db.models import Job, JobState, utcnow
+from .jobs import publisher
 
 _configured_url: Optional[str] = None
 _runtime_started = False
@@ -158,26 +157,26 @@ async def dispatch_persisted_job(
 async def redeliver_queued_jobs(
     session: AsyncSession,
     *,
-    older_than_s: float = 30.0,
+    older_than_s: float = publisher.PUBLISH_AFTER_S,
+    limit: int = publisher.BATCH_SIZE,
 ) -> int:
     """Republish persisted work that could have missed the broker hand-off.
 
-    Delivery is intentionally at-least-once.  The database runner claims the
-    QUEUED row, so a duplicate Redis message cannot execute a terminal job.
+    The QUEUED row is the outbox (see ``jobs.publisher``): a bounded batch of due
+    rows is claimed with a backoff and committed before anything is sent, so
+    replicas never publish the same rows together and a down broker is not
+    hammered every minute. Delivery is intentionally at-least-once.  The
+    database runner claims the QUEUED row, so a duplicate Redis message cannot
+    execute a terminal job.
     """
 
     settings = get_settings()
     if settings.job_dispatch_mode != "dramatiq":
         return 0
-    cutoff = utcnow() - timedelta(seconds=max(0.0, older_than_s))
-    job_ids = (
-        await session.execute(
-            select(Job.id).where(Job.state == JobState.QUEUED, Job.created_at <= cutoff)
-        )
-    ).scalars().all()
-    delivered = 0
-    for job_id in job_ids:
-        if not await dispatch_persisted_job(str(job_id)):
-            break
-        delivered += 1
-    return delivered
+    # Looked up here, on every call, so the one dispatch path can be replaced.
+    return await publisher.publish_due(
+        session,
+        lambda job_id: dispatch_persisted_job(job_id),
+        limit=limit,
+        after_s=max(0.0, older_than_s),
+    )

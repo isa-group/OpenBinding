@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from _pricing import pricing_catalog
 from _repo import REPO_ROOT as EXAMPLES_ROOT
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
-from openbinding_gateway.jobs import leases, reconciler
+from openbinding_gateway.jobs import clock, leases, reconciler
 from openbinding_gateway.routes import v1 as routes
 from openbinding_gateway.services import execution
 from openbinding_gateway.v1.package import load_package
@@ -145,8 +145,8 @@ async def test_each_renewal_pushes_the_lease_further(db_session, owner, monkeypa
     await db_session.commit()
     factory = async_sessionmaker(db_session.bind, expire_on_commit=False)
     base = utcnow()
-    clock = iter([base + timedelta(seconds=10 * step) for step in range(1, 4)])
-    monkeypatch.setattr(leases, "utcnow", lambda: next(clock))
+    moments = iter([base + timedelta(seconds=10 * step) for step in range(1, 4)])
+    monkeypatch.setattr(clock, "utcnow", lambda: next(moments))
 
     deadlines = []
     for _ in range(3):
@@ -549,6 +549,336 @@ async def test_a_finished_job_is_never_swept(db_session, owner):
     )
 
     assert await reconciler.sweep_abandoned(db_session) == 0
+    await db_session.refresh(job)
+    assert job.state is JobState.COMPLETED
+
+
+# -- The clock ----------------------------------------------------------------
+
+
+class Frozen:
+    """A process clock that only moves when the test says so."""
+
+    def __init__(self, moment: datetime) -> None:
+        self.moment = moment
+
+    def __call__(self) -> datetime:
+        return self.moment
+
+    def advance(self, seconds: float) -> None:
+        self.moment += timedelta(seconds=seconds)
+
+
+@pytest.fixture
+def frozen(monkeypatch) -> Frozen:
+    moments = Frozen(utcnow())
+    monkeypatch.setattr(clock, "utcnow", moments)
+    return moments
+
+
+def postgres_session():
+    """Enough of a session for the clock helpers to believe the database is PostgreSQL."""
+    dialect = SimpleNamespace(name="postgresql")
+    return SimpleNamespace(sync_session=SimpleNamespace(get_bind=lambda: SimpleNamespace(dialect=dialect)))
+
+
+def compiled(expression) -> str:
+    from sqlalchemy.dialects import postgresql
+
+    return str(expression.compile(dialect=postgresql.dialect()))
+
+
+def test_on_postgresql_the_clock_is_the_databases_and_the_arithmetic_stays_in_sql(monkeypatch):
+    def forbidden():
+        raise AssertionError("the process clock was read on PostgreSQL")
+
+    monkeypatch.setattr(clock, "utcnow", forbidden)
+    session = postgres_session()
+
+    assert compiled(clock.now(session)) == "now()"
+    plus = compiled(clock.after(session, 60))
+    assert plus.startswith("now() + make_interval(") and "60" not in plus  # the amount is a bound parameter
+    assert "make_interval" in compiled(clock.before(session, 30))
+
+
+async def test_every_lease_statement_uses_the_database_clock_on_postgresql(monkeypatch):
+    seen: list[str] = []
+
+    class Result:
+        def first(self):
+            return None
+
+    class Session:
+        sync_session = postgres_session().sync_session
+        info: dict = {}
+
+        async def execute(self, statement):
+            seen.append(compiled(statement))
+            return Result()
+
+    def forbidden():
+        raise AssertionError("the process clock was read on PostgreSQL")
+
+    monkeypatch.setattr(clock, "utcnow", forbidden)
+    job_id = uuid.uuid4()
+    lost = SimpleNamespace(id=job_id, state=JobState.RUNNING, lease_token="t")
+
+    await leases.claim_job(Session(), job_id)
+    await leases.hold_lease(Session(), job_id, "token")
+    await leases.renew_lease(lambda: _Factory(Session()), job_id, "token")
+    await reconciler._requeue(Session(), lost)
+    await reconciler._fail_abandoned(Session(), lost)
+
+    claim, hold, renew, requeue, fail = seen
+    for statement in (claim, hold, renew):
+        assert "now() + make_interval(" in statement
+    assert "claimed_at=now()" in claim
+    assert "lease_until < now()" in requeue and "next_publish_at=now()" in requeue
+    assert "lease_until < now()" in fail and "finished_at=now()" in fail
+
+
+class _Factory:
+    """An async context manager handing out one session, like ``async_sessionmaker()()``."""
+
+    def __init__(self, session) -> None:
+        self.session = session
+
+    async def __aenter__(self):
+        self.session.commit = _noop
+        return self.session
+
+    async def __aexit__(self, *_exc) -> None:
+        return None
+
+
+async def _noop() -> None:
+    return None
+
+
+async def test_a_claim_is_stamped_by_the_controlled_clock(db_session, owner, frozen):
+    job = await a_job(db_session, owner)
+
+    await leases.claim_job(db_session, job.id)
+    await db_session.refresh(job)
+
+    assert at(job.claimed_at) == at(frozen.moment)
+    assert at(job.lease_until) == at(frozen.moment) + timedelta(seconds=leases.LEASE_S)
+
+
+async def test_a_lease_lapses_by_the_controlled_clock_and_not_before(db_session, owner, frozen):
+    job = await a_job(db_session, owner)
+    await leases.claim_job(db_session, job.id)
+    await db_session.commit()
+
+    frozen.advance(leases.LEASE_S - 1)
+    assert await reconciler.sweep_abandoned(db_session) == 0
+    await db_session.refresh(job)
+    assert job.state is JobState.RUNNING
+
+    frozen.advance(2)
+    assert await reconciler.sweep_abandoned(db_session) == 0  # requeued, not failed
+    await db_session.refresh(job)
+    assert job.state is JobState.QUEUED and job.lease_token is None
+    assert at(job.next_publish_at) == at(frozen.moment)  # a requeued job is due at once
+    assert job.publish_attempts == 0
+
+
+async def test_a_renewal_keeps_a_lease_alive_past_its_first_deadline(db_session, owner, frozen):
+    job = await a_job(db_session, owner)
+    token = await leases.claim_job(db_session, job.id)
+    await db_session.commit()
+    factory = async_sessionmaker(db_session.bind, expire_on_commit=False)
+
+    frozen.advance(leases.LEASE_S - 5)
+    assert await leases.renew_lease(factory, job.id, token) is True
+    frozen.advance(10)  # past the first deadline, inside the renewed one
+
+    assert await reconciler.sweep_abandoned(db_session) == 0
+    await db_session.refresh(job)
+    assert job.state is JobState.RUNNING and job.lease_token == token
+
+
+async def test_holding_the_lease_pushes_the_deadline_forward_while_it_locks_the_row(db_session, owner, frozen):
+    job = await a_job(db_session, owner)
+    token = await leases.claim_job(db_session, job.id)
+    await db_session.commit()
+
+    frozen.advance(leases.LEASE_S + 30)  # lapsed, but nobody has taken the job back yet
+    assert await leases.hold_lease(db_session, job.id, token) is True
+    await db_session.commit()
+    await db_session.refresh(job)
+
+    assert at(job.lease_until) == at(frozen.moment) + timedelta(seconds=leases.LEASE_S)
+
+
+async def test_the_holder_of_a_lapsed_lease_loses_it_only_when_the_job_was_taken_back(db_session, owner, frozen):
+    job = await a_job(db_session, owner)
+    token = await leases.claim_job(db_session, job.id)
+    await db_session.commit()
+    frozen.advance(leases.LEASE_S + 1)
+    await reconciler.sweep_abandoned(db_session)
+    await db_session.commit()
+
+    assert await leases.hold_lease(db_session, job.id, token) is False
+
+
+# -- Engine ids and remote cancellation ---------------------------------------
+
+
+class RemoteStub:
+    """Stands in for solve_remote and cancel_remote, recording what the worker asked of them."""
+
+    def __init__(self) -> None:
+        self.kwargs: dict = {}
+        self.cancelled: list[str] = []
+
+    async def cancel(self, _registration, engine_job_id, **_kwargs) -> bool:
+        self.cancelled.append(engine_job_id)
+        return True
+
+
+@pytest.fixture
+def remote_stub(monkeypatch) -> RemoteStub:
+    stub = RemoteStub()
+    monkeypatch.setattr(execution, "cancel_remote", stub.cancel)
+    return stub
+
+
+async def test_the_engine_job_id_is_committed_before_the_worker_waits_for_the_result(
+    api_client, db_session, registration, monkeypatch, remote_stub
+):
+    seen: dict = {"commits": 0}
+    real_commit = db_session.commit
+
+    async def counting_commit():
+        seen["commits"] += 1
+        await real_commit()
+
+    monkeypatch.setattr(db_session, "commit", counting_commit)
+
+    async def solve(*_args, on_remote_id=None, job_id=None, attempt=None, **_kwargs):
+        before = seen["commits"]
+        await on_remote_id("engine-job-7")
+        # Committed, and nothing left open: the id is durable before the wait starts.
+        seen["committed_by_callback"] = seen["commits"] - before
+        seen["in_transaction"] = db_session.in_transaction()
+        seen["stored"] = (await db_session.execute(select(Job.engine_job_id))).scalar_one()
+        await db_session.commit()
+        seen["job_id"], seen["attempt"] = job_id, attempt
+        return _answer()
+
+    monkeypatch.setattr(execution, "solve_remote", solve)
+    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+
+    await _submit(api_client, headers, snapshot_id)
+
+    job = (await db_session.execute(select(Job))).scalars().one()
+    assert seen["committed_by_callback"] == 1 and seen["in_transaction"] is False
+    assert seen["stored"] == "engine-job-7"
+    assert seen["job_id"] == str(job.id) and seen["attempt"] == 1
+    assert job.state is JobState.COMPLETED and job.engine_job_id == "engine-job-7"
+    assert remote_stub.cancelled == []
+
+
+async def test_a_result_discarded_because_the_lease_was_lost_cancels_the_remote_job(
+    api_client, db_session, registration, monkeypatch, remote_stub
+):
+    async def solve(*_args, on_remote_id=None, **_kwargs):
+        await on_remote_id("engine-job-8")
+        job = (await db_session.execute(select(Job))).scalars().one()
+        job.lease_until = utcnow() - timedelta(seconds=1)
+        await db_session.commit()
+        assert await reconciler.sweep_abandoned(db_session) == 0
+        await db_session.commit()
+        return _answer()
+
+    monkeypatch.setattr(execution, "solve_remote", solve)
+    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+
+    await _submit(api_client, headers, snapshot_id)
+
+    job = (await db_session.execute(select(Job))).scalars().one()
+    await db_session.refresh(job)
+    assert job.state is JobState.QUEUED and job.result is None
+    assert remote_stub.cancelled == ["engine-job-8"]
+
+
+async def test_a_cancellation_noticed_after_the_solve_cancels_the_remote_job(
+    api_client, db_session, registration, monkeypatch, remote_stub
+):
+    async def solve(*_args, on_remote_id=None, **_kwargs):
+        await on_remote_id("engine-job-9")
+        job = (await db_session.execute(select(Job))).scalars().one()
+        job.cancellation_requested = True
+        await db_session.commit()
+        return _answer()
+
+    monkeypatch.setattr(execution, "solve_remote", solve)
+    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+
+    await _submit(api_client, headers, snapshot_id)
+
+    job = (await db_session.execute(select(Job))).scalars().one()
+    await db_session.refresh(job)
+    assert job.state is JobState.CANCELLED
+    assert remote_stub.cancelled == ["engine-job-9"]
+
+
+async def test_an_engine_failure_after_acceptance_cancels_the_remote_job_and_fails_the_job(
+    api_client, db_session, registration, monkeypatch, remote_stub
+):
+    async def solve(*_args, on_remote_id=None, **_kwargs):
+        await on_remote_id("engine-job-10")
+        raise execution.RemoteEngineError("remote engine timed out")
+
+    monkeypatch.setattr(execution, "solve_remote", solve)
+    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+
+    await _submit(api_client, headers, snapshot_id)
+
+    job = (await db_session.execute(select(Job))).scalars().one()
+    await db_session.refresh(job)
+    assert job.state is JobState.FAILED and job.engine_job_id == "engine-job-10"
+    assert remote_stub.cancelled == ["engine-job-10"]
+
+
+async def test_a_cancellation_that_cannot_be_delivered_does_not_change_the_outcome(
+    api_client, db_session, registration, monkeypatch
+):
+    async def broken(*_args, **_kwargs):
+        raise RuntimeError("engine unreachable")
+
+    async def solve(*_args, on_remote_id=None, **_kwargs):
+        await on_remote_id("engine-job-11")
+        job = (await db_session.execute(select(Job))).scalars().one()
+        job.cancellation_requested = True
+        await db_session.commit()
+        return _answer()
+
+    monkeypatch.setattr(execution, "cancel_remote", broken)
+    monkeypatch.setattr(execution, "solve_remote", solve)
+    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+
+    await _submit(api_client, headers, snapshot_id)
+
+    job = (await db_session.execute(select(Job))).scalars().one()
+    await db_session.refresh(job)
+    assert job.state is JobState.CANCELLED
+
+
+async def test_an_engine_id_that_cannot_be_stored_does_not_fail_the_solve(
+    api_client, db_session, registration, monkeypatch, remote_stub
+):
+    async def solve(*_args, on_remote_id=None, **_kwargs):
+        await on_remote_id("x" * (execution.ENGINE_JOB_ID_MAX + 1))
+        return _answer()
+
+    monkeypatch.setattr(execution, "solve_remote", solve)
+    headers, snapshot_id = await _account_with_snapshot(api_client, registration)
+
+    await _submit(api_client, headers, snapshot_id)
+
+    job = (await db_session.execute(select(Job))).scalars().one()
     await db_session.refresh(job)
     assert job.state is JobState.COMPLETED
 
