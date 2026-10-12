@@ -44,6 +44,28 @@ def test_all_lists_the_required_names_and_each_resolves() -> None:
         assert hasattr(bim_core, name), name
 
 
+EVALUATION_NAMES = {
+    "evaluate": "evaluator", "evaluate_many": "evaluator", "validate_binding": "evaluator",
+    "reevaluate_result": "reevaluate", "validate_result": "protocol", "protocol_document": "protocol",
+    "protocol_digest": "protocol", "mode_compatibility": "compat", "ir_features": "compat",
+    "engine_contract_diagnostics": "compat", "resolve_optimization": "compat",
+    "analyze_neighborhood": "neighborhood", "openapi_diagnostics": "conformance",
+}
+
+
+def test_the_evaluation_protocol_and_compatibility_api_is_exported_from_its_module() -> None:
+    import importlib
+
+    assert set(EVALUATION_NAMES) <= set(bim_core.__all__)
+    for name, module in EVALUATION_NAMES.items():
+        assert getattr(bim_core, name) is getattr(importlib.import_module(f"bim_core.{module}"), name), name
+
+
+def test_the_public_names_that_are_functions_have_a_docstring() -> None:
+    for name in EVALUATION_NAMES:
+        assert (getattr(bim_core, name).__doc__ or "").strip(), name
+
+
 def test_former_private_names_are_public_without_underscore() -> None:
     for name in FORMER_PRIVATE_NAMES:
         assert not hasattr(compiler, name), name

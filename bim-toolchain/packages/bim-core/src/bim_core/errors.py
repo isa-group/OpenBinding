@@ -58,4 +58,25 @@ class ProtocolError(BimError, ValueError):
 
 
 class ContractError(BimError, ValueError):
-    """A pinned contract (Profile, Dialect, IR document, configuration) is not satisfied."""
+    """A pinned contract (Profile, Dialect, IR document, configuration, Engine declaration) is not satisfied.
+
+    ``http_status`` is a suggestion for a host that exposes the error over HTTP (for example 422 for a
+    rejected execution option); the library itself never speaks HTTP.
+    """
+
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        diagnostics: Iterable[Any] = (),
+        *,
+        http_status: int | None = None,
+    ) -> None:
+        super().__init__(code, message, diagnostics)
+        self.http_status = http_status
+
+    def as_dict(self) -> dict[str, Any]:
+        result = super().as_dict()
+        if self.http_status is not None:
+            result["httpStatus"] = self.http_status
+        return result

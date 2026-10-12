@@ -1,0 +1,63 @@
+{
+ "cases": {
+  "binding_candidate_not_eligible": {
+   "code": "binding_invalid",
+   "isValueError": true,
+   "message": "candidate {'resource': 'catalog', 'id': 'c2a'} is not eligible for task 't1'",
+   "outcome": "EvaluationError"
+  },
+  "binding_candidate_unknown": {
+   "code": "binding_invalid",
+   "isValueError": true,
+   "message": "candidate {'resource': 'catalog', 'id': 'c9z'} is not eligible for task 't1'",
+   "outcome": "EvaluationError"
+  },
+  "binding_extra_task": {
+   "code": "binding_invalid",
+   "isValueError": true,
+   "message": "binding must contain exactly service tasks; missing=[], extra=['t4']",
+   "outcome": "EvaluationError"
+  },
+  "binding_missing_task": {
+   "code": "binding_invalid",
+   "isValueError": true,
+   "message": "binding must contain exactly service tasks; missing=['t3'], extra=[]",
+   "outcome": "EvaluationError"
+  },
+  "binding_not_an_object": {
+   "code": "binding_invalid",
+   "isValueError": true,
+   "message": "binding must be an object",
+   "outcome": "EvaluationError"
+  },
+  "binding_other_resource": {
+   "code": "binding_invalid",
+   "isValueError": true,
+   "message": "candidate {'resource': 'application', 'id': 'c1a'} is not eligible for task 't1'",
+   "outcome": "EvaluationError"
+  },
+  "binding_valid_control": {
+   "outcome": "ok"
+  },
+  "binding_value_extra_key": {
+   "code": "binding_invalid",
+   "isValueError": true,
+   "message": "binding value for 't1' must be {resource,id}",
+   "outcome": "EvaluationError"
+  },
+  "binding_value_id_not_string": {
+   "code": "binding_invalid",
+   "isValueError": true,
+   "message": "binding value for 't1' must be {resource,id}",
+   "outcome": "EvaluationError"
+  },
+  "binding_value_missing_id": {
+   "code": "binding_invalid",
+   "isValueError": true,
+   "message": "binding value for 't1' must be {resource,id}",
+   "outcome": "EvaluationError"
+  }
+ },
+ "reason": "bim_core.evaluator.validate_binding raises EvaluationError (a ValueError) where BindingProblem.validate_binding raises ValueError; golden/bim_baseline/negatives.json records the latter and is kept as it is. Messages are identical.",
+ "schema": "bim-core/evaluator-errors/1"
+}

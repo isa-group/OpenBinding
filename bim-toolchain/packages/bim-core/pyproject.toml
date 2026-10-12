@@ -12,6 +12,8 @@ requires-python = ">=3.11"
 dependencies = [
     "jsonschema>=4.21,<5",
     "lxml>=5.2,<7",
+    # bim_core.protocol reads the bim-engine/v1 OpenAPI contract (YAML) from its resources.
+    "pyyaml>=6,<7",
 ]
 
 [build-system]

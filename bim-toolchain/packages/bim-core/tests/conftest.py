@@ -32,6 +32,42 @@ def require_corpus_path(relative: str) -> Path:
     return path
 
 
+MANIFEST_FIXTURES = Path(__file__).resolve().parent / "fixtures" / "manifests"
+
+
+def engine_manifest_fixtures() -> dict[str, dict]:
+    """The Engine manifests (copies of ``schemas/bim/v1/manifests`` of OpenBinding) used as test inputs."""
+    import json
+
+    if not MANIFEST_FIXTURES.is_dir():
+        pytest.skip(f"{MANIFEST_FIXTURES} is missing: run the manifests bootstrap check first")
+    return {
+        path.stem: json.loads(path.read_text(encoding="utf-8")) for path in sorted(MANIFEST_FIXTURES.glob("*.json"))
+    }
+
+
+def check_or_create_golden(baseline_tool, path: Path, document) -> None:
+    """Compare ``document`` with the golden at ``path``; create the golden if there is none yet.
+
+    The goldens without an OpenBinding original (``golden/bim_core``, ``golden/vectors_extra.json``) are
+    regression pins of the output of this very toolchain, so a missing one is written, never replaced, and
+    the test fails once to say so: the new file must be reviewed and committed.  Delete a golden to
+    regenerate it.  Whether the content is *right* is established by the tests that compare it with an
+    independent source (the OpenBinding goldens, hand-written expectations).
+    """
+    data = baseline_tool.dump(document)
+    if not path.is_file():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        pytest.fail(f"golden {path.relative_to(TOOLCHAIN_ROOT)} did not exist and was created: review and commit it")
+    import json
+
+    # ``toolchain`` fields change with every edit of the code on purpose and are never compared.
+    found = baseline_tool.comparable(json.loads(data))
+    expected = baseline_tool.comparable(json.loads(path.read_text(encoding="utf-8")))
+    assert found == expected, f"{path.name} differs from {path.relative_to(TOOLCHAIN_ROOT)}"
+
+
 @pytest.fixture(scope="session")
 def baseline_tool():
     """``tools/baseline_core.py`` imported as a regular module (workers must be able to import it)."""

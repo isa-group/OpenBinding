@@ -16,6 +16,21 @@ stored = bim_core.BindingProblem.from_document(problem.document)  # rehydrate + 
 bim_core.toolchain_identity()                      # version, compilerDigest, contracts
 ```
 
+Evaluation, re-evaluation of an engine's answer and engine compatibility are pure functions of the IR and of
+plain dictionaries (the engine manifests are inputs):
+
+```python
+from bim_core import (
+    EvaluationError, analyze_neighborhood, evaluate, mode_compatibility,
+    protocol_digest, reevaluate_result, resolve_optimization, validate_result,
+)
+
+evaluation = evaluate(problem, binding)                    # EvaluationError(code="binding_invalid") if the binding is not valid
+answer = validate_result(engine_json)                      # ProtocolError(code=...) if it is not bim-engine/v1
+trusted = reevaluate_result(problem, answer, execution)    # the engine's QoS claims are replaced, never believed
+diagnostics = mode_compatibility(problem, mode)            # [] if the engine mode can run the problem
+```
+
 Resource limits are injected, never read from the environment on import:
 
 ```python
@@ -34,7 +49,7 @@ the holder's decision; see [`../../NOTICE.md`](../../NOTICE.md).
 
 ## Tests
 
-From `bim-toolchain/packages/bim-core`, with `jsonschema`, `lxml` and `pytest`
+From `bim-toolchain/packages/bim-core`, with `jsonschema`, `lxml`, `pyyaml` and `pytest`
 available:
 
 ```sh

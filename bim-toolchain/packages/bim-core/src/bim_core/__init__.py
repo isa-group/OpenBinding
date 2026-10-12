@@ -23,6 +23,8 @@ from .compiler import (
     resource_schema_diagnostics,
     toolchain_identity,
 )
+from .compat import engine_contract_diagnostics, ir_features, mode_compatibility, resolve_optimization
+from .conformance import openapi_diagnostics
 from .errors import (
     BimError,
     CompileError,
@@ -31,8 +33,12 @@ from .errors import (
     PackageError,
     ProtocolError,
 )
+from .evaluator import evaluate, evaluate_many, validate_binding
 from .expressions import ExpressionError
+from .neighborhood import analyze_neighborhood
 from .package import InstancePackage, load_package
+from .protocol import protocol_digest, protocol_document, validate_result
+from .reevaluate import reevaluate_result
 from .settings import Limits, configure, default_limits
 from .toolchain import compiler_bundle_digest
 
@@ -50,6 +56,7 @@ __all__ = [
     "PackageError",
     "ProtocolError",
     "__version__",
+    "analyze_neighborhood",
     "canonical_json",
     "compilation_digest",
     "compile_instance",
@@ -61,10 +68,22 @@ __all__ = [
     "dialect_xml_type_matches",
     "digest",
     "digest_bytes",
+    "engine_contract_diagnostics",
+    "evaluate",
+    "evaluate_many",
     "ir_digest",
+    "ir_features",
     "load_package",
+    "mode_compatibility",
+    "openapi_diagnostics",
     "profile_descriptor",
+    "protocol_digest",
+    "protocol_document",
+    "reevaluate_result",
+    "resolve_optimization",
     "resource_schema_diagnostics",
     "schema_root",
     "toolchain_identity",
+    "validate_binding",
+    "validate_result",
 ]

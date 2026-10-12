@@ -20,15 +20,17 @@ bim-toolchain/
     pyproject.toml, README.md
     src/bim_core/                   the package (src layout)
       resources/                    JSON Schemas, engine contract, vendored OMG BPMN 2.0.2 XSDs
-    tests/
+    tests/                          tests/fixtures/manifests: Engine manifests used as test inputs
   golden/bim_baseline/              digests and numeric summaries recorded in OpenBinding
+  golden/bim_core/                  goldens that have no OpenBinding original (see docs/DIGESTS.md)
+  golden/vectors_extra.json         adversarial re-evaluation / result-validation vectors
   tools/baseline_core.py            recomputes the baseline with bim_core only
   docs/                             CONTRACT.md, DIGESTS.md, EXTRACTION_LOG.md
 ```
 
 ## Running the tests
 
-They need `jsonschema`, `lxml` and `pytest` (Python ≥ 3.11):
+They need `jsonschema`, `lxml`, `pyyaml` and `pytest` (Python ≥ 3.11):
 
 ```sh
 cd bim-toolchain/packages/bim-core

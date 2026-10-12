@@ -1,22 +1,35 @@
-"""Semantic baseline of the BIM v1 corpus and its negative cases, computed with ``bim_core`` only.
+"""Semantic baseline of the BIM v1 corpus, computed with ``bim_core`` only.
 
 ``compilerDigest`` and ``irDigest`` change whenever the toolchain bytes change, so they cannot prove
 that the meaning survived.  This tool records what must not move instead: the semantic digest of every
 package (the IR document minus ``profile``/``dialects``/``instance``/``sourceMap``), the result of the
-canonical evaluator on its bindings, and the diagnostics of the negative cases.  Whatever is expected
-to change with the toolchain lives under a ``toolchain`` key, which :func:`comparable` removes.
+canonical evaluator on its bindings, the diagnostics of the negative cases, the Engine mode
+compatibility of every package, the re-evaluation and result-validation vectors and the protocol and
+schema digests.  Whatever is expected to change with the toolchain lives under a ``toolchain`` key,
+which :func:`comparable` removes.
 
-It adapts ``tools/bim_baseline.py`` of OpenBinding.  Engine compatibility, re-evaluation vectors and
-the protocol section need platform code and are left for a later step.
+It adapts ``tools/bim_baseline.py`` of OpenBinding and produces the same five documents
+(``corpus``, ``negatives``, ``compat``, ``vectors``, ``protocol``) from ``bim_core`` alone.  Beyond them it
+writes three documents that have no OpenBinding original (see ``docs/DIGESTS.md``):
+
+* ``golden/bim_core/compat.json`` and ``golden/bim_core/protocol.json``: the same two documents computed
+  with the four Engine manifests that exist in the repository.  The OpenBinding goldens also list
+  ``meta-router-csp``, whose manifest is not in the repository, so those two cannot be reproduced
+  byte for byte; every other byte is compared with the originals.
+* ``golden/bim_core/evaluator_errors.json``: the binding negatives seen through ``bim_core.evaluator``,
+  which raises ``EvaluationError`` where ``BindingProblem.validate_binding`` raises ``ValueError``.
+* ``golden/vectors_extra.json``: adversarial re-evaluation and result-validation vectors.
 
 The corpus is not part of this directory.  It is looked up under ``BIM_CORPUS_ROOT`` (default: the
-directory that contains ``bim-toolchain/``).  Golden paths are relative to that root.
+directory that contains ``bim-toolchain/``).  Golden paths are relative to that root.  The Engine
+manifests are test fixtures (``packages/bim-core/tests/fixtures/manifests``).
 
 Compare against the goldens::
 
     python bim-toolchain/tools/baseline_core.py --check
 
-Regenerate them (only when a change of meaning is intended and reviewed)::
+Regenerate them (only when a change of meaning is intended and reviewed; ``compat.json`` and
+``protocol.json`` of ``golden/bim_baseline`` are never rewritten)::
 
     python bim-toolchain/tools/baseline_core.py
 """
@@ -24,17 +37,20 @@ Regenerate them (only when a change of meaning is intended and reviewed)::
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import io
 import itertools
 import json
+import math
 import os
 import random
 import sys
 import zipfile
 from concurrent.futures import ProcessPoolExecutor
+from importlib.resources.abc import Traversable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_SRC = ROOT / "packages" / "bim-core" / "src"
@@ -44,12 +60,27 @@ if PACKAGE_SRC.is_dir():
 from bim_core import (  # noqa: E402
     BindingProblem,
     CompileError,
+    EvaluationError,
     ExpressionError,
     InstancePackage,
+    ProtocolError,
     compile_instance,
     compiler_bundle_digest,
     digest,
+    digest_bytes,
     load_package,
+    protocol_digest,
+    protocol_document,
+    reevaluate_result,
+    validate_binding,
+    validate_result,
+)
+from bim_core.assets import engine_contract_bytes, resource_root, schema_root  # noqa: E402
+from bim_core.compat import mode_compatibility  # noqa: E402
+from bim_core.compiler import (  # noqa: E402
+    installed_dialect_manifests,
+    installed_profile_manifests,
+    manifest_reference,
 )
 from bim_core.expressions import compile_expression  # noqa: E402
 
@@ -61,7 +92,13 @@ BLOCK_SIZE = 64
 DIGEST_PREFIX = 16
 
 GOLDEN_DIR = ROOT / "golden" / "bim_baseline"
-GOLDEN_FILES = ("corpus.json", "negatives.json")
+CORE_GOLDEN_DIR = ROOT / "golden" / "bim_core"
+EXTRA_VECTORS = ROOT / "golden" / "vectors_extra.json"
+MANIFEST_DIR = ROOT / "packages" / "bim-core" / "tests" / "fixtures" / "manifests"
+GOLDEN_FILES = ("corpus.json", "negatives.json", "vectors.json")
+CORE_GOLDEN_FILES = ("compat.json", "protocol.json", "evaluator_errors.json")
+#: Engines whose manifest is in the OpenBinding goldens but not in the repository.
+MISSING_MANIFESTS = ("meta-router-csp",)
 DEMO_RELATIVE = Path("examples") / "demo" / "01_simple_seq"
 NON_SEMANTIC = frozenset({"profile", "dialects", "instance", "sourceMap"})
 SKIPPED_DIRECTORIES = {".git", ".pnpm-store", "node_modules", "target", "dist", ".venv", "__pycache__"}
@@ -295,13 +332,53 @@ def evaluate_package(problem: BindingProblem) -> dict[str, Any]:
     return result
 
 
+def engine_manifests(manifest_dir: Path = MANIFEST_DIR) -> dict[str, dict[str, Any]]:
+    """The Engine manifests used as inputs (fixtures), by file stem."""
+    if not manifest_dir.is_dir():
+        raise FileNotFoundError(f"{manifest_dir} is missing: run the manifests bootstrap check first")
+    return {
+        path.stem: json.loads(path.read_text(encoding="utf-8")) for path in sorted(manifest_dir.glob("*.json"))
+    }
+
+
+def _compatibility_code(diagnostic: dict[str, Any]) -> str:
+    parts = [diagnostic["code"], diagnostic.get("category") or diagnostic.get("limit") or ""]
+    unsupported = diagnostic.get("unsupported")
+    if unsupported:
+        parts.append(",".join(unsupported))
+    return ":".join(parts)
+
+
+def compatibility(problem: BindingProblem, manifests: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """``mode_compatibility`` of one problem against every mode of every Engine manifest."""
+    result: dict[str, Any] = {}
+    for name, manifest in manifests.items():
+        modes: dict[str, Any] = {}
+        for mode in manifest["spec"]["modes"]:
+            diagnostics = mode_compatibility(problem, mode)
+            modes[mode["id"]] = {
+                "compatible": not diagnostics,
+                "codes": [_compatibility_code(item) for item in diagnostics],
+                "digest": digest(diagnostics),
+            }
+        result[name] = modes
+    return result
+
+
 def analyze_directory(directory: Path, corpus_root: Path) -> dict[str, Any]:
     """Compile one package once and return its corpus entry (path relative to ``corpus_root``)."""
+    return analyze_package(directory, corpus_root, None)[0]
+
+
+def analyze_package(
+    directory: Path, corpus_root: Path, manifests: dict[str, dict[str, Any]] | None
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Compile one package once; return its corpus entry and, given Engine manifests, its compatibility entry."""
     relative = directory.relative_to(corpus_root).as_posix()
     try:
         problem = compile_instance(load_package(directory))
     except Exception as exc:  # a package that stops compiling must show up in the baseline
-        return {"path": relative, "status": "error", "error": f"{type(exc).__name__}: {exc}"}
+        return {"path": relative, "status": "error", "error": f"{type(exc).__name__}: {exc}"}, None
     spec = problem.document["spec"]
     entry: dict[str, Any] = {
         "path": relative,
@@ -314,7 +391,7 @@ def analyze_directory(directory: Path, corpus_root: Path) -> dict[str, Any]:
         "toolchain": {"compilerDigest": compiler_bundle_digest(), "irDigest": problem.digest},
     }
     if not isinstance(problem, BindingProblem):
-        return entry
+        return entry, None
     breakdown = problem.binding_space_breakdown
     entry["tasks"] = {"total": len(spec["application"]["tasks"]), "service": len(breakdown)}
     entry["bindingSpace"] = {
@@ -323,7 +400,39 @@ def analyze_directory(directory: Path, corpus_root: Path) -> dict[str, Any]:
         "candidatesPerServiceTask": list(breakdown.values()),
     }
     entry["evaluation"] = evaluate_package(problem)
-    return entry
+    return entry, None if manifests is None else compatibility(problem, manifests)
+
+
+def build_corpus_and_compat(
+    directories: list[Path],
+    corpus_root: Path,
+    jobs: int = 1,
+    manifests: dict[str, dict[str, Any]] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The ``corpus.json`` and ``compat.json`` documents for ``directories`` (``manifests``: the Engine inputs)."""
+    manifests = engine_manifests() if manifests is None else manifests
+    if jobs <= 1:
+        results = [analyze_package(directory, corpus_root, manifests) for directory in directories]
+    else:
+        with ProcessPoolExecutor(max_workers=jobs) as executor:
+            results = list(
+                executor.map(
+                    analyze_package, directories, itertools.repeat(corpus_root), itertools.repeat(manifests)
+                )
+            )
+    corpus = _corpus_document([entry for entry, _ in results])
+    compat = {
+        "schema": "bim-baseline/compat/1",
+        "engines": {
+            name: {
+                "manifestDigest": digest(manifest),
+                "modes": sorted(mode["id"] for mode in manifest["spec"]["modes"]),
+            }
+            for name, manifest in manifests.items()
+        },
+        "packages": {entry["path"]: found for entry, found in results if found is not None},
+    }
+    return corpus, compat
 
 
 def build_corpus(directories: list[Path], corpus_root: Path, jobs: int = 1) -> dict[str, Any]:
@@ -333,6 +442,10 @@ def build_corpus(directories: list[Path], corpus_root: Path, jobs: int = 1) -> d
     else:
         with ProcessPoolExecutor(max_workers=jobs) as executor:
             results = list(executor.map(analyze_directory, directories, itertools.repeat(corpus_root)))
+    return _corpus_document(results)
+
+
+def _corpus_document(entries: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "schema": "bim-baseline/corpus/1",
         "seed": SEED,
@@ -341,8 +454,8 @@ def build_corpus(directories: list[Path], corpus_root: Path, jobs: int = 1) -> d
         "inlineLimit": INLINE_LIMIT,
         "blockSize": BLOCK_SIZE,
         "digestPrefix": DIGEST_PREFIX,
-        "packageCount": len(results),
-        "packages": {entry["path"]: entry for entry in results},
+        "packageCount": len(entries),
+        "packages": {entry["path"]: entry for entry in entries},
         "toolchain": {"compilerDigest": compiler_bundle_digest()},
     }
 
@@ -565,26 +678,362 @@ def build_negatives(corpus_root: Path) -> dict[str, Any]:
     return {"schema": "bim-baseline/negatives/1", "cases": cases}
 
 
+def build_evaluator_errors(corpus_root: Path) -> dict[str, Any]:
+    """The binding negatives seen through ``bim_core.evaluator``: ``EvaluationError`` with a stable code."""
+    problem = compile_instance(load_package(corpus_root / DEMO_RELATIVE))
+    cases: dict[str, Any] = {}
+    for name, binding in binding_cases().items():
+        try:
+            validate_binding(problem, binding)
+        except EvaluationError as exc:
+            cases[name] = {
+                "outcome": type(exc).__name__,
+                "code": exc.code,
+                "message": str(exc),
+                "isValueError": isinstance(exc, ValueError),
+            }
+        else:
+            cases[name] = {"outcome": "ok"}
+    return {
+        "schema": "bim-core/evaluator-errors/1",
+        "reason": (
+            "bim_core.evaluator.validate_binding raises EvaluationError (a ValueError) where "
+            "BindingProblem.validate_binding raises ValueError; golden/bim_baseline/negatives.json records "
+            "the latter and is kept as it is. Messages are identical."
+        ),
+        "cases": cases,
+    }
+
+
+# --- reevaluation vectors --------------------------------------------------------------------
+
+
+def _solution(problem: BindingProblem, binding: dict[str, Any]) -> dict[str, Any]:
+    evaluation = problem.evaluate(binding)
+    penalties = problem.document["spec"]["optimization"].get("penalties", [])
+    return {
+        "decision": {"kind": "binding", "binding": binding},
+        "features": evaluation["features"],
+        "objectives": evaluation["objectives"],
+        "penalties": [0.0 for _ in penalties],
+        "violations": evaluation["violations"],
+    }
+
+
+def _demo_binding(first: str, resource: str = "catalog") -> dict[str, Any]:
+    return {
+        "t1": {"resource": resource, "id": first},
+        "t2": {"resource": "catalog", "id": "c2a"},
+        "t3": {"resource": "catalog", "id": "c3a"},
+    }
+
+
+def vector_inputs(corpus_root: Path) -> list[dict[str, Any]]:
+    """Synthetic Engine answers for the demo problem; ``allowed`` None means the default."""
+    problem = compile_instance(load_package(corpus_root / DEMO_RELATIVE))
+    best, other = _solution(problem, _demo_binding("c1a")), _solution(problem, _demo_binding("c1b"))
+    wrong = copy.deepcopy(best)
+    wrong["features"] = {"latency": 1.0}
+    wrong["objectives"]["score"] = 0.0
+    wrong["objectives"]["components"][0].update({"value": 1.0, "loss": 0.0})
+    not_eligible = _solution(problem, _demo_binding("c1a"))
+    not_eligible["decision"]["binding"]["t1"] = {"resource": "catalog", "id": "c2a"}
+    malformed = {key: value for key, value in best.items() if key != "penalties"}
+    everything = ["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"]
+    return [
+        {"id": "optimal_declared", "result": {"termination": "OPTIMAL", "solutions": [best], "provenance": {"engine": "synthetic"}}, "allowed": everything},
+        {"id": "feasible_default_terminations", "result": {"termination": "FEASIBLE", "solutions": [other]}, "allowed": None},
+        {"id": "optimal_not_declared", "result": {"termination": "OPTIMAL", "solutions": [best]}, "allowed": None},
+        {"id": "infeasible_declared", "result": {"termination": "INFEASIBLE", "solutions": []}, "allowed": everything},
+        {"id": "infeasible_with_solution", "result": {"termination": "INFEASIBLE", "solutions": [best]}, "allowed": everything},
+        {"id": "unknown_without_solutions", "result": {"termination": "UNKNOWN", "solutions": []}, "allowed": None},
+        {"id": "feasible_without_solutions", "result": {"termination": "FEASIBLE", "solutions": []}, "allowed": everything},
+        {"id": "binding_not_eligible", "result": {"termination": "FEASIBLE", "solutions": [not_eligible]}, "allowed": everything},
+        {"id": "objective_miscomputed", "result": {"termination": "OPTIMAL", "solutions": [wrong]}, "allowed": everything},
+        {"id": "invalid_shape_missing_penalties", "result": {"termination": "FEASIBLE", "solutions": [malformed]}, "allowed": everything},
+    ]
+
+
+def _validation(payload: Any, **options: Any) -> dict[str, Any]:
+    try:
+        validate_result(copy.deepcopy(payload), **options)
+    except ProtocolError as exc:
+        return {"valid": False, "error": str(exc)}
+    return {"valid": True}
+
+
+def build_vectors(corpus_root: Path) -> dict[str, Any]:
+    """Run ``reevaluate_result`` and ``validate_result`` on each synthetic answer."""
+    problem = compile_instance(load_package(corpus_root / DEMO_RELATIVE))
+    vectors = []
+    for case in vector_inputs(corpus_root):
+        result, allowed = case["result"], case["allowed"]
+        arguments = (problem, copy.deepcopy(result), None) + (() if allowed is None else (allowed,))
+        vectors.append({
+            "id": case["id"],
+            "input": {"result": stable(result), "allowedTerminations": allowed},
+            "reevaluate": stable(reevaluate_result(*arguments)),
+            "validate": _validation(result),
+        })
+    return {"schema": "bim-baseline/vectors/1", "problem": DEMO_RELATIVE.as_posix(), "vectors": vectors}
+
+
+# --- adversarial vectors (no OpenBinding original) ---------------------------------------------
+
+_NON_FINITE = {"NaN": math.nan, "Infinity": math.inf, "-Infinity": -math.inf}
+
+
+def encode_floats(value: Any) -> Any:
+    """JSON has no NaN/Infinity: they are written as ``{"$float": "NaN"|"Infinity"|"-Infinity"}``."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return {"$float": "NaN" if math.isnan(value) else "Infinity" if value > 0 else "-Infinity"}
+    if isinstance(value, dict):
+        return {key: encode_floats(child) for key, child in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [encode_floats(child) for child in value]
+    return value
+
+
+def decode_floats(value: Any) -> Any:
+    """The inverse of :func:`encode_floats`."""
+    if isinstance(value, dict):
+        if set(value) == {"$float"} and value["$float"] in _NON_FINITE:
+            return _NON_FINITE[value["$float"]]
+        return {key: decode_floats(child) for key, child in value.items()}
+    if isinstance(value, list):
+        return [decode_floats(child) for child in value]
+    return value
+
+
+def extra_vector_inputs(corpus_root: Path) -> list[dict[str, Any]]:
+    """Hostile or sloppy Engine answers for the demo problem: what the platform must never believe."""
+    problem = compile_instance(load_package(corpus_root / DEMO_RELATIVE))
+    best = _solution(problem, _demo_binding("c1a"))
+    other = _solution(problem, _demo_binding("c1b"))
+    everything = ["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"]
+
+    def variant(base: dict[str, Any], change: Callable[[dict[str, Any]], None]) -> dict[str, Any]:
+        value = copy.deepcopy(base)
+        change(value)
+        return value
+
+    def with_binding(change: Callable[[dict[str, Any]], None]) -> dict[str, Any]:
+        return variant(best, lambda solution: change(solution["decision"]["binding"]))
+
+    def result(termination: Any, solutions: Any, **extra: Any) -> dict[str, Any]:
+        return {"termination": termination, "solutions": solutions, **extra}
+
+    def set_objective(key: str, value: Any) -> Callable[[dict[str, Any]], None]:
+        return lambda solution: solution["objectives"].__setitem__(key, value)
+
+    def set_component(key: str, value: Any) -> Callable[[dict[str, Any]], None]:
+        return lambda solution: solution["objectives"]["components"][0].__setitem__(key, value)
+
+    return [
+        # The engine lies about the objective; the authoritative evaluation overrides every field.
+        {"id": "objective_penalty_and_score_altered", "result": result("OPTIMAL", [variant(best, lambda s: s["objectives"].update({"penalty": 5.0, "score": -1.0}))]), "allowed": everything},
+        {"id": "objective_component_weight_and_loss_altered", "result": result("OPTIMAL", [variant(best, lambda s: s["objectives"]["components"][0].update({"weight": 99.0, "loss": -1e9}))]), "allowed": everything},
+        {"id": "objective_type_altered", "result": result("OPTIMAL", [variant(best, set_objective("type", "MANY"))]), "allowed": everything},
+        {"id": "objective_scalarization_altered", "result": result("OPTIMAL", [variant(best, set_objective("scalarization", "pareto-front"))]), "allowed": everything},
+        {"id": "features_altered", "result": result("OPTIMAL", [variant(best, lambda s: s.__setitem__("features", {"latency": 0.0}))]), "allowed": everything},
+        {"id": "penalties_altered", "result": result("OPTIMAL", [variant(best, lambda s: s.__setitem__("penalties", [123.0]))]), "allowed": everything},
+        {"id": "violations_hidden", "result": result("OPTIMAL", [variant(best, lambda s: s.__setitem__("violations", []))]), "allowed": everything},
+        # The binding is outside the eligible space or malformed.
+        {"id": "binding_unknown_candidate", "result": result("FEASIBLE", [with_binding(lambda b: b.__setitem__("t1", {"resource": "catalog", "id": "c9z"}))]), "allowed": everything},
+        {"id": "binding_candidate_of_another_task", "result": result("FEASIBLE", [with_binding(lambda b: b.__setitem__("t3", {"resource": "catalog", "id": "c1a"}))]), "allowed": everything},
+        {"id": "binding_missing_task", "result": result("FEASIBLE", [with_binding(lambda b: b.pop("t3"))]), "allowed": everything},
+        {"id": "binding_extra_task", "result": result("FEASIBLE", [with_binding(lambda b: b.__setitem__("t4", {"resource": "catalog", "id": "c3a"}))]), "allowed": everything},
+        {"id": "binding_empty", "result": result("FEASIBLE", [with_binding(lambda b: b.clear())]), "allowed": everything},
+        {"id": "binding_value_extra_key", "result": result("FEASIBLE", [with_binding(lambda b: b["t1"].update({"extra": "x"}))]), "allowed": everything},
+        {"id": "binding_value_not_an_object", "result": result("FEASIBLE", [with_binding(lambda b: b.__setitem__("t1", "c1a"))]), "allowed": everything},
+        {"id": "binding_other_resource", "result": result("FEASIBLE", [with_binding(lambda b: b.__setitem__("t1", {"resource": "application", "id": "c1a"}))]), "allowed": everything},
+        {"id": "valid_and_ineligible_in_one_answer", "result": result("FEASIBLE", [best, with_binding(lambda b: b.__setitem__("t1", {"resource": "catalog", "id": "c2a"}))]), "allowed": everything},
+        {"id": "duplicate_solutions", "result": result("FEASIBLE", [best, copy.deepcopy(best)]), "allowed": everything},
+        # Terminations that claim more than the solutions or the declared guarantees support.
+        {"id": "unknown_with_valid_binding", "result": result("UNKNOWN", [best]), "allowed": None},
+        {"id": "unknown_with_ineligible_binding", "result": result("UNKNOWN", [with_binding(lambda b: b.__setitem__("t1", {"resource": "catalog", "id": "c2a"}))]), "allowed": None},
+        {"id": "infeasible_with_valid_binding_declared", "result": result("INFEASIBLE", [best]), "allowed": everything},
+        {"id": "infeasible_with_valid_binding_default", "result": result("INFEASIBLE", [best]), "allowed": None},
+        {"id": "infeasible_without_binding_default", "result": result("INFEASIBLE", []), "allowed": None},
+        {"id": "optimal_with_default_guarantees", "result": result("OPTIMAL", [best]), "allowed": None},
+        {"id": "feasible_when_only_unknown_is_declared", "result": result("FEASIBLE", [other]), "allowed": ["UNKNOWN"]},
+        {"id": "termination_lowercase", "result": result("optimal", [best]), "allowed": everything},
+        {"id": "termination_unhashable", "result": result(["OPTIMAL"], [best]), "allowed": everything},
+        {"id": "termination_missing", "result": {"solutions": [best]}, "allowed": everything},
+        {"id": "allowed_terminations_unhashable_and_unknown", "result": result("FEASIBLE", [best]), "allowed": [["FEASIBLE"], "FEASIBLE", "SOMETIMES"]},
+        # Numbers that are not numbers, or not finite.
+        {"id": "nan_feature", "result": result("OPTIMAL", [variant(best, lambda s: s.__setitem__("features", {"latency": math.nan}))]), "allowed": everything},
+        {"id": "infinite_penalty", "result": result("OPTIMAL", [variant(best, set_objective("penalty", math.inf))]), "allowed": everything},
+        {"id": "negative_infinite_penalty_entry", "result": result("OPTIMAL", [variant(best, lambda s: s.__setitem__("penalties", [-math.inf]))]), "allowed": everything},
+        {"id": "nan_score", "result": result("OPTIMAL", [variant(best, set_objective("score", math.nan))]), "allowed": everything},
+        {"id": "nan_component_loss", "result": result("OPTIMAL", [variant(best, set_component("loss", math.nan))]), "allowed": everything},
+        {"id": "nan_in_provenance", "result": result("OPTIMAL", [best], provenance={"elapsed": math.nan}), "allowed": everything},
+        {"id": "boolean_feature", "result": result("OPTIMAL", [variant(best, lambda s: s.__setitem__("features", {"latency": True}))]), "allowed": everything},
+        {"id": "string_feature", "result": result("OPTIMAL", [variant(best, lambda s: s.__setitem__("features", {"latency": "1"}))]), "allowed": everything},
+        {"id": "negative_penalty_entry", "result": result("OPTIMAL", [variant(best, lambda s: s.__setitem__("penalties", [-1.0]))]), "allowed": everything},
+        {"id": "boolean_penalty_entry", "result": result("OPTIMAL", [variant(best, lambda s: s.__setitem__("penalties", [True]))]), "allowed": everything},
+        # Keys the protocol does not define.
+        {"id": "extra_key_in_result", "result": result("OPTIMAL", [best], elapsed=1.0), "allowed": everything},
+        {"id": "extra_key_in_solution", "result": result("OPTIMAL", [variant(best, lambda s: s.__setitem__("rank", 1))]), "allowed": everything},
+        {"id": "extra_key_in_decision", "result": result("OPTIMAL", [variant(best, lambda s: s["decision"].__setitem__("note", "x"))]), "allowed": everything},
+        {"id": "extra_key_in_objectives", "result": result("OPTIMAL", [variant(best, set_objective("extra", 1))]), "allowed": everything},
+        {"id": "extra_key_in_component", "result": result("OPTIMAL", [variant(best, set_component("extra", 1))]), "allowed": everything},
+        {"id": "extra_key_in_violation", "result": result("OPTIMAL", [variant(best, lambda s: s.__setitem__("violations", [{"constraint": {"resource": "c", "id": "k"}, "enforcement": "hard", "penalty": 0, "extra": 1}]))]), "allowed": everything},
+        {"id": "provenance_not_an_object", "result": result("OPTIMAL", [best], provenance="synthetic"), "allowed": everything},
+        # Wrong shapes at the top.
+        {"id": "solutions_not_an_array", "result": result("FEASIBLE", {"0": best}), "allowed": everything},
+        {"id": "solution_not_an_object", "result": result("FEASIBLE", [1]), "allowed": everything},
+        {"id": "decision_kind_not_binding", "result": result("FEASIBLE", [variant(best, lambda s: s["decision"].__setitem__("kind", "plan"))]), "allowed": everything},
+        {"id": "result_is_a_list", "result": [best], "allowed": everything, "reevaluate": False},
+    ]
+
+
+def build_vectors_extra(corpus_root: Path) -> dict[str, Any]:
+    """Run ``reevaluate_result`` and ``validate_result`` (default and ``finite=True``) on each hostile answer."""
+    problem = compile_instance(load_package(corpus_root / DEMO_RELATIVE))
+    vectors = []
+    for case in extra_vector_inputs(corpus_root):
+        payload, allowed = case["result"], case["allowed"]
+        entry: dict[str, Any] = {
+            "id": case["id"],
+            "input": {"result": encode_floats(stable(payload)), "allowedTerminations": allowed},
+            "validate": _validation(payload),
+            "validateFinite": _validation(payload, finite=True),
+        }
+        if case.get("reevaluate", True):
+            arguments = (problem, copy.deepcopy(payload), None) + (() if allowed is None else (allowed,))
+            entry["reevaluate"] = encode_floats(stable(reevaluate_result(*arguments)))
+        vectors.append(entry)
+    return {
+        "schema": "bim-core/vectors-extra/1",
+        "problem": DEMO_RELATIVE.as_posix(),
+        "note": "NaN and Infinity are written as {\"$float\": ...}; see tools/baseline_core.py:encode_floats",
+        "vectors": vectors,
+    }
+
+
+# --- protocol --------------------------------------------------------------------------------
+
+
+def _resource_files(node: Traversable, prefix: str = "") -> Iterator[tuple[str, bytes]]:
+    for child in sorted(node.iterdir(), key=lambda item: item.name):
+        if child.is_dir():
+            if child.name != "__pycache__":
+                yield from _resource_files(child, f"{prefix}{child.name}/")
+        else:
+            yield f"{prefix}{child.name}", child.read_bytes()
+
+
+def build_protocol(manifests: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
+    manifests = engine_manifests() if manifests is None else manifests
+    return {
+        "schema": "bim-baseline/protocol/1",
+        "protocolDigest": protocol_digest(),
+        "engineContract": {
+            "openapiBytes": digest_bytes(engine_contract_bytes()),
+            "openapiDocument": digest(protocol_document()),
+        },
+        "schemas": {
+            item.name: digest_bytes(item.read_bytes())
+            for item in sorted(schema_root().iterdir(), key=lambda entry: entry.name)
+            if item.name.endswith(".schema.json")
+        },
+        "manifests": {name: digest(manifest) for name, manifest in manifests.items()},
+        "vendor": {
+            name: digest_bytes(data) for name, data in _resource_files(resource_root().joinpath("vendor"))
+        },
+        "toolchain": {
+            "compilerDigest": compiler_bundle_digest(),
+            "profiles": sorted(manifest_reference(item)["digest"] for item in installed_profile_manifests()),
+            "dialects": sorted(manifest_reference(item)["digest"] for item in installed_dialect_manifests()),
+        },
+    }
+
+
 # --- command line ----------------------------------------------------------------------------
+
+
+def without_engines(document: Any, names: tuple[str, ...] = MISSING_MANIFESTS) -> Any:
+    """``document`` of ``compat``/``protocol`` without the Engines whose manifest is not in the repository."""
+    if not isinstance(document, dict):
+        return document
+    result = copy.deepcopy(document)
+    for section in ("engines", "manifests"):
+        for name in names:
+            result.get(section, {}).pop(name, None)
+    for entry in result.get("packages", {}).values():
+        for name in names:
+            entry.pop(name, None)
+    return result
 
 
 def _golden(directory: Path, name: str) -> Any:
     return json.loads((directory / name).read_text(encoding="utf-8"))
 
 
-def mismatches(corpus: dict[str, Any], negatives: dict[str, Any], golden_dir: Path) -> list[str]:
-    """Names of the packages and cases whose comparable content differs from the goldens."""
-    expected_corpus = _golden(golden_dir, "corpus.json")
-    expected_negatives = _golden(golden_dir, "negatives.json")
-    found = [
-        f"package {path}"
-        for path in sorted(set(corpus["packages"]) | set(expected_corpus["packages"]))
-        if comparable(corpus["packages"].get(path)) != comparable(expected_corpus["packages"].get(path))
+_MISSING = object()
+
+
+def _parts(document: Any) -> dict[str, Any]:
+    """The comparable content of a golden split into the units a difference is reported by."""
+    parts: dict[str, Any] = {}
+    for key, value in comparable(document).items():
+        if key in ("packages", "cases") and isinstance(value, dict):
+            parts.update({f"{key}/{name}": child for name, child in value.items()})
+        elif key == "vectors" and isinstance(value, list):
+            parts.update({f"vectors/{item['id']}": item for item in value})
+        else:
+            parts[key] = value
+    return parts
+
+
+def differences(label: str, found: Any, expected: Any) -> list[str]:
+    """Names of the units of ``found`` whose comparable content differs from ``expected``."""
+    left, right = _parts(found), _parts(expected)
+    return [
+        f"{label} {name}"
+        for name in sorted(set(left) | set(right))
+        if left.get(name, _MISSING) != right.get(name, _MISSING)
     ]
+
+
+def build_all(
+    corpus_root: Path,
+    directories: list[Path],
+    jobs: int = 1,
+    manifests: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Every document this tool produces, by file name, computed with ``bim_core`` only."""
+    manifests = engine_manifests() if manifests is None else manifests
+    corpus, compat = build_corpus_and_compat(directories, corpus_root, jobs, manifests)
+    return {
+        "corpus.json": corpus,
+        "negatives.json": build_negatives(corpus_root),
+        "vectors.json": build_vectors(corpus_root),
+        "compat.json": compat,
+        "protocol.json": build_protocol(manifests),
+        "evaluator_errors.json": build_evaluator_errors(corpus_root),
+        "vectors_extra.json": build_vectors_extra(corpus_root),
+    }
+
+
+def mismatches(documents: dict[str, Any], golden_dir: Path) -> list[str]:
+    """What differs between ``documents`` (see :func:`build_all`) and the goldens.
+
+    ``corpus``, ``negatives`` and ``vectors`` are compared with the OpenBinding goldens in ``golden_dir``;
+    so are ``compat`` and ``protocol`` once the Engines whose manifest is not in the repository are
+    removed from the originals; the documents that have no original are compared with their own goldens.
+    """
+    core_dir = golden_dir.parent / CORE_GOLDEN_DIR.name
+    found: list[str] = []
+    for name in GOLDEN_FILES:
+        found.extend(differences(name, documents[name], _golden(golden_dir, name)))
+    for name in ("compat.json", "protocol.json"):
+        found.extend(differences(f"{name} (openbinding)", documents[name], without_engines(_golden(golden_dir, name))))
+    for name in CORE_GOLDEN_FILES:
+        found.extend(differences(f"bim_core/{name}", documents[name], _golden(core_dir, name)))
     found.extend(
-        f"negative {name}"
-        for name in sorted(set(negatives["cases"]) | set(expected_negatives["cases"]))
-        if comparable(negatives["cases"].get(name)) != comparable(expected_negatives["cases"].get(name))
+        differences("vectors_extra.json", documents["vectors_extra.json"], _golden(golden_dir.parent, EXTRA_VECTORS.name))
     )
     return found
 
@@ -592,7 +1041,8 @@ def mismatches(corpus: dict[str, Any], negatives: dict[str, Any], golden_dir: Pa
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Compute the semantic BIM baseline with bim_core only")
     parser.add_argument("--corpus-root", type=Path, default=default_corpus_root())
-    parser.add_argument("--output", type=Path, default=GOLDEN_DIR)
+    parser.add_argument("--output", type=Path, default=GOLDEN_DIR, help="directory of the OpenBinding goldens")
+    parser.add_argument("--manifests", type=Path, default=MANIFEST_DIR, help="directory with the Engine manifests")
     parser.add_argument("--expected", type=int, default=82)
     parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
     parser.add_argument("--check", action="store_true", help="compare with the goldens instead of writing")
@@ -603,7 +1053,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"corpus not found under {corpus_root}; set BIM_CORPUS_ROOT or --corpus-root", file=sys.stderr)
         return 2
     directories = package_directories(corpus_root)
-    corpus = build_corpus(directories, corpus_root, args.jobs)
+    documents = build_all(corpus_root, directories, args.jobs, engine_manifests(args.manifests))
+    corpus = documents["corpus.json"]
     failures = {path: entry["error"] for path, entry in corpus["packages"].items() if entry["status"] != "compiled"}
     if len(directories) != args.expected:
         failures["corpus"] = f"expected {args.expected} packages, found {len(directories)}"
@@ -611,20 +1062,22 @@ def main(argv: list[str] | None = None) -> int:
         for path, error in sorted(failures.items()):
             print(f"{path}: {error}", file=sys.stderr)
         return 1
-    negatives = build_negatives(corpus_root)
 
     if args.check:
-        differences = mismatches(corpus, negatives, args.output)
-        for item in differences:
+        found = mismatches(documents, args.output)
+        for item in found:
             print(f"differs: {item}", file=sys.stderr)
-        print(f"BIM baseline check: {len(directories)} packages, {len(differences)} differences")
-        return 1 if differences else 0
+        print(f"BIM baseline check: {len(directories)} packages, {len(found)} differences")
+        return 1 if found else 0
 
-    args.output.mkdir(parents=True, exist_ok=True)
-    for name, document in {"corpus.json": corpus, "negatives.json": negatives}.items():
-        data = dump(document)
-        (args.output / name).write_bytes(data)
-        print(f"{name}: {len(data)} bytes sha256={hashlib.sha256(data).hexdigest()}")
+    targets = {name: args.output / name for name in GOLDEN_FILES}
+    targets.update({name: args.output.parent / CORE_GOLDEN_DIR.name / name for name in CORE_GOLDEN_FILES})
+    targets["vectors_extra.json"] = args.output.parent / EXTRA_VECTORS.name
+    for name, path in targets.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        data = dump(documents[name])
+        path.write_bytes(data)
+        print(f"{path.relative_to(args.output.parent)}: {len(data)} bytes sha256={hashlib.sha256(data).hexdigest()}")
     print(f"BIM baseline: {len(directories)} packages")
     return 0
 

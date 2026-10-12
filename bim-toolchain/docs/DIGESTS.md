@@ -57,12 +57,56 @@ Compare, for every package of the corpus and every negative case, what must not 
 
 - the semantic digest and the per-section digests;
 - the evaluation of every binding (or of a seeded sample when the space exceeds 2000);
-- the code and location of every diagnostic of the negative cases.
+- the code and location of every diagnostic of the negative cases;
+- the Engine mode compatibility of every package against every mode (`compat.json`);
+- the re-evaluation and result-validation vectors (`vectors.json`);
+- the protocol digest, the digests of the schemas, of the engine contract (bytes and parsed), of the manifests and
+  of the vendored XSDs (`protocol.json`).
 
 `tools/baseline_core.py` computes them with `bim_core` only and
 `packages/bim-core/tests/test_baseline_equivalence.py` compares them with `golden/bim_baseline`. Fields under a
 `toolchain` key (`compilerDigest`, `irDigest`) are informative and are removed before comparing. Never use
 `irDigest` or `compilerDigest` to argue that two toolchains are equivalent.
+
+### Result of the comparison (evaluation, compatibility, protocol)
+
+| Golden | Result with `bim_core` only |
+| --- | --- |
+| `corpus.json` (82 packages), `negatives.json`, `vectors.json` | identical (`toolchain` fields aside) |
+| `protocol.json` | `protocolDigest`, `engineContract`, `schemas` and `vendor` identical. `protocolDigest` does **not** change: the YAML contract and `binding-problem.schema.json` are byte-identical copies, and the digest is computed over the parsed document plus the schema bytes |
+| `compat.json` | identical for the four Engines whose manifest exists; see the difference below |
+
+**Legitimate difference: the Engine `meta-router-csp`.** `golden/bim_baseline/compat.json` and `protocol.json`
+(the copy in this directory) list five Engines; the manifest `meta-router-csp.json` is not in
+`schemas/bim/v1/manifests/` of the repository (only four are), so it cannot be a fixture and its entries cannot
+be recomputed. Nothing else differs. OpenBinding's current goldens (`openbinding-gateway/tests/golden/bim_baseline`)
+already list four Engines and are the same document as `golden/bim_core/{compat,protocol}.json` (the tests compare
+them when OpenBinding is present), while the copy here still lists five. The original files are kept untouched;
+the comparison removes the missing Engine from them (`baseline_core.without_engines`), and the same documents with
+four Engines are pinned in `golden/bim_core/`.
+
+## Goldens with no OpenBinding original
+
+All are written by `tools/baseline_core.py` and are regression pins of this toolchain's output. They only gain
+meaning because each is also compared with an independent source (below). A missing one is created by its test,
+which fails once to say so (`conftest.check_or_create_golden`); delete a file to regenerate it, and review the
+change. `toolchain` fields in them are informative.
+
+| File | Why it exists | Independent evidence |
+| --- | --- | --- |
+| `golden/bim_core/compat.json`, `golden/bim_core/protocol.json` | the two documents with the four Engines that exist (reason above) | equal to the original minus `meta-router-csp`, and to OpenBinding's current files |
+| `golden/bim_core/evaluator_errors.json` | `bim_core.evaluator.validate_binding` raises `EvaluationError` (a `ValueError`, code `binding_invalid`) where `BindingProblem.validate_binding` raises `ValueError`; the original `negatives.json` records the type name `ValueError` and stays as it is | same cases, same messages as `negatives.json`; only the type name differs |
+| `golden/vectors_extra.json` | hostile engine answers: altered objectives, bindings outside the eligible space, `UNKNOWN`/`INFEASIBLE` with a binding, NaN/Infinity (written as `{"$float": ...}`), extra keys, unhashable and mistyped values | hand-written expectations in `tests/test_vectors_extra.py` (termination, number of solutions kept, `ProtocolError` code with and without `finite=True`) |
+
+`toolchain` values stored in these files are those of the moment they were created and are never compared.
+
+## Digests that changed with this step
+
+Adding `evaluator.py`, `reevaluate.py`, `protocol.py`, `compat.py`, `neighborhood.py` and `conformance.py` (and
+`ContractError.http_status`) changes `compilerDigest`, which covers every `.py` file, and therefore the builtin
+Profile and Dialect versions, their `adapter.binaryDigest` and every `irDigest`, exactly as a change of any code
+would. This is expected; no semantic digest, evaluation, diagnostic, compatibility result or protocol digest
+moved.
 
 ## Versioning rules
 

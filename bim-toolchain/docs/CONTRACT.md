@@ -15,6 +15,41 @@ Everything in `bim_core.__all__`:
 | Settings | `Limits`, `configure`, `default_limits` |
 | Errors | `BimError`, `PackageError`, `CompileError`, `EvaluationError`, `ProtocolError`, `ContractError`, `ExpressionError`, `CanonicalizationError` |
 | Host helpers (formerly private) | `schema_root`, `dialect_type_matches`, `dialect_xml_type_matches`, `resource_schema_diagnostics`, `dialect_descriptor`, `profile_descriptor` |
+| Evaluate | `evaluate`, `evaluate_many`, `validate_binding` (module `bim_core.evaluator`, which also has `evaluate_features`, `evaluate_violations`, `evaluate_objectives`) |
+| Re-evaluate | `reevaluate_result` (module `bim_core.reevaluate`, which also has `candidate_ref`, `binding_violations`, `authoritative_evaluation`) |
+| Engine protocol | `validate_result`, `protocol_document`, `protocol_digest` (module `bim_core.protocol`, which also has `validate_job_receipt`, `validate_job`, `is_termination`, `contains_non_finite`) |
+| Compatibility | `mode_compatibility`, `ir_features`, `engine_contract_diagnostics`, `resolve_optimization` (module `bim_core.compat`, which also has `candidate_count`, `schema_diagnostics`, `select_mode`, `validate_options`, `resolve_engine_mode`, `engine_ref`, `selector_values`, `mode_execution_contract`, `persisted_mode_contract`, `embedded_secret_paths`) |
+| Analysis | `analyze_neighborhood` (module `bim_core.neighborhood`) |
+| Conformance kit | `openapi_diagnostics` (module `bim_core.conformance`, which also has `schema_semantics`, `assert_operation_auth`, `assert_protocol_schema`, `operation_schema`, `conformance_mode`, `conformance_shape`, `conformance_problem`, `conformance_options`, `conformance_optimization`, `assert_conformance_result`) |
+
+`bim_core.__all__` lists 43 names; the functions of the modules above that are not in `__all__` are public by
+name and stable within a MINOR series, like the compiler helpers below.
+
+### Evaluation
+
+`BindingProblem` keeps the evaluation semantics (`validate_binding`, `evaluate_binding`, `evaluate_constraints`,
+`evaluate_objectives`, `evaluate`): they share its private helpers, and moving them would have meant a circular
+import with no change of behaviour. `bim_core.evaluator` is the stable entry point: it validates the binding and
+delegates, and it reports an invalid binding or a failed evaluation as `EvaluationError` (a `ValueError`). The
+methods themselves still raise `ValueError`/`KeyError`/`TypeError`/`ArithmeticError`, because the baseline records
+those type names. An exception that is none of those (a bug) is never turned into an `EvaluationError`.
+
+### Engine protocol and re-evaluation
+
+`validate_result(payload, *, finite=False)` decides whether a decoded message is a `bim-engine/v1` result. It is
+structural: closed key sets, types, signs. By default a `float` NaN/Infinity is accepted, as in the platform,
+whose strict JSON parser has already refused them; pass `finite=True` for messages that did not go through such a
+parser. A termination, enforcement or job state that is not hashable is simply invalid.
+`reevaluate_result(problem, result, execution=None, allowed_terminations=("FEASIBLE", "UNKNOWN"))` never believes
+the engine's numbers: only the binding of each decision survives and everything else is recomputed; the
+termination is lowered to `UNKNOWN` unless the solutions and the declared guarantees support it. Provenance is
+opaque and passed through unchanged (`test_vectors_extra.py` pins that, including a non-finite value).
+
+### Compatibility and execution options
+
+Engine manifests are plain dictionaries passed in. A rejection that the platform answered with an HTTP error is a
+`ContractError` with the same `code`, the same `diagnostics` and `http_status` (422): the host translates it. The
+library does not speak HTTP.
 
 The host helpers replace `_schema_root`, `_dialect_type_matches`, `_dialect_xml_type_matches`,
 `_resource_schema_diagnostics`, `_dialect_descriptor` and `_profile_descriptor`. The old underscore names no
@@ -38,15 +73,39 @@ errors also derive from `ValueError`, as the pre-existing ones always did.
 | `CompileError` | one or more compile diagnostics; `.diagnostics` are `CompileDiagnostic` | `compile_error` |
 | `ExpressionError` | invalid or unsafe expression; has `.span` | `expression_error` |
 | `CanonicalizationError` | a value with no RFC 8785 form | `canonicalization_error` |
-| `ContractError` | invalid limits (`invalid_limit`); IR integrity (`ir_malformed`, `ir_not_supported`, `ir_digest_mismatch`, `ir_schema`, `contract_not_installed`) | per case |
-| `EvaluationError`, `ProtocolError` | defined for the evaluator and engine protocol | not raised yet, see below |
+| `ContractError` | invalid limits (`invalid_limit`); IR integrity (`ir_malformed`, `ir_not_supported`, `ir_digest_mismatch`, `ir_schema`, `contract_not_installed`); engine declarations and execution options (below); has `.http_status` | per case |
+| `EvaluationError` | an invalid binding or a failed evaluation (`bim_core.evaluator`, `reevaluate`, `neighborhood`) | `binding_invalid`, `evaluation_failed`, `evaluation_input_invalid`, `neighborhood_limit`, `task_not_bound`, `non_finite_evaluation` |
+| `ProtocolError` | a message or document that violates `bim-engine/v1` | see below |
 
 Messages are unchanged from OpenBinding. `CompileDiagnostic` keeps its own codes (`schema`, `reference`, ...).
 `CompileDiagnostic` is a plain frozen dataclass, not an exception: it is the element of `BimError.diagnostics`.
 
-The binding validator and evaluator still raise plain `ValueError` for bad bindings, exactly as before, because
-the baseline records the exception type name. `EvaluationError` and `ProtocolError` exist so the next step can
-move those sites (and the engine protocol) onto them without breaking `except ValueError`.
+`BimError.as_dict()` is `{code, message[, diagnostics]}`; a `ContractError` with a suggested status adds
+`httpStatus`.
+
+Codes of `ContractError` raised by `bim_core.compat` (all with `http_status == 422`):
+`engine_contract_invalid`, `engine_mode_incompatible`, `invalid_option`, `unknown_option`, `option_limit`,
+`optimization_required`, `invalid_optimization_type`, `scalarization_required`, `invalid_criteria`,
+`objective_cardinality`, `scalarization_incompatible`, `optimization_type_incompatible`, `invalid_weights`,
+`weights_forbidden`, `weights_required`, `criteria_required`. Their `diagnostics` are the ones the platform
+returned in the body of its 422.
+
+Codes of `ProtocolError`:
+
+- `bim_core.protocol`: `result_not_object`, `invalid_termination`, `solutions_missing`,
+  `solution_decision_invalid`, `solution_features_invalid`, `solution_objectives_invalid`,
+  `objective_component_invalid`, `penalties_invalid`, `violations_not_array`, `violation_invalid`,
+  `unknown_fields`, `provenance_invalid`, `non_finite_number` (only with `finite=True`), `job_receipt_invalid`,
+  `job_not_object`, `job_invalid`, `engine_job_failed`, `protocol_document_invalid`.
+- `bim_core.conformance`: `openapi_ref_not_local`, `openapi_ref_unresolved`, `openapi_ref_siblings`,
+  `openapi_ref_unapproved`, `openapi_ref_recursive`, `openapi_schema_missing`, `openapi_schema_not_object`,
+  `openapi_security_invalid`, `openapi_auth_mismatch`, `openapi_schema_not_equivalent`, `conformance_no_shape`,
+  `conformance_no_mode`, `conformance_failed`. `openapi_diagnostics` returns findings (`{code, check, message}`)
+  instead of raising, and adds `openapi_not_object`, `openapi_version`, `openapi_protocol`,
+  `openapi_digest_unpinned`, `protocol_not_installed`, `openapi_operation_missing`, `openapi_responses_missing`,
+  `openapi_job_path`, `openapi_health_missing` and `openapi_malformed`.
+
+The messages of `ProtocolError` are those of the platform's `RemoteEngineError`.
 
 ## Settings
 
@@ -89,6 +148,14 @@ evaluations.
   them, using `from_document` and `compilation_digest`), the artifact library, engine registries, the job queue,
   studies, reports, the resolver, adaptive routing, the HTTP generator and the gateway routes.
 - The corpus of BIM packages and the datasets.
-- `archive.py`, `archive_geometry.py`, `analysis.py` and `remote.py` of the gateway's `v1` package.
-- Engine mode compatibility, re-evaluation of engine results and the protocol digest (to move here in a later
-  step, together with `EvaluationError` and `ProtocolError`).
+- `archive.py` and `archive_geometry.py` of the gateway's `v1` package, and the transport half of `remote.py`
+  (HTTP client, endpoint policy and DNS pinning, size limits): `bim_core.protocol` only validates decoded messages.
+- Finding an Engine manifest (catalog, database, ownership and visibility of revisions and registrations),
+  installing registrations, the network half of registration verification (fetching the served OpenAPI, the health
+  call, running the probe) and the translation of `ContractError` to HTTP.
+- The Engine manifests themselves (see above); the tests use copies as fixtures.
+
+## Dependencies
+
+`jsonschema`, `lxml` and `pyyaml` (the latter only to read the `bim-engine/v1` OpenAPI contract shipped in the
+resources), plus the standard library. Nothing else is imported, which `tests/test_boundary.py` checks.

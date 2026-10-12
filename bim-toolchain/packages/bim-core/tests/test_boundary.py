@@ -1,4 +1,4 @@
-"""The core is pure: stdlib, jsonschema, lxml and itself; no environment, no repository layout."""
+"""The core is pure: stdlib, jsonschema, lxml, pyyaml and itself; no environment, no repository layout."""
 
 import ast
 import os
@@ -18,7 +18,7 @@ from conftest import TOOLCHAIN_ROOT, corpus_root
 SRC = Path(bim_core.__file__).resolve().parent
 MODULES = sorted(path for path in SRC.glob("*.py"))
 SIBLINGS = frozenset(path.stem for path in MODULES) - {"__init__"}
-ALLOWED_ABSOLUTE = frozenset(sys.stdlib_module_names) | {"jsonschema", "lxml"}
+ALLOWED_ABSOLUTE = frozenset(sys.stdlib_module_names) | {"jsonschema", "lxml", "yaml"}
 PACKAGE = TOOLCHAIN_ROOT / "packages" / "bim-core"
 
 
@@ -76,13 +76,14 @@ def environment_and_layout_uses(source: str) -> list[str]:
 
 def test_the_module_list_is_the_expected_one() -> None:
     assert {path.stem for path in MODULES} == {
-        "__init__", "_version", "assets", "canonical", "compiler", "errors", "expressions",
-        "package", "settings", "toolchain",
+        "__init__", "_version", "assets", "canonical", "compat", "compiler", "conformance", "errors",
+        "evaluator", "expressions", "neighborhood", "package", "protocol", "reevaluate", "settings",
+        "toolchain",
     }
 
 
 @pytest.mark.parametrize("path", MODULES, ids=lambda path: path.name)
-def test_module_imports_only_stdlib_jsonschema_lxml_and_siblings(path: Path) -> None:
+def test_module_imports_only_stdlib_jsonschema_lxml_yaml_and_siblings(path: Path) -> None:
     assert import_violations(path.read_text(encoding="utf-8")) == []
 
 
@@ -158,7 +159,7 @@ def test_pyproject_declares_a_plain_package_without_an_invented_license() -> Non
     assert project["requires-python"] == ">=3.11"
     assert data["build-system"]["build-backend"] == "hatchling.build"
     assert {item.split(">")[0].split("<")[0].split("=")[0].strip() for item in project["dependencies"]} == {
-        "jsonschema", "lxml",
+        "jsonschema", "lxml", "pyyaml",
     }
     assert "license" not in project and "license-files" not in project
     assert not any(item.startswith("License ::") for item in project.get("classifiers", []))

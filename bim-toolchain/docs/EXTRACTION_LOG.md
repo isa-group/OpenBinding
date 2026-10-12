@@ -36,18 +36,16 @@ warning when the corpus is absent). Original → `packages/bim-core/tests/`:
 | `test_complete_bpmn_example` | `test_complete_bpmn_example.py` (lowering test) | MiniZinc eligibility (`routes._manifest`, `_mode_compatibility`) |
 | `test_b5_corpus` | `test_b5_corpus.py` (open ranges compile and stay in the IR; malformed ranges rejected) | whole-corpus compile (`tools/check_bim_corpus.py`; covered by `test_baseline_equivalence.py`), `frontend` exclusion tests, scalar-Engine refusals |
 | `test_b5_open_ranges` | `test_b5_open_ranges.py` (compile, IR round trip, validator, schemas read through `schema_root()`, evaluator/expression behaviour; 88 cases) | `featureValues` capability tests (`routes._ir_features`/`_mode_compatibility`), remote Engine payload (`v1.remote`), neighbourhood analysis (`v1.analysis`), the weighted-product tests (need `base_package` of `test_bim_v1_language_final`) |
-| `test_bim_v1_language_final` | **not migrated** | see below |
+| `test_bim_v1_language_final` | **partly migrated** in the evaluation step, see below | the compile-time tests |
 | `test_v1_canonical`, `test_complete_bpmn_json_regression` | copied by the bootstrap | — |
 
-`test_bim_v1_language_final.py` (1961 lines) was left for the next task. About two thirds of it only needs `bim_core`
-(helpers `envelope`/`base_package`/`package`, multi-resource identity, CEL span diagnostics, duplicate-resource
-diagnostics, BindingProblem schema closure, product aggregation and domains, normalization/clamp, constraint
-semantics, installed Profile/Dialect framework, adapter and dialect installation, registered resources, intervals,
-placement, BPMN lowering, contextual aliases) and can be ported mechanically by importing from `bim_core` and its
-`compiler` module. Items that need the platform: `_resolve_execution_optimization` (route; the two tests using it),
-`analyze_neighborhood` (analysis, two tests), and `test_schema_root_prefers_the_deployment_configuration`
-(`SCHEMAS_DIR`, which `bim_core` deliberately no longer reads: obsolete, replace by the `schema_root()` test in
-`test_public_surface.py`). `DEMO`-based tests there need `BIM_CORPUS_ROOT`.
+`test_bim_v1_language_final.py` (1961 lines): the evaluation step migrated the tests about evaluation, the execution
+optimization and the neighbourhood (next section). The rest only needs `bim_core` and can be ported mechanically in
+a later step: multi-resource identity, CEL span diagnostics, duplicate-resource diagnostics, BindingProblem schema
+closure, installed Profile/Dialect framework, adapter and dialect installation, registered resources, the interval
+validators, placement validation, BPMN lowering, contextual aliases. `test_schema_root_prefers_the_deployment_configuration`
+(`SCHEMAS_DIR`, which `bim_core` deliberately no longer reads) is obsolete: replace it by the `schema_root()` test in
+`test_public_surface.py`. `DEMO`-based tests there need `BIM_CORPUS_ROOT`.
 
 New tests written for this cut (no OpenBinding original): `test_public_surface.py` (public names, `__all__`,
 `schema_root`, descriptors, `toolchain_identity`, `ir_digest`, `from_document`, `compilation_digest`, including the
@@ -88,8 +86,8 @@ recomputation of the platform's `snapshot_problem` semantic digest), `test_setti
 - `CompileDiagnostic` is not made a `BimError`: it is a frozen dataclass that is never raised, only carried in
   `BimError.diagnostics`. The task text listed it among the classes to derive from `BimError`; this was read as
   applying to the exception classes.
-- The evaluator keeps raising `ValueError` for invalid bindings; the golden negatives record `ValueError`. Moving
-  them to `EvaluationError` (a `ValueError` subclass) is deferred, together with the protocol work.
+- (First cut) The evaluator kept raising `ValueError`; the evaluation step below added `EvaluationError` without
+  changing those sites.
 - The platform's "semantic digest" check is exposed as `ir_digest` to avoid a clash with the baseline's semantic
   digest, which also drops `spec.profile`. See `DIGESTS.md`.
 - `from_document` also validates the document against the installed `BindingProblem` schema, which the platform
@@ -100,29 +98,118 @@ recomputation of the platform's `snapshot_problem` semantic digest), `test_setti
 - The full corpus comparison is the default in `test_baseline_equivalence.py`; `BIM_BASELINE_SAMPLE_ONLY=1` runs
   only the ten-package sample (OpenBinding's own test did the reverse).
 
+## Evaluation, re-evaluation, protocol and compatibility (step 3-3)
+
+Copied (not moved) from the platform, which is untouched. New modules of `bim_core`, with their origin in
+`openbinding-gateway/src/openbinding_gateway/` (line numbers of the platform at this commit):
+
+| Module | Origin | What |
+| --- | --- | --- |
+| `evaluator.py` | `bim_core/compiler.py` `BindingProblem.validate_binding` (3621), `evaluate_binding` (4096), `evaluate_constraints` (4153), `evaluate_objectives` (4178), `evaluate` (4222) | public API over the methods: `validate_binding`, `evaluate`, `evaluate_many`, `evaluate_features`, `evaluate_violations`, `evaluate_objectives`; failures become `EvaluationError` |
+| `reevaluate.py` | `services/execution.py` 37-135: `candidate_ref`, `binding_violations`, `authoritative_evaluation`, `reevaluate_result` | same logic, on the evaluator API |
+| `protocol.py` | `v1/remote.py` 137-235 `_validate_result`, 238-247 `_validate_job_receipt`, 250-277 `_validate_job`; `services/engines.py` 29-46 `protocol_document`, `protocol_digest` | `validate_result`, `validate_job_receipt`, `validate_job`, `protocol_document`, `protocol_digest`; the contract is read from `resources/schemas` |
+| `compat.py` | `services/engines.py` 153-162 `selector_values`, 242-264 `schema_diagnostics`, 267-283 `embedded_secret_paths`, 286-410 `engine_contract_diagnostics`, 413-490 `engine_mode` (split into `select_mode`, `validate_options`, `resolve_engine_mode`), 496-825 `candidate_count`, `ir_features`, `mode_compatibility` and their helpers, 828-836 `engine_ref`, 1130-1156 `mode_execution_contract`, `persisted_mode_contract`; `routes/v1.py` 647-713 `_resolve_execution_optimization` → `resolve_optimization` | `HTTPException` → `ContractError(code, message, diagnostics, http_status=422)` |
+| `neighborhood.py` | `v1/analysis.py` (whole file) | `analyze_neighborhood`; the 2 s budget is the `seconds` parameter |
+| `conformance.py` | `routes/v1.py` 216-471 (`_pointer`, `_schema_semantics`, `_operation_schema`, `_assert_operation_auth`, `_assert_protocol_schema`, `_conformance_*`), 508-601 recomposed as `openapi_diagnostics`, 612-619 as `assert_conformance_result` | no network; `RemoteEngineError` → `ProtocolError` |
+
+Not ported: `v1/remote.py` outside 137-277 (httpx transport, SSRF policy, DNS pinning, size limits),
+`services/engines.py` (manifest lookup in the catalog/database, registrations, visibility, `registration_transport`),
+the rest of `services/execution.py` (job claiming, metering, persistence), and the network half of
+`_verify_registration` (`routes/v1.py` 474-644: fetching the served OpenAPI, health call, the probe request).
+
+Tests: `test_evaluator`, `test_reevaluate`, `test_protocol`, `test_compat`, `test_neighborhood`, `test_conformance`
+(new), `test_vectors_extra` (new), `test_language_final_evaluation` (migrated, below), `_language.py` (shared builders)
+and extensions of `test_baseline_equivalence`, `test_boundary` and `test_public_surface`.
+
+Migrated from the platform's tests, mechanically (imports; `HTTPException` → `ContractError`/`http_status`):
+
+| Original | Migrated as |
+| --- | --- |
+| `test_bim_v1_language_final.py`: execution-objective cardinality (11 cases), compiled optimization vs execution type, multi-resource evaluation, binding completeness, parallel operator, weighted product, fractional product, metric neutral, normalization/clamp, no comparison epsilon, `when` short-circuit, optional provider, soft penalty per scalarization, the interval evaluator tests, the non-finite endpoints, neighbourhood with intervals | `test_language_final_evaluation.py` |
+| `test_binding_analysis.py`: the 6 tests that need only the problem | `test_neighborhood.py` (its endpoint/ownership test stays in OpenBinding) |
+| `test_b5_open_ranges.py`: the `featureValues` capability tests | `test_compat.py` (the engine list is the four fixtures; the remote-payload tests need httpx and stay in OpenBinding) |
+
+Still not migrated: the rest of `test_bim_v1_language_final.py` listed above, `test_v1_remote.py`,
+`test_v1_job_guarantees.py` and `test_v1_platform_contracts.py` (they exercise the transport, the database or the
+routes).
+
+### Decisions and deviations of this step
+
+- **The evaluator was not moved out of `BindingProblem`.** The methods share private helpers of the compiler
+  (candidate lookup, expressions, placement, scalar-feature access) and `compiler.py` would have had to import
+  `evaluator.py` and the reverse. `evaluator.py` is the stable public API instead; no behaviour changes and the
+  golden negatives, which record `ValueError`, stay valid. `EvaluationError` is raised only by the facade, with
+  `from exc` so the original exception is the `__cause__`. Moving the code remains possible later without changing
+  the API.
+- `neighborhood.py` evaluates the base through the facade (so it raises `EvaluationError`) and every move through
+  `problem.evaluate` exactly as before, catching only `ValueError`/`ArithmeticError` as the original did: a
+  `KeyError`/`TypeError` raised by a move is a bug and still propagates.
+- **Small hardening, the only behaviour differences from the originals** (each has tests): membership tests against
+  sets no longer raise `TypeError` for an unhashable value (a JSON list or object as `termination`, objective
+  `type`, `enforcement`, job `status`, a scalarization type, a stored mode guarantee, an allowed termination) —
+  the value is just invalid; `validate_options` reports `invalid_option`/`option_type` when a limited option is not
+  a number (it used to compare and raise `TypeError`); `assert_conformance_result` does not crash on a malformed
+  `decision`; `resolve_optimization` rejects a non-string objective type with `invalid_optimization_type`.
+- **New, not in the originals:** `validate_result(..., finite=True)` rejects NaN/Infinity anywhere in a message;
+  `openapi_diagnostics` collects the findings of independent checks instead of stopping at the first (the original
+  stopped at the first and the host needs the first only: take `[0]`); error codes on every `ProtocolError`;
+  `ContractError.http_status` (and `httpStatus` in `as_dict()`).
+- A failed job reported by an engine is `ProtocolError(code="engine_job_failed")` with the engine's own message
+  (the original raised `RemoteEngineError` with the same message).
+- `validate_result` keeps accepting a float NaN/Infinity by default, as the original does (the transport's strict
+  parser rejects them first). `reevaluate_result` is safe against such values in `solutions` because it replaces
+  every number, but it passes `provenance` through untouched, so a non-finite value there reaches the caller; this is
+  pinned in `test_vectors_extra.py`. A host that serializes provenance must use `allow_nan=False` or validate with
+  `finite=True`.
+- `pyyaml` (`>=6,<7`, the range the gateway uses) was added to the dependencies of `bim-core` for `protocol.py`.
+  `tests/test_boundary.py` allows `yaml` and requires it in `pyproject.toml`.
+- **Engine manifests are fixtures**, copied by the bootstrap check to `tests/fixtures/manifests/` (4 files). The
+  OpenBinding goldens list a fifth Engine, `meta-router-csp`, whose manifest is not in the repository: see
+  `DIGESTS.md` (legitimate difference, new goldens in `golden/bim_core/`). `compat.json` and `protocol.json` of
+  OpenBinding's *current* goldens already list four Engines, and the copy in `golden/bim_baseline` lists five, so in
+  this worktree `test_the_goldens_are_the_ones_recorded_in_openbinding` (byte equality of the five files) could not
+  pass as it was (it failed in the first run of this step); it now requires byte equality for `corpus`,
+  `negatives` and `vectors`, and equality modulo the missing Engine and the `toolchain` fields for `compat` and
+  `protocol`. `golden/bim_baseline` was not touched.
+- The worker can only run registered checks, not `tools/baseline_core.py` directly, so the goldens without an
+  OpenBinding original were created by the tests themselves the first time they ran
+  (`conftest.check_or_create_golden`; that run failed on purpose, the next one compared). Their content is justified
+  by independent comparisons (see `DIGESTS.md`), not by having been produced by the same code. The command line of
+  `baseline_core.py` is exercised by tests (`--check` finds no difference; write mode, into a temporary directory,
+  writes documents equal to the committed goldens and never writes `compat.json`/`protocol.json` of
+  `golden/bim_baseline`).
+- `baseline_core.py` keeps `analyze_directory`/`build_corpus` (same signatures) and adds `analyze_package`,
+  `build_corpus_and_compat`, `build_all`, `build_vectors`, `build_vectors_extra`, `build_protocol`,
+  `build_evaluator_errors`, `differences`, `mismatches` (new signature) and `without_engines`.
+
 ## Verification status
 
 Run in the worker with `uv sync --locked --extra test` in `openbinding-gateway` (only to get pytest and ruff) and
-`PYTHONPATH=../bim-toolchain/packages/bim-core/src`:
+`PYTHONPATH=../bim-toolchain/packages/bim-core/src`, with the registered checks:
 
-- `pytest packages/bim-core/tests`: **294 passed, 0 failed, 0 skipped** in about 14 s, with the corpus present
-  (`BIM_CORPUS_ROOT` defaults to the repository root). That includes the full comparison of the 82 corpus
-  packages against `golden/bim_baseline/corpus.json` and of the negatives against `negatives.json`, so
-  `BIM_BASELINE_SAMPLE_ONLY` is not needed in the normal suite; it stays available as an opt-out. Without the corpus,
-  the corpus-dependent tests skip with a warning (those in `test_baseline_equivalence.py`, `test_v1_language.py`,
-  `test_b5_*`, `test_b8_*`, `test_complete_bpmn_*`).
-- `import bim_core`: 30 public names, no environment access, no `os.environ`/`getenv`/`parents[` in `src`.
+- `pytest packages/bim-core/tests`: **1014 passed, 1 xfailed (strict, ported as is), 0 failed, 0 skipped** in about
+  39 s, with the corpus present (`BIM_CORPUS_ROOT` defaults to the repository root). Before this step: 294 passed.
+  That includes the 82 corpus packages and the negatives, the 10 vectors, the compatibility of all packages with the
+  four Engines, the protocol digests, the evaluator errors, the 49 adversarial vectors and the command line of
+  `baseline_core.py`. Without the corpus the corpus-dependent tests skip with a warning.
+  The first run of the step had 12 failures, none of them in the code under test: 5 `test_boundary` cases because
+  module docstrings mentioned the platform by name (reworded), 1 `test_conformance` assertion that expected the
+  operation label in a message that has none, and 6 about the goldens that did not exist yet or that were compared
+  with the stale copy (above). The second run is the one reported.
+- `import bim_core`: 43 public names; no `os.environ`/`getenv`/`parents[`/`fastapi`/`sqlalchemy`/`httpx`/`pydantic` in
+  `src`; `git status` clean outside `bim-toolchain/`.
 - `ruff check` on `src`, `tools` and `tests`: clean. `git diff --check`: clean.
 
-One test of the previous attempt was wrong, not the code: `from_document(..., verify=False)` on a document whose
+One test of the first cut was wrong, not the code: `from_document(..., verify=False)` on a document whose
 `spec.profile.digest` was altered gives a different `ir_digest`, because `spec.profile` is deliberately part of that
 digest (documented in `DIGESTS.md`). The test now asserts this, and a new test recomputes the digest exactly as
 `snapshot_problem` does (drop `metadata` and `spec.{instance,dialects,sourceMap}`) over a real compilation.
 
 ## Missing
-- Next task: evaluation and re-evaluation (`vectors.json`), the engine protocol (`protocol.json`, `ProtocolError`),
-  mode compatibility (`compat.json`, `services/engines.py::mode_compatibility`/`ir_features`), the service and the
-  client; plus migrating `test_bim_v1_language_final` (above) and the platform-dependent halves listed in the table.
+- The rest of `test_bim_v1_language_final.py` (list above) and moving the evaluation code out of `BindingProblem`,
+  if wanted (the API would not change).
 - OpenBinding consuming `bim_core` as a dependency (shim for `openbinding_gateway.v1`, regenerating pinned digests
-  and snapshot contracts).
+  and snapshot contracts): its remote client would call `bim_core.protocol.validate_result` (translating
+  `ProtocolError` to `RemoteEngineError`), its routes would translate `ContractError.http_status`, and the
+  `meta-router-csp` question (a manifest is missing in the repository) should be settled before regenerating goldens.
 - The license decision; creating the remote repository; building and publishing a wheel; a `uv.lock`.
