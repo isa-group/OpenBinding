@@ -33,3 +33,26 @@ in the last rows come from the registered checks run for that update.
 | Security review (bounded, Opus) | **Done**; findings **pending a human decision** | 2026-10-13. Open: M1, M4, M5 (rest), B3-B6, B8. See [SECURITY_REVIEW.md](SECURITY_REVIEW.md) |
 | End-to-end (browser + gateway + engines + remote services) | **Pending** | The recorded 2026-10-10 frontend run in [`frontend-qa/README.md`](../frontend-qa/README.md) predates these changes. Playwright live specs written, **NOT EXECUTED**; the mobile/desktop visual check: **not executed** |
 | Suite results at SHA `5aebc7c8` | **Measured** | Gateway suite (`tests` + `../lab/tests`, `BIM_BASELINE_FULL=1`): 2087 passed, 38 skipped, 13 deselected, 2 xfailed in 194.73 s. `bim-toolchain` (bim-core, bim-service, bim-client, tools): 1463 passed, 23 skipped, 1 xfailed in 54.07 s; `bim-service.v1.json` is up to date. Frontend: see the Frontend row. The 1757-passed figure in the BIM cut-over row is older |
+
+## Verificacion consolidada d908d240
+
+Los 9 checks registrados se ejecutaron uno a uno con `qa_run` sobre la cabeza `d908d240`. Todos terminaron con exit 0; no hubo tests fallidos. Las cifras son las impresas por cada check. Los tiempos son los que reportan pytest, vitest o vite; donde no se imprimio ninguno, se indica "no medido".
+
+| Suite | Comando (check) | Resultado | Tiempo aprox. |
+|---|---|---|---|
+| Gateway: sync de dependencias | check 0: `uv sync --locked --extra test` | sync-ok | no medido |
+| Gateway: `tests/test_[a-m]*.py` | check 1: `uv run --locked pytest` | 1747 passed, 0 failed, 10 skipped, 65 xfailed, 11 warnings | 238.54 s (3:58) |
+| Gateway: `tests/test_[n-z]*.py` + `tests/concurrency` | check 2: `uv run --locked pytest` | 592 passed, 0 failed, 31 skipped, 1 xfailed, 2 warnings | 68.27 s (1:08) |
+| bim-toolchain: bim-core, bim-service, bim-client, tools | check 3: `python -m pytest` | 1574 passed, 0 failed, 23 skipped, 5 xfailed, 1 warning | 159.60 s (2:39) |
+| bim-toolchain: `dump_service_openapi.py --check` | check 3 (segunda parte) | `bim-service.v1.json is up to date` | no medido |
+| Frontend: instalacion | check 4: `pnpm install --frozen-lockfile` | ok (exit 0) | 1.5 s |
+| Frontend: lint | check 5: `pnpm lint` (eslint) | sin hallazgos (exit 0) | no medido |
+| Frontend: vitest | check 6: `pnpm test` | 175 files passed (175); 2418 tests passed (2418); 0 failed | no medido |
+| Frontend: build | check 7: `pnpm build` | built (exit 0); aviso de tamano de chunk de Vite | 9.22 s |
+| Higiene del arbol | check 8: `git status --porcelain \| grep ...` y `git diff --check` | sin archivos de `node_modules`, `uv.lock`, `.venv` ni `dist/` en el status; `diff-ok` | no medido |
+
+Notas:
+
+- Los checks 1 y 2 reparten la suite del gateway por nombre de archivo (a-m y n-z, mas `tests/concurrency`). Suma: 2339 passed, 41 skipped, 66 xfailed, 0 failed. No incluyen `../lab/tests`, a diferencia de la fila "Suite results at SHA `5aebc7c8`".
+- Los skips y xfails son los que cuenta pytest; no se analizo su causa en esta verificacion.
+- Playwright (`frontend/e2e/live`), PostgreSQL real y el demo Docker no forman parte de estos checks y siguen sin ejecutarse aqui.
