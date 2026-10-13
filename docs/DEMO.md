@@ -4,12 +4,19 @@
 demo on one lab host. It is reached from a Mac through an SSH tunnel; the only
 thing published on the host is `127.0.0.1:18100`.
 
-**Status: first real start done on 2026-10-13.** With `lab_compose up` every
-service became healthy; the seed and the API smoke were run (results under
-"Seeding", "API smoke" and "Known limits"). **Not executed**: Playwright against
-the live lab, the mobile/desktop visual check, the PostgreSQL concurrency run at
-this SHA, and the lab with `DEMO_SPACE_ENABLED=true` and real contracts (SPACE
-has no service or contracts, see "SPACE status"). The lab currently runs with
+**Final status, observed on 2026-10-13 at SHA `5aebc7c8`:**
+
+- `lab_compose up` leaves all 11 services healthy.
+- `seed_lab.py` is idempotent, with one exception: when the BIM toolchain changes
+  (its `irDigest`), the seed creates a new revision of the case (`simple-seq:2`).
+- `smoke_lab.py` gives **9/9** steps in 24.4 s with `DEMO_SPACE_ENABLED=false`.
+  `plan_usage` is omitted (it needs SPACE, i.e. `--with-space`).
+
+**Not executed**: Playwright against the live lab (the specs are written, see
+`docs/qa/E2E_PLAN.md`), the mobile/desktop visual check, and the lab with
+`DEMO_SPACE_ENABLED=true` and real contracts (SPACE has no service or contracts,
+see "SPACE status"). The PostgreSQL concurrency harness was run separately, not
+as part of the lab: see [PG_HARNESS.md](qa/PG_HARNESS.md). The lab runs with
 `DEMO_SPACE_ENABLED=false`: an open development gate with no real entitlements.
 A static check also exists (`lab/tests/test_lab_compose.py`).
 
@@ -137,13 +144,16 @@ the lab supervisor drops every capability of its containers.
 BIM variables (`BIM_MODE=http`, `BIM_SERVICE_URL=http://bim-service:8080`,
 `BIM_SERVICE_TOKEN_FILE=/run/bim/token`) are defined on the gateway, and its
 start command writes the file from `DEMO_BIM_TOKEN` into a tmpfs
-(`umask 077`). **Nothing in the gateway reads them yet**; a later phase will.
+(`umask 077`). The gateway reads them through `integrations/bim.py`
+(`BIM_MODE=http`).
 
 `BIM_SERVICE_ALLOW_INSECURE_HTTP=true` is set only on `gateway`, `worker` and
 `seed`. The service is reached over plain `http` inside the lab's private Docker
 network with a synthetic token, and `bim_client` refuses a bearer token over
 plain `http` to a non-loopback host unless that is opted into explicitly. The
-gateway logs a warning at startup. Do not copy this to a real deployment.
+gateway logs a warning at startup. Do not copy this to a real deployment: the
+gateway now refuses this flag (and `FEDERATION_REQUIRE_HTTPS=false`) when
+`APP_ENV=prod`; the lab is `dev`.
 
 ## Running it with lab_compose
 
@@ -274,18 +284,18 @@ already tripped for its probe user, which still counts as a pass. What it does
 not cover (browser, Playwright, the visual mobile/desktop check) and the
 assumptions of its first run are in `docs/qa/E2E_PLAN.md`.
 
-**First complete run (2026-10-13, `DEMO_SPACE_ENABLED=false`, without
-`--with-space`): 8 of 9 steps passed.** Passed: `proxy_and_spa`, `login`,
-`owner_job` (a real `random-search` job with the gateway's authoritative
-reevaluation), `idempotency`, `concurrency_limit` (429), `cors`, `body_limit` and
-`login_throttle`. The ninth, `authorization` ("viewer cannot launch"), failed
-because of a wrong expectation in the smoke: `POST /v1/jobs` is personal work, so
-a viewer can launch on their own snapshot. The expectation is corrected in
-`smoke_lab.py` (as described in the table above); that corrected step has not
-been re-run since in a full run recorded here. `plan_usage` needs `--with-space`
-and was **not executed**. An earlier attempt had been blocked by SPACE having no
-contracts (503 `pricing_unavailable`) and by a job body without `optimization`
-(422, fixed).
+**Latest run (2026-10-13, SHA `5aebc7c8`, `DEMO_SPACE_ENABLED=false`, without
+`--with-space`): 9/9 steps passed in 24.4 s.** `plan_usage` needs `--with-space`
+and was omitted (**not executed**).
+
+History: the first complete run passed 8 of 9 steps. The failing one,
+`authorization` ("viewer cannot launch"), had a wrong expectation in the smoke:
+`POST /v1/jobs` is personal work, so a viewer can launch on their own snapshot
+(the expectation was corrected, as described in the table above). Note that this
+backend behaviour is itself under review: see M1 in
+[qa/SECURITY_REVIEW.md](qa/SECURITY_REVIEW.md). An earlier attempt had been
+blocked by SPACE having no contracts (503 `pricing_unavailable`) and by a job
+body without `optimization` (422, fixed).
 
 ## Mobile and desktop check
 
@@ -393,7 +403,7 @@ diagnostic guide, not a list of verified results.
   `entrypoint: []` on `worker`. The `web` failure on the way was the empty
   configuration bind mount (now baked into the `lab` target).
 - Not executed: Playwright against the live lab, the mobile/desktop visual check,
-  the PostgreSQL concurrency run at this SHA, and SPACE enabled with real
+  and SPACE enabled with real
   contracts (SPACE has no service or contracts and rejects the pricing
   `createdAt` format; see "SPACE status"). `DEMO_SPACE_ENABLED=false` gives no
   real entitlements.

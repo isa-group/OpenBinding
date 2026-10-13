@@ -2,8 +2,8 @@
 
 State of the work that spans OpenBinding, the remote SPACE/SPHERE services and
 the BIM extraction. "Done" means the change exists in this tree; it does not mean
-it was exercised end to end. Written from reading the repository; I did not run
-the test suites for this page.
+it was exercised end to end. Updated on 2026-10-13 at SHA `5aebc7c8`; the figures
+in the last rows come from the registered checks run for that update.
 
 | Area | State | Notes |
 |---|---|---|
@@ -17,7 +17,7 @@ the test suites for this page.
 | `create_app()` | **Done** | `main.py`; remaining import effects listed in [ARCHITECTURE.md](../ARCHITECTURE.md#composition-layer-create_app) |
 | `repositories/organizations.py` | **Done** | Moved: listings, memberships, slug check, invitation lookup, audit events. Queries tied to authorization rules or to a handler's transaction stay in `collaboration.py`, `access/public_read.py` and `routes/organizations.py` |
 | BIM boundary | **Done** | Closed with 4 endpoints in `bim-service`; only `integrations/bim*.py` import the BIM packages (`tests/test_bim_boundary.py`) |
-| Frontend | **Done** | No usage counters; native links. Playwright against the live lab **not executed** |
+| Frontend | **Done** | No usage counters; native links. Vitest: 173 files, 2397 tests passed at this SHA (result of a previous contract). Lint and build are run by the supervisor in checks 3 and 4: see the supervisor's report. The Playwright specs `frontend/e2e/live/*.spec.ts` are written and **NOT EXECUTED** |
 | OpenGate (`DEMO_SPACE_ENABLED=false`) | **Done** | Limited to technical ceilings; grants no real entitlements |
 | External blocker: SPACE `createdAt` | **Blocked (external)** | SPACE answers 400 to the pricing with `createdAt` `YYYY-MM-DDTHH:mm:ssZ` ("must be a string in the format yyyy-mm-dd or a valid Date object"); SPHERE accepted the same pricing (`openbinding-dev` 0.1.0, private) |
 | External blocker: SPACE services | **Blocked (external)** | SPACE is healthy but has no services and no contracts, so the lab runs with `DEMO_SPACE_ENABLED=false` until the human decides |
@@ -27,7 +27,9 @@ the test suites for this page.
 | Removal of the superseded in-place copy | **Done** | `v1/{canonical,package,expressions,compiler,analysis}.py`, `v1/vendor/`, `packages/bim-core/`, `tests/test_bim_core_boundary.py` removed once nothing imported them. Root tools, dataset scripts and experimentation use `bim_core`; the root `.dockerignore` admits `bim-toolchain/packages/{bim-core,bim-client}` (`tests/test_docker_context.py`). `experimentation/icws/tests` (2) and `experimentation/icsoc/generator/tests` (1) fail on the data of the packages, not on imports; they are not part of any check |
 | Remote private pricing (development pricing and service, private, inside the shared organizations) | **Pending** | A shared organization does not isolate credentials; the development key is high-risk |
 | Gateway code left over from the pricing-release workflow (`routes/pricing.py`, `space_client/deployments.py`, renewal sweeps) | **Pending removal** | Reachability not traced |
-| Docker demo (lab compose) | **Done in part** | First real start 2026-10-13: all services healthy with `lab_compose up`; smoke 8 of 9 steps passed with `DEMO_SPACE_ENABLED=false` (the ninth had a wrong expectation, since corrected). With SPACE enabled and contracts: **not executed**. See [DEMO.md](../DEMO.md) |
-| Real PostgreSQL | **Pending** | Suite runs on SQLite; the harness in [PG_HARNESS.md](PG_HARNESS.md) has not been run at this SHA (not measured) |
-| End-to-end (browser + gateway + engines + remote services) | **Pending** | The recorded 2026-10-10 frontend run in [`frontend-qa/README.md`](../frontend-qa/README.md) predates these changes. Playwright live and the mobile/desktop visual check: **not executed** |
-| Suite results after the architecture phases | **Not measured** | The 1757-passed figure above predates them; no suite was run for this page |
+| Docker demo (lab compose) | **Done in part** | At SHA `5aebc7c8`: `lab_compose up` leaves 11 services healthy; `seed_lab.py` is idempotent except that a toolchain change (`irDigest`) creates a new case revision (`simple-seq:2`); `smoke_lab.py` **9/9** (24.4 s) with `DEMO_SPACE_ENABLED=false`, `plan_usage` omitted. With SPACE enabled and contracts: **not executed**. See [DEMO.md](../DEMO.md) |
+| Real PostgreSQL | **Done in part** | 2026-10-13, PostgreSQL 16 via `lab_compose` (`compose.pgtest.json`), SHA `5aebc7c8`: `tests/concurrency` **45 passed, 26 skipped** in 11 s (leases, job publication, idempotency, study cancellation, sweep vs cancellation, cells, two-session smoke). The 26 skipped are in `test_pg_harness.py`: the `compose` fixture skips because `compose.pgtest.json` is not inside the container (`test_pg_harness.py:48-49`), so those static compose checks did not run in the PostgreSQL run (coverage gap, **pending**: mount the file or set `OPENBINDING_REPO_ROOT`; derived from the code, not from the run output). The rest of the suite still runs on SQLite only. See [PG_HARNESS.md](PG_HARNESS.md) |
+| Hardening of `bim-core` and the gateway | **Done** (fixes) | Integer-size limit (A1), ZIP bomb (A2, also in the gateway), unsafe flags refused in prod (M2), `engines:execute` on analysis pareto/cancel (M3), `result.error` redacted for VIEWER (B1), chunked payload ceiling (B2), lab nginx `X-Forwarded-For` (B7). Details and the open findings in [SECURITY_REVIEW.md](SECURITY_REVIEW.md) |
+| Security review (bounded, Opus) | **Done**; findings **pending a human decision** | 2026-10-13. Open: M1, M4, M5 (rest), B3-B6, B8. See [SECURITY_REVIEW.md](SECURITY_REVIEW.md) |
+| End-to-end (browser + gateway + engines + remote services) | **Pending** | The recorded 2026-10-10 frontend run in [`frontend-qa/README.md`](../frontend-qa/README.md) predates these changes. Playwright live specs written, **NOT EXECUTED**; the mobile/desktop visual check: **not executed** |
+| Suite results at SHA `5aebc7c8` | **Measured** | Gateway suite (`tests` + `../lab/tests`, `BIM_BASELINE_FULL=1`): 2087 passed, 38 skipped, 13 deselected, 2 xfailed in 194.73 s. `bim-toolchain` (bim-core, bim-service, bim-client, tools): 1463 passed, 23 skipped, 1 xfailed in 54.07 s; `bim-service.v1.json` is up to date. Frontend: see the Frontend row. The 1757-passed figure in the BIM cut-over row is older |

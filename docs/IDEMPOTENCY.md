@@ -214,6 +214,7 @@ change does not alter the protocol (its digest is pinned). What the gateway does
 | Gateway restarts between the Engine's answer and the database commit | The result is lost for that attempt; the job is requeued or failed by the reconciler |
 | Replica with a skewed clock | No effect on PostgreSQL (all comparisons use the database clock); on SQLite there is only one process |
 | Database connection holding the reconciler lock drops | Two replicas may run a cycle at once; harmless, every step is conditioned |
+| Lease lost (B3) or bim fails during re-evaluation (B4) | B3: the old holder keeps waiting for the engine and `_requeue` does not cancel the remote job; only its late result is discarded. B4: if bim fails when the result is re-evaluated, the job becomes `FAILED` and the engine's result is lost. Both open, see [qa/SECURITY_REVIEW.md](qa/SECURITY_REVIEW.md) |
 | Analysis task whose worker keeps dying | Requeued twice, failed as `analysis_abandoned` on the third lost lease |
 | Client retries after a timeout with the same key | Replay of the original job |
 | Client retries with a new key (or none) | A new job; nothing links it to the first |
@@ -236,16 +237,19 @@ single claim before it is failed as abandoned if its worker is lost again.
 
 ## What has been certified
 
-**Executed on a real PostgreSQL (in the lab; reported by the QA owner, not
-re-run for this change):** the claim has one winner; concurrent sweeps fail an
+**Executed earlier on a real PostgreSQL (in the lab; reported by the QA owner):** the claim has one winner; concurrent sweeps fail an
 abandoned job once; `SKIP LOCKED` lets a sweep pass a locked row and take it
 later; the per-account concurrency limit; idempotency with one job under
 concurrent creation; study-cell launch races. These are the `test_*_pg.py` files
 that existed before this change (`test_job_leases_pg.py` first four tests,
 `test_jobs_idempotency_pg.py`, `test_study_cells_pg.py`).
 
-**Added in this change and *not* executed on PostgreSQL yet** (they skip without
-`TEST_DATABASE_URL`):
+**Executed on PostgreSQL 16 on 2026-10-13 (SHA `5aebc7c8`, `lab_compose` with
+`compose.pgtest.json`): `tests/concurrency` gave 45 passed, 26 skipped** (the 26
+skipped are in `test_pg_harness.py`; see [qa/PG_HARNESS.md](qa/PG_HARNESS.md)).
+The tests listed below were written in an earlier change; they skip without
+`TEST_DATABASE_URL`. This page did not break the 45 down per file, so treat the
+list as scope, not as a per-test result:
 
 - `tests/concurrency/test_job_leases_pg.py`: leases written by the database clock
   with the process clock +10 min; a process clock +10 min does not requeue a live
@@ -257,10 +261,10 @@ that existed before this change (`test_job_leases_pg.py` first four tests,
   clock fails and publishes nothing, the second reconciler skips the cycle while
   the first holds the advisory lock.
 - The SQL itself (`make_interval`, `power`, `LEAST`, the `IN (... FOR UPDATE SKIP
-  LOCKED)` subquery, a `BIGINT` advisory key) has only been **compiled** for the
-  PostgreSQL dialect and string-compared in the SQLite suite; it has not been run.
-  Expect to fix something on the first execution.
-- The migration `f2a3b4c5d6e7` has been run on SQLite only.
+  LOCKED)` subquery, a `BIGINT` advisory key) is exercised by those tests on
+  PostgreSQL; the SQLite suite only compiles and string-compares it.
+- The migration `f2a3b4c5d6e7`: the PG run applies `alembic upgrade head`; it was
+  not tested separately.
 
 **Covered by SQLite only:** the controlled-clock lease tests, the publisher's
 claim / backoff / commit-before-send ordering, the queue limit, analysis-task

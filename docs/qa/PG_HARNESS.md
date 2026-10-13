@@ -4,11 +4,14 @@
 and partial unique indexes, which SQLite does not exercise. Without
 `TEST_DATABASE_URL` they are skipped.
 
-**Status: these tests have not been executed by the author of this harness.**
-The authoring environment had no Docker and no PostgreSQL. Expect the first
-real run to surface failures (see "Expected failures"). Only the checks in
-`test_pg_harness.py` (URL guard, shape of `compose.pgtest.json`) have run. The
-file has not been accepted by lab_compose after the last change either.
+**Status: executed on a real PostgreSQL 16 on 2026-10-13, at SHA `5aebc7c8`.**
+Run with `lab_compose` (`compose.pgtest.json`,
+`DEMO_PYTEST_ARGS='-rfE --tb=short tests/concurrency'`): **45 passed, 26
+skipped** in 11 s. The passing tests cover leases, job publication, idempotency,
+study cancellation, sweep versus cancellation, study cells and a two-session
+smoke test. The 26 skipped tests are all in `test_pg_harness.py`; see
+[Why 26 tests are skipped](#why-26-tests-are-skipped). `lab_compose` accepted the file. Only that one run
+is recorded: no repeat runs, no timing statistics, no run on another SHA.
 
 ## Running
 
@@ -68,12 +71,11 @@ Mounts: the runner image already contains `src`, `alembic`, `alembic.ini`,
 `schemas`, `examples` and `space/pricing/openbinding.yml` (see the Dockerfile),
 but not the tests, so the only mount is `./openbinding-gateway/tests` on
 `/app/tests` (bind, read-only); the image is enough otherwise (no further mount
-or image change is needed on paper; nothing has been run). The earlier mounts of the whole source tree
+or image change was needed in the 2026-10-13 run). The earlier mounts of the whole source tree
 and of `docs`, `engines`, `pricings` and `space` are gone: nothing in
 `tests/concurrency` reads `docs`, `engines` or `pricings`, and binds are always
 read-only, so nested mounts below a mounted `/app` could not create their mount
-points. If lab_compose rejects the bind, the tests need to be baked into an
-image instead. The postgres data directory is a `tmpfs` volume of 160 MiB,
+points. lab_compose accepted the bind in the 2026-10-13 run. The postgres data directory is a `tmpfs` volume of 160 MiB,
 inside the 384m container limit.
 
 `space/` dependency: `tests/concurrency/test_job_leases_pg.py` reads the pricing
@@ -117,7 +119,40 @@ Do not point other suites (`db_session` in `tests/conftest.py`) at this URL:
 that fixture still uses `drop_all/create_all` and would remove the migrated
 schema.
 
+## Why 26 tests are skipped
+
+Read from the code on 2026-10-13 (the run's output was not kept, and `-rfE` does not
+list skips, so this is derived, not observed).
+
+- `openbinding-gateway/tests/concurrency/test_pg_harness.py:46-50`: the module
+  fixture `compose` calls `pytest.skip(f"compose.pgtest.json not found under
+  {REPO_ROOT}")` (line 49) when `REPO_ROOT / "compose.pgtest.json"` (line 19) is not
+  a file.
+- `REPO_ROOT` comes from `openbinding-gateway/tests/_repo.py:9-21`: the first of
+  `parents[2]`, `parents[1]` of the test file that contains `schemas/bim/v1` and
+  `examples`. Inside the `seed` container the tests are mounted at `/app/tests`
+  (`compose.pgtest.json:80-81`) and the image carries `schemas` and `examples` but
+  not `compose.pgtest.json`, so `REPO_ROOT` resolves to `/app` and the file is
+  absent.
+- Tests that request `compose`: 18 plain tests plus `test_compose_services_use_no_forbidden_key`
+  (line 156-157), parametrized over 8 keys. 18 + 8 = **26**, which matches the
+  count. The remaining 15 tests of the file (the URL guard, lines 53-108) do not
+  use `compose` and passed. `test_seed_uses_the_gateway_dockerfile` also has its own
+  skip (line 236-237, no `docker-compose.yml`), which is never reached here.
+
+So the skips are not the `TEST_DATABASE_URL` guard: the variable was set and valid
+(the other 45 tests used PostgreSQL). They are the static checks of the shape of
+`compose.pgtest.json`, which need a repository checkout.
+
+Coverage gap: none of the PostgreSQL behaviour is hidden. But these 26 checks do
+**not run in the lab PostgreSQL run**; they run only in an ordinary checkout. Whether
+they pass in a checkout at this SHA was **not measured here**; this update did not
+run `tests/concurrency`. To run them in the lab run, mount `compose.pgtest.json`
+(or set `OPENBINDING_REPO_ROOT` to a tree that has it): pending.
+
 ## What it validates
+
+Observed passing on 2026-10-13 (see Status). Covers:
 
 - `SELECT ... FOR UPDATE [SKIP LOCKED]` behaviour of job claims and sweeps.
 - Concurrent launches of one study cell and `(owner_id, idempotency_key)`
@@ -133,16 +168,17 @@ schema.
 - Behaviour under PostgreSQL settings differing from the test ones
   (`fsync=off`, small `shared_buffers`), or at scale.
 
-## Expected failures on first run
+## Open points after the first run
 
-- `lab_compose` rejecting the bind mount of the tests (see above), or the
-  structured `tmpfs` volume without a `source`.
-- Seed data hitting a NOT NULL or trigger the tests never met on SQLite. Already
-  fixed from reading the models: `Blob.created_by_id`, and setting
-  `source_snapshot_id` / `engine_ref` at INSERT (migration triggers forbid
-  updating them on `binding_case_revisions` and `study_cells`).
-- Timing assertions (`wait_for(..., timeout=10)`, `sleep(0.2/0.5)`) on a loaded host.
-- `tmpfs` ownership for the postgres data directory on some runtimes (mitigated
+The earlier "expected failures" did not occur in the 2026-10-13 run (the bind
+mount and the structured `tmpfs` volume were accepted, seed data inserted, the
+postgres data directory started). What remains unknown:
+
+- Whether the skip reason given below is exactly what happened: it is derived from
+  the code, and the run used `-rfE`, which does not print skip reasons (`-rs`).
+- Timing assertions (`wait_for(..., timeout=10)`, `sleep(0.2/0.5)`) on a loaded
+  host: the run took 11 s on one host; no other load was measured.
+- `tmpfs` ownership for the postgres data directory on other runtimes (mitigated
   by mode `1777`, `user: 70:70` and `PGDATA` in a subdirectory).
 
 ## Recommended CI job (not added; `ci.yml` is out of scope here)

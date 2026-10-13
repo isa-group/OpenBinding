@@ -5,10 +5,11 @@
 > selector has been run against a real page, and `playwright test --list` has not been run either. Expect to correct
 > selectors on their first run. See [Browser specs of the `live` project](#browser-specs-of-the-live-project-written-not-executed).
 
-**Status: `tools/smoke_lab.py` ran once against the lab (stack healthy, web OK); the corrected version has not.**
+**Status: at SHA `5aebc7c8` (2026-10-13), with `DEMO_SPACE_ENABLED=false`, `tools/smoke_lab.py` gave 9/9 steps in 24.4 s
+against the lab; `plan_usage` (step 10, needs `--with-space`) was omitted and is not executed.**
 It was written without a Docker daemon and tested against a simulated gateway
 (`tools/tests/test_smoke_lab.py`, `httpx.MockTransport`). The first real run passed `proxy_and_spa`, `cors`,
-`body_limit` and `login_throttle` and failed the rest, for two reasons, both now handled:
+`body_limit` and `login_throttle` and failed the rest, for two reasons, both since handled:
 
 - **`GET /v1/users/me` answered 503 for all five users.** The profile reads the plan through
   `get_gate().caps()` (`routes/users.py`); `SpacePricingGate.caps()` raises `PricingUnavailable` when SPACE gives
@@ -46,7 +47,7 @@ the detail carries the server's message and `remote_probe.py` settles it.
 | 2 | `login` | `POST /api/v1/auth/login` for admin, owner, member, viewer, outsider returns a Bearer token; `GET /api/v1/users/me` shows the username and the platform role (`admin` / `user`) |
 | 3 | `owner_job` | owner profile; `lab-main` shows `OWNER`; project `bim-demo` visible; a `random-search` job (`mode: seeded`, `optimization` SINGLE / weighted-sum, 10 iterations, seed 1) on the **seeded** snapshot of case `simple-seq` reaches `completed` within 120 s; result has `termination`, and per solution `decision.binding`, `features`, `objectives`, `penalties`, `violations`; the provenance names `bim-reference-evaluator` with its digest and pins compiler and IR; `engineReported` is kept apart from the authoritative values; if the provenance has a field with "toolchain" in its name it is reported |
 | 4 | `idempotency` | same `Idempotency-Key` and body: 202 with the same id and `idempotent: true`; same key, other body: 409 `idempotency_conflict`; the same key from `lab-member` (with the member's own snapshot): a different job, not marked idempotent, and the member cannot read the owner's job |
-| 5 | `authorization` | no token: 401 on profile, organizations, job read, launch, project jobs and admin; the viewer **can** launch a personal job (202) on a snapshot they uploaded themselves (`POST /v1/jobs` is personal work and stores no project, so the organization role does not gate it; the job is cancelled afterwards) but **cannot** start a study run in the organization project (403/404); the viewer **does** read the project's job (state and result) and its `options`, `original_request` and provenance are redacted (allow-listed option names only, no credential- or address-like keys, registration only as a pinned reference); the outsider cannot read organization, project, project jobs (403/404) or the owner's job (404); owner, member, viewer and outsider get 403 on `/api/v1/admin/overview`, the admin gets 200 |
+| 5 | `authorization` | no token: 401 on profile, organizations, job read, launch, project jobs and admin; the viewer **can** launch a personal job (202) on a snapshot they uploaded themselves (`POST /v1/jobs` is personal work and stores no project, so the organization role does not gate it; the job is cancelled afterwards; whether the backend should require MEMBER for an organization-shared snapshot is an open decision, M1 in [SECURITY_REVIEW.md](SECURITY_REVIEW.md)) but **cannot** start a study run in the organization project (403/404); the viewer **does** read the project's job (state and result) and its `options`, `original_request` and provenance are redacted (allow-listed option names only, no credential- or address-like keys, registration only as a pinned reference); the outsider cannot read organization, project, project jobs (403/404) or the owner's job (404); owner, member, viewer and outsider get 403 on `/api/v1/admin/overview`, the admin gets 200 |
 | 6 | `concurrency_limit` (optional) | 5 simultaneous launches with different keys and slow options (1,000,000 iterations, 20 s budget): at most `--max-concurrent` (3) are accepted, at least one is a 429 `concurrency_limit_exceeded` with `Retry-After`; the accepted jobs are cancelled and awaited, and a new launch is accepted again |
 | 7 | `cors` (optional) | preflight from `http://localhost:18100` is allowed (`Access-Control-Allow-Origin` echoes it); from `http://evil.example` no allow-origin is returned, for the preflight and for a simple request |
 | 8 | `body_limit` (optional) | a JSON body of 16 MiB + 1 KiB is answered **413** `application/problem+json` (`payload_too_large`) within 30 s, without hanging |
@@ -220,10 +221,9 @@ addresses when the build overrides `VITE_SPACE_FRONTEND_URL` / `VITE_SPHERE_URL`
 7. **Status codes.** Where the matrix is ambiguous the smoke accepts 403 or 404 (viewer study run, outsider reads).
    Anonymous requests must be 401 and non-admins 403 on `/api/v1/admin/*`; the outsider reading the owner's
    job through `/api/v1/jobs/{id}` must be 404.
-8. **BIM provenance.** `BIM_MODE=http` is not read by the gateway yet (`docs/DEMO.md`). The smoke therefore
-   checks the reevaluation by `evaluator`/`evaluatorDigest`/`compilerDigest` in the provenance and only
-   *reports* a toolchain field if one exists; it cannot prove that the request went to `bim-service`.
-   Check `logs bim-service` once for that.
+8. **BIM provenance.** The smoke checks the reevaluation by `evaluator`/`evaluatorDigest`/`compilerDigest` in the
+   provenance and only *reports* a toolchain field if one exists; it cannot prove that the request went to
+   `bim-service` (the gateway does read `BIM_MODE=http`, see `docs/DEMO.md`). Check `logs bim-service` once for that.
 9. **CORS preflight.** Expected 200 with an echoed origin for the allowed one and no allow-origin header for
    the other (Starlette answers 400). `Access-Control-Allow-Methods` must contain `GET`.
 10. **413 through nginx.** `client_max_body_size` is 512m, so the gateway's `BodyLimitMiddleware` (16 MiB

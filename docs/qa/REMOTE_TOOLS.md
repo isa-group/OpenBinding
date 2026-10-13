@@ -8,10 +8,10 @@ Four tools in `openbinding-gateway/tools/`, with shared code in `_remote_common.
 | `remote_provision.py` | `--apply` only | Uploads **one private development pricing `0.1.0`** to SPHERE and SPACE, behind explicit guards. |
 | `seed_lab.py` | local database (+ SPACE contracts only with `--space-contracts`) | Idempotent synthetic demo data with the real roles. |
 
-**Status: none of this has run against the real SPACE or SPHERE.** Everything was developed against
-`httpx.MockTransport` simulations (`tools/tests/fakes.py`). The first lab run is the first contact with the
-real APIs; section "Not verified" lists every assumption that run can break. Send back the (redacted)
-output and it will be corrected.
+**Status: developed against `httpx.MockTransport` simulations (`tools/tests/fakes.py`), then run once against the
+real remotes on 2026-10-13.** `remote_probe.py` and `remote_provision.py --apply` ran (results under "Observed in the
+real remotes" and "Primera aplicación real"): SPHERE accepted the private development pricing, SPACE rejected it
+with HTTP 400. `seed_lab.py` ran in the lab; its `--space-contracts` option has **not** been run against a real SPACE. Section "Not verified" lists the assumptions that no real run has confirmed yet.
 
 ## Ground rules the tools enforce
 
@@ -60,7 +60,7 @@ configuration (JSON `{"ok": false, "error": ...}`), `5` for a bug.
 
 The scripts run inside the gateway container with its working directory at `/app`. The Dockerfile does not copy
 `tools/`, so mount `openbinding-gateway/tools` read-only at `/app/tools` (same way `tests/` is mounted for the
-PG harness; **not verified with lab_compose**). The six `SPACE_*`/`SPHERE_*` variables must reach the
+PG harness). This mount works in the lab: `seed_lab.py` and `smoke_lab.py` ran that way with `lab_compose` on 2026-10-13. The six `SPACE_*`/`SPHERE_*` variables must reach the
 container; `DEMO_SEED_PASSWORD` is chosen by whoever runs the seed (any synthetic value, 10+ characters).
 
 ```sh
@@ -378,4 +378,5 @@ which one failed.
    endpoint is called. `--space-contracts` relies on the SDK answering `404` (or `null`) for a missing
    contract and on `ContractToCreate` being accepted with the development service name and plan.
 9. `SpaceRemote` replaces the SDK's private `_http_client` only when a test passes a simulated transport.
-10. The lab mount of `tools/` at `/app/tools` and the exact `lab_compose seed` invocation are not verified.
+10. *Resolved:* the lab mount of `tools/` at `/app/tools` and the `lab_compose seed` invocation worked on 2026-10-13
+    (`seed_lab.py`, `smoke_lab.py`). `--space-contracts` has not been run against a real SPACE.
