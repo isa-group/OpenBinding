@@ -168,6 +168,8 @@ The first toolchain run after adding `golden/bim_core/zip_equivalence.json` fail
 second run passed. The measurements of section 2 were taken with the same test before it was frozen: a first version
 with an empty list of known divergences failed and printed the 64.
 
+Order-dependent failure of `test_the_goldens_cover_exactly_the_discovered_corpus`: the QA `TMPDIR` is a hidden `.qa-tmp-*` directory inside the worktree, `test_package_directories_skips_excluded_roots` leaves its `tmp_path` fixtures (`instance.json`) there until the session ends, and `package_directories` walked them as packages; `baseline_core.package_directories` (and the 82-package filter of `test_b5_corpus.py`) now skip hidden directories, which hold no package of the real corpus (still exactly 82); the goldens were not regenerated.
+
 Not verified: the workflows on GitHub (edited only), Python 3.12, `bim-service` and `bim-client` suites (outside this
 change), the Docker image.
 

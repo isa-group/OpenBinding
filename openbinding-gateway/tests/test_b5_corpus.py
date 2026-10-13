@@ -37,6 +37,8 @@ def test_the_complete_corpus_still_compiles_with_the_same_package_count():
         directory
         for directory in tool.package_directories()
         if "bim-toolchain" not in directory.relative_to(REPO_ROOT).parts
+        # pytest's tmp_path lives in the QA worktree's hidden TMPDIR and may hold instance.json fixtures.
+        and not any(part.startswith(".") for part in directory.relative_to(REPO_ROOT).parts)
     ]
 
     assert len(directories) == 82

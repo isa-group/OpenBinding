@@ -138,7 +138,10 @@ def package_directories(corpus_root: Path) -> list[Path]:
         subdirectories[:] = [
             name
             for name in subdirectories
-            if name not in SKIPPED_DIRECTORIES and (current / name).resolve() not in excluded
+            # Hidden directories (the QA worktree's ``.qa-tmp-*`` TMPDIR, ``.git``...) never hold corpus packages.
+            if name not in SKIPPED_DIRECTORIES
+            and not name.startswith(".")
+            and (current / name).resolve() not in excluded
         ]
         if "instance.json" in filenames:
             roots.append(current)
