@@ -141,11 +141,21 @@ describe('About', () => {
 
   describe('changelog', () => {
     it('lists every stream newest first and filters by stream', () => {
-      renderAbout('/about?tab=changelog');
+      renderAbout('/about?tab=changelog', {
+        ...EMPTY,
+        changelog: {
+          platform: [{ version: '1.2.0', date: '2026-09-06', title: 'Add collaborative binding analysis platform', changes: ['Share analyses'] }],
+          bim: [
+            { version: 'next', date: 'Unreleased', title: 'Upcoming engine work', changes: [] },
+            { version: '0.5.0', date: '2026-09-20', title: 'Binding language and engines', changes: ['New engine'] },
+          ],
+          documentation: [{ version: '0.3.0', date: '2026-08-01', title: 'OpenBinding documentation', changes: ['Guides'] }],
+        },
+      });
       const entries = () => within(screen.getByRole('tabpanel')).getAllByRole('article');
 
       expect(entries().map((entry) => within(entry).getByRole('heading').textContent)).toEqual([
-        'Binding language and engines', 'OpenBinding platform', 'OpenBinding documentation',
+        'Upcoming engine work', 'Binding language and engines', 'Add collaborative binding analysis platform', 'OpenBinding documentation',
       ]);
       expect(screen.getByText('Unreleased')).toBeInTheDocument();
       expect(screen.getByText('No changes recorded yet.')).toBeInTheDocument();

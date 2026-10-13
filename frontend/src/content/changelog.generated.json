@@ -2,9 +2,35 @@
   "platform": [
     {
       "version": "0.1.0",
-      "date": "2026-09-06",
+      "date": "2026-10-08",
       "title": "OpenBinding platform",
       "changes": [
+        "Add QACOBench tooling and extend instance generation",
+        "Move optimization strategy to execution",
+        "Migrate metrics to features across schemas, compiler, engines, and corpus",
+        "Align docker stack and development seeder",
+        "Add artifact library and version-aware workflows",
+        "Add reproducible binding decision workspace",
+        "Add versioned artifact library and immutable releases",
+        "Add QACO instance generator and legacy problem conversion modal",
+        "Add AutoRouter MAPE-K telemetry and recalibration view in admin console",
+        "Add BIM generator architecture and calibration documentation",
+        "Add unit and integration tests for BIM generator and queue routing",
+        "Incorporate queue wait latency and feature passing into autorouter",
+        "Add BIM v1 QACO generator and legacy conversion subsystem",
+        "Add self-adaptive routing architecture and user guides",
+        "Add engine routing, adaptation loop and capacity tests",
+        "Add self-adaptive engine routing subsystem",
+        "Clarify space listener exposure",
+        "Stabilize browser test timing",
+        "Normalize changed file endings",
+        "Add institutional branding asset",
+        "Enable local space services",
+        "Update platform dependencies",
+        "Add platform workspace and inspection",
+        "Add deterministic development seed",
+        "Extend platform services",
+        "Ignore runtime artifact storage",
         "Add collaborative binding analysis platform"
       ]
     }
@@ -12,17 +38,40 @@
   "bim": [
     {
       "version": "BIM v1",
-      "date": "Unreleased",
+      "date": "2026-10-08",
       "title": "Binding language and engines",
-      "changes": []
+      "changes": [
+        "Add QACOBench tooling and extend instance generation",
+        "Document execution optimization contract",
+        "Move optimization strategy to execution",
+        "Migrate metrics to features across schemas, compiler, engines, and corpus",
+        "Document versioned artifacts and shared contracts",
+        "Expose evolutionary evaluation traces",
+        "Add reproducible binding decision workspace",
+        "Add bim-generator module wrapping legacy problem generator",
+        "Add meta-router-csp engine and manifest",
+        "Add interactive architecture map",
+        "Refresh media orchestration digest"
+      ]
     }
   ],
   "documentation": [
     {
       "version": "0.1.0",
-      "date": "2026-09-06",
+      "date": "2026-10-08",
       "title": "OpenBinding documentation",
       "changes": [
+        "Add QACOBench tooling and extend instance generation",
+        "Document execution optimization contract",
+        "Migrate metrics to features across schemas, compiler, engines, and corpus",
+        "Document versioned artifacts and shared contracts",
+        "Add reproducible binding decision workspace",
+        "Add BIM generator architecture and calibration documentation",
+        "Add self-adaptive routing architecture and user guides",
+        "Add interactive architecture map",
+        "Normalize changed file endings",
+        "Refresh platform contracts",
+        "Enable local space services",
         "Add collaborative binding analysis platform"
       ]
     }
