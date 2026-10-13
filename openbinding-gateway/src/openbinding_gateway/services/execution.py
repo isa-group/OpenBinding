@@ -11,6 +11,13 @@ from bim_core.canonical import digest
 from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..core.public_errors import (
+    classify_job_failure,
+    current_correlation_id,
+    job_failure_fields,
+    log_internal_failure,
+    scrub_text,
+)
 from ..core.settings import get_settings
 from ..db import base as db_base
 from ..db.models import (
@@ -37,33 +44,71 @@ logger = logging.getLogger(__name__)
 async def fail_persisted_job(
     job: Job,
     session: AsyncSession,
-    message: str,
+    code: str,
     started: float,
+    *,
+    reason: str | None = None,
+    cause: BaseException | None = None,
 ) -> None:
+    """Record that the job failed for ``code`` (a key of ``JOB_FAILURES``).
+
+    The job shows the fixed sentence of the catalog, the code and a correlation
+    id; nothing the failure said about itself is stored. ``reason`` (a text the
+    gateway wrote) and ``cause`` (the exception) go to the log with that id,
+    masked and bounded.
+    """
     if not await leases.hold_lease(session, job.id, leases.held_token(session, job.id)):
         # The reconciler took the job back, so the outcome of this attempt is
         # not the job's outcome. Whatever was staged is discarded.
         logger.warning("Lost the lease on job %s; not recording its failure", job.id)
         await session.rollback()
         return
+    fields = job_failure_fields(code, current_correlation_id())
+    _log_job_failure(job.id, fields, reason, cause)
     job.state = JobState.FAILED
     job.lease_token = None
     job.lease_until = None
     job.result = {
         "termination": "UNKNOWN",
         "solutions": [],
-        "error": message,
+        **fields,
         "provenance": job.provenance or {},
     }
     job.termination = "UNKNOWN"
     job.finished_at = utcnow()
     from ..telemetry import record_job_failure
     try:
-        await record_job_failure(session, job, message)
+        await record_job_failure(session, job, f"{fields['code']}: {fields['error']}")
     except Exception:
         pass
 
     await session.flush()
+
+
+def _log_job_failure(
+    job_id: uuid.UUID | str,
+    fields: dict[str, str],
+    reason: str | None,
+    cause: BaseException | None,
+) -> None:
+    """The internal side of a failed job: the code, the id, and whatever explains it."""
+    if cause is not None:
+        log_internal_failure(
+            "job execution",
+            cause,
+            correlation=fields["correlationId"],
+            job=job_id,
+            code=fields["code"],
+            **({"reason": scrub_text(reason)} if reason else {}),
+        )
+    else:
+        logger.warning(
+            "job execution failed: job=%s code=%s correlation_id=%s reason=%s",
+            job_id,
+            fields["code"],
+            fields["correlationId"],
+            scrub_text(reason or ""),
+        )
 
 
 #: How long the best-effort cancellation of a remote job may take.
@@ -166,14 +211,20 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
         request = job.original_request or {}
         document = request.get("bindingProblem")
         if not isinstance(document, dict):
-            await fail_persisted_job(job, session, "persisted BindingProblem is missing", started)
+            await fail_persisted_job(
+                job, session, "job_input_invalid", started, reason="persisted BindingProblem is missing"
+            )
             return
         mode_contract = persisted_mode_contract(request.get("mode"))
         if mode_contract is None:
-            await fail_persisted_job(job, session, "Persisted Engine mode contract is invalid", started)
+            await fail_persisted_job(
+                job, session, "job_input_invalid", started, reason="Persisted Engine mode contract is invalid"
+            )
             return
         if not isinstance(job.options, dict):
-            await fail_persisted_job(job, session, "Persisted Engine options must be an object", started)
+            await fail_persisted_job(
+                job, session, "job_input_invalid", started, reason="Persisted Engine options must be an object"
+            )
             return
         provenance = job.provenance if isinstance(job.provenance, dict) else {}
         engine_ref = provenance.get("engine")
@@ -191,7 +242,9 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             or provenance.get("terminationGuarantees")
             != mode_contract["terminationGuarantees"]
         ):
-            await fail_persisted_job(job, session, "Persisted Engine mode contract is inconsistent", started)
+            await fail_persisted_job(
+                job, session, "registration_changed", started, reason="Persisted Engine mode contract is inconsistent"
+            )
             return
         registration_ref = request.get("registration")
         if (
@@ -199,7 +252,9 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             or set(registration_ref) != {"namespace", "name", "version", "digest"}
             or not all(isinstance(value, str) and value for value in registration_ref.values())
         ):
-            await fail_persisted_job(job, session, "Persisted EngineRegistration reference is invalid", started)
+            await fail_persisted_job(
+                job, session, "job_input_invalid", started, reason="Persisted EngineRegistration reference is invalid"
+            )
             return
 
         registration: EngineRegistrationRevision | dict[str, Any] | None = None
@@ -234,7 +289,9 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
                 )
             ).scalars().first()
         if registration is None:
-            await fail_persisted_job(job, session, "Engine registration is no longer active", started)
+            await fail_persisted_job(
+                job, session, "registration_changed", started, reason="Engine registration is no longer active"
+            )
             return
 
         registered_engine_digest = (
@@ -243,7 +300,13 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             else registration.get("document", {}).get("spec", {}).get("engine", {}).get("digest")
         )
         if registered_engine_digest != provenance.get("engineDigest"):
-            await fail_persisted_job(job, session, "Engine registration no longer pins the persisted Engine", started)
+            await fail_persisted_job(
+                job,
+                session,
+                "registration_changed",
+                started,
+                reason="Engine registration no longer pins the persisted Engine",
+            )
             return
 
         credential_value = None
@@ -260,7 +323,7 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
                 try:
                     credential_value = CredentialStore.from_settings(get_settings()).decrypt(credential_row.credential_encrypted)
                 except SecretsUnavailable as exc:
-                    await fail_persisted_job(job, session, str(exc), started)
+                    await fail_persisted_job(job, session, "credential_unavailable", started, cause=exc)
                     return
             transport = RemoteRegistration(
                 endpoint=registration.endpoint,
@@ -274,14 +337,22 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             try:
                 transport = registration_transport(registration)
             except RemoteEngineError as exc:
-                await fail_persisted_job(job, session, str(exc), started)
+                await fail_persisted_job(job, session, classify_job_failure(exc), started, cause=exc)
                 return
             protocol_digest = registration["document"]["spec"]["protocol"]["digest"]
         if job.service_url != transport.endpoint:
-            await fail_persisted_job(job, session, "Persisted EngineRegistration endpoint changed", started)
+            await fail_persisted_job(
+                job, session, "registration_changed", started, reason="Persisted EngineRegistration endpoint changed"
+            )
             return
         if provenance.get("registration") != registration_ref or provenance.get("protocolDigest") != protocol_digest:
-            await fail_persisted_job(job, session, "Persisted EngineRegistration provenance is inconsistent", started)
+            await fail_persisted_job(
+                job,
+                session,
+                "registration_changed",
+                started,
+                reason="Persisted EngineRegistration provenance is inconsistent",
+            )
             return
         # No transaction stays open (idle, holding the row lock) while the
         # engine works. The lease token lives in session.info, which a commit
@@ -309,7 +380,7 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
         except RemoteEngineError as exc:
             # The gateway gives up on this attempt; the engine may still be working.
             await cancel_engine_job(transport, engine["job_id"])
-            await fail_persisted_job(job, session, str(exc), started)
+            await fail_persisted_job(job, session, classify_job_failure(exc), started, cause=exc)
             return
         # Lock first, read second: the refresh then sees the row as it will stay
         # until this transaction ends.
@@ -332,12 +403,16 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
             await session.commit()
             await cancel_engine_job(transport, engine["job_id"])
             return
-        reevaluated = await bim.abim().reevaluate(
-            document,
-            remote_result,
-            request.get("optimization", provenance.get("optimization", {})),
-            mode_contract["terminationGuarantees"],
-        )
+        try:
+            reevaluated = await bim.abim().reevaluate(
+                document,
+                remote_result,
+                request.get("optimization", provenance.get("optimization", {})),
+                mode_contract["terminationGuarantees"],
+            )
+        except Exception as exc:
+            await fail_persisted_job(job, session, "bim_evaluation_failed", started, cause=exc)
+            return
         job.provenance = {
             **provenance,
             "registration": registration_ref,
@@ -353,8 +428,7 @@ async def run_claimed_job(parsed: uuid.UUID, session: AsyncSession) -> None:
         job.finished_at = utcnow()
         await session.flush()
     except Exception as exc:
-        logger.exception("Unexpected error executing persisted job %s: %s", parsed, exc)
-        await fail_persisted_job(job, session, f"Execution failed: {exc}", started)
+        await fail_persisted_job(job, session, classify_job_failure(exc), started, cause=exc)
 
 
 async def run_persisted_job(job_id: str, request_session: AsyncSession | None = None) -> None:
@@ -369,7 +443,7 @@ async def run_persisted_job(job_id: str, request_session: AsyncSession | None = 
             await session.commit()
         except Exception as exc:
             await session.rollback()
-            logger.exception("Job execution failed unexpectedly for %s: %s", job_id, exc)
+            correlation = log_internal_failure("job execution", exc, job=job_id)
             async with db_base.session_factory()() as fail_session:
                 try:
                     parsed = uuid.UUID(job_id)
@@ -391,17 +465,18 @@ async def run_persisted_job(job_id: str, request_session: AsyncSession | None = 
                         failed_job.state = JobState.FAILED
                         failed_job.lease_token = None
                         failed_job.lease_until = None
+                        fields = job_failure_fields("internal_error", correlation)
                         failed_job.result = {
                             "termination": "UNKNOWN",
                             "solutions": [],
-                            "error": f"Internal execution error: {exc}",
+                            **fields,
                             "provenance": failed_job.provenance or {},
                         }
                         failed_job.termination = "UNKNOWN"
                         failed_job.finished_at = utcnow()
                         from ..telemetry import record_job_failure
                         try:
-                            await record_job_failure(fail_session, failed_job, str(exc))
+                            await record_job_failure(fail_session, failed_job, f"{fields['code']}: {fields['error']}")
                         except Exception:
                             pass
                         await fail_session.commit()

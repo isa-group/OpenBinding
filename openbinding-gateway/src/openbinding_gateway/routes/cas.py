@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .. import space_client
 from ..access.dependencies import get_current_user, get_optional_user, session_dependency
 from ..cas import CasPrincipal, get_cas_store, parse_service_validate
+from ..core.public_errors import pricing_unavailable_error
 from ..core.settings import Settings, get_settings
 from ..db.models import AuditEvent, AuthIdentity, User
 from ..models.accounts import CasSession, PlanChange
@@ -164,7 +165,7 @@ async def _upgrade_to_research(user: User, session: AsyncSession) -> PlanChange 
         # SPACE rejects the novation if the pricing version has no RESEARCH plan.
         await gate.change_plan(user.id, "RESEARCH", live_pricing_version(settings))
     except space_client.PricingUnavailable as exc:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
+        raise pricing_unavailable_error(exc, where="CAS research upgrade") from exc
     user.plan_cache = "RESEARCH"
     return PlanChange(from_plan=current.plan, to="RESEARCH", extra_cost=False)
 
@@ -396,7 +397,7 @@ async def unlink_identity(
         try:
             current = await space_client.get_gate().subscription(user.id)
         except space_client.PricingUnavailable as exc:
-            raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
+            raise pricing_unavailable_error(exc, where="CAS identity removal") from exc
     else:
         current = None
     if current is not None and current.plan == "RESEARCH":
@@ -419,6 +420,6 @@ async def unlink_identity(
                 user.id, default_plan, live_pricing_version(settings)
             )
         except space_client.PricingUnavailable as exc:
-            raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
+            raise pricing_unavailable_error(exc, where="CAS research downgrade") from exc
         user.plan_cache = default_plan
     await session.delete(identity)

@@ -24,6 +24,7 @@ import uuid
 from collections.abc import Callable
 from typing import Any, Dict, Optional, TypeVar
 
+from ..core.public_errors import log_internal_failure
 from ..core.settings import Settings
 from .gate import (
     PlanCaps,
@@ -75,7 +76,10 @@ class SpacePricingGate:
             result = operation()
             return await result if inspect.isawaitable(result) else result
         except (SpaceError, OSError, RuntimeError) as error:
-            raise PricingUnavailable(f"SPACE is not reachable: {error}") from error
+            # The text of these errors names the host or address that failed. It
+            # goes to the log, masked; the exception that travels says only what kind.
+            log_internal_failure("SPACE request", error)
+            raise PricingUnavailable(f"SPACE is not reachable ({type(error).__name__})") from error
 
     # -- Reading the contract --------------------------------------------
 

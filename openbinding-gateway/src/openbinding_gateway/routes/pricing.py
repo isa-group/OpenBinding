@@ -11,10 +11,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Response
 
+from ..core.public_errors import PUBLISHED_PRICING_UNAVAILABLE, pricing_unavailable_error
 from ..core.settings import Settings, get_settings
-from ..models.errors import api_error
 from ..models.pricing import PricingCurrentView
 from ..pricing_catalog import PricingCatalogError, PublishedPricing, published_pricing
 
@@ -31,17 +31,22 @@ public_router = APIRouter(
 
 
 async def _published(settings: Settings) -> PublishedPricing:
+    """The published pricing; whatever stops it, an anonymous caller reads one fixed sentence.
+
+    The reason (SPHERE not enabled, the version not set, what SPHERE answered)
+    goes to the log with the ``correlationId`` of the 503.
+    """
     if not settings.sphere_enabled:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "pricing_unavailable",
-            "The published pricing cannot be read: SPHERE is not enabled.",
+        raise pricing_unavailable_error(
+            PricingCatalogError("SPHERE is not enabled."),
+            where="published pricing",
+            problem=PUBLISHED_PRICING_UNAVAILABLE,
         )
     try:
         return await published_pricing(settings)
     except PricingCatalogError as exc:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)
+        raise pricing_unavailable_error(
+            exc, where="published pricing", problem=PUBLISHED_PRICING_UNAVAILABLE
         ) from exc
 
 

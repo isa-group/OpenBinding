@@ -15,8 +15,9 @@ not trusted by being in its own schema.
 ``original_request`` is reduced to the problem document and the pinned
 execution choices, and everything else - in particular anything under an
 ``auth`` key - is dropped. The IR itself is the compiled problem and is not
-rewritten. The ``error`` of a failed job is the text of the exception that
-stopped it, which can name a private endpoint, so a redacted view replaces it
+rewritten. The ``error`` of a failed job is a fixed sentence of the catalog in
+``core.public_errors`` (older rows hold the text of the exception that stopped
+the job, which can name a private endpoint), so a redacted view replaces it
 with a fixed sentence (and the category, when the result has a code).
 """
 
@@ -176,16 +177,19 @@ def redact_provenance(provenance: Optional[Mapping[str, Any]]) -> Optional[dict[
 
 #: What a redacted view says of a failed job; the stored message is free text.
 GENERIC_ERROR = "The job failed. The details are visible to project members."
-_ERROR_CODE_KEYS = ("errorCode", "error_code")
+#: Where a result keeps its category: ``code`` is what the gateway writes today
+#: (``result.code``), the other two are the names older rows and engines use.
+_ERROR_CODE_KEYS = ("code", "errorCode", "error_code")
 _ERROR_CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
 
 
 def redact_error(result: Mapping[str, Any]) -> str:
-    """A stable text for the ``error`` of a failed job, without its free-text message.
+    """A stable text for the ``error`` of a failed job, without its message.
 
-    The stored message is ``str(exc)`` and may name the host or address of a
-    private federated endpoint. Only a category survives, and only when the
-    result carries a code of the form ``engine_error``.
+    Rows written before the catalog of failure sentences store ``str(exc)``,
+    which may name the host or address of a private federated endpoint. Only a
+    category survives, and only when the result carries a code of the form
+    ``engine_error`` (under ``code``, ``errorCode`` or ``error_code``).
     """
     for key in _ERROR_CODE_KEYS:
         code = result.get(key)
@@ -197,8 +201,8 @@ def redact_error(result: Mapping[str, Any]) -> str:
 def redact_result(result: Optional[Mapping[str, Any]]) -> Optional[dict[str, Any]]:
     """The result as stored, with the provenance and the error message redacted.
 
-    A code under ``errorCode`` / ``error_code`` is kept as the category of the
-    failure; it is a name, not a message.
+    A code under ``code`` / ``errorCode`` / ``error_code`` is kept as the
+    category of the failure; it is a name, not a message.
     """
     if result is None:
         return None

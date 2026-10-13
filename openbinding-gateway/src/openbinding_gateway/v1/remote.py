@@ -24,10 +24,28 @@ import httpx
 from bim_core import PackageError
 
 from ..core.jsonio import strict_json_loads
+from ..core.public_errors import DEFAULT_ENGINE_FAILURE, bounded
 
 
 class RemoteEngineError(RuntimeError):
-    pass
+    """A remote engine could not be used.
+
+    The message is internal: it may name the endpoint or quote what the engine
+    wrote, and it goes to the log only. ``code`` is the stable category from
+    ``core.public_errors.JOB_FAILURES`` that a job shows in its place.
+    """
+
+    def __init__(self, message: str = "", code: str = DEFAULT_ENGINE_FAILURE) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+#: Longest text of an engine's own ``error`` that is kept, even in the message.
+MAX_ENGINE_ERROR_TEXT = 1024
+
+
+def _transport_code(error: httpx.HTTPError) -> str:
+    return "engine_timeout" if isinstance(error, httpx.TimeoutException) else "engine_unreachable"
 
 
 #: Judges a decoded engine answer and raises ``RemoteEngineError`` if it is not a valid result.
@@ -50,12 +68,20 @@ def _permitted_address(value: str, *, internal: bool) -> str:
     try:
         address = ipaddress.ip_address(value)
     except ValueError as exc:
-        raise RemoteEngineError(f"engine endpoint resolved to an invalid address: {value}") from exc
+        raise RemoteEngineError(
+            f"engine endpoint resolved to an invalid address: {value}", code="engine_endpoint_invalid"
+        ) from exc
     if address.is_multicast or address.is_unspecified or address.is_reserved:
-        raise RemoteEngineError("engine endpoint targets an address outside its permitted network class")
+        raise RemoteEngineError(
+            "engine endpoint targets an address outside its permitted network class",
+            code="engine_endpoint_invalid",
+        )
     local = address.is_private or address.is_loopback or address.is_link_local
     if (internal and not local) or (not internal and not address.is_global):
-        raise RemoteEngineError("engine endpoint targets an address outside its permitted network class")
+        raise RemoteEngineError(
+            "engine endpoint targets an address outside its permitted network class",
+            code="engine_endpoint_invalid",
+        )
     return address.compressed
 
 
@@ -71,7 +97,10 @@ def validate_endpoint(endpoint: str, *, allow_internal_http: bool = False) -> tu
     allowed_scheme = parsed.scheme == "https" or (allow_internal_http and parsed.scheme == "http")
     if not allowed_scheme or not parsed.hostname or parsed.username or parsed.password or parsed.fragment:
         requirement = "HTTPS" if not allow_internal_http else "HTTPS or trusted internal HTTP"
-        raise RemoteEngineError(f"engine endpoint must use {requirement} without userinfo or fragments")
+        raise RemoteEngineError(
+            f"engine endpoint must use {requirement} without userinfo or fragments",
+            code="engine_endpoint_invalid",
+        )
     host = parsed.hostname
     internal = parsed.scheme == "http"
     try:
@@ -87,9 +116,13 @@ def validate_endpoint(endpoint: str, *, allow_internal_http: bool = False) -> tu
                 )
             }
         except OSError as exc:
-            raise RemoteEngineError(f"engine endpoint cannot be resolved: {host}") from exc
+            raise RemoteEngineError(
+                f"engine endpoint cannot be resolved: {host}", code="engine_unreachable"
+            ) from exc
         if not resolved:
-            raise RemoteEngineError(f"engine endpoint cannot be resolved: {host}") from None
+            raise RemoteEngineError(
+                f"engine endpoint cannot be resolved: {host}", code="engine_unreachable"
+            ) from None
         return tuple(sorted(_permitted_address(value, internal=internal) for value in resolved))
     return (_permitted_address(address.compressed, internal=internal),)
 
@@ -142,11 +175,15 @@ def _path(base: str, value: object, default: str) -> str:
         value = default
     supplied = urlparse(str(value))
     if supplied.scheme or supplied.netloc or supplied.fragment or not str(value).startswith("/"):
-        raise RemoteEngineError("engine mapping must be an absolute path on the registered origin")
+        raise RemoteEngineError(
+            "engine mapping must be an absolute path on the registered origin", code="engine_endpoint_invalid"
+        )
     result = urljoin(base.rstrip("/") + "/", str(value).lstrip("/"))
     expected, actual = urlparse(base), urlparse(result)
     if (actual.scheme, actual.hostname, actual.port) != (expected.scheme, expected.hostname, expected.port):
-        raise RemoteEngineError("engine mapping must remain on the registered origin")
+        raise RemoteEngineError(
+            "engine mapping must remain on the registered origin", code="engine_endpoint_invalid"
+        )
     return result
 
 
@@ -154,17 +191,22 @@ def _headers(registration: RemoteRegistration) -> dict[str, str]:
     headers = {"content-type": "application/json", "accept": "application/json"}
     if registration.auth_scheme == "bearer":
         if not registration.credential:
-            raise RemoteEngineError("registration requires a bearer credential")
+            raise RemoteEngineError("registration requires a bearer credential", code="credential_unavailable")
         headers["authorization"] = f"Bearer {registration.credential}"
     elif registration.auth_scheme == "basic":
         if not registration.credential:
-            raise RemoteEngineError("registration requires a basic credential")
+            raise RemoteEngineError("registration requires a basic credential", code="credential_unavailable")
         encoded = base64.b64encode(registration.credential.encode("utf-8")).decode("ascii")
         headers["authorization"] = f"Basic {encoded}"
     elif registration.auth_scheme == "mtls":
-        raise RemoteEngineError("mTLS registrations require a credential-bundle contract not available in BIM v1")
+        raise RemoteEngineError(
+            "mTLS registrations require a credential-bundle contract not available in BIM v1",
+            code="credential_unavailable",
+        )
     elif registration.auth_scheme != "none":
-        raise RemoteEngineError(f"unsupported registration auth scheme: {registration.auth_scheme}")
+        raise RemoteEngineError(
+            f"unsupported registration auth scheme: {registration.auth_scheme}", code="credential_unavailable"
+        )
     return headers
 
 
@@ -176,14 +218,16 @@ def _validate_job_receipt(payload: object) -> str:
         or not payload["id"]
         or payload.get("status") != "queued"
     ):
-        raise RemoteEngineError("engine acceptance receipt must satisfy EngineJobAccepted")
+        raise RemoteEngineError(
+            "engine acceptance receipt must satisfy EngineJobAccepted", code="engine_protocol_error"
+        )
     return payload["id"]
 
 
 def _validate_job(payload: object, expected_id: str) -> object | None:
     """The result carried by a finished job (still to be judged by the caller), ``None`` while it runs."""
     if not isinstance(payload, dict):
-        raise RemoteEngineError("engine polling returned a non-object response")
+        raise RemoteEngineError("engine polling returned a non-object response", code="engine_protocol_error")
     job_id = payload.get("id")
     state = payload.get("status")
     created_at = payload.get("created_at")
@@ -195,20 +239,39 @@ def _validate_job(payload: object, expected_id: str) -> object | None:
         or created_at < 0
         or state not in {"queued", "running", "completed", "failed"}
     ):
-        raise RemoteEngineError("engine polling response must satisfy EngineJob")
+        raise RemoteEngineError("engine polling response must satisfy EngineJob", code="engine_protocol_error")
     if state in {"queued", "running"}:
         if set(payload) != {"id", "status", "created_at"}:
-            raise RemoteEngineError("engine polling response must satisfy EngineJob")
+            raise RemoteEngineError(
+                "engine polling response must satisfy EngineJob", code="engine_protocol_error"
+            )
         return None
     if state == "failed":
         if set(payload) != {"id", "status", "created_at", "error"} or not isinstance(
             payload.get("error"), str
         ):
-            raise RemoteEngineError("engine polling response must satisfy EngineJob")
-        raise RemoteEngineError(payload["error"] or "remote engine failed")
+            raise RemoteEngineError(
+                "engine polling response must satisfy EngineJob", code="engine_protocol_error"
+            )
+        # What the engine wrote is bounded here and only ever reaches the log.
+        raise RemoteEngineError(
+            bounded(payload["error"] or "remote engine failed", MAX_ENGINE_ERROR_TEXT), code="engine_failed"
+        )
     if set(payload) != {"id", "status", "created_at", "result"}:
-        raise RemoteEngineError("engine polling response must satisfy EngineJob")
+        raise RemoteEngineError("engine polling response must satisfy EngineJob", code="engine_protocol_error")
     return payload["result"]
+
+
+async def _judge(validate_result: ResultValidator | None, answer: object) -> None:
+    """Let the caller judge ``answer``; a verdict that names no category is a protocol error."""
+    if validate_result is None:
+        return
+    try:
+        await validate_result(answer)
+    except RemoteEngineError as exc:
+        if exc.code == DEFAULT_ENGINE_FAILURE:
+            exc.code = "engine_protocol_error"
+        raise
 
 
 async def _bounded_bytes(response: httpx.Response, *, limit: int | None = None) -> bytes:
@@ -216,12 +279,14 @@ async def _bounded_bytes(response: httpx.Response, *, limit: int | None = None) 
         limit = MAX_REMOTE_RESPONSE
     declared = response.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > limit:
-        raise RemoteEngineError("engine response exceeds the configured size limit")
+        raise RemoteEngineError("engine response exceeds the configured size limit", code="engine_protocol_error")
     content = bytearray()
     async for chunk in response.aiter_bytes():
         content.extend(chunk)
         if len(content) > limit:
-            raise RemoteEngineError("engine response exceeds the configured size limit")
+            raise RemoteEngineError(
+                "engine response exceeds the configured size limit", code="engine_protocol_error"
+            )
     return bytes(content)
 
 
@@ -229,7 +294,7 @@ async def _bounded_json(response: httpx.Response) -> object:
     try:
         return strict_json_loads(await _bounded_bytes(response))
     except PackageError as exc:
-        raise RemoteEngineError("engine returned invalid JSON") from exc
+        raise RemoteEngineError("engine returned invalid JSON", code="engine_protocol_error") from exc
 
 
 async def fetch_remote_document(
@@ -260,10 +325,12 @@ async def fetch_remote_document(
                 request.extensions["sni_hostname"] = original.hostname
             response = await client.send(request, stream=True)
         except httpx.HTTPError as exc:
-            raise RemoteEngineError(f"engine document request failed: {exc}") from exc
+            raise RemoteEngineError(f"engine document request failed: {exc}", code=_transport_code(exc)) from exc
         if response.status_code != 200:
             await response.aclose()
-            raise RemoteEngineError(f"engine document request failed ({response.status_code})")
+            raise RemoteEngineError(
+                f"engine document request failed ({response.status_code})", code="engine_rejected"
+            )
         try:
             raw = await _bounded_bytes(response)
         finally:
@@ -271,9 +338,9 @@ async def fetch_remote_document(
     try:
         document = strict_json_loads(raw)
     except PackageError as exc:
-        raise RemoteEngineError("engine returned an invalid JSON document") from exc
+        raise RemoteEngineError("engine returned an invalid JSON document", code="engine_protocol_error") from exc
     if not isinstance(document, dict):
-        raise RemoteEngineError("engine document must be an object")
+        raise RemoteEngineError("engine document must be an object", code="engine_protocol_error")
     return document
 
 
@@ -320,7 +387,7 @@ async def solve_remote(
         # emitted because it is not JSON and a conforming Engine would reject it.
         content = json.dumps(body, separators=(",", ":"), allow_nan=False)
     except ValueError as exc:
-        raise RemoteEngineError(f"BindingProblem request is not valid JSON: {exc}") from exc
+        raise RemoteEngineError(f"BindingProblem request is not valid JSON: {exc}", code="job_input_invalid") from exc
     headers = _headers(registration)
     if job_id is not None:
         headers[JOB_ID_HEADER] = job_id
@@ -343,18 +410,19 @@ async def solve_remote(
                 request.extensions["sni_hostname"] = original.hostname
             response = await client.send(request, stream=True)
         except httpx.HTTPError as exc:
-            raise RemoteEngineError(f"engine request failed: {exc}") from exc
+            raise RemoteEngineError(f"engine request failed: {exc}", code=_transport_code(exc)) from exc
         if response.status_code == 200:
             try:
                 answer = await _bounded_json(response)
             finally:
                 await response.aclose()
-            if validate_result is not None:
-                await validate_result(answer)
+            await _judge(validate_result, answer)
             return answer  # type: ignore[return-value]
         if response.status_code != 202:
             await response.aclose()
-            raise RemoteEngineError(f"engine rejected BindingProblem ({response.status_code})")
+            raise RemoteEngineError(
+                f"engine rejected BindingProblem ({response.status_code})", code="engine_rejected"
+            )
         try:
             receipt = await _bounded_json(response)
         finally:
@@ -375,13 +443,13 @@ async def solve_remote(
                     poll_request.extensions["sni_hostname"] = original.hostname
                 polled = await client.send(poll_request, stream=True)
             except httpx.HTTPError as exc:
-                raise RemoteEngineError(f"engine polling failed: {exc}") from exc
+                raise RemoteEngineError(f"engine polling failed: {exc}", code=_transport_code(exc)) from exc
             if polled.status_code == 404:
                 await polled.aclose()
-                raise RemoteEngineError("engine job disappeared while polling")
+                raise RemoteEngineError("engine job disappeared while polling", code="engine_error")
             if polled.status_code >= 400:
                 await polled.aclose()
-                raise RemoteEngineError(f"engine polling failed ({polled.status_code})")
+                raise RemoteEngineError(f"engine polling failed ({polled.status_code})", code="engine_error")
             try:
                 payload = await _bounded_json(polled)
             finally:
@@ -390,10 +458,9 @@ async def solve_remote(
             if result is None:
                 await asyncio.sleep(0.05)
                 continue
-            if validate_result is not None:
-                await validate_result(result)
+            await _judge(validate_result, result)
             return result  # type: ignore[return-value]
-        raise RemoteEngineError("remote engine timed out")
+        raise RemoteEngineError("remote engine timed out", code="engine_timeout")
 
 
 async def cancel_remote(

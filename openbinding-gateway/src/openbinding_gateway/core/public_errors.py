@@ -12,6 +12,14 @@ same id, and an operator joins the two.  The pattern is the one of
 * :class:`CorrelationIdMiddleware` - adds ``correlationId`` to every 5xx JSON
   document, whichever route or handler produced it.  4xx documents are never
   touched.
+* :data:`JOB_FAILURES` / :func:`job_failure_fields` - the closed catalog of why a
+  job failed: a stable ``code`` and a fixed sentence.  The ``error`` a job shows
+  is always one of those sentences, never the text of an exception.
+* :func:`log_internal_failure` / :func:`scrub_text` - where the raw reason goes
+  instead: the log, with URLs, addresses and host names masked, bounded, next to
+  the correlation id.
+* :func:`pricing_unavailable_error` / :func:`invalid_subscription_error` - the
+  fixed answers for a pricing service (SPACE, SPHERE) that cannot be read.
 """
 
 from __future__ import annotations
@@ -21,15 +29,19 @@ import logging
 import re
 import traceback
 import uuid
+from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from typing import Any, Mapping
 
+from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from ..models.errors import api_error
 from ..models.problem import CORRELATION_ID_KEY, PROBLEM_MEDIA_TYPE, problem_response
+from .logging import redact
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +69,15 @@ INTERNAL_ERROR = PublicProblem(500, "internal_error", "the service failed to pro
 
 def new_correlation_id() -> str:
     return uuid.uuid4().hex
+
+
+#: The id of the request being served, for code that has no ``Request`` at hand.
+_current: ContextVar[str | None] = ContextVar("openbinding_correlation_id", default=None)
+
+
+def current_correlation_id() -> str:
+    """The id of the request being served; a fresh one for work that has no request (a worker, a sweep)."""
+    return _current.get() or new_correlation_id()
 
 
 def correlation_id(scope: Scope) -> str:
@@ -118,6 +139,170 @@ def internal_error_response(scope: Scope, error: BaseException) -> JSONResponse:
     return public_problem_response(INTERNAL_ERROR, correlation_id=correlation)
 
 
+# -- The text that is allowed into a log ---------------------------------------
+
+#: Longest piece of an exception's text a log line carries.
+MAX_LOGGED_TEXT = 512
+
+#: Where :func:`bounded` cut a text.
+TRUNCATION_MARK = "...[truncated]"
+
+_URL = re.compile(r"\b[a-z][a-z0-9+.-]*://[^\s'\")>\]]+", re.IGNORECASE)
+_HOST_FIELD = re.compile(
+    r"(?i)\b(host|hostname|server|endpoint|address|addr)(\s*[=:]\s*)(['\"]?)[^\s,;)'\"]+\3"
+)
+_IPV6 = re.compile(r"\[[0-9a-f:.]*:[0-9a-f:.]*\](?::\d{1,5})?", re.IGNORECASE)
+_IPV4 = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})?\b")
+_HOST_NAME = re.compile(r"\b(?:[a-z0-9-]+\.)+[a-z][a-z0-9-]*\b", re.IGNORECASE)
+
+
+def bounded(text: str, limit: int) -> str:
+    """``text`` cut to ``limit`` characters, the cut marked, so a reader knows it is not whole."""
+    if len(text) <= limit:
+        return text
+    return text[: max(limit - len(TRUNCATION_MARK), 0)] + TRUNCATION_MARK
+
+
+def scrub_text(text: str, limit: int = MAX_LOGGED_TEXT) -> str:
+    """``text`` as a log may carry it: credentials, URLs, addresses and host names masked, then bounded.
+
+    The cut comes first, so that a text that is a megabyte of whatever an engine
+    chose to write costs the log a line, not a megabyte.
+    """
+    value = redact(text[: limit * 4])
+    value = _URL.sub("[url]", value)
+    value = _HOST_FIELD.sub(lambda match: f"{match.group(1)}{match.group(2)}[host]", value)
+    value = _IPV6.sub("[address]", value)
+    value = _IPV4.sub("[address]", value)
+    value = _HOST_NAME.sub("[host]", value)
+    return bounded(value, limit)
+
+
+def log_internal_failure(
+    where: str,
+    error: BaseException,
+    *,
+    correlation: str | None = None,
+    level: int = logging.WARNING,
+    **context: Any,
+) -> str:
+    """Log what went wrong inside, for an operator, and return the correlation id of the line.
+
+    The class of the error and of its cause, its text masked and bounded by
+    :func:`scrub_text`, where it was raised, and ``context`` (ids and codes the
+    gateway chose, never user input).  The public answer carries the same id and
+    none of this.
+    """
+    correlation = correlation or current_correlation_id()
+    cause = error.__cause__
+    logger.log(
+        level,
+        "%s failed: %s: %s%s correlation_id=%s%s at %s",
+        where,
+        type(error).__name__,
+        scrub_text(str(error)),
+        f" (caused by {type(cause).__name__})" if cause is not None else "",
+        correlation,
+        "".join(f" {key}={value}" for key, value in context.items()),
+        frames(error),
+    )
+    return correlation
+
+
+# -- Why a job failed -----------------------------------------------------------
+
+#: Every reason a job can fail for, by stable code, with the sentence its owner reads.
+#: A sentence says what kind of failure it was; it never quotes an exception.
+JOB_FAILURES: Mapping[str, str] = {
+    "engine_unreachable": "The engine could not be reached.",
+    "engine_timeout": "The engine did not answer in time.",
+    "engine_rejected": "The engine rejected the request.",
+    "engine_protocol_error": "The engine answered in a form the gateway cannot accept.",
+    "engine_failed": "The engine reported that it could not solve the problem.",
+    "engine_endpoint_invalid": "The engine endpoint is not acceptable under the network policy of the gateway.",
+    "engine_error": "The request to the engine failed.",
+    "credential_unavailable": "The credential for the engine cannot be used.",
+    "bim_evaluation_failed": "The answer of the engine could not be evaluated.",
+    "job_input_invalid": "The stored request of the job is no longer valid.",
+    "registration_changed": "The engine registration changed after the job was submitted.",
+    "lease_lost": "The worker running the job was lost.",
+    "job_abandoned": "The job was not finished in time and was abandoned.",
+    "internal_error": "Internal execution error. The details are in the service log.",
+}
+
+#: The code of a failure nobody classified.
+UNCLASSIFIED_JOB_FAILURE = "internal_error"
+
+#: The code a :class:`~openbinding_gateway.v1.remote.RemoteEngineError` has unless its raiser says more.
+DEFAULT_ENGINE_FAILURE = "engine_error"
+
+
+def job_failure_fields(code: str, correlation: str) -> dict[str, str]:
+    """``error``, ``code`` and ``correlationId`` of a failed job's result; an unknown ``code`` is ``internal_error``."""
+    if code not in JOB_FAILURES:
+        code = UNCLASSIFIED_JOB_FAILURE
+    return {"error": JOB_FAILURES[code], "code": code, "correlationId": correlation}
+
+
+def classify_job_failure(error: BaseException) -> str:
+    """The catalog code of an exception that stopped a job; anything unknown is ``internal_error``.
+
+    Imports are local: the modules that raise these errors import this one.
+    """
+    import httpx
+    from bim_core import BimError
+
+    from ..security.secrets import SecretsUnavailable
+    from ..v1.remote import RemoteEngineError
+
+    if isinstance(error, RemoteEngineError):
+        return error.code if error.code in JOB_FAILURES else DEFAULT_ENGINE_FAILURE
+    if isinstance(error, (httpx.TimeoutException, TimeoutError)):
+        return "engine_timeout"
+    if isinstance(error, httpx.HTTPError):
+        return "engine_unreachable"
+    if isinstance(error, BimError):  # the toolchain, whether in process or over its service (BimServiceError)
+        return "bim_evaluation_failed"
+
+    if isinstance(error, SecretsUnavailable):
+        return "credential_unavailable"
+    return UNCLASSIFIED_JOB_FAILURE
+
+
+# -- A pricing service that cannot be read --------------------------------------
+
+PRICING_UNAVAILABLE = PublicProblem(503, "pricing_unavailable", "The pricing service is unavailable.")
+PUBLISHED_PRICING_UNAVAILABLE = PublicProblem(
+    503, "pricing_unavailable", "The published pricing is unavailable."
+)
+INVALID_SUBSCRIPTION = PublicProblem(
+    422, "invalid_subscription", "The requested plan or add-ons are not valid for the current pricing."
+)
+
+
+def pricing_unavailable_error(
+    error: BaseException,
+    *,
+    where: str,
+    problem: PublicProblem = PRICING_UNAVAILABLE,
+    prefix: str = "",
+) -> HTTPException:
+    """The stable 503 for a pricing service (SPACE, SPHERE) that cannot be read.
+
+    What SPACE or SPHERE said goes to the log, masked, with the id the 503
+    carries as ``correlationId``; the response has the code and a fixed sentence
+    (after ``prefix``, which the caller writes and which must be fixed too).
+    """
+    log_internal_failure(where, error)
+    return api_error(problem.status, problem.code, f"{prefix}{problem.detail}")
+
+
+def invalid_subscription_error(error: BaseException, *, where: str) -> HTTPException:
+    """The 422 for a plan or add-on selection that SPACE refuses; its reason stays in the log."""
+    log_internal_failure(where, error)
+    return api_error(INVALID_SUBSCRIPTION.status, INVALID_SUBSCRIPTION.code, INVALID_SUBSCRIPTION.detail)
+
+
 def _is_json(message: Message) -> bool:
     for name, value in message.get("headers", ()):
         if name.lower() == b"content-type":
@@ -149,6 +334,13 @@ class CorrelationIdMiddleware:
             await self.app(scope, receive, send)
             return
 
+        token = _current.set(correlation_id(scope))
+        try:
+            await self._serve(scope, receive, send)
+        finally:
+            _current.reset(token)
+
+    async def _serve(self, scope: Scope, receive: Receive, send: Send) -> None:
         held: Message | None = None
         chunks: list[bytes] = []
         size = 0

@@ -16,6 +16,7 @@ from urllib.parse import quote, urljoin, urlsplit
 
 import httpx
 
+from .core.public_errors import log_internal_failure
 from .core.settings import Settings
 
 
@@ -59,7 +60,10 @@ class SphereClient:
         try:
             response = await self._client.request(method, f"{self._api}{path}", **kwargs)
         except httpx.HTTPError as exc:
-            raise SphereError(f"SPHERE is unavailable: {exc}") from exc
+            # The text of a transport error names the host that failed: log it
+            # masked, and let the exception that travels say only what kind.
+            log_internal_failure("SPHERE request", exc)
+            raise SphereError(f"SPHERE is unavailable ({type(exc).__name__})") from exc
         if response.status_code >= 400:
             message = ""
             try:

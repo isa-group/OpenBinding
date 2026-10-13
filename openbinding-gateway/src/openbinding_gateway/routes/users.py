@@ -52,6 +52,7 @@ from ..security.apikeys import (
     permissions_of,
 )
 from ..security.passwords import hash_password, password_complaint, verify_password
+from ..core.public_errors import pricing_unavailable_error
 from ..services.entitlements import entitlement_service
 from ..space_client import PricingUnavailable, get_gate
 
@@ -570,10 +571,8 @@ async def read_own_pricing_token(user: User = Depends(get_current_user)) -> Pric
     try:
         token = await get_gate().pricing_token(user.id)
     except PricingUnavailable as error:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "pricing_unavailable",
-            f"A pricing token cannot be issued right now: {error}",
+        raise pricing_unavailable_error(
+            error, where="pricing token", prefix="A pricing token cannot be issued right now: "
         ) from error
 
     return PricingTokenView(pricing_token=token)
@@ -783,7 +782,7 @@ async def delete_own_account(
         if remove_contract is not None:
             await remove_contract(user.id)
     except PricingUnavailable as exc:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(exc)) from exc
+        raise pricing_unavailable_error(exc, where="contract removal") from exc
     from .. import sponsor_proposals
     await sponsor_proposals.cancel_for_user(session, user.id, "user_deleted", user.id)
     await session.delete(user)

@@ -19,6 +19,7 @@ from datetime import timedelta
 from sqlalchemy import BigInteger, func, literal, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..core.public_errors import current_correlation_id, job_failure_fields
 from ..core.settings import get_settings
 from ..db import base as db_base
 from ..db.models import Job, JobState, RunState, StudyCell
@@ -105,12 +106,25 @@ async def _fail_abandoned(session: AsyncSession, job: Job) -> bool:
 
     One conditioned UPDATE: if a heartbeat or a claim touched the job since it
     was read, nothing matches and the next sweep looks at it again.
+
+    The job gets a stable ``code`` like any other failed job: ``lease_lost``
+    when its worker stopped renewing the lease, ``job_abandoned`` when it never
+    had one and outlived its budget.
     """
+    code = "lease_lost" if job.lease_token is not None else "job_abandoned"
+    result = {
+        "termination": "UNKNOWN",
+        "solutions": [],
+        **job_failure_fields(code, current_correlation_id()),
+        "provenance": getattr(job, "provenance", None) or {},
+    }
     failed = await session.execute(
         update(Job)
         .where(*_still_as_read(session, job))
         .values(
             state=JobState.FAILED,
+            result=result,
+            termination="UNKNOWN",
             lease_token=None,
             lease_until=None,
             finished_at=clock.now(session),
@@ -120,6 +134,9 @@ async def _fail_abandoned(session: AsyncSession, job: Job) -> bool:
     )
     if failed.first() is None:
         return False
+    logger.warning(
+        "Failed abandoned job %s: code=%s correlation_id=%s", job.id, code, result["correlationId"]
+    )
     await session.refresh(job)
     return True
 

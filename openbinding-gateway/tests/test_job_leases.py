@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from _pricing import pricing_catalog
 from _repo import REPO_ROOT as EXAMPLES_ROOT
+from openbinding_gateway.core.public_errors import JOB_FAILURES
 from openbinding_gateway.db.models import Job, JobState, User, UserRole, utcnow
 from openbinding_gateway.jobs import clock, leases, reconciler
 from openbinding_gateway.services import execution
@@ -276,7 +277,7 @@ async def test_a_failure_without_the_lease_is_not_recorded(db_session, owner):
     # Another worker's claim, as far as this session is concerned.
     db_session.info.pop(leases.lease_key(job.id))
 
-    await execution.fail_persisted_job(job, db_session, "boom", time.monotonic())
+    await execution.fail_persisted_job(job, db_session, "engine_timeout", time.monotonic())
 
     await db_session.refresh(job)
     assert job.state is JobState.RUNNING
@@ -288,11 +289,12 @@ async def test_a_failure_with_the_lease_is_recorded(db_session, owner):
     await leases.claim_job(db_session, job.id)
     await db_session.commit()
 
-    await execution.fail_persisted_job(job, db_session, "boom", time.monotonic())
+    await execution.fail_persisted_job(job, db_session, "engine_timeout", time.monotonic())
 
     await db_session.refresh(job)
     assert job.state is JobState.FAILED
-    assert job.result["error"] == "boom"
+    assert job.result["error"] == JOB_FAILURES["engine_timeout"]
+    assert job.result["code"] == "engine_timeout"
     assert job.lease_token is None and job.lease_until is None
     assert job.finished_at is not None
 

@@ -1,18 +1,18 @@
-"""B6 at head cd0e05f: internal error text reaching public responses.
+"""B6: internal error text reaching public responses.
 
-Closed here: a VIEWER's view of a failed job carries a fixed sentence, an
-unhandled exception does not put its text in the public 500, and that 500
-carries a ``correlationId`` (contract C1; ``tests/test_public_errors.py``).
+Closed by contract C1 (``tests/test_public_errors.py``): an unhandled exception
+does not put its text in the public 500, and that 500 carries a ``correlationId``.
 
-Open here (``xfail(strict=True)``): the owner's view of ``result.error`` is the
-raw ``str(exc)`` (host names of engine endpoints, driver messages, whatever an
-engine wrote) and the pricing 503s repeat the reason the SPACE / SPHERE clients
-gave (one of them to anonymous callers).
+Closed by contracts C2 and C3 (``tests/test_job_error_text.py``,
+``tests/test_pricing_public_errors.py``): the owner's view of ``result.error`` is a
+fixed sentence of the catalog (no host names of engine endpoints, driver
+messages or whatever an engine wrote), and the pricing 503s do not repeat the
+reason the SPACE / SPHERE clients gave (one of them to anonymous callers).
+A VIEWER's view of a failed job carries a fixed sentence too (B1).
 """
 
 from __future__ import annotations
 
-import pytest
 from httpx import ASGITransport, AsyncClient
 
 from openbinding_gateway import space_client
@@ -24,8 +24,6 @@ from openbinding_gateway.v1 import remote
 from openbinding_gateway.v1.remote import RemoteEngineError, RemoteRegistration
 
 from ._helpers import account_headers, account_with_snapshot, only_job, precondition, submit
-
-OPEN = pytest.mark.xfail(strict=True, raises=AssertionError)
 
 #: ``.invalid`` never resolves (RFC 2606), so the real transport fails offline and says why.
 PRIVATE_HOST = "private-engine.invalid"
@@ -54,11 +52,10 @@ async def test_a_viewers_view_of_a_failed_job_carries_a_fixed_sentence():
     assert stored["error"].endswith("refused")  # the stored row is not touched
 
 
-@OPEN
 async def test_the_transport_does_not_name_the_engine_host_in_the_jobs_error(
     api_client, db_session, registration, monkeypatch
 ):
-    """B6 open: ``v1/remote.py:90`` puts the host in the message and ``execution.py:312`` stores ``str(exc)``."""
+    """Closed (C2): the transport still names the host in its message; the job shows a fixed sentence."""
     real_solve = remote.solve_remote
 
     async def solve(*_args, **_kwargs):
@@ -74,11 +71,10 @@ async def test_the_transport_does_not_name_the_engine_host_in_the_jobs_error(
     assert PRIVATE_HOST not in body
 
 
-@OPEN
 async def test_an_unexpected_exception_text_does_not_reach_the_jobs_error(
     api_client, db_session, registration, monkeypatch
 ):
-    """B6 open: ``services/execution.py:355-357`` stores ``Execution failed: {exc}`` whatever ``exc`` is."""
+    """Closed (C2): whatever ``exc`` says, the job shows the sentence of its code."""
 
     async def solve(*_args, **_kwargs):
         raise RuntimeError("connection to server at db-internal.corp (10.1.2.3), port 5432 failed")
@@ -93,9 +89,8 @@ async def test_an_unexpected_exception_text_does_not_reach_the_jobs_error(
     assert "10.1.2.3" not in body
 
 
-@OPEN
 async def test_the_error_text_an_engine_writes_is_bounded(api_client, db_session, registration, monkeypatch):
-    """B6 open: an engine's own ``error`` (up to the 4 MiB response limit) is stored as the job's error."""
+    """Closed (C2): an engine's own ``error`` (up to the 4 MiB response limit) is never the job's error."""
 
     async def solve(*_args, **_kwargs):
         raise RemoteEngineError("x" * 100_000)
@@ -119,9 +114,8 @@ class _UnreachablePricing:
         )
 
 
-@OPEN
 async def test_the_pricing_503_does_not_repeat_the_reason_of_the_pricing_client(api_client, registration):
-    """B6 open: ``routes/users.py:572-577`` (and the other handlers listed in the analysis report) put ``{error}`` of ``PricingUnavailable`` in the 503."""
+    """Closed (C3): ``routes/users.py`` answers the fixed sentence of ``pricing_unavailable``."""
     headers = await account_headers(api_client, registration)
     space_client.set_gate(_UnreachablePricing())
 
@@ -131,9 +125,8 @@ async def test_the_pricing_503_does_not_repeat_the_reason_of_the_pricing_client(
     assert "space.internal.corp" not in response.text
 
 
-@OPEN
 async def test_the_anonymous_pricing_503_does_not_repeat_what_sphere_said(api_client, monkeypatch):
-    """B6 open: ``routes/pricing.py:42-45`` answers an anonymous caller with ``str(PricingCatalogError)``."""
+    """Closed (C3): ``routes/pricing.py`` answers an anonymous caller with a fixed sentence."""
     from openbinding_gateway.core.settings import get_settings
     from openbinding_gateway.pricing_catalog import PricingCatalogError
     from openbinding_gateway.routes import pricing

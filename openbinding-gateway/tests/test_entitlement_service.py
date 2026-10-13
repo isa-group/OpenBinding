@@ -15,6 +15,7 @@ from fastapi import HTTPException
 from _pricing import caps_for, fake_pricing_gate, largest_plan, pricing_catalog
 from openbinding_gateway import space_client
 from openbinding_gateway.access import policy
+from openbinding_gateway.core.public_errors import PRICING_UNAVAILABLE
 from openbinding_gateway.models.errors import api_error
 from openbinding_gateway.services.entitlements import (
     UPLOAD_CEILING_BYTES,
@@ -25,6 +26,8 @@ from openbinding_gateway.services.entitlements import (
 )
 from openbinding_gateway.space_client import PricingUnavailable
 
+#: What the fake pricing service says when it is switched off: it belongs in the log, never in a response.
+REASON = "The fake pricing service is switched off."
 DEFAULT_PLAN = pricing_catalog().default_plan
 LARGER_PLAN = largest_plan()
 #: A fixture feature the default plan does not grant.
@@ -59,20 +62,23 @@ async def test_an_account_without_a_contract_gets_the_default_plan(gate):
     assert (await entitlement_service.caps_for(uuid.uuid4())).plan == DEFAULT_PLAN
 
 
-async def test_caps_for_raises_a_domain_exception_when_pricing_is_unavailable(gate):
+async def test_caps_for_raises_a_domain_exception_when_pricing_is_unavailable(gate, caplog):
     gate.unavailable = True
 
     with pytest.raises(EntitlementsUnavailable) as raised:
         await entitlement_service.caps_for(uuid.uuid4())
 
-    assert str(raised.value) == "The fake pricing service is switched off."
+    assert str(raised.value) == PRICING_UNAVAILABLE.detail
+    assert REASON not in str(raised.value)
     assert (raised.value.status, raised.value.code) == (503, "pricing_unavailable")
     assert isinstance(raised.value.__cause__, PricingUnavailable)
+    # The reason the pricing service gave is kept for the operator, in the log.
+    assert REASON in caplog.text
     # Callers that only know PricingUnavailable (retrying ones) still catch it.
     assert isinstance(raised.value, PricingUnavailable)
 
 
-async def test_caps_or_503_is_the_stable_pricing_unavailable_response(gate):
+async def test_caps_or_503_is_the_stable_pricing_unavailable_response(gate, caplog):
     gate.unavailable = True
 
     with pytest.raises(HTTPException) as raised:
@@ -81,19 +87,21 @@ async def test_caps_or_503_is_the_stable_pricing_unavailable_response(gate):
     assert raised.value.status_code == 503
     assert detail_of(raised.value) == {
         "code": "pricing_unavailable",
-        "error": "The fake pricing service is switched off.",
+        "error": PRICING_UNAVAILABLE.detail,
     }
 
 
-async def test_caps_or_503_can_prefix_the_reason(gate):
+async def test_caps_or_503_can_prefix_a_fixed_sentence_but_never_the_reason(gate, caplog):
     gate.unavailable = True
 
     with pytest.raises(HTTPException) as raised:
         await entitlement_service.caps_or_503(uuid.uuid4(), prefix="Entitlements cannot be read right now: ")
 
     assert detail_of(raised.value)["error"] == (
-        "Entitlements cannot be read right now: The fake pricing service is switched off."
+        f"Entitlements cannot be read right now: {PRICING_UNAVAILABLE.detail}"
     )
+    assert REASON not in str(detail_of(raised.value))
+    assert REASON in caplog.text
 
 
 async def test_the_gate_is_resolved_on_every_call(gate):
@@ -286,7 +294,7 @@ async def test_the_profile_and_usage_routes_report_the_service_caps(api_client, 
 
 
 @pytest.mark.parametrize("path", ["/v1/users/me", "/v1/users/me/usage"])
-async def test_the_account_routes_keep_their_503_wording(api_client, registration, gate, path):
+async def test_the_account_routes_keep_their_503_wording(api_client, registration, gate, path, caplog):
     _, headers = await register(api_client, registration)
     gate.unavailable = True
 
@@ -295,18 +303,22 @@ async def test_the_account_routes_keep_their_503_wording(api_client, registratio
     assert response.status_code == 503
     assert response.json()["detail"] == {
         "code": "pricing_unavailable",
-        "error": "Entitlements cannot be read right now: The fake pricing service is switched off.",
+        "error": f"Entitlements cannot be read right now: {PRICING_UNAVAILABLE.detail}",
     }
+    assert REASON not in response.text
+    assert REASON in caplog.text
 
 
 async def test_a_route_503_equals_what_the_inline_translation_produced(gate):
     gate.unavailable = True
     user_id = uuid.uuid4()
 
-    # The translation every migrated site wrote by hand before the service existed.
+    # The translation every migrated site wrote by hand before the service existed,
+    # now with the fixed sentence instead of the text the pricing service gave.
     with pytest.raises(PricingUnavailable) as legacy:
         await space_client.get_gate().caps(user_id)
-    expected = api_error(503, "pricing_unavailable", str(legacy.value))
+    assert REASON in str(legacy.value)
+    expected = api_error(503, "pricing_unavailable", PRICING_UNAVAILABLE.detail)
 
     with pytest.raises(HTTPException) as actual:
         await entitlement_service.caps_or_503(user_id)

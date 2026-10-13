@@ -27,6 +27,8 @@ from fastapi import HTTPException, status
 
 from .. import space_client
 from ..access import policy
+from ..core.public_errors import PRICING_UNAVAILABLE as PRICING_UNAVAILABLE_PROBLEM
+from ..core.public_errors import log_internal_failure
 from ..domain import entitlements as refusals
 from ..models.errors import api_error
 from ..space_client import PlanCaps, PricingUnavailable
@@ -39,13 +41,17 @@ UPLOAD_CEILING_BYTES = 512 * 1024 * 1024
 
 
 class EntitlementsUnavailable(PricingUnavailable):
-    """The account's entitlements cannot be read; ``str()`` is the pricing service's reason."""
+    """The account's entitlements cannot be read; ``str()`` is a fixed sentence, safe to show.
+
+    What the pricing service said is in ``__cause__`` and in the log, never here:
+    callers put ``str()`` of this in their 503 documents.
+    """
 
     status = status.HTTP_503_SERVICE_UNAVAILABLE
     code = PRICING_UNAVAILABLE
 
     def to_http(self, prefix: str = "") -> HTTPException:
-        """The stable 503 response for this failure, optionally with ``prefix`` before the reason."""
+        """The stable 503 response for this failure, optionally with ``prefix`` before the sentence."""
         return api_error(self.status, self.code, f"{prefix}{self}")
 
 
@@ -62,7 +68,8 @@ class EntitlementService:
         try:
             return await self._gate_provider().caps(user_id)
         except PricingUnavailable as error:
-            raise EntitlementsUnavailable(str(error)) from error
+            log_internal_failure("entitlements", error)
+            raise EntitlementsUnavailable(PRICING_UNAVAILABLE_PROBLEM.detail) from error
 
     async def caps_or_503(self, user_id: UUID, *, prefix: str = "") -> PlanCaps:
         """``caps_for`` for a request handler: unreadable pricing is the stable 503."""

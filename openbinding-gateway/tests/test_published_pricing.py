@@ -14,6 +14,7 @@ import httpx
 import pytest
 
 from openbinding_gateway import pricing_catalog as catalog_module
+from openbinding_gateway.core.public_errors import PUBLISHED_PRICING_UNAVAILABLE
 from openbinding_gateway.core.settings import Settings, get_settings
 from openbinding_gateway.main import app
 from openbinding_gateway.pricing_catalog import PricingCatalogError, published_pricing
@@ -155,22 +156,27 @@ async def test_without_sphere_the_endpoints_answer_503_pricing_unavailable(api_c
         assert response.json()["detail"]["code"] == "pricing_unavailable", path
 
 
-async def test_without_a_configured_version_the_endpoints_answer_503(api_client, sphere):
+async def test_without_a_configured_version_the_endpoints_answer_503(api_client, sphere, caplog):
     app.dependency_overrides[get_settings] = lambda: configured(space_pricing_version=None)
 
     response = await api_client.get("/v1/pricing/catalog")
 
     assert response.status_code == 503
-    assert "SPACE_PRICING_VERSION" in response.json()["detail"]["error"]
+    assert response.json()["detail"]["error"] == PUBLISHED_PRICING_UNAVAILABLE.detail
+    assert "SPACE_PRICING_VERSION" not in response.text
+    # The reason stays in the internal log.
+    assert "SPACE_PRICING_VERSION" in caplog.text
 
 
-async def test_a_private_version_is_never_shown(api_client, sphere):
+async def test_a_private_version_is_never_shown(api_client, sphere, caplog):
     sphere.private = True
 
     response = await api_client.get("/v1/pricing/catalog")
 
     assert response.status_code == 503
-    assert "public" in response.json()["detail"]["error"]
+    assert response.json()["detail"]["error"] == PUBLISHED_PRICING_UNAVAILABLE.detail
+    assert "public" not in response.json()["detail"]["error"]
+    assert "public" in caplog.text
 
 
 async def test_a_published_version_whose_bytes_change_is_refused(sphere):

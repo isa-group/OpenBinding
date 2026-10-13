@@ -81,6 +81,7 @@ from ..models.errors import (
 )
 from ..models.platform import OrganizationView, SponsorProposalView
 from .. import sponsor_proposals
+from ..core.public_errors import invalid_subscription_error, pricing_unavailable_error
 from ..space_client import PricingUnavailable, SubscriptionRejected, get_gate
 from ..mailer import send_mail
 from .users import cas_verified_ids, usage_view_for
@@ -225,7 +226,7 @@ async def list_users(
         try:
             plan = user.plan_cache if user.contract_pending else (await get_gate().subscription(user.id)).plan
         except PricingUnavailable as error:
-            raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(error)) from error
+            raise pricing_unavailable_error(error, where="admin user list") from error
         views.append(
             AdminUserView(
                 id=user.id,
@@ -280,7 +281,7 @@ async def update_user(
     try:
         plan = user.plan_cache if user.contract_pending else (await get_gate().subscription(user.id)).plan
     except PricingUnavailable as error:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(error)) from error
+        raise pricing_unavailable_error(error, where="admin user update") from error
 
     # Only a real change is recorded, as one event carrying every field that
     # moved. A refused request never reaches this point, so it leaves nothing.
@@ -340,7 +341,7 @@ async def change_plan(
     try:
         current = await get_gate().subscription(user.id)
     except PricingUnavailable as error:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(error)) from error
+        raise pricing_unavailable_error(error, where="admin subscription change") from error
     result = await _apply_subscription(
         user,
         request.plan,
@@ -401,16 +402,10 @@ async def _apply_subscription(
             else before
         )
     except SubscriptionRejected as error:
-        raise api_error(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
-            "invalid_subscription",
-            str(error),
-        ) from error
+        raise invalid_subscription_error(error, where="admin novation") from error
     except PricingUnavailable as error:
-        raise api_error(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "pricing_unavailable",
-            f"The subscription cannot be changed right now: {error}",
+        raise pricing_unavailable_error(
+            error, where="admin novation", prefix="The subscription cannot be changed right now: "
         ) from error
 
     user.plan_cache = plan
@@ -468,7 +463,7 @@ async def get_subscription(
     try:
         current = await get_gate().subscription(user.id)
     except PricingUnavailable as error:
-        raise api_error(status.HTTP_503_SERVICE_UNAVAILABLE, "pricing_unavailable", str(error)) from error
+        raise pricing_unavailable_error(error, where="admin subscription read") from error
     return AdminSubscriptionView(
         user=_admin_user_view(user, current.plan, user.id in await cas_verified_ids(session, [user.id])),
         subscription=ContractSubscriptionView(
