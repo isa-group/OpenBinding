@@ -87,6 +87,7 @@ from ..models.platform import (
 from .. import sponsor_proposals
 from ..access import public_read
 from ..repositories import jobs as job_repository
+from ..repositories import organizations as organization_repository
 from ..access.dependencies import get_current_user, session_dependency
 from bim_core.canonical import digest
 from ..artifacts import store_blob, version_content
@@ -170,7 +171,7 @@ async def list_organizations(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(session_dependency, scope="function"),
 ) -> list[OrganizationView]:
-    organizations = (await session.execute(select(Organization).order_by(Organization.name))).scalars().all()
+    organizations = await organization_repository.list_all(session)
     views = [await _org_view(session, organization, user) for organization in organizations]
     return [view for view in views if view.effective_role is not None]
 
@@ -399,9 +400,7 @@ async def delete_organization(
                             .where(Artifact.organization_id.in_(unique_descendants)).limit(1)):
         raise api_error(409, 'historical_references', 'Organizations with sealed library history cannot be deleted.')
     for oid in unique_descendants:
-        projects = (
-            await session.execute(select(Project).where(Project.organization_id == oid))
-        ).scalars().all()
+        projects = await organization_repository.list_projects(session, oid, ordered=False)
         for p in projects:
             await _cascade_delete_project(session, p)
         await session.execute(
@@ -443,21 +442,10 @@ async def list_organization_audit_events(
 ) -> dict:
     organization = await _required_org(session, org)
     await require_role(session, organization, user, OrganizationRole.ADMIN)
-    conditions = [AuditEvent.organization_id == organization.id]
-    if action:
-        conditions.append(AuditEvent.action == action)
-    total = int(
-        await session.scalar(select(func.count(AuditEvent.id)).where(*conditions)) or 0
+    total = await organization_repository.count_audit_events(session, organization.id, action=action)
+    rows = await organization_repository.list_audit_events(
+        session, organization.id, action=action, offset=offset, limit=limit
     )
-    rows = (
-        await session.execute(
-            select(AuditEvent)
-            .where(*conditions)
-            .order_by(AuditEvent.created_at.desc())
-            .offset(offset)
-            .limit(limit)
-        )
-    ).scalars().all()
     return {
         "events": [
             {
@@ -482,13 +470,7 @@ async def list_organization_audit_events(
 async def _member_views(
     session: AsyncSession, organization: Organization
 ) -> list[MemberView]:
-    rows = (
-        await session.execute(
-            select(OrganizationMembership)
-            .where(OrganizationMembership.organization_id == organization.id)
-            .order_by(OrganizationMembership.created_at)
-        )
-    ).scalars().all()
+    rows = await organization_repository.list_members(session, organization.id)
     members = []
     for row in rows:
         member = await session.get(User, row.user_id)
@@ -539,13 +521,7 @@ async def update_members_batch(
     # Serialize all structural mutations for this sponsor and lock the direct
     # membership rows that this batch will replace.
     await session.execute(select(User.id).where(User.id == sponsor.id).with_for_update())
-    existing_rows = (
-        await session.execute(
-            select(OrganizationMembership)
-            .where(OrganizationMembership.organization_id == organization.id)
-            .with_for_update()
-        )
-    ).scalars().all()
+    existing_rows = await organization_repository.lock_members(session, organization.id)
     existing = {row.user_id: row for row in existing_rows}
     final_roles = {member_id: row.role for member_id, row in existing.items()}
 
@@ -656,14 +632,7 @@ async def upsert_member(
     member_user = await session.get(User, member_id)
     if member_user is None or not member_user.is_active:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "User not found.")
-    existing = (
-        await session.execute(
-            select(OrganizationMembership).where(
-                OrganizationMembership.organization_id == organization.id,
-                OrganizationMembership.user_id == member_id,
-            )
-        )
-    ).scalars().first()
+    existing = await organization_repository.get_membership(session, organization.id, member_id)
     if _touches_owner(existing, payload.role) and not _may_manage_owners(actor_role, user):
         raise _owner_role_refusal(user_id=str(member_id))
     if existing is None:
@@ -687,13 +656,7 @@ async def upsert_member(
 async def _protect_last_owner(session: AsyncSession, membership: OrganizationMembership) -> None:
     if membership.role is not OrganizationRole.OWNER:
         return
-    owners = await session.scalar(
-        select(func.count(OrganizationMembership.id)).where(
-            OrganizationMembership.organization_id == membership.organization_id,
-            OrganizationMembership.role == OrganizationRole.OWNER,
-        )
-    )
-    if int(owners or 0) <= 1:
+    if await organization_repository.count_owners(session, membership.organization_id) <= 1:
         raise api_error(status.HTTP_409_CONFLICT, "last_owner", "The last owner cannot be removed.")
 
 
@@ -711,14 +674,7 @@ async def remove_member(
 ) -> None:
     organization = await _required_org(session, org)
     actor_role = await require_role(session, organization, user, OrganizationRole.ADMIN)
-    membership = (
-        await session.execute(
-            select(OrganizationMembership).where(
-                OrganizationMembership.organization_id == organization.id,
-                OrganizationMembership.user_id == member_id,
-            )
-        )
-    ).scalars().first()
+    membership = await organization_repository.get_membership(session, organization.id, member_id)
     if membership is None:
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Member not found.")
     if _touches_owner(membership, None) and not _may_manage_owners(actor_role, user):
@@ -774,9 +730,7 @@ async def accept_invitation(
     if len(parts) != 3 or parts[0] != "obi":
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Invitation is invalid.")
     prefix = f"obi_{parts[1]}"
-    invitation = (
-        await session.execute(select(OrganizationInvitation).where(OrganizationInvitation.token_prefix == prefix))
-    ).scalars().first()
+    invitation = await organization_repository.find_invitation_by_prefix(session, prefix)
     actual = hashlib.sha256(payload.token.encode()).hexdigest()
     if (
         invitation is None
@@ -787,14 +741,7 @@ async def accept_invitation(
     ):
         raise api_error(status.HTTP_404_NOT_FOUND, "not_found", "Invitation is invalid or expired.")
     organization = await session.get(Organization, invitation.organization_id)
-    membership = (
-        await session.execute(
-            select(OrganizationMembership).where(
-                OrganizationMembership.organization_id == organization.id,
-                OrganizationMembership.user_id == user.id,
-            )
-        )
-    ).scalars().first()
+    membership = await organization_repository.get_membership(session, organization.id, user.id)
     if membership is None:
         sponsor = await session.get(User, organization.billing_sponsor_user_id)
         if not await sponsor_has_member(session, sponsor.id, user.id):
@@ -835,7 +782,7 @@ async def list_projects(
 ) -> list[ProjectView]:
     organization = await _required_org(session, org)
     role = await require_role(session, organization, user, OrganizationRole.VIEWER)
-    rows = (await session.execute(select(Project).where(Project.organization_id == organization.id).order_by(Project.name))).scalars().all()
+    rows = await organization_repository.list_projects(session, organization.id)
     return [_project_view(row, role) for row in rows]
 
 
@@ -852,10 +799,7 @@ async def create_project(
     await enforce_sponsor_capacity(session, sponsor, "projects")
     if payload.visibility == "private":
         await enforce_sponsor_capacity(session, sponsor, "privateProjects")
-    duplicate = await session.scalar(
-        select(func.count(Project.id)).where(Project.organization_id == organization.id, Project.slug == payload.slug)
-    )
-    if duplicate:
+    if await organization_repository.project_slug_in_use(session, organization.id, payload.slug):
         raise api_error(status.HTTP_409_CONFLICT, "slug_conflict", "That project slug is in use.")
     project = Project(
         organization_id=organization.id, slug=payload.slug, name=payload.name,
