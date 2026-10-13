@@ -12,8 +12,9 @@ thing published on the host is `127.0.0.1:18100`.
 - `smoke_lab.py` gives **9/9** steps in 24.4 s with `DEMO_SPACE_ENABLED=false`.
   `plan_usage` is omitted (it needs SPACE, i.e. `--with-space`).
 
-**Since that run** two services were added (`artifacts-init` and `e2e`, see "What
-runs" and "Browser specs and visual QA inside the lab"). The observations above
+**Since that run** one service was added (`e2e`, see "What
+runs" and "Browser specs and visual QA inside the lab") and the volumes were renamed
+to `lab-pg-2` and `lab-artifacts-2` (see "Unprivileged containers"). The observations above
 are from before them; the new file, the images `frontend/Dockerfile.e2e` and the
 sequence below have been checked **statically only** (tests, `tsc`, lint), never
 built or started.
@@ -30,25 +31,24 @@ A static check also exists (`lab/tests/test_lab_compose.py`).
 
 | Service | Image / build | `mem_limit` | Notes |
 | --- | --- | --- | --- |
-| `postgres` | `postgres:16-alpine` | 384 MiB | volume `lab-pg`, `PGDATA=/var/lib/postgresql/data/pgdata`, `pg_isready` healthcheck, `user: 70:70` |
+| `postgres` | `postgres:16-alpine` | 384 MiB | volume `lab-pg-2`, `PGDATA=/var/lib/postgresql/data/pgdata`, `pg_isready` healthcheck, `user: 70:70` |
 | `redis` | `redis:7-alpine` | 96 MiB | volume `lab-redis`, AOF, `maxmemory 64mb` + `noeviction`, `user: 999:1000` |
 | `engine-random-search` | `engines/random-search/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
 | `engine-many-heuristic` | `engines/many-heuristic/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
 | `engine-evolutionary-heuristics` | `engines/evolutionary-heuristics/Dockerfile` | 320 MiB | JVM, `-Xmx192m` |
 | `engine-minizinc` | `engines/minizinc-csp/Dockerfile` | 192 MiB | Node, `--max-old-space-size=96` |
 | `bim-service` | `bim-toolchain`, `packages/bim-service/Dockerfile` | 256 MiB | port 8080, `/healthz`, tokens file in a tmpfs |
-| `artifacts-init` | `image: openbinding-lab-gateway:latest`, `pull_policy: never`, no build; `user: 0:0`, `entrypoint: []` | 16 MiB | one-shot, `restart: "no"`: `chown -R 10001:10001` on `lab-artifacts`; `gateway`, `worker` and `seed` wait for it with `service_completed_successfully` |
 | `gateway` | `openbinding-gateway/Dockerfile`, tagged `openbinding-lab-gateway:latest` (the only build of this image) | 640 MiB | `alembic upgrade head` through the image entrypoint, then uvicorn with `--proxy-headers` |
 | `worker` | `image: openbinding-lab-gateway:latest`, no build | 448 MiB | dramatiq, one process, 2 threads, queues `default` and `analysis` |
 | `web` | `frontend/Dockerfile`, target `lab` (config `frontend/nginx.lab.conf` baked in) | 96 MiB | nginx: production build of the frontend, `/api/` to the gateway without the prefix; **the only published port** |
 | `seed` | `image: openbinding-lab-gateway:latest`, no build | 384 MiB | `profiles: ["seed"]`; not started by `up` |
 | `e2e` | `frontend/Dockerfile.e2e` (`mcr.microsoft.com/playwright:v1.62.1-jammy`, the version `pnpm-lock.yaml` resolves for `@playwright/test`) | 576 MiB | `user: pwuser`, volume `lab-e2e` on `/results`; runs the live specs when `DEMO_E2E=1`, then stays alive; healthy when `/results/done` exists |
 
-**Memory sum of all `mem_limit`: 4048 MiB** (3.953 GiB; lab ceiling 4096 MiB,
-48 MiB to spare). It was 3456 MiB before `artifacts-init` (16) and `e2e` (576).
-It includes `seed`, which only runs on demand, and `artifacts-init`, which exits,
+**Memory sum of all `mem_limit`: 4032 MiB** (3.9375 GiB; lab ceiling 4096 MiB,
+64 MiB to spare). It was 3456 MiB before `e2e` (576).
+It includes `seed`, which only runs on demand,
 so the steady state is 3648 MiB. `test_lab_compose.py` and
-`test_container_hardening.py` recompute the sum and fail if it is not 4048 or
+`test_container_hardening.py` recompute the sum and fail if it is not 4032 or
 if this document does not state it. `mem_limit` bounds the container, not the
 page cache of the named volumes, and image builds are not limited by it.
 
@@ -59,15 +59,19 @@ that limits a compromised process. Consequences for the lab:
 
 - `/run/bim` is a tmpfs with `mode: 1023` (0o1777) in all three gateway-image services,
   so UID 10001 can write the token file (still created with `umask 077`).
-- `lab-artifacts` is writable by 10001 because `/var/lib/openbinding/artifacts` exists in
-  the image owned by 10001 and an empty named volume inherits that owner. A
-  `lab-artifacts` volume created by an earlier image (owned by root) keeps its owner,
-  and the controller has no access to volumes, so a one-shot service fixes it:
-  **`artifacts-init`** runs the gateway image as `user: 0:0` (root of a rootless
-  container, not root of the host) with `entrypoint: []` and
-  `chown -R 10001:10001 /var/lib/openbinding/artifacts`, mounts only `lab-artifacts`, has
-  no environment, no secret and no port, `restart: "no"`, 16 MiB. `gateway`, `worker` and
-  `seed` depend on it with `service_completed_successfully`.
+- `lab-artifacts-2` is writable by 10001 because `/var/lib/openbinding/artifacts` exists in
+  the image owned by 10001 and an empty named volume inherits that owner. The earlier
+  `lab-artifacts` volume was created by an image that ran as root and kept root as owner. A
+  chown one-shot service (`artifacts-init`) was tried and failed with `chown: changing
+  ownership ... Operation not permitted`: the supervisor drops every capability, so the
+  container has no `CAP_CHOWN`. It was removed, and the lab uses **new volumes**
+  instead: `lab-artifacts` became `lab-artifacts-2` and `lab-pg` became `lab-pg-2`
+  (`gateway`, `worker` and `seed` mount `lab-artifacts-2`; `postgres` mounts `lab-pg-2`).
+  No service runs as root and none depends on a one-shot.
+- **Orphaned volumes.** The old `lab-artifacts` and `lab-pg` are not deleted and no
+  service mounts them any more. The old synthetic database and its artifacts are kept
+  unused. Recreating the database on `lab-pg-2` means it starts empty: run `seed`
+  again to populate it.
 - The gateway `Dockerfile` installs `bim-core`, `bim-client` and `".[test]"` in **one**
   `uv pip install --system --no-sources` command. With uv pinned to 0.8.22 the resolver does
   not count an already installed `bim-core` as a candidate, so a separate earlier install
@@ -75,22 +79,8 @@ that limits a compromised process. Consequences for the lab:
   unsatisfiable". As direct requirements in the same command, the local packages satisfy
   the `bim-core>=0.1,<0.2` dependency by name. Keep them together
   (`test_the_local_bim_packages_install_in_the_same_command_as_the_gateway`).
-  - It has `image:` and `pull_policy: never`, no `build`: `up --build` builds `gateway`
-    first (it tags `openbinding-lab-gateway:latest`) and compose creates containers after the
-    builds, the same way `worker` already relies on that tag. If a clean `up` ever says the
-    image is missing for `artifacts-init`, give it the same `build` block as `gateway`
-    (and relax `test_gateway_worker_and_seed_share_one_always_rebuilt_image`).
-  - The supervisor drops every capability, and `chown` to another owner needs `CAP_CHOWN`.
-    So the command is `chown -R ... && echo ... || { [ "$(stat -c %u dir)" = 10001 ] && echo ...; }`:
-    on a **new** volume (already owned by 10001 through the image directory) it succeeds even
-    if the `chown` is refused; on a **stale root-owned** volume with no `CAP_CHOWN` it exits 1
-    and, because the gateway waits for it, `up` fails. Then `logs artifacts-init` shows the
-    `chown` error: the only remedies are to remove that volume (`down` plus an explicit
-    volume removal, losing its artifacts) or to let that service have `CAP_CHOWN`.
-  - `up --wait` and a container that exits 0: if the compose version treats `artifacts-init`
-    exiting as a failure of `--wait`, that is the first thing to look at in `status`.
-  - `test_container_hardening.py` keeps `artifacts-init` as the single exception to "no
-    service runs as root" and checks that its command does nothing else.
+  `test_container_hardening.py` requires that no service runs as root, that
+  `artifacts-init` does not exist, and that the image directory is owned by 10001.
 - `bim-service` has `cpus: 1.5` and `pids_limit: 256` in addition to `mem_limit`.
   These are plain Compose service attributes; `mem_limit` is unchanged, so the sum
   above is too. If the `lab_compose` validator of the controller rejects either key,
@@ -229,7 +219,7 @@ gateway now refuses this flag (and `FEDERATION_REQUIRE_HTTPS=false`) when
    `DEMO_SEED_ARGS`, repeat `up` with the new values and then run `seed`.
 4. `status` / `logs`: look at `web`, `gateway`, `worker` first.
 5. `down` removes containers and the network and **keeps the named volumes**
-   (`lab-pg`, `lab-redis`, `lab-artifacts`), so data survives a restart. Only
+   (`lab-pg-2`, `lab-redis`, `lab-artifacts-2`), so data survives a restart. Only
    an explicit volume removal deletes it.
 
 ### Seeding
@@ -491,10 +481,11 @@ diagnostic guide, not a list of verified results.
    (`proxy_and_spa`) requests `/healthz` on `http://web:8080` from the `seed`
    container, which tells a broken nginx from a broken probe: if it passes, the
    server is fine and only the probe inside `web` is at fault.
-3. **Artifacts.** `lab-artifacts` is written by `gateway`, `worker` and
+3. **Artifacts.** `lab-artifacts-2` is written by `gateway`, `worker` and
    `seed`, which run as 10001 (see "Unprivileged containers"); check that a job
-   produces a downloadable artifact. `artifacts-init` makes the volume theirs
-   before they start (`logs artifacts-init`). `docker-entrypoint.sh` does no
+   produces a downloadable artifact. The volume is theirs because it is new and
+   inherits the owner of the image directory (there is no chown service: the
+   container has no `CAP_CHOWN`). `docker-entrypoint.sh` does no
    `chown`. The seed reads the bind-mounted `tools/` as "other", so those files
    must be world-readable (the default).
 4. **Tokens file.** `logs bim-service`: `bearer authentication enabled with 1
@@ -519,7 +510,7 @@ diagnostic guide, not a list of verified results.
   `entrypoint: []` on `worker`. The `web` failure on the way was the empty
   configuration bind mount (now baked into the `lab` target).
 - Not executed: Playwright against the live lab (the `e2e` service has never been built
-  or started), the mobile/desktop visual check, the `artifacts-init` chown, and SPACE
+  or started), the mobile/desktop visual check, the ownership of the new volumes, and SPACE
   enabled with real
   contracts (SPACE has no service or contracts and rejects the pricing
   `createdAt` format; see "SPACE status"). `DEMO_SPACE_ENABLED=false` gives no
@@ -534,7 +525,7 @@ diagnostic guide, not a list of verified results.
   possible peers.
 - `engine-minizinc` at 192 MiB runs Node plus MiniZinc and its solver as child
   processes; a large model may not fit. Raising it means lowering something
-  else to stay under 4096 MiB (the current total, 4048 MiB, leaves 48 MiB).
+  else to stay under 4096 MiB (the current total, 4032 MiB, leaves 64 MiB).
 - A single worker serves both queues with two threads; analysis jobs and solve
   jobs can delay each other.
 - `gateway`, `worker` and `seed` share one image, `openbinding-lab-gateway:latest`,

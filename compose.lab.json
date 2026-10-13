@@ -18,7 +18,7 @@
       "volumes": [
         {
           "type": "volume",
-          "source": "lab-pg",
+          "source": "lab-pg-2",
           "target": "/var/lib/postgresql/data"
         }
       ],
@@ -159,26 +159,6 @@
         "start_period": "20s"
       }
     },
-    "artifacts-init": {
-      "image": "openbinding-lab-gateway:latest",
-      "pull_policy": "never",
-      "user": "0:0",
-      "entrypoint": [],
-      "command": [
-        "sh",
-        "-c",
-        "chown -R 10001:10001 /var/lib/openbinding/artifacts && echo 'artifacts-init: lab-artifacts is owned by 10001' || { [ \"$$(stat -c %u /var/lib/openbinding/artifacts)\" = 10001 ] && echo 'artifacts-init: chown not permitted, but lab-artifacts is already owned by 10001'; }"
-      ],
-      "volumes": [
-        {
-          "type": "volume",
-          "source": "lab-artifacts",
-          "target": "/var/lib/openbinding/artifacts"
-        }
-      ],
-      "restart": "no",
-      "mem_limit": "16m"
-    },
     "gateway": {
       "build": {
         "context": ".",
@@ -230,7 +210,7 @@
       "volumes": [
         {
           "type": "volume",
-          "source": "lab-artifacts",
+          "source": "lab-artifacts-2",
           "target": "/var/lib/openbinding/artifacts"
         },
         {
@@ -242,7 +222,6 @@
         }
       ],
       "depends_on": {
-        "artifacts-init": {"condition": "service_completed_successfully"},
         "postgres": {"condition": "service_healthy"},
         "redis": {"condition": "service_healthy"},
         "bim-service": {"condition": "service_healthy"},
@@ -302,7 +281,7 @@
       "volumes": [
         {
           "type": "volume",
-          "source": "lab-artifacts",
+          "source": "lab-artifacts-2",
           "target": "/var/lib/openbinding/artifacts"
         },
         {
@@ -314,7 +293,6 @@
         }
       ],
       "depends_on": {
-        "artifacts-init": {"condition": "service_completed_successfully"},
         "gateway": {"condition": "service_healthy"},
         "redis": {"condition": "service_healthy"},
         "bim-service": {"condition": "service_healthy"}
@@ -431,7 +409,7 @@
         },
         {
           "type": "volume",
-          "source": "lab-artifacts",
+          "source": "lab-artifacts-2",
           "target": "/var/lib/openbinding/artifacts"
         },
         {
@@ -443,7 +421,6 @@
         }
       ],
       "depends_on": {
-        "artifacts-init": {"condition": "service_completed_successfully"},
         "bim-service": {"condition": "service_healthy"}
       },
       "mem_limit": "384m"
@@ -482,9 +459,9 @@
     }
   },
   "volumes": {
-    "lab-pg": {},
+    "lab-pg-2": {},
     "lab-redis": {},
-    "lab-artifacts": {},
+    "lab-artifacts-2": {},
     "lab-e2e": {}
   }
 }

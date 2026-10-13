@@ -20,10 +20,9 @@ COMPOSE = REPO_ROOT / "compose.lab.json"
 IMAGE_USER = 10001
 ARTIFACT_DIR = "/var/lib/openbinding/artifacts"
 SHARED_IMAGE = "openbinding-lab-gateway:latest"
-ARTIFACTS_INIT = "artifacts-init"
 MAX_MIB = 4096
-# The sum of every mem_limit of compose.lab.json, seed included (docs/DEMO.md states it): 3456 before artifacts-init (16) and e2e (576).
-EXPECTED_MIB = 4048
+# The sum of every mem_limit of compose.lab.json, seed included (docs/DEMO.md states it): 3456 before e2e (576).
+EXPECTED_MIB = 4032
 S_IWOTH = 0o002
 
 # A reference to a variable the supervisor supplies: nothing else may stand where a secret goes.
@@ -190,15 +189,15 @@ def test_the_entrypoint_needs_no_privileges() -> None:
 
 
 def _gateway_image_services(services: dict) -> dict:
-    """The services that run the application: gateway, worker and seed (artifacts-init only chowns a volume, see below)."""
+    """The services that run the application: gateway, worker and seed."""
     found = {
         name: service
         for name, service in services.items()
         if service.get("image") == SHARED_IMAGE
         or service.get("build", {}).get("dockerfile") == "openbinding-gateway/Dockerfile"
     }
-    assert set(found) == {"gateway", "worker", "seed", ARTIFACTS_INIT}, sorted(found)
-    return {name: service for name, service in found.items() if name != ARTIFACTS_INIT}
+    assert set(found) == {"gateway", "worker", "seed"}, sorted(found)
+    return found
 
 
 def test_the_run_bim_tmpfs_is_writable_by_the_unprivileged_user(services: dict) -> None:
@@ -215,38 +214,30 @@ def test_the_run_bim_tmpfs_is_writable_by_the_unprivileged_user(services: dict) 
 def test_the_artifact_volume_is_the_one_the_image_directory_seeds(services: dict) -> None:
     for name, service in _gateway_image_services(services).items():
         mounts = [m for m in service["volumes"] if m.get("target") == ARTIFACT_DIR]
-        assert mounts and all(m["type"] == "volume" for m in mounts), name
+        assert mounts and all(m["type"] == "volume" and m["source"] == "lab-artifacts-2" for m in mounts), name
         assert service["environment"]["ARTIFACT_ROOT"] == ARTIFACT_DIR, name
-    assert "lab-artifacts" in json.loads(COMPOSE.read_text(encoding="utf-8"))["volumes"]
+    volumes = json.loads(COMPOSE.read_text(encoding="utf-8"))["volumes"]
+    assert "lab-artifacts-2" in volumes and "lab-pg-2" in volumes
+    assert "lab-artifacts" not in volumes and "lab-pg" not in volumes
 
 
 def test_no_service_asks_for_root_or_extra_privileges(services: dict) -> None:
     for name, service in services.items():
         user = str(service.get("user", ""))
-        if user and name != ARTIFACTS_INIT:
+        if user:
             assert user.split(":")[0] not in {"0", "root"}, name
         for key in ("privileged", "cap_add", "pid", "ipc", "devices"):
             assert key not in service, f"{name} uses {key}"
 
 
-def test_the_only_root_service_is_the_artifact_volume_chown(services: dict) -> None:
-    # The one exception to "no root": a lab-artifacts volume created by the earlier image (root) keeps its owner, and the application
-    # now runs as 10001, so a one-shot container fixes the owner before the gateway, the worker and the seed start. Root of a
-    # rootless container is not root on the host; the exception is kept as narrow as it can be.
+def test_no_service_runs_as_root_and_nothing_chowns_the_artifact_volume(services: dict) -> None:
+    # The container has no CAP_CHOWN, so a chown one-shot cannot work: the fresh lab-artifacts-2 volume inherits the
+    # owner (10001) of the image directory instead.
     roots = [name for name, service in services.items() if str(service.get("user", "")).split(":")[0] in {"0", "root"}]
-    assert roots == [ARTIFACTS_INIT]
-    init = services[ARTIFACTS_INIT]
-    assert init["image"] == SHARED_IMAGE and init["restart"] == "no" and _mib(init["mem_limit"]) <= 16
-    assert init["entrypoint"] == []
-    assert init["volumes"] == [{"type": "volume", "source": "lab-artifacts", "target": ARTIFACT_DIR}]
-    # Nothing but the chown (and a check of the owner when the chown is not permitted).
-    command = " ".join(init["command"])
-    assert f"chown -R {IMAGE_USER}:{IMAGE_USER} {ARTIFACT_DIR}" in command
-    assert not re.search(r"\b(?:chmod|rm|curl|python|pip|apt|sudo|su)\b", command)
-    for key in ("environment", "ports", "depends_on", "privileged", "cap_add"):
-        assert key not in init, key
-    for name in ("gateway", "worker", "seed"):
-        assert services[name]["depends_on"][ARTIFACTS_INIT] == {"condition": "service_completed_successfully"}, name
+    assert roots == []
+    assert "artifacts-init" not in services
+    for name, service in services.items():
+        assert "artifacts-init" not in (service.get("depends_on") or {}), name
 
 
 def test_the_memory_limits_stay_within_four_gib(services: dict) -> None:

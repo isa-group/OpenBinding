@@ -34,7 +34,7 @@ ALLOWED_BUILD_KEYS = {"context", "dockerfile", "args", "target"}
 ALLOWED_MOUNT_KEYS = {"type", "source", "target", "tmpfs"}
 MAX_SERVICES = 15
 MAX_MIB = 4096  # the lab ceiling; the sum includes `seed`, which only runs on demand
-EXPECTED_MIB = 4048  # 3456 before artifacts-init (16) and e2e (576); docs/DEMO.md states it
+EXPECTED_MIB = 4032  # 3456 before e2e (576); docs/DEMO.md states it
 ARTIFACT_DIR = "/var/lib/openbinding/artifacts"
 LOCK = ROOT / "frontend" / "pnpm-lock.yaml"
 DOCKERFILE_E2E = ROOT / "frontend" / "Dockerfile.e2e"
@@ -319,12 +319,9 @@ def test_gateway_worker_and_seed_share_one_always_rebuilt_image(services):
     # image.  So only the gateway builds, and worker and seed use the image it tags.
     image = "openbinding-lab-gateway:latest"
     assert "build" in services["gateway"]
-    for name in ("gateway", "worker", "seed", "artifacts-init"):
+    for name in ("gateway", "worker", "seed"):
         assert services[name]["image"] == image, name
     assert "build" not in services["worker"] and "build" not in services["seed"]
-    # artifacts-init takes the image the gateway builds in the same `up`; it must never reach for a registry.
-    assert "build" not in services["artifacts-init"]
-    assert services["artifacts-init"]["pull_policy"] == "never"
     assert services["worker"]["depends_on"]["gateway"]["condition"] == "service_healthy"
 
 
@@ -558,12 +555,12 @@ def test_gateway_waits_for_what_it_uses(services):
     depends = services["gateway"]["depends_on"]
     assert {"postgres", "redis", "bim-service"} <= set(depends)
     assert {n for n in services if n.startswith("engine-")} <= set(depends)
-    assert set(services["worker"]["depends_on"]) == {"artifacts-init", "gateway", "redis", "bim-service"}
+    assert set(services["worker"]["depends_on"]) == {"gateway", "redis", "bim-service"}
     assert set(services["web"]["depends_on"]) == {"gateway"}
 
 
 def test_named_volumes_back_the_stateful_services(services):
-    assert {"type": "volume", "source": "lab-pg", "target": "/var/lib/postgresql/data"} in services["postgres"]["volumes"]
+    assert {"type": "volume", "source": "lab-pg-2", "target": "/var/lib/postgresql/data"} in services["postgres"]["volumes"]
     assert {"type": "volume", "source": "lab-redis", "target": "/data"} in services["redis"]["volumes"]
     assert services["postgres"]["image"] == "postgres:16-alpine"
     assert services["redis"]["image"] == "redis:7-alpine"
@@ -574,7 +571,7 @@ def test_named_volumes_back_the_stateful_services(services):
 # -- health and ordering -------------------------------------------------------------------------
 
 
-ONE_SHOT = {"seed", "artifacts-init"}  # they run to completion: no healthcheck
+ONE_SHOT = {"seed"}  # it runs to completion: no healthcheck
 
 
 def test_long_running_services_have_healthchecks(services):
@@ -589,34 +586,22 @@ def test_depends_on_points_to_existing_services_with_healthchecks(services):
         for dependency, rule in (service.get("depends_on") or {}).items():
             assert dependency in services, (name, dependency)
             assert "profiles" not in services[dependency], (name, dependency)
-            if dependency == "artifacts-init":
-                # The one dependency that is waited for to finish rather than to be healthy.
-                assert rule == {"condition": "service_completed_successfully"}, (name, dependency)
-                assert "healthcheck" not in services[dependency], (name, dependency)
-                continue
             assert rule == {"condition": "service_healthy"}, (name, dependency)
             assert "healthcheck" in services[dependency], (name, dependency)
 
 
-# -- artifacts-init and e2e -----------------------------------------------------------------------
+# -- artifact volume and e2e ----------------------------------------------------------------------
 
 
-def test_artifacts_init_chowns_the_artifact_volume_before_its_users_start(services):
-    # A lab-artifacts volume created by the earlier (root) image keeps its owner, and the gateway now runs as 10001.
-    init = services["artifacts-init"]
-    assert "profiles" not in init and init["restart"] == "no" and init["mem_limit"] == "16m"
-    assert init["user"] == "0:0" and init["entrypoint"] == []
-    assert init["command"][:2] == ["sh", "-c"]
-    assert f"chown -R 10001:10001 {ARTIFACT_DIR}" in init["command"][2]
-    # Only that volume, no ports, no environment, no secret: root in the container touches nothing else.
-    assert init["volumes"] == [{"type": "volume", "source": "lab-artifacts", "target": ARTIFACT_DIR}]
-    assert not {"ports", "environment", "depends_on", "healthcheck", "network_mode"} & set(init)
+def test_there_is_no_artifacts_init_and_the_app_mounts_the_new_artifact_volume(services):
+    # The container has no CAP_CHOWN: a fresh lab-artifacts-2 volume inherits the 10001 owner of the image directory.
+    assert "artifacts-init" not in services
+    assert not [n for n, s in services.items() if "artifacts-init" in (s.get("depends_on") or {})]
     for name in ("gateway", "worker", "seed"):
-        assert services[name]["depends_on"]["artifacts-init"] == {"condition": "service_completed_successfully"}, name
-    others = [n for n, s in services.items() if "artifacts-init" in (s.get("depends_on") or {})]
-    assert sorted(others) == ["gateway", "seed", "worker"]
-    # Without CAP_CHOWN a fresh volume (already owned by 10001 through the image directory) must still pass.
-    assert "stat -c %u" in init["command"][2]
+        assert {"type": "volume", "source": "lab-artifacts-2", "target": ARTIFACT_DIR} in services[name]["volumes"], name
+    volumes = json.loads(COMPOSE.read_text(encoding="utf-8"))["volumes"]
+    assert "lab-artifacts-2" in volumes and "lab-pg-2" in volumes
+    assert "lab-artifacts" not in volumes and "lab-pg" not in volumes
 
 
 def test_e2e_runs_the_live_specs_unprivileged_and_stays_alive_for_up_wait(services):
