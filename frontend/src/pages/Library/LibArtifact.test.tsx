@@ -105,7 +105,8 @@ describe('Library item', () => {
     expect(lib.content).toHaveBeenCalledWith(catalog.id, v3.id);
     expect(lib.createDraft).toHaveBeenCalledWith(catalog.id, { content: catalogContent(), media_type: 'application/json', contracts: [], dependencies: [] }, v3.id);
     expect(screen.getByRole('link', { name: 'Open the editor' })).toHaveAttribute('href', `${root}/drafts/draft-9`);
-    expect(screen.getByRole('tab', { name: /^Drafts/ })).toHaveAttribute('aria-selected', 'true');
+    // The tab follows the address, and the router commits that navigation in a transition: it can land a render after the toast.
+    expect(await screen.findByRole('tab', { name: /^Drafts/, selected: true })).toBeInTheDocument();
   });
 
   it('starts a blank draft shaped for its kind', async () => {
