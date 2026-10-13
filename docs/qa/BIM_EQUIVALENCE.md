@@ -173,6 +173,31 @@ Order-dependent failure of `test_the_goldens_cover_exactly_the_discovered_corpus
 Not verified: the workflows on GitHub (edited only), Python 3.12, `bim-service` and `bim-client` suites (outside this
 change), the Docker image.
 
+## A1: equivalencia en tests de bim-core
+
+Phase A1 pins the directory / raw ZIP / canonical ZIP equivalence with tests that belong to `bim-core`, without
+touching its behaviour:
+
+- `bim-toolchain/packages/bim-core/tests/test_zip_dir_equivalence_corpus.py`: for the 82 packages of
+  `golden/bim_baseline/corpus.json` (the same set `tools/baseline_core.py` `package_directories` discovers, hidden
+  directories skipped; a test compares both), the directory against (a) the raw ZIP: 82/82 equal in `irDigest`,
+  `packageDigest`, canonical IR, semantic digest and list order; (b) the canonical ZIP (`to_zip()`): the 64 known cases
+  are `xfail(strict=True, raises=AssertionError)` with the cause (order of the members of JSON objects), the other 18
+  must be equal. Its `normalized()` helper is a copy of `observe()` of the gateway test (which has no `normalized`).
+- `bim-toolchain/packages/bim-core/tests/data/zip_divergent_packages.json`: the 64 divergent packages. A gate test
+  requires the measured set to be exactly that file; if the compiler changes and the set changes, the test fails and
+  the file is not updated by itself (`BIM_WRITE_DIVERGENT=1` rewrites it for a reviewed change).
+- Without the corpus the tests skip with the reason; with `BIM_REQUIRE_CORPUS=1` they fail.
+
+**No digest was moved**: nothing in `bim_core/src`, no golden and no digest changed in A1.
+
+**Still the owner's decision**: phase A2 (a public function and an `irOrderDigest`) and the MAJOR phase B (an `irOrder`
+option). Neither is started.
+
+**Warning before A2/B**: adding `irOrderDigest` in `bim_core/src` moves `compilerDigest` and every `irDigest`. The
+gateway rejects with `contract_not_installed` a stored IR whose exact profile is not installed (`compiler.py` ~3583), so
+any publication of `bim-core` requires first checking how stored IRs are re-evaluated.
+
 ## Estado de la decisión
 
 1. El ZIP crudo del gateway (`zip_directory`) es equivalente al directorio en los 82 paquetes.
